@@ -4,11 +4,11 @@
 # License: MIT
 
 from collections.abc import Iterable
-from typing import cast
 
 from ....errors import IncompatibleLawsError
 from ....types import FormKind
 from .._base import BasePass
+from .._compilation import Compilation
 from .._forms import _COMBINED, _FORMS
 from .._laws import _FORMLESS_LAWS
 
@@ -27,7 +27,7 @@ class FormPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Infer the form of the problem."""
         compilation = self.compilation_
-        compilation.form = self._infer_form(cast('dict[str, set[type]]', compilation.kinds).values())
+        compilation.form = self._infer_form(Compilation._required(compilation.kinds, 'kinds').values())
 
     @staticmethod
     def _infer_form(owners: Iterable[set[type]]) -> FormKind:

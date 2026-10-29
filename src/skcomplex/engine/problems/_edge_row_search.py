@@ -34,13 +34,14 @@ class EdgeRowSearch(BaseSearch):
             Whether a node is its own neighbour.
     """
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         source: EntrySpec,
         target: EntrySpec,
         active: EntrySpec,
         size: int,
         directed: bool = False,
+        *,
         center: bool = False,
     ) -> None:
         self.source = source
@@ -50,9 +51,10 @@ class EdgeRowSearch(BaseSearch):
         self.directed = directed
         self.center = center
 
-    def _run(self, inputs: RunStateSpec) -> EdgesFound:
+    def _run(self, inputs: RunStateSpec | None) -> EdgesFound:
         """Return the neighbours of every node along the active edges."""
-        q = inputs.p
+        state = self._state_of(inputs)
+        q = state.p
         keep = self.active.view(q)[:, 0] > ACTIVE_THRESHOLD
         edges = np.flatnonzero(keep).astype(np.intp)
         sources = self.source.view(q)[keep, 0].astype(np.intp)

@@ -95,12 +95,12 @@ class PointsVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _prepare(self, problem: BaseProblemSpec) -> None:
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Keep the element, forget the trail, the bounds, and the color range of earlier runs, and set the views."""
         self.history_: deque[npt.NDArray[np.float64]] = deque(maxlen=max(self.trail, 1))
         self.bounds_: tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]] | None = None
         self.span_: tuple[float, float] | None = None
-        super()._prepare(problem)
+        super()._prepare(context)
 
     def _point_colors(self, element: CompiledElementSpec, frame: FrameSpec, count: int) -> npt.NDArray[np.uint8] | None:
         """Return the colors of the points over the given range, or over a range widened to every value so far."""

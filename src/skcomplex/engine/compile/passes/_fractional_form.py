@@ -5,17 +5,15 @@
 
 from __future__ import annotations
 
-from typing import cast
-
 from ....core.spaces import ContinuousTime
-from ....core.specs import CensusRecordSpec, CensusSpec, NodeSpec
+from ....core.specs import CensusRecordSpec, NodeSpec
 from ....core.system import System
 from ....errors import BackendError, SolverError
 from ....specs import FractionalStateSpec, IssueSpec
 from ....types import FormKind, OrderKind, VariableKind
 from ..._utils import declarations_of
-from ...problems import DeclarationsSpec
-from .._base import BasePass
+from ...backends import BaseBackend
+from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
 from .._forms import _FORMS
 
@@ -88,20 +86,24 @@ class FractionalFormPass(BasePass):
     @staticmethod
     def _owned_fractional(compilation: Compilation) -> list[FractionalStateSpec]:
         """Return the fractional states of the owners of a compilation that its layout declares, leaving out agents."""
-        declared = {entry.name for entry in cast('DeclarationsSpec', compilation.layout).states}
+        declared = {entry.name for entry in Compilation._required(compilation.layout, 'layout').states}
         owners = compilation.owners
         return [
             item
-            for item in FractionalFormPass._fractional_states(cast('list[NodeSpec]', compilation.nodes))
+            for item in FractionalFormPass._fractional_states(Compilation._required(compilation.nodes, 'nodes'))
             if item.name in declared and (owners is None or item.path in owners)
         ]
 
     @staticmethod
-    def _support_issues(states: list[FractionalStateSpec], solver: object, backend: object) -> list[IssueSpec]:
+    def _support_issues(
+        states: list[FractionalStateSpec],
+        solver: object,
+        backend: BaseBackend | None,
+    ) -> list[IssueSpec]:
         """Return the fractional states that the solver or the backend passed does not integrate."""
         issues = []
         for item in states:
-            if solver is not None and OrderKind.FRACTIONAL not in type(solver)._get_support().orders:
+            if solver is not None and OrderKind.FRACTIONAL not in BaseCompiler._support_of(type(solver)).orders:
                 message = (
                     f'The solver {type(solver).__name__} does not integrate {item.name}, a state of order {item.order}.'
                 )
@@ -147,7 +149,7 @@ class FractionalFormPass(BasePass):
             issues:
                 The issues.
         """
-        states = FractionalFormPass._fractional_states(cast('list[NodeSpec]', compilation.nodes))
+        states = FractionalFormPass._fractional_states(Compilation._required(compilation.nodes, 'nodes'))
         if not states:
             return []
         times = FractionalFormPass._declared_times(compilation.system)
@@ -166,5 +168,5 @@ class FractionalFormPass(BasePass):
                 )
                 fix = 'Declare continuous time, the only time in which fractional derivatives are defined.'
                 issues.append(IssueSpec('fractional-time', item.path, message, fix))
-        issues += FractionalFormPass._law_issues(states, cast('CensusSpec', compilation.census).records)
+        issues += FractionalFormPass._law_issues(states, Compilation._required(compilation.census, 'census').records)
         return issues + FractionalFormPass._support_issues(states, compilation.solver, compilation.backend)

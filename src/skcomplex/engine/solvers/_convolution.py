@@ -143,7 +143,7 @@ class ConvolutionSolver(CaputoSolver):
         """Advance the displacements by one explicit step."""
         step = self._step_index + 1
         time = self._origin + self._step_index * self.dt
-        drift = self.problem_.drift(time, self._state, p)  # type: ignore[misc]
+        drift = self._drift()(time, self._state, p)
         displacement = self._scale * drift - self._history_sum(step)
         self._state = self._bounded(time + self.dt, self._initial + displacement, p)
         self._rows.append(self._state - self._initial)

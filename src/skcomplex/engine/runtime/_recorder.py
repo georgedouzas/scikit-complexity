@@ -5,7 +5,7 @@
 
 import numpy as np
 
-from ...errors import SimulationError
+from ...errors import SimulationError, ValidationError
 from ..problems import BaseProblemSpec, FrameSpec
 from ._base import BaseObserver
 from ._trajectories import Trajectory
@@ -31,9 +31,21 @@ class RecorderObserver(BaseObserver):
         3
     """
 
-    def _prepare(self, problem: BaseProblemSpec) -> None:
-        """Keep the problem and forget earlier frames."""
-        self.problem_ = problem
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
+        """Keep the problem and forget earlier frames.
+
+        Args:
+            context:
+                The compiled problem the run advances.
+
+        Raises:
+            ValidationError:
+                No problem is passed.
+        """
+        if context is None:
+            error_msg = 'A recorder prepares on a compiled problem. Pass the problem to `prepare`.'
+            raise ValidationError(error_msg)
+        self.problem_ = context
         self.frames_: list[FrameSpec] = []
 
     def _run(self, frame: FrameSpec | None = None) -> None:

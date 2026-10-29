@@ -6,7 +6,7 @@
 import copy
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any, Self, cast
+from typing import Annotated, Self
 
 import numpy as np
 import numpy.typing as npt
@@ -20,7 +20,7 @@ from ...errors import ValidationError
 from ...specs import EntrySpec, ObservableSpec, ReadSpec, StateSpec
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...specs._recorded_spec import _RecordedSpec
-from ...types import AgentsOf, Array, FormKind, Getter, ReadKind, VariableKind
+from ...types import AgentsOf, Array, FormKind, Getter, Indices, ReadKind, VariableKind
 from .._utils import declarations_of, symbol, symbols_of
 from ..problems import (
     BaseProblemSpec,
@@ -31,6 +31,7 @@ from ..problems import (
     ReferenceSpec,
 )
 from ..problems._quantum_kernel import QuantumKernel
+from ..problems._quantum_lowering import QuantumLowering
 from ..problems._reduction_kernel import ReductionKernel
 from ._base import BaseCompiler
 from ._complex import _is_zero, _split_complex
@@ -165,9 +166,11 @@ def _held_observables(system: System, nodes: list[NodeSpec]) -> set[str]:
 
 def _check_held_reads(problem: ProblemSpec, held: list[str]) -> None:
     """Raise an error when a law reads an observable that cannot be lowered from the partition that computes it."""
+    if problem.system is None:
+        return
     groups = {
         ObservableEvaluator._join(scope, observable.label): ObservableEvaluator._join(scope, observable.group or '')
-        for scope, observable in BaseCompiler._observables_of(problem.system)  # type: ignore[arg-type]
+        for scope, observable in BaseCompiler._observables_of(problem.system)
     }
     for path in held:
         readers = _readers_of(problem, path)
@@ -277,14 +280,14 @@ class ObservableEvaluator:
     def _compile(
         self,
         path: str,
-        expression: Any,  # noqa: ANN401
+        expression: object,
         observables: Mapping[Expression, str],
-        members: Mapping[Expression, Callable[[Array, Array], Any]],
+        members: Mapping[Expression, Callable[[Array, Array], Array]],
     ) -> Getter:
         """Return a getter that evaluates an expression from scalars, observables, and member arrays."""
         expression = self._joined_complex(expression, f'observable {path}')
         arguments = sorted(symbols_of([expression]) - {self.problem.time}, key=str)
-        readers: list[Callable[[Array, Array, Mapping[str, Any]], Any]] = []
+        readers: list[Callable[[Array, Array, Mapping[str, object]], object]] = []
         for item in arguments:
             if item in observables:
                 readers.append(self._from_done(observables[item]))
@@ -300,17 +303,23 @@ class ObservableEvaluator:
                 )
                 raise ValidationError(error_msg)
         function = ExpressionPrinter(time=self.problem.time, compiled=True).check().prepare(arguments).run([expression])
+        if not callable(function):
+            error_msg = f'A compiled printer returns a function, not a {type(function).__name__}.'
+            raise TypeError(error_msg)
 
-        def get(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
-            value = function(t, *(read(x, p, done) for read in readers))[0]
-            value = np.real_if_close(value)
+        def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
+            values = function(t, *(read(x, p, done) for read in readers))
+            if not isinstance(values, list):
+                error_msg = f'A compiled function returns a list of values, not a {type(values).__name__}.'
+                raise TypeError(error_msg)
+            value = np.real_if_close(values[0])
             return float(value) if np.ndim(value) == 0 and np.isrealobj(value) else value
 
         return get
 
     def _recorded_getter(self, recorded: _RecordedSpec) -> Getter:
         """Return the getter of a flow or an objective, one value for a single component and one per group member."""
-        members: dict[Expression, Callable[[Array, Array], Any]] = {}
+        members: dict[Expression, Callable[[Array, Array], Array]] = {}
         for item in symbols_of([recorded.expression]) - {self.problem.time}:
             reference = recorded.references.get(item)
             if reference is None or reference.source not in {ReadKind.SINGLE, ReadKind.MEMBER}:
@@ -320,7 +329,7 @@ class ObservableEvaluator:
                 )
                 raise ValidationError(error_msg)
             entry = reference.entry
-            indices: Any = entry.start + reference.column
+            indices: int | Indices = entry.start + reference.column
             if reference.entry.members is not None:
                 indices = entry.start + np.arange(entry.members or 1) * entry.columns + reference.column
             members[item] = self._from_vector(reference.is_state, indices)
@@ -344,8 +353,8 @@ class ObservableEvaluator:
     def _read_delays(
         self,
         path: str,
-        expression: Any,  # noqa: ANN401
-    ) -> tuple[Any, dict[Expression, Callable[[Array, Array], Any]]]:
+        expression: object,
+    ) -> tuple[object, dict[Expression, Callable[[Array, Array], Array]]]:
         """Return an expression with the delays of the laws read from their hidden states, and their readers."""
         transfer_network = self.problem.transfer_network
         if transfer_network is None or not isinstance(expression, Expression):
@@ -368,9 +377,26 @@ class ObservableEvaluator:
         }
         return expression, stages
 
-    def _entry(self, name: str) -> Any:  # noqa: ANN401
-        """Return the entry of a state or parameter by name, or `None`."""
-        return self._entry_of(self.problem, name)
+    def _entry(self, name: str) -> EntrySpec:
+        """Return the entry of a state or parameter by name.
+
+        Args:
+            name:
+                The dotted name of the state or parameter.
+
+        Returns:
+            entry:
+                The entry.
+
+        Raises:
+            ValidationError:
+                The problem has no state or parameter of that name.
+        """
+        entry = self._entry_of(self.problem, name)
+        if entry is None:
+            error_msg = f'The problem has no state or parameter named {name!r}.'
+            raise ValidationError(error_msg)
+        return entry
 
     def _reduction_getter(self, scope: str, path: str, observable: ObservableSpec) -> Getter:
         """Return the getter of a reduction over a group of elements or agents."""
@@ -387,7 +413,7 @@ class ObservableEvaluator:
             is_state = self.problem.states.has(name)
             layout = self.problem.states if is_state else self.problem.parameters
 
-            def read_variable(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+            def read_variable(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
                 del t, done
                 values = np.asarray(layout.read(x if is_state else p, name))
                 return ReductionKernel._reduce_values(
@@ -416,14 +442,21 @@ class ObservableEvaluator:
         expression = observable.expression(namespace) if callable(observable.expression) else observable.expression
         scalars = {item: ReadSpec(vector == 'x', index) for item, (vector, index) in self._scalars.items()}
         parameters = len(self.problem.initial_parameters)
-        lowering = _MemberReductions(path, group, size, {**scalars, **members}, self.problem.time, parameters)
+        lowering = _MemberReductions(
+            path=path,
+            group=group,
+            size=size,
+            reads={**scalars, **members},
+            time=self.problem.time,
+            parameters=parameters,
+        )
         expression = lowering.check().prepare().run(expression)
         readers = {item: self._read_of(read) for item, read in lowering.reads_.items() if item not in scalars}
         evaluate = self._compile(path, expression, {}, readers)
         reductions = ReductionScheduleSpec(tuple(lowering.found_.values()), parameters)
 
-        def read_expression(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
-            values = np.broadcast_to(evaluate(t, x, reductions.extend(t, x, p), done), (size,))
+        def read_expression(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
+            values = np.broadcast_to(np.asarray(evaluate(t, x, reductions.extend(t, x, p), done)), (size,))
             return ReductionKernel._reduce_values(values, observable.reduce)
 
         return read_expression
@@ -434,11 +467,17 @@ class ObservableEvaluator:
             error_msg = f'ObservableSpec {path} reduces {group}, which is neither an element group nor an agent group.'
             raise ValidationError(error_msg)
 
-        def read_agents(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+        def read_agents(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             del t, x, p
-            agents = done['__agents__'](group) or []
+            agents_of = done['__agents__']
+            if not callable(agents_of):
+                error_msg = f'The agents of an evaluation are given by a function, not a {type(agents_of).__name__}.'
+                raise TypeError(error_msg)
+            found = agents_of(group)
+            agents: list[object] = list(found) if isinstance(found, list | tuple) else []
+            values: list[object]
             if observable.variable is not None:
-                values: Any = [getattr(agent, observable.variable) for agent in agents]
+                values = [getattr(agent, observable.variable) for agent in agents]
             elif callable(observable.expression):
                 values = [observable.expression(agent) for agent in agents]
             else:
@@ -486,7 +525,7 @@ class ObservableEvaluator:
                 continue
             expression = observable.expression
             value = expression(problem.namespaces[scope]) if callable(expression) else expression
-            terms = problem.lowering.run((ObservableEvaluator._operator_of(path, value), path))
+            terms = ObservableEvaluator._terms_of(problem, ObservableEvaluator._operator_of(path, value), path)
             getters[path] = ObservableEvaluator._expectation_getter(problem, terms)
         getters.setdefault('energy', ObservableEvaluator._expectation_getter(problem, problem.hamiltonian))
         if not problem.pure:
@@ -496,13 +535,64 @@ class ObservableEvaluator:
     @staticmethod
     def _local_terms(problem: QuantumProblemSpec, path: str, name: str) -> list[tuple[QuantumKernel, ...]]:
         """Return the terms of the local operator of a name of every member of a quantum element or group."""
-        subsystems = [
-            item for key, item in problem.lowering.subsystems.items() if key == path or key.startswith(f'{path}[')
-        ]
+        lowering = ObservableEvaluator._lowering_of(problem)
+        subsystems = [item for key, item in lowering.subsystems.items() if key == path or key.startswith(f'{path}[')]
         if not subsystems:
             error_msg = f'Observable of {path} reads {path}, which is not a quantum element or group of the system.'
             raise ValidationError(error_msg)
-        return [problem.lowering.run((local_operator(item.symbol, SR.symbol(name)), path)) for item in subsystems]
+        return [
+            ObservableEvaluator._terms_of(problem, local_operator(item.symbol, SR.symbol(name)), path)
+            for item in subsystems
+        ]
+
+    @staticmethod
+    def _lowering_of(problem: QuantumProblemSpec) -> QuantumLowering:
+        """Return the lowering of the operators of a quantum problem, raising an error for a problem without one.
+
+        Args:
+            problem:
+                The quantum problem.
+
+        Returns:
+            lowering:
+                The lowering of its operators.
+
+        Raises:
+            ValidationError:
+                The problem holds no lowering of its operators.
+        """
+        if problem.lowering is None:
+            error_msg = 'The quantum problem holds no lowering of its operators. Compile it with QuantumCompiler.'
+            raise ValidationError(error_msg)
+        return problem.lowering
+
+    @staticmethod
+    def _terms_of(problem: QuantumProblemSpec, operator: Expression, path: str) -> tuple[QuantumKernel, ...]:
+        """Return the terms of an operator of a quantum problem, lowered by its lowering.
+
+        Args:
+            problem:
+                The quantum problem.
+
+            operator:
+                The operator.
+
+            path:
+                The path of the observable the operator belongs to.
+
+        Returns:
+            terms:
+                The terms of the operator.
+
+        Raises:
+            TypeError:
+                The lowering returns something else than terms.
+        """
+        terms = ObservableEvaluator._lowering_of(problem).run((operator, path))
+        if not isinstance(terms, tuple):
+            error_msg = f'A quantum lowering returns a tuple of terms, not a {type(terms).__name__}.'
+            raise TypeError(error_msg)
+        return terms
 
     @staticmethod
     def _quantum_member_getter(
@@ -524,14 +614,14 @@ class ObservableEvaluator:
             terms = ObservableEvaluator._local_terms(problem, group, observable.variable)
         elif callable(expression):
             terms = [
-                problem.lowering.run((ObservableEvaluator._operator_of(path, expression(member)), path))
+                ObservableEvaluator._terms_of(problem, ObservableEvaluator._operator_of(path, expression(member)), path)
                 for member in problem.members[group]
             ]
         else:
             error_msg = f'Observable {path} of a quantum group needs a function of a member namespace or a variable.'
             raise ValidationError(error_msg)
 
-        def get(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+        def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             del done
             values = np.asarray([problem._expect(item, t, x, p) for item in terms])
             return ReductionKernel._reduce_values(values, observable.reduce)
@@ -541,16 +631,16 @@ class ObservableEvaluator:
     @staticmethod
     def _operator_of(path: str, value: object) -> Expression:
         """Return the operator an observable expression of a quantum system gives, after checking that it is one."""
-        if not has_operator(value):
+        if not isinstance(value, Expression) or not has_operator(value):
             error_msg = f'Observable {path} of a quantum system gives {value!r}, but it must give an operator.'
             raise ValidationError(error_msg)
-        return cast('Expression', value)
+        return value
 
     @staticmethod
     def _expectation_getter(problem: QuantumProblemSpec, terms: Sequence[QuantumKernel]) -> Getter:
         """Return the getter of the expectation value of an operator at the state of a quantum problem."""
 
-        def get(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+        def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             del done
             return problem._expect(terms, t, x, p)
 
@@ -560,14 +650,14 @@ class ObservableEvaluator:
     def _purity_getter(problem: QuantumProblemSpec) -> Getter:
         """Return the getter of the purity `Tr(rho^2)` of the state of a quantum problem."""
 
-        def get(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> Any:  # noqa: ANN401
+        def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             del t, p, done
             state = problem._state_of(x)
             return 1.0 if problem.pure else float(np.sum(np.abs(state) ** 2))
 
         return get
 
-    def evaluate(self, t: float, x: Array, p: Array, agents_of: AgentsOf | None = None) -> dict[str, Any]:
+    def evaluate(self, t: float, x: Array, p: Array, agents_of: AgentsOf | None = None) -> dict[str, object]:
         """Return the value of every observable by path.
 
         Args:
@@ -587,29 +677,29 @@ class ObservableEvaluator:
             values:
                 A mapping from observable path to its value.
         """
-        done: dict[str, Any] = {'__agents__': agents_of or (lambda group: None)}
+        done: dict[str, object] = {'__agents__': agents_of or (lambda group: None)}
         for path, get in self.getters_.items():
             done[path] = get(t, x, p, done)
         del done['__agents__']
         return done
 
     @staticmethod
-    def _from_done(name: str) -> Callable[[Array, Array, Mapping[str, Any]], Any]:
+    def _from_done(name: str) -> Callable[[Array, Array, Mapping[str, object]], object]:
         """Return a reader of an observable computed earlier in the same frame."""
         return lambda x, p, done: done[name]
 
     @staticmethod
-    def _from_members(read: Callable[[Array, Array], Any]) -> Callable[[Array, Array, Mapping[str, Any]], Any]:
+    def _from_members(read: Callable[[Array, Array], Array]) -> Callable[[Array, Array, Mapping[str, object]], object]:
         """Return a reader of one member variable over a group."""
         return lambda x, p, done: read(x, p)
 
     @staticmethod
-    def _read_of(read: ReadSpec) -> Callable[[Array, Array], Any]:
+    def _read_of(read: ReadSpec) -> Callable[[Array, Array], Array]:
         """Return a reader of the values a reduction read stands for, from the state or the extended parameters."""
         return ObservableEvaluator._from_vector(read.is_state, read.index)
 
     @staticmethod
-    def _from_vector(is_state: bool, indices: Any) -> Callable[[Array, Array], Any]:  # noqa: ANN401
+    def _from_vector(is_state: bool, indices: int | Indices) -> Callable[[Array, Array], Array]:
         """Return a reader of components of the state or the parameter vector."""
         return lambda x, p: (x if is_state else p)[indices]
 
@@ -617,7 +707,7 @@ class ObservableEvaluator:
     def _renewal_counter(counts: npt.NDArray[np.intp]) -> Getter:
         """Return the getter of the number of renewals of a renewal law over all its members."""
 
-        def count_renewals(t: float, x: Array, p: Array, done: Mapping[str, Any]) -> float:
+        def count_renewals(t: float, x: Array, p: Array, done: Mapping[str, object]) -> float:
             del t, p, done
             return float(np.sum(x[counts]))
 
@@ -654,23 +744,32 @@ class ObservableEvaluator:
         return None
 
     @staticmethod
-    def _tree(items: Mapping[str, Any], **root: Any) -> SimpleNamespace:  # noqa: ANN401
-        """Return nested namespaces from paths such as `forest/foxes.n` mapped to values, extra values at the root."""
-        nested: dict[str, Any] = {}
+    def _tree(items: Mapping[str, object], **root: object) -> SimpleNamespace:
+        """Return nested namespaces from paths such as `forest/foxes.n` mapped to values, extra values at the root.
+
+        Args:
+            items:
+                The values, by their path from the root.
+
+            **root:
+                The extra values of the root namespace, such as the time.
+
+        Returns:
+            namespace:
+                The namespace of every element and nested system, with the extra values.
+        """
+        systems: dict[str, dict[str, object]] = {}
+        elements: dict[str, dict[str, object]] = {}
         for path, value in items.items():
-            *systems, last = path.split('/')
-            node = nested
-            for name in systems:
-                node = node.setdefault(name, {})
-            element, _, variable = last.partition('.')
-            node.setdefault(element, {})[variable] = value
-
-        def build(node: dict[str, Any]) -> SimpleNamespace:
-            return SimpleNamespace(
-                **{key: build(value) if isinstance(value, dict) else value for key, value in node.items()},
-            )
-
-        return SimpleNamespace(**{key: build(value) for key, value in nested.items()}, **root)
+            head, slash, rest = path.partition('/')
+            if slash:
+                systems.setdefault(head, {})[rest] = value
+                continue
+            element, _, variable = path.partition('.')
+            elements.setdefault(element, {})[variable] = value
+        namespaces = {name: SimpleNamespace(**values) for name, values in elements.items()}
+        namespaces.update({name: ObservableEvaluator._tree(values) for name, values in systems.items()})
+        return SimpleNamespace(**namespaces, **root)
 
     @staticmethod
     def _namespace_of(problem: BaseProblemSpec, scope: str = '') -> SimpleNamespace:
@@ -700,7 +799,7 @@ class ObservableEvaluator:
             n_rabbits
         """
         prefix = f'{scope}/' if scope else ''
-        items: dict[str, Any] = {
+        items: dict[str, object] = {
             name[len(prefix) :]: problem.symbols[name]
             for name in problem.symbols
             if name.startswith(prefix)
@@ -761,7 +860,7 @@ class ObservableEvaluator:
             ['village/farmers_count']
         """
         return [
-            (element.path, element.element.reduction)
+            (element.path, reduction)
             for element in problem.elements
-            if isinstance(element.element, _HeldElement)
+            if isinstance(element.element, _HeldElement) and (reduction := element.element.reduction) is not None
         ]

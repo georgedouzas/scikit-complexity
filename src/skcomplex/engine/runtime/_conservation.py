@@ -73,17 +73,21 @@ class ConservationObserver(BaseObserver):
             totals[quantity] = total - (float(np.sum(layout.read(state, boundary))) if boundary is not None else 0.0)
         return totals
 
-    def _prepare(self, problem: BaseProblemSpec) -> None:
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Keep the quantities of the problem.
 
         Args:
-            problem:
+            context:
                 The compiled problem the run advances.
 
         Raises:
             SimulationError:
-                The problem has no transfer network, such as a partitioned problem.
+                No problem is passed, or the problem has no transfer network, such as a partitioned problem.
         """
+        if context is None:
+            error_msg = 'The conservation monitor prepares on a compiled problem. Pass the problem to `prepare`.'
+            raise SimulationError(error_msg)
+        problem = context
         transfer_network = problem.transfer_network
         if transfer_network is None:
             error_msg = 'The conservation monitor needs a problem compiled as one partition with its transfer network.'

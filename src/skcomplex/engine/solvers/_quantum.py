@@ -5,12 +5,12 @@
 
 import math
 from collections.abc import Callable, Sequence
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 import qutip
 import scipy.sparse as sp
+from qutip.solver import solver_base
 
 from ...core.laws import DissipatorLaw, GeneratorLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
@@ -42,6 +42,12 @@ class QuantumSolver(BaseSolver[QuantumProblemSpec]):
 
         max_dimension:
             The largest dimension of the Hilbert space the solver accepts, which compiling checks.
+
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
     """
 
     @classmethod
@@ -51,7 +57,7 @@ class QuantumSolver(BaseSolver[QuantumProblemSpec]):
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
             laws={GeneratorLaw, DissipatorLaw},
-            orders={OrderKind.INTEGER},
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     @classmethod
@@ -82,13 +88,13 @@ class QuantumSolver(BaseSolver[QuantumProblemSpec]):
         dims = [list(problem.dimensions)] * 2
         size = math.prod(problem.dimensions)
         constant = qutip.Qobj(sp.csr_array((size, size), dtype=complex), dims=dims)
-        varying: list[Any] = []
+        varying: list[list[object]] = []
         for term in terms:
             matrix = qutip.Qobj(term.matrix, dims=dims)
             if term.time_dependent:
                 varying.append([matrix, self._coefficient(term, p)])
             else:
-                constant = constant + complex(term.run(RunStateSpec(0.0, np.zeros(0), p))) * matrix
+                constant = constant + QuantumSolver._complex_of(term.run(RunStateSpec(0.0, np.zeros(0), p))) * matrix
         return qutip.QobjEvo([constant, *varying]) if varying else constant
 
     def _ket(self, vector: npt.NDArray[np.complex128]) -> qutip.Qobj:
@@ -116,11 +122,11 @@ class QuantumSolver(BaseSolver[QuantumProblemSpec]):
         return entry.encode(values)
 
     @property
-    def _options(self) -> dict[str, Any]:
+    def _options(self) -> dict[str, object]:
         """Options of the QuTiP solvers."""
         return {'atol': self.atol, 'rtol': self.rtol, 'nsteps': self.nsteps}
 
-    def _create(self, p: Array) -> Any:  # noqa: ANN401
+    def _create(self, p: Array) -> solver_base.Solver:
         """Return the QuTiP solver at fixed parameters.
 
         Args:
@@ -137,7 +143,7 @@ class QuantumSolver(BaseSolver[QuantumProblemSpec]):
         """
         raise NotImplementedError
 
-    def _start(self, solver: Any, x: Array, t: float) -> None:  # noqa: ANN401
+    def _start(self, solver: solver_base.Solver, x: Array, t: float) -> None:
         """Start a QuTiP solver from a state at a time."""
         solver.start(self._start_state(x), t)
 
@@ -146,24 +152,25 @@ class QuantumSolver(BaseSolver[QuantumProblemSpec]):
         del problem
         return []
 
-    def _prepare(self, problem: QuantumProblemSpec) -> None:
+    def _prepare(self, context: QuantumProblemSpec | None) -> None:
         """Check that the problem is a quantum problem the solver runs, and create its QuTiP solver at the first frame.
 
         Args:
-            problem:
+            context:
                 The compiled problem.
 
         Raises:
             SolverError:
                 The problem is not quantum, or has dissipators or a density matrix the solver does not run.
         """
-        super()._prepare(problem)
+        super()._prepare(context)
+        problem = self.problem_
         unsupported = self._unsupported(problem) if isinstance(problem, QuantumProblemSpec) else ['a classical problem']
         if unsupported:
             error_msg = f'{type(self).__name__} cannot run this system. Unsupported: {"; ".join(unsupported)}.'
             raise SolverError(error_msg)
         self.quantum_: QuantumProblemSpec = problem
-        self.solver_: Any = None
+        self.solver_: solver_base.Solver | None = None
         self.parameters_: Array | None = None
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
@@ -193,11 +200,32 @@ class QuantumSolver(BaseSolver[QuantumProblemSpec]):
         return self._stored(self.solver_.step(until))
 
     @staticmethod
+    def _complex_of(value: object) -> complex:
+        """Return the coefficient a term kernel computed as a complex number.
+
+        Args:
+            value:
+                The coefficient.
+
+        Returns:
+            coefficient:
+                The complex coefficient.
+
+        Raises:
+            TypeError:
+                The coefficient is not a number.
+        """
+        if not isinstance(value, int | float | complex | np.number):
+            error_msg = f'The term kernel returned a {type(value).__name__}, not a number.'
+            raise TypeError(error_msg)
+        return complex(value)
+
+    @staticmethod
     def _coefficient(term: QuantumKernel, p: Array) -> Callable[[float], complex]:
         """Return the coefficient of a term as a function of time, at fixed parameters."""
         parameters = p.copy()
 
         def value(t: float) -> complex:
-            return term.run(RunStateSpec(t, np.zeros(0), parameters))
+            return QuantumSolver._complex_of(term.run(RunStateSpec(t, np.zeros(0), parameters)))
 
         return value

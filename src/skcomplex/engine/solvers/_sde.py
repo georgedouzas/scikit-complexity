@@ -23,6 +23,12 @@ class SDESolver(Solver):
     Args:
         dt:
             The largest internal time step.
+
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
     """
 
     @classmethod

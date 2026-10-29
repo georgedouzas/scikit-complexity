@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -19,7 +18,7 @@ from ...backends import BaseBackend
 from ...problems import DeclarationsSpec, ReferenceSpec
 from ...problems._encounter_kernel import EncounterKernel
 from .._base import BaseCompiler, BasePass
-from .._compilation import Laws
+from .._compilation import Compilation, Laws
 
 _KINETIC_LAWS = (EncounterLaw, ProliferationLaw, DestructionLaw)
 
@@ -40,8 +39,8 @@ class CompileEncountersPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Compile the encounter laws of the drawn laws."""
         compilation = self.compilation_
-        specs = cast('Laws', compilation.drawn)
-        declarations = cast('DeclarationsSpec', compilation.layout)
+        specs = Compilation._required(compilation.drawn, 'drawn')
+        declarations = Compilation._required(compilation.layout, 'layout')
         compilation.encounters = self._compiled_encounters(specs, declarations, compilation.backend)
         compilation.drawn = [
             (spec, [law for law in laws if not isinstance(law, _KINETIC_LAWS)]) for spec, laws in specs
@@ -69,7 +68,7 @@ class CompileEncountersPass(BasePass):
         return 'proliferation' if isinstance(law, ProliferationLaw) else 'destruction'
 
     @staticmethod
-    def _nonzero(table: npt.NDArray[Any]) -> tuple[Indices, ...]:
+    def _nonzero(table: npt.NDArray[np.generic]) -> tuple[Indices, ...]:
         """Return the indices of the entries of a table that are not zero, numbers or Sage expressions."""
         if table.dtype != object:
             return tuple(np.asarray(item, dtype=np.intp) for item in np.nonzero(table))
@@ -90,7 +89,7 @@ class CompileEncountersPass(BasePass):
 
     @staticmethod
     def _parameter_indices(
-        table: npt.NDArray[Any],
+        table: npt.NDArray[np.generic],
         references: Mapping[Expression, ReferenceSpec],
         owner: str,
     ) -> dict[Expression, int]:
@@ -110,7 +109,7 @@ class CompileEncountersPass(BasePass):
         return indices
 
     @staticmethod
-    def _checked_rate(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> npt.NDArray[Any]:
+    def _checked_rate(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> npt.NDArray[np.generic]:
         """Return the rate table of a law, after checking that it has one row per candidate and one column per field."""
         rate = CompileEncountersPass._kinetic_table(law.rate)
         if rate.ndim and rate.shape != sizes[:2]:
@@ -122,7 +121,7 @@ class CompileEncountersPass(BasePass):
         return rate
 
     @staticmethod
-    def _outcome_table(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> npt.NDArray[Any] | None:
+    def _outcome_table(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> npt.NDArray[np.generic] | None:
         """Return the outcome table of a law, the identity on the candidate's activity for a bare proliferation."""
         if isinstance(law, DestructionLaw):
             return None
@@ -201,9 +200,9 @@ class CompileEncountersPass(BasePass):
                 candidate,
                 field_indices,
                 test,
-                rate,
-                (empty,) * 3,
-                None,
+                rate=rate,
+                entries=(empty,) * 3,
+                probabilities=None,
             ).check()
         positions = CompileEncountersPass._nonzero(table)
         entries = (positions[0], positions[1], positions[2])
@@ -219,10 +218,10 @@ class CompileEncountersPass(BasePass):
             candidate,
             field_indices,
             test,
-            rate,
-            entries,
-            probabilities,
-            fused,
+            rate=rate,
+            entries=entries,
+            probabilities=probabilities,
+            fused=fused,
         ).check()
 
     @staticmethod
@@ -256,7 +255,7 @@ class CompileEncountersPass(BasePass):
         )
 
     @staticmethod
-    def _kinetic_table(value: object) -> npt.NDArray[Any]:
+    def _kinetic_table(value: object) -> npt.NDArray[np.generic]:
         """Return a rate or outcome table of an encounter law as an array of floats, or of Sage expressions.
 
         Args:

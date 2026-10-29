@@ -35,9 +35,9 @@ class _DoublingSolver(BaseSolver[BaseProblemSpec]):
         """Return the discrete map form."""
         return FormKind.DISCRETE
 
-    def _prepare(self, problem):
+    def _prepare(self, context):
         """Fit the base and start with no release."""
-        super()._prepare(problem)
+        super()._prepare(context)
         self.releases_ = 0
 
     def _advance(self, t, x, p, until):

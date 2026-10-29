@@ -94,7 +94,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
             The compiled element or agents the visual logs.
 
         recording_:
-            The Rerun recording the visual logs to.
+            The Rerun recording the visual logs to, or `None` while no recording is active.
 
         space_:
             The space the agents of the problem live in, or `None`.
@@ -162,18 +162,20 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
 
         Raises:
             ValidationError:
-                No frame is passed.
+                No frame is passed, or no Rerun recording is active.
         """
         if inputs is None:
             error_msg = 'A visual runs on a frame. Pass the frame to `run`.'
             raise ValidationError(error_msg)
-        frame = inputs
+        if self.recording_ is None:
+            error_msg = 'No Rerun recording is active. Pass `recording` or start one with `rerun.init`.'
+            raise ValidationError(error_msg)
         if isinstance(self.element_, CompiledAgentsSpec):
-            snapshot = frame.agents.get(self.element_.path)
+            snapshot = inputs.agents.get(self.element_.path)
             if snapshot is not None:
                 self._log_agents(self.recording_, self.element_.path, snapshot, self.space_)
             return
-        self._log(self.recording_, self.element_, frame)
+        self._log(self.recording_, self.element_, inputs)
 
     def prepare(self, problem: BaseProblemSpec | None = None) -> Self:
         """Prepare the checked visual for the element at its path in a compiled problem.

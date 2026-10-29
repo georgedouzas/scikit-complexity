@@ -13,7 +13,6 @@ from collections.abc import Callable, Mapping
 from dataclasses import replace
 from pathlib import Path
 from types import ModuleType
-from typing import Any, cast
 
 import numba
 import numpy as np
@@ -57,7 +56,7 @@ from ...core.spaces import (
 )
 from ...errors import BackendWarning, ValidationError
 from ...specs import AcceleratedSpec, EntrySpec, LoweredFunctionsSpec, SupportSpec
-from ...types import Array, FormKind, NoiseKind, OrderKind, ReadKind
+from ...types import Array, FormKind, NoiseKind, OrderKind, ReadKind, VectorFunction
 from ..problems import ExpressionPrinter, LoweredKernelsSpec, ReductionScheduleSpec, ReferenceSpec
 from ..problems._draw_kernel import DrawKernel
 from ..problems._edge_row_search import EdgeRowSearch
@@ -157,8 +156,8 @@ class NumbaBackend(BaseBackend):
                 TransitionLaw,
                 UpdateLaw,
             },
-            noise=set(NoiseKind),
-            orders=set(OrderKind),
+            noise=frozenset(NoiseKind),
+            orders=frozenset(OrderKind),
         )
 
     @classmethod
@@ -170,9 +169,28 @@ class NumbaBackend(BaseBackend):
         self.cache_dir = cache_dir
         self.parallel = parallel
 
-    def _run(self, inputs: LoweredKernelsSpec) -> LoweredFunctionsSpec:
-        """Return the numeric functions of the form of the kernels, compiled with Numba where every law compiles."""
-        form, size, kernels, draws = cast('FormKind', inputs.form), inputs.size, inputs.kernels, inputs.draws
+    def _run(self, inputs: LoweredKernelsSpec | None) -> LoweredFunctionsSpec:
+        """Return the numeric functions of the form of the kernels, compiled with Numba where every law compiles.
+
+        Args:
+            inputs:
+                The kernels of a problem.
+
+        Returns:
+            functions:
+                The numeric functions of the form.
+
+        Raises:
+            ValidationError:
+                No kernels are passed, or they have no form.
+
+            TypeError:
+                The printer does not return the lines of the kernel source.
+        """
+        if inputs is None or inputs.form is None:
+            error_msg = 'A backend runs on the kernels of a problem of one form. Pass a `LoweredKernelsSpec` to `run`.'
+            raise ValidationError(error_msg)
+        form, size, kernels, draws = inputs.form, inputs.size, inputs.kernels, inputs.draws
         used: dict[type, list[LawKernel]] = {
             BoundaryLaw: kernels.get(BoundaryLaw, []),
             RateLaw: kernels.get(RateLaw, []) if form in (FormKind.ODE, FormKind.FRACTIONAL, FormKind.SDE) else [],
@@ -204,6 +222,9 @@ class NumbaBackend(BaseBackend):
         ]
         printer = NumbaPrinter(parallel=self.parallel and form not in _EVENT_FORMS).check()
         lines = printer.prepare(reductions if reduced and fused else None).run(parts)
+        if not isinstance(lines, list):
+            error_msg = f'The Numba printer returns the lines of the kernel source, not a {type(lines).__name__}.'
+            raise TypeError(error_msg)
         accelerated_loop = {
             FormKind.ODE: 'rk4',
             FormKind.SDE: 'euler_maruyama',
@@ -256,7 +277,7 @@ class NumbaBackend(BaseBackend):
             function = getattr(module, name)
             return lambda t, x, p: function(t, x, p, layout)
 
-        numpy: dict[type, Any] = {
+        numpy: dict[type, Callable[[], VectorFunction]] = {
             RateLaw: lambda: BaseBackend._adding_function(used[RateLaw], size),
             NoiseLaw: lambda: BaseBackend._concatenating_function(used[NoiseLaw]),
             JumpLaw: lambda: BaseBackend._concatenating_function(used[JumpLaw]),
@@ -270,7 +291,7 @@ class NumbaBackend(BaseBackend):
             UpdateLaw: 'update',
             BoundaryLaw: 'boundary',
         }
-        functions: dict[type, Any] = {
+        functions: dict[type, VectorFunction | None] = {
             kind: (
                 bind(names[kind])
                 if compiled[kind]
@@ -282,19 +303,28 @@ class NumbaBackend(BaseBackend):
             )
             for kind in needed
         }
-        lowered: dict[str, object] = {'boundary': functions.get(BoundaryLaw)}
-        if form in (FormKind.ODE, FormKind.FRACTIONAL, FormKind.SDE):
-            lowered['drift'] = functions[RateLaw]
+        lowering = LoweredFunctionsSpec(
+            drift=functions[RateLaw] if form in (FormKind.ODE, FormKind.FRACTIONAL, FormKind.SDE) else None,
+            diffusion=(
+                functions.get(NoiseLaw, BaseBackend._concatenating_function([])) if form == FormKind.SDE else None
+            ),
+            propensities=(
+                functions.get(JumpLaw, BaseBackend._concatenating_function([])) if form == FormKind.JUMP else None
+            ),
+            jumps=LawKernel._jump_channels(used[JumpLaw], changes) if form == FormKind.JUMP else (),
+            update=functions[UpdateLaw] if form == FormKind.DISCRETE else None,
+            boundary=functions.get(BoundaryLaw),
+        )
         if form == FormKind.SDE:
-            lowered['diffusion'] = functions.get(NoiseLaw, BaseBackend._concatenating_function([]))
-            noise = LawKernel._lower_noise(used[NoiseLaw])
-            lowered.update(zip(('noise_rows', 'noise_columns', 'n_processes', 'noise_blocks'), noise, strict=True))
-        if form == FormKind.JUMP:
-            lowered['propensities'] = functions.get(JumpLaw, BaseBackend._concatenating_function([]))
-            lowered['jumps'] = LawKernel._jump_channels(used[JumpLaw], changes)
-        if form == FormKind.DISCRETE:
-            lowered['update'] = functions[UpdateLaw]
-        return LoweredFunctionsSpec(**lowered)
+            rows, columns, processes, blocks = LawKernel._lower_noise(used[NoiseLaw])
+            lowering = replace(
+                lowering,
+                noise_rows=rows,
+                noise_columns=columns,
+                n_processes=processes,
+                noise_blocks=blocks,
+            )
+        return lowering
 
     def _accelerated(
         self,
@@ -385,7 +415,7 @@ class NumbaBackend(BaseBackend):
     def _is_compilable(kernel: LawKernel) -> bool:
         """Check whether every output of a kernel can be compiled, so it has no Python callable."""
         lattice = all(
-            (reference.source is not ReadKind.NEIGHBOR or reference.neighbor.sizes is not None)
+            (reference.source is not ReadKind.NEIGHBOR or reference.shifted.sizes is not None)
             and reference.source is not ReadKind.DERIVED
             for reference in kernel.references.values()
         )
@@ -408,7 +438,7 @@ class NumbaBackend(BaseBackend):
         return True
 
     @staticmethod
-    def _noise_arrays(lowering: LoweredFunctionsSpec) -> tuple[Any, ...]:
+    def _noise_arrays(lowering: LoweredFunctionsSpec) -> tuple[object, ...]:
         """Return the rows, columns, process count, and flattened covariance blocks of the noise of a lowering."""
         blocks = lowering.noise_blocks
         sizes = np.asarray([block.size for block in blocks], dtype=np.int64)
@@ -481,7 +511,7 @@ class NumbaBackend(BaseBackend):
                 The backend name for every law kind with kernels, `'python'` for those that run in Python.
         """
         kinds = [kind for kind, items in used.items() if items]
-        fallen = [cast('type', kind).__name__ for kind in kinds if not compiled[kind]]
+        fallen = [kind.__name__ for kind in kinds if not compiled[kind]]
         if fallen:
             unprinted = NumbaBackend._unprinted_reduction(reductions)
             reason = (
@@ -491,7 +521,7 @@ class NumbaBackend(BaseBackend):
             )
             message = f'The {name} backend runs the {", ".join(fallen)} laws in Python, because {reason}.'
             warnings.warn(message, BackendWarning, stacklevel=4)
-        return {cast('type', kind).__name__: name if compiled[kind] else 'python' for kind in kinds}
+        return {kind.__name__: name if compiled[kind] else 'python' for kind in kinds}
 
     @staticmethod
     def _helpers_fingerprint() -> str:
@@ -508,27 +538,51 @@ class NumbaBackend(BaseBackend):
 
     @staticmethod
     def _load(text: str, functions: Mapping[str, object], cache_dir: Path) -> ModuleType:
-        """Return the module of generated source, from a cached file when it has no injected functions."""
+        """Return the module of generated source, imported from a file in the cache directory.
+
+        Source without injected functions is cached by Numba and kept in `sys.modules`, so a second identical problem
+        reuses it. Source with injected functions, which Numba cannot cache, is written uncached and imported afresh,
+        with the functions set on the module before its code runs.
+
+        Args:
+            text:
+                The generated source.
+
+            functions:
+                The functions the source reads by name, injected into its module.
+
+            cache_dir:
+                The directory of the generated files.
+
+        Returns:
+            module:
+                The module of the source.
+
+        Raises:
+            ImportError:
+                The generated file cannot be imported.
+        """
         digest = hashlib.sha256((HELPERS_FINGERPRINT + text).encode()).hexdigest()[:24]
         name = f'skcomplex_kernels_{digest}'
-        if functions:
-            module = ModuleType(name)
-            module.__dict__.update(functions)
-            code = compile(text.replace('cache=CACHE', 'cache=False'), name, 'exec')
-            exec(code, module.__dict__)  # noqa: S102  # nosec B102: runs the kernel source generated above
-            return module
-        if name in sys.modules:
+        if not functions and name in sys.modules:
             return sys.modules[name]
+        cached = not functions
+        file_name = name if cached else f'{name}_uncached'
         cache_dir.mkdir(parents=True, exist_ok=True)
-        path = cache_dir / f'{name}.py'
+        path = cache_dir / f'{file_name}.py'
         if not path.exists():
             temporary = path.with_suffix(f'.{os.getpid()}.tmp')
-            temporary.write_text(text.replace('cache=CACHE', 'cache=True'))
+            temporary.write_text(text.replace('cache=CACHE', f'cache={cached}'))
             temporary.replace(path)
-        specification = importlib.util.spec_from_file_location(name, path)
-        module = importlib.util.module_from_spec(specification)  # type: ignore[arg-type]
-        sys.modules[name] = module
-        specification.loader.exec_module(module)  # type: ignore[union-attr]
+        specification = importlib.util.spec_from_file_location(file_name, path)
+        if specification is None or specification.loader is None:
+            error_msg = f'The generated kernels at {path} cannot be imported.'
+            raise ImportError(error_msg)
+        module = importlib.util.module_from_spec(specification)
+        module.__dict__.update(functions)
+        if cached:
+            sys.modules[name] = module
+        specification.loader.exec_module(module)
         return module
 
 

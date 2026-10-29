@@ -6,7 +6,6 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import cast
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -71,7 +70,11 @@ class DeclarationsSpec(BaseSpec):
     @property
     def wieners(self) -> dict[str, WienerProcessSpec]:
         """Wiener processes that the noise roles of interactions bind, by path."""
-        return {path: cast('WienerProcessSpec', block.node.component) for path, block in self.processes.items()}
+        return {
+            path: block.node.component
+            for path, block in self.processes.items()
+            if isinstance(block.node.component, WienerProcessSpec)
+        }
 
     @property
     def members(self) -> int:

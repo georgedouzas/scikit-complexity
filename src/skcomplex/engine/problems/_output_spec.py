@@ -5,7 +5,6 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -44,7 +43,7 @@ class OutputSpec(BaseSpec):
 
     target: ReferenceSpec | None
     expression: Expression | None = None
-    function: NumericFunction | Callable[..., Any] | None = None
+    function: NumericFunction | Callable[..., object] | None = None
     arguments: tuple[Expression, ...] | None = None
     component: int = 0
     components: int = 1

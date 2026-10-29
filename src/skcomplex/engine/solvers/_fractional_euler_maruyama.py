@@ -55,6 +55,12 @@ class FractionalEulerMaruyamaSolver(Solver):
         max_increments:
             The largest number of stored increments, one per step, fractional noise row, and group member.
 
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
+
     Attributes:
         horizon_:
             The horizon of the drawn increments.
@@ -93,8 +99,8 @@ class FractionalEulerMaruyamaSolver(Solver):
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
             laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw, FractionalNoiseLaw},
-            noise={NoiseKind.DIAGONAL},
-            orders={OrderKind.INTEGER},
+            noise=frozenset({NoiseKind.DIAGONAL}),
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     @classmethod
@@ -122,18 +128,19 @@ class FractionalEulerMaruyamaSolver(Solver):
         self.random_state = random_state
         self.until = until
 
-    def _prepare(self, problem: ProblemSpec) -> None:
+    def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the stepper for a problem.
 
         Args:
-            problem:
+            context:
                 The compiled problem.
 
         Raises:
             SolverError:
                 The problem has another form, delays, events, or renewal laws.
         """
-        super()._prepare(problem)
+        super()._prepare(context)
+        problem = self.problem_
         if problem.delays or problem.events:
             error_msg = 'FractionalEulerMaruyamaSolver does not integrate delays or events.'
             raise SolverError(error_msg)

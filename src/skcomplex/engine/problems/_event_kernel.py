@@ -34,13 +34,14 @@ class EventKernel(BaseKernel):
             crossing, without a reset and without a record in the trajectory.
     """
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         label: str,
         guard: Callable[[float, Array, Array], float],
         reset: Callable[[float, Array, Array], Array] | None,
         direction: int,
         terminal: bool,
+        *,
         hidden: bool = False,
     ) -> None:
         self.label = label
@@ -50,8 +51,9 @@ class EventKernel(BaseKernel):
         self.terminal = terminal
         self.hidden = hidden
 
-    def _run(self, inputs: RunStateSpec) -> Array:
+    def _run(self, inputs: RunStateSpec | None) -> Array:
         """Return the state vector after the event at the state, a copy of it without a reset."""
+        state = self._state_of(inputs)
         if self.reset is None:
-            return inputs.x.copy()
-        return self.reset(inputs.t, inputs.x, inputs.p)
+            return state.x.copy()
+        return self.reset(state.t, state.x, state.p)

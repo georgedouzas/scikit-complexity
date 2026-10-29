@@ -5,7 +5,6 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -13,7 +12,7 @@ import numpy.typing as npt
 from ...specs._agent_snapshot_spec import AgentSnapshotSpec
 from ...specs._base_record_spec import BaseRecordSpec
 from ...specs._base_spec import BaseSpec
-from ...types import Array
+from ...types import AnyArray, Array
 from ._base_problem_spec import BaseProblemSpec
 
 
@@ -60,11 +59,11 @@ class FrameSpec(BaseSpec):
     problem: BaseProblemSpec
     agents: Mapping[str, AgentSnapshotSpec] = field(default_factory=dict)
     reporters: Mapping[str, float] = field(default_factory=dict)
-    observables: Mapping[str, Any] = field(default_factory=dict)
+    observables: Mapping[str, npt.ArrayLike] = field(default_factory=dict)
     events: tuple[BaseRecordSpec, ...] = ()
-    structures: Mapping[str, Any] = field(default_factory=dict)
+    structures: Mapping[str, object] = field(default_factory=dict)
 
-    def value(self, name: str) -> npt.NDArray[Any] | float | complex:
+    def value(self, name: str) -> npt.ArrayLike:
         """Return the value of a state or a parameter by dotted name.
 
         Args:
@@ -83,7 +82,7 @@ class FrameSpec(BaseSpec):
             return self.observables[name]
         return self.problem.parameters.read(self.parameters, name)
 
-    def lattice(self, name: str) -> npt.NDArray[Any]:
+    def lattice(self, name: str) -> AnyArray:
         """Return the values of a lattice state in lattice shape.
 
         Args:

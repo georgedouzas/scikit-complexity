@@ -541,7 +541,7 @@ def test_complex_equation_and_event_split_into_parts():
             visual: VisualSpec | None = None,
             *,
             z: Annotated[complex, StateSpec(domain=CC, order=2, initial=(1j,))] = 1.0,
-            z_d1: float = 1j,
+            z_d1: complex = 1j,
         ) -> None:
             super().__init__(label, visual=visual)
             self.z = z

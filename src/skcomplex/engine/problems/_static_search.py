@@ -28,7 +28,8 @@ class StaticSearch(BaseSearch):
         self.indices = indices
         self.edges = edges
 
-    def _run(self, inputs: RunStateSpec) -> EdgesFound:
+    def _run(self, inputs: RunStateSpec | None) -> EdgesFound:
         """Return the neighbours of every member."""
-        del inputs
+        state = self._state_of(inputs)
+        del state
         return self.indptr, self.indices, self.edges

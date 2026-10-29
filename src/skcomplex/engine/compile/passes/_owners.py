@@ -4,17 +4,15 @@
 # License: MIT
 
 from collections import defaultdict
-from typing import cast
 
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....core.specs import NodeSpec
 from ..._utils import vector
 from ...problems import DeclarationsSpec, KernelSpec
 from .._base import BasePass
-from .._compilation import Laws
+from .._compilation import Compilation, Laws
 from ._census import CensusPass
 from ._kernels import KernelsPass
 from ._mask_requests import MaskRequestsPass
@@ -34,11 +32,12 @@ class OwnersPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Keep the laws of the owners of the compilation and find their kinds."""
         compilation = self.compilation_
-        declarations = cast('DeclarationsSpec', compilation.layout)
-        agents = {node.path for node in cast('list[NodeSpec]', compilation.nodes) if node.is_agent}
-        owned = self._owned(cast('Laws', compilation.shifted), compilation.owners, agents)
+        declarations = Compilation._required(compilation.layout, 'layout')
+        agents = {node.path for node in Compilation._required(compilation.nodes, 'nodes') if node.is_agent}
+        owned = self._owned(Compilation._required(compilation.shifted, 'shifted'), compilation.owners, agents)
         compilation.drawn = [(spec, self._masked(spec, laws, declarations)) for spec, laws in owned]
-        compilation.drawn_apart = self._owned(cast('Laws', compilation.apart), compilation.owners, agents)
+        apart = Compilation._required(compilation.apart, 'apart')
+        compilation.drawn_apart = self._owned(apart, compilation.owners, agents)
         compilation.kinds = self._law_kinds([*compilation.drawn, *compilation.drawn_apart], agents)
 
     @staticmethod
@@ -48,10 +47,10 @@ class OwnersPass(BasePass):
             MaskRequestsPass._masked_value(law.value, mask),
             MaskRequestsPass._masked_value(law._get_targets()[0], 1 - mask),
         )
-        if isinstance(value, FreeModuleElement):
+        if isinstance(value, FreeModuleElement) and isinstance(kept, FreeModuleElement):
             return UpdateLaw(
                 law._get_targets()[0],
-                vector(a + b for a, b in zip(value, cast('FreeModuleElement', kept), strict=True)),
+                vector(a + b for a, b in zip(value, kept, strict=True)),
             )
         return UpdateLaw(law._get_targets()[0], SR(value) + SR(kept))
 

@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable
-from typing import Any
 
 import numpy as np
 
@@ -36,7 +35,7 @@ class DriveKernel(BaseKernel):
         self,
         owner: str,
         target: LatticeStateSpec,
-        function: Callable[..., Any],
+        function: Callable[..., object],
         arguments: ArgumentsSpec = _NO_ARGUMENTS,
     ) -> None:
         self.owner = owner
@@ -49,9 +48,10 @@ class DriveKernel(BaseKernel):
         """Lattice states the drive changes."""
         return (self.target,)
 
-    def _run(self, inputs: RunStateSpec) -> None:
+    def _run(self, inputs: RunStateSpec | None) -> None:
         """Update the state vector of the state in place by one application of the drive."""
-        x, p, rng = inputs.x, inputs.p, inputs.rng
+        state = self._state_of(inputs)
+        x, p, rng = state.x, state.p, state.rng
         shape = self.target.shape
         keywords = {
             name: np.reshape(value, shape) if np.size(value) == self.target.size and np.ndim(value) else value

@@ -7,7 +7,7 @@ import math
 import queue
 import threading
 from collections.abc import Callable, Mapping, Sequence
-from typing import Self, cast
+from typing import Self
 
 import numpy as np
 import numpy.typing as npt
@@ -212,16 +212,32 @@ class Simulation(BaseConfig[None, float]):
             self._compiler().check().prepare(self.system).report_.check()
 
     def _prepare(self, context: None) -> None:
-        """Compile the system, choose the solver, and gather the clock and the observers of a run."""
+        """Compile the system, choose the solver, and gather the clock and the observers of a run.
+
+        Args:
+            context:
+                Nothing: a simulation prepares on its own system.
+
+        Raises:
+            TypeError:
+                The compiler does not return a problem, or names an object that is not a solver.
+        """
         previous = self._previous_parameters()
         initial = dict(self.initial_state or {})
-        named = None
+        named: object = None
         if isinstance(self.system, BaseProblemSpec):
             self.problem_ = PassCompiler._with_initial_state(self.system, initial)
         else:
             compiler = self._compiler().check().prepare(self.system)
-            self.problem_ = cast('BaseProblemSpec', compiler.run(initial))
+            problem = compiler.run(initial)
+            if not isinstance(problem, BaseProblemSpec):
+                error_msg = f'A compiler returns a compiled problem, not a {type(problem).__name__}.'
+                raise TypeError(error_msg)
+            self.problem_ = problem
             named = compiler.solver_
+        if named is not None and not isinstance(named, BaseSolver):
+            error_msg = f'A compiler names a solver, not a {type(named).__name__}.'
+            raise TypeError(error_msg)
         self._prepared_system = self.system
         self._adaptive = self.problem_.adaptive_parameters
         if self.solver is not None:
@@ -308,10 +324,14 @@ class Simulation(BaseConfig[None, float]):
                 self._step += 1
                 target = min(self._step * self.dt_, until)
                 released = target >= until - TIME_TOLERANCE
-                self.state_ = self.stepper_.run(
+                state = self.stepper_.run(
                     StepSpec(self.time_, self.state_, self.parameters_, target),
                     final=released,
                 )
+                if not isinstance(state, np.ndarray):
+                    error_msg = f'A solver returns the state vector, not a {type(state).__name__}.'
+                    raise TypeError(error_msg)
+                self.state_ = state
                 stopped_at = self.stepper_.stopped_at_
                 if stopped_at is not None:
                     target = stopped_at

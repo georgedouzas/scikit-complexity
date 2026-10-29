@@ -3,15 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, cast
+from dataclasses import replace
 
 import numpy as np
 
+from ....errors import PipelineError
 from ....specs import RunStateSpec
 from ....types import Array
-from ...problems import DeclarationsSpec
 from ...problems._encounter_kernel import EncounterKernel
+from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from .._base import BasePass
+from .._compilation import Compilation
 
 
 class EncounterFunctionsPass(BasePass):
@@ -28,24 +30,28 @@ class EncounterFunctionsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the rates of the encounter laws to the drift."""
         compilation = self.compilation_
-        self._with_encounters(
-            cast('dict[str, Any]', compilation.functions),
-            compilation.encounters,
-            cast('DeclarationsSpec', compilation.layout).ends[True],
-        )
+        functions, encounters = compilation.functions, compilation.encounters
+        if functions is None or encounters is None:
+            error_msg = 'EncounterFunctionsPass reads the numeric functions and the encounters, which no pass wrote.'
+            raise PipelineError(error_msg)
+        size = Compilation._required(compilation.layout, 'layout').ends[True]
+        compilation.functions = self._with_encounters(functions, encounters, size)
 
     @staticmethod
-    def _with_encounters(functions: dict[str, Any], encounters: tuple[EncounterKernel, ...], size: int) -> None:
+    def _with_encounters(
+        functions: _ProblemFunctionsSpec,
+        encounters: tuple[EncounterKernel, ...],
+        size: int,
+    ) -> _ProblemFunctionsSpec:
         """Add the gain and loss rates of encounter laws to the drift, which then runs outside compiled steppers."""
         if not encounters:
-            return
-        drift = functions.get('drift')
+            return functions
+        drift = functions.drift
 
         def encountered(t: float, x: Array, p: Array) -> Array:
             rates = np.zeros(size) if drift is None else np.array(drift(t, x, p), dtype=float)
             for encounter in encounters:
-                rates += encounter.run(RunStateSpec(t, x, p))
+                rates += np.asarray(encounter.run(RunStateSpec(t, x, p)), dtype=float)
             return rates
 
-        functions['drift'] = encountered
-        functions['accelerated'] = None
+        return replace(functions, drift=encountered, accelerated=None)

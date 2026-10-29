@@ -5,9 +5,9 @@
 
 import functools
 from collections.abc import Callable, Mapping, Sequence
-from typing import Any, cast
 
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
@@ -57,13 +57,14 @@ class LawKernel(BaseKernel):
             The outputs of the laws.
     """
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         owner: str,
         time: Expression,
         references: Mapping[Expression, ReferenceSpec],
         rows: int,
         layout_states: LayoutSpec,
+        *,
         layout_parameters: LayoutSpec,
         pairs: Search | None = None,
         outputs: Sequence[OutputSpec] = (),
@@ -112,12 +113,13 @@ class LawKernel(BaseKernel):
         )
 
     @functools.cached_property
-    def _function(self) -> Callable[..., Any] | None:
+    def _function(self) -> Callable[..., object] | None:
         """NumPy function of the symbolic outputs and the arguments of calls, or `None` without expressions."""
         expressions = self._plan[1]
         if not expressions:
             return None
-        return ExpressionPrinter(time=self.time, compiled=True).check().prepare(self._arguments).run(expressions)
+        printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(self._arguments)
+        return ExpressionPrinter._function_of(printer.run(expressions))
 
     @functools.cached_property
     def _readers(self) -> dict[Expression, Reader]:
@@ -158,7 +160,7 @@ class LawKernel(BaseKernel):
         """Symbols the outputs read, in the order the compiled function takes them after time."""
         return list(self._arguments)
 
-    def gather(self, t: float, x: Array, p: Array) -> list[Any]:
+    def gather(self, t: float, x: Array, p: Array) -> list[object]:
         """Return the values of the symbols the outputs read, for every evaluation index of a member kernel.
 
         Args:
@@ -177,7 +179,7 @@ class LawKernel(BaseKernel):
         """
         return [read(x, p, None, t) for read in self._argument_readers]
 
-    def read(self, symbol: Expression, t: float, x: Array, p: Array) -> Any:  # noqa: ANN401
+    def read(self, symbol: Expression, t: float, x: Array, p: Array) -> object:
         """Return the values of one symbol the kernel knows, for every evaluation index of a member kernel.
 
         Args:
@@ -211,11 +213,11 @@ class LawKernel(BaseKernel):
         p: Array,
         pairs: tuple[Indices, Indices] | None,
         t: float,
-    ) -> Any:  # noqa: ANN401
+    ) -> object:
         """Return the values of a symbol read at neighbouring sites or derived by a global operator."""
-        read = reference.neighbor
         if reference.source is ReadKind.NEIGHBOR:
-            return read.read(reference.column_of(x, p))
+            return reference.shifted.read(reference.column_of(x, p))
+        read = reference.derived
         values = [self._gather(item, x, p, pairs, t) for item in read.symbols]
         return read.run(RunStateSpec(t, read.operand_values(t, values, reference.entry.rows), p))
 
@@ -228,10 +230,10 @@ class LawKernel(BaseKernel):
         read: Reader
         if source is ReadKind.DERIVED or source is ReadKind.NEIGHBOR:
             if source is ReadKind.DERIVED:
-                for item in reference.neighbor.symbols:
+                for item in reference.derived.symbols:
                     self._reader(item)
 
-            def read(x: Array, p: Array, pairs: OptionalPairs, t: float) -> Any:  # noqa: ANN401
+            def read(x: Array, p: Array, pairs: OptionalPairs, t: float) -> object:
                 return self._gather_around(reference, x, p, pairs, t)
 
         elif source is ReadKind.SINGLE or (source is ReadKind.REDUCED and reference.entry.members is None):
@@ -244,18 +246,19 @@ class LawKernel(BaseKernel):
     def _member_reader(self, reference: ReferenceSpec) -> Reader:
         """Return the function that reads a member symbol, indexed by the pairs of a pair kernel."""
         is_state, members, source = reference.is_state, reference.members, reference.source
-        images = isinstance(self.pairs, PairSearch) and reference.entry == self.pairs.second and is_state
+        search = self.pairs if isinstance(self.pairs, PairSearch) else None
+        images = search is not None and reference.entry == search.second and is_state
         column = reference.column
 
-        def read(x: Array, p: Array, pairs: OptionalPairs, t: float) -> Any:  # noqa: ANN401
+        def read(x: Array, p: Array, pairs: OptionalPairs, t: float) -> Array:
             values = (x if is_state else p)[members]
             if source is ReadKind.MEMBER or pairs is None:
                 return values
             first, second = pairs
             if source is ReadKind.FIRST:
                 return values[first]
-            if images:
-                return self.pairs.second_images(x, first, second)[:, column]  # type: ignore[union-attr]
+            if images and search is not None:
+                return search.second_images(x, first, second)[:, column]
             return values[second]
 
         return read
@@ -267,7 +270,7 @@ class LawKernel(BaseKernel):
         p: Array,
         pairs: OptionalPairs,
         t: float = 0.0,
-    ) -> Any:  # noqa: ANN401
+    ) -> object:
         """Return the values of a symbol for every evaluation index."""
         return self._reader(symbol)(x, p, pairs, t)
 
@@ -282,17 +285,20 @@ class LawKernel(BaseKernel):
         if reference.source is ReadKind.REDUCED:
             return True
         if reference.source is ReadKind.DERIVED:
-            return any(self._reads_reduction(symbol) for symbol in reference.neighbor.symbols)
+            return any(self._reads_reduction(symbol) for symbol in reference.derived.symbols)
         return False
 
-    def _run(self, inputs: RunStateSpec) -> tuple[int, tuple[Indices, Indices] | None, list[Array]]:
+    def _run(self, inputs: RunStateSpec | None) -> tuple[int, tuple[Indices, Indices] | None, list[Array]]:
         """Return the number of evaluation indices, the pairs in pair mode, and one array of values per output."""
-        t, x, p = inputs.t, inputs.x, inputs.p
-        pairs = self.pairs.run(inputs) if self.pairs is not None else None
+        state = self._state_of(inputs)
+        t, x, p = state.t, state.x, state.p
+        pairs = self._pairs_of(self.pairs.run(state)) if self.pairs is not None else None
         size = len(pairs[0]) if pairs is not None else self.rows
-        computed: list[Any] = []
+        computed: list[npt.ArrayLike] = []
         if self._function is not None:
-            computed = list(self._function(t, *[read(x, p, pairs, t) for read in self._argument_readers]))
+            computed = ExpressionPrinter._values_of(
+                self._function(t, *[read(x, p, pairs, t) for read in self._argument_readers]),
+            )
         values: list[Array] = []
         function_results: dict[tuple[int, int], Array] = {}
         for output, (start, count) in zip(self.outputs, self._slots, strict=True):
@@ -311,7 +317,10 @@ class LawKernel(BaseKernel):
 
     def _call(self, output: OutputSpec, t: float, x: Array, p: Array, *, size: int, arguments: list[Array]) -> Array:
         """Return the result of a function as one row per evaluation index and one column per component."""
-        function: Callable[..., Any] = output.function  # type: ignore[assignment]
+        function = output.function
+        if function is None:
+            error_msg = f'The output of {self.owner} computed by a function holds no function.'
+            raise ValidationError(error_msg)
         if output.arguments is not None:
             rows = [np.atleast_1d(np.asarray(function(t, *row), dtype=float)) for row in zip(*arguments, strict=True)]
             result = np.asarray(rows, dtype=float).reshape(size, -1) if rows else np.zeros((0, output.components))
@@ -330,7 +339,51 @@ class LawKernel(BaseKernel):
         return lambda x, p, pairs, t: p[index]
 
     @staticmethod
-    def _broadcast(value: Any, size: int) -> Array:  # noqa: ANN401
+    def _result_of(result: object) -> tuple[int, OptionalPairs, list[Array]]:
+        """Return what `run` of a law kernel returned: the number of evaluation indices, the pairs, and the values.
+
+        Args:
+            result:
+                What `run` returned.
+
+        Returns:
+            result:
+                The number of evaluation indices, the pairs in pair mode, and one array of values per output.
+
+        Raises:
+            TypeError:
+                The result is not the result of a law kernel.
+        """
+        if not isinstance(result, tuple):
+            error_msg = f'A law kernel returns its size, pairs, and values, not a {type(result).__name__}.'
+            raise TypeError(error_msg)
+        size, pairs, values = result
+        return size, pairs, values
+
+    @staticmethod
+    def _pairs_of(found: object) -> tuple[Indices, Indices]:
+        """Return the pairs a pair search or the edges an edge search found, as the first and second members.
+
+        Args:
+            found:
+                What `run` of the search returned.
+
+        Returns:
+            pairs:
+                The first and the second member of every pair.
+
+        Raises:
+            TypeError:
+                The search did not return a pair of index arrays.
+        """
+        if not isinstance(found, tuple):
+            error_msg = f'A pair search returns the first and second members, not a {type(found).__name__}.'
+            raise TypeError(error_msg)
+        first, second = found
+        return first, second
+
+    @staticmethod
+    def _broadcast(value: npt.ArrayLike, size: int) -> Array:
         """Return the values of an output as one float per evaluation index."""
         if np.ndim(value) == 0:
             return np.full(size, value, dtype=float)
@@ -368,7 +421,10 @@ class LawKernel(BaseKernel):
         counter = [0, -1]
         for kernel in kernels:
             for item in kernel.outputs:
-                indices = LawKernel._member_indices(item.target, kernel.rows, kernel.pairs)  # type: ignore[arg-type]
+                if item.target is None:
+                    error_msg = f'A noise output of {kernel.owner} has no target.'
+                    raise ValidationError(error_msg)
+                indices = LawKernel._member_indices(item.target, kernel.rows, kernel.pairs)
                 rows.append(indices)
                 columns.append(
                     LawKernel._process_columns(
@@ -411,7 +467,7 @@ class LawKernel(BaseKernel):
                 blocks.append(WienerBlockSpec(counter[0], process.dimension, process.factor))
             counter[0] += process.dimension
         if process.links is not None:
-            links = cast('Indices', process.links)
+            links = process.links
             if np.all(links >= 0):
                 return (starts[process.key] + links).astype(np.intp)
             if counter[1] < 0:
@@ -498,7 +554,7 @@ class LawKernel(BaseKernel):
             ends = pairs.sources if reference.source is ReadKind.FIRST else pairs.targets
             return (reference.entry.start + ends * reference.entry.columns + reference.column).astype(np.intp)
         if reference.source is ReadKind.NEIGHBOR:
-            table = np.asarray(reference.neighbor.table, dtype=np.intp)
+            table = np.asarray(reference.shifted.table, dtype=np.intp)
             inside = table < reference.entry.rows
             flat = reference.entry.start + table * reference.entry.columns + reference.column
             return np.where(inside, flat, -1).astype(np.intp)

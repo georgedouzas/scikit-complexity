@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Iterable, Mapping
-from typing import Any, cast
 
 from ....core.specs import CensusSpec
 from ....core.system import System
@@ -14,7 +13,8 @@ from ....specs._owners_spec import _OwnersSpec
 from ....specs._plan_spec import _PlanSpec
 from ....specs._planned_partition_spec import _PlannedPartitionSpec
 from ....types import FormKind
-from .._base import BasePass
+from .._base import BaseCompiler, BasePass
+from .._compilation import Compilation
 from .._forms import _FORMS
 from ._form import FormPass
 
@@ -34,8 +34,8 @@ class PlanPass(BasePass):
         """Plan the partitions of the system."""
         compilation = self.compilation_
         compilation.plan = self._plan_partitions(
-            cast('CensusSpec', compilation.census),
-            cast('dict[str, set[type]]', compilation.kinds),
+            Compilation._required(compilation.census, 'census'),
+            Compilation._required(compilation.kinds, 'kinds'),
             [] if compilation.solver is None else [type(compilation.solver)],
         )
 
@@ -53,7 +53,7 @@ class PlanPass(BasePass):
         path: str,
         declared: Mapping[str, set[type]],
         lowered: Mapping[str, set[type]],
-        solvers: list[Any],
+        solvers: list[type],
     ) -> IssueSpec:
         """Return the issue of a system whose own laws no solver runs or no form takes, by law kind or class."""
         fix = 'Move the components of each law kind into their own nested system, so they run as coupled partitions.'
@@ -84,13 +84,13 @@ class PlanPass(BasePass):
         return FormPass._form_kinds(owners) in _FORMS
 
     @staticmethod
-    def _solved(kinds: set[type], solvers: list[Any]) -> bool:
+    def _solved(kinds: set[type], solvers: list[type]) -> bool:
         """Check whether the solver of a single form passed runs every law kind of a set, or whether none is passed.
 
         Co-simulation is left out, since it runs partitions that each need a solver of their own.
         """
-        single = [solver for solver in solvers if solver._get_form() != FormKind.COUPLED]
-        return not single or any(not solver._get_support().missing('laws', kinds) for solver in single)
+        single = [solver for solver in solvers if BaseCompiler._form_of(solver) != FormKind.COUPLED]
+        return not single or any(not BaseCompiler._support_of(solver).missing('laws', kinds) for solver in single)
 
     @staticmethod
     def _planned(
@@ -119,7 +119,7 @@ class PlanPass(BasePass):
     def _plan_partitions(
         census: CensusSpec,
         kinds: Mapping[str, set[type]],
-        solvers: Iterable[Any] | None = None,
+        solvers: Iterable[type] | None = None,
     ) -> '_PlanSpec':
         """Return the partitions of a system, the subsystems whose laws compile to one form that one solver runs."""
         declared: dict[str, set[type]] = {}

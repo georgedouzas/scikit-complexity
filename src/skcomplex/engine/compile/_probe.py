@@ -9,6 +9,7 @@ from sage.all__sagemath_symbolics import var
 
 from ...core.elements import BaseElement, GroupElement
 from ...core.interactions import BaseInteraction
+from ...errors import SkcomplexError
 from ...specs import RoleSpec
 
 
@@ -33,7 +34,8 @@ def probe_laws(component: object) -> list[object] | None:
 
     A group returns the laws of a representative member. The namespace holds a free symbol for every declared state
     and parameter, the time `t`, `other` for the neighbour of a member, and an empty namespace per role. Laws that
-    read other names, such as the states of the elements a role binds, or that index a vector state, are not listed.
+    read other names, such as the states of the elements a role binds, or that index a vector state, are not listed:
+    the errors that reading them raises leave the laws unlisted.
 
     Args:
         component:
@@ -73,5 +75,5 @@ def probe_laws(component: object) -> list[object] | None:
         )
         laws = member.check().run(_probe_namespace(component_type))
         return laws if isinstance(laws, list) else None
-    except Exception:  # noqa: BLE001
+    except (AttributeError, IndexError, KeyError, TypeError, ValueError, ArithmeticError, RuntimeError, SkcomplexError):
         return None

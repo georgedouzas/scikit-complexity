@@ -4,15 +4,11 @@
 # License: MIT
 
 import math
-from typing import cast
 
 from ...core.laws import BoundaryLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, RelaxationLaw, UpdateLaw
 from ...core.spaces import DiscreteTime, LatticeSpace, NetworkSpace
-from ...specs import RunStateSpec, SupportSpec
+from ...specs import RelaxationRecordSpec, RunStateSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind
-from ..problems import BaseKernel
-from ..problems._extremal_kernel import ExtremalKernel
-from ..problems._relaxation_kernel import RelaxationKernel
 from ._solver import Solver
 
 
@@ -41,7 +37,7 @@ class LatticeSolver(Solver):
             time={DiscreteTime},
             space={LatticeSpace, NetworkSpace},
             laws={LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw, UpdateLaw, BoundaryLaw},
-            orders={OrderKind.INTEGER},
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     @classmethod
@@ -72,11 +68,11 @@ class LatticeSolver(Solver):
         state = x.copy()
         for step in range(round(t), math.floor(until + 1e-9)):
             current = RunStateSpec(float(step + 1), state, p, self.rng_)
-            for item in cast('tuple[BaseKernel, ...]', self.problem_.lattice):
+            for item in self.problem_.lattice:
                 result = item.run(current)
-                if isinstance(item, RelaxationKernel) and result is not None:
+                if isinstance(result, RelaxationRecordSpec):
                     self.locator_.records.append(result)
-                elif isinstance(item, ExtremalKernel):
+                elif isinstance(result, list):
                     self.locator_.records.extend(result)
             state = self._bounded(float(step + 1), state, p)
         return state

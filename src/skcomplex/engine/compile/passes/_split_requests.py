@@ -3,13 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import cast
 
 from ....core.laws import BaseLaw, UpdateLaw
 from ...problems import KernelSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
-from .._compilation import BlockLaws, Laws
+from .._compilation import BlockLaws, Compilation
 
 
 class SplitRequestsPass(BasePass):
@@ -27,8 +26,8 @@ class SplitRequestsPass(BasePass):
         """Set the update laws that request topology changes apart."""
         compilation = self.compilation_
         collected: BlockLaws = []
-        apart = cast('Laws', compilation.apart)
-        for spec, laws, block in cast('BlockLaws', compilation.collected):
+        apart = Compilation._required(compilation.apart, 'apart')
+        for spec, laws, block in Compilation._required(compilation.collected, 'collected'):
             kept, updates = self._split_requests(spec, laws)
             collected.append((spec, kept, block))
             if updates:

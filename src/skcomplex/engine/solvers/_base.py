@@ -11,6 +11,7 @@ import numpy as np
 from ...base import BaseConfig
 from ...errors import SolverError, ValidationError
 from ...specs import StepSpec, SupportSpec
+from ...specs._base_record_spec import BaseRecordSpec
 from ...types import Array, Bounded, FormKind, Take
 from ..problems import BaseProblemSpec, ProblemSpec
 from ._event_locator import EventLocator
@@ -67,7 +68,7 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
     problem_: P
     rng_: np.random.Generator
     initial_state_: Array
-    events_: list[object]
+    events_: list[BaseRecordSpec]
     stopped_at_: float | None
     snapshot_: object | None
     agents_: Mapping[str, list[object]]
@@ -79,6 +80,10 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
     @classmethod
     def _get_form(cls) -> FormKind:
         """Return the form the solver solves.
+
+        Returns:
+            form:
+                The form.
 
         Raises:
             NotImplementedError:
@@ -94,6 +99,10 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves.
+
+        Returns:
+            support:
+                What the solver solves.
 
         Raises:
             NotImplementedError:

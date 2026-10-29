@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Mapping
-from typing import cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
@@ -12,7 +11,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....core.elements import FieldElement
 from ....core.laws import NoiseLaw
 from ....core.spaces import LatticeSpace
-from ....core.specs import CensusRecordSpec, CensusSpec, NodeSpec
+from ....core.specs import CensusRecordSpec
 from ....errors import ValidationError
 from ....specs import IssueSpec, NoiseProcessSpec
 from ....types import Indices, ReadKind
@@ -36,8 +35,9 @@ class ConservedNoisePass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Set the outputs of the conserved noise laws."""
         compilation = self.compilation_
-        declarations = cast('DeclarationsSpec', compilation.layout)
-        compilation.outputs = self._conserved_outputs(cast('Laws', compilation.reduced), declarations)
+        declarations = Compilation._required(compilation.layout, 'layout')
+        reduced = Compilation._required(compilation.reduced, 'reduced')
+        compilation.outputs = self._conserved_outputs(reduced, declarations)
 
     @staticmethod
     def _conserved_outputs(specs: Laws, declarations: DeclarationsSpec) -> dict[int, list[OutputSpec]]:
@@ -76,24 +76,22 @@ class ConservedNoisePass(BasePass):
         return amplitude
 
     @staticmethod
-    def _check_place(owner: str, reference: ReferenceSpec, place: object) -> LatticeSpace:
-        """Return the lattice of the field a conserved noise drives, or raise an error when there is none."""
-        space = getattr(place, 'space', None)
-        is_lattice = (
-            isinstance(place, FieldElement)
-            and isinstance(space, LatticeSpace)
-            and space.geometry == 'square'
-            and place.discretization == 'finite-difference'
-            and reference.source is ReadKind.MEMBER
-        )
-        if not is_lattice:
+    def _check_place(owner: str, reference: ReferenceSpec, place: object) -> tuple[FieldElement, LatticeSpace]:
+        """Return the field a conserved noise drives and its lattice, or raise an error when there is none."""
+        if (
+            not isinstance(place, FieldElement)
+            or not isinstance(place.space, LatticeSpace)
+            or place.space.geometry != 'square'
+            or place.discretization != 'finite-difference'
+            or reference.source is not ReadKind.MEMBER
+        ):
             error_msg = (
                 f'The conserved noise law of {owner} drives {reference.entry.name}, which is not a state of a '
                 'finite-difference field on a square lattice. Declare the state on a `FieldElement` of a '
                 '`LatticeSpace`.'
             )
             raise ValidationError(error_msg)
-        return space  # type: ignore[return-value]
+        return place, place.space
 
     @staticmethod
     def _link_tables(dimensions: tuple[int, ...], periodic: bool) -> list[tuple[Indices, Indices]]:
@@ -169,8 +167,8 @@ class ConservedNoisePass(BasePass):
         outputs = []
         for reference in targets:
             place = places.get(reference.entry.name)
-            space = ConservedNoisePass._check_place(owner, reference, place)
-            kind, _ = place._get_boundary(reference.entry.name.rpartition('.')[2])  # type: ignore[arg-type]
+            field, space = ConservedNoisePass._check_place(owner, reference, place)
+            kind, _ = field._get_boundary(reference.entry.name.rpartition('.')[2])
             tables = ConservedNoisePass._link_tables(space.shape_, kind == 'periodic')
             key = ('conserved', reference.entry.name, reference.column)
             dimension = len(tables) * space.size_
@@ -215,8 +213,8 @@ class ConservedNoisePass(BasePass):
     @staticmethod
     def _conserved_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the conserved noise laws that drive a state that is not of a finite-difference field on a lattice."""
-        components = {node.path: node.component for node in cast('list[NodeSpec]', compilation.nodes)}
-        records = cast('CensusSpec', compilation.census).records
+        components = {node.path: node.component for node in Compilation._required(compilation.nodes, 'nodes')}
+        records = Compilation._required(compilation.census, 'census').records
         found = [
             ConservedNoisePass._conserved_issue(record, components)
             for record in records

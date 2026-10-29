@@ -4,12 +4,12 @@
 # License: MIT
 
 import bisect
-from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 
 from ...errors import SolverError
-from ...types import Array, Interpolant
+from ...types import Array, Indices, Interpolant
 from ..problems import ProblemSpec
 
 _RESTART = 1e-12
@@ -37,15 +37,15 @@ class History:
         self.start = start
         self.extrapolate = extrapolate
         self.initial = state.copy()
-        self.declared: dict[int, Any] = {}
+        self.declared: dict[int, tuple[Callable[[float], object], int] | float] = {}
         for name, value in problem.history.items():
             entry = problem.states.entry(name)
             for offset in range(entry.size):
-                self.declared[entry.start + offset] = (
-                    (value, offset)
-                    if callable(value)
-                    else np.ravel(np.asarray(value, dtype=float))[offset % np.size(value)]
-                )
+                if callable(value):
+                    self.declared[entry.start + offset] = (value, offset)
+                    continue
+                values = np.ravel(np.asarray(value, dtype=float))
+                self.declared[entry.start + offset] = float(values[offset % values.size])
         self.starts: list[float] = []
         self.segments: list[tuple[float, float, Interpolant]] = []
         self.span = max((delay.minimum for delay in problem.delays), default=0.0)
@@ -86,7 +86,7 @@ class History:
             return float(values[offset % values.size])
         return float(value)
 
-    def value(self, time: float, indices: Any) -> Array:  # noqa: ANN401
+    def value(self, time: float, indices: Indices) -> Array:
         """Return state components at a past time, from the run or from the declared history before the start.
 
         Args:

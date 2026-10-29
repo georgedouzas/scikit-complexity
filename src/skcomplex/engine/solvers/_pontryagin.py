@@ -25,7 +25,7 @@ _CONTROL_SUPPORT = SupportSpec(
     time={ContinuousTime},
     space={None},
     laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw},
-    orders={OrderKind.INTEGER},
+    orders=frozenset({OrderKind.INTEGER}),
 )
 
 
@@ -62,6 +62,12 @@ class PontryaginSolver(OptimalControlSolver):
 
         max_iterations:
             The largest number of sweeps.
+
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
     Attributes:
         solution_:

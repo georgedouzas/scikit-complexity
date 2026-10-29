@@ -3,10 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import cast
 
 from .._base import BasePass
-from .._compilation import BlockLaws
+from .._compilation import Compilation
 from .._flows import TransferLowering
 
 
@@ -25,5 +24,5 @@ class LowerFlowsPass(BasePass):
         """Lower the flows and their delays."""
         compilation = self.compilation_
         flows = TransferLowering().check().prepare(compilation)
-        lowered = cast('BlockLaws', compilation.lowered)
+        lowered = Compilation._required(compilation.lowered, 'lowered')
         compilation.transfer_network = flows._lower_flows([(spec, laws) for spec, laws, _ in lowered])

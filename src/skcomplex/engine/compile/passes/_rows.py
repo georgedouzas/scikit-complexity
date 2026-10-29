@@ -4,7 +4,6 @@
 # License: MIT
 
 from dataclasses import replace
-from typing import cast
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -16,7 +15,7 @@ from ....types import ReadKind
 from ..._utils import components_of
 from ...problems import KernelSpec
 from .._base import BasePass
-from .._compilation import BlockLaws, Laws
+from .._compilation import Compilation
 from .._draw_lowering import DrawLowering
 from .._renewal_law import RenewalLaw
 
@@ -39,9 +38,9 @@ class RowsPass(BasePass):
         as the laws, the laws set apart, and the flows, which later passes read.
         """
         compilation = self.compilation_
-        apart = cast('Laws', compilation.apart)
+        apart = Compilation._required(compilation.apart, 'apart')
         settled: dict[int, KernelSpec] = {}
-        for spec, laws, _ in cast('BlockLaws', compilation.lowered):
+        for spec, laws, _ in Compilation._required(compilation.lowered, 'lowered'):
             self._check_draw_placement(spec.owner, laws)
             new = self._settled(spec, [*laws, *(law for other, items in apart if other is spec for law in items)])
             if new is not spec:

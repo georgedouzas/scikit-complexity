@@ -33,6 +33,12 @@ class VelocityVerletSolver(Solver):
         dt:
             The largest internal time step.
 
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
@@ -55,7 +61,7 @@ class VelocityVerletSolver(Solver):
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
             laws={RateLaw, FluxLaw, EquationLaw, BoundaryLaw},
-            orders={OrderKind.INTEGER},
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     @classmethod
@@ -74,18 +80,19 @@ class VelocityVerletSolver(Solver):
         self.random_state = random_state
         self.until = until
 
-    def _prepare(self, problem: ProblemSpec) -> None:
+    def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the stepper and find the position and velocity components of the problem.
 
         Args:
-            problem:
+            context:
                 The compiled problem.
 
         Raises:
             SolverError:
                 The problem is not an ODE, or has states that are neither positions nor velocities.
         """
-        super()._prepare(problem)
+        super()._prepare(context)
+        problem = self.problem_
         BaseSolver._reject_hybrid(problem, type(self).__name__)
         self.positions_, self.velocities_ = self._position_pairs(problem)
 

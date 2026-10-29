@@ -9,7 +9,7 @@ from collections.abc import Callable
 import numpy as np
 
 from ...errors import SolverError
-from ...types import Array
+from ...types import Array, VectorFunction
 from ..problems import ProblemSpec
 from ._base import BaseSolver
 from ._event_locator import EventLocator
@@ -40,6 +40,22 @@ class Solver(BaseSolver[ProblemSpec]):
                 'fractional Euler-Maruyama stepper, FractionalEulerMaruyamaSolver.'
             )
             raise SolverError(error_msg)
+
+    def _drift(self) -> VectorFunction:
+        """Return the drift `f(t, x, p)` of the problem, raising an error for a problem without one."""
+        drift = self.problem_.drift
+        if drift is None:
+            error_msg = f'{type(self).__name__} integrates a drift, but the problem has none.'
+            raise SolverError(error_msg)
+        return drift
+
+    def _diffusion(self) -> VectorFunction:
+        """Return the diffusion `g(t, x, p)` of the problem, raising an error for a problem without one."""
+        diffusion = self.problem_.diffusion
+        if diffusion is None:
+            error_msg = f'{type(self).__name__} integrates noise, but the problem has no diffusion.'
+            raise SolverError(error_msg)
+        return diffusion
 
     def _bounded(self, t: float, x: Array, p: Array) -> Array:
         """Return a state after the boundary laws of the problem, or the state itself without boundary laws."""
@@ -100,11 +116,11 @@ class Solver(BaseSolver[ProblemSpec]):
         if accelerated.iterate is not None:
             accelerated.iterate(0.0, x, p, 0.0, *drawn)
 
-    def _prepare(self, problem: ProblemSpec) -> None:
+    def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the stepper for a problem and call its numeric functions once, so compiled backends compile.
 
         Args:
-            problem:
+            context:
                 The compiled problem.
 
         Raises:
@@ -112,7 +128,8 @@ class Solver(BaseSolver[ProblemSpec]):
                 The problem has a form the stepper does not solve, or renewal laws or fractional noise it does not
                 integrate.
         """
-        super()._prepare(problem)
+        super()._prepare(context)
+        problem = self.problem_
         self._check_capabilities(problem)
         self.locator_ = EventLocator(problem)
         self.renewals_ = RenewalClock(problem, self.rng_, self.locator_) if problem.renewals else None

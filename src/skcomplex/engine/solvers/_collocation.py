@@ -4,7 +4,6 @@
 # License: MIT
 
 import math
-from typing import Any
 
 import numpy as np
 from scipy.optimize import Bounds, minimize
@@ -59,6 +58,12 @@ class CollocationSolver(OptimalControlSolver):
         max_iterations:
             The largest number of iterations of the optimiser.
 
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
+
     Attributes:
         solution_:
             The optimal solution of the run.
@@ -105,7 +110,7 @@ class CollocationSolver(OptimalControlSolver):
             time={ContinuousTime},
             space={None},
             laws={RateLaw, FluxLaw, EquationLaw},
-            orders={OrderKind.INTEGER},
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     def __init__(
@@ -263,7 +268,7 @@ class CollocationSolver(OptimalControlSolver):
         if not np.all(np.isfinite(guess_states)):
             guess_states = np.tile(initial, (points.size, 1))
         coefficients = (states, rates)
-        constraint: dict[str, Any] = {
+        constraint: dict[str, object] = {
             'type': 'eq',
             'fun': lambda z: self._defects(z, points, coefficients, initial, p),
             'jac': lambda z: self._jacobian(z, points, coefficients, p),

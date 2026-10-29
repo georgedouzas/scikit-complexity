@@ -52,10 +52,10 @@ class ScalarsVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _prepare(self, problem: BaseProblemSpec) -> None:
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Keep the element, forget the styled series of earlier runs, and set the views."""
         self.styled_: set[str] = set()
-        super()._prepare(problem)
+        super()._prepare(context)
 
     def _value(self, value: object) -> object:
         """Return the chosen components of a vector value, or the value itself."""

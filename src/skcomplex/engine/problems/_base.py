@@ -3,7 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import numpy as np
+
 from ...base import BaseConfig
+from ...errors import ValidationError
 from ...specs import RunStateSpec
 
 
@@ -32,6 +35,48 @@ class BaseKernel(BaseConfig[object, RunStateSpec]):
         [-1.0]
     """
 
+    @staticmethod
+    def _state_of(inputs: RunStateSpec | None) -> RunStateSpec:
+        """Return the state a kernel runs at, raising an error when none is passed.
+
+        Args:
+            inputs:
+                The state, or `None`.
+
+        Returns:
+            state:
+                The state.
+
+        Raises:
+            ValidationError:
+                No state is passed.
+        """
+        if inputs is None:
+            error_msg = 'A kernel runs at a state. Pass a `RunStateSpec` to `run`.'
+            raise ValidationError(error_msg)
+        return inputs
+
+    @staticmethod
+    def _generator_of(state: RunStateSpec) -> np.random.Generator:
+        """Return the random number generator of a state, raising an error when it has none.
+
+        Args:
+            state:
+                The state.
+
+        Returns:
+            rng:
+                The random number generator.
+
+        Raises:
+            ValidationError:
+                The state has no random number generator.
+        """
+        if state.rng is None:
+            error_msg = 'The kernel draws random numbers. Pass a state with a random number generator.'
+            raise ValidationError(error_msg)
+        return state.rng
+
 
 class BaseSearch(BaseConfig[None, RunStateSpec]):
     """Base of the neighbour searches: the neighbours a kernel reads at a state.
@@ -39,6 +84,27 @@ class BaseSearch(BaseConfig[None, RunStateSpec]):
     A search stores the entries and the neighbourhood it reads in its constructor, and `run(state)` returns the
     neighbours at a `RunStateSpec`: the row starts and the neighbours of every member, or the members of every pair.
     """
+
+    @staticmethod
+    def _state_of(inputs: RunStateSpec | None) -> RunStateSpec:
+        """Return the state a search runs at, raising an error when none is passed.
+
+        Args:
+            inputs:
+                The state, or `None`.
+
+        Returns:
+            state:
+                The state.
+
+        Raises:
+            ValidationError:
+                No state is passed.
+        """
+        if inputs is None:
+            error_msg = 'A search runs at a state. Pass a `RunStateSpec` to `run`.'
+            raise ValidationError(error_msg)
+        return inputs
 
 
 class BasePrinter[ContextT, InputT](BaseConfig[ContextT, InputT]):

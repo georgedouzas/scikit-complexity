@@ -4,24 +4,24 @@
 # License: MIT
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws.utils import draws_in, reductions_in
-from ....errors import ValidationError
+from ....errors import PipelineError, ValidationError
 from ....specs import DrawSpec
 from ....specs._draw_spec import DRAWS
 from ....types import Indices, ReadKind
 from ..._utils import components_of, symbol, symbols_of
-from ...problems import DeclarationsSpec, ExpressionPrinter, ProblemSpec, ReferenceSpec
+from ...problems import ExpressionPrinter, ReferenceSpec
 from ...problems._renewal_kernel import _READ_SOURCES, MemberFunction, RenewalKernel, Sampler
 from .._base import BasePass
 from .._bound_renewal_spec import BoundRenewalSpec
+from .._compilation import Compilation
 from .._draw_lowering import DrawLowering
 from .._renewal_law import RenewalLaw
 
@@ -40,12 +40,16 @@ class RenewalProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the renewal laws to the problem."""
         compilation = self.compilation_
-        problem = cast('ProblemSpec', compilation.problem)
-        time = cast('DeclarationsSpec', compilation.layout).time
-        symbols = {item.entry.name: item.symbol for item in compilation.renewals}
+        problem = Compilation._required(compilation.problem, 'problem')
+        time = Compilation._required(compilation.layout, 'layout').time
+        renewals = compilation.renewals
+        if renewals is None:
+            error_msg = 'RenewalProblemPass reads the renewal laws, which no pass wrote.'
+            raise PipelineError(error_msg)
+        symbols = {item.entry.name: item.symbol for item in renewals}
         compilation.problem = replace(
             problem,
-            renewals=self._compile_renewals(compilation.renewals, time, compilation.owners),
+            renewals=self._compile_renewals(renewals, time, compilation.owners),
             symbols={**problem.symbols, **symbols},
         )
 
@@ -121,7 +125,7 @@ class RenewalProblemPass(BasePass):
     def _member_function(
         owner: str,
         expressions: Sequence[Expression],
-        references: dict[Expression, ReferenceSpec],
+        references: Mapping[Expression, ReferenceSpec],
         slots: dict[Expression, str],
         time: Expression,
     ) -> MemberFunction:
@@ -141,7 +145,19 @@ class RenewalProblemPass(BasePass):
                 raise ValidationError(error_msg)
             readers.append(reference)
         printer = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments)
-        return printer.run(list(expressions)), tuple(readers)
+        function = printer.run(list(expressions))
+        if not callable(function):
+            error_msg = f'The printer returns no function of the renewal laws of {owner}.'
+            raise TypeError(error_msg)
+
+        def evaluate(*values: object) -> list[object]:
+            results = function(*values)
+            if not isinstance(results, list):
+                error_msg = f'The function of the renewal laws of {owner} returns no list of values.'
+                raise TypeError(error_msg)
+            return results
+
+        return evaluate, tuple(readers)
 
     @staticmethod
     def _ordered(found: list[DrawSpec]) -> list[DrawSpec]:
@@ -158,7 +174,7 @@ class RenewalProblemPass(BasePass):
     @staticmethod
     def _recorded_states(
         group: str,
-        references: dict[Expression, ReferenceSpec],
+        references: Mapping[Expression, ReferenceSpec],
         rows: int,
     ) -> tuple[Indices, tuple[str, ...]]:
         """Return the flat indices and the names of the states of every member of the group a renewal law renews."""
@@ -182,7 +198,7 @@ class RenewalProblemPass(BasePass):
     def _target_places(
         owner: str,
         targets: list[Expression],
-        references: dict[Expression, ReferenceSpec],
+        references: Mapping[Expression, ReferenceSpec],
         rows: int,
     ) -> Indices:
         """Return the flat indices every reset component writes, one row per component and one column per member."""
@@ -208,7 +224,7 @@ class RenewalProblemPass(BasePass):
     def _compile_renewal(
         owner: str,
         law: RenewalLaw,
-        references: dict[Expression, ReferenceSpec],
+        references: Mapping[Expression, ReferenceSpec],
         *,
         time: Expression,
         rows: int,

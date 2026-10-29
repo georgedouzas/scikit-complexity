@@ -5,7 +5,6 @@
 
 import functools
 from collections.abc import Callable
-from typing import Any
 
 import numba
 import numpy as np
@@ -57,13 +56,14 @@ class EncounterKernel(BaseKernel):
             Whether the gain runs in one fused loop compiled with Numba, rather than in NumPy.
     """
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         owner: str,
         kind: str,
         candidate: Indices,
         field: Indices,
         test: Indices,
+        *,
         rate: TableValuesSpec,
         entries: tuple[Indices, Indices, Indices],
         probabilities: TableValuesSpec | None,
@@ -80,7 +80,7 @@ class EncounterKernel(BaseKernel):
         self.fused = fused
 
     @functools.cached_property
-    def _functions(self) -> dict[int, Callable[..., list[Any]]]:
+    def _functions(self) -> dict[int, Callable[..., object]]:
         """NumPy functions of the selected entries of the tables of expressions, compiled once, by table identity."""
         return {}
 
@@ -93,9 +93,10 @@ class EncounterKernel(BaseKernel):
         symbols = sorted(table.parameters, key=str)
         if id(table) not in self._functions:
             printer = ExpressionPrinter(time=table.time, compiled=True).check().prepare(symbols)
-            self._functions[id(table)] = printer.run(list(selected))
+            self._functions[id(table)] = ExpressionPrinter._function_of(printer.run(list(selected)))
         indices = np.asarray([table.parameters[item] for item in symbols], dtype=np.intp)
-        return np.asarray(self._functions[id(table)](0.0, *(float(value) for value in p[indices])), dtype=float)
+        computed = self._functions[id(table)](0.0, *(float(value) for value in p[indices]))
+        return np.asarray(ExpressionPrinter._values_of(computed), dtype=float)
 
     def rate_matrix(self, p: Array) -> Array:
         """Return the encounter rate of every candidate activity with every field activity.
@@ -162,9 +163,10 @@ class EncounterKernel(BaseKernel):
         """
         return x[self.candidate] * (self.rate_matrix(p) @ x[self.field])
 
-    def _run(self, inputs: RunStateSpec) -> Array:
+    def _run(self, inputs: RunStateSpec | None) -> Array:
         """Return the contribution of the encounter to the rate of every state, zero outside its densities."""
-        x, p = inputs.x, inputs.p
+        state = self._state_of(inputs)
+        x, p = state.x, state.p
         rates = np.zeros(x.size)
         if self.kind != 'proliferation':
             rates[self.candidate] -= self._loss(x, p)

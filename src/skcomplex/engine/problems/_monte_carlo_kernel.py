@@ -3,8 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
-from typing import Any, cast
+from collections.abc import Callable, Mapping
 
 import numpy as np
 
@@ -13,6 +12,7 @@ from ...errors import SolverError
 from ...specs import ArgumentsSpec, MoveSpec, RunStateSpec, SamplerSpec
 from ...types import Array, Indices
 from ._base import BaseKernel
+from ._expression_printer import ExpressionPrinter
 
 
 class MonteCarloKernel(BaseKernel):
@@ -50,14 +50,15 @@ class MonteCarloKernel(BaseKernel):
             Whether the energy change reads the mask of the real neighbours of a neighbour sum.
     """
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         owner: str,
         target: LatticeStateSpec,
         table: Indices,
-        delta: Callable[..., Any],
+        delta: Callable[..., object],
         arguments: ArgumentsSpec,
-        temperature: Callable[..., Any],
+        *,
+        temperature: Callable[..., object],
         move: MoveSpec,
         sampler: SamplerSpec,
         classes: tuple[Indices, ...] = (),
@@ -80,13 +81,15 @@ class MonteCarloKernel(BaseKernel):
         values: Array,
         sites: Indices,
         proposal: Array,
-        keywords: dict[str, Any],
+        keywords: Mapping[str, object],
     ) -> Array:
         """Return the energy change of moving some sites to proposed values."""
         rows = self.table[sites]
         neighbours = np.append(x[self.target.sites], self.target.space.fill)[rows]
         masks = (rows != self.target.size).astype(float).T if self.masked else ()
-        change = self.delta(0.0, values, *neighbours.T, proposal, *masks, *keywords.values())[0]
+        change = ExpressionPrinter._values_of(
+            self.delta(0.0, values, *neighbours.T, proposal, *masks, *keywords.values()),
+        )[0]
         return np.broadcast_to(np.asarray(change, dtype=float), values.shape)
 
     def _propose(self, values: Array, rng: np.random.Generator) -> Array:
@@ -100,7 +103,10 @@ class MonteCarloKernel(BaseKernel):
     def _update(self, x: Array, p: Array, sites: Indices, rng: np.random.Generator) -> None:
         """Propose and accept moves at sites that do not neighbour each other."""
         keywords = self.arguments.values(x, p, sites)
-        temperature = np.asarray(self.temperature(0.0, *keywords.values())[0], dtype=float)
+        temperature = np.asarray(
+            ExpressionPrinter._values_of(self.temperature(0.0, *keywords.values()))[0],
+            dtype=float,
+        )
         if np.any(temperature <= 0):
             error_msg = f'The temperature of {self.owner} is {temperature}, but it must be positive.'
             raise SolverError(error_msg)
@@ -134,9 +140,10 @@ class MonteCarloKernel(BaseKernel):
         """Lattice state the move changes, as the one target of the step."""
         return (self.target,)
 
-    def _run(self, inputs: RunStateSpec) -> None:
+    def _run(self, inputs: RunStateSpec | None) -> None:
         """Update the state vector of the state in place by one sweep of the lattice."""
-        x, p, rng = inputs.x, inputs.p, cast('np.random.Generator', inputs.rng)
+        state = self._state_of(inputs)
+        x, p, rng = state.x, state.p, self._generator_of(state)
         size = self.target.size
         if self.sampler.schedule in {'checkerboard', 'colored'}:
             for sites in self.classes:

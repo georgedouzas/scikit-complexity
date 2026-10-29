@@ -4,10 +4,10 @@
 # License: MIT
 
 from dataclasses import replace
-from typing import cast
 
-from ...problems import ProblemSpec
+from ....errors import PipelineError
 from .._base import BasePass
+from .._compilation import Compilation
 
 
 class FieldProblemPass(BasePass):
@@ -24,16 +24,21 @@ class FieldProblemPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Add the discretizations of the fields to the problem."""
         compilation = self.compilation_
-        problem = cast('ProblemSpec', compilation.problem)
-        indices, values = compilation.constrained
+        problem = Compilation._required(compilation.problem, 'problem')
+        constrained, limits, volume_limits = compilation.constrained, compilation.limits, compilation.volume_limits
+        linear, volumes = compilation.linear, compilation.volumes
+        if constrained is None or limits is None or volume_limits is None or linear is None or volumes is None:
+            error_msg = 'FieldProblemPass reads the fields of the field functions, which no pass wrote.'
+            raise PipelineError(error_msg)
+        indices, values = constrained
         initial_state = problem.initial_state.copy()
         initial_state[indices] = values
         compilation.problem = replace(
             problem,
             initial_state=initial_state,
-            stable_step=min(compilation.limits, default=None),
-            diffusive_limits=tuple(compilation.volume_limits),
-            linear=tuple(compilation.linear),
-            volumes=compilation.volumes,
+            stable_step=min(limits, default=None),
+            diffusive_limits=tuple(volume_limits),
+            linear=tuple(linear),
+            volumes=volumes,
             constrained=indices,
         )

@@ -188,13 +188,21 @@ class RerunObserver(BaseObserver):
             error_msg = f'interval = {self.interval!r} must be a positive integer.'
             raise ValidationError(error_msg)
 
-    def _prepare(self, problem: BaseProblemSpec) -> None:
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Create the recording, build a visual for every element and agent group, and send the recording to its sinks.
+
+        Args:
+            context:
+                The compiled problem the run advances.
 
         Raises:
             ValidationError:
-                No view has the name or the origin of `primary`.
+                No problem is passed, or no view has the name or the origin of `primary`.
         """
+        if context is None:
+            error_msg = 'A Rerun observer prepares on a compiled problem. Pass the problem to `prepare`.'
+            raise ValidationError(error_msg)
+        problem = context
         # Rerun keeps the threads of a recording until its orphans are cleaned up, so a process running many
         # simulations, such as the docs build, would otherwise run out of threads.
         bindings.flush_and_cleanup_orphaned_recordings()
@@ -340,8 +348,8 @@ class RerunObserver(BaseObserver):
         for name, value in frame.reporters.items():
             self.recording_.log(f'reporters/{name}', rr.Scalars(np.atleast_1d(value)))
         owners = {element.path for element in frame.problem.elements}
-        for name, value in frame.observables.items():
-            values = np.atleast_1d(np.abs(value) if np.iscomplexobj(value) else value)
+        for name, observed in frame.observables.items():
+            values = np.atleast_1d(np.abs(observed) if np.iscomplexobj(observed) else observed)
             self.recording_.log(self._entity_path(name, owners), rr.Scalars(values))
         for name in frame.problem.parameters.names:
             BaseVisual._log_scalars(self.recording_, f'parameters/{name}', frame.value(name))

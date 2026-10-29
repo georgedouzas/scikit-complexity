@@ -12,6 +12,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
 from ...core.spaces import ConeNeighborhood, NearestNeighborhood
+from ...errors import ValidationError
 from ...specs import EntrySpec, ReadSpec
 from ...types import ReadKind
 from .._utils import symbols_of
@@ -29,7 +30,7 @@ from ._base import _AUTO_MEMBERS
 INDENT = '    '
 
 
-class NumbaPrinter(BasePrinter):
+class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, list[LawKernel], bool]]]):
     """Printer of the kernels and reductions of a problem as the source of fused Numba functions.
 
     `prepare(reductions)` starts an empty source and prints the function that fuses the reductions, or none for
@@ -69,8 +70,24 @@ class NumbaPrinter(BasePrinter):
         if context is not None and context.steps:
             self._reduce_function(context, self.parallel)
 
-    def _run(self, inputs: Sequence[tuple[str, str, list[LawKernel], bool]]) -> list[str]:
-        """Print the kernels of every part, each part with its entry function, and return the source lines."""
+    def _run(self, inputs: Sequence[tuple[str, str, list[LawKernel], bool]] | None) -> list[str]:
+        """Print the kernels of every part, each part with its entry function, and return the source lines.
+
+        Args:
+            inputs:
+                The parts: the label of the entry function, its mode, the kernels, and whether they read reductions.
+
+        Returns:
+            lines:
+                The source lines.
+
+        Raises:
+            ValidationError:
+                No parts are passed.
+        """
+        if inputs is None:
+            error_msg = 'The Numba printer runs on the parts of a problem. Pass them to `run`.'
+            raise ValidationError(error_msg)
         for label, mode, kernels, reduced in inputs:
             names = []
             for index, kernel in enumerate(kernels):
@@ -192,9 +209,95 @@ class NumbaPrinter(BasePrinter):
             return f'{start} + {reference.column}'
         return f'{start} + {member} * {reference.entry.columns} + {reference.column}'
 
+    @staticmethod
+    def _printed(printer: ExpressionPrinter, expressions: list[Expression]) -> tuple[list[tuple[str, str]], list[str]]:
+        """Return the assignments of the repeated subexpressions and the codes of expressions printed by a printer.
+
+        Args:
+            printer:
+                The prepared printer of code, not of a compiled function.
+
+            expressions:
+                The expressions.
+
+        Returns:
+            printed:
+                The assignments and the code of every expression.
+
+        Raises:
+            TypeError:
+                The printer returns a compiled function instead of code.
+        """
+        result = printer.run(expressions)
+        if not isinstance(result, tuple):
+            error_msg = f'The printer returns assignments and codes, not a {type(result).__name__}.'
+            raise TypeError(error_msg)
+        assignments, codes = result
+        return assignments, codes
+
+    @staticmethod
+    def _target_of(output: OutputSpec) -> ReferenceSpec:
+        """Return the target of an output a kernel writes.
+
+        Args:
+            output:
+                The output.
+
+        Returns:
+            target:
+                The target reference.
+
+        Raises:
+            ValidationError:
+                The output has no target.
+        """
+        if output.target is None:
+            error_msg = 'A kernel output that the Numba printer writes needs a target.'
+            raise ValidationError(error_msg)
+        return output.target
+
+    @staticmethod
+    def _pair_search_of(kernel: LawKernel) -> PairSearch:
+        """Return the pair search of a pair kernel.
+
+        Args:
+            kernel:
+                The pair kernel.
+
+        Returns:
+            search:
+                The pair search.
+
+        Raises:
+            TypeError:
+                The kernel holds no pair search.
+        """
+        if not isinstance(kernel.pairs, PairSearch):
+            error_msg = f'A pair kernel holds a pair search, not a {type(kernel.pairs).__name__}.'
+            raise TypeError(error_msg)
+        return kernel.pairs
+
+    @staticmethod
+    def _by_end(
+        outputs: Sequence[tuple[int, OutputSpec]],
+    ) -> tuple[list[tuple[int, OutputSpec]], list[tuple[int, OutputSpec]]]:
+        """Return the outputs that target the first members of pairs and those that target the second members.
+
+        Args:
+            outputs:
+                The outputs, with their indices.
+
+        Returns:
+            ends:
+                The outputs of the first members and of the second members.
+        """
+        firsts = [item for item in outputs if NumbaPrinter._target_of(item[1]).source is ReadKind.FIRST]
+        seconds = [item for item in outputs if NumbaPrinter._target_of(item[1]).source is ReadKind.SECOND]
+        return firsts, seconds
+
     def _emit_values(
         self,
-        outputs: list[OutputSpec],
+        outputs: Sequence[OutputSpec],
         read: Callable[[Expression], str],
         depth: int,
     ) -> tuple[list[str], list[str]]:
@@ -205,7 +308,7 @@ class NumbaPrinter(BasePrinter):
         symbols = sorted(symbols_of(expressions + arguments), key=str)
         reads = [(str(item), read(item)) for item in symbols if str(item) != 't']
         lines = [f'{pad}{name} = {code}' for name, code in reads if name != code]
-        assignments, codes = ExpressionPrinter('scalar').check().prepare().run([*expressions, *arguments])
+        assignments, codes = self._printed(ExpressionPrinter('scalar').check().prepare(), [*expressions, *arguments])
         lines += [f'{pad}{name} = {code}' for name, code in assignments]
         expression_codes, argument_codes = iter(codes[: len(expressions)]), iter(codes[len(expressions) :])
         values: list[str] = []
@@ -223,7 +326,7 @@ class NumbaPrinter(BasePrinter):
             values.append(calls[key] if output.components == 1 else f'{calls[key]}[{output.component}]')
         return lines, values
 
-    def _single_reads(self, kernel: LawKernel, outputs: list[OutputSpec]) -> list[str]:
+    def _single_reads(self, kernel: LawKernel, outputs: Sequence[OutputSpec]) -> list[str]:
         """Return the lines that read every single-element symbol of outputs once, before the member loops."""
         expressions = [output.expression for output in outputs if output.expression is not None]
         arguments = [argument for output in outputs for argument in output.arguments or ()]
@@ -269,8 +372,7 @@ class NumbaPrinter(BasePrinter):
         depth: int,
     ) -> list[str]:
         """Return the lines that add the outputs of one pair orientation to their accumulators within the cutoff."""
-        pairs = kernel.pairs
-        assert isinstance(pairs, PairSearch)  # nosec B101: pair kernels hold a pair search
+        pairs = self._pair_search_of(kernel)
         pad = INDENT * depth
         lines = []
         for column in range(pairs.first.columns):
@@ -306,8 +408,7 @@ class NumbaPrinter(BasePrinter):
         cells = 'a' if same or loop == '_b_' else 'b'
         own = 'a' if loop == '_a_' else 'b'
         second_positions = 'positions_a' if same else 'positions_b'
-        pairs = kernel.pairs
-        assert isinstance(pairs, PairSearch)  # nosec B101: pair kernels hold a pair search
+        pairs = self._pair_search_of(kernel)
         n_dim = pairs.first.columns
         lines = [f'{INDENT}for _i_ in prange(rows_{loop}):', f'{INDENT * 2}{loop} = order_{own}[_i_]']
         lines += [f'{INDENT * 2}_acc{index}_ = 0.0' for index, _ in outputs]
@@ -345,8 +446,7 @@ class NumbaPrinter(BasePrinter):
         base = depth + 1
         if same:
             lines += [f'{INDENT * base}if _n_ == _a_:', f'{INDENT * (base + 1)}continue']
-        firsts = [(index, output) for index, output in outputs if output.target.source is ReadKind.FIRST]  # type: ignore[union-attr]
-        seconds = [(index, output) for index, output in outputs if output.target.source is ReadKind.SECOND]  # type: ignore[union-attr]
+        firsts, seconds = self._by_end(outputs)
         for selected, first, second, condition in ((firsts, '_a_', '_n_', '>'), (seconds, '_n_', loop, '<')):
             if not selected:
                 continue
@@ -362,7 +462,10 @@ class NumbaPrinter(BasePrinter):
                 second_positions=second_positions,
                 depth=depth,
             )
-        lines += [f'{INDENT * 2}out[{self._index(output.target, loop)}] += _acc{index}_' for index, output in outputs]  # type: ignore[arg-type]
+        lines += [
+            f'{INDENT * 2}out[{self._index(self._target_of(output), loop)}] += _acc{index}_'
+            for index, output in outputs
+        ]
         return lines
 
     def _member_kernel(self, kernel: LawKernel, name: str, mode: str, parallel: bool) -> None:
@@ -385,11 +488,14 @@ class NumbaPrinter(BasePrinter):
             if NumbaPrinter._is_shared(reference):
                 return str(item)
             if reference.source is ReadKind.NEIGHBOR:
-                read = reference.neighbor
+                read = reference.shifted
+                if read.sizes is None or read.steps is None:
+                    error_msg = f'The neighbour read of {reference.entry.name} is not on a lattice.'
+                    raise ValidationError(error_msg)
                 return (
-                    f'_neighbor_value({NumbaPrinter._vector(reference)}, _L{2 * self._slot(reference.entry)}_, '
-                    f'{reference.entry.columns}, {reference.column}, _m_, {tuple(read.sizes)}, {tuple(read.steps)}, '
-                    f'{read.mode}, {float(read.ghost or 0.0)})'
+                    f'_neighbor_value({NumbaPrinter._vector(reference)}, _m_, (_L{2 * self._slot(reference.entry)}_, '
+                    f'{reference.entry.columns}, {reference.column}), ({tuple(read.sizes)}, {tuple(read.steps)}), '
+                    f'({read.mode}, {float(read.ghost or 0.0)}))'
                 )
             return f'{NumbaPrinter._vector(reference)}[{self._index(reference, '_m_')}]'
 
@@ -408,19 +514,19 @@ class NumbaPrinter(BasePrinter):
             elif index in sums:
                 lines.append(f'{INDENT * 2}_sum{index}_ += {value}')
             else:
-                target = output.target
-                member = '_m_' if target.source is ReadKind.MEMBER else None  # type: ignore[union-attr]
+                target = self._target_of(output)
+                member = '_m_' if target.source is ReadKind.MEMBER else None
                 operator = '+=' if mode == 'add' else '='
-                lines.append(f'{INDENT * 2}out[{self._index(target, member)}] {operator} {value}')  # type: ignore[arg-type]
+                lines.append(f'{INDENT * 2}out[{self._index(target, member)}] {operator} {value}')
         for index in sums:
-            lines.append(f'{INDENT}out[{self._index(kernel.outputs[index].target, None)}] += _sum{index}_')  # type: ignore[arg-type]
+            target = self._target_of(kernel.outputs[index])
+            lines.append(f'{INDENT}out[{self._index(target, None)}] += _sum{index}_')
         lines.append(f'{INDENT}return offset + {len(kernel.outputs)} * rows')
         self.lines_ += ['', '', *NumbaPrinter._hoist_layout(lines)]
 
     def _pair_kernel(self, kernel: LawKernel, name: str, parallel: bool) -> None:
         """Add the source of a pair kernel that sums pair outputs over neighbours found in the bounded cell grids."""
-        pairs = kernel.pairs
-        assert isinstance(pairs, PairSearch)  # nosec B101: pair kernels hold a pair search
+        pairs = self._pair_search_of(kernel)
         same = pairs.first == pairs.second
         columns = pairs.first.columns
         cutoff = ReferenceSpec(pairs.cutoff, is_state=False, column=0)
@@ -444,8 +550,7 @@ class NumbaPrinter(BasePrinter):
         if same:
             lines += self._pair_loop(kernel, outputs, '_a_', same=True)
         else:
-            firsts = [(index, output) for index, output in outputs if output.target.source is ReadKind.FIRST]  # type: ignore[union-attr]
-            seconds = [(index, output) for index, output in outputs if output.target.source is ReadKind.SECOND]  # type: ignore[union-attr]
+            firsts, seconds = self._by_end(outputs)
             if firsts:
                 lines += self._pair_loop(kernel, firsts, '_a_', same=False)
             if seconds:
@@ -491,7 +596,8 @@ class NumbaPrinter(BasePrinter):
                 operator = '+=' if mode == 'add' else '='
                 lines.append(f'{INDENT * 2}out[{self._index(target, members[target.source])}] {operator} {value}')
         for index in sums:
-            lines.append(f'{INDENT}out[{self._index(kernel.outputs[index].target, None)}] += _sum{index}_')  # type: ignore[arg-type]
+            target = self._target_of(kernel.outputs[index])
+            lines.append(f'{INDENT}out[{self._index(target, None)}] += _sum{index}_')
         lines.append(f'{INDENT}return offset + {len(kernel.outputs)} * rows')
         self.lines_ += ['', '', *NumbaPrinter._hoist_layout(lines)]
 
@@ -551,7 +657,7 @@ class NumbaPrinter(BasePrinter):
         ]
         condition = reduction.condition if reduction.condition is not None else 1
         printer = ExpressionPrinter('scalar', prefix=f'_r{index}cse').check().prepare()
-        assignments, codes = printer.run([reduction.argument, condition])
+        assignments, codes = self._printed(printer, [reduction.argument, condition])
         loop = 'prange' if parallel else 'range'
         return [
             f'{INDENT}for _m_ in {loop}(_n{index}_):',
@@ -628,7 +734,7 @@ class NumbaPrinter(BasePrinter):
             starts = ', '.join(f'_L{2 * self._slot(entry)}_' for entry in (search.source, search.target, search.active))
             call = (
                 f'_edge_neighbours(p, ({starts}), _L{2 * self._slot(search.source) + 1}_, {search.size}, '
-                f'{search.directed}, {search.center})'
+                f'({search.directed}, {search.center}))'
             )
             return [f'{INDENT}_ip{index}_, _ix{index}_, _ie{index}_ = {call}']
         assert isinstance(search, MetricSearch)
@@ -668,7 +774,7 @@ class NumbaPrinter(BasePrinter):
             )
         cosine = repr(float(np.cos(neighbourhood.angle)))
         call = (
-            f'_cone_neighbours(_pos{index}_, _hd{index}_, {neighbourhood.radius!r}, {cosine}, (_per{index}_, '
+            f'_cone_neighbours(_pos{index}_, _hd{index}_, ({neighbourhood.radius!r}, {cosine}), (_per{index}_, '
             f'{periodic}), {center})'
         )
         return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
@@ -703,7 +809,7 @@ class NumbaPrinter(BasePrinter):
         others = [item for item in reduction.symbols if sides[item] in {'other', 'edge'}]
         lines += [f'{INDENT}{item} = {self._pair_read_code(reduction, item, index)}' for item in shared]
         printer = ExpressionPrinter('scalar', prefix=f'_n{index}cse').check().prepare()
-        assignments, codes = printer.run([reduction.argument, reduction.weight])
+        assignments, codes = self._printed(printer, [reduction.argument, reduction.weight])
         acc, weights, found = f'_acc{index}_', f'_ws{index}_', f'_found{index}_'
         kind = reduction.kind
         if kind in {'max', 'min'}:

@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import cast
 
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
@@ -15,7 +14,7 @@ from ...problems import DeclarationsSpec, KernelSpec
 from ...problems._declarations_spec import _ACTIVE
 from ...problems._edge_search import EdgeSearch
 from .._base import BasePass
-from .._compilation import Laws
+from .._compilation import Compilation
 
 
 class MaskRequestsPass(BasePass):
@@ -32,10 +31,10 @@ class MaskRequestsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Mask the requests of the update laws set apart."""
         compilation = self.compilation_
-        declarations = cast('DeclarationsSpec', compilation.layout)
+        declarations = Compilation._required(compilation.layout, 'layout')
         compilation.drawn_apart = [
             (spec, self._masked_requests(spec, laws, declarations))
-            for spec, laws in cast('Laws', compilation.drawn_apart)
+            for spec, laws in Compilation._required(compilation.drawn_apart, 'drawn_apart')
         ]
 
     @staticmethod

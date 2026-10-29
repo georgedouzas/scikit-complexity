@@ -76,11 +76,11 @@ class SiteVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _prepare(self, problem: BaseProblemSpec) -> None:
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Keep the group, forget the edges logged in earlier runs, and set the views."""
         self.edges_: set[str] = set()
         self.changing_: dict[str, int] = {}
-        super()._prepare(problem)
+        super()._prepare(context)
 
     def _log_graph(
         self,
@@ -146,8 +146,9 @@ class SiteVisual(BaseVisual):
                 continue
             values = np.ravel(np.asarray(frame.value(name), dtype=float))
             path = f'{element.path}/{state}'
-            if self._changes_topology(element, frame.problem):
-                snapshot = frame.problem.topology.read_network(frame.parameters, element.path)  # type: ignore[union-attr]
+            topology = frame.problem.topology
+            if topology is not None and self._changes_topology(element, frame.problem):
+                snapshot = topology.read_network(frame.parameters, element.path)
                 self._log_changing(recording, path, snapshot, values)
                 continue
             if isinstance(space, NetworkSpace):

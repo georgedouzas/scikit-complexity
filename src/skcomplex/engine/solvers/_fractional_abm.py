@@ -24,6 +24,12 @@ class FractionalABMSolver(CaputoSolver):
         dt:
             The fixed step. Frames must fall on multiples of it.
 
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
+
     Attributes:
         orders_:
             The order of every state component.
@@ -83,10 +89,10 @@ class FractionalABMSolver(CaputoSolver):
 
     def _step(self, p: Array) -> None:
         """Advance the run by one predictor-corrector step."""
-        drift = self.problem_.drift
+        drift = self._drift()
         step = self._step_index
         time = self._origin + step * self.dt
-        current = drift(time, self._state, p)  # type: ignore[misc]
+        current = drift(time, self._state, p)
         if self._drifts is None:
             self._drifts = _Rows(current, None)
         else:
@@ -100,7 +106,7 @@ class FractionalABMSolver(CaputoSolver):
         alpha = self._unique
         first = self._per_state(step ** (alpha + 1) - (step - alpha) * (step + 1) ** alpha) * drifts[0]
         past = self._convolve(self._corrector[step - 1 :: -1], drifts[1:]) if step else 0.0
-        following = drift(time + self.dt, predicted, p)  # type: ignore[misc]
+        following = drift(time + self.dt, predicted, p)
         corrected = self._initial + self._corrector_scale * (following + first + past)
         corrected[ordinary] = self._state[ordinary] + self.dt / 2 * (current[ordinary] + following[ordinary])
         self._state = self._bounded(time + self.dt, corrected, p)

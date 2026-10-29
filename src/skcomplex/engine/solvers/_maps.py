@@ -44,7 +44,7 @@ class IterationSolver(Solver):
             time={DiscreteTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
             laws={UpdateLaw, TransitionLaw, EmissionLaw, BoundaryLaw, TransferLaw},
-            orders={OrderKind.INTEGER},
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     @classmethod
@@ -52,18 +52,19 @@ class IterationSolver(Solver):
         """Return the form the solver solves."""
         return FormKind.DISCRETE
 
-    def _prepare(self, problem: ProblemSpec) -> None:
+    def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the stepper for a problem.
 
         Args:
-            problem:
+            context:
                 The compiled problem.
 
         Raises:
             SolverError:
                 The problem has another form, delays, or events.
         """
-        super()._prepare(problem)
+        super()._prepare(context)
+        problem = self.problem_
         BaseSolver._reject_hybrid(problem, type(self).__name__)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:

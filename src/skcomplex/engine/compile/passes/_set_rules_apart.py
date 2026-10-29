@@ -3,11 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import cast
 
 from ....core.laws import RuleLaw
 from .._base import BasePass
-from .._compilation import Laws
+from .._compilation import Compilation
 
 
 class SetRulesApartPass(BasePass):
@@ -24,6 +23,6 @@ class SetRulesApartPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Take the rules out of the reduced laws."""
         compilation = self.compilation_
-        reduced = cast('Laws', compilation.reduced)
+        reduced = Compilation._required(compilation.reduced, 'reduced')
         compilation.rules = [(spec, tuple(law for law in laws if isinstance(law, RuleLaw))) for spec, laws in reduced]
         compilation.reduced = [(spec, [law for law in laws if not isinstance(law, RuleLaw)]) for spec, laws in reduced]

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Self, cast
+from typing import Self
 
 import numpy as np
 import scipy.sparse
@@ -16,8 +16,15 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import both, neighborhoods_in, reductions_in
-from ....core.spaces import AdjacencyNeighborhood, BaseNeighborhood
-from ....errors import RoleError, ValidationError
+from ....core.spaces import (
+    AdjacencyNeighborhood,
+    ConeNeighborhood,
+    LatticeNeighborhood,
+    MemoryNeighborhood,
+    NearestNeighborhood,
+    RadiusNeighborhood,
+)
+from ....errors import PipelineError, RoleError, ValidationError
 from ....specs import CallSpec, EntrySpec, NeighborReductionSpec, PairReadSpec, ReadSpec, ReductionSpec
 from ....specs._capacity_rows_spec import ACTIVE_THRESHOLD
 from ....specs._held_reduction_spec import _HeldReductionSpec
@@ -27,13 +34,14 @@ from ...problems import DeclarationsSpec, KernelSpec, ReferenceSpec
 from ...problems._neighborhood_kernel import NeighborhoodKernel
 from ...problems._reduction_kernel import ReductionKernel
 from .._base import BaseLowering, BasePass
+from .._compilation import Compilation
 from .._complex import _modulus_form
 from .._observables import _HeldElement
 from ._mask_requests import MaskRequestsPass
 from ._specs import SpecsPass
 
 
-class ReductionLowering(BaseLowering):
+class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     """Lowering of the reductions and neighbourhood reductions of laws to placeholders, compiled once each.
 
     `prepare(compilation)` reads the layout and the drawn values of the compilation, and `run(laws)` takes the laws of
@@ -69,14 +77,14 @@ class ReductionLowering(BaseLowering):
 
     declarations_: DeclarationsSpec
     drawn_: int
-    found_: dict[tuple[Any, ...], ReductionKernel]
+    found_: dict[tuple[object, ...], ReductionKernel]
     by_symbol_: dict[Expression, ReductionKernel]
     readers_: dict[Expression, str | None]
-    neighbourhoods_: dict[tuple[Any, ...], NeighborhoodKernel]
+    neighbourhoods_: dict[tuple[object, ...], NeighborhoodKernel]
     local_: dict[Expression, NeighborhoodKernel]
     sequence_: list[ReductionKernel | NeighborhoodKernel]
 
-    def _prepare(self, context: object) -> Self:
+    def _prepare(self, context: Compilation | None) -> Self:
         """Read the layout and the drawn values of the compilation, with no reduction collected yet.
 
         Args:
@@ -89,13 +97,13 @@ class ReductionLowering(BaseLowering):
         """
         super()._prepare(context)
         draws = self.compilation_.draws
-        self.declarations_ = cast('DeclarationsSpec', self.compilation_.layout)
+        self.declarations_ = Compilation._required(self.compilation_.layout, 'layout')
         self.drawn_ = draws.size if draws else 0
         self.found_, self.by_symbol_, self.readers_ = {}, {}, {}
         self.neighbourhoods_, self.local_, self.sequence_ = {}, {}, []
         return self
 
-    def _run(self, inputs: object) -> list[tuple[KernelSpec, list[BaseLaw]]]:
+    def _run(self, inputs: list[tuple[KernelSpec, list[BaseLaw]]] | None) -> list[tuple[KernelSpec, list[BaseLaw]]]:
         """Return the laws of every kernel spec with every reduction replaced by its placeholder.
 
         Args:
@@ -105,11 +113,15 @@ class ReductionLowering(BaseLowering):
         Returns:
             laws:
                 The lowered laws of every kernel spec.
+
+        Raises:
+            PipelineError:
+                No laws are passed.
         """
-        return [
-            (spec, [self._lower_law(law, spec) for law in laws])
-            for spec, laws in cast('list[tuple[KernelSpec, list[BaseLaw]]]', inputs)
-        ]
+        if inputs is None:
+            error_msg = 'The reduction lowering runs on the laws of every kernel spec. Pass them to `run`.'
+            raise PipelineError(error_msg)
+        return [(spec, [self._lower_law(law, spec) for law in laws]) for spec, laws in inputs]
 
     @property
     def parameters_(self) -> int:
@@ -241,14 +253,22 @@ class ReductionLowering(BaseLowering):
         references = next(item.references for item in spec.sets.values() if item.label == group)
         return len(references), None
 
-    def _weights(self, reduction: ReductionSpec, spec: KernelSpec, group: str | None, size: int) -> Any:  # noqa: ANN401
+    def _weights(
+        self,
+        reduction: ReductionSpec,
+        spec: KernelSpec,
+        group: str | None,
+        size: int,
+    ) -> scipy.sparse.csr_array | None:
         """Return the weights of a reduction as a CSR array after checking their shape."""
         if reduction.weights is None:
             return None
         readers = len(next(iter(spec.sets.values())).references) if spec.sets else spec.rows
         weights = reduction.weights
-        if np.ndim(weights) == 1 and len(weights) == size:
-            weights = np.broadcast_to(weights, (readers, size))
+        if not isinstance(weights, scipy.sparse.sparray | scipy.sparse.spmatrix):
+            weights = np.asarray(weights, dtype=float)
+            if weights.ndim == 1 and len(weights) == size:
+                weights = np.broadcast_to(weights, (readers, size))
         shape = tuple(weights.shape)
         if shape != (readers, size):
             error_msg = (
@@ -333,7 +353,9 @@ class ReductionLowering(BaseLowering):
             (
                 block
                 for block in self.declarations_.blocks.values()
-                if isinstance(block.node.component, _HeldElement) and block.node.component.reduction.key == held.key
+                if isinstance(block.node.component, _HeldElement)
+                and block.node.component.reduction is not None
+                and block.node.component.reduction.key == held.key
             ),
             None,
         )
@@ -343,7 +365,10 @@ class ReductionLowering(BaseLowering):
                 'co-simulation computes, at its synchronisation points. Compile the system with `compile_system`.'
             )
             raise ValidationError(error_msg)
-        value = cast('Expression', block.symbols['value'])
+        value = block.symbols['value']
+        if not isinstance(value, Expression):
+            error_msg = f'The reduction {reduction.call} of {spec.owner} reads a vector of agents, not one value.'
+            raise ValidationError(error_msg)
         self._add_reference(spec, value, ReferenceSpec(block.entries['value'], True, 0, ReadKind.SINGLE))
         return value
 
@@ -398,12 +423,12 @@ class ReductionLowering(BaseLowering):
                 argument_key,
                 condition_key,
                 weights,
-                entry,
-                size,
-                group,
-                reads,
-                self.declarations_.time,
-                members,
+                entry=entry,
+                size=size,
+                group=group,
+                reads=reads,
+                time=self.declarations_.time,
+                members=members,
             ).check()
             self.found_[key] = compiled
             self.sequence_.append(compiled)
@@ -465,7 +490,7 @@ class ReductionLowering(BaseLowering):
         item: Expression,
         spec: KernelSpec,
         group: str,
-        search: Any,  # noqa: ANN401
+        search: object,
         over: object = None,
     ) -> PairReadSpec:
         """Return how a neighbourhood reduction reads one symbol: shared, of the reading member, or of the neighbour."""
@@ -531,7 +556,21 @@ class ReductionLowering(BaseLowering):
                 if block.node.active is not None
                 else None
             )
-            over = over.check() if isinstance(over, BaseNeighborhood) else over
+            if not isinstance(
+                over,
+                AdjacencyNeighborhood
+                | LatticeNeighborhood
+                | MemoryNeighborhood
+                | RadiusNeighborhood
+                | NearestNeighborhood
+                | ConeNeighborhood,
+            ):
+                error_msg = (
+                    f'The neighbourhood reduction {reduction.call} of {group} reduces over {over!r}, which is not a '
+                    'neighbourhood. Reduce over a lattice, network, memory, Radius, Nearest, or Cone neighbourhood.'
+                )
+                raise ValidationError(error_msg)
+            over = over.check()
             search = NeighborhoodKernel._neighbor_search(
                 over,
                 block.node.space,
@@ -549,10 +588,10 @@ class ReductionLowering(BaseLowering):
                 argument,
                 weight,
                 entry,
-                group,
-                search,
-                reads,
-                self.declarations_.time,
+                group=group,
+                search=search,
+                reads=reads,
+                time=self.declarations_.time,
             ).check()
             self.neighbourhoods_[key] = compiled
             self.sequence_.append(compiled)

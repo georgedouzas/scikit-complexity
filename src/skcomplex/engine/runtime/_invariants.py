@@ -57,14 +57,14 @@ class InvariantObserver(BaseObserver):
                 error_msg = f'The tolerance {tolerance!r} of the invariant {path} must be nonnegative.'
                 raise ValidationError(error_msg)
 
-    def _prepare(self, problem: BaseProblemSpec) -> None:
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Forget the values of the invariants of an earlier run.
 
         Args:
-            problem:
+            context:
                 The compiled problem the run advances.
         """
-        del problem
+        del context
         self.initial_: dict[str, float] = {}
 
     def _run(self, frame: FrameSpec | None = None) -> None:
@@ -90,7 +90,7 @@ class InvariantObserver(BaseObserver):
                     'in `observables`.'
                 )
                 raise ValidationError(error_msg)
-            value = float(np.sum(frame.observables[path]))
+            value = float(np.sum(np.asarray(frame.observables[path], dtype=float)))
             initial = self.initial_.setdefault(path, value)
             if abs(value - initial) > tolerance:
                 error_msg = (

@@ -3,10 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any
 
 import numpy as np
 import qutip
+from qutip.solver import solver_base
 
 from ...errors import SolverError
 from ...types import Array
@@ -71,7 +71,7 @@ class QuantumTrajectoriesSolver(QuantumSolver):
         -1.0
     """
 
-    def _create(self, p: Array) -> Any:  # noqa: ANN401
+    def _create(self, p: Array) -> solver_base.Solver:
         """Return QuTiP's Monte Carlo solver at fixed parameters."""
         problem = self.quantum_
         hamiltonian = self._operator(problem.hamiltonian, p)
@@ -93,6 +93,6 @@ class QuantumTrajectoriesSolver(QuantumSolver):
             raise SolverError(error_msg)
         return self._ket(vectors[:, -1])
 
-    def _start(self, solver: Any, x: Array, t: float) -> None:  # noqa: ANN401
+    def _start(self, solver: solver_base.Solver, x: Array, t: float) -> None:
         """Start the Monte Carlo solver from a state at a time with a seed drawn from the random number generator."""
         solver.start(self._start_state(x), t, seed=int(self.rng_.integers(MAX_SEED)))

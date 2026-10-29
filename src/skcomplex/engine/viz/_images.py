@@ -17,6 +17,7 @@ from ._base import _MODULUS, _PHASE, BaseVisual
 
 _MIN_HISTORY = 64
 _MAX_HISTORY = 256
+_IMAGE_RANK = 2
 _SPACE_TIME = 'space_time'
 
 
@@ -73,10 +74,10 @@ class ImageVisual(BaseVisual):
         self.path = path
         self.recording = recording
 
-    def _prepare(self, problem: BaseProblemSpec) -> None:
+    def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Keep the element, forget the rows of earlier runs, and set the views."""
         self.rows_: dict[str, deque[npt.NDArray[np.float64]]] = {}
-        super()._prepare(problem)
+        super()._prepare(context)
 
     def _history_of(self, sites: int) -> int:
         """Return the number of rows of the space-time image of a one-dimensional lattice of a number of sites."""
@@ -110,7 +111,7 @@ class ImageVisual(BaseVisual):
         cyclic: bool,
     ) -> None:
         """Log lattice values as an image colored by value or by a cyclic palette, or as a tensor in 3D and more."""
-        if values.ndim > 2:  # noqa: PLR2004
+        if values.ndim > _IMAGE_RANK:
             recording.log(path, rr.Tensor(values))
             return
         values = np.atleast_2d(values)
@@ -153,7 +154,7 @@ class ImageVisual(BaseVisual):
                 self._log_image(recording, path, magnitudes, cyclic=cyclic)
                 continue
             self._log_image(recording, f'{path}/{_MODULUS}', magnitudes, cyclic=False)
-            self._log_image(recording, f'{path}/{_PHASE}', np.angle(values), cyclic=True)
+            self._log_image(recording, f'{path}/{_PHASE}', np.angle(np.asarray(values, dtype=complex)), cyclic=True)
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return one 2D spatial view per chosen state, or a tensor view for a lattice of three or more dimensions.
@@ -201,7 +202,7 @@ class ImageVisual(BaseVisual):
                 histories.append(
                     rrb.Spatial2DView(origin=f'{element.path}/{_SPACE_TIME}/{state}', name=f'{state} history'),
                 )
-            kind = rrb.TensorView if len(shape) > 2 else rrb.Spatial2DView  # noqa: PLR2004
+            kind = rrb.TensorView if len(shape) > _IMAGE_RANK else rrb.Spatial2DView
             if problem.states.entry(name).is_complex:
                 views += [kind(origin=f'{path}/{part}', name=f'{state} {part}') for part in (_MODULUS, _PHASE)]
             else:

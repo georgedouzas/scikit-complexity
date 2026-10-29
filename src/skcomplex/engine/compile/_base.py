@@ -16,7 +16,8 @@ from ...base import BaseConfig
 from ...core.laws import BaseLaw
 from ...core.system import System
 from ...errors import LabelError, ParameterError, RoleError, SkcomplexError, SpaceError, ValidationError
-from ...specs import IssueSpec, ObservableSpec, ValidationReportSpec
+from ...specs import IssueSpec, ObservableSpec, SupportSpec, ValidationReportSpec
+from ...types import FormKind
 from ..backends import BaseBackend, NumbaBackend, NumpyBackend
 from ..backends._base import _AUTO_MEMBERS
 from ..problems import BaseProblemSpec, KernelSpec, ReferenceSpec
@@ -146,6 +147,10 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
             initial_state:
                 Initial values that replace those of the components, by the dotted name of the state.
 
+        Returns:
+            problem:
+                The compiled problem.
+
         Raises:
             NotImplementedError:
                 The subclass does not implement the hook.
@@ -193,6 +198,52 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         problem = dataclasses.replace(problem, observables=observables)
         self.solver_ = self.solver if self.solver is not None else self._get_solver(problem)
         return problem
+
+    @staticmethod
+    def _support_of(runner: type) -> SupportSpec:
+        """Return the support of a solver or backend class, which names what it runs.
+
+        Args:
+            runner:
+                The class of the solver or the backend.
+
+        Returns:
+            support:
+                The times, spaces, laws, noise, and orders the class runs.
+
+        Raises:
+            ValidationError:
+                The class is not a solver or a backend of the engine.
+        """
+        get_support = getattr(runner, '_get_support', None)
+        support = get_support() if callable(get_support) else None
+        if not isinstance(support, SupportSpec):
+            error_msg = f'{runner.__name__} is not a solver or a backend of the engine, which name what they run.'
+            raise ValidationError(error_msg)
+        return support
+
+    @staticmethod
+    def _form_of(solver: type) -> FormKind:
+        """Return the form a solver class solves.
+
+        Args:
+            solver:
+                The class of the solver.
+
+        Returns:
+            form:
+                The form the class solves.
+
+        Raises:
+            ValidationError:
+                The class is not a solver of the engine.
+        """
+        get_form = getattr(solver, '_get_form', None)
+        form = get_form() if callable(get_form) else None
+        if not isinstance(form, FormKind):
+            error_msg = f'{solver.__name__} is not a solver of the engine, which names the form it solves.'
+            raise ValidationError(error_msg)
+        return form
 
     @staticmethod
     def _resolve_backend(backend: BaseBackend | None, members: int) -> BaseBackend:
@@ -524,6 +575,10 @@ class BaseLowering[InputT](BaseConfig[Compilation, InputT]):
         Args:
             inputs:
                 The laws, alone or by the kernel spec that holds them.
+
+        Returns:
+            laws:
+                The lowered laws, in the shape of the input.
 
         Raises:
             NotImplementedError:

@@ -3,7 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import cast
+
+from sage.all__sagemath_symbolics import SR
 
 from ....core.laws import BaseLaw, BoundaryLaw
 from ....core.laws.utils import either, mod, where
@@ -12,7 +13,7 @@ from ....types import VariableKind
 from ..._utils import components_of, declarations_of
 from ...problems import BlockSpec, KernelSpec
 from .._base import BasePass
-from .._compilation import BlockLaws
+from .._compilation import Compilation
 
 
 class BoundaryLawsPass(BasePass):
@@ -31,7 +32,7 @@ class BoundaryLawsPass(BasePass):
         compilation = self.compilation_
         compilation.collected = [
             (spec, [*laws, *self._space_boundary_laws(block, spec)], block)
-            for spec, laws, block in cast('BlockLaws', compilation.collected)
+            for spec, laws, block in Compilation._required(compilation.collected, 'collected')
         ]
 
     @staticmethod
@@ -54,9 +55,11 @@ class BoundaryLawsPass(BasePass):
                 (other for other, item in declarations.items() if item.velocity_of == name),
                 f'{name}_d1' if declaration.order > 1 else None,
             )
-            positions = components_of(getattr(spec.namespace, name))
+            positions = [SR(item) for item in components_of(getattr(spec.namespace, name))]
             velocities = (
-                components_of(getattr(spec.namespace, velocity_name)) if velocity_name else [None] * len(positions)
+                [SR(item) for item in components_of(getattr(spec.namespace, velocity_name))]
+                if velocity_name
+                else [None] * len(positions)
             )
             for position, velocity, side in zip(positions, velocities, space.extent_, strict=True):
                 if space.boundary == 'periodic':

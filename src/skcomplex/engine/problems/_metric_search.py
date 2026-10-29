@@ -89,9 +89,10 @@ class MetricSearch(BaseSearch):
         periods = np.asarray(self.periods)
         return difference - periods * np.rint(difference / periods)
 
-    def _run(self, inputs: RunStateSpec) -> EdgesFound:
+    def _run(self, inputs: RunStateSpec | None) -> EdgesFound:
         """Return the neighbours of every member at the current positions."""
-        x, q = inputs.x, inputs.p
+        state = self._state_of(inputs)
+        x, q = state.x, state.p
         del q
         positions = self.wrapped(x)
         size = positions.shape[0]

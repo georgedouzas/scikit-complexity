@@ -34,7 +34,7 @@ class MonteCarloSolver(LatticeSolver):
             time={DiscreteTime},
             space={LatticeSpace, NetworkSpace},
             laws={SampleLaw, BoundaryLaw},
-            orders={OrderKind.INTEGER},
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     @classmethod

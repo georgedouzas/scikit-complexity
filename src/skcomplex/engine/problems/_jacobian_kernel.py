@@ -4,8 +4,7 @@
 # License: MIT
 
 import functools
-from collections.abc import Sequence
-from typing import Any
+from collections.abc import Callable, Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -14,7 +13,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
 from ...specs import RunStateSpec
-from ...types import Array, Indices, Partials, ReadKind, Sparse, Symmetry
+from ...types import Array, Indices, ReadKind, Sparse, Symmetry
 from .._utils import symbols_of
 from ._base import BaseKernel
 from ._expression_printer import ExpressionPrinter
@@ -24,8 +23,9 @@ from ._output_spec import OutputSpec
 from ._reduction_kernel import ReductionKernel
 from ._reduction_schedule_spec import ReductionScheduleSpec
 from ._reference_spec import ReferenceSpec
-from ._too_dense import _TooDense
+from ._too_dense import _TooDenseError
 
+type Partials = tuple[list[tuple[int, Expression]], Callable[..., object] | None]
 """Index of the expression and symbol of every nonzero derivative, with the NumPy function of the derivatives."""
 
 _PATTERN_LIMIT = 4_000_000
@@ -69,13 +69,14 @@ class JacobianKernel(BaseKernel):
             The fixed rows, whose rates are zero.
     """
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         kernels: tuple[LawKernel, ...],
         reductions: ReductionScheduleSpec,
         size: int,
         time: Expression,
         volumes: tuple[FiniteVolumeKernel, ...] = (),
+        *,
         symmetries: tuple[Symmetry, ...] = (),
         constrained: Indices | None = None,
     ) -> None:
@@ -104,7 +105,7 @@ class JacobianKernel(BaseKernel):
         for kernel in self.kernels:
             references = [kernel.references[item] for item in kernel.arguments]
             spectral = any(
-                reference.source is ReadKind.DERIVED and reference.neighbor.matrix is None for reference in references
+                reference.source is ReadKind.DERIVED and reference.derived.matrix is None for reference in references
             )
             pairs = kernel.pairs is not None or any(
                 reference.source in {ReadKind.FIRST, ReadKind.SECOND} for reference in references
@@ -119,6 +120,10 @@ class JacobianKernel(BaseKernel):
 
     def _prepare(self, context: object) -> None:
         """Check that every rate law has an exact Jacobian and compile the partial derivatives of the laws.
+
+        Args:
+            context:
+                The problem the kernel serves, which it does not read.
 
         Raises:
             ValidationError:
@@ -148,15 +153,20 @@ class JacobianKernel(BaseKernel):
         derivatives = [SR(expressions[index]).diff(item) for index, item in pairs]
         if not derivatives:
             return pairs, None
-        return pairs, ExpressionPrinter(time=self.time, compiled=True).check().prepare(arguments).run(derivatives)
+        printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(arguments)
+        return pairs, ExpressionPrinter._function_of(printer.run(derivatives))
 
     @staticmethod
-    def _derivatives(partials: Partials, t: float, values: list[Any]) -> list[tuple[int, Expression, Any]]:
+    def _derivatives(
+        partials: Partials,
+        t: float,
+        values: Sequence[object],
+    ) -> list[tuple[int, Expression, npt.ArrayLike]]:
         """Return every derivative with the index of its expression and the symbol it is taken by."""
         pairs, function = partials
         if function is None:
             return []
-        results = function(t, *values)
+        results = ExpressionPrinter._values_of(function(t, *values))
         return [(index, item, value) for (index, item), value in zip(pairs, results, strict=True)]
 
     @property
@@ -238,7 +248,7 @@ class JacobianKernel(BaseKernel):
         if reference.source is ReadKind.REDUCED:
             return self._reduced_rows(kernel, reference, gradients[item])
         if reference.source is ReadKind.DERIVED:
-            read = reference.neighbor
+            read = reference.derived
             key = id(read)
             if key not in self.operand_partials_:
                 by = [symbol for symbol in read.symbols if self._is_variable(kernel.references[symbol])]
@@ -264,9 +274,10 @@ class JacobianKernel(BaseKernel):
             height=kernel.rows,
         )
 
-    def _run(self, inputs: RunStateSpec) -> Sparse:
+    def _run(self, inputs: RunStateSpec | None) -> Sparse:
         """Return the Jacobian of the drift at the state as the sparse matrix of `dF_i/dx_j`."""
-        t, x, p = inputs.t, inputs.x, inputs.p
+        state = self._state_of(inputs)
+        t, x, p = state.t, state.x, state.p
         partials = self.kernel_partials_
         q = self.reductions.extend(t, x, p)
         gradients: dict[Expression, Sparse] = {}
@@ -278,7 +289,7 @@ class JacobianKernel(BaseKernel):
                 gradient = self._symbol_gradient(kernel, item, t=t, x=x, q=q, gradients=gradients)
                 if gradient is None:
                     continue
-                target = LawKernel._member_indices(kernel.outputs[index].target, kernel.rows)  # type: ignore[arg-type]
+                target = LawKernel._member_indices(self._target_of(kernel.outputs[index]), kernel.rows)
                 scatter = self._selection(np.arange(kernel.rows), target, 1.0, self.size).T
                 derivative = np.broadcast_to(np.asarray(value, dtype=float), (kernel.rows,))
                 jacobian = jacobian + scatter @ scipy.sparse.diags_array(derivative) @ gradient
@@ -309,14 +320,14 @@ class JacobianKernel(BaseKernel):
         """Boolean structure of the Jacobian, built once, or `None` when it is too dense to state."""
         try:
             return self._build_pattern()
-        except _TooDense:
+        except _TooDenseError:
             return None
 
     def _build_pattern(self) -> Sparse:
-        """Return the boolean structure of the Jacobian, raising `_TooDense` above the size limit."""
+        """Return the boolean structure of the Jacobian, raising `_TooDenseError` above the size limit."""
         self._dense = 0
         if self.reductions.neighbourhoods:
-            raise _TooDense
+            raise _TooDenseError
         supports: dict[Expression, Sparse] = {}
         for reduction in self.reductions.reductions:
             supports[reduction.symbol] = self._reduction_support(reduction, supports)
@@ -336,7 +347,7 @@ class JacobianKernel(BaseKernel):
         """Count the entries of a dense block and stop above the size limit."""
         self._dense += entries
         if self._dense > _PATTERN_LIMIT:
-            raise _TooDense
+            raise _TooDenseError
 
     def _dense_rows(self, rows: int, columns: Indices) -> Sparse:
         """Return the block where every evaluation index reads every one of the columns."""
@@ -350,7 +361,7 @@ class JacobianKernel(BaseKernel):
         if reference.source is ReadKind.REDUCED:
             return np.unique(supports[item].indices).astype(np.intp)
         if reference.source is ReadKind.DERIVED:
-            parts = [self._all_columns(kernel, symbol, supports) for symbol in reference.neighbor.symbols]
+            parts = [self._all_columns(kernel, symbol, supports) for symbol in reference.derived.symbols]
             return np.unique(np.concatenate([np.zeros(0, dtype=np.intp), *parts]))
         if not reference.is_state:
             return np.zeros(0, dtype=np.intp)
@@ -375,7 +386,7 @@ class JacobianKernel(BaseKernel):
 
     def _derived_support(self, kernel: LawKernel, item: Expression, supports: dict[Expression, Sparse]) -> Sparse:
         """Return the states a derived read reads, through its sparse operator or as a dense block."""
-        read = kernel.references[item].neighbor
+        read = kernel.references[item].derived
         if read.matrix is None:
             return self._dense_rows(kernel.rows, self._all_columns(kernel, item, supports))
         operand = scipy.sparse.csr_array((kernel.rows, self.size))
@@ -402,7 +413,7 @@ class JacobianKernel(BaseKernel):
         blocks = []
         everything = np.arange(self.size, dtype=np.intp)
         for output in kernel.outputs:
-            target: ReferenceSpec = output.target  # type: ignore[assignment]
+            target = self._target_of(output)
             used = self._output_symbols(output)
             if kernel.pairs is not None or target.source in {ReadKind.FIRST, ReadKind.SECOND}:
                 targets = np.unique(target.flat_indices if target.source is not ReadKind.SINGLE else [target.index])
@@ -457,7 +468,7 @@ class JacobianKernel(BaseKernel):
     def _selection(
         rows: npt.NDArray[np.intp],
         columns: npt.NDArray[np.intp],
-        values: Any,  # noqa: ANN401
+        values: npt.ArrayLike,
         size: int,
         height: int | None = None,
     ) -> Sparse:
@@ -467,11 +478,32 @@ class JacobianKernel(BaseKernel):
         return scipy.sparse.csr_array((data, (rows, columns)), shape=shape)
 
     @staticmethod
-    def _product(first: Any, second: Any) -> Sparse:  # noqa: ANN401
+    def _product(first: Sparse, second: Sparse) -> Sparse:
         """Return the structure of the product of two boolean structures."""
         return JacobianKernel._boolean(
             scipy.sparse.csr_array(first, dtype=float) @ scipy.sparse.csr_array(second, dtype=float),
         )
+
+    @staticmethod
+    def _target_of(output: OutputSpec) -> ReferenceSpec:
+        """Return the target component of a rate output, raising an error for an output without one.
+
+        Args:
+            output:
+                The output.
+
+        Returns:
+            target:
+                The target component.
+
+        Raises:
+            ValidationError:
+                The output has no target, as the propensity of a jump.
+        """
+        if output.target is None:
+            error_msg = 'A rate output of a Jacobian has no target component.'
+            raise ValidationError(error_msg)
+        return output.target
 
     @staticmethod
     def _output_symbols(output: OutputSpec) -> set[Expression] | None:
@@ -485,8 +517,7 @@ class JacobianKernel(BaseKernel):
     @staticmethod
     def _neighbor_columns(reference: ReferenceSpec) -> tuple[Indices, Indices]:
         """Return the members that read a neighbour and the flat index of the neighbour each reads."""
-        read = reference.neighbor
-        table = np.asarray(read.table, dtype=np.intp)
+        table = np.asarray(reference.shifted.table, dtype=np.intp)
         entry = reference.entry
         members = np.arange(table.size, dtype=np.intp)
         inside = table < entry.rows
@@ -516,7 +547,7 @@ class JacobianKernel(BaseKernel):
         return reference.source in {ReadKind.REDUCED, ReadKind.DERIVED} or reference.is_state
 
     @staticmethod
-    def _boolean(matrix: Any) -> Sparse:  # noqa: ANN401
+    def _boolean(matrix: scipy.sparse.sparray) -> Sparse:
         """Return the nonzero structure of a sparse matrix as a boolean CSR matrix."""
         matrix = scipy.sparse.csr_array(matrix)
         matrix.eliminate_zeros()

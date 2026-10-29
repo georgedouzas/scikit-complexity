@@ -18,7 +18,7 @@ from .._utils import symbol, symbols_of
 from ..problems._reduction_kernel import ReductionKernel
 
 
-class _MemberReductions(BaseConfig):
+class _MemberReductions(BaseConfig[None, object]):
     """Reductions in the member expression of an observable, compiled with the reduction lowering of laws.
 
     `prepare()` starts with the reads given and no reduction found, and `run(expression)` returns an expression with
@@ -54,8 +54,9 @@ class _MemberReductions(BaseConfig):
     reads_: dict[Expression, ReadSpec]
     found_: dict[str, ReductionKernel]
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
+        *,
         path: str,
         group: str,
         size: int,
@@ -70,7 +71,7 @@ class _MemberReductions(BaseConfig):
         self.time = time
         self.parameters = parameters
 
-    def _prepare(self, context: object = None) -> Self:
+    def _prepare(self, context: None) -> Self:
         """Start with the reads given and no reduction found.
 
         Args:
@@ -84,7 +85,7 @@ class _MemberReductions(BaseConfig):
         self.reads_, self.found_ = dict(self.reads), {}
         return self
 
-    def _run(self, inputs: object) -> object:
+    def _run(self, inputs: object | None) -> object:
         """Return an expression with every reduction replaced by the placeholder of its value.
 
         Args:
@@ -136,9 +137,13 @@ class _MemberReductions(BaseConfig):
         if reduction.weights is None:
             return None
         weights = reduction.weights
-        if np.ndim(weights) == 1 and len(weights) == self.size:
-            weights = np.broadcast_to(weights, (self.size, self.size))
-        shape = tuple(weights.shape)
+        if isinstance(weights, scipy.sparse.sparray | scipy.sparse.spmatrix):
+            source: scipy.sparse.sparray | scipy.sparse.spmatrix | np.ndarray = weights
+        else:
+            source = np.asarray(weights, dtype=float)
+            if source.ndim == 1 and source.size == self.size:
+                source = np.broadcast_to(source, (self.size, self.size))
+        shape = tuple(source.shape)
         if shape != (self.size, self.size):
             error_msg = (
                 f'The weights of the reduction {reduction.call} of observable {self.path} have the shape {shape}, but '
@@ -146,7 +151,7 @@ class _MemberReductions(BaseConfig):
                 f'{self.group}.'
             )
             raise ValidationError(error_msg)
-        return scipy.sparse.csr_array(weights, dtype=float)
+        return scipy.sparse.csr_array(source, dtype=float)
 
     def _placeholder(self, reduction: ReductionSpec) -> Expression:
         """Return the placeholder of a reduction, compiling it the first time it is found."""
@@ -171,16 +176,16 @@ class _MemberReductions(BaseConfig):
         placeholder = symbol(f'_observed_{index}')
         reads = {item: self._read(item) for item in sorted(symbols, key=str)}
         self.found_[key] = ReductionKernel(
-            placeholder,
-            reduction.kind,
-            argument,
-            condition,
-            weights,
-            entry,
-            self.size,
-            self.group,
-            reads,
-            self.time,
+            symbol=placeholder,
+            kind=reduction.kind,
+            argument=argument,
+            condition=condition,
+            weights=weights,
+            entry=entry,
+            size=self.size,
+            group=self.group,
+            reads=reads,
+            time=self.time,
         ).check()
         indices = entry.start + np.arange(self.size) if weights is not None else entry.start
         self.reads_[placeholder] = ReadSpec(False, indices, entry)

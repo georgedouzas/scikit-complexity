@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from typing import cast
 
 from sklearn.base import clone
 
@@ -98,4 +97,8 @@ def compile_system(
     """
     compiler = PassCompiler() if compiler is None else clone(compiler)
     compiler.set_params(backend=backend, solver=solver, observables=observables)
-    return cast('BaseProblemSpec', compiler.check().prepare(system).run(initial_state))
+    problem = compiler.check().prepare(system).run(initial_state)
+    if not isinstance(problem, BaseProblemSpec):
+        error_msg = f'A compiler returns a compiled problem, not a {type(problem).__name__}.'
+        raise TypeError(error_msg)
+    return problem

@@ -5,7 +5,6 @@
 
 import dataclasses
 import re
-from typing import cast
 
 from ....core.elements import BaseElement, GroupElement
 from ....core.interactions import BaseInteraction
@@ -14,6 +13,7 @@ from ....core.specs import NodeSpec
 from ....types import VariableKind
 from ..._utils import declarations_of
 from .._base import BasePass
+from .._compilation import Compilation
 from .._probe import probe_laws
 
 _MEMBER_SUFFIX = re.compile(r'\[-?\d+\]$')
@@ -40,7 +40,7 @@ class AgentsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Mark the agent nodes."""
         compilation = self.compilation_
-        nodes = cast('list[NodeSpec]', compilation.nodes)
+        nodes = Compilation._required(compilation.nodes, 'nodes')
         agents = self._agent_paths(nodes)
         compilation.nodes = [dataclasses.replace(node, agent=node.path in agents) for node in nodes]
 

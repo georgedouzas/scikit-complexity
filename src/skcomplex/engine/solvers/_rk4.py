@@ -5,7 +5,6 @@
 
 import math
 from collections.abc import Callable
-from typing import cast
 
 import numpy as np
 
@@ -24,7 +23,7 @@ from ...core.laws import (
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
 from ...specs import SupportSpec
-from ...types import Array, FormKind, Interpolant, OrderKind, VectorFunction
+from ...types import Array, FormKind, Interpolant, OrderKind
 from ..problems._steps import step_count
 from ._base import BaseSolver
 from ._history import History
@@ -39,6 +38,12 @@ class RK4Solver(Solver):
     Args:
         dt:
             The largest internal time step.
+
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
     Examples:
         >>> import numpy as np
@@ -76,7 +81,7 @@ class RK4Solver(Solver):
                 ProliferationLaw,
                 DestructionLaw,
             },
-            orders={OrderKind.INTEGER},
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     @classmethod
@@ -102,7 +107,7 @@ class RK4Solver(Solver):
 
     def _step(self, time: float, state: Array, p: Array, lengths: float | Array) -> Array:
         """Return the state after one Runge-Kutta step and the boundary laws, with one step length or one per state."""
-        drift = cast('VectorFunction', self.problem_.drift)
+        drift = self._drift()
 
         def field(time: float, state: Array) -> Array:
             return drift(time, state, p)
@@ -112,7 +117,7 @@ class RK4Solver(Solver):
     def _advance_hybrid(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Integrate with fixed RK4 steps, interpolating every step for delays and locating events in it."""
         problem = self.problem_
-        drift = cast('VectorFunction', problem.drift)
+        drift = self._drift()
         history = self.history_ = History._open_history(problem, self.history_, t, x)
 
         def take(time: float, state: Array, step: float, ceiling: float) -> tuple[Array, Interpolant]:

@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Any, cast
 
 from sage.all__sagemath_symbolics import SR
 
@@ -13,7 +12,7 @@ from ....specs._weight_spec import _WeightSpec
 from ...problems import BlockSpec, DeclarationsSpec, KernelSpec
 from ...problems._topology_kernel import TopologyKernel
 from .._base import BasePass
-from .._compilation import Laws
+from .._compilation import Compilation
 from ._specs import SpecsPass
 from ._topology_functions import TopologyFunctionsPass
 
@@ -32,10 +31,10 @@ class TowardsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Set the weights of the requests apart."""
         compilation = self.compilation_
-        apart = cast('Laws', compilation.drawn_apart)
+        apart = Compilation._required(compilation.drawn_apart, 'drawn_apart')
         towards = self._toward_specs(
-            [*cast('Laws', compilation.drawn), *apart],
-            cast('DeclarationsSpec', compilation.layout),
+            [*Compilation._required(compilation.drawn, 'drawn'), *apart],
+            Compilation._required(compilation.layout, 'layout'),
         )
         compilation.drawn_apart = [*apart, *towards]
 
@@ -49,7 +48,10 @@ class TowardsPass(BasePass):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _toward_specs(specs: list[tuple[KernelSpec, list[BaseLaw]]], declarations: DeclarationsSpec) -> list[Any]:
+    def _toward_specs(
+        specs: list[tuple[KernelSpec, list[BaseLaw]]],
+        declarations: DeclarationsSpec,
+    ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
         """Return the specs of the nodes of every request with a weight, each with the law of the weight to lower."""
         towards: list[tuple[KernelSpec, list[BaseLaw]]] = []
         for spec, laws in specs:

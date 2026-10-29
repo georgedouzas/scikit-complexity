@@ -6,12 +6,12 @@
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
 from ...specs._base_spec import BaseSpec
+from ._expression_printer import ExpressionPrinter
 from ._reference_spec import ReferenceSpec
 
 
@@ -30,7 +30,7 @@ class DiffusiveLimitSpec(BaseSpec):
             The largest eigenvalue magnitude of the unit Laplacian, `sum(2 / h^2)` over the axes.
     """
 
-    coefficient: Callable[..., list[Any]]
+    coefficient: Callable[..., object]
     parameters: tuple[ReferenceSpec, ...]
     stiffness: float
 
@@ -46,5 +46,5 @@ class DiffusiveLimitSpec(BaseSpec):
                 The step `1 / (stiffness * max |D|)`, infinite without diffusion.
         """
         values = [reference.column_of(np.zeros(0), p) for reference in self.parameters]
-        magnitude = float(np.max(np.abs(self.coefficient(0.0, *values)[0])))
+        magnitude = float(np.max(np.abs(ExpressionPrinter._values_of(self.coefficient(0.0, *values))[0])))
         return math.inf if magnitude == 0 else 1 / (self.stiffness * magnitude)

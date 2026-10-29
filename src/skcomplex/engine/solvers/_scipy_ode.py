@@ -7,9 +7,9 @@ import math
 import sys
 import warnings
 from collections.abc import Callable
-from typing import Any
 
 import numpy as np
+import scipy.sparse
 from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau
 
 from ...core.laws import (
@@ -126,6 +126,12 @@ class ScipyODESolver(Solver):
             with a symbolic form. `'dense'` passes nothing, so the Jacobian is estimated densely. Explicit methods
             ignore it.
 
+        random_state:
+            The seed or generator of stochastic solvers.
+
+        until:
+            The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
+
     Attributes:
         method_:
             The method the stepper integrates with, which `'auto'` resolves for the problem.
@@ -173,7 +179,7 @@ class ScipyODESolver(Solver):
                 ProliferationLaw,
                 DestructionLaw,
             },
-            orders={OrderKind.INTEGER},
+            orders=frozenset({OrderKind.INTEGER}),
         )
 
     @classmethod
@@ -198,11 +204,11 @@ class ScipyODESolver(Solver):
         self.random_state = random_state
         self.until = until
 
-    def _prepare(self, problem: ProblemSpec) -> None:
+    def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the stepper for a problem, with no integrator yet.
 
         Args:
-            problem:
+            context:
                 The compiled problem.
 
         Raises:
@@ -213,7 +219,8 @@ class ScipyODESolver(Solver):
             ValidationError:
                 The exact Jacobian is asked for laws without a symbolic form.
         """
-        super()._prepare(problem)
+        super()._prepare(context)
+        problem = self.problem_
         if self.method != 'auto' and self.method not in METHODS:
             error_msg = f'Unknown method {self.method!r}. Use one of auto, {", ".join(METHODS)}.'
             raise SolverError(error_msg)
@@ -221,7 +228,7 @@ class ScipyODESolver(Solver):
             error_msg = f'Unknown Jacobian option {self.jacobian!r}. Use one of {", ".join(map(repr, _JACOBIANS))}.'
             raise SolverError(error_msg)
         self.jacobian_pattern_ = None
-        self.jacobian_options_: dict[str, Any] = {}
+        self.jacobian_options_: dict[str, object] = {}
         self._exact = False
         self._warned = False
         self._stalled = 0
@@ -277,7 +284,7 @@ class ScipyODESolver(Solver):
         if max(lower, upper) <= _BAND_FRACTION * size:
             self.jacobian_options_ = {'lband': lower, 'uband': upper}
 
-    def _jacobian_options(self, history: History | None, p: Array) -> dict[str, Any]:
+    def _jacobian_options(self, history: History | None, p: Array) -> dict[str, object]:
         """Return the keyword arguments that pass the Jacobian structure to the integrator."""
         if not self._exact:
             return self.jacobian_options_
@@ -286,8 +293,11 @@ class ScipyODESolver(Solver):
         assert jacobian is not None
         dense = self.method_ == 'LSODA'
 
-        def exact(time: float, state: Array) -> Any:  # noqa: ANN401
+        def exact(time: float, state: Array) -> Array | scipy.sparse.csr_array:
             matrix = jacobian.run(RunStateSpec(time, state, History._with_delays(problem, history, time, state, p)))
+            if not isinstance(matrix, scipy.sparse.csr_array):
+                error_msg = f'The Jacobian kernel returned a {type(matrix).__name__}, not a sparse matrix.'
+                raise TypeError(error_msg)
             return matrix.toarray() if dense else matrix
 
         return {'jac': exact}
@@ -341,7 +351,7 @@ class ScipyODESolver(Solver):
     def _restart(self, t: float, x: Array, p: Array) -> None:
         """Start a new integrator at a time and state, bounded by the next breakpoint."""
         problem = self.problem_
-        drift = problem.drift
+        drift = self._drift()
         history = self.history_
         if history is not None:
             history.truncate(t)
@@ -354,7 +364,7 @@ class ScipyODESolver(Solver):
 
         def field(time: float, state: Array) -> Array:
             time = min(time, ceiling)
-            return drift(time, state, History._with_delays(problem, history, time, state, p))  # type: ignore[misc]
+            return drift(time, state, History._with_delays(problem, history, time, state, p))
 
         delay = EventLocator._find_smallest_delay(problem)
         end = min(bound, _LARGEST_TIME)
