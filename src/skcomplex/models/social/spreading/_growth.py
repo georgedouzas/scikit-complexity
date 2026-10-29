@@ -27,8 +27,8 @@ class GrowingWordElement(Element):
         label:
             The label of the agent or group.
 
-        location:
-            The initial location, unused without a space.
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         count:
             The number of occurrences.
@@ -66,14 +66,11 @@ class WritingInteraction(Interaction):
         label:
             The label of the interaction.
 
+        target:
+            The path of the group of words.
+
         words_per_step:
             The number of words written per step.
-
-        **values:
-            The values of the declared variables, by name:
-
-            target:
-                The path of the group of words.
 
     Examples:
         >>> from skcomplex.models.social.spreading import WritingInteraction

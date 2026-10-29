@@ -159,6 +159,9 @@ class SocialRepulsionInteraction(PairPotentialInteraction):
         cutoff:
             The distance beyond which walkers do not interact.
 
+        position:
+            The name of the vector state that holds the positions of the walkers.
+
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
 

@@ -40,6 +40,9 @@ class PremisesElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         brothel:
             Whether the premises are a brothel, 1, or a house, 0.
 
@@ -88,6 +91,9 @@ class TravellerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         victim:
             Whether the woman is a trafficking victim, 1, or not, 0.
 
@@ -126,17 +132,14 @@ class DailyMovementsInteraction(Interaction):
         label:
             The label of the interaction.
 
+        women:
+            The path of the group of travellers.
+
+        premises:
+            The path of the group of premises, which the rule reads and updates.
+
         n_cities:
             The number of cities, vertical bands of equal width.
-
-        **values:
-            The values of the declared variables, by name:
-
-            women:
-                The path of the group of travellers.
-
-            premises:
-                The path of the group of premises, which the rule reads and updates.
 
     Examples:
         >>> from skcomplex.models.social.organizations import DailyMovementsInteraction

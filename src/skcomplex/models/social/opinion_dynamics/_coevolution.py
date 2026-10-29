@@ -60,6 +60,9 @@ class CoevolvingVoterElement(Element):
         label:
             The label of the voter or the group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         opinion:
             The opinion, 0 or 1.
 
@@ -192,6 +195,9 @@ class ClubMemberElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         opinion:
             1 for a member of the club and 0 for an outsider.

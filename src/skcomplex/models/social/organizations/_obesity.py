@@ -73,6 +73,9 @@ class RestaurantElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         kind:
             The kind of restaurant.
 
@@ -116,6 +119,9 @@ class EaterElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         home:
             The position of the person's home.

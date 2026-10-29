@@ -92,20 +92,20 @@ class PrisonerElement(Element):
         label:
             The label of the player or the lattice group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
+        strategy:
+            The initial strategy, 1 or 0.
+
+        temptation:
+            The payoff of a defector against a cooperator.
+
+        noise:
+            The noise of the Fermi imitation.
+
         imitation:
             `'best'` for the best neighbour, or `'fermi'` for the Fermi rule.
-
-        **values:
-            The values of the declared variables, by name:
-
-            strategy:
-                The initial strategy, 1 or 0.
-
-            temptation:
-                The payoff of a defector against a cooperator.
-
-            noise:
-                The noise of the Fermi imitation.
 
     Examples:
         >>> from skcomplex.models.social.cooperation import PrisonerElement
@@ -176,6 +176,9 @@ class ContributorElement(Element):
     Args:
         label:
             The label of the player or the lattice group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         strategy:
             The initial strategy, 1 or 0.

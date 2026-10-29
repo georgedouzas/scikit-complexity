@@ -44,6 +44,9 @@ class NamerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         words:
             The initial inventory, 1 for every known word and 0 otherwise.
 

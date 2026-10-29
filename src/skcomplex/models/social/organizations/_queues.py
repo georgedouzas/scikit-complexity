@@ -26,6 +26,9 @@ class TaskElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         priority:
             The priority, uniform on 0 to 1 for a new task.
 

@@ -75,8 +75,14 @@ class ThinkerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         valences:
             The initial valences of the concepts F1, X, and F2, between -1 and 1.
+
+        attitude:
+            The attitude of the agent, the valence of the concept X once the belief network settles.
 
         decay:
             The fraction of every valence lost per update of the belief network.

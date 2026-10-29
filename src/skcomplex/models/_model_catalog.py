@@ -237,6 +237,14 @@ class ModelCatalog:
     def _summarize(docstring: str) -> str:
         r"""Return the description of a model from its factory's docstring: the first line, without a leading `Return`.
 
+        Args:
+            docstring:
+                The docstring of the factory.
+
+        Returns:
+            summary:
+                The first line of the docstring, without a leading `Return`.
+
         Examples:
             >>> from skcomplex.models import ModelCatalog
             >>> ModelCatalog._summarize('Return the Lotka-Volterra predator and prey.\n\nMore text.')

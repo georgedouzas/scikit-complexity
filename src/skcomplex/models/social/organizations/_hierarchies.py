@@ -32,6 +32,9 @@ class ContenderElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         strength:
             The initial strength `h`.
 

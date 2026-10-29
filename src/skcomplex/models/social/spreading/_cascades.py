@@ -29,6 +29,9 @@ class ThresholdNodeElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         active:
             Whether the node starts active.
 

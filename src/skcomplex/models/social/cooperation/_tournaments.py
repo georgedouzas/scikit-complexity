@@ -89,6 +89,9 @@ class StrategistElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         genome:
             The seven moves, 1 to cooperate and 0 to defect, for the opponent's last two moves: none, C, D, CC, CD,
             DC, and DD.
@@ -137,14 +140,11 @@ class TournamentInteraction(Interaction):
         label:
             The label of the interaction.
 
+        target:
+            The path of the group of strategists.
+
         rounds:
             The number of rounds of every game.
-
-        **values:
-            The values of the declared variables, by name:
-
-            target:
-                The path of the group of strategists.
 
     Examples:
         >>> from skcomplex.models.social.cooperation import TournamentInteraction

@@ -38,6 +38,9 @@ class PersuaderElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         opinion:
             The initial opinion, 0 or 1.
 
@@ -97,6 +100,9 @@ class CitizenElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         opinion:
             The initial opinion, 0 or 1.
@@ -189,6 +195,9 @@ class InfluenceeElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         opinion:
             The initial opinion, -1 or 1.

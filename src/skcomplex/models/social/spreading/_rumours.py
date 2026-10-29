@@ -24,6 +24,9 @@ class ListenersElement(Element):
         label:
             The label of the element.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         n:
             The initial number of people.
 

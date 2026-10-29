@@ -50,6 +50,9 @@ class BelieverElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         belief:
             The initial weights of the four levels.
 
@@ -123,6 +126,9 @@ class AdopterElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         adopted:
             Whether the agent starts as an adopter.
 
@@ -169,17 +175,14 @@ class AdoptionInteraction(Interaction):
         label:
             The label of the interaction.
 
+        target:
+            The path of the group of adopters.
+
         size:
             The side of the square torus the agents live on.
 
         mode:
             `'infection'` or `'influence'`.
-
-        **values:
-            The values of the declared variables, by name:
-
-            target:
-                The path of the group of adopters.
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import AdoptionInteraction

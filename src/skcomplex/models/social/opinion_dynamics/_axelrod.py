@@ -94,6 +94,9 @@ class VillageElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         culture:
             The culture code, the traits of the features as the digits of a number in base `q`.
 
@@ -168,6 +171,9 @@ class CultureCensusInteraction(Interaction):
         label:
             The label of the census.
 
+        villages:
+            The path of the group of villages.
+
         width:
             The number of columns of the grid.
 
@@ -176,12 +182,6 @@ class CultureCensusInteraction(Interaction):
 
         phase:
             The phase in which the census counts.
-
-        **values:
-            The values of the declared variables, by name:
-
-            villages:
-                The path of the group of villages.
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import CultureCensusInteraction

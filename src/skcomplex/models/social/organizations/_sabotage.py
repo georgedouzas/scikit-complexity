@@ -104,6 +104,9 @@ class EmployeeElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         predisposed:
             Whether the employee is predisposed to sabotage, 1, or not, 0.
 

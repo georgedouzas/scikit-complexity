@@ -32,6 +32,9 @@ class VoterElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         opinion:
             The initial opinion, 0 or 1.
 
@@ -87,6 +90,9 @@ class MajorityVoterElement(Element):
         label:
             The label of the cell or the lattice group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         opinion:
             The initial opinion, 0 or 1.
 
@@ -132,6 +138,9 @@ class VariantVoterElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         opinion:
             The initial opinion, 0 or 1.

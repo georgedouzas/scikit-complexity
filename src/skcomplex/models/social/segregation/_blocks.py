@@ -35,6 +35,9 @@ class DwellerElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         block:
             The index of the agent's block, set by the moves.
 
@@ -88,6 +91,9 @@ class BlockMovesInteraction(Interaction):
         label:
             The label of the interaction.
 
+        target:
+            The path of the group of dwellers.
+
         width:
             The number of columns of the grid.
 
@@ -96,12 +102,6 @@ class BlockMovesInteraction(Interaction):
 
         side:
             The side of a square block in cells, which divides the width and the height.
-
-        **values:
-            The values of the declared variables, by name:
-
-            target:
-                The path of the group of dwellers.
 
     Examples:
         >>> from skcomplex.models.social.segregation import BlockMovesInteraction

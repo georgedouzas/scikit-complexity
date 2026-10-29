@@ -27,6 +27,9 @@ class ResidentElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         kind:
             The kind of the resident, 0 or 1.
 

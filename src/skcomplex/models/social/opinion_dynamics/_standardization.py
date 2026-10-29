@@ -44,6 +44,9 @@ class ComplexAgentElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         configuration:
             The internal configuration, from 0 to `H + 1`.
 
@@ -95,23 +98,20 @@ class StandardizationInteraction(Interaction):
         label:
             The label of the interaction.
 
+        agents:
+            The path of the group of agents.
+
+        K:
+            The coupling of the characteristics `|S_i|`, which standardizes the agents.
+
+        J:
+            The coupling of the spins `S_i`, which orders the standardized agents.
+
+        T:
+            The temperature, the randomness of the choices.
+
         H:
             The number of configurations without the characteristic.
-
-        **values:
-            The values of the declared variables, by name:
-
-            agents:
-                The path of the group of agents.
-
-            K:
-                The coupling of the characteristics `|S_i|`, which standardizes the agents.
-
-            J:
-                The coupling of the spins `S_i`, which orders the standardized agents.
-
-            T:
-                The temperature, the randomness of the choices.
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import StandardizationInteraction

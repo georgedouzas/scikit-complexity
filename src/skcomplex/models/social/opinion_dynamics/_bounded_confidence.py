@@ -30,6 +30,9 @@ class DiscussantElement(Element):
         label:
             The label of the agent or group.
 
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
         opinion:
             The initial opinion, between 0 and 1.
 
@@ -182,6 +185,9 @@ class ConfidentElement(Element):
     Args:
         label:
             The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
 
         opinion:
             The opinion, between 0 and 1.
