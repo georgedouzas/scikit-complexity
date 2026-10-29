@@ -35,13 +35,13 @@ from sage.symbolic.function_factory import function as formal_function
 
 from ..engine._utils import components_of, domain_of
 from ..engine.compile import compile_system
-from ..engine.problems import BaseProblemSpec, ProblemSpec
+from ..engine.problems import BaseProblemSpec, ProblemSpec, TransferNetworkSpec
 from ..errors import AnalysisError, ConservationError
-from ..specs import TransferNetworkSpec
 from ..specs._unknown_spec import _UnknownSpec
 from ..types import Array, ComplexArray, DataKind, FormKind
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
 from ._quantum import QuantumAnalysis
+from .types import Source
 
 ASYMPTOTIC_ORDER = 2
 DESOLVE_ORDER = 2

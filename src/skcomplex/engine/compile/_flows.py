@@ -26,16 +26,24 @@ from ...core.laws import (
 )
 from ...core.laws.utils import delay_parts
 from ...errors import ConservationError, LabelError, ValidationError
-from ...specs import EntrySpec, LoopTermSpec, TransferNetworkSpec
-from ...specs._compiled_delay_spec import _CompiledDelaySpec
+from ...specs import EntrySpec
 from ...specs._compiled_flow_spec import _CompiledFlowSpec
-from ...specs._recorded_spec import _RecordedSpec
 from ...types import Array, VariableKind
 from .._utils import declarations_of, symbol, symbols_of
-from ..problems import BlockSpec, DeclarationsSpec, KernelSpec, ReferenceSpec, TransferStateSpec
+from ..problems import (
+    BlockSpec,
+    DeclarationsSpec,
+    KernelSpec,
+    LoopTermSpec,
+    ReferenceSpec,
+    TransferNetworkSpec,
+    TransferStateSpec,
+)
 from ..problems._born_spec import _BornSpec
+from ..problems._compiled_delay_spec import _CompiledDelaySpec
 from ..problems._flow_term_spec import _FlowTermSpec
 from ..problems._record_spec import _RecordSpec
+from ..problems._recorded_spec import _RecordedSpec
 from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation

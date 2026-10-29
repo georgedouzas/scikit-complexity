@@ -27,7 +27,6 @@ from ._layer_spec import LayerSpec
 from ._layout_spec import LayoutSpec
 from ._local_operator_spec import LocalOperatorSpec
 from ._lookup_spec import LookupSpec
-from ._loop_term_spec import LoopTermSpec
 from ._lowered_functions_spec import LoweredFunctionsSpec
 from ._matrix_law_spec import MatrixLawSpec
 from ._move_spec import MOVES, MoveSpec
@@ -67,7 +66,6 @@ from ._table_spec import TableSpec
 from ._table_values_spec import TableValuesSpec
 from ._topology_request_spec import EDGE_KINDS, ENDS, TOPOLOGY_KINDS, TopologyRequestSpec
 from ._totalistic_spec import TotalisticSpec
-from ._transfer_network_spec import TransferNetworkSpec
 from ._validation_report_spec import ValidationReportSpec
 from ._variable_spec import VariableSpec
 from ._visual_spec import VisualSpec
@@ -109,7 +107,6 @@ __all__ = [
     'LayoutSpec',
     'LocalOperatorSpec',
     'LookupSpec',
-    'LoopTermSpec',
     'LoweredFunctionsSpec',
     'MatrixLawSpec',
     'MoveSpec',
@@ -150,7 +147,6 @@ __all__ = [
     'TableValuesSpec',
     'TopologyRequestSpec',
     'TotalisticSpec',
-    'TransferNetworkSpec',
     'ValidationReportSpec',
     'VariableSpec',
     'VisualSpec',

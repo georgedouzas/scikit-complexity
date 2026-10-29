@@ -17,8 +17,9 @@ from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
 from ..types import Array, DataKind, VectorFunction
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
 from ._stability import StabilityAnalysis
+from .types import Source
 
 KINDS = ('spectrum', 'largest')
 SETTINGS = {

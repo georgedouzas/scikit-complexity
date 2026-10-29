@@ -14,7 +14,7 @@ from ...core.laws import BaseLaw, CrossingLaw, RuleLaw
 from ...core.specs import CensusSpec, NodeSpec
 from ...core.system import System
 from ...errors import PipelineError
-from ...specs import MatrixLawSpec, TopologyRequestSpec, TransferNetworkSpec
+from ...specs import MatrixLawSpec, TopologyRequestSpec
 from ...specs._plan_spec import _PlanSpec
 from ...types import FormKind
 from ..backends import BaseBackend
@@ -29,6 +29,7 @@ from ..problems import (
     ProblemSpec,
     ReductionScheduleSpec,
     SymmetrySpec,
+    TransferNetworkSpec,
     TransferStateSpec,
 )
 from ..problems._delayed_state_spec import _DelayedStateSpec

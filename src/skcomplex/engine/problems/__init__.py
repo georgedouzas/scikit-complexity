@@ -11,6 +11,7 @@ from ._frame_spec import FrameSpec
 from ._kernel_spec import KernelSpec
 from ._kinetic_problem_spec import KineticProblemSpec
 from ._linear_term_spec import LinearTermSpec
+from ._loop_term_spec import LoopTermSpec
 from ._lowered_kernels_spec import LoweredKernelsSpec
 from ._observed_spec import ObservedSpec
 from ._output_spec import OutputSpec
@@ -21,6 +22,7 @@ from ._reduction_schedule_spec import ReductionScheduleSpec
 from ._reference_spec import ReferenceSpec
 from ._set_symbol_spec import SetSymbolSpec
 from ._symmetry_spec import SymmetrySpec
+from ._transfer_network_spec import TransferNetworkSpec
 from ._transfer_state_spec import TransferStateSpec
 
 __all__: list[str] = [
@@ -37,6 +39,7 @@ __all__: list[str] = [
     'KernelSpec',
     'KineticProblemSpec',
     'LinearTermSpec',
+    'LoopTermSpec',
     'LoweredKernelsSpec',
     'ObservedSpec',
     'OutputSpec',
@@ -47,5 +50,6 @@ __all__: list[str] = [
     'ReferenceSpec',
     'SetSymbolSpec',
     'SymmetrySpec',
+    'TransferNetworkSpec',
     'TransferStateSpec',
 ]

@@ -17,12 +17,12 @@ from ...core.system import System
 from ...specs._base_spec import BaseSpec
 from ...specs._layout_spec import LayoutSpec
 from ...specs._observable_spec import ObservableSpec
-from ...specs._transfer_network_spec import TransferNetworkSpec
 from ...specs._variable_spec import VariableSpec
 from ...types import Array, FormKind
 from ._markov_kernel import MarkovKernel
 from ._renewal_kernel import RenewalKernel
 from ._topology_kernel import TopologyKernel
+from ._transfer_network_spec import TransferNetworkSpec
 
 
 @dataclass(frozen=True)

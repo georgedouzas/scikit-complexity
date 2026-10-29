@@ -8,7 +8,8 @@ from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import Expression
 
-from ._base_spec import BaseSpec
+from ...specs._base_spec import BaseSpec
+from ._reference_spec import ReferenceSpec
 
 
 @dataclass(frozen=True)
@@ -17,4 +18,4 @@ class _CompiledDelaySpec(BaseSpec):
 
     call: Expression
     output: Expression
-    references: Mapping[Expression, object]
+    references: Mapping[Expression, ReferenceSpec]

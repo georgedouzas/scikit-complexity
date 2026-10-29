@@ -6,9 +6,9 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from ._base_spec import BaseSpec
+from ...specs._base_spec import BaseSpec
+from ...specs._compiled_flow_spec import _CompiledFlowSpec
 from ._compiled_delay_spec import _CompiledDelaySpec
-from ._compiled_flow_spec import _CompiledFlowSpec
 from ._loop_term_spec import LoopTermSpec
 from ._recorded_spec import _RecordedSpec
 

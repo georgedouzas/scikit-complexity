@@ -6,9 +6,8 @@
 import numpy as np
 
 from ...errors import ConservationError, SimulationError, ValidationError
-from ...specs import TransferNetworkSpec
 from ...types import Array
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, FrameSpec, TransferNetworkSpec
 from ._base import BaseObserver
 
 

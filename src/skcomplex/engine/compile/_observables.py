@@ -19,7 +19,6 @@ from ...core.system import System
 from ...errors import ValidationError
 from ...specs import EntrySpec, ObservableSpec, ReadSpec, StateSpec
 from ...specs._held_reduction_spec import _HeldReductionSpec
-from ...specs._recorded_spec import _RecordedSpec
 from ...types import Array, FormKind, Indices, VariableKind
 from .._utils import declarations_of, symbol, symbols_of
 from ..problems import (
@@ -32,6 +31,7 @@ from ..problems import (
 )
 from ..problems._quantum_kernel import QuantumKernel
 from ..problems._quantum_lowering import QuantumLowering
+from ..problems._recorded_spec import _RecordedSpec
 from ..problems._reduction_kernel import ReductionKernel
 from ..types import AgentsFunction, Declared, ObservableFunction, ReadKind
 from ._base import BaseCompiler
@@ -321,7 +321,7 @@ class ObservableEvaluator:
         members: dict[Expression, Callable[[Array, Array], Array]] = {}
         for item in symbols_of([recorded.expression]) - {self.problem.time}:
             reference = recorded.references.get(item)
-            if not isinstance(reference, ReferenceSpec) or reference.source not in {ReadKind.SINGLE, ReadKind.MEMBER}:
+            if reference is None or reference.source not in {ReadKind.SINGLE, ReadKind.MEMBER}:
                 error_msg = (
                     f'{recorded.path} reads {item}, which is neither a variable of its component nor of a member of '
                     'its group, so trajectories cannot record it. Record it with an observable instead.'
@@ -361,13 +361,7 @@ class ObservableEvaluator:
         references: dict[Expression, ReferenceSpec] = {}
         for delay in transfer_network.delays:
             expression = SR(expression).subs({delay.call: delay.output})
-            references.update(
-                {
-                    item: reference
-                    for item, reference in delay.references.items()
-                    if isinstance(reference, ReferenceSpec)
-                },
-            )
+            references.update(delay.references)
         delays = TransferLowering._delay_calls(expression)
         if delays:
             error_msg = (

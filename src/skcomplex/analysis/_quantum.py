@@ -21,7 +21,8 @@ from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, ParameterError
 from ..specs import RunStateSpec, SectorSpec
 from ..types import Array, DataKind
-from ._base import BaseAnalysis, Source
+from ._base import BaseAnalysis
+from .types import Source
 
 KINDS = ('spectrum', 'ground-state', 'purity', 'entanglement')
 SETTINGS = {

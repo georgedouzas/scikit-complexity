@@ -9,8 +9,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 
 from ...specs._base_spec import BaseSpec
-from ...specs._compiled_delay_spec import _CompiledDelaySpec
 from ._born_spec import _BornSpec
+from ._compiled_delay_spec import _CompiledDelaySpec
 from ._flow_term_spec import _FlowTermSpec
 from ._kernel_spec import KernelSpec
 from ._record_spec import _RecordSpec
