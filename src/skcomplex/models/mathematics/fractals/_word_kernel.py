@@ -46,6 +46,7 @@ IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
 
 PROBABILITY_TOLERANCE = 1e-9
+SPACE_DIMENSION = 3
 
 
 _TURNS = (LEFT, RIGHT, REVERSE, PITCH_DOWN, PITCH_UP, ROLL_LEFT, ROLL_RIGHT)
@@ -490,7 +491,7 @@ class WordKernel(BaseKernel):
         values = table[:, 0].copy() if table.shape[1] else np.full(len(actions), np.nan)
         turns = np.isin(actions, _TURNS)
         values[turns] = np.deg2rad(values[turns])
-        if geometry.dimension == 3 or np.isin(actions, (PUSH, POP)).any():  # noqa: PLR2004
+        if geometry.dimension == SPACE_DIMENSION or np.isin(actions, (PUSH, POP)).any():
             segments, depths = _walk_word(actions, values, step, angle, heading)
             return segments[..., : geometry.dimension], depths
         turn = np.where(np.isnan(values), angle, values)

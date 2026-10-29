@@ -12,6 +12,8 @@ from ....specs import RequirementSpec
 from ._affine_spec import AffineSpec
 from ._rewriting_error import RewritingError
 
+PIECE_SIZE = 2
+
 
 class SubstitutionLaw(BaseLaw):
     """Substitution that replaces every tile of a prototile by pieces placed relative to the tile.
@@ -56,7 +58,7 @@ class SubstitutionLaw(BaseLaw):
                 The law itself.
         """
         for piece in self.pieces:
-            if not (isinstance(piece, tuple) and len(piece) == 2 and isinstance(piece[1], AffineSpec)):  # noqa: PLR2004
+            if not (isinstance(piece, tuple) and len(piece) == PIECE_SIZE and isinstance(piece[1], AffineSpec)):
                 error_msg = f'A piece of a substitution is a prototile name and an `AffineSpec`, not {piece!r}.'
                 raise RewritingError(error_msg)
             piece[1].check()

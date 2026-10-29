@@ -17,6 +17,7 @@ from ._patch_structure_spec import PatchStructureSpec
 from ._word_structure_spec import WordStructureSpec
 
 MARGIN = 0.03
+SPACE_DIMENSION = 3
 _RESOLUTION = 512
 _FILL = np.array([94, 201, 98], dtype=np.uint8)
 _BACKGROUND = np.array([20, 20, 30], dtype=np.uint8)
@@ -91,7 +92,7 @@ class GeometryVisual(BaseVisual):
         strips, values = self._strips(structure)
         colors = BaseVisual._colors_of(values, 0.0, max(float(values.max(initial=0.0)), 1.0))
         dimension = strips[0].shape[1] if strips else 2
-        archetype = rr.LineStrips3D if dimension == 3 else rr.LineStrips2D  # noqa: PLR2004
+        archetype = rr.LineStrips3D if dimension == SPACE_DIMENSION else rr.LineStrips2D
         recording.log(element.path, archetype(strips, colors=colors))
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
@@ -132,10 +133,10 @@ class GeometryVisual(BaseVisual):
         series = rrb.TimeSeriesView(origin=f'{path}/counts', name=f'{path} counts')
         component = element.element
         geometry = getattr(component, 'geometry', None)
-        if geometry is not None and geometry.dimension == 3:  # noqa: PLR2004
+        if geometry is not None and geometry.dimension == SPACE_DIMENSION:
             return [rrb.Spatial3DView(origin=path, name=path), series]
         bounds = self._bounds_of(element) if isinstance(element, CompiledElementSpec) else None
-        if bounds is None or self._is_filled(element):  # type: ignore[arg-type]
+        if bounds is None or self._is_filled(element):
             return [rrb.Spatial2DView(origin=path, name=path), series]
         xmin, ymin, xmax, ymax = bounds
         visual_bounds = rrb.VisualBounds2D(x_range=[xmin, xmax], y_range=[-ymax, -ymin])

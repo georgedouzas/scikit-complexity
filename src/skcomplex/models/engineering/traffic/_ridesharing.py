@@ -5,7 +5,7 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -18,9 +18,11 @@ from ....core.laws import BaseLaw, MatchLaw, RuleLaw
 from ....core.laws.utils import matches, transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._cab_view import CabView
+from ._rider_view import RiderView
 
 IDLE, PICKING_UP, DELIVERING = 0.0, 1.0, 2.0
 
@@ -36,7 +38,7 @@ def _blocks(first: tuple[int, int], second: tuple[int, int]) -> int:
     return abs(first[0] - second[0]) + abs(first[1] - second[1])
 
 
-def _busy(agent: Any) -> float:  # noqa: ANN401
+def _busy(agent: CabView) -> float:
     """Return one for a cab on a trip and zero for an idle cab."""
     return float(agent.task != IDLE)
 
@@ -52,11 +54,11 @@ def _ridesharing_observables(system: System) -> list[ObservableSpec]:
 
 
 def nearest_cab(
-    left: Sequence[Any],
-    right: Sequence[Any],
+    left: Sequence[object],
+    right: Sequence[object],
     rng: np.random.Generator,
     capacity: int,
-) -> list[tuple[Any, Any]]:
+) -> list[tuple[object, object]]:
     """Pairing of unassigned riders, the longest waiting first, with the nearest idle cab by blocks.
 
     Args:
@@ -82,12 +84,11 @@ def nearest_cab(
         >>> nearest_cab([], [], np.random.default_rng(0), 1)
         []
     """
-    riders = [rider for rider in left if not rider.assigned]
-    order: npt.NDArray[np.intp] | list[int] = (
-        np.lexsort((rng.random(len(riders)), [-rider.waited for rider in riders])) if riders else []
-    )
-    free = [cab for cab in right if cab.task == IDLE]
-    pairs: list[tuple[Any, Any]] = []
+    riders = [rider for rider in left if isinstance(rider, RiderView) and not rider.assigned]
+    keys = np.array([rng.random(len(riders)), [-rider.waited for rider in riders]])
+    order: npt.NDArray[np.intp] | list[int] = np.lexsort(keys) if riders else []
+    free = [cab for cab in right if isinstance(cab, CabView) and cab.task == IDLE]
+    pairs: list[tuple[object, object]] = []
     for index in order:
         if not free:
             break
@@ -147,6 +148,11 @@ class RiderElement(Element):
         self.assigned = assigned
         self.money = money
 
+    @classmethod
+    def _get_view(cls) -> type[RiderView]:
+        """Return the view of the riders, which types their states."""
+        return RiderView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the waiting rule of the phase of driving.
 
@@ -160,7 +166,7 @@ class RiderElement(Element):
         """
         return [RuleLaw(self.wait, phase='drive')]
 
-    def wait(self, agent: AgentView, model: ModelView) -> None:
+    def wait(self, agent: RiderView, model: ModelView) -> None:
         """Wait one more step.
 
         Args:
@@ -244,6 +250,11 @@ class CabElement(Element):
         self.base_fare = base_fare
         self.block_fare = block_fare
 
+    @classmethod
+    def _get_view(cls) -> type[CabView]:
+        """Return the view of the cabs, which types their states and parameters."""
+        return CabView
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the driving rule of the phase of driving.
 
@@ -257,9 +268,9 @@ class CabElement(Element):
         """
         return [RuleLaw(self.drive, phase='drive')]
 
-    def _pick_up(self, agent: AgentView, model: ModelView) -> None:
+    def _pick_up(self, agent: CabView, model: ModelView) -> None:
         """Collect the fare of the rider, take it on board, and head for its destination."""
-        rider = next(item for item in model.agents('riders', AgentView) if item.id == int(agent.rider))
+        rider = next(item for item in model.agents('riders', RiderView) if item.id == int(agent.rider))
         destination = (int(agent.destination_x), int(agent.destination_y))
         blocks = _blocks(_cell(agent.location), destination)
         fare = model.parameter('base_fare') + model.parameter('block_fare') * blocks
@@ -270,7 +281,7 @@ class CabElement(Element):
         agent.target_y = new_target_y_value
         agent.task = DELIVERING
 
-    def drive(self, agent: AgentView, model: ModelView) -> None:
+    def drive(self, agent: CabView, model: ModelView) -> None:
         """Drive one block toward the target, and pick up or drop off the rider there.
 
         Args:
@@ -346,7 +357,7 @@ class DispatchInteraction(Interaction):
         self.width = width
         self.height = height
 
-    def _get_laws(self, s: SimpleNamespace) -> list[Any]:
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the arrival of riders, the matching of riders with cabs, and the rule that dispatches the cabs.
 
         Args:
@@ -363,7 +374,7 @@ class DispatchInteraction(Interaction):
             RuleLaw(self.dispatch, phase='dispatch'),
         ]
 
-    def admit(self, model: Any) -> None:  # noqa: ANN401
+    def admit(self, model: ModelView) -> None:
         """Create the riders of the step at random cells with random destinations.
 
         Args:
@@ -376,14 +387,19 @@ class DispatchInteraction(Interaction):
             model.create('riders', location=(int(x), int(y)), destination_x=float(to_x), destination_y=float(to_y))
         model.report('arrivals', arrivals)
 
-    def dispatch(self, model: Any) -> None:  # noqa: ANN401
+    def dispatch(self, model: ModelView) -> None:
         """Send every paired cab to its rider.
 
         Args:
             model:
                 The model view of the dispatcher.
         """
-        for rider, cab in matches(model, 'rides'):
+        pairs = [
+            (rider, cab)
+            for rider, cab in matches(model, 'rides')
+            if isinstance(rider, RiderView) and isinstance(cab, CabView)
+        ]
+        for rider, cab in pairs:
             new_target_x_value, new_target_y_value = _cell(rider.location)
             cab.target_x = new_target_x_value
             cab.target_y = new_target_y_value

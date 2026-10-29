@@ -24,6 +24,7 @@ from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg,
 GENERATOR_MEMORY = MemoryNeighborhood(('1', 'a', 'a^-1'))
 GRIGORCHUK_MEMORY = MemoryNeighborhood(('1', 'a', 'b', 'c', 'd'))
 LAMPLIGHTER_MEMORY = MemoryNeighborhood(('1', 'a', 'b'))
+FLIP_PROBABILITY = 0.5
 
 
 def _majority(center: Array, *values: Array, degree: Array) -> Array:
@@ -208,7 +209,7 @@ class LaplacianCellElement(Element):
 
 def _golden_move(left: Array, center: Array, right: Array, *, random: Array) -> Array:
     """Return the cell flipped with probability one half, unless a 1 would sit next to another 1."""
-    flipped = np.where(random < 0.5, 1.0 - center, center)  # noqa: PLR2004
+    flipped = np.where(random < FLIP_PROBABILITY, 1.0 - center, center)
     blocked = (flipped == 1) & ((left == 1) | (right == 1))
     return np.where(blocked, center, flipped)
 

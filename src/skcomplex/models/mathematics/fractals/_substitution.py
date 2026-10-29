@@ -26,6 +26,7 @@ from ._substitution_law import SubstitutionLaw
 from ._word_element import WordElement
 
 SHAPES = ('triangle', 'carpet')
+LARGEST_RATIO = 0.5
 
 
 def _sierpinski_tiles(shape: str) -> tuple[PrototileSpec, list[tuple[str, AffineSpec]]]:
@@ -295,7 +296,7 @@ def cantor_set(ratio: float = 1 / 3) -> System:
         >>> run('cantor_set', settings={'until': 3}).trajectory_.values('cantor.size').tolist()
         [1.0, 2.0, 4.0, 8.0]
     """
-    if not 0 < ratio < 0.5:  # noqa: PLR2004
+    if not 0 < ratio < LARGEST_RATIO:
         error_msg = f'ratio = {ratio!r} must lie between 0 and 1/2.'
         raise ValidationError(error_msg)
     interval = PrototileSpec('interval', [(0.0, 0.0), (1.0, 0.0)])

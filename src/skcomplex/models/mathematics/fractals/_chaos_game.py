@@ -19,6 +19,8 @@ from ....errors import ValidationError
 from ....specs import StateSpec, VisualSpec
 from ..._catalog import register_model
 
+AFFINE_COEFFICIENTS = 6
+
 type AffineMap = Sequence[float]
 
 PRESETS: dict[str, tuple[tuple[tuple[float, ...], ...], tuple[float, ...]]] = {
@@ -103,15 +105,20 @@ class ChaosPointElement(Element):
         return [UpdateLaw(s.p, vector(SR, [new_x, new_y]))]
 
 
-def _system_of(maps: Sequence[AffineMap], weights: Sequence[float], n_points: int, random_state: object) -> System:
+def _system_of(
+    maps: Sequence[AffineMap],
+    weights: Sequence[float],
+    n_points: int,
+    random_state: int | np.random.Generator | None,
+) -> System:
     """Return a group of points started uniformly in the unit square, which iterate an iterated function system."""
-    if len(maps) != len(weights) or any(len(item) != 6 for item in maps):  # noqa: PLR2004
+    if len(maps) != len(weights) or any(len(item) != AFFINE_COEFFICIENTS for item in maps):
         error_msg = (
             f'The chaos game takes one weight per map and six coefficients per map, but got {len(maps)} maps and '
             f'{len(weights)} weights.'
         )
         raise ValidationError(error_msg)
-    starts = np.random.default_rng(random_state).random((n_points, 2))  # type: ignore[arg-type,unused-ignore]
+    starts = np.random.default_rng(random_state).random((n_points, 2))
     points = GroupElement(
         'points',
         element=ChaosPointElement,

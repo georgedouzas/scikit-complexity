@@ -6,7 +6,7 @@
 import re
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
@@ -89,7 +89,7 @@ class NoisyElementaryCellElement(Element):
         """
         number = self.rule
 
-        def noisy(left: Array, center: Array, right: Array, *, noise: Any, random: Array) -> Array:  # noqa: ANN401
+        def noisy(left: Array, center: Array, right: Array, *, noise: Array | float, random: Array) -> Array:
             output = (number >> (4 * left + 2 * center + right).astype(int)) & 1
             return np.where(random < noise, 1 - output, output).astype(float)
 
@@ -142,7 +142,7 @@ class DiffusionCellElement(Element):
                 The laws of the component.
         """
 
-        def diffuse(level: Array, *around: Array, r: Any) -> Array:  # noqa: ANN401
+        def diffuse(level: Array, *around: Array, r: Array | float) -> Array:
             return level + r * (sum(around) - len(around) * level)
 
         return [LocalRuleLaw(s.level, VonNeumannNeighborhood(center=True), diffuse)]

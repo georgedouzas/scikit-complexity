@@ -4,7 +4,7 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, Any
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import ZZ, oo
@@ -74,7 +74,7 @@ class RoadElement(Element):
         """
         vmax = self.vmax
 
-        def accelerate(velocity: Array, *ahead: Array, slowdown: Any, random: Array) -> Array:  # noqa: ANN401
+        def accelerate(velocity: Array, *ahead: Array, slowdown: Array | float, random: Array) -> Array:
             gap = np.full(velocity.shape, float(vmax))
             for distance in range(vmax, 0, -1):
                 gap = np.where(ahead[distance - 1] >= 0, distance - 1, gap)

@@ -22,6 +22,7 @@ from ..._catalog import register_model
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
 SMALLEST_TOTAL = 1e-12
 SMALLEST_DEGREE = 1e-9
+JOINING_AGE = 0.5
 
 
 def _degree(node: SimpleNamespace) -> object:
@@ -165,10 +166,10 @@ class TriadVertexElement(VertexElement):
 
         return [
             *super()._get_laws(s),
-            UpdateLaw(s.near, neighbors(where(s.other.age < 0.5, 1, 0))),  # noqa: PLR2004
+            UpdateLaw(s.near, neighbors(where(s.other.age < JOINING_AGE, 1, 0))),
             UpdateLaw(
                 TopologyRequestSpec('add-edge', edges=int(self.extra), toward=weight),
-                where(s.age < 0.5, 1, 0),  # noqa: PLR2004
+                where(s.age < JOINING_AGE, 1, 0),
             ),
         ]
 

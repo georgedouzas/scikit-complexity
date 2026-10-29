@@ -13,6 +13,8 @@ import numpy.typing as npt
 from ....specs import BaseSpec
 from ._rewriting_error import RewritingError
 
+PLANE_DIMENSION = 2
+
 
 @dataclass(frozen=True)
 class AffineSpec(BaseSpec):
@@ -60,7 +62,7 @@ class AffineSpec(BaseSpec):
             RewritingError:
                 The translation or the matrix has the wrong shape.
         """
-        if len(self.translation) != 2:  # noqa: PLR2004
+        if len(self.translation) != PLANE_DIMENSION:
             error_msg = f'The translation of an affine map is a point of the plane, not {self.translation!r}.'
             raise RewritingError(error_msg)
         if self.matrix is not None and np.shape(self.matrix) != (3, 3):
