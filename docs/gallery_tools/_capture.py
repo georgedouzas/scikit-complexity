@@ -10,7 +10,7 @@ import os
 import shutil
 import signal
 import socket
-import subprocess  # nosec B404: the capture runs the Rerun viewer installed with the interpreter
+import subprocess
 import sys
 import tempfile
 import threading
@@ -62,7 +62,7 @@ def _viewer_executable() -> str:
 def _start_viewer(arguments: list[str], home: Path) -> subprocess.Popen[bytes]:
     """Start the Rerun command in its own process group, with a fresh state directory and no info notifications."""
     environment = {**os.environ, 'RUST_LOG': 'warn', 'HOME': str(home), 'RERUN_ANALYTICS': 'false'}
-    return subprocess.Popen(  # noqa: S603  # nosec B603: runs the installed Rerun viewer with fixed arguments
+    return subprocess.Popen(
         [_viewer_executable(), *arguments],
         env=environment,
         stdout=subprocess.DEVNULL,
@@ -360,7 +360,7 @@ class WebCapturer(Capturer):
 
     def __enter__(self) -> Self:
         """Start the file server, the web viewer server, and the browser."""
-        from playwright.sync_api import sync_playwright  # noqa: PLC0415  # optional: only the web backend needs it
+        from playwright.sync_api import sync_playwright
 
         self._folder = Path(tempfile.mkdtemp(prefix='skcomplex-web-'))
         handler = functools.partial(_QuietHandler, directory=str(self._folder))

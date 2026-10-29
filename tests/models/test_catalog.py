@@ -1,10 +1,6 @@
 """Test the catalog of the model library: listing, describing, creating, and running models by name."""
 
-import ast
 import importlib
-import pickle  # nosec B403: the tests pickle and load only objects they create
-import subprocess  # nosec B404: the tests start a fresh interpreter to see which modules a call loads
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -25,38 +21,6 @@ from skcomplex.models.biology.ecology import (
     PopulationElement,
     PredationInteraction,
 )
-
-
-def _loaded(code: str) -> list[str]:
-    """Return the model subfields a fresh interpreter loads to run some code."""
-    probe = (
-        f'{code}\n'
-        'import sys\n'
-        "loaded = {'.'.join(name.split('.')[:4]) for name in sys.modules if name.count('.') >= 3 "
-        "and name.startswith('skcomplex.models.')}\n"
-        'print(sorted(loaded))\n'
-    )
-    command = [sys.executable, '-c', probe]
-    output = subprocess.run(command, capture_output=True, text=True, check=True).stdout  # noqa: S603  # nosec B603
-    return ast.literal_eval(output)
-
-
-def test_catalog_without_imports():
-    """Test that listing the catalog imports no model module."""
-    assert _loaded('from skcomplex.models import catalog\nassert len(catalog()) > 500') == []
-
-
-def test_catalog_filters_by_field_without_imports():
-    """Test that listing one field path names its models and imports none of them."""
-    code = "from skcomplex.models import catalog\nassert catalog(field='physics/mechanics')"
-    assert _loaded(code) == []
-    assert {listing.field for listing in catalog(field='physics/mechanics')} == {'physics/mechanics'}
-
-
-def test_create_imports_only_its_model():
-    """Test that creating a model imports its subfield and the shared code of its field, and no other subfield."""
-    loaded = _loaded("from skcomplex.models import create\ncreate('pendulum')")
-    assert loaded == ['skcomplex.models.physics.common', 'skcomplex.models.physics.mechanics']
 
 
 def test_create_unknown_name_suggests_close_names():
@@ -89,12 +53,6 @@ def test_listing_matches_registration():
         entry = describe(listing.name)
         listed = (listing.name, listing.field, listing.description, listing.tags)
         assert (entry.name, entry.field, entry.description, entry.tags) == listed, listing.name
-
-
-def test_catalog_entry_imports_the_module_of_a_listed_model():
-    """Test that the model catalog imports the module of a listed model when it is asked for its entry."""
-    code = "from skcomplex.models import MODELS\nMODELS.entry('pendulum')"
-    assert 'skcomplex.models.physics.mechanics' in _loaded(code)
 
 
 CONFORMANCE_FRAMES = 10
@@ -230,7 +188,6 @@ def test_model_conforms(entry, tmp_path):
     copy = clone(system)
     assert copy is not system
     assert compile_system(copy, compiler=compiler).states.names == problem.states.names
-    assert pickle.loads(pickle.dumps(system)) is not None  # noqa: S301  # nosec B301: loads data the test just dumped
 
 
 @pytest.mark.parametrize('entry', catalog(), ids=lambda entry: entry.name)

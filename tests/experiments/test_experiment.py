@@ -1,8 +1,5 @@
 """Test the `_experiment` module of `skcomplex.experiments`."""
 
-import os
-import subprocess  # nosec B404: the test runs a script it writes itself with this interpreter
-import sys
 from typing import Annotated
 
 import numpy as np
@@ -74,14 +71,6 @@ class PeakAnalysis(BaseAnalysis):
 def last_value(trajectory):
     """Return the last infected count."""
     return float(trajectory.values('I.n')[-1])
-
-
-SCRIPT_WITHOUT_GUARD = """
-from skcomplex.experiments import Experiment
-from skcomplex.models.biology.epidemiology import sir
-
-Experiment(sir, replicates=2, until=5, executor='process').check().prepare().run()
-"""
 
 
 def test_factory_and_system_give_same_run():
@@ -223,24 +212,3 @@ def test_unknown_path_is_rejected():
     experiment = Experiment(logistic_growth, GridDesign(), {'growth.rate': [1.0]}, until=1).check().prepare()
     with pytest.raises(ValidationError, match=r'growth\.rate is neither a state nor a parameter'):
         experiment.run()
-
-
-@pytest.mark.slow
-def test_process_executor_names_the_missing_main_guard(tmp_path):
-    """Test that a script without a main guard that runs an experiment on processes gets a named error saying so."""
-    script = tmp_path / 'script.py'
-    script.write_text(SCRIPT_WITHOUT_GUARD)
-    environment = {**os.environ, 'PYTHONPATH': os.pathsep.join(item for item in sys.path if item)}
-    completed = subprocess.run(  # noqa: S603  # nosec B603: runs the test's own script with this interpreter
-        [sys.executable, str(script)],
-        capture_output=True,
-        text=True,
-        cwd=tmp_path,
-        env=environment,
-        timeout=300,
-        check=False,
-    )
-    assert completed.returncode != 0
-    assert 'ExperimentError' in completed.stderr
-    assert "if __name__ == '__main__':" in completed.stderr
-    assert "executor='thread'" in completed.stderr

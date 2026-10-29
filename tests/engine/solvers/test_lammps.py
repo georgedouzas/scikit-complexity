@@ -1,12 +1,11 @@
 """Test the `LammpsSolver` class."""
 
-import subprocess  # nosec B404: the loading test starts a new Python process
-import sys
 import time
 from typing import Annotated
 
 import numpy as np
 import pytest
+from lammps import lammps
 from sage.all__sagemath_symbolics import arcsinh, exp, oo
 from sage.sets.real_set import RealSet
 
@@ -115,12 +114,9 @@ def _run(system, solver, until, dt=0.05):
     return Simulation(system, solver=solver, dt=dt).check().run(until=until).trajectory_
 
 
-def test_lammps_loads_in_new_process():
+def test_lammps_loads():
     """Test that LAMMPS starts without a missing library after installation."""
-    script = "from lammps import lammps; print(lammps(cmdargs=['-screen', 'none', '-log', 'none']).version())"
-    command = [sys.executable, '-c', script]
-    output = subprocess.run(command, capture_output=True, text=True, check=True).stdout  # noqa: S603  # nosec B603
-    assert int(output) > 0
+    assert lammps(cmdargs=['-screen', 'none', '-log', 'none']).version() > 0
 
 
 def test_lammps_trajectory_has_native_names_and_shapes():

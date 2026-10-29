@@ -8,6 +8,7 @@ import math
 from collections import defaultdict
 from collections.abc import Callable, Mapping
 from types import SimpleNamespace
+from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -343,15 +344,13 @@ class LammpsSolver(ExternalSolver):
             ],
         )
 
-        def callback(  # noqa: PLR0917  # the signature of LAMMPS fix external callbacks
-            caller: object,
-            step: int,
-            n_local: int,
-            tags: npt.NDArray[np.int64],
-            x: Array,
-            forces: Array,
-        ) -> None:
-            """Write the forces of the external interactions on every local atom."""
+        def callback(*arguments: object) -> None:
+            """Write the forces of the external interactions on every local atom.
+
+            LAMMPS passes the caller, the step, the number of local atoms, and their tags, positions, and forces.
+            """
+            signature = tuple[None, int, int, npt.NDArray[np.int64], Array, Array]
+            _, step, n_local, tags, x, forces = cast(signature, arguments)
             order = np.asarray(tags[:n_local], dtype=np.intp) - 1
             state = sub_problem.initial_state.copy()
             state[sub_positions[order]] = x[:n_local, : self.n_dim_]

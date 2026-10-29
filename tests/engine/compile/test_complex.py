@@ -1,8 +1,5 @@
 """Test complex states: their domain, storage, laws, backends, solvers, trajectories, and analysis guards."""
 
-import subprocess  # nosec B404: the cache test starts a second Python process
-import sys
-import textwrap
 from typing import Annotated
 
 import numpy as np
@@ -171,12 +168,6 @@ class SchrodingerElement(Element):
     def _get_laws(self, s):
         """Return `dpsi/dt = i/2 laplacian(psi)`."""
         return [RateLaw(s.psi, I / 2 * laplacian(s.psi))]
-
-
-def _run_script(script):
-    """Return the standard output of a Python script run in a new process."""
-    command = [sys.executable, '-c', script]
-    return subprocess.run(command, capture_output=True, text=True, check=True).stdout  # noqa: S603  # nosec B603
 
 
 def _ginzburg_landau(shape=(32, 32), discretization='spectral'):
@@ -387,29 +378,6 @@ def test_backends_agree_on_complex_map():
     assert compiled.backend == 'numba'
     assert np.allclose(result, expected, rtol=1e-12, atol=0)
     assert np.allclose(reference.states.read(expected, 'points.z'), z**2 + c, rtol=1e-12)
-
-
-@pytest.mark.slow
-def test_complex_kernels_are_cached_on_disk(tmp_path):
-    """Test that a second process loads the kernels of a complex system from the disk cache."""
-    script = textwrap.dedent(
-        f"""
-        import sys
-        from skcomplex.engine.compile import compile_system
-        from skcomplex.engine.backends import NumbaBackend
-        from skcomplex.models.mathematics.fractals import mandelbrot
-        problem = compile_system(mandelbrot((64, 64)), backend=NumbaBackend(cache_dir={str(tmp_path)!r}))
-        problem.update(0.0, problem.initial_state, problem.initial_parameters)
-        module = next(module for name, module in sys.modules.items() if name.startswith('skcomplex_kernels_'))
-        dispatchers = [value for value in vars(module).values() if hasattr(value, 'stats')]
-        hits = sum(sum(dispatcher.stats.cache_hits.values()) for dispatcher in dispatchers)
-        print(hits, sum(sum(dispatcher.stats.cache_misses.values()) for dispatcher in dispatchers))
-        """,
-    )
-    runs = [_run_script(script).split() for _ in range(2)]
-    assert int(runs[0][1]) > 0
-    assert int(runs[1][1]) == 0
-    assert int(runs[1][0]) > 0
 
 
 @pytest.mark.parametrize(

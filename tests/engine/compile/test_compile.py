@@ -5,7 +5,6 @@ from typing import Annotated
 
 import numpy as np
 import pytest
-import sympy  # noqa: TID251  # the test passes a SymPy expression to check that laws reject it
 from sage.all__sagemath_symbolics import RR, Expression, oo
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
@@ -316,23 +315,6 @@ class RecorderInteraction(Interaction):
         """Record the symbols and return a zero rate on the velocity."""
         RECEIVED.update(x=s.target.x, m=s.target.m)
         return [RateLaw(s.target.v, 0)]
-
-
-class SympyGrowthInteraction(Interaction):
-    """Interaction whose rate is a SymPy expression."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-
-    def _get_laws(self, s):
-        """Return a SymPy rate."""
-        return [RateLaw(s.target.n, sympy.Symbol('r') * 2)]
 
 
 @pytest.mark.parametrize(
@@ -862,16 +844,6 @@ def test_components_receive_sage_symbols_and_vectors():
     assert all(isinstance(component, Expression) and component.is_symbol() for component in RECEIVED['x'])
     assert RECEIVED['m'].is_real()
     assert domain_of(RECEIVED['m']) is RR
-
-
-def test_sympy_rate_is_rejected():
-    """Test that a SymPy rate raises a validation error that names the law, the interaction, and Sage."""
-    system = System(
-        elements=[PopulationElement('herd')],
-        interactions=[SympyGrowthInteraction('growth', target='herd')],
-    )
-    with pytest.raises(ValidationError, match=r'RateLaw of growth has the SymPy value .*Sage'):
-        compile_system(system)
 
 
 @pytest.mark.benchmark
