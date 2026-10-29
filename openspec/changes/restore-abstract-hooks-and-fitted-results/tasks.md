@@ -43,9 +43,9 @@
 
 ## 8. Integration
 
-- [ ] 8.1 Run the checks session (ruff, black, lint-imports, mypy, bandit, interrogate, pydoclint, deptry) and the full suite with doctests, and verify only the known timing test fails.
-- [ ] 8.2 Profile a long agent run and a long lattice run on `development` and on the branch, and verify the branch is not slower beyond noise.
-- [ ] 8.3 Merge the branch into `development` and delete it, and verify `git branch` no longer lists it.
+- [x] 8.1 Run the checks session (ruff, black, lint-imports, mypy, bandit, interrogate, pydoclint, deptry) and the full suite with doctests, and verify only the known timing test fails.
+- [x] 8.2 Profile a long agent run and a long lattice run on `development` and on the branch, and verify the branch is not slower beyond noise.
+- [x] 8.3 Merge the branch into `development` and delete it, and verify `git branch` no longer lists it.
 
 ## Workflow follow-up
 
