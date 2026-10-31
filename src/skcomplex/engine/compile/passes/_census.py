@@ -435,6 +435,12 @@ class CensusPass(BasePass):
             declared = [law for law in declared if CensusPass._end_of(spec, law) is None]
         if spec.edges is not None:
             edges = spec.edges
+            if edges.pairs is None and any(CensusPass._end_of(edges, law) is None for law in declared):
+                error_msg = (
+                    f'Interaction {spec.owner} over neighbours has laws per edge, but its members live on a space '
+                    'without edges. Give the group a lattice or network space, or write laws of one end.'
+                )
+                raise ValidationError(error_msg)
             declared = [
                 CensusPass._end_law(edges, law, end)
                 for law in declared

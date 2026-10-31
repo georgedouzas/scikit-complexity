@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ._alignment import AlignmentInteraction
 from ._base import BaseInteraction
 from ._base_matching_protocol import BaseMatchingProtocol
 from ._batch_clearing_protocol import BatchClearingProtocol
@@ -35,8 +34,7 @@ from ._matching_round_spec import MatchingRoundSpec
 from ._movement import MovementInteraction
 from ._neighbor import NeighborInteraction
 from ._pair import PairInteraction
-from ._pair_force import PairForceInteraction
-from ._pair_potential import PairPotentialInteraction
+from ._pair_coupling import PairCouplingInteraction
 from ._partner_switch_protocol import PartnerSwitchProtocol
 from ._queue_protocol import QueueProtocol
 from ._random_search_protocol import RandomSearchProtocol
@@ -52,7 +50,6 @@ from ._transfer import TransferInteraction
 from ._transition import TransitionInteraction
 
 __all__: list[str] = [
-    'AlignmentInteraction',
     'BaseInteraction',
     'BaseMatchingProtocol',
     'BatchClearingProtocol',
@@ -83,9 +80,8 @@ __all__: list[str] = [
     'MatchingRoundSpec',
     'MovementInteraction',
     'NeighborInteraction',
-    'PairForceInteraction',
+    'PairCouplingInteraction',
     'PairInteraction',
-    'PairPotentialInteraction',
     'PartnerSwitchProtocol',
     'QueueProtocol',
     'RandomSearchProtocol',

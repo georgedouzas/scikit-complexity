@@ -38,7 +38,7 @@ def test_harmonic_oscillator_section_crosses_upward():
     """Test that upward crossings of x = 0 by the harmonic oscillator come once per period with the full speed."""
     section = _section('poincare', harmonic_oscillator(), state='mass.x', direction=1, until=20.0)
     assert np.diff(section.times_) == pytest.approx(2 * math.pi, abs=1e-5)
-    assert section.values_['mass.v'] == pytest.approx(np.ones(len(section.times_)), abs=1e-5)
+    assert section.values_['mass.x_d1'] == pytest.approx(np.ones(len(section.times_)), abs=1e-5)
     both = _section('poincare', harmonic_oscillator(), state='mass.x', direction=0, until=20.0)
     assert len(both.times_) == 2 * len(section.times_)
 
@@ -51,8 +51,8 @@ def test_section_discards_transient():
 
 def test_section_reads_the_named_variables():
     """Test that a section reads the values of the named states only."""
-    section = _section('poincare', harmonic_oscillator(), variables=['mass.v'], state='mass.x', until=20.0)
-    assert list(section.values_) == ['mass.v']
+    section = _section('poincare', harmonic_oscillator(), variables=['mass.x_d1'], state='mass.x', until=20.0)
+    assert list(section.values_) == ['mass.x_d1']
 
 
 def test_section_rejects_maps_and_unknown_states():

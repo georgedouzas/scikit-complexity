@@ -12,7 +12,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, oo, sin, vector
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, FieldElement, ParticleElement
+from ....core.elements import Element, FieldElement
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import ContinuousSpace, LatticeSpace
@@ -20,7 +20,7 @@ from ....core.system import System
 from ....engine.solvers import VelocityVerletSolver
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.particles import PotentialEnergyInteraction, SpringInteraction
+from ..common.particles import MassPointElement, PotentialEnergyInteraction, SpringInteraction
 
 
 class WaveStringElement(Element):
@@ -176,7 +176,7 @@ def spring_chain(
     positions = spacing * np.arange(1, n_masses + 1)
     heights = _pluck(positions, length, pluck, pluck_at) if pluck else np.zeros(n_masses)
     masses = [
-        ParticleElement(f'mass_{index}', x=[float(positions[index]), float(heights[index])], v=[0.0, 0.0], m=mass)
+        MassPointElement(f'mass_{index}', x=[float(positions[index]), float(heights[index])], x_d1=[0.0, 0.0], m=mass)
         for index in range(n_masses)
     ]
     springs = [

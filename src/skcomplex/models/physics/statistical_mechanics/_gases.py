@@ -5,14 +5,14 @@
 
 import numpy as np
 
-from ....core.elements import GroupElement, ParticleElement
+from ....core.elements import GroupElement
 from ....core.interactions import BaseInteraction
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.solvers import VelocityVerletSolver
 from ....specs import VisualSpec
 from ..._catalog import register_model
-from ..common.particles import LangevinThermostatInteraction, LennardJonesInteraction
+from ..common.particles import LangevinThermostatInteraction, LennardJonesInteraction, MassPointElement
 
 
 @register_model(
@@ -66,17 +66,17 @@ def ideal_gas(
         >>> from skcomplex.models.physics.statistical_mechanics import ideal_gas
         >>> group = ideal_gas(1000, random_state=0).elements[0]
         >>> group.label, group.element.__name__, group.size
-        ('gas', 'ParticleElement', 1000)
+        ('gas', 'MassPointElement', 1000)
     """
     rng = np.random.default_rng(random_state)
     velocities = rng.normal(0.0, np.sqrt(kT / mass), size=(n_molecules, n_dim))
     velocities -= velocities.mean(axis=0)
-    visual = VisualSpec('points', {'position': 'x', 'radius': size / 200, 'color_by': 'v', 'states': ()})
+    visual = VisualSpec('points', {'position': 'x', 'radius': size / 200, 'color_by': 'x_d1', 'states': ()})
     molecules = GroupElement(
         label,
-        element=ParticleElement,
+        element=MassPointElement,
         size=n_molecules,
-        values={'x': rng.uniform(0.0, size, size=(n_molecules, n_dim)), 'v': velocities, 'm': mass},
+        values={'x': rng.uniform(0.0, size, size=(n_molecules, n_dim)), 'x_d1': velocities, 'm': mass},
         visual=visual,
     )
     return System(
@@ -136,13 +136,20 @@ def lennard_jones_fluid(
     velocities = rng.normal(0, np.sqrt(temperature or 1.0), (n_particles, 2))
     velocities -= velocities.mean(axis=0)
     interactions: list[BaseInteraction] = [
-        LennardJonesInteraction('lj', first='fluid', second='fluid', cutoff=cutoff, period=size),
+        LennardJonesInteraction('lj', first='fluid', second='fluid', cutoff=cutoff, divisor='m', period=size),
     ]
     if temperature is not None:
-        interactions.append(LangevinThermostatInteraction('thermostat', target='fluid', temperature=temperature))
+        interactions.append(
+            LangevinThermostatInteraction('thermostat', target='fluid', temperature=temperature),
+        )
     return System(
         elements=[
-            GroupElement('fluid', element=ParticleElement, size=n_particles, values={'x': positions, 'v': velocities}),
+            GroupElement(
+                'fluid',
+                element=MassPointElement,
+                size=n_particles,
+                values={'x': positions, 'x_d1': velocities},
+            ),
         ],
         interactions=interactions,
         space=ContinuousSpace(extent=(size, size), boundary='periodic'),

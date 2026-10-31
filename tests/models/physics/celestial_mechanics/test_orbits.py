@@ -22,7 +22,7 @@ def test_kepler_orbit_conserves_energy_and_momentum_and_follows_the_third_law():
     period = 2 * math.pi * math.sqrt(axis**3 / (G_ * (mass + 1e-6)))
     trajectory = _run(two_body_orbit(eccentricity, G=G_, mass=mass, radius=radius), 10 * period, period / 100)
     star, planet = _series(trajectory, 'star.x', 'planet.x')
-    star_v, planet_v = _series(trajectory, 'star.v', 'planet.v')
+    star_v, planet_v = _series(trajectory, 'star.x_d1', 'planet.x_d1')
     relative, velocity = planet - star, planet_v - star_v
     distance = np.linalg.norm(relative, axis=1)
     energy = 0.5 * mass * (star_v**2).sum(1) + 0.5 * 1e-6 * (planet_v**2).sum(1) - G_ * mass * 1e-6 / distance
@@ -44,7 +44,7 @@ def test_figure_eight_returns_after_its_period():
     for index in range(3):
         position = _series(trajectory, f'body_{index}.x')[0]
         assert np.allclose(position[-1], position[0], atol=1e-4)
-    momentum = sum(_series(trajectory, f'body_{index}.v')[0] for index in range(3))
+    momentum = sum(_series(trajectory, f'body_{index}.x_d1')[0] for index in range(3))
     assert np.abs(momentum).max() < 1e-8
 
 

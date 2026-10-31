@@ -7,7 +7,7 @@ from ._element import Element
 from ._field import FieldElement
 from ._group import GroupElement
 from ._lattice import LatticeElement
-from ._particle import ParticleElement
+from ._point import PointElement
 
 __all__: list[str] = [
     'BaseElement',
@@ -17,5 +17,5 @@ __all__: list[str] = [
     'FieldElement',
     'GroupElement',
     'LatticeElement',
-    'ParticleElement',
+    'PointElement',
 ]

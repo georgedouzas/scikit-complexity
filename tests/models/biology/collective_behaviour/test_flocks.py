@@ -28,7 +28,7 @@ def test_boids_align():
 def test_bird_swarm_flies_together():
     """Test that the swarm reaches the speed `sqrt(alpha / beta)` and stays together."""
     trajectory = Simulation(bird_swarm(), dt=0.5).check().prepare().run(until=50).trajectory_
-    positions, velocities = trajectory.values('birds.x')[-1], trajectory.values('birds.v')[-1]
+    positions, velocities = trajectory.values('birds.x')[-1], trajectory.values('birds.x_d1')[-1]
     speeds = np.hypot(velocities[:, 0], velocities[:, 1])
     assert np.median(speeds) == pytest.approx(math.sqrt(2.0), rel=0.1)
     assert np.hypot(*(positions - positions.mean(axis=0)).T).max() < 10.0

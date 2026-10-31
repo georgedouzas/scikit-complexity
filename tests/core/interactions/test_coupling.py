@@ -1,25 +1,27 @@
 """Test the `_coupling` module of `skcomplex.core.interactions`."""
 
 import math
+from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import pytest
 import scipy.optimize
-from sage.all__sagemath_symbolics import sin
+from sage.all__sagemath_symbolics import SR, I, atan2, cos, exp, pi, sin, vector
 
-from skcomplex.core.elements import Element, LatticeElement
+from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import CouplingInteraction
-from skcomplex.core.laws import RateLaw
-from skcomplex.core.spaces import LatticeSpace, NetworkSpace
+from skcomplex.core.laws import BaseLaw, RateLaw, UpdateLaw
+from skcomplex.core.laws.utils import uniform
+from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.errors import ValidationError
-from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 GAMMA = 0.5
@@ -45,12 +47,58 @@ class OscillatorElement(Element):
         return [RateLaw(s.theta, s.omega)]
 
 
-def _sine(other, member):
+class CellElement(Element):
+    """Cell with a level and no dynamics of its own."""
+
+    def __init__(self, label: str, visual: VisualSpec | None = None, *, u: Annotated[object, StateSpec()] = 0.0):
+        super().__init__(label, visual=visual)
+        self.u = u
+
+
+class MoverElement(Element):
+    """Member that moves at a constant speed along its heading, every step of discrete time."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+        theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
+        v0: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.theta = theta
+        self.v0 = v0
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the move along the heading."""
+        return [UpdateLaw(s.x, s.x + s.v0 * vector(SR, [cos(s.theta), sin(s.theta)]))]
+
+
+class LinkElement(Element):
+    """Link of a network with a weight."""
+
+    def __init__(self, label: str, visual: VisualSpec | None = None, *, w: Annotated[object, StateSpec()] = 1.0):
+        super().__init__(label, visual=visual)
+        self.w = w
+
+
+class WeightedCouplingInteraction(CouplingInteraction):
+    """Coupling along the edges of a network, weighted by the state `w` of the group on its edges."""
+
+    def __init__(self, label: str, *, nodes: Annotated[str, RoleSpec()], links: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label, nodes=nodes, read='theta', write='theta', function=_sine, weights='w')
+        self.links = links
+
+
+def _sine(s):
     """Return the sine of the phase difference."""
-    return sin(other - member)
+    return sin(s.other.theta - s.member.theta)
 
 
-def _system(space, theta, omega, function=_sine, **arguments):
+def _oscillators(space, theta, omega, **arguments):
     """Return oscillators on a space coupled by a function, the sine of the phase difference by default."""
     oscillators = LatticeElement(
         'oscillators',
@@ -58,7 +106,7 @@ def _system(space, theta, omega, function=_sine, **arguments):
         space=space,
         values={'theta': theta, 'omega': omega},
     )
-    coupling = CouplingInteraction('coupling', nodes='oscillators', state='theta', function=function, **arguments)
+    coupling = CouplingInteraction('coupling', nodes='oscillators', read='theta', write='theta', **arguments)
     return System(elements=[oscillators], interactions=[coupling])
 
 
@@ -68,13 +116,10 @@ def _phases(system, until, backend=None):
     return simulation.run(until).trajectory_.values('oscillators.theta')
 
 
-def _drift(system, backend):
-    """Return the rates of the phases at the initial state."""
+def _drift(system, path='oscillators.theta', backend=None):
+    """Return the rates of a state at the initial state."""
     problem = compile_system(system, backend=backend)
-    return problem.states.read(
-        problem.drift(0.0, problem.initial_state, problem.initial_parameters),
-        'oscillators.theta',
-    )
+    return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), path)
 
 
 def _order(phases):
@@ -82,20 +127,29 @@ def _order(phases):
     return np.abs(np.exp(1j * phases).mean(axis=1))
 
 
+def _group(theta, **arguments):
+    """Return oscillators in a group without a space, coupled by the sine of the phase difference."""
+    group = GroupElement('oscillators', element=OscillatorElement, size=len(theta), values={'theta': theta})
+    coupling = CouplingInteraction('coupling', nodes='oscillators', read='theta', write='theta', **arguments)
+    return System(elements=[group], interactions=[coupling])
+
+
 @BACKENDS
-@pytest.mark.parametrize('mode', ['edges', 'mean-field'])
-def test_kuramoto_synchronizes_above_the_critical_strength(mode, backend):
+@pytest.mark.parametrize('mode', ['edges', 'group'])
+def test_coupling_synchronizes_kuramoto_oscillators_above_the_critical_strength(mode, backend):
     """Test that 500 oscillators on a complete graph coupled above the critical strength reach an order above 0.8."""
     size = 500
     omega = GAMMA * np.tan(math.pi * ((np.arange(size) + 0.5) / size - 0.5))
     theta = np.random.default_rng(1).uniform(0, 2 * math.pi, size)
     strength = 8 * GAMMA
-    system = _system(
+    system = _oscillators(
         NetworkSpace(nx.complete_graph(size)),
         theta,
         omega,
-        K=strength / size if mode == 'edges' else strength,
+        function=lambda s: strength * _sine(s),
+        reduce='mean',
         mode=mode,
+        include_self=True,
     )
     order = _order(_phases(system, 20.0, backend))
     assert order[0] < 0.1
@@ -104,44 +158,180 @@ def test_kuramoto_synchronizes_above_the_critical_strength(mode, backend):
 
 @BACKENDS
 def test_coupling_by_difference_diffuses_along_the_bonds(backend):
-    """Test that the default coupling adds `K (x_j - x_i)` for every neighbour along both directions of a bond."""
+    """Test that the default coupling adds `x_j - x_i` for every neighbour along both directions of a bond."""
     theta = np.array([1.0, 0.0, 0.0, 3.0])
-    system = _system(LatticeSpace(4), theta, np.zeros(4), function=None, K=2.0)
-    assert _drift(system, backend).tolist() == [2.0, 2.0, 6.0, -10.0]
+    system = _oscillators(LatticeSpace(4), theta, np.zeros(4), function=lambda s: 2 * (s.other.theta - s.member.theta))
+    assert _drift(system, backend=backend).tolist() == [2.0, 2.0, 6.0, -10.0]
+    assert _drift(_oscillators(LatticeSpace(4), theta, np.zeros(4)), backend=backend).tolist() == [1.0, 1.0, 3.0, -5.0]
 
 
 @BACKENDS
-def test_mean_field_is_the_mean_over_every_member(backend):
-    """Test that the mean-field coupling is the mean of the coupling to every member, the member included."""
+def test_coupling_mean_over_edges_includes_the_member_itself(backend):
+    """Test that the mean over the edges with the member itself divides the sum by the degree plus one."""
+    theta = np.array([0.0, 1.0, 2.5, 4.0])
+    system = _oscillators(LatticeSpace(4), theta, np.zeros(4), reduce='mean', include_self=True)
+    expected = (np.roll(theta, 1) + np.roll(theta, -1) - 2 * theta) / 3
+    np.testing.assert_allclose(_drift(system, backend=backend), expected, atol=1e-12)
+
+
+@BACKENDS
+def test_coupling_over_the_group_excludes_the_member_unless_included(backend):
+    """Test that the group coupling is the mean of the coupling to every other member, or to every member."""
     theta = np.random.default_rng(2).uniform(0, 2 * math.pi, 6)
-    system = _system(NetworkSpace(nx.path_graph(6)), theta, np.zeros(6), K=1.5, alpha=0.3, mode='mean-field')
-    expected = 1.5 * np.sin(theta[None, :] - theta[:, None] - 0.3).mean(axis=1)
-    assert np.allclose(_drift(system, backend), expected, atol=1e-12)
+    differences = np.sin(theta[None, :] - theta[:, None] - 0.3)
+    excluded = _group(theta, function=_sine, lag=0.3, mode='group', reduce='mean')
+    included = _group(theta, function=_sine, lag=0.3, mode='group', reduce='mean', include_self=True)
+    np.testing.assert_allclose(_drift(excluded, backend=backend), (differences.sum(1) - math.sin(-0.3)) / 5)
+    np.testing.assert_allclose(_drift(included, backend=backend), differences.mean(axis=1), atol=1e-12)
 
 
-def test_phase_lag_shifts_the_frequency_of_synchrony():
-    """Test that identical oscillators with a phase lag lock at the frequency `omega - K sin(alpha)`."""
+@BACKENDS
+def test_coupling_over_the_group_weights_every_member_by_a_matrix(backend):
+    """Test that a weight matrix over the group gives `sum_j W_ij f(x_j)` with a zero diagonal."""
+    theta = np.array([0.0, 1.0, 2.5, 4.0])
+    weights = np.arange(16.0).reshape(4, 4)
+    system = _group(theta, function=lambda s: sin(s.other.theta), mode='group', weights=weights)
+    expected = (weights - np.diag(np.diag(weights))) @ np.sin(theta)
+    np.testing.assert_allclose(_drift(system, backend=backend), expected, atol=1e-12)
+
+
+@BACKENDS
+def test_coupling_to_the_next_member_reads_the_member_after_it(backend):
+    """Test that the next mode couples every member to the next member in group order, the first after the last."""
+    theta = np.array([0.0, 1.0, 2.5, 4.0])
+    system = _group(theta, function=_sine, mode='next')
+    np.testing.assert_allclose(_drift(system, backend=backend), np.sin(np.roll(theta, -1) - theta), atol=1e-12)
+
+
+@BACKENDS
+def test_coupling_weights_edges_by_a_state_of_the_edge_group(backend):
+    """Test that the weights of an edge state multiply the term of both ends of every edge."""
+    graph = nx.gnp_random_graph(12, 0.4, seed=4)
+    space = NetworkSpace(graph)
+    rng = np.random.default_rng(1)
+    theta, weights = rng.uniform(0, 2 * np.pi, 12), rng.uniform(0.5, 1.5, graph.number_of_edges())
+    system = System(
+        elements=[
+            LatticeElement('oscillators', element=OscillatorElement, space=space, values={'theta': theta}),
+            GroupElement('links', element=LinkElement, space=space, on='edges', values={'w': weights}),
+        ],
+        interactions=[WeightedCouplingInteraction('coupling', nodes='oscillators', links='links')],
+    )
+    matrix = np.zeros((12, 12))
+    sources, targets = space.check().prepare().edges_[None]
+    matrix[sources, targets] = matrix[targets, sources] = weights
+    expected = (matrix * np.sin(theta[None, :] - theta[:, None])).sum(axis=1)
+    np.testing.assert_allclose(_drift(system, backend=backend), expected, atol=1e-12)
+
+
+def test_coupling_with_a_phase_lag_locks_at_the_lagged_frequency():
+    """Test that identical oscillators with a phase lag lock at the frequency `omega - K sin(lag)`."""
     theta = np.random.default_rng(3).uniform(-0.3, 0.3, 10)
-    system = _system(NetworkSpace(nx.complete_graph(10)), theta, np.ones(10), K=1.0, alpha=0.5, mode='mean-field')
+    system = _oscillators(
+        NetworkSpace(nx.complete_graph(10)),
+        theta,
+        np.ones(10),
+        function=_sine,
+        lag=0.5,
+        mode='group',
+        reduce='mean',
+        include_self=True,
+    )
     phases = _phases(system, 40.0)
     assert np.ptp(phases[-1]) < 1e-6
     assert phases[-1, 0] - phases[-2, 0] == pytest.approx(1 - math.sin(0.5), abs=1e-6)
 
 
-def test_delayed_coupling_locks_two_oscillators_at_the_delayed_frequency():
+def test_coupling_with_a_delay_locks_two_oscillators_at_the_delayed_frequency():
     """Test that two delayed oscillators lock in phase at the frequency `Omega` that solves `Omega = 1 - sin(Omega)`."""
-    system = _system(NetworkSpace(nx.path_graph(2)), np.array([0.0, 0.5]), np.ones(2), K=1.0, tau=1.0)
+    system = _oscillators(NetworkSpace(nx.path_graph(2)), np.array([0.0, 0.5]), np.ones(2), function=_sine, delay=1.0)
     phases = _phases(system, 60.0)
     frequency = scipy.optimize.brentq(lambda value: value - 1 + math.sin(value), 0.0, 1.0)
     assert abs(phases[-1, 1] - phases[-1, 0]) < 1e-4
     assert phases[-1, 0] - phases[-2, 0] == pytest.approx(frequency, abs=1e-4)
 
 
+def test_coupling_map_form_combines_the_state_with_the_reduction():
+    """Test that the map form sets every level to `combine(u_i, reduction)` on the bonds of a lattice."""
+    u = np.array([0.0, 1.0, 2.5, 4.0])
+    cells = LatticeElement('cells', element=CellElement, space=LatticeSpace(4), values={'u': u})
+    coupling = CouplingInteraction(
+        'coupling',
+        nodes='cells',
+        read='u',
+        write='u',
+        reduce='mean',
+        include_self=True,
+        form='map',
+        combine=lambda own, reduction: own + reduction,
+    )
+    system = System(elements=[cells], interactions=[coupling], time=DiscreteTime())
+    levels = Simulation(system, dt=1).check().prepare().run(1).trajectory_.values('cells.u')[-1]
+    np.testing.assert_allclose(levels, (np.roll(u, 1) + np.roll(u, -1) + u) / 3)
+
+
+def _heading(member):
+    """Return the unit heading of a member in the complex plane."""
+    return exp(I * member.theta)
+
+
+def _polarization(s):
+    """Return the modulus of the mean heading, the polar order parameter."""
+    return abs(s.mean_heading)
+
+
+def test_coupling_map_form_aligns_a_vicsek_flock_at_low_noise():
+    """Test that members taking the mean heading within a unit radius at low noise reach a polar order above 0.9."""
+    rng = np.random.default_rng(0)
+    values = {'x': rng.uniform(0.0, 10.0, (300, 2)), 'theta': rng.uniform(-math.pi, math.pi, 300), 'v0': 0.5}
+    noise = 0.1
+    alignment = CouplingInteraction(
+        'alignment',
+        nodes='flock',
+        read='theta',
+        write='theta',
+        function=lambda s: vector(SR, [cos(s.other.theta), sin(s.other.theta)]),
+        neighborhood=RadiusNeighborhood(1.0),
+        include_self=True,
+        form='map',
+        combine=lambda theta, total: atan2(total[1], total[0]) + uniform('turn', -noise * pi, noise * pi),
+    )
+    system = System(
+        elements=[GroupElement('flock', element=MoverElement, size=300, values=values)],
+        interactions=[alignment],
+        space=ContinuousSpace(extent=(10.0, 10.0), boundary='periodic'),
+        time=DiscreteTime(),
+    )
+    observables = [
+        ObservableSpec('mean_heading', _heading, group='flock'),
+        ObservableSpec('polarization', _polarization),
+    ]
+    simulation = Simulation(system, dt=1.0, random_state=0, observables=observables).check().prepare()
+    polarization = np.asarray(simulation.run(until=150.0).trajectory_.values('polarization'), dtype=float)
+    assert polarization[0] < 0.2
+    assert polarization[-1] > 0.9
+
+
+def test_coupling_over_edges_needs_edges_for_its_rates():
+    """Test that a rate per edge over members without edges raises an error."""
+    with pytest.raises(ValidationError, match='laws per edge'):
+        compile_system(_group(np.zeros(3)))
+
+
 @pytest.mark.parametrize(
     ('arguments', 'match'),
-    [({'mode': 'chain'}, 'mode of coupling'), ({'function': 1.0}, 'callable')],
+    [
+        ({'mode': 'chain'}, 'mode of coupling'),
+        ({'reduce': 'max'}, 'reduce of coupling'),
+        ({'form': 'jump'}, 'form of coupling'),
+        ({'function': 1.0}, 'callable'),
+        ({'combine': 1.0}, 'callable'),
+        ({'mode': 'group', 'neighborhood': RadiusNeighborhood(1.0)}, 'neighbourhood'),
+        ({'mode': 'group', 'weights': 'w'}, 'state of the edges'),
+        ({'weights': np.ones((2, 2))}, 'mode group'),
+    ],
 )
-def test_check_rejects_unknown_modes_and_functions(arguments, match):
-    """Test that an unknown mode or a function that cannot be called raises an error."""
+def test_check_rejects_unknown_variants_and_mismatched_structures(arguments, match):
+    """Test that unknown variants, functions that cannot be called, and weights that do not suit the mode fail."""
     with pytest.raises(ValidationError, match=match):
         CouplingInteraction('coupling', nodes='oscillators', **arguments).check()

@@ -11,8 +11,8 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement, ParticleElement
-from ....core.interactions import Interaction, PairPotentialInteraction
+from ....core.elements import Element, GroupElement, PointElement
+from ....core.interactions import Interaction, PairCouplingInteraction
 from ....core.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
@@ -170,7 +170,9 @@ class BoidElement(Element):
 
 
 class SelfPropulsionInteraction(Interaction):
-    """Rayleigh self-propulsion, `v' = (alpha - beta |v|²) v / m`, which drives particles to speed `sqrt(alpha / beta)`.
+    """Rayleigh self-propulsion, `v' = (alpha - beta |v|²) v`, which drives points to the speed `sqrt(alpha / beta)`.
+
+    The velocity `v` is the first derivative `x_d1` of the position `x` of order 2.
 
     Args:
         label:
@@ -205,7 +207,7 @@ class SelfPropulsionInteraction(Interaction):
         self.beta = beta
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the velocity change `(alpha - beta |v|²) v / m`.
+        """Return the velocity change `(alpha - beta |v|²) v`.
 
         Args:
             s:
@@ -215,11 +217,11 @@ class SelfPropulsionInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        velocity = s.target.v
-        return [RateLaw(velocity, (s.alpha - s.beta * velocity.dot_product(velocity)) * velocity / s.target.m)]
+        velocity = s.target.x_d1
+        return [RateLaw(s.target.x, (s.alpha - s.beta * velocity.dot_product(velocity)) * velocity)]
 
 
-class MorsePotentialInteraction(PairPotentialInteraction):
+class MorsePotentialInteraction(PairCouplingInteraction):
     """Attraction at long range and repulsion at short range, `C_r exp(-r / l_r) - C_a exp(-r / l_a)`.
 
     Args:
@@ -273,26 +275,23 @@ class MorsePotentialInteraction(PairPotentialInteraction):
         C_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
         l_r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, first, second, cutoff=cutoff, position=position, period=period)
+        super().__init__(
+            label,
+            first,
+            second,
+            cutoff=cutoff,
+            position=position,
+            potential=self._get_pair_energy,
+            period=period,
+        )
         self.C_a = C_a
         self.l_a = l_a
         self.C_r = C_r
         self.l_r = l_r
 
-    def _get_pair_energy(self, s: SimpleNamespace, r: Expression) -> Expression:
-        """Return `C_r exp(-r / l_r) - C_a exp(-r / l_a)`.
-
-        Args:
-            s:
-                The namespace of the symbols the energy can use.
-
-            r:
-                The distance between the two particles.
-
-        Returns:
-            energy:
-                The pair energy as a symbolic expression.
-        """
+    @staticmethod
+    def _get_pair_energy(s: SimpleNamespace, r: Expression) -> Expression:
+        """Return `C_r exp(-r / l_r) - C_a exp(-r / l_a)`."""
         return s.C_r * exp(-r / s.l_r) - s.C_a * exp(-r / s.l_a)
 
 
@@ -418,7 +417,7 @@ def bird_swarm(
 
     Returns:
         system:
-            The model, with the positions `birds.x` and the velocities `birds.v`.
+            The model, with the positions `birds.x` and the velocities `birds.x_d1`.
 
     Examples:
         >>> from skcomplex.models.biology.collective_behaviour import bird_swarm
@@ -427,7 +426,7 @@ def bird_swarm(
     """
     rng = np.random.default_rng(random_state)
     positions, velocities = rng.uniform(-3.0, 3.0, (n_birds, 2)), rng.normal(0.0, 1.0, (n_birds, 2))
-    birds = GroupElement('birds', element=ParticleElement, size=n_birds, values={'x': positions, 'v': velocities})
+    birds = GroupElement('birds', element=PointElement, size=n_birds, values={'x': positions, 'x_d1': velocities})
     potential = MorsePotentialInteraction(
         'flocking',
         first='birds',

@@ -9,8 +9,8 @@ from sage.all__sagemath_symbolics import RR, Expression, oo
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.elements import Element, GroupElement, LatticeElement, ParticleElement
-from skcomplex.core.interactions import Interaction, PairPotentialInteraction
+from skcomplex.core.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.interactions import Interaction, PairCouplingInteraction
 from skcomplex.core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import mod
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
@@ -28,7 +28,11 @@ from skcomplex.models.biology.ecology import (
 from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
 from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
-from skcomplex.models.physics.common.particles import ConstantForceInteraction, HarmonicPotentialInteraction
+from skcomplex.models.physics.common.particles import (
+    ConstantForceInteraction,
+    HarmonicPotentialInteraction,
+    MassPointElement,
+)
 from skcomplex.models.physics.statistical_mechanics import ParticleSiteElement, ZeroRangeHopInteraction
 from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.types import FormKind
@@ -163,7 +167,7 @@ def _compile_time(n_links):
 CUTOFF = 2.5
 
 
-class LennardJonesInteraction(PairPotentialInteraction):
+class LennardJonesInteraction(PairCouplingInteraction):
     """Lennard-Jones pair potential."""
 
     def __init__(
@@ -178,7 +182,15 @@ class LennardJonesInteraction(PairPotentialInteraction):
         epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, first, second, cutoff=cutoff, position=position, period=period)
+        super().__init__(
+            label,
+            first,
+            second,
+            cutoff=cutoff,
+            position=position,
+            potential=self._get_pair_energy,
+            period=period,
+        )
         self.epsilon = epsilon
         self.sigma = sigma
 
@@ -286,9 +298,9 @@ def _lennard_jones_gas(n, seed=0):
         elements=[
             GroupElement(
                 'gas',
-                element=ParticleElement,
+                element=MassPointElement,
                 size=n,
-                values={'x': grid + rng.normal(0, 0.05, (n, 2)), 'v': rng.normal(0, 0.5, (n, 2))},
+                values={'x': grid + rng.normal(0, 0.05, (n, 2)), 'x_d1': rng.normal(0, 0.5, (n, 2))},
             ),
         ],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF)],
@@ -314,7 +326,7 @@ class RecorderInteraction(Interaction):
     def _get_laws(self, s):
         """Record the symbols and return a zero rate on the velocity."""
         RECEIVED.update(x=s.target.x, m=s.target.m)
-        return [RateLaw(s.target.v, 0)]
+        return [RateLaw(s.target.x, 0)]
 
 
 @pytest.mark.parametrize(
@@ -395,7 +407,7 @@ def test_compile_system_callable_law_is_evaluated():
 def test_compile_system_rates_add_up():
     """Test that two forces on one particle add up."""
     system = System(
-        elements=[ParticleElement('p', x=1.0, m=2.0)],
+        elements=[MassPointElement('p', x=1.0, m=2.0)],
         interactions=[
             ConstantForceInteraction('push', target='p', F=4.0),
             HarmonicPotentialInteraction('trap', target='p', k=6.0),
@@ -409,7 +421,7 @@ def test_compile_system_rates_add_up():
 def test_compile_system_keeps_oscillator_equations():
     """Test that the velocity equation of an oscillator is `-k * (x - center) / m`."""
     system = System(
-        elements=[ParticleElement('p')],
+        elements=[MassPointElement('p')],
         interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
@@ -419,32 +431,32 @@ def test_compile_system_keeps_oscillator_equations():
     m = problem.symbols['p.m']
     (center,) = problem.symbols['trap.center']
     assert problem.equations['p.x[0]'] == v
-    assert (problem.equations['p.v[0]'] + k * (x - center) / m).simplify_full() == 0
+    assert (problem.equations['p.x_d1[0]'] + k * (x - center) / m).simplify_full() == 0
 
 
 def test_compile_system_vector_state_takes_space_dimension():
     """Test that vector states have one component per dimension."""
-    problem = compile_system(System(elements=[ParticleElement('p')], space=ContinuousSpace(n_dim=2)))
-    assert problem.states.component_names == ['p.x[0]', 'p.x[1]', 'p.v[0]', 'p.v[1]']
+    problem = compile_system(System(elements=[MassPointElement('p')], space=ContinuousSpace(n_dim=2)))
+    assert problem.states.component_names == ['p.x[0]', 'p.x[1]', 'p.x_d1[0]', 'p.x_d1[1]']
 
 
 def test_compile_system_vector_state_without_space_raises_error():
     """Test that a vector state needs a space."""
     with pytest.raises(SpaceError, match='must have a space'):
-        compile_system(System(elements=[ParticleElement('p')]))
+        compile_system(System(elements=[MassPointElement('p')]))
 
 
 @pytest.mark.parametrize('m', [-2.0, 0.0, 'm'])
 def test_compile_system_value_outside_domain_raises_error(m):
     """Test that a parameter outside its domain is rejected."""
-    system = System(elements=[ParticleElement('p', m=m)], space=ContinuousSpace(n_dim=1))
+    system = System(elements=[MassPointElement('p', m=m)], space=ContinuousSpace(n_dim=1))
     with pytest.raises(ValidationError, match=r'p\.m'):
         compile_system(system)
 
 
 def test_compile_system_wrong_shape_raises_error():
     """Test that a vector value of the wrong size is rejected."""
-    system = System(elements=[ParticleElement('p', x=[1, 2, 3])], space=ContinuousSpace(n_dim=2))
+    system = System(elements=[MassPointElement('p', x=[1, 2, 3])], space=ContinuousSpace(n_dim=2))
     with pytest.raises(ValidationError, match='shape'):
         compile_system(system)
 
@@ -565,7 +577,7 @@ def test_compile_group_time_does_not_grow_with_size():
         start = time.perf_counter()
         compile_system(
             System(
-                elements=[GroupElement('gas', element=ParticleElement, size=n)],
+                elements=[GroupElement('gas', element=MassPointElement, size=n)],
                 space=ContinuousSpace(extent=(1.0, 1.0), boundary='reflecting'),
             ),
         )
@@ -578,10 +590,10 @@ def test_compile_group_time_does_not_grow_with_size():
 def test_compile_group_names_states_by_group_path():
     """Test that a group state is named by its group path with the group shape."""
     problem = compile_system(
-        System(elements=[GroupElement('gas', element=ParticleElement, size=500)], space=ContinuousSpace(n_dim=2)),
+        System(elements=[GroupElement('gas', element=MassPointElement, size=500)], space=ContinuousSpace(n_dim=2)),
     )
     assert problem.states.entry('gas.x').shape == (500, 2)
-    assert problem.equations['gas.x[i, 0]'] == problem.symbols['gas.v'][0]
+    assert problem.equations['gas.x[i, 0]'] == problem.symbols['gas.x_d1'][0]
 
 
 def test_compile_pair_forces_match_brute_force_sum():
@@ -589,7 +601,7 @@ def test_compile_pair_forces_match_brute_force_sum():
     problem = compile_system(_lennard_jones_gas(60))
     x, p = problem.initial_state, problem.initial_parameters
     positions = problem.states.read(x, 'gas.x')
-    accelerations = problem.states.read(problem.drift(0.0, x, p), 'gas.v')
+    accelerations = problem.states.read(problem.drift(0.0, x, p), 'gas.x_d1')
     expected = np.zeros_like(positions)
     for i in range(len(positions)):
         for j in range(len(positions)):
@@ -604,15 +616,15 @@ def test_compile_pair_forces_between_two_groups():
     """Test that a pair interaction between two groups attracts both beyond the potential minimum."""
     system = System(
         elements=[
-            GroupElement('a', element=ParticleElement, size=1, values={'x': [[0.0, 0.0]]}),
-            GroupElement('b', element=ParticleElement, size=1, values={'x': [[1.5, 0.0]]}),
+            GroupElement('a', element=MassPointElement, size=1, values={'x': [[0.0, 0.0]]}),
+            GroupElement('b', element=MassPointElement, size=1, values={'x': [[1.5, 0.0]]}),
         ],
         interactions=[LennardJonesInteraction('lj', first='a', second='b', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
     )
     problem = compile_system(system)
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
-    a, b = problem.states.read(drift, 'a.v'), problem.states.read(drift, 'b.v')
+    a, b = problem.states.read(drift, 'a.x_d1'), problem.states.read(drift, 'b.x_d1')
     assert a[0, 0] > 0
     assert np.allclose(a, -b)
 
@@ -620,12 +632,15 @@ def test_compile_pair_forces_between_two_groups():
 def test_compile_pair_forces_use_minimum_image():
     """Test that periodic pair interactions use minimum image distances."""
     system = System(
-        elements=[GroupElement('gas', element=ParticleElement, size=2, values={'x': [[0.1, 0.5], [9.6, 0.5]]})],
+        elements=[GroupElement('gas', element=MassPointElement, size=2, values={'x': [[0.1, 0.5], [9.6, 0.5]]})],
         interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=CUTOFF, period=10.0)],
         space=ContinuousSpace(n_dim=2),
     )
     problem = compile_system(system)
-    accelerations = problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'gas.v')
+    accelerations = problem.states.read(
+        problem.drift(0.0, problem.initial_state, problem.initial_parameters),
+        'gas.x_d1',
+    )
     assert accelerations[0, 0] > 0
     assert accelerations[1, 0] < 0
 
@@ -634,7 +649,7 @@ def test_compile_reflecting_box_keeps_ode_form():
     """Test that a reflecting box adds boundary laws without changing the form."""
     problem = compile_system(
         System(
-            elements=[GroupElement('gas', element=ParticleElement, size=4)],
+            elements=[GroupElement('gas', element=MassPointElement, size=4)],
             space=ContinuousSpace(extent=(1.0, 1.0), boundary='reflecting'),
         ),
     )
@@ -647,14 +662,19 @@ def test_compile_periodic_box_wraps_positions():
     problem = compile_system(
         System(
             elements=[
-                GroupElement('gas', element=ParticleElement, size=1, values={'x': [[1.25, 0.5]], 'v': [[1.0, 0.0]]}),
+                GroupElement(
+                    'gas',
+                    element=MassPointElement,
+                    size=1,
+                    values={'x': [[1.25, 0.5]], 'x_d1': [[1.0, 0.0]]},
+                ),
             ],
             space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
         ),
     )
     state = problem.boundary(0.0, problem.initial_state, problem.initial_parameters)
     assert np.allclose(problem.states.read(state, 'gas.x'), [[0.25, 0.5]])
-    assert np.allclose(problem.states.read(state, 'gas.v'), [[1.0, 0.0]])
+    assert np.allclose(problem.states.read(state, 'gas.x_d1'), [[1.0, 0.0]])
 
 
 def test_compile_group_callable_rate():
@@ -735,7 +755,7 @@ def test_compile_boundary_twice_raises_error():
             return [BoundaryLaw(s.target.x[0], mod(s.target.x[0], 1))]
 
     system = System(
-        elements=[GroupElement('gas', element=ParticleElement, size=2)],
+        elements=[GroupElement('gas', element=MassPointElement, size=2)],
         interactions=[WrapInteraction('wrap', target='gas')],
         space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
     )
@@ -834,7 +854,7 @@ def test_stratonovich_correction_of_several_laws_adds_up():
 def test_components_receive_sage_symbols_and_vectors():
     """Test that scalar symbols are Sage expressions with their domains and vector states are Sage vectors."""
     system = System(
-        elements=[ParticleElement('p')],
+        elements=[MassPointElement('p')],
         interactions=[RecorderInteraction('record', target='p')],
         space=ContinuousSpace(n_dim=3),
     )

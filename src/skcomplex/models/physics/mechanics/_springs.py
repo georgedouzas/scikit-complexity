@@ -9,14 +9,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import cos, oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import ParticleElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec
 from ..._catalog import register_model
-from ..common.particles import DampingInteraction, HarmonicPotentialInteraction, SpringInteraction
+from ..common.particles import DampingInteraction, HarmonicPotentialInteraction, MassPointElement, SpringInteraction
 
 
 class HarmonicForceInteraction(Interaction):
@@ -37,7 +36,7 @@ class HarmonicForceInteraction(Interaction):
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the harmonic force interaction."""
-        return [RateLaw(s.target.v, s.F * cos(s.omega * s.t) / s.target.m)]
+        return [RateLaw(s.target.x, s.F * cos(s.omega * s.t) / s.target.m)]
 
 
 @register_model(
@@ -127,7 +126,7 @@ def two_mass_spring_damper(
     """
     rest1, rest2 = l1, l1 + l2
     return System(
-        elements=[ParticleElement('first', x=x1, v=0.0, m=m1), ParticleElement('second', x=x2, v=0.0, m=m2)],
+        elements=[MassPointElement('first', x=x1, x_d1=0.0, m=m1), MassPointElement('second', x=x2, x_d1=0.0, m=m2)],
         interactions=[
             HarmonicPotentialInteraction('left_spring', target='first', k=k1, center=rest1),
             HarmonicPotentialInteraction('right_spring', target='second', k=k2, center=rest2),

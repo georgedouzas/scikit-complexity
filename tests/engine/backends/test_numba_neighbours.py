@@ -7,8 +7,8 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.elements import GroupElement, ParticleElement
-from skcomplex.core.interactions import PairPotentialInteraction
+from skcomplex.core.elements import GroupElement, PointElement
+from skcomplex.core.interactions import PairCouplingInteraction
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
@@ -18,7 +18,7 @@ from skcomplex.specs import ParameterSpec
 CUTOFF = 2.5
 
 
-class SoftSphereInteraction(PairPotentialInteraction):
+class SoftSphereInteraction(PairCouplingInteraction):
     """Repulsive pair potential `epsilon * (sigma / r) ** 12`."""
 
     def __init__(
@@ -33,7 +33,15 @@ class SoftSphereInteraction(PairPotentialInteraction):
         epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, first, second, cutoff=cutoff, position=position, period=period)
+        super().__init__(
+            label,
+            first,
+            second,
+            cutoff=cutoff,
+            position=position,
+            potential=self._get_pair_energy,
+            period=period,
+        )
         self.epsilon = epsilon
         self.sigma = sigma
 
@@ -54,7 +62,7 @@ def _accelerations(system, numba_backend):
     for backend in (NumpyBackend(), numba_backend):
         problem = compile_system(system, backend=backend)
         drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
-        accelerations.append(problem.states.read(drift, 'gas.v'))
+        accelerations.append(problem.states.read(drift, 'gas.x_d1'))
     return accelerations
 
 
@@ -62,7 +70,7 @@ def test_pair_kernel_bounds_grid_of_distant_particles(numba_backend):
     """Test that two particles 1000 cutoffs apart in three dimensions bin into a small grid and feel no force."""
     system = System(
         elements=[
-            GroupElement('gas', element=ParticleElement, size=2, values={'x': [[0.0, 0.0, 0.0], [1000 * CUTOFF] * 3]}),
+            GroupElement('gas', element=PointElement, size=2, values={'x': [[0.0, 0.0, 0.0], [1000 * CUTOFF] * 3]}),
         ],
         interactions=[SoftSphereInteraction('soft', first='gas', second='gas', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=3),
@@ -78,7 +86,7 @@ def test_pair_kernel_visits_every_cell_of_narrow_periodic_box_once(numba_backend
     rng = np.random.default_rng(0)
     system = System(
         elements=[
-            GroupElement('gas', element=ParticleElement, size=30, values={'x': rng.uniform(0, period, (30, 2))}),
+            GroupElement('gas', element=PointElement, size=30, values={'x': rng.uniform(0, period, (30, 2))}),
         ],
         interactions=[
             SoftSphereInteraction('soft', first='gas', second='gas', cutoff=CUTOFF, sigma=0.3, period=period),

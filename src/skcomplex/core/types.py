@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, MutableMapping, Sequence
+from types import SimpleNamespace
 from typing import Protocol, runtime_checkable
 
 import numpy as np
@@ -23,6 +24,9 @@ type Process = str | tuple[str, ...] | Expression | FreeModuleElement | None
 type Pairing = Callable[[Sequence[object], Sequence[object], np.random.Generator, int], list[tuple[object, object]]]
 type Reach = LatticeNeighborhood | MemoryNeighborhood
 type Preference = Callable[[object, object], float]
+type NamespaceFunction = Callable[[SimpleNamespace], Target]
+type PairPotential = Callable[[SimpleNamespace, Expression], Expression]
+type Combination = Callable[[Target, Target], Target]
 
 
 @runtime_checkable

@@ -10,7 +10,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, oo, pi, sin
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, ParticleElement
+from ....core.elements import Element
 from ....core.interactions import BaseInteraction, Interaction
 from ....core.laws import BaseLaw, CrossingLaw, EquationLaw, RateLaw
 from ....core.laws.utils import derivative
@@ -18,7 +18,12 @@ from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.particles import ConstantForceInteraction, DampingInteraction, HarmonicPotentialInteraction
+from ..common.particles import (
+    ConstantForceInteraction,
+    DampingInteraction,
+    HarmonicPotentialInteraction,
+    MassPointElement,
+)
 
 GRAVITY = 9.81
 WALL_POINTS = 200
@@ -63,16 +68,18 @@ def projectile(speed: float = 10.0, angle: float = 45.0, *, mass: float = 1.0, d
 
     Examples:
         >>> from skcomplex.models.physics.mechanics import projectile
-        >>> projectile(speed=5.0, angle=90.0).elements[0].v[1]
+        >>> projectile(speed=5.0, angle=90.0).elements[0].x_d1[1]
         5.0
     """
     radians = np.radians(angle)
     velocity = [round(float(speed * np.cos(radians)), 12), round(float(speed * np.sin(radians)), 12)]
-    interactions: list[BaseInteraction] = [ConstantForceInteraction('gravity', target='ball', F=[0.0, -GRAVITY * mass])]
+    interactions: list[BaseInteraction] = [
+        ConstantForceInteraction('gravity', target='ball', F=[0.0, -GRAVITY * mass]),
+    ]
     if drag:
         interactions.append(DampingInteraction('drag', target='ball', gamma=drag))
     return System(
-        elements=[ParticleElement('ball', x=[0.0, 0.0], v=velocity, m=mass)],
+        elements=[MassPointElement('ball', x=[0.0, 0.0], x_d1=velocity, m=mass)],
         interactions=interactions,
         space=ContinuousSpace(n_dim=2),
     )
@@ -123,7 +130,7 @@ def harmonic_oscillator(
     if damping:
         interactions.append(DampingInteraction('damping', target='mass', gamma=damping))
     return System(
-        elements=[ParticleElement('mass', x=x, v=v, m=mass)],
+        elements=[MassPointElement('mass', x=x, x_d1=v, m=mass)],
         interactions=interactions,
         space=ContinuousSpace(n_dim=1),
     )

@@ -2,12 +2,11 @@
 
 import numpy as np
 
-from skcomplex.core.elements import ParticleElement
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.models.physics.common.particles import PotentialEnergyInteraction
+from skcomplex.models.physics.common.particles import MassPointElement, PotentialEnergyInteraction
 
 
 def test_potential_energy_changes_the_velocity_by_the_force_over_the_mass():
@@ -18,7 +17,7 @@ def test_potential_energy_changes_the_velocity_by_the_force_over_the_mass():
         potential=lambda s: 2.0 * s.target.x.dot_product(s.target.x),
     )
     system = System(
-        elements=[ParticleElement('ball', x=[1.0], m=4.0)],
+        elements=[MassPointElement('ball', x=[1.0], m=4.0)],
         interactions=[trap],
         space=ContinuousSpace(n_dim=1),
     )

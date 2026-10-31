@@ -13,7 +13,7 @@ from .....specs import ParameterSpec, RoleSpec
 
 
 class ConstantForceInteraction(RateInteraction):
-    """Constant force `F` on a target, the rate `F / m` of its velocity.
+    """Constant force `F` on a target, the second derivative `F / m` of its position of order 2.
 
     It is the rate `F` with the mass as divisor, and the LAMMPS backend runs it as `fix addforce`.
 
@@ -28,7 +28,7 @@ class ConstantForceInteraction(RateInteraction):
             The force vector. A number applies to every component.
 
         state:
-            The name of the vector state that holds the velocity of the target.
+            The name of the vector state of order 2 that holds the position of the target.
 
         divisor:
             The name of the state or parameter that holds the mass of the target.
@@ -45,7 +45,7 @@ class ConstantForceInteraction(RateInteraction):
         *,
         target: Annotated[str, RoleSpec()],
         F: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
-        state: str = 'v',
+        state: str = 'x',
         divisor: str = 'm',
     ) -> None:
         super().__init__(label, target=target, state=state, divisor=divisor)

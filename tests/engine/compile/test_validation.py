@@ -585,11 +585,12 @@ def _bindings(interaction, space):
     return [issue for issue in issues if issue.code == 'binding']
 
 
-def test_neighbor_interaction_without_neighbours_is_reported():
-    """Test that an interaction over neighbours of members that live on no lattice or network is reported."""
-    (issue,) = _bindings(SpreadInteraction('spread', nodes='nodes'), None)
-    assert issue.path == 'spread'
-    assert 'a lattice or network space' in issue.message
+def test_neighbor_interaction_without_neighbours_takes_no_laws_per_edge():
+    """Test that an interaction over neighbours of members on no lattice or network binds but has no laws per edge."""
+    assert _bindings(SpreadInteraction('spread', nodes='nodes'), None) == []
+    nodes = GroupElement('nodes', element=NodeElement, size=4)
+    with pytest.raises(ValidationError, match='laws per edge'):
+        compile_system(System(elements=[nodes], interactions=[SpreadInteraction('spread', nodes='nodes')]))
 
 
 def test_neighbor_interaction_on_a_missing_layer_is_reported():

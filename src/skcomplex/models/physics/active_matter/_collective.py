@@ -12,7 +12,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, FieldElement, GroupElement, ParticleElement
+from ....core.elements import Element, FieldElement, GroupElement, PointElement
 from ....core.interactions import PairInteraction
 from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import advection, divergence, gradient, laplacian
@@ -159,6 +159,8 @@ class PhoreticAttractionInteraction(PairInteraction):
 class CuckerSmaleAlignmentInteraction(PairInteraction):
     """Cucker-Smale alignment, `dv_i/dt = K / N sum_j psi(r_ij) (v_j - v_i)` with `psi(r) = (1 + r^2)^(-beta)`.
 
+    The velocity `v` is the first derivative `x_d1` of the position `x` of order 2.
+
     Args:
         label:
             The label of the interaction.
@@ -225,8 +227,8 @@ class CuckerSmaleAlignmentInteraction(PairInteraction):
         """
         separation = s.first.x - s.second.x
         weight = s.K / self.n_agents * (1 + separation.dot_product(separation)) ** (-s.beta)
-        change = weight * (s.second.v - s.first.v)
-        return [RateLaw(s.first.v, change), RateLaw(s.second.v, -change)]
+        change = weight * (s.second.x_d1 - s.first.x_d1)
+        return [RateLaw(s.first.x, change), RateLaw(s.second.x, -change)]
 
 
 class PolarFluidElement(Element):
@@ -527,7 +529,7 @@ def cucker_smale_flocking(
 
     Returns:
         system:
-            The model, with the positions `birds.x` and velocities `birds.v`.
+            The model, with the positions `birds.x` and velocities `birds.x_d1`.
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import cucker_smale_flocking
@@ -537,10 +539,10 @@ def cucker_smale_flocking(
     rng = np.random.default_rng(random_state)
     birds = GroupElement(
         'birds',
-        element=ParticleElement,
+        element=PointElement,
         size=n_agents,
-        values={'x': rng.uniform(0.0, size, (n_agents, 2)), 'v': rng.normal(0.0, 1.0, (n_agents, 2))},
-        visual=VisualSpec('points', {'position': 'x', 'color_by': 'v', 'states': ()}),
+        values={'x': rng.uniform(0.0, size, (n_agents, 2)), 'x_d1': rng.normal(0.0, 1.0, (n_agents, 2))},
+        visual=VisualSpec('points', {'position': 'x', 'color_by': 'x_d1', 'states': ()}),
     )
     alignment = CuckerSmaleAlignmentInteraction(
         'align',

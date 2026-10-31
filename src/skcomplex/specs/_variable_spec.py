@@ -69,9 +69,6 @@ class VariableSpec(BaseSpec):
         position:
             Whether a vector state is the position of its element in a continuous space.
 
-        velocity_of:
-            The position state whose rate a vector state is, or `None`.
-
         adaptive:
             Whether a parameter is adaptive, which laws may change.
 
@@ -95,7 +92,6 @@ class VariableSpec(BaseSpec):
     quantity: str | None = None
     history: object = None
     position: bool = False
-    velocity_of: str | None = None
     adaptive: bool = False
     bounds: tuple[float, float] | None = None
 

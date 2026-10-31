@@ -35,9 +35,6 @@ class HarmonicPotentialInteraction(PotentialEnergyInteraction):
         states:
             The name of the vector state that holds the position of the particle.
 
-        velocity:
-            The name of the vector state that holds the velocity of the particle.
-
         divisor:
             The name of the state or parameter that holds the mass of the particle.
 
@@ -55,10 +52,9 @@ class HarmonicPotentialInteraction(PotentialEnergyInteraction):
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         center: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
         states: str = 'x',
-        velocity: str = 'v',
         divisor: str = 'm',
     ) -> None:
-        super().__init__(label, target=target, states=states, velocity=velocity, divisor=divisor)
+        super().__init__(label, target=target, states=states, divisor=divisor)
         self.k = k
         self.center = center
 

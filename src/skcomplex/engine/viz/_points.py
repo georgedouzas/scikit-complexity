@@ -206,12 +206,12 @@ class PointsVisual(BaseVisual):
                 dimensions, followed by a time series view of the other logged states, if any.
 
         Examples:
-            >>> from skcomplex.core.elements import GroupElement, ParticleElement
+            >>> from skcomplex.core.elements import GroupElement, PointElement
             >>> from skcomplex.core.spaces import ContinuousSpace
             >>> from skcomplex.core.system import System
             >>> from skcomplex.engine.compile import compile_system
             >>> from skcomplex.engine.viz import PointsVisual
-            >>> gas = GroupElement('gas', element=ParticleElement, size=10, values={'x': [[0.0, 0.0, 0.0]] * 10})
+            >>> gas = GroupElement('gas', element=PointElement, size=10, values={'x': [[0.0, 0.0, 0.0]] * 10})
             >>> problem = compile_system(System(elements=[gas], space=ContinuousSpace(n_dim=3)))
             >>> visual = PointsVisual(position='x', states=(), path=problem.elements[0].path)
             >>> views = visual.check().prepare(problem).views_

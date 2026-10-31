@@ -2,18 +2,17 @@
 
 import numpy as np
 
-from skcomplex.core.elements import ParticleElement
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.models.physics.common.particles import SpringInteraction
+from skcomplex.models.physics.common.particles import MassPointElement, SpringInteraction
 
 
 def test_spring_conserves_energy():
     """Test that two particles joined by a spring keep their total energy."""
     system = System(
-        elements=[ParticleElement('a', x=[0.0, 0.0], v=[0.0, 1.0]), ParticleElement('b', x=[2.0, 0.0], m=2.0)],
+        elements=[MassPointElement('a', x=[0.0, 0.0], x_d1=[0.0, 1.0]), MassPointElement('b', x=[2.0, 0.0], m=2.0)],
         interactions=[SpringInteraction('spring', first='a', second='b', k=3.0, length=1.0)],
         space=ContinuousSpace(n_dim=2),
     )
@@ -24,7 +23,7 @@ def test_spring_conserves_energy():
         .run(until=5)
         .trajectory_
     )
-    kinetic = 0.5 * (trajectory.values('a.v') ** 2).sum(axis=1) + 0.5 * 2.0 * (trajectory.values('b.v') ** 2).sum(
+    kinetic = 0.5 * (trajectory.values('a.x_d1') ** 2).sum(axis=1) + 0.5 * 2.0 * (trajectory.values('b.x_d1') ** 2).sum(
         axis=1,
     )
     distance = np.linalg.norm(trajectory.values('a.x') - trajectory.values('b.x'), axis=1)

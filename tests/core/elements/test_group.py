@@ -9,7 +9,7 @@ import pytest
 from sage.all__sagemath_symbolics import var
 from sklearn.base import clone
 
-from skcomplex.core.elements import Element, GroupElement, ParticleElement
+from skcomplex.core.elements import Element, GroupElement, PointElement
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
@@ -53,7 +53,7 @@ class CellElement(Element):
 def test_group_stores_arguments():
     """Test that a group stores its label, size, and values unmodified, and clones from them."""
     positions = np.zeros((1000, 2))
-    group = GroupElement('gas', element=ParticleElement, size=1000, values={'x': positions})
+    group = GroupElement('gas', element=PointElement, size=1000, values={'x': positions})
     assert (group.label, group.size) == ('gas', 1000)
     assert group.values['x'] is positions
     assert clone(group).size == 1000
@@ -78,7 +78,7 @@ def test_group_runs_into_the_laws_of_one_member():
 
 def test_group_shared_and_lattice_values_are_accepted():
     """Test that shared values, per-member arrays, and values on the sites of a space pass the checks of a group."""
-    assert GroupElement('gas', element=ParticleElement, size=3, values={'x': [0.5, 0.5]}).check().prepare().size_ == 3
+    assert GroupElement('gas', element=PointElement, size=3, values={'x': [0.5, 0.5]}).check().prepare().size_ == 3
     sites = GroupElement('cells', element=PopulationElement, space=LatticeSpace((2, 3)), on='sites')
     assert sites.check().prepare().size_ == 6
 
@@ -101,7 +101,7 @@ def test_group_on_parts_without_a_space_raises_error():
 
 def test_group_wrong_number_of_values_raises_error():
     """Test that preparing a group with the wrong number of values names the group, the variable, and both sizes."""
-    group = GroupElement('gas', element=ParticleElement, size=1000, values={'x': np.zeros((999, 2))}).check()
+    group = GroupElement('gas', element=PointElement, size=1000, values={'x': np.zeros((999, 2))}).check()
     with pytest.raises(ValidationError, match=r"'gas' has 999 values of x for 1000 members"):
         group.prepare()
 
@@ -147,7 +147,7 @@ def test_group_with_invalid_size_is_reported_with_its_path():
 def test_group_vector_state_has_member_shape():
     """Test that a group's vector state has one row per member."""
     system = System(
-        elements=[GroupElement('gas', element=ParticleElement, size=1000, values={'x': np.zeros((1000, 2))})],
+        elements=[GroupElement('gas', element=PointElement, size=1000, values={'x': np.zeros((1000, 2))})],
         space=ContinuousSpace(n_dim=2),
     )
     assert compile_system(system).states.entry('gas.x').shape == (1000, 2)

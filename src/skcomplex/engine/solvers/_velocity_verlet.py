@@ -44,10 +44,10 @@ class VelocityVerletSolver(Solver):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.spaces import ContinuousSpace
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.core.elements import ParticleElement
+        >>> from skcomplex.core.elements import PointElement
         >>> from skcomplex.engine.solvers import VelocityVerletSolver
         >>> from skcomplex.specs import StepSpec
-        >>> system = System(elements=[ParticleElement('ball', v=2.0)], space=ContinuousSpace(n_dim=1))
+        >>> system = System(elements=[PointElement('ball', x_d1=2.0)], space=ContinuousSpace(n_dim=1))
         >>> problem = compile_system(system)
         >>> stepper = VelocityVerletSolver(dt=0.1, random_state=0).check().prepare(problem)
         >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_.round(10).tolist()

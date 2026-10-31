@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import LoopAnalysis
-from skcomplex.core.elements import Element, GroupElement, ParticleElement
+from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import RateLaw, RuleLaw
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
@@ -25,7 +25,7 @@ from skcomplex.models.biology.ecology import (
 from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
 from skcomplex.models.economics.finance import geometric_brownian_motion
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
-from skcomplex.models.physics.common.particles import ConstantForceInteraction
+from skcomplex.models.physics.common.particles import ConstantForceInteraction, MassPointElement
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -35,7 +35,7 @@ from ...conftest import _correlated, _summed
 def _pushed_gas(n=500):
     """Return a group pushed by a constant force, whose velocity change depends on the mass."""
     return System(
-        elements=[GroupElement('gas', element=ParticleElement, size=n)],
+        elements=[GroupElement('gas', element=MassPointElement, size=n)],
         interactions=[ConstantForceInteraction('push', target='gas', F=[1.0, 0.0])],
         space=ContinuousSpace(n_dim=2),
     )
@@ -195,7 +195,7 @@ def test_group_parameter_changes_while_running():
     trajectory = simulation.trajectory_
     changed = int(np.argmax(np.all(trajectory.values('gas.m') == 2.0, axis=1)))
     assert changed > 0
-    accelerations = np.diff(trajectory.values('gas.v')[:, :, 0], axis=0) / 0.01
+    accelerations = np.diff(trajectory.values('gas.x_d1')[:, :, 0], axis=0) / 0.01
     assert np.allclose(accelerations[changed:], 0.5)
     assert np.allclose(accelerations[: changed - 1], 1.0)
 

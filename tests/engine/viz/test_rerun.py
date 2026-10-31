@@ -10,7 +10,7 @@ import pytest
 import rerun as rr
 from sage.all__sagemath_symbolics import CC, I
 
-from skcomplex.core.elements import Element, FieldElement, GroupElement, ParticleElement
+from skcomplex.core.elements import Element, FieldElement, GroupElement
 from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
@@ -29,7 +29,7 @@ from skcomplex.engine.viz import (
 from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.models.computer_science.automata import game_of_life
-from skcomplex.models.physics.common.particles import ConstantForceInteraction
+from skcomplex.models.physics.common.particles import ConstantForceInteraction, MassPointElement
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.models.social.opinion_dynamics import voter_model
 from skcomplex.models.social.segregation import schelling
@@ -98,7 +98,7 @@ def test_scalars_visual_logs_nested_paths():
 def test_points_visual_logs_positions(n_dim, archetype):
     """Test that positions are logged as points of their dimension."""
     system = System(
-        elements=[ParticleElement('ball')],
+        elements=[MassPointElement('ball')],
         interactions=[ConstantForceInteraction('push', target='ball', F=1.0)],
         space=ContinuousSpace(n_dim=n_dim),
     )
@@ -112,7 +112,7 @@ def test_points_visual_logs_positions(n_dim, archetype):
         .run(frame)
     )
     assert recording.logs[0][1] == archetype
-    assert ('ball/v', 'Scalars') in recording.logs
+    assert ('ball/x_d1', 'Scalars') in recording.logs
 
 
 def test_rerun_observer_logs_parameters(monkeypatch, tmp_path):
@@ -156,7 +156,7 @@ def test_rerun_observer_spawns_viewer_from_path(monkeypatch, tmp_path):
 
 def _gas(visual):
     """Return a compiled gas of two particles drawn with a visual spec."""
-    gas = GroupElement('gas', element=ParticleElement, size=2, visual=visual)
+    gas = GroupElement('gas', element=MassPointElement, size=2, visual=visual)
     return Simulation(System(elements=[gas], space=ContinuousSpace(n_dim=2))).check().prepare().problem_
 
 
@@ -202,7 +202,12 @@ def test_points_colored_by_speed_follow_the_color_scale():
     """Test that faster members get colors further along the color scale."""
     system = System(
         elements=[
-            GroupElement('gas', element=ParticleElement, size=3, values={'v': [[0.1, 0.0], [1.0, 0.0], [2.0, 0.0]]}),
+            GroupElement(
+                'gas',
+                element=MassPointElement,
+                size=3,
+                values={'x_d1': [[0.1, 0.0], [1.0, 0.0], [2.0, 0.0]]},
+            ),
         ],
         space=ContinuousSpace(n_dim=2),
     )
@@ -211,7 +216,7 @@ def test_points_colored_by_speed_follow_the_color_scale():
     recording = LoggedPaths()
     visual = PointsVisual(
         position='x',
-        color_by='v',
+        color_by='x_d1',
         color_range=(0.0, 2.0),
         states=(),
         path='gas',

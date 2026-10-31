@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 
-from skcomplex.core.elements import ParticleElement
+from skcomplex.core.elements import PointElement
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -59,32 +59,32 @@ def test_continuous_space_clones_from_its_arguments():
 def test_reflecting_box_reverses_crossing_particle():
     """Test that a particle crossing a wall comes back into the box with its velocity reversed."""
     system = System(
-        elements=[ParticleElement('p', x=[0.9], v=[1.0])],
+        elements=[PointElement('p', x=[0.9], x_d1=[1.0])],
         space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
     )
     trajectory = Simulation(system, dt=0.2).check().prepare().run(until=0.2).trajectory_
     assert trajectory.values('p.x')[-1, 0] == pytest.approx(0.9)
-    assert trajectory.values('p.v')[-1, 0] == pytest.approx(-1.0)
+    assert trajectory.values('p.x_d1')[-1, 0] == pytest.approx(-1.0)
 
 
 def test_periodic_box_wraps_leaving_particle():
     """Test that a particle leaving through one side enters through the opposite side."""
     system = System(
-        elements=[ParticleElement('p', x=[0.9], v=[1.0])],
+        elements=[PointElement('p', x=[0.9], x_d1=[1.0])],
         space=ContinuousSpace(extent=(1.0,), boundary='periodic'),
     )
     trajectory = Simulation(system, dt=0.2).check().prepare().run(until=0.2).trajectory_
     assert trajectory.values('p.x')[-1, 0] == pytest.approx(0.1)
-    assert trajectory.values('p.v')[-1, 0] == pytest.approx(1.0)
+    assert trajectory.values('p.x_d1')[-1, 0] == pytest.approx(1.0)
 
 
 @pytest.mark.parametrize('solver', [RK4Solver(), ScipyODESolver()], ids=['rk4', 'scipy'])
 def test_long_frame_keeps_particle_in_reflecting_box(solver):
     """Test that a frame of duration 5 reflects a particle four times and ends at 0.5 with velocity -1."""
     system = System(
-        elements=[ParticleElement('p', x=[0.5], v=[1.0])],
+        elements=[PointElement('p', x=[0.5], x_d1=[1.0])],
         space=ContinuousSpace(extent=(1.0,), boundary='reflecting'),
     )
     trajectory = Simulation(system, solver=solver, dt=5.0).check().prepare().run(until=5).trajectory_
     assert trajectory.values('p.x')[-1, 0] == pytest.approx(0.5, abs=1e-6)
-    assert trajectory.values('p.v')[-1, 0] == pytest.approx(-1.0, abs=1e-6)
+    assert trajectory.values('p.x_d1')[-1, 0] == pytest.approx(-1.0, abs=1e-6)

@@ -9,11 +9,11 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from .....core.interactions import PairForceInteraction
+from .....core.interactions import PairCouplingInteraction
 from .....specs import ParameterSpec
 
 
-class LennardJonesInteraction(PairForceInteraction):
+class LennardJonesInteraction(PairCouplingInteraction):
     """Lennard-Jones pair potential, `4 * epsilon * ((sigma / r) ** 12 - (sigma / r) ** 6)`, without a shift.
 
     Args:
@@ -32,14 +32,14 @@ class LennardJonesInteraction(PairForceInteraction):
         position:
             The name of the vector state that holds the positions of the members.
 
-        velocity:
-            The name of the vector state that holds the velocities of the members.
+        write:
+            The name of the state whose rate the force changes, the position of order 2 by default.
 
-        mass:
-            The name of the state or parameter that holds the masses of the members.
+        divisor:
+            The name of the parameter that holds the masses of the members, or `None` for unit masses.
 
         period:
-            The side of a periodic box, for minimum image distances, or `None` for an open space.
+            The side of a periodic box, for minimum image distances, or `None` for the period of the space.
 
         epsilon:
             The depth of the potential well.
@@ -61,8 +61,8 @@ class LennardJonesInteraction(PairForceInteraction):
         cutoff: float = 1.0,
         position: str = 'x',
         *,
-        velocity: str = 'v',
-        mass: str = 'm',
+        write: str = 'x',
+        divisor: str | None = None,
         period: float | None = None,
         epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
@@ -73,10 +73,10 @@ class LennardJonesInteraction(PairForceInteraction):
             second,
             cutoff=cutoff,
             position=position,
-            velocity=velocity,
-            mass=mass,
+            write=write,
+            potential=self._get_lennard_jones_energy,
+            divisor=divisor,
             period=period,
-            energy=self._get_lennard_jones_energy,
         )
         self.epsilon = epsilon
         self.sigma = sigma

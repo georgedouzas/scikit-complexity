@@ -16,7 +16,7 @@ def test_maxwell_boltzmann_test_in_two_and_three_dimensions():
         test = MaxwellBoltzmannAnalysis().check().prepare(trajectory).run()
         temperatures = KineticTemperatureAnalysis().check().prepare(trajectory).run().temperature_
         np.testing.assert_array_equal(test.temperature_, temperatures)
-        velocities = np.asarray(trajectory.values('gas.v'), dtype=float)
+        velocities = np.asarray(trajectory.values('gas.x_d1'), dtype=float)
         assert MaxwellBoltzmannAnalysis().check().prepare(velocities[-1]).run().p_value_[0] > 0.05
         assert test.p_value_.shape == temperatures.shape
     with pytest.raises(AnalysisError, match='positive values'):

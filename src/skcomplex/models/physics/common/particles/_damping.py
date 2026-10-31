@@ -11,13 +11,14 @@ from sage.sets.real_set import RealSet
 
 from .....core.interactions import RateInteraction
 from .....specs import ParameterSpec, RoleSpec
+from ._utils import velocity_of
 
 
 class DampingInteraction(RateInteraction):
-    """Linear damping, a force `-gamma * v` proportional and opposite to the velocity of a target.
+    """Linear damping, a force `-gamma * v` proportional and opposite to the velocity `v` of a target.
 
-    It is the rate `-gamma * v` of the velocity with the mass as divisor, so the velocity changes by `-gamma * v / m`,
-    and the LAMMPS backend runs it as `fix viscous`.
+    The velocity is the first derivative of the position, a state of order 2, whose second derivative changes by
+    `-gamma * v / m` with the mass as divisor. The LAMMPS backend runs it as `fix viscous`.
 
     Args:
         label:
@@ -30,7 +31,7 @@ class DampingInteraction(RateInteraction):
             The damping coefficient.
 
         state:
-            The name of the state that holds the velocity of the target.
+            The name of the state of order 2 that holds the position of the target.
 
         divisor:
             The name of the state or parameter that holds the mass of the target.
@@ -39,10 +40,10 @@ class DampingInteraction(RateInteraction):
         >>> from types import SimpleNamespace
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.models.physics.common.particles import DampingInteraction
-        >>> target = SimpleNamespace(v=var('v'), m=2)
+        >>> target = SimpleNamespace(x=var('x'), m=2)
         >>> damping = DampingInteraction('air', target='ball', gamma=0.1).check().prepare()
         >>> [law.value for law in damping.run(SimpleNamespace(target=target, gamma=var('gamma'))).laws_]
-        [-1/2*gamma*v]
+        [-1/2*gamma*derivative(x, 1)]
     """
 
     def __init__(
@@ -51,7 +52,7 @@ class DampingInteraction(RateInteraction):
         *,
         target: Annotated[str, RoleSpec()],
         gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        state: str = 'v',
+        state: str = 'x',
         divisor: str = 'm',
     ) -> None:
         super().__init__(label, target=target, state=state, divisor=divisor)
@@ -68,4 +69,4 @@ class DampingInteraction(RateInteraction):
             rate:
                 The drag, before the division by the mass.
         """
-        return -namespace.gamma * getattr(namespace.target, self.state)
+        return -namespace.gamma * velocity_of(getattr(namespace.target, self.state))

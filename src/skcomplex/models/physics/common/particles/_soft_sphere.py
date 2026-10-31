@@ -9,11 +9,11 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from .....core.interactions import PairForceInteraction
+from .....core.interactions import PairCouplingInteraction
 from .....specs import ParameterSpec
 
 
-class SoftSphereInteraction(PairForceInteraction):
+class SoftSphereInteraction(PairCouplingInteraction):
     """Soft repulsion between overlapping spheres, `k * (cutoff - r) ** 2 / 2` closer than the cutoff.
 
     Args:
@@ -32,14 +32,14 @@ class SoftSphereInteraction(PairForceInteraction):
         position:
             The name of the vector state that holds the positions of the members.
 
-        velocity:
-            The name of the vector state that holds the velocities of the members.
+        write:
+            The name of the state whose rate the force changes, the position of order 2 by default.
 
-        mass:
-            The name of the state or parameter that holds the masses of the members.
+        divisor:
+            The name of the parameter that holds the masses of the members, or `None` for unit masses.
 
         period:
-            The side of a periodic box, for minimum image distances, or `None` for an open space.
+            The side of a periodic box, for minimum image distances, or `None` for the period of the space.
 
         k:
             The stiffness.
@@ -58,8 +58,8 @@ class SoftSphereInteraction(PairForceInteraction):
         cutoff: float = 1.0,
         position: str = 'x',
         *,
-        velocity: str = 'v',
-        mass: str = 'm',
+        write: str = 'x',
+        divisor: str | None = None,
         period: float | None = None,
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
     ) -> None:
@@ -69,10 +69,10 @@ class SoftSphereInteraction(PairForceInteraction):
             second,
             cutoff=cutoff,
             position=position,
-            velocity=velocity,
-            mass=mass,
+            write=write,
+            potential=self._get_soft_sphere_energy,
+            divisor=divisor,
             period=period,
-            energy=self._get_soft_sphere_energy,
         )
         self.k = k
 

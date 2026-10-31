@@ -34,9 +34,6 @@ class GravityInteraction(PotentialEnergyInteraction):
         states:
             The name of the vector state that holds the positions of the particles.
 
-        velocity:
-            The name of the vector state that holds the velocities of the particles.
-
         divisor:
             The name of the state or parameter that holds the masses of the particles.
 
@@ -54,10 +51,9 @@ class GravityInteraction(PotentialEnergyInteraction):
         second: Annotated[str, RoleSpec()],
         G: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         states: str = 'x',
-        velocity: str = 'v',
         divisor: str = 'm',
     ) -> None:
-        super().__init__(label, target=first, states=states, velocity=velocity, divisor=divisor)
+        super().__init__(label, target=first, states=states, divisor=divisor)
         self.first = first
         self.second = second
         self.G = G

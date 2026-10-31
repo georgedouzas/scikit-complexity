@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.elements import GroupElement, ParticleElement
+from skcomplex.core.elements import GroupElement, PointElement
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -14,7 +14,7 @@ from skcomplex.models.physics.common.particles import LAMMPS_FIXES, LAMMPS_PAIRS
 def _pair(interaction, distance):
     """Return a system of two particles at a distance with one pair interaction."""
     return System(
-        elements=[GroupElement('pair', element=ParticleElement, size=2, values={'x': [[0.0, 0.0], [distance, 0.0]]})],
+        elements=[GroupElement('pair', element=PointElement, size=2, values={'x': [[0.0, 0.0], [distance, 0.0]]})],
         interactions=[interaction],
         space=ContinuousSpace(n_dim=2),
     )

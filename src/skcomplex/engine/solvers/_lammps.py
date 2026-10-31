@@ -1,4 +1,4 @@
-"""Run particle systems in LAMMPS, translating particle groups, pair potentials, boxes, forces, and thermostats."""
+"""Run systems of points in LAMMPS, translating groups of points, pair potentials, boxes, and native fixes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,8 +16,7 @@ from lammps import lammps
 from sage.all__sagemath_symbolics import SR, Expression, oo
 from sage.sets.real_set import RealSet
 
-from ...core.elements import ParticleElement
-from ...core.interactions import BaseInteraction, PairPotentialInteraction
+from ...core.interactions import BaseInteraction, PairCouplingInteraction
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, NoiseLaw, RateLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.specs import CompiledElementSpec, CompiledInteractionSpec
@@ -37,15 +36,19 @@ _LAMMPS_ARGUMENTS = ['-screen', 'none', '-log', 'none', '-nocite']
 _DIMENSIONS = ('x', 'y', 'z')
 MAX_SEED = 900_000_000
 _SUPPORTED_DIMENSIONS = (2, 3)
+POSITION_ORDER = 2
 
 
 class LammpsSolver(ExternalSolver):
-    """Solver that runs particle systems in LAMMPS, with LAMMPS velocity Verlet integration.
+    """Solver that runs systems of points in LAMMPS, with LAMMPS velocity Verlet integration.
 
-    Particle groups become atom types, and boxes become LAMMPS boundaries and `fix wall/reflect`. A pair potential
-    becomes the native pair style `pairs` gives for its class, or a Lepton expression potential otherwise. An
-    interaction whose class `fixes` gives a native fix becomes that fix. Any other interaction that only changes
-    particle velocities runs through `fix external`, evaluated by the framework.
+    An element or group whose members declare a vector position state of order 2, such as `PointElement`, becomes an
+    atom type, whose atoms move with the first derivative of the position as their velocity. The mass of an atom type
+    is the parameter that the `divisor` of the interactions on its members names, and 1 without a divisor. Boxes become
+    LAMMPS boundaries and `fix wall/reflect`. A `PairCouplingInteraction` with a potential becomes the native pair
+    style `pairs` gives for its class, or a Lepton expression potential otherwise. An interaction whose class `fixes`
+    gives a native fix becomes that fix. Any other interaction that only changes the derivatives of the positions runs
+    through `fix external`, evaluated by the framework.
 
     Args:
         dt:
@@ -69,10 +72,10 @@ class LammpsSolver(ExternalSolver):
             The LAMMPS instance, which the final run `run(..., final=True)` closes.
 
         atom_elements_:
-            The particle elements and groups, each a LAMMPS atom type.
+            The elements and groups of points, each a LAMMPS atom type.
 
         atom_numbers_:
-            The LAMMPS atom type of every particle element and group, by path.
+            The LAMMPS atom type of every element and group of points, by path.
 
         position_indices_:
             The flat state indices of the position of every atom, of shape `(atoms, dimensions)`.
@@ -90,20 +93,18 @@ class LammpsSolver(ExternalSolver):
             Whether the LAMMPS instance is closed.
 
     Examples:
-        >>> from skcomplex.core.elements import GroupElement, ParticleElement
-        >>> from skcomplex.core.interactions import PairPotentialInteraction
+        >>> from skcomplex.core.elements import GroupElement, PointElement
+        >>> from skcomplex.core.interactions import PairCouplingInteraction
         >>> from skcomplex.core.spaces import ContinuousSpace
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.solvers import LammpsSolver
-        >>> class LennardJonesInteraction(PairPotentialInteraction):
-        ...     def _get_pair_energy(self, namespace, r):
-        ...         return 4 * (r**-12 - r**-6)
+        >>> potential = lambda namespace, r: 4 * (r**-12 - r**-6)
         >>> system = System(
         ...     elements=[
-        ...         GroupElement('gas', element=ParticleElement, size=2, values={'x': [[0.0, 0.0], [1.5, 0.0]]}),
+        ...         GroupElement('gas', element=PointElement, size=2, values={'x': [[0.0, 0.0], [1.5, 0.0]]}),
         ...     ],
-        ...     interactions=[LennardJonesInteraction('lj', first='gas', second='gas', cutoff=2.5)],
+        ...     interactions=[PairCouplingInteraction('lj', 'gas', 'gas', cutoff=2.5, potential=potential)],
         ...     space=ContinuousSpace(n_dim=2),
         ... )
         >>> solver = LammpsSolver(dt=0.005)
@@ -169,7 +170,7 @@ class LammpsSolver(ExternalSolver):
         if unsupported:
             return unsupported + [f'interaction {item.path}' for item in problem.interactions]
         for item in problem.interactions:
-            if isinstance(item.interaction, PairPotentialInteraction):
+            if self._is_potential(item):
                 unsupported += self._check_pair(problem, item)
         external = self._external_paths(problem)
         if external:
@@ -191,19 +192,18 @@ class LammpsSolver(ExternalSolver):
         return {
             item.path
             for item in problem.interactions
-            if not isinstance(item.interaction, PairPotentialInteraction)
-            and self._native(self.fixes or {}, item.interaction) is None
+            if not self._is_potential(item) and self._native(self.fixes or {}, item.interaction) is None
         }
 
     def _check_external(self, problem: ProblemSpec, external: set[str]) -> list[str]:
-        """Return the external interactions whose laws do more than change particle velocities."""
+        """Return the external interactions whose laws do more than change the derivatives of the positions."""
         sub_problem = self._compile_external(problem.system, external, NumpyBackend())
         reasons = []
         if sub_problem.form != FormKind.ODE:
             reasons.append(f'the {sub_problem.form} form')
         if sub_problem.boundary is not None:
             reasons.append('boundary laws')
-        velocities = {element.states['v'] for element in sub_problem.elements}
+        velocities = {element.states[f'{self._position_name(element)}_d1'] for element in sub_problem.elements}
         for name, equation in sub_problem.equations.items():
             base = name.split('[')[0]
             if base not in velocities and not equation.is_symbol():
@@ -213,19 +213,24 @@ class LammpsSolver(ExternalSolver):
         return [f'interactions {", ".join(sorted(external))}, which have {", ".join(sorted(set(reasons)))}']
 
     def _pair_expression(self, problem: ProblemSpec, p: Array, item: CompiledInteractionSpec) -> str:
-        """Return the Lepton expression of a pair interaction with its parameters at their current values."""
-        interaction = item.interaction
+        """Return the Lepton expression of a pair potential with its parameters at their current values."""
+        interaction = cast(PairCouplingInteraction, item.interaction)
+        assert interaction.potential is not None
         values = {
             name: float(self._parameter(problem, p, item.path, name)[0])
             for name in declarations_of(interaction, VariableKind.PARAMETER)
         }
-        roles = {
-            role: SimpleNamespace(m=float(self._parameter(problem, p, self._role_path(item, role), 'm')[0]))
-            for role in item.roles
-        }
+        roles = {role: self._role_parameters(problem, p, self._role_path(item, role)) for role in item.roles}
         distance = symbol('r', RealSet.open(0, oo))
-        energy = interaction._get_pair_energy(SimpleNamespace(**values, **roles), distance)
+        energy = interaction.potential(SimpleNamespace(**values, **roles), distance)
         return self._lepton_expression(energy, distance)
+
+    def _role_parameters(self, problem: ProblemSpec, p: Array, path: str) -> SimpleNamespace:
+        """Return the namespace of the values of the parameters of the members of an element or group."""
+        element = next(element for element in problem.elements if element.path == path)
+        return SimpleNamespace(
+            **{name: float(self._parameter(problem, p, path, name)[0]) for name in element.parameters},
+        )
 
     def _box_commands(self, problem: ProblemSpec, x: Array) -> list[str]:
         """Return the commands that create the simulation box."""
@@ -238,7 +243,7 @@ class LammpsSolver(ExternalSolver):
             cutoffs = [
                 float(self._parameter(problem, problem.initial_parameters, item.path, 'cutoff')[0])
                 for item in problem.interactions
-                if isinstance(item.interaction, PairPotentialInteraction)
+                if self._is_potential(item)
             ]
             margin = max(cutoffs, default=0.0) + 1.0
             low, high = positions.min(axis=0) - margin, positions.max(axis=0) + margin
@@ -259,7 +264,7 @@ class LammpsSolver(ExternalSolver):
 
     def _pair_commands(self, problem: ProblemSpec, p: Array) -> list[str]:
         """Return the commands of the pair style and of the coefficients of every pair interaction."""
-        pairs = [item for item in problem.interactions if isinstance(item.interaction, PairPotentialInteraction)]
+        pairs = [item for item in problem.interactions if self._is_potential(item)]
         styles, coefficients = [], []
         counts: defaultdict[str, int] = defaultdict(int)
         largest = 1.0
@@ -319,7 +324,8 @@ class LammpsSolver(ExternalSolver):
 
     def _target_mass(self, problem: ProblemSpec, p: Array, target: str | None) -> float:
         """Return the mass of the atoms of the element or group an interaction targets."""
-        return self._mass(problem, p, next(element for element in self.atom_elements_ if element.path == target))
+        element = next(element for element in self.atom_elements_ if element.path == target)
+        return self._mass(problem, p, element)
 
     def _seed(self) -> int:
         """Return a random seed for a LAMMPS fix."""
@@ -331,11 +337,18 @@ class LammpsSolver(ExternalSolver):
         assert sub_problem is not None
         drift = sub_problem.drift
         assert drift is not None
+        names = [self._position_name(element) for element in sub_problem.elements]
         sub_positions = np.concatenate(
-            [self._state_indices(sub_problem, element.states['x']) for element in sub_problem.elements],
+            [
+                self._state_indices(sub_problem, element.states[name])
+                for element, name in zip(sub_problem.elements, names, strict=True)
+            ],
         )
         sub_velocities = np.concatenate(
-            [self._state_indices(sub_problem, element.states['v']) for element in sub_problem.elements],
+            [
+                self._state_indices(sub_problem, element.states[f'{name}_d1'])
+                for element, name in zip(sub_problem.elements, names, strict=True)
+            ],
         )
         masses = np.concatenate(
             [
@@ -502,16 +515,17 @@ class LammpsSolver(ExternalSolver):
         return (entry.start + np.arange(entry.size)).reshape(entry.rows, entry.columns)
 
     def _set_atoms(self, problem: ProblemSpec) -> None:
-        """Set the atom types and state indices of the particle elements and groups of a problem."""
+        """Set the atom types and state indices of the elements and groups of points of a problem."""
         self.atom_elements_ = list(problem.elements)
         self.atom_numbers_: dict[str, int] = {}
         positions, velocities, types = [], [], []
         self.n_dim_ = 0
         for number, element in enumerate(problem.elements, start=1):
             self.atom_numbers_[element.path] = number
-            member_positions = LammpsSolver._state_indices(problem, element.states['x'])
+            name = self._position_name(element)
+            member_positions = LammpsSolver._state_indices(problem, element.states[name])
             positions.append(member_positions)
-            velocities.append(LammpsSolver._state_indices(problem, element.states['v']))
+            velocities.append(LammpsSolver._state_indices(problem, element.states[f'{name}_d1']))
             types.append(np.full(len(member_positions), number, dtype=np.intp))
             self.n_dim_ = member_positions.shape[1]
         self.position_indices_ = np.concatenate(positions)
@@ -533,9 +547,55 @@ class LammpsSolver(ExternalSolver):
         return np.atleast_1d(np.asarray(problem.parameters.read(p, f'{path}.{name}'), dtype=float))
 
     @staticmethod
+    def _divisors(problem: ProblemSpec, element: CompiledElementSpec) -> set[str]:
+        """Return the names that the divisors of the interactions on the members of an element or group give."""
+        return {
+            str(divisor)
+            for item in problem.interactions
+            if (divisor := item.interaction.get_params(deep=False).get('divisor')) is not None
+            and element.path in item.roles.values()
+        }
+
+    @staticmethod
     def _mass(problem: ProblemSpec, p: Array, element: CompiledElementSpec) -> float:
-        """Return the mass of the members of an element or group, which LAMMPS stores per atom type."""
-        return float(LammpsSolver._parameter(problem, p, element.path, 'm')[0])
+        """Return the mass of the members of an element or group, the parameter their divisor names, or 1."""
+        divisors = LammpsSolver._divisors(problem, element)
+        if not divisors:
+            return 1.0
+        return float(LammpsSolver._parameter(problem, p, element.path, divisors.pop())[0])
+
+    @staticmethod
+    def _is_potential(item: CompiledInteractionSpec) -> bool:
+        """Return whether an interaction is a pair coupling through a pair potential."""
+        return isinstance(item.interaction, PairCouplingInteraction) and item.interaction.potential is not None
+
+    @staticmethod
+    def _find_position(element: CompiledElementSpec) -> str | None:
+        """Return the name of the vector position state of order 2 of the members of an element, or `None`."""
+        element_type = element.element.element if element.members is not None else type(element.element)
+        declarations = declarations_of(element_type, VariableKind.STATE)
+        return next(
+            (
+                name
+                for name, declaration in declarations.items()
+                if declaration.vector and declaration.position and declaration.order == POSITION_ORDER
+            ),
+            None,
+        )
+
+    @staticmethod
+    def _position_name(element: CompiledElementSpec) -> str:
+        """Return the name of the vector position state of order 2 of the members of an element.
+
+        Raises:
+            BackendError:
+                The members declare no such state.
+        """
+        name = LammpsSolver._find_position(element)
+        if name is None:
+            error_msg = f'LAMMPS runs points, but the members of {element.path} declare no vector position of order 2.'
+            raise BackendError(error_msg)
+        return name
 
     @staticmethod
     def _compile_external(system: System | None, keep: set[str], backend: NumpyBackend | None = None) -> ProblemSpec:
@@ -588,20 +648,34 @@ class LammpsSolver(ExternalSolver):
         )
 
     @staticmethod
+    def _check_masses(problem: ProblemSpec, element: CompiledElementSpec) -> list[str]:
+        """Return the problems of the mass of an element or group: several divisors, or several values."""
+        divisors = LammpsSolver._divisors(problem, element)
+        if len(divisors) > 1:
+            return [f'element {element.path}, whose interactions divide by {", ".join(sorted(divisors))}']
+        if not divisors:
+            return []
+        name = next(iter(divisors))
+        if name not in element.parameters:
+            return [f'element {element.path}, whose divisor {name} is not a parameter']
+        masses = LammpsSolver._parameter(problem, problem.initial_parameters, element.path, name)
+        if not np.all(masses == masses[0]):
+            return [f'group {element.path}, whose members have different values of {name}']
+        return []
+
+    @staticmethod
     def _check_elements(problem: ProblemSpec) -> list[str]:
-        """Return the elements that are not particles in two or three dimensions with one mass per group."""
+        """Return the elements that are not points in two or three dimensions with one mass per group."""
         unsupported = []
         for element in problem.elements:
-            element_type = element.element.element if element.members is not None else type(element.element)
-            if not issubclass(element_type, ParticleElement):
-                unsupported.append(f'element {element.path} of type {element_type.__name__}, which is not a Particle')
+            name = LammpsSolver._find_position(element)
+            if name is None:
+                unsupported.append(f'element {element.path}, which declares no vector position state of order 2')
                 continue
-            n_dim = problem.states.entry(element.states['x']).columns
+            n_dim = problem.states.entry(element.states[name]).columns
             if n_dim not in _SUPPORTED_DIMENSIONS:
                 unsupported.append(f'element {element.path} in {n_dim} dimensions, while LAMMPS runs 2 or 3')
-            masses = LammpsSolver._parameter(problem, problem.initial_parameters, element.path, 'm')
-            if not np.all(masses == masses[0]):
-                unsupported.append(f'group {element.path}, whose members have different masses')
+            unsupported += LammpsSolver._check_masses(problem, element)
         return unsupported
 
     @staticmethod
