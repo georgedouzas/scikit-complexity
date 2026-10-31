@@ -68,25 +68,79 @@ def _commodity_laws(s: SimpleNamespace) -> list[BaseLaw]:
 
 
 class CommodityMarketElement(Element):
-    """Commodity market element."""
+    """Commodity market whose inventory production fills and consumption drains, with capacity built after a delay.
+
+    The price is a falling table function of the coverage of the demand by the inventory relative to the desired
+    coverage. Production is the capacity times the relative price to the supply elasticity, consumption the demand
+    times the relative price to minus the demand elasticity. Capacity is ordered at the rate of retirements times a
+    rising table function of the smoothed price, completed through a third-order delay, and retired over its lifetime.
+
+    Args:
+        label:
+            The label of the market.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        inventory:
+            The initial inventory of the commodity.
+
+        capacity:
+            The initial production capacity per year.
+
+        demand:
+            The demand per year at the reference price.
+
+        demand_step:
+            The permanent change of the demand.
+
+        step_time:
+            The year of the change of the demand.
+
+        desired_coverage:
+            The years of demand producers want the inventory to hold.
+
+        reference_price:
+            The price at the desired coverage.
+
+        supply_elasticity:
+            The elasticity of the utilization of capacity with respect to the price.
+
+        demand_elasticity:
+            The elasticity of consumption with respect to the price, as a positive number.
+
+        expectation_time:
+            The time over which producers smooth the price into their expected price.
+
+        construction_delay:
+            The average time between an order of capacity and its completion.
+
+        lifetime:
+            The average lifetime of capacity.
+
+    Examples:
+        >>> from skcomplex.models.economics.markets import CommodityMarketElement
+        >>> CommodityMarketElement('market', lifetime=20.0).lifetime
+        20.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        inventory: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='commodity')] = 25.0,
-        capacity: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='capacity')] = 100.0,
-        demand: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        demand_step: Annotated[object, ParameterSpec()] = 10.0,
-        step_time: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        desired_coverage: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.25,
-        reference_price: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        supply_elasticity: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        demand_elasticity: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
-        expectation_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        construction_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        lifetime: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
+        inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='commodity')] = 25.0,
+        capacity: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='capacity')] = 100.0,
+        demand: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        demand_step: Annotated[float, ParameterSpec()] = 10.0,
+        step_time: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        desired_coverage: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.25,
+        reference_price: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        supply_elasticity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        demand_elasticity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
+        expectation_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        construction_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        lifetime: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.inventory = inventory
@@ -103,7 +157,16 @@ class CommodityMarketElement(Element):
         self.lifetime = lifetime
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the commodity market element."""
+        """Return the production, the consumption, the completions, and the retirements of the market.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
         return _commodity_laws(s)
 
 

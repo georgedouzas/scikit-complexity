@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
-from ....core.laws.utils import distributed_delay, step, where
+from ....core.laws.utils import distributed_delay, maximum, minimum, step
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
@@ -23,15 +23,14 @@ ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
 
 def _shipments(echelon: SimpleNamespace) -> Expression:
     """Return the shipments of an echelon, its backlog limited by its inventory over the dispatch time."""
-    available = where(echelon.backlog < echelon.inventory, echelon.backlog, echelon.inventory)
-    return available / echelon.dispatch_time
+    return minimum(echelon.backlog, echelon.inventory) / echelon.dispatch_time
 
 
 def _orders(echelon: SimpleNamespace) -> Expression:
     """Return the orders of an echelon by Sterman's anchoring and adjustment rule, never negative."""
     effective = echelon.inventory - echelon.backlog
     orders = echelon.expected + echelon.alpha * (echelon.desired - effective - echelon.beta * echelon.supply_line)
-    return where(orders > 0, orders, 0)
+    return maximum(orders, 0)
 
 
 def _echelon_laws(s: SimpleNamespace) -> list[BaseLaw]:
@@ -84,23 +83,70 @@ def _brewery_laws(s: SimpleNamespace) -> list[BaseLaw]:
 
 
 class EchelonElement(Element):
-    """Echelon element."""
+    """Echelon of a supply chain, which ships its backlog from its inventory and orders by anchoring and adjustment.
+
+    It ships its backlog over the dispatch time, limited by its inventory. Its expected demand adapts to incoming
+    orders at the rate `theta`, and it orders its expected demand plus `alpha` times the gap between its desired stock
+    and its effective inventory, the inventory less the backlog, less `beta` times its supply line, never negative.
+
+    Args:
+        label:
+            The label of the echelon.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        inventory:
+            The initial inventory, in cases.
+
+        in_transit:
+            The initial beer on its way to the echelon.
+
+        backlog:
+            The initial orders waiting to ship.
+
+        expected:
+            The initial expected demand.
+
+        supply_line:
+            The initial beer ordered and not received.
+
+        desired:
+            The desired stock `S'`.
+
+        theta:
+            The rate at which the expected demand adapts to incoming orders.
+
+        alpha:
+            The fraction of the stock gap ordered per week.
+
+        beta:
+            The weight of the supply line in the stock gap.
+
+        dispatch_time:
+            The time over which the echelon ships its backlog.
+
+    Examples:
+        >>> from skcomplex.models.economics.markets import EchelonElement
+        >>> EchelonElement('retailer', inventory=10.0).inventory
+        10.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        inventory: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 12.0,
-        in_transit: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 8.0,
-        backlog: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        expected: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        supply_line: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 16.0,
-        desired: Annotated[object, ParameterSpec()] = 13.44,
-        theta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.36,
-        alpha: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.26,
-        beta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.34,
-        dispatch_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 12.0,
+        in_transit: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 8.0,
+        backlog: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+        expected: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+        supply_line: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 16.0,
+        desired: Annotated[float, ParameterSpec()] = 13.44,
+        theta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.36,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.26,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.34,
+        dispatch_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.inventory = inventory
@@ -115,21 +161,55 @@ class EchelonElement(Element):
         self.dispatch_time = dispatch_time
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the echelon element."""
+        """Return the shipping of the backlog and the decay of the expected demand.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
         return _echelon_laws(s)
 
 
 class SupplyLinkInteraction(Interaction):
-    """Supply link interaction."""
+    """Link of a supply chain, which mails the orders of the downstream echelon upstream and ships beer back.
+
+    Orders reach the upstream echelon through a third-order delay of the mail delay, raising its backlog and its
+    expected demand, and its shipments reach the downstream echelon through a third-order delay of the shipping delay.
+
+    Args:
+        label:
+            The label of the link.
+
+        downstream:
+            The path of the echelon that orders.
+
+        upstream:
+            The path of the echelon that ships.
+
+        mail_delay:
+            The average time an order takes to reach the upstream echelon.
+
+        shipping_delay:
+            The average time a shipment takes to reach the downstream echelon.
+
+    Examples:
+        >>> from skcomplex.models.economics.markets import SupplyLinkInteraction
+        >>> SupplyLinkInteraction('link', downstream='retailer', upstream='wholesaler').mail_delay
+        2.0
+    """
 
     def __init__(
         self,
         label: str,
         *,
-        downstream: Annotated[object, RoleSpec()],
-        upstream: Annotated[object, RoleSpec()],
-        mail_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        shipping_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        downstream: Annotated[str, RoleSpec()],
+        upstream: Annotated[str, RoleSpec()],
+        mail_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        shipping_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
     ) -> None:
         super().__init__(label)
         self.downstream = downstream
@@ -138,21 +218,52 @@ class SupplyLinkInteraction(Interaction):
         self.shipping_delay = shipping_delay
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the supply link interaction."""
+        """Return the mail of orders upstream and the shipping of beer downstream.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
         return _link_laws(s)
 
 
 class RetailDemandInteraction(Interaction):
-    """Retail demand interaction."""
+    """Customers of a supply chain, whose demand reaches the retailer and who take its shipments.
+
+    Args:
+        label:
+            The label of the customers.
+
+        retailer:
+            The path of the retailer.
+
+        demand:
+            The customer demand, in cases a week.
+
+        demand_step:
+            The permanent change of the demand.
+
+        step_time:
+            The week of the change of the demand.
+
+    Examples:
+        >>> from skcomplex.models.economics.markets import RetailDemandInteraction
+        >>> RetailDemandInteraction('customers', retailer='retailer').demand
+        4.0
+    """
 
     def __init__(
         self,
         label: str,
         *,
-        retailer: Annotated[object, RoleSpec()],
-        demand: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        demand_step: Annotated[object, ParameterSpec()] = 4.0,
-        step_time: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        retailer: Annotated[str, RoleSpec()],
+        demand: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+        demand_step: Annotated[float, ParameterSpec()] = 4.0,
+        step_time: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
     ) -> None:
         super().__init__(label)
         self.retailer = retailer
@@ -161,26 +272,60 @@ class RetailDemandInteraction(Interaction):
         self.step_time = step_time
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the retail demand interaction."""
+        """Return the demand that reaches the retailer and the sales to the customers.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
         return _customer_laws(s)
 
 
 class BreweryInteraction(Interaction):
-    """Brewery interaction."""
+    """Brewery of a supply chain, which brews the orders of the factory over the production delay.
+
+    Args:
+        label:
+            The label of the brewery.
+
+        factory:
+            The path of the factory.
+
+        production_delay:
+            The average time the brewery takes to brew an order, through a third-order delay.
+
+    Examples:
+        >>> from skcomplex.models.economics.markets import BreweryInteraction
+        >>> BreweryInteraction('brewery', factory='factory').production_delay
+        3.0
+    """
 
     def __init__(
         self,
         label: str,
         *,
-        factory: Annotated[object, RoleSpec()],
-        production_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        factory: Annotated[str, RoleSpec()],
+        production_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
     ) -> None:
         super().__init__(label)
         self.factory = factory
         self.production_delay = production_delay
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the brewery interaction."""
+        """Return the brewing of the orders of the factory.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
         return _brewery_laws(s)
 
 

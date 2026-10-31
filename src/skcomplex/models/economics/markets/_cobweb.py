@@ -6,12 +6,11 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, UpdateLaw
+from ....core.interactions import MapInteraction
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
@@ -87,11 +86,11 @@ class MarketElement(Element):
         self.price = price
 
 
-class CobwebInteraction(Interaction):
+class CobwebInteraction(MapInteraction):
     """Cobweb model, where supply reacts to the previous price and demand clears the market.
 
     Demand is `a - b * price` and supply is `c + d * previous price`, so the next price is
-    `(a - c - d * price) / b`.
+    `(a - c - d * price) / b`, a map of the state `price` of the market.
 
     Args:
         label:
@@ -128,22 +127,13 @@ class CobwebInteraction(Interaction):
         c: Annotated[float, ParameterSpec()] = 1.0,
         d: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, state='price', function=self._get_price)
         self.a = a
         self.b = b
         self.c = c
         self.d = d
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next price `(a - c - d * price) / b`.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [UpdateLaw(s.target.price, (s.a - s.c - s.d * s.target.price) / s.b)]
+    @staticmethod
+    def _get_price(s: SimpleNamespace) -> Expression:
+        """Return the next price `(a - c - d * price) / b`, at which demand buys the supply of the last price."""
+        return (s.a - s.c - s.d * s.target.price) / s.b

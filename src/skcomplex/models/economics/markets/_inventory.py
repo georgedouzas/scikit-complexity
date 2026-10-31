@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, Sink, Source, TransferLaw
-from ....core.laws.utils import distributed_delay, step, where
+from ....core.laws.utils import distributed_delay, maximum, minimum, step
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
@@ -20,7 +20,7 @@ from ..._catalog import register_model
 def _sales(s: SimpleNamespace) -> Expression:
     """Return the sales of the car dealership, the demand up to the inventory."""
     demand = s.demand + step(s.t, s.step_time, s.demand_step)
-    return where(s.inventory < demand, s.inventory, demand)
+    return minimum(demand, s.inventory)
 
 
 def _perceived(s: SimpleNamespace) -> Expression:
@@ -36,7 +36,7 @@ def _desired_inventory(s: SimpleNamespace) -> Expression:
 def _orders(s: SimpleNamespace) -> Expression:
     """Return the orders of the car dealership, its perceived sales and the gap to its desired inventory."""
     gap_orders = _perceived(s) + (_desired_inventory(s) - s.inventory) / s.response_delay
-    return where(gap_orders > 0, gap_orders, 0)
+    return maximum(gap_orders, 0)
 
 
 def _dealer_laws(s: SimpleNamespace) -> list[BaseLaw]:
@@ -53,21 +53,62 @@ def _dealer_laws(s: SimpleNamespace) -> list[BaseLaw]:
 
 
 class CarDealershipElement(Element):
-    """Car dealership element."""
+    """Car dealership whose inventory deliveries fill and sales drain, ordered to close the gap to a desired coverage.
+
+    Sales are the demand, stepping up at `step_time`, limited by the inventory. The dealer perceives sales through a
+    first-order smoothing, desires `coverage` days of perceived sales, and orders the perceived sales plus the gap to
+    the desired inventory over the response delay, never negative. Orders arrive through a third-order delay.
+
+    Args:
+        label:
+            The label of the dealership.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        inventory:
+            The initial number of cars on the lot.
+
+        demand:
+            The customer demand in cars per day.
+
+        demand_step:
+            The permanent change of the demand.
+
+        step_time:
+            The day of the change of the demand.
+
+        coverage:
+            The days of perceived sales the dealer wants on the lot.
+
+        perception_delay:
+            The time over which the dealer averages sales.
+
+        response_delay:
+            The time over which the dealer closes the inventory gap.
+
+        delivery_delay:
+            The average time between an order and its delivery.
+
+    Examples:
+        >>> from skcomplex.models.economics.markets import CarDealershipElement
+        >>> CarDealershipElement('dealer', inventory=150.0).inventory
+        150.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        inventory: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='cars')] = 200.0,
-        demand: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
-        demand_step: Annotated[object, ParameterSpec()] = 2.0,
-        step_time: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 25.0,
-        coverage: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        perception_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        response_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-        delivery_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='cars')] = 200.0,
+        demand: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
+        demand_step: Annotated[float, ParameterSpec()] = 2.0,
+        step_time: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 25.0,
+        coverage: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        perception_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        response_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        delivery_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.inventory = inventory
@@ -80,7 +121,16 @@ class CarDealershipElement(Element):
         self.delivery_delay = delivery_delay
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the car dealership element."""
+        """Return the deliveries and the sales of the dealership.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
         return _dealer_laws(s)
 
 

@@ -6,31 +6,73 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import RateInteraction
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
+def _excess_demand(s: SimpleNamespace) -> Expression:
+    """Return the rate of the price, `k` times the demand `beta - lam P` less the supply `delta + alpha P + g P^2`."""
+    market = s.target
+    demand = market.beta - market.lam * market.P
+    supply = market.delta + market.alpha * market.P + market.gamma * market.P**2
+    return market.k * (demand - supply)
+
+
 class QuadraticSupplyMarketElement(Element):
-    """Quadratic supply market element."""
+    """Market of one good whose price adjusts to the excess of a linear demand over a quadratic supply.
+
+    Args:
+        label:
+            The label of the market.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        P:
+            The initial price.
+
+        k:
+            The speed of the price adjustment.
+
+        beta:
+            The demand at price zero.
+
+        lam:
+            The slope of the demand.
+
+        delta:
+            The supply at price zero.
+
+        alpha:
+            The linear intensity of the supply.
+
+        gamma:
+            The quadratic intensity of the supply, negative for saturation.
+
+    Examples:
+        >>> from skcomplex.models.economics.markets import QuadraticSupplyMarketElement
+        >>> QuadraticSupplyMarketElement('market', P=2.0).P
+        2.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        P: Annotated[object, StateSpec()] = 1.0,
-        k: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        beta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        lam: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        delta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        alpha: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        gamma: Annotated[object, ParameterSpec()] = -0.1,
+        P: Annotated[float, StateSpec()] = 1.0,
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        lam: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        delta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        gamma: Annotated[float, ParameterSpec()] = -0.1,
     ) -> None:
         super().__init__(label, visual=visual)
         self.P = P
@@ -40,10 +82,6 @@ class QuadraticSupplyMarketElement(Element):
         self.delta = delta
         self.alpha = alpha
         self.gamma = gamma
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the quadratic supply market element."""
-        return [RateLaw(s.P, s.k * ((s.beta - s.lam * s.P) - (s.delta + s.alpha * s.P + s.gamma * s.P**2)))]
 
 
 @register_model(
@@ -109,4 +147,5 @@ def riccati_prices(
         alpha=alpha,
         gamma=gamma,
     )
-    return System(elements=[market])
+    adjustment = RateInteraction('adjustment', target='market', state='P', rate=_excess_demand)
+    return System(elements=[market], interactions=[adjustment])
