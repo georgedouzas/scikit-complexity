@@ -24,17 +24,45 @@ from ..common.quantum import SiteElement, site_space
 
 
 class WaveFunctionElement(Element):
-    """Wave function element."""
+    """Site of the wave function `psi = u + i w` of a particle with the potential `V`, by its real and imaginary parts.
+
+    The parts follow the Schrödinger equation `i psi' = -D laplacian(psi) + V psi`, so
+    `u' = -D laplacian(w) + V w` and `w' = D laplacian(u) - V u`.
+
+    Args:
+        label:
+            The label of the site.
+
+        visual:
+            How the site is drawn, or `None` for none.
+
+        u:
+            The initial real part.
+
+        w:
+            The initial imaginary part.
+
+        D:
+            The coefficient of the kinetic energy, `hbar / (2 m)`.
+
+        V:
+            The potential at the site.
+
+    Examples:
+        >>> from skcomplex.models.physics.waves import WaveFunctionElement
+        >>> WaveFunctionElement('site', V=1.0).V
+        1.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        u: Annotated[object, StateSpec()] = 0.0,
-        w: Annotated[object, StateSpec()] = 0.0,
-        D: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        V: Annotated[object, ParameterSpec()] = 0.0,
+        u: Annotated[float, StateSpec()] = 0.0,
+        w: Annotated[float, StateSpec()] = 0.0,
+        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        V: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.u = u
@@ -43,7 +71,16 @@ class WaveFunctionElement(Element):
         self.V = V
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the wave function element."""
+        """Return the Schrödinger equation of the real and imaginary parts.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate laws of the two parts.
+        """
         return [
             RateLaw(s.u, -s.D * laplacian(s.w) + s.V * s.w),
             RateLaw(s.w, s.D * laplacian(s.u) - s.V * s.u),
