@@ -189,6 +189,7 @@ def _expected(kind, values, weights):
         'max': products.max(),
         'min': products.min(),
         'normalized-mean': products.sum() / weights.sum() if weights.sum() else 0.0,
+        'argmax': values[np.argmax(weights)],
     }
     return reductions[kind]
 
@@ -696,3 +697,149 @@ def test_vicsek_agrees_across_backends():
     turns = np.angle(np.exp(1j * (runs[0].values('movers.theta') - runs[1].values('movers.theta'))))
     assert np.abs(turns).max() < 1e-12
     assert np.allclose(runs[0].values('movers.x'), runs[1].values('movers.x'), rtol=0, atol=1e-12)
+
+
+class PhaseElement(Element):
+    """Element with a phase."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+
+
+class PairwiseInteraction(Interaction):
+    """Rate of every member given by a reduction over its group that reads the member and the other member."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        group: Annotated[object, RoleSpec()],
+        reduction: object = None,
+    ) -> None:
+        super().__init__(label)
+        self.group = group
+        self.reduction = reduction
+
+    def _get_laws(self, s):
+        """Return the rate of every member."""
+        return [RateLaw(s.group.x, self.reduction(s.group))]
+
+
+PAIRWISE = {
+    'mean': lambda g: mean(sin(g.other.x - g.x), over=g),
+    'total': lambda g: total(g.other.x * g.x, over=g),
+    'selected-mean': lambda g: mean(g.other.x - g.x, over=g, where=g.other.x > g.x),
+    'count': lambda g: count(over=g, where=g.other.x > g.x),
+    'maximum': lambda g: maximum(cos(g.other.x - g.x), over=g),
+    'minimum': lambda g: minimum(g.other.x - g.x, over=g),
+}
+
+
+def _pairwise_expected(name, values):
+    """Return the reduction of every member over the differences to every member of a group."""
+    differences = values[None, :] - values[:, None]
+    selected = differences > 0
+    sums = (differences * selected).sum(axis=1)
+    expected = {
+        'mean': np.sin(differences).mean(axis=1),
+        'total': values * values.sum(),
+        'selected-mean': np.divide(sums, selected.sum(axis=1), out=np.zeros(values.size), where=selected.any(axis=1)),
+        'count': selected.sum(axis=1),
+        'maximum': np.cos(differences).max(axis=1),
+        'minimum': differences.min(axis=1),
+    }
+    return expected[name]
+
+
+def _pairwise_drift(values, reduction, backend):
+    """Return the rate of every member of a group whose rate is a reduction over the group."""
+    system = System(
+        elements=[GroupElement('g', element=PhaseElement, size=len(values), values={'x': values})],
+        interactions=[PairwiseInteraction('pairs', group='g', reduction=reduction)],
+    )
+    problem = compile_system(system, backend=backend)
+    return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'g.x')
+
+
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
+def test_mean_of_a_function_of_the_other_and_the_reading_member_matches_numpy(backend):
+    """Test that the mean of `sin(other.x - x)` over a group of three gives `[0.584, 0, -0.584]` for phases 0, 1, 2."""
+    values = np.array([0.0, 1.0, 2.0])
+    drift = _pairwise_drift(values, PAIRWISE['mean'], backend)
+    assert np.allclose(drift, np.sin(values[None, :] - values[:, None]).mean(axis=1), atol=1e-12)
+    assert np.allclose(drift, [0.584, 0.0, -0.584], atol=1e-3)
+
+
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
+@pytest.mark.parametrize('name', list(PAIRWISE))
+def test_reductions_of_the_other_member_read_every_pair(name, backend):
+    """Test that every reduction that reads the other member and the reading member reduces over every pair."""
+    values = np.random.default_rng(3).normal(size=7)
+    drift = _pairwise_drift(values, PAIRWISE[name], backend)
+    assert np.allclose(drift, _pairwise_expected(name, values), atol=1e-12)
+
+
+def test_reduction_of_the_other_member_alone_is_the_group_reduction():
+    """Test that a mean of the other member alone equals the mean of the group, the same for every member."""
+    drift = _pairwise_drift([0.0, 1.0, 2.0, 5.0], lambda g: mean(g.other.x, over=g), NumpyBackend())
+    assert drift.tolist() == [2.0] * 4
+
+
+def test_reduction_of_the_other_member_rejects_weights():
+    """Test that a reduction that reads the other and the reading member with weights raises an error."""
+    with pytest.raises(ValidationError, match='without weights'):
+        _pairwise_drift([0.0, 1.0], lambda g: total(g.other.x - g.x, weights=np.eye(2)), NumpyBackend())
+
+
+class ImitatingElement(Element):
+    """Element whose `out` is the strategy of the neighbour with the largest payoff."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        out: Annotated[object, StateSpec()] = 0.0,
+        strategy: Annotated[object, StateSpec()] = 0.0,
+        payoff: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.out = out
+        self.strategy = strategy
+        self.payoff = payoff
+
+    def _get_laws(self, s):
+        """Return the update of `out` to the strategy of the best neighbour."""
+        return [UpdateLaw(s.out, neighbors(s.other.strategy, reduce='argmax', weight=s.other.payoff))]
+
+
+NETWORK = nx.gnp_random_graph(12, 0.3, seed=5)
+
+
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
+@pytest.mark.parametrize(
+    ('space', 'graph'),
+    [(LatticeSpace(12), nx.cycle_graph(12)), (NetworkSpace(NETWORK), NETWORK)],
+    ids=['ring', 'network'],
+)
+def test_argmax_returns_the_strategy_of_the_neighbour_with_the_largest_payoff(space, graph, backend):
+    """Test that the argmax reduction gives the strategy of the best paid neighbour on a ring and a network."""
+    rng = np.random.default_rng(4)
+    strategies, payoffs = rng.integers(0, 5, 12).astype(float), rng.normal(size=12)
+    values = {'strategy': strategies, 'payoff': payoffs}
+    system = System(
+        elements=[LatticeElement('g', element=ImitatingElement, space=space, values=values)],
+        time=DiscreteTime(),
+    )
+    expected = [
+        strategies[max(graph.neighbors(node), key=lambda other: payoffs[other])] if graph.degree(node) else 0.0
+        for node in range(12)
+    ]
+    assert np.array_equal(_outputs(system, backend), expected)

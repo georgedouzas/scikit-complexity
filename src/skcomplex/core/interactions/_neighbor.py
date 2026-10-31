@@ -19,7 +19,16 @@ class NeighborInteraction(BaseInteraction):
     network and layer. The laws are written for one edge and read `namespace.source` and `namespace.target`, the
     members at both ends, `namespace.edge`, the member of the edge group, and the parameters. On a directed graph the
     ends follow the direction of the edge, and on an undirected graph the source comes first in node order. Rate,
-    noise, and jump laws may target any of them, and update laws the edge member.
+    noise, and jump laws may target any of them, and update laws the edge member. `delayed` reads the past state of
+    either end.
+
+    On fixed edges, `namespace.source.degree` and `namespace.target.degree` are the degrees of the ends, the number of
+    edges of the layer at every node, both ways on a directed graph. A law that reads no edge member and, outside its
+    reductions, only one end is a law of that end's member, and runs once per member rather than once per edge. Inside
+    its reductions the other end stands for the other members of the group, so
+    `mean(f(namespace.source.x, namespace.target.x), over=namespace.source)` is the mean of `f` over every member for
+    the target. Relaxation, drive, and local rule laws are laws of the members, and a relaxation records its cascades
+    as events.
 
     Args:
         label:

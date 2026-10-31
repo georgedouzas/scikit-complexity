@@ -809,7 +809,15 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         assignments, codes = self._printed(printer, [reduction.argument, reduction.weight])
         acc, weights, found = f'_acc{index}_', f'_ws{index}_', f'_found{index}_'
         kind = reduction.kind
-        if kind in {'max', 'min'}:
+        if kind == 'argmax':
+            accumulate = [
+                f'if not {found} or _w_ > {weights}:',
+                f'{INDENT}{acc} = _a_',
+                f'{INDENT}{weights} = _w_',
+                f'{INDENT}{found} = True',
+            ]
+            value = f'{acc} if {found} else 0.0'
+        elif kind in {'max', 'min'}:
             better = '>' if kind == 'max' else '<'
             accumulate = [
                 '_v_ = _w_ * _a_',

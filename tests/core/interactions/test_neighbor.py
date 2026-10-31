@@ -1,7 +1,7 @@
 """Test the `_neighbor` module of `skcomplex.core.interactions`."""
 
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import networkx as nx
 import numpy as np
@@ -10,8 +10,9 @@ from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import NeighborInteraction
-from skcomplex.core.laws import JumpLaw, RateLaw, UpdateLaw
-from skcomplex.core.spaces import DiscreteTime, LatticeSpace, NetworkSpace
+from skcomplex.core.laws import DriveLaw, JumpLaw, LocalRuleLaw, RateLaw, RelaxationLaw, UpdateLaw
+from skcomplex.core.laws.utils import delayed, mean
+from skcomplex.core.spaces import AdjacencyNeighborhood, BoxNeighborhood, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
@@ -428,3 +429,249 @@ def test_edge_group_of_another_layer_is_rejected():
     )
     with pytest.raises(RoleError, match="layer 'work'"):
         compile_system(system)
+
+
+class RecoveryInteraction(NeighborInteraction):
+    """Infection of both ends in proportion to the infected fraction of neighbours, and recovery of every member."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        nodes: Annotated[str, RoleSpec()],
+        beta: Annotated[float, ParameterSpec()] = 1.0,
+        gamma: Annotated[float, ParameterSpec()] = 0.5,
+        layer: str | None = None,
+    ) -> None:
+        super().__init__(label, layer=layer)
+        self.nodes = nodes
+        self.beta = beta
+        self.gamma = gamma
+
+    def _get_laws(self, s):
+        """Return the infection along the edge and the recovery of the target."""
+        return [
+            RateLaw(s.target.i, s.beta * s.source.i * (1 - s.target.i) / s.target.degree),
+            RateLaw(s.source.i, s.beta * s.target.i * (1 - s.source.i) / s.source.degree),
+            RateLaw(s.target.i, -s.gamma * s.target.i),
+        ]
+
+
+class DegreeInteraction(NeighborInteraction):
+    """Records of the degrees of the ends of every edge."""
+
+    def __init__(self, label: str, *, people: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label)
+        self.people = people
+
+    def _get_laws(self, s):
+        """Return the wage of the source and the infection of the target set to their degrees, once per member."""
+        return [RateLaw(s.source.wage, s.source.degree), RateLaw(s.target.infected, s.target.degree)]
+
+
+class DelayedPullInteraction(NeighborInteraction):
+    """Decay of one end driven by a delayed state of an end of the edge."""
+
+    def __init__(self, label: str, *, nodes: Annotated[str, RoleSpec()], end: str = 'source') -> None:
+        super().__init__(label)
+        self.nodes = nodes
+        self.end = end
+
+    def _get_laws(self, s):
+        """Return the decay of the target by the source, of the source by the target, or of the target by itself."""
+        laws = {
+            'source': RateLaw(s.target.theta, -delayed(s.source.theta, 1.0)),
+            'target': RateLaw(s.source.theta, -delayed(s.target.theta, 1.0)),
+            'member': RateLaw(s.target.theta, -delayed(s.target.theta, 1.0)),
+        }
+        return [laws[self.end]]
+
+
+class MeanFieldInteraction(NeighborInteraction):
+    """Pull of every member by the mean sine of its phase difference to every member of its group."""
+
+    def __init__(self, label: str, *, cells: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label)
+        self.cells = cells
+
+    def _get_laws(self, s):
+        """Return the mean-field pull of the target."""
+        return [RateLaw(s.target.theta, mean(sin(s.source.theta - s.target.theta), over=s.source))]
+
+
+class GrainsElement(Element):
+    """Height of a pile of grains."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        height: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.height = height
+
+
+class PileElement(GrainsElement):
+    """Pile of grains on the sites of a lattice, which topples over its neighbours."""
+
+    neighborhood: ClassVar[object] = BoxNeighborhood()
+
+    def _get_laws(self, s):
+        """Return the sandpile of the element's own heights."""
+        return _sandpile(s.height, self.neighborhood)
+
+
+class NodePileElement(PileElement):
+    """Pile of grains on the nodes of a network."""
+
+    neighborhood: ClassVar[object] = AdjacencyNeighborhood(center=True)
+
+
+class ToppleInteraction(NeighborInteraction):
+    """Sandpile over the neighbours of the target, which loses one of three grains at every toppling."""
+
+    def __init__(self, label: str, *, piles: Annotated[str, RoleSpec()], over: object = None) -> None:
+        super().__init__(label)
+        self.piles = piles
+        self.over = over
+
+    def _get_laws(self, s):
+        """Return the sandpile of the heights of the target."""
+        return _sandpile(s.target.height, self.over)
+
+
+def _sandpile(height, over):
+    """Return a relaxation that drops a grain on site 2 and topples sites of three grains over a neighbourhood."""
+    return [
+        RelaxationLaw(
+            drive=[DriveLaw(height, lambda values, *, random: values + (np.arange(values.size) == 2))],
+            relax=[
+                LocalRuleLaw(
+                    height,
+                    over,
+                    lambda value, *around: value - 3 * (value >= 3) + sum(item >= 3 for item in around),
+                ),
+            ],
+            stable=lambda values: bool((values < 3).all()),
+            activity=lambda values: values >= 3,
+        ),
+    ]
+
+
+def _drift(system, backend, path):
+    """Return the rates of a state at the initial state of a system."""
+    problem = compile_system(system, backend=backend)
+    return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), path)
+
+
+@BACKENDS
+@pytest.mark.parametrize('space', [NetworkSpace(nx.gnp_random_graph(8, 0.5, seed=2)), LatticeSpace((2, 4))])
+def test_recovery_runs_once_per_member_beside_spreading_over_the_degree(space, backend):
+    """Test that recovery runs once per member and infection reads the fraction of neighbours through the degree."""
+    infected = np.linspace(0.1, 0.8, 8)
+    system = System(
+        elements=[LatticeElement('nodes', element=SISElement, space=space, values={'i': infected})],
+        interactions=[RecoveryInteraction('sis', nodes='nodes')],
+    )
+    adjacency = np.zeros((8, 8))
+    for first, second in space.check().prepare()._neighbor_pairs():
+        adjacency[first, second] = adjacency[second, first] = 1.0
+    expected = adjacency @ infected * (1 - infected) / adjacency.sum(axis=1) - 0.5 * infected
+    assert np.allclose(_drift(system, backend, 'nodes.i'), expected, atol=1e-12)
+
+
+@BACKENDS
+def test_degrees_of_the_ends_count_the_edges_both_ways(backend):
+    """Test that the degree of either end of a directed edge counts the edges that enter and leave the node."""
+    graph = nx.DiGraph([(0, 1), (0, 2), (1, 2), (3, 2)])
+    space = NetworkSpace(graph)
+    system = System(
+        elements=[LatticeElement('people', element=PersonElement, space=space)],
+        interactions=[DegreeInteraction('degrees', people='people')],
+    )
+    assert _drift(system, backend, 'people.wage').tolist() == [2.0, 2.0, 3.0, 1.0]
+    assert _drift(system, backend, 'people.infected').tolist() == [2.0, 2.0, 3.0, 1.0]
+
+
+@BACKENDS
+def test_degrees_on_a_lattice_count_the_bonds_of_every_site(backend):
+    """Test that the degree of every site of a periodic square lattice is four, for the source and the target."""
+    system = System(
+        elements=[LatticeElement('people', element=PersonElement, space=LatticeSpace((3, 3)))],
+        interactions=[DegreeInteraction('degrees', people='people')],
+    )
+    assert _drift(system, backend, 'people.wage').tolist() == [4.0] * 9
+    assert _drift(system, backend, 'people.infected').tolist() == [4.0] * 9
+
+
+@BACKENDS
+@pytest.mark.parametrize(
+    ('end', 'space'),
+    [
+        ('source', NetworkSpace(nx.DiGraph([(0, 1), (1, 0)]))),
+        ('target', NetworkSpace(nx.DiGraph([(0, 1), (1, 0)]))),
+        ('member', LatticeSpace(4)),
+    ],
+)
+def test_delayed_reads_either_end_of_an_edge(end, space, backend):
+    """Test that `x' = -x(t - 1)` read through either end, or once per member, matches its method of steps solution."""
+    system = System(
+        elements=[LatticeElement('nodes', element=OscillatorElement, space=space, values={'theta': 1.0})],
+        interactions=[DelayedPullInteraction('pull', nodes='nodes', end=end)],
+    )
+    simulation = Simulation(system, dt=0.1, solver=RK4Solver(), backend=backend).check().prepare()
+    trajectory = simulation.run(until=2).trajectory_
+    times = trajectory.times
+    exact = np.where(times <= 1, 1 - times, 1 - times + (times - 1) ** 2 / 2)
+    assert np.allclose(trajectory.values('nodes.theta'), exact[:, None], atol=1e-9)
+
+
+@BACKENDS
+def test_reduction_of_one_end_reads_the_other_end_as_every_member(backend):
+    """Test that the mean of `sin(source - target)` over the source is the mean over every member for the target."""
+    theta = np.array([0.0, 1.0, 2.0])
+    system = System(
+        elements=[
+            LatticeElement(
+                'cells',
+                element=OscillatorElement,
+                space=NetworkSpace(nx.path_graph(3)),
+                values={'theta': theta},
+            ),
+        ],
+        interactions=[MeanFieldInteraction('field', cells='cells')],
+    )
+    expected = np.sin(theta[None, :] - theta[:, None]).mean(axis=1)
+    assert np.allclose(_drift(system, backend, 'cells.theta'), expected, atol=1e-12)
+
+
+@pytest.mark.parametrize(
+    ('space', 'element'),
+    [(LatticeSpace(5, boundary='fixed'), PileElement), (NetworkSpace(nx.cycle_graph(5)), NodePileElement)],
+    ids=['lattice', 'network'],
+)
+def test_relaxation_of_the_members_records_avalanches(space, element):
+    """Test that a sandpile over neighbours relaxes as the sandpile of the members and records its avalanche."""
+    heights = {'height': [2.0, 2.0, 2.0, 1.0, 2.0]}
+    runs = [
+        System(
+            elements=[LatticeElement('piles', element=element, space=space, values=heights)],
+            time=DiscreteTime(),
+        ),
+        System(
+            elements=[LatticeElement('piles', element=GrainsElement, space=space, values=heights)],
+            interactions=[ToppleInteraction('topple', piles='piles', over=element.neighborhood)],
+            time=DiscreteTime(),
+        ),
+    ]
+    found = [Simulation(system, dt=1).check().prepare().run(2) for system in runs]
+    reference, simulation = found
+    assert np.array_equal(simulation.state_, reference.state_)
+    events = simulation.trajectory_.events
+    assert [(event.size, event.duration, event.area) for event in events] == [
+        (event.size, event.duration, event.area) for event in reference.trajectory_.events
+    ]
+    assert events
+    assert all(event.label == 'topple' for event in events)

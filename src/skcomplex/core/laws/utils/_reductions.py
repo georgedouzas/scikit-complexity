@@ -24,7 +24,7 @@ from ...spaces import AdjacencyNeighborhood, BaseNeighborhood, LatticeNeighborho
 from ...spaces._lattice import BOUNDARIES
 
 KINDS = {'total': 'sum', 'mean': 'mean', 'maximum': 'max', 'minimum': 'min', 'variance': 'var', 'count': 'count'}
-NEIGHBOR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean')
+NEIGHBOR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean', 'argmax')
 WEIGHTS: dict[str, object] = {}
 NEIGHBORHOODS: dict[str, object] = {}
 
@@ -359,7 +359,8 @@ def neighbors(
 
     The reductions with the weight `w_j` of every neighbour `j` of the value `f_j` are `'sum'`, `sum_j w_j f_j`,
     `'mean'`, the sum divided by the number of neighbours, `'count'`, `sum_j w_j [f_j != 0]`, `'max'` and `'min'`, the
-    largest and smallest `w_j f_j`, and `'normalized-mean'`, `sum_j w_j f_j / sum_j w_j`. On a lattice neighbourhood,
+    largest and smallest `w_j f_j`, `'normalized-mean'`, `sum_j w_j f_j / sum_j w_j`, and `'argmax'`, the value `f_j` of
+    the neighbour whose weight `w_j` is largest, the first of them in neighbour order. On a lattice neighbourhood,
     `reduce='each'` gives the values of a lattice state at every offset, in neighbourhood order, without reducing them.
 
     Args:
@@ -371,11 +372,12 @@ def neighbors(
             The neighbourhood, or `None` for the neighbours of the network or lattice the group lives on.
 
         reduce:
-            `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, or `'normalized-mean'`, or `'each'` for the values at every
-            offset of a lattice neighbourhood or a memory.
+            `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, or `'argmax'`, or `'each'` for the
+            values at every offset of a lattice neighbourhood or a memory.
 
         weight:
-            The weight of one neighbour, an expression of the same symbols, or `None` for 1.
+            The weight of one neighbour, an expression of the same symbols, or `None` for 1. The `'argmax'` reduction
+            picks the neighbour whose weight is largest.
 
     Returns:
         reduction:
@@ -392,6 +394,8 @@ def neighbors(
         >>> from skcomplex.core.spaces import RadiusNeighborhood, VonNeumannNeighborhood
         >>> neighbors(sin(var('theta_other')), over=RadiusNeighborhood(1.0), reduce='mean')
         neighbors(sin(theta_other), over=RadiusNeighborhood(radius=1.0), reduce='mean')
+        >>> neighbors(var('strategy_other'), reduce='argmax', weight=var('payoff_other'))
+        neighbors(strategy_other, reduce='argmax', weight=payoff_other)
         >>> values = neighbors(var('spin'), VonNeumannNeighborhood(), reduce='each')
         >>> len(values), values[0]
         (4, neighbor(spin, 0))

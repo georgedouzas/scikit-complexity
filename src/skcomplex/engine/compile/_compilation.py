@@ -40,6 +40,7 @@ from ..problems._jacobian_kernel import JacobianKernel
 from ..problems._markov_kernel import MarkovKernel
 from ..problems._problem_functions_spec import _ProblemFunctionsSpec
 from ..problems._topology_kernel import TopologyKernel
+from ..types import ReadKind
 from ._bound_renewal_spec import BoundRenewalSpec
 
 type Laws = list[tuple[KernelSpec, list[BaseLaw]]]
@@ -235,7 +236,7 @@ class Compilation:
     jacobian: JacobianKernel | None = None
     problem: ProblemSpec | None = None
     delays: list[_DelayedStateSpec] | None = None
-    placeholders: dict[tuple[str, int, str, int, str], Expression] | None = None
+    placeholders: dict[tuple[str, int, str, int, str, ReadKind], Expression] | None = None
     events: list[tuple[KernelSpec, CrossingLaw]] | None = None
     renewals: list[BoundRenewalSpec] | None = None
     outputs: dict[int, list[OutputSpec]] | None = None
