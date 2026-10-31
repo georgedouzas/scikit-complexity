@@ -19,10 +19,12 @@ def test_processes_may_be_nothing():
     assert type(None) in typing.get_args(Process.__value__)
 
 
-def test_agent_views_have_an_id():
-    """Test that an object with an id is an agent view, and one without is not."""
-    assert isinstance(SimpleNamespace(id=1), AgentViewProtocol)
-    assert not isinstance(SimpleNamespace(level=1.0), AgentViewProtocol)
+def test_agent_views_have_an_id_a_location_and_a_life():
+    """Test that an object with an id, a location, and the moves of an agent is an agent view, and one without is not."""
+    names = ('neighbor_cells', 'move_to', 'remove', 'create')
+    view = SimpleNamespace(id=1, location=(0, 0), alive=True, **dict.fromkeys(names, print))
+    assert isinstance(view, AgentViewProtocol)
+    assert not isinstance(SimpleNamespace(id=1), AgentViewProtocol)
 
 
 def test_preferences_score_two_agents():
