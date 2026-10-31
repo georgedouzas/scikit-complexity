@@ -14,10 +14,10 @@ from ._growth import GrowthInteraction
 
 
 class LogisticGrowthInteraction(GrowthInteraction):
-    """Growth limited by a carrying capacity, `dn/dt = r n (1 - (n(t - tau) / K) ** p)`, without harvest.
+    """Verhulst's growth limited by a carrying capacity, `dn/dt = r n (1 - n(t - tau) / K)`, without harvest.
 
-    The exponent `p` gives the generalized logistic of Richards, with `p = 1` for Verhulst's, and a delay `tau` above 0
-    gives Hutchinson's delayed logistic equation.
+    A delay `tau` above 0 gives Hutchinson's delayed logistic equation. The generalized logistic of Richards, with an
+    exponent on the crowding, is `GrowthInteraction(form='logistic', p=...)`.
 
     Args:
         label:
@@ -31,9 +31,6 @@ class LogisticGrowthInteraction(GrowthInteraction):
 
         K:
             The carrying capacity.
-
-        p:
-            The exponent of the limiting factor.
 
         tau:
             The delay of the limiting factor, 0 for none.
@@ -62,11 +59,24 @@ class LogisticGrowthInteraction(GrowthInteraction):
         target: Annotated[str, RoleSpec()],
         r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        p: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         tau: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         state: str = 'n',
     ) -> None:
-        super().__init__(label, target=target, r=r, K=K, p=p, tau=tau, form='logistic', state=state)
+        super().__init__(label, target=target, r=r, K=K, tau=tau, form='logistic', state=state)
+
+    def _get_crowding(self, namespace: SimpleNamespace) -> Expression:
+        """Return the crowding `n / K` of Verhulst's logistic.
+
+        Args:
+            namespace:
+                The namespace of the symbols the rate can use, with the namespace of the target.
+
+        Returns:
+            crowding:
+                The ratio of the population the limiting factor reads to the capacity.
+        """
+        crowding: Expression = self._get_limited(namespace) / self._get_capacity(namespace)
+        return crowding
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the logistic growth, with no harvest.

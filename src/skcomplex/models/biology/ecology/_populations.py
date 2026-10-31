@@ -37,9 +37,6 @@ class SeasonalLogisticGrowthInteraction(LogisticGrowthInteraction):
         period:
             The period `T` of the variation.
 
-        p:
-            The exponent of the limiting factor, 1 for Verhulst's logistic.
-
     Examples:
         >>> from skcomplex.models.biology.ecology import SeasonalLogisticGrowthInteraction
         >>> SeasonalLogisticGrowthInteraction('growth', target='rabbits', period=12.0).period
@@ -55,9 +52,8 @@ class SeasonalLogisticGrowthInteraction(LogisticGrowthInteraction):
         K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
         amplitude: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         period: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        p: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, target=target, r=r, K=K, p=p)
+        super().__init__(label, target=target, r=r, K=K)
         self.amplitude = amplitude
         self.period = period
 

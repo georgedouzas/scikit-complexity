@@ -110,12 +110,17 @@ class GrowthInteraction(RateInteraction):
         capacity: Expression = namespace.K
         return capacity
 
+    def _get_crowding(self, namespace: SimpleNamespace) -> Expression:
+        """Return the crowding `(n / K) ** p` of the logistic form, which a subclass overrides to fix the exponent."""
+        crowding: Expression = (self._get_limited(namespace) / self._get_capacity(namespace)) ** namespace.p
+        return crowding
+
     def _get_growth(self, namespace: SimpleNamespace) -> Expression:
         """Return the growth of the population by the form."""
         s = namespace
         n = getattr(s.target, self.state)
         if self.form == 'logistic':
-            return s.r * n * (1 - (self._get_limited(s) / self._get_capacity(s)) ** s.p)
+            return s.r * n * (1 - self._get_crowding(s))
         if self.form == 'gompertz':
             return s.r * n * log(self._get_capacity(s) / self._get_limited(s))
         if self.form == 'power':
