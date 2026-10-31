@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -12,13 +12,22 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import FeedbackInteraction, Interaction
-from ....core.laws import BaseLaw, MatchLaw, RuleLaw
-from ....core.laws.utils import matches, transfer
+from ....core.interactions import BaseMatchingProtocol, FeedbackInteraction, GreedyProtocol, MatchingInteraction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.laws.utils import transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import ModelView
-from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import (
+    MatchSpec,
+    ObservableSpec,
+    ParameterSpec,
+    PhaseSpec,
+    PhasesScheduleSpec,
+    RoleSpec,
+    StateSpec,
+    VisualSpec,
+)
 from ..._catalog import register_model
 from ._cow_view import CowView
 from ._herder_view import HerderView
@@ -35,59 +44,6 @@ def _commons_observables(system: System) -> list[ObservableSpec]:
         ObservableSpec('herd', group='cows', variable='energy', reduce='count'),
         ObservableSpec('quota', group='herders', variable='quota', reduce='mean'),
     ]
-
-
-def _cell(location: object) -> tuple[int, ...]:
-    """Return the integer coordinates of a cell."""
-    return tuple(int(item) for item in np.asarray(location).ravel())
-
-
-def richest_pasture(
-    left: Sequence[object],
-    right: Sequence[object],
-    rng: np.random.Generator,
-    capacity: int,
-) -> list[tuple[object, object]]:
-    """Pairing of every cow, in random order, with the free pasture of most grass in its cell or the cells around it.
-
-    Args:
-        left:
-            The cows.
-
-        right:
-            The pastures, one per cell.
-
-        rng:
-            The random generator.
-
-        capacity:
-            The largest number of cows on a pasture.
-
-    Returns:
-        pairs:
-            The pairs of cows and the pastures they graze.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.models.economics.resources import richest_pasture
-        >>> richest_pasture([], [], np.random.default_rng(0), 1)
-        []
-    """
-    cows = [cow for cow in left if isinstance(cow, CowView)]
-    pastures = {_cell(pasture.location): pasture for pasture in right if isinstance(pasture, PastureView)}
-    taken: dict[int, int] = {}
-    pairs: list[tuple[object, object]] = []
-    for index in rng.permutation(len(cows)):
-        cow = cows[int(index)]
-        cells = [cow.location, *cow.neighbor_cells()]
-        options = [pastures.get(_cell(cell)) for cell in cells]
-        free = [pasture for pasture in options if pasture is not None and taken.get(pasture.id, 0) < capacity]
-        if not free:
-            continue
-        best = max(free, key=lambda pasture: pasture.grass)
-        taken[best.id] = taken.get(best.id, 0) + 1
-        pairs.append((cow, best))
-    return pairs
 
 
 class PastureElement(Element):
@@ -311,22 +267,31 @@ class HerderElement(Element):
         agent.herd = 0.0
 
 
-class GrazingInteraction(Interaction):
-    """Grazing of the meadow, where every cow moves to the richest pasture it can reach and eats its fill.
+class GrazingInteraction(MatchingInteraction[ModelView]):
+    """Grazing of the meadow, a matching of the cows with the pastures, after which every cow eats and burns energy.
 
-    The matching law pairs every cow with the free pasture of most grass in its cell or the cells around it, the cow
-    moves there and eats up to its appetite as a transfer of grass to its energy, burns its metabolism, and earns its
-    herder milk for what it ate. A cow whose energy runs out dies.
+    The protocol of the matching pairs the cows with the pastures, such as
+    `GreedyProtocol(score=GrazingInteraction.score, candidates='neighbors')`, which pairs every cow, in random
+    order, with the free pasture of most grass in its cell or the cells around it, ties broken at random. A pasture
+    takes one cow, its default quantity of one unit. Every matched cow moves to its pasture and eats up to its
+    appetite as a transfer of grass to its energy, and its herder earns milk for what it ate. Then every cow burns
+    its metabolism and counts in the herd of its herder, and a cow whose energy runs out dies.
 
     Args:
         label:
             The label of the grazing.
 
-        cows:
+        requesters:
             The path of the group of cows.
 
-        meadow:
+        providers:
             The path of the group of pastures.
+
+        protocol:
+            The protocol that pairs the cows with the pastures, or `None` for `RandomSearchProtocol()`.
+
+        phase:
+            The phase the grazing runs in.
 
         herders:
             The path of the group of herders.
@@ -342,7 +307,7 @@ class GrazingInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.models.economics.resources import GrazingInteraction
-        >>> GrazingInteraction('grazing', cows='cows', meadow='meadow', herders='herders').appetite
+        >>> GrazingInteraction('grazing', requesters='cows', providers='meadow', herders='herders').appetite
         1.0
     """
 
@@ -350,62 +315,78 @@ class GrazingInteraction(Interaction):
         self,
         label: str,
         *,
-        cows: Annotated[str, RoleSpec()],
-        meadow: Annotated[str, RoleSpec()],
+        requesters: Annotated[str, RoleSpec()],
+        providers: Annotated[str, RoleSpec()],
+        protocol: BaseMatchingProtocol | None = None,
+        phase: str | None = 'grazing',
         herders: Annotated[str, RoleSpec()],
         appetite: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         metabolism: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         milk: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label)
-        self.cows = cows
-        self.meadow = meadow
+        super().__init__(label, requesters=requesters, providers=providers, protocol=protocol, phase=phase)
         self.herders = herders
         self.appetite = appetite
         self.metabolism = metabolism
         self.milk = milk
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the matching of cows with pastures and the grazing rule.
+    @staticmethod
+    def score(cow: object, pasture: object) -> float:
+        """Return the score of a pasture for a cow, the grass on the pasture.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            cow:
+                The agent view of the cow.
+
+            pasture:
+                The agent view of the pasture.
 
         Returns:
-            laws:
-                The laws of the component.
+            score:
+                The grass on the pasture, or minus infinity for an agent that is not a pasture.
         """
-        return [
-            MatchLaw('cows', 'meadow', pairing=richest_pasture, label='grazing', phase='grazing'),
-            RuleLaw(self.graze, phase='grazing'),
-        ]
+        del cow
+        return float(pasture.grass) if isinstance(pasture, PastureView) else -np.inf
 
-    def graze(self, model: ModelView) -> None:
-        """Move every cow to its pasture, feed it, pay its herder, and let the starving cows die.
+    def _get_herder(self, cow: CowView, model: ModelView) -> HerderView:
+        """Return the herder that owns a cow."""
+        return next(herder for herder in model.agents('herders', HerderView) if herder.number == cow.owner)
+
+    def _settle(self, match: MatchSpec, model: ModelView) -> None:
+        """Move the cow of a match to its pasture, feed it, and pay its herder for what it ate.
+
+        Args:
+            match:
+                The match of a cow with a pasture.
+
+            model:
+                The model view of the grazing.
+        """
+        cow, pasture = match.requester, match.provider
+        if not isinstance(cow, CowView) or not isinstance(pasture, PastureView):
+            return
+        cow.move_to(pasture.location)
+        eaten = min(pasture.grass, model.parameter('appetite'))
+        transfer(pasture, cow, eaten, 'grass', 'energy')
+        self._get_herder(cow, model).income += model.parameter('milk') * eaten
+
+    def match(self, model: ModelView) -> None:
+        """Pair and feed the cows, then let every cow burn its metabolism, count it in its herd, and starve.
 
         Args:
             model:
                 The model view of the grazing.
         """
+        super().match(model)
         herders = {int(herder.number): herder for herder in model.agents('herders', HerderView)}
-        for cow, pasture in matches(model, 'grazing'):
-            if not isinstance(cow, CowView) or not isinstance(pasture, PastureView):
-                continue
-            cow.move_to(pasture.location)
-            eaten = min(pasture.grass, model.parameter('appetite'))
-            transfer(pasture, cow, eaten, 'grass', 'energy')
-            herder = herders[int(cow.owner)]
-            herder.income += model.parameter('milk') * eaten
-        for cow in model.agents('cows', CowView):
+        for cow in model.agents('requesters', CowView):
             cow.energy -= model.parameter('metabolism')
-            herder = herders[int(cow.owner)]
-            herder.herd += 1
+            herders[int(cow.owner)].herd += 1
             if cow.energy < 0:
                 cow.remove()
 
 
-class RegulatorInteraction(FeedbackInteraction[ModelView]):
+class QuotaRegulatorInteraction(FeedbackInteraction[ModelView]):
     """Regulator that halves the quota of cows per herder when the grass runs short and raises it when it recovers.
 
     The quota is the adaptive parameter `quota` of every herder. It halves, down to one cow, when the grass falls below
@@ -432,8 +413,8 @@ class RegulatorInteraction(FeedbackInteraction[ModelView]):
             The share of the capacity of the meadow above which the quota rises by one cow.
 
     Examples:
-        >>> from skcomplex.models.economics.resources import RegulatorInteraction
-        >>> RegulatorInteraction('regulator', regulated=1.0).regulated
+        >>> from skcomplex.models.economics.resources import QuotaRegulatorInteraction
+        >>> QuotaRegulatorInteraction('regulator', regulated=1.0).regulated
         1.0
     """
 
@@ -565,8 +546,14 @@ def tragedy_of_the_commons(
         variable=True,
         location=[cells[index] for index in rng.integers(len(cells), size=n_cows)],
     )
-    regulator = RegulatorInteraction('regulator', phase='herding', regulated=float(quota is not None))
-    grazing = GrazingInteraction('grazing', cows='cows', meadow='meadow', herders='herders')
+    regulator = QuotaRegulatorInteraction('regulator', phase='herding', regulated=float(quota is not None))
+    grazing = GrazingInteraction(
+        'grazing',
+        requesters='cows',
+        providers='meadow',
+        protocol=GreedyProtocol(score=GrazingInteraction.score, candidates='neighbors'),
+        herders='herders',
+    )
     return System(
         elements=[meadow, herd, herders],
         interactions=[grazing, regulator],

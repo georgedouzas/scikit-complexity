@@ -5,16 +5,15 @@ from ._commons import (
     GrazingInteraction,
     HerderElement,
     PastureElement,
-    RegulatorInteraction,
-    richest_pasture,
+    QuotaRegulatorInteraction,
     tragedy_of_the_commons,
 )
 from ._extraction import FisheryElement, OilEconomyElement, fishery_capital, oil_economy
-from ._fisheries import hilsa_fishery
-from ._food import food_security
+from ._fisheries import HilsaElement, hilsa_fishery
+from ._food import RiceSectorElement, food_security
 from ._harvesting import FarmerElement, HarvestInteraction, StockElement, harvesting
 from ._optimal_harvesting import HarvestedResourceElement, optimal_harvesting
-from ._plantations import cocoa
+from ._plantations import PlantationElement, cocoa
 
 __all__: list[str] = [
     'CowElement',
@@ -24,9 +23,12 @@ __all__: list[str] = [
     'HarvestInteraction',
     'HarvestedResourceElement',
     'HerderElement',
+    'HilsaElement',
     'OilEconomyElement',
     'PastureElement',
-    'RegulatorInteraction',
+    'PlantationElement',
+    'QuotaRegulatorInteraction',
+    'RiceSectorElement',
     'StockElement',
     'cocoa',
     'fishery_capital',
@@ -35,6 +37,5 @@ __all__: list[str] = [
     'hilsa_fishery',
     'oil_economy',
     'optimal_harvesting',
-    'richest_pasture',
     'tragedy_of_the_commons',
 ]

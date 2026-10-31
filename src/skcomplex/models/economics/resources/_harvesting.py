@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
+from ....core.interactions import RateInteraction
 from ....core.laws import BaseLaw, RateLaw, RuleLaw
 from ....core.laws.utils import count
 from ....core.system import System
@@ -24,7 +24,29 @@ from ._farmer_view import FarmerView
 
 
 class StockElement(Element):
-    """Stock element."""
+    """Renewable stock that grows logistically, `n' = r n (1 - n / K)`.
+
+    Args:
+        label:
+            The label of the stock.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        n:
+            The initial stock.
+
+        r:
+            The intrinsic growth rate.
+
+        K:
+            The carrying capacity.
+
+    Examples:
+        >>> from skcomplex.models.economics.resources import StockElement
+        >>> StockElement('stock', n=500.0).n
+        500.0
+    """
 
     def __init__(
         self,
@@ -41,7 +63,16 @@ class StockElement(Element):
         self.K = K
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the stock element."""
+        """Return the logistic growth of the stock.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
         return [RateLaw(s.n, s.r * s.n * (1 - s.n / s.K))]
 
 
@@ -119,15 +150,18 @@ class FarmerElement(Element):
         agent.wealth += model.parameters[self.effort] * float(stock)
 
 
-class HarvestInteraction(Interaction):
-    """Harvest of a resource proportional to its stock and to the number of harvesters, `-effort * N * n`.
+class HarvestInteraction(RateInteraction):
+    """Harvest of a stock proportional to the stock and to the number of harvesters, the rate `-effort * N * n`.
+
+    A rate on the state `n` of the target whose coefficient counts the members of the group of harvesters, which may
+    live in another subsystem.
 
     Args:
         label:
             The label of the interaction.
 
-        resource:
-            The path of the resource stock.
+        target:
+            The path of the harvested stock.
 
         harvesters:
             The path of the group of harvesters, which the harvest counts.
@@ -135,9 +169,12 @@ class HarvestInteraction(Interaction):
         effort:
             The harvest rate per harvester and unit of stock.
 
+        state:
+            The name of the state of the target that holds the stock.
+
     Examples:
         >>> from skcomplex.models.economics.resources import HarvestInteraction
-        >>> HarvestInteraction('harvest', resource='land/stock', harvesters='village/farmers', effort=0.05).effort
+        >>> HarvestInteraction('harvest', target='land/stock', harvesters='village/farmers', effort=0.05).effort
         0.05
     """
 
@@ -145,27 +182,27 @@ class HarvestInteraction(Interaction):
         self,
         label: str,
         *,
-        resource: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
         harvesters: Annotated[str, RoleSpec()],
         effort: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        state: str = 'n',
     ) -> None:
-        super().__init__(label)
-        self.resource = resource
+        super().__init__(label, target=target, state=state)
         self.harvesters = harvesters
         self.effort = effort
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the harvest rate.
+    def _get_rate(self, namespace: SimpleNamespace) -> object:
+        """Return the harvest `-effort * N * n`.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the rate can use, with the target and the harvesters.
 
         Returns:
-            laws:
-                The laws of the component.
+            rate:
+                The harvest rate of the stock.
         """
-        return [RateLaw(s.resource.n, -s.effort * count(s.harvesters) * s.resource.n)]
+        return -namespace.effort * count(namespace.harvesters) * getattr(namespace.target, self.state)
 
 
 @register_model(
@@ -203,5 +240,5 @@ def harvesting(farmers: int = 10, *, effort: float = 0.05, r: float = 1.0, K: fl
     """
     land = System('land', elements=[StockElement('stock', n=K, r=r, K=K)])
     village = System('village', elements=[GroupElement('farmers', element=FarmerElement, size=farmers)])
-    harvest = HarvestInteraction('harvest', resource='land/stock', harvesters='village/farmers', effort=effort)
+    harvest = HarvestInteraction('harvest', target='land/stock', harvesters='village/farmers', effort=effort)
     return System(interactions=[harvest], systems=[land, village])

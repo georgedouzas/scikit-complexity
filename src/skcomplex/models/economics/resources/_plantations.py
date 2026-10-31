@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw, Sink, TransferLaw
-from ....core.laws.utils import lookup, where
+from ....core.laws.utils import clip, lookup
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
@@ -84,11 +84,6 @@ INTENSIFICATION_EFFECT = (
 FULL_INDEX = 100.0
 
 
-def _positive(value: Expression) -> Expression:
-    """Return the positive part of a symbolic value."""
-    return where(value > 0, value, 0)
-
-
 def _cocoa_yield(s: SimpleNamespace) -> Expression:
     """Return the yield of cocoa per area, which the insects and the removal of shade change."""
     return s.yield_normal * lookup(s.insects, ECOLOGICAL_EFFECT) * lookup(s.shade_removal, INTENSIFICATION_EFFECT)
@@ -101,20 +96,20 @@ def _profit_per_area(s: SimpleNamespace) -> Expression:
 
 def _profitability(s: SimpleNamespace) -> Expression:
     """Return the profitability of cocoa land, the positive profit over the revenue."""
-    return _positive(_profit_per_area(s)) / (s.price * _cocoa_yield(s))
+    return clip(_profit_per_area(s), 0) / (s.price * _cocoa_yield(s))
 
 
 def _cocoa_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the planting, abandonment, and conversion of cocoa land, and the thinning of shade and the insects."""
     profitability = _profitability(s)
     desired = s.area * lookup(profitability, PROFITABILITY_EFFECT)
-    conversion = _positive(s.palm_margin - profitability) / s.palm_margin
+    conversion = clip(s.palm_margin - profitability, 0) / s.palm_margin
     unprotected = 1 - s.subsidy
     return [
         TransferLaw(
             s.forest,
             s.area,
-            _positive(desired - s.area) / s.adjustment_time * s.forest / (s.forest + s.area),
+            clip(desired - s.area, 0) / s.adjustment_time * s.forest / (s.forest + s.area),
             label='planting',
         ),
         TransferLaw(
@@ -138,7 +133,76 @@ def _cocoa_laws(s: SimpleNamespace) -> list[BaseLaw]:
 
 
 class PlantationElement(Element):
-    """Plantation element."""
+    """Cocoa land in forest, planted, and abandoned stocks, with the shade thinned and the insects it lets in.
+
+    Farmers plant forest towards a desired area that grows with the profitability of cocoa, abandon plantations whose
+    yield and profit fall, and leave abandoned land to the forest or convert it to oil palm when cocoa pays less than
+    palm. Removing shade raises the yield and lets the insects grow logistically, and the subsidy keeps the shade and
+    controls the insects.
+
+    Args:
+        label:
+            The label of the plantation.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        forest:
+            The initial forest land.
+
+        area:
+            The initial cocoa area.
+
+        abandoned:
+            The initial abandoned land.
+
+        shade_removal:
+            The initial index of shade removal, from 0 to 100.
+
+        insects:
+            The initial index of insect attack, from 0 to 100.
+
+        yield_normal:
+            The yield per area without insects or thinning.
+
+        price:
+            The farm price of cocoa.
+
+        cost:
+            The operating cost per area.
+
+        thinning_cost:
+            The cost per area of removing all shade.
+
+        adjustment_time:
+            The time to plant towards the desired area.
+
+        abandon_time:
+            The average time before a plantation is abandoned.
+
+        conversion_time:
+            The time abandoned land stays before it returns to forest or turns to oil palm.
+
+        palm_margin:
+            The profitability of oil palm, against which abandoned land converts.
+
+        thinning_time:
+            The time to remove the shade.
+
+        insect_growth:
+            The largest relative growth rate of the insects, reached with all shade removed.
+
+        insect_control:
+            The rate at which the subsidy controls the insects.
+
+        subsidy:
+            The coverage of the subsidy and extension programme, from 0 to 1.
+
+    Examples:
+        >>> from skcomplex.models.economics.resources import PlantationElement
+        >>> PlantationElement('cocoa', subsidy=0.5).subsidy
+        0.5
+    """
 
     def __init__(
         self,
@@ -183,7 +247,16 @@ class PlantationElement(Element):
         self.subsidy = subsidy
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the plantation element."""
+        """Return the land flows, the thinning of shade, and the growth and control of the insects.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return _cocoa_laws(s)
 
 

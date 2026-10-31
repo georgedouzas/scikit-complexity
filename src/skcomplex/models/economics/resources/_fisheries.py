@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, Sink, Source, TransferLaw
-from ....core.laws.utils import where
+from ....core.laws.utils import minimum
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
@@ -28,11 +28,6 @@ STAGES = (
     ('adults', 'adult_ocean_time', 12.0, 'second_year_loss', 0.5),
     ('migrants', 'migration_time', 2.0, 'migration_loss', 0.25),
 )
-
-
-def _smaller(first: Expression, second: Expression) -> Expression:
-    """Return the smaller of two symbolic values."""
-    return where(first < second, first, second)
 
 
 def _stage(
@@ -58,7 +53,7 @@ def _spawning(s: SimpleNamespace) -> Expression:
 
 def _nests(s: SimpleNamespace) -> Expression:
     """Return the nests of the spawners, limited by the spawning grounds."""
-    return _smaller(s.female_fraction * _spawning(s), s.max_nests)
+    return minimum(s.female_fraction * _spawning(s), s.max_nests)
 
 
 def _adult_weight(s: SimpleNamespace) -> Expression:

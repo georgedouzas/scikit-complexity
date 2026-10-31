@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, Sink, Source, TransferLaw
-from ....core.laws.utils import lookup, where
+from ....core.laws.utils import clip, lookup
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
@@ -28,12 +28,6 @@ PRICE_BY_YIELD = (10.0, 7.0, 5.0, 3.0, 2.0, 1.5, 1.2)
 def _table(levels: Sequence[float], values: Sequence[float]) -> list[tuple[float, float]]:
     """Return the points of a table function from its inputs and outputs."""
     return [(float(level), float(value)) for level, value in zip(levels, values, strict=True)]
-
-
-def _investment(profit: Expression, goal: Expression) -> Expression:
-    """Return the investment, the profit capped by the growth goal, never negative."""
-    capped = where(profit < goal, profit, goal)
-    return where(capped > 0, capped, 0)
 
 
 class OilEconomyElement(Element):
@@ -124,7 +118,7 @@ class OilEconomyElement(Element):
         """
         efficiency = lookup(s.resource, _table(RESOURCE_LEVELS, self.yield_table))
         extraction = s.capital * efficiency
-        investment = _investment(self._profit(s, efficiency), s.growth_goal * s.capital)
+        investment = clip(self._profit(s, efficiency), 0, s.growth_goal * s.capital)
         return [
             TransferLaw(s.resource, Sink('market'), extraction, label='extraction'),
             TransferLaw(Source('investors'), s.capital, investment, label='investment'),
@@ -214,7 +208,7 @@ class FisheryElement(Element):
         price = lookup(efficiency, _table(YIELD_LEVELS, self.price_table))
         harvest = s.capital * efficiency
         regeneration = s.resource * lookup(s.resource, _table(RESOURCE_LEVELS, self.regeneration_table))
-        investment = _investment(price * harvest - s.cost * s.capital, s.growth_goal * s.capital)
+        investment = clip(price * harvest - s.cost * s.capital, 0, s.growth_goal * s.capital)
         return [
             TransferLaw(Source('spawning'), s.resource, regeneration, label='regeneration'),
             TransferLaw(s.resource, Sink('market'), harvest, label='harvest'),

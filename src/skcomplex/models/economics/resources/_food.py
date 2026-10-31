@@ -10,6 +10,7 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
+from ....core.interactions import RelaxationInteraction
 from ....core.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.laws.utils import lookup
 from ....core.system import System
@@ -47,7 +48,7 @@ def _self_sufficiency(s: SimpleNamespace) -> Expression:
 
 
 def _rice_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the development and loss of rice land, the population, and the factors of the rice productivity."""
+    """Return the development and loss of rice land, the population, the yield potential, the soil, and the practice."""
     chemical = 1 - s.bio_fraction
     return [
         TransferLaw(s.available_land, s.rice_area, s.available_land / s.conversion_time, label='development'),
@@ -60,14 +61,114 @@ def _rice_laws(s: SimpleNamespace) -> list[BaseLaw]:
             - s.degradation * chemical * _input_ratio(s) * s.cropping_intensity * s.soil_quality,
         ),
         RateLaw(s.practice, lookup(s.training, LEARNING_EFFECT) * (1 - s.practice) / s.learning_time),
-        RateLaw(s.training, (s.training_target - s.training) / s.extension_time),
-        RateLaw(s.bio_fraction, (s.bio_target - s.bio_fraction) / s.transition_time),
-        RateLaw(s.cropping_intensity, (s.intensity_target - s.cropping_intensity) / s.implementation_time),
     ]
 
 
 class RiceSectorElement(Element):
-    """Rice sector element."""
+    """Rice sector of a country, its land, population, and the factors of the productivity of its rice land.
+
+    The suitable land is developed into rice area and the rice area is discarded, the population grows
+    exponentially, research raises the potential yield towards a limit, chemical fertiliser degrades the soil and
+    fallow regenerates it, and training improves the farming practice through a learning table. The training, the
+    share of bio-fertiliser, and the cropping intensity relax towards their targets through relaxation interactions
+    of the model, which read the targets and times of the sector.
+
+    Args:
+        label:
+            The label of the sector.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        available_land:
+            The initial land suitable for rice and not yet developed.
+
+        rice_area:
+            The initial rice area.
+
+        population:
+            The initial population.
+
+        potential:
+            The initial potential yield.
+
+        soil_quality:
+            The initial soil quality, from 0 to 1.
+
+        practice:
+            The initial quality of the farming practice, from 0 to 1.
+
+        training:
+            The initial coverage of the farmers by training and extension, from 0 to 1.
+
+        bio_fraction:
+            The initial share of bio-fertiliser in the inputs.
+
+        cropping_intensity:
+            The initial number of crops per year on the rice area.
+
+        conversion_time:
+            The time to develop the suitable land.
+
+        discard_rate:
+            The fraction of the rice area discarded per year.
+
+        growth_rate:
+            The growth rate of the population.
+
+        consumption:
+            The rice consumption per capita, in kilograms per year.
+
+        milling_rate:
+            The share of paddy that milling turns into rice.
+
+        subsidy:
+            The share of the recommended fertiliser that the subsidy pays for.
+
+        farmer_inputs:
+            The share of the unsubsidised fertiliser that the farmers buy.
+
+        research:
+            The funding of research for high-yielding varieties, relative to its normal level.
+
+        potential_limit:
+            The potential yield that research approaches.
+
+        research_time:
+            The time research takes to reach the limit at its normal funding.
+
+        regeneration_time:
+            The time fallow takes to regenerate the soil.
+
+        degradation:
+            The rate at which chemical fertiliser degrades the soil.
+
+        learning_time:
+            The time training takes to improve the practice.
+
+        training_target:
+            The target coverage of training and extension.
+
+        extension_time:
+            The time the training takes to reach its target.
+
+        bio_target:
+            The target share of bio-fertiliser.
+
+        transition_time:
+            The time the share of bio-fertiliser takes to reach its target.
+
+        intensity_target:
+            The target cropping intensity.
+
+        implementation_time:
+            The time the cropping intensity takes to reach its target.
+
+    Examples:
+        >>> from skcomplex.models.economics.resources import RiceSectorElement
+        >>> RiceSectorElement('rice', subsidy=0.5).subsidy
+        0.5
+    """
 
     def __init__(
         self,
@@ -134,7 +235,16 @@ class RiceSectorElement(Element):
         self.implementation_time = implementation_time
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the rice sector element."""
+        """Return the land flows, the population growth, and the potential, soil, and practice of the sector.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return _rice_laws(s)
 
 
@@ -215,4 +325,27 @@ def food_security(
         training_target=training_target,
         intensity_target=intensity_target,
     )
-    return System(elements=[sector])
+    relaxations = [
+        RelaxationInteraction(
+            'training',
+            target='rice',
+            state='training',
+            goal=lambda s: s.target.training_target,
+            time=lambda s: s.target.extension_time,
+        ),
+        RelaxationInteraction(
+            'bio_fraction',
+            target='rice',
+            state='bio_fraction',
+            goal=lambda s: s.target.bio_target,
+            time=lambda s: s.target.transition_time,
+        ),
+        RelaxationInteraction(
+            'cropping_intensity',
+            target='rice',
+            state='cropping_intensity',
+            goal=lambda s: s.target.intensity_target,
+            time=lambda s: s.target.implementation_time,
+        ),
+    ]
+    return System(elements=[sector], interactions=relaxations)
