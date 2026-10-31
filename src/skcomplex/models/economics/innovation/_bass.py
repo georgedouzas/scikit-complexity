@@ -23,7 +23,32 @@ def _adoption(s: SimpleNamespace) -> list[BaseLaw]:
 
 
 class BassMarketElement(Element):
-    """Bass market element."""
+    """Market of a new product, split into potential adopters and adopters, who adopt by innovation and imitation.
+
+    Args:
+        label:
+            The label of the market.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        P:
+            The potential adopters.
+
+        A:
+            The adopters.
+
+        p:
+            The coefficient of innovation.
+
+        q:
+            The coefficient of imitation.
+
+    Examples:
+        >>> from skcomplex.models.economics.innovation._bass import BassMarketElement
+        >>> BassMarketElement('market', P=900.0, A=100.0).q
+        0.38
+    """
 
     def __init__(
         self,
@@ -42,7 +67,16 @@ class BassMarketElement(Element):
         self.q = q
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the bass market element."""
+        """Return the adoption flow `(p + q A / (P + A)) P` from the potential adopters to the adopters.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The adoption flow, reported as `adoption`.
+        """
         return _adoption(s)
 
 

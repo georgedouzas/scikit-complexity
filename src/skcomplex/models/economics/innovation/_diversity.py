@@ -11,21 +11,44 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, UpdateLaw
+from ....core.interactions import MapInteraction
 from ....core.laws.utils import where
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
-def _new_entities(previous: Expression, current: Expression, r: Expression) -> Expression:
+def _new_entities(s: SimpleNamespace) -> Expression:
     """Return the share of new entities that the new pairs produce, at most the share that does not exist yet."""
-    produced = r * (1 - current) * (current**2 - previous**2)
+    previous, current = s.target.x, s.target.x + s.target.d
+    produced = s.target.r * (1 - current) * (current**2 - previous**2)
     return where(produced < 1 - current, produced, 1 - current)
 
 
 class AdjacentPossibleElement(Element):
-    """Adjacent possible element."""
+    """Combinatorial system of entities, with the share that exists and the share its new pairs can produce.
+
+    Args:
+        label:
+            The label of the system.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The share of existing entities, the diversity.
+
+        d:
+            The share of new entities, the adjacent possible.
+
+        r:
+            The rule density, the number of productive pairs per entity.
+
+    Examples:
+        >>> from skcomplex.models.economics.innovation import AdjacentPossibleElement
+        >>> AdjacentPossibleElement('system', r=2.0).r
+        2.0
+    """
 
     def __init__(
         self,
@@ -40,10 +63,6 @@ class AdjacentPossibleElement(Element):
         self.x = x
         self.d = d
         self.r = r
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the adjacent possible element."""
-        return [UpdateLaw(s.x, s.x + s.d), UpdateLaw(s.d, _new_entities(s.x, s.x + s.d, s.r))]
 
 
 @register_model(
@@ -76,4 +95,10 @@ def creative_phase_transition(x: float = 0.1, *, r: float = 5.0) -> System:
         >>> creative_phase_transition(r=2.0).elements[0].r
         2.0
     """
-    return System(elements=[AdjacentPossibleElement('system', x=x, d=r * x**2 * (1 - x), r=r)])
+    return System(
+        elements=[AdjacentPossibleElement('system', x=x, d=r * x**2 * (1 - x), r=r)],
+        interactions=[
+            MapInteraction('combination', target='system', state='x', function=lambda s: s.target.d, form='increment'),
+            MapInteraction('adjacent_possible', target='system', state='d', function=_new_entities),
+        ],
+    )
