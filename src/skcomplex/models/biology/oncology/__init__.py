@@ -125,6 +125,7 @@ from ._stem_cells import (
     leukaemia_stem_cells,
     stem_cell_differentiation,
 )
+from ._therapy_switch import TherapySwitchInteraction
 
 __all__: list[str] = [
     'AndrogenReceptorProstateElement',
@@ -171,6 +172,7 @@ __all__: list[str] = [
     'SuppressedTumourElement',
     'TamoxifenTumourElement',
     'TcrGeneTherapyElement',
+    'TherapySwitchInteraction',
     'TissueElement',
     'TumourCellElement',
     'TumourElement',
