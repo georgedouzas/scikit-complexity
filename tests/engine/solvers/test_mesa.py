@@ -761,6 +761,13 @@ def test_reference_states_name_members_of_another_group_by_id():
     assert snapshot.values['stall'].tolist() == [2.0, -1.0, 1.0]
 
 
+def test_reference_to_a_group_the_model_lacks_names_no_member():
+    """Test that a reference state names no member when the model has no referenced group."""
+    system = System(elements=[GroupElement('accounts', element=AccountElement, size=2)])
+    snapshot = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_.agents('accounts', 1)
+    assert snapshot.values['seen'].tolist() == [-1.0, -1.0]
+
+
 def test_reference_beyond_the_referenced_group_raises():
     """Test that an initial position beyond the members of the referenced group raises an error."""
     system = System(

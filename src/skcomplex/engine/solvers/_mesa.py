@@ -652,7 +652,7 @@ class AgentView:
         stepper = self._stepper
         path = stepper._reference_of(stepper._spec_of(self._agent), state)
         value = float(getattr(self._agent, state))
-        if value < 0:
+        if value < 0 or path is None:
             return None
         for agent in stepper._group_agents(path):
             if agent.unique_id == int(value):
@@ -964,7 +964,7 @@ class MesaSolver(ExternalSolver):
                 location = network_nodes[index]
             self._create_agent(spec.path, location, values)
 
-    def _reference_of(self, spec: CompiledAgentsSpec, state: str) -> str:
+    def _reference_of(self, spec: CompiledAgentsSpec, state: str) -> str | None:
         """Return the path of the group a reference state of a group names members of.
 
         Args:
@@ -976,7 +976,8 @@ class MesaSolver(ExternalSolver):
 
         Returns:
             path:
-                The path of the referenced group.
+                The path of the referenced group, or `None` when the model has no such group, so the state names no
+                member.
 
         Raises:
             KeyError:
@@ -989,7 +990,10 @@ class MesaSolver(ExternalSolver):
                 '`StateSpec(reference=group)` to read the member it names.'
             )
             raise KeyError(error_msg)
-        return self._resolve_group(declaration.reference, spec.path)
+        try:
+            return self._resolve_group(declaration.reference, spec.path)
+        except SimulationError:
+            return None
 
     def _resolve_references(self, spec: CompiledAgentsSpec) -> None:
         """Turn the initial positions held by the reference states of a group into the ids of the members they name.
@@ -1007,13 +1011,14 @@ class MesaSolver(ExternalSolver):
             if declaration.reference is None:
                 continue
             path = self._reference_of(spec, name)
-            ids = [agent.unique_id for agent in sorted(self._group_agents(path), key=lambda agent: agent.unique_id)]
+            members = sorted(self._group_agents(path), key=lambda agent: agent.unique_id) if path else []
+            ids = [agent.unique_id for agent in members]
             for agent in self._group_agents(spec.path):
                 position = int(float(getattr(agent, name)))
                 if position >= len(ids):
                     error_msg = (
-                        f'The state {name!r} of {spec.path} names the member at position {position} of {path}, '
-                        f'which has {len(ids)} members.'
+                        f'The state {name!r} of {spec.path} names the member at position {position} of '
+                        f'{path or declaration.reference}, which has {len(ids)} members.'
                     )
                     raise SimulationError(error_msg)
                 setattr(agent, name, float(ids[position]) if position >= 0 else -1.0)

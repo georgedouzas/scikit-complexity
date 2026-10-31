@@ -56,9 +56,9 @@ class StateSpec(BaseSpec):
 
         reference:
             The path of the agent group, relative to the element's system, a member of which the state names by its
-            id, or `None`. A negative value names no member. The initial values of the group give the position of the
-            member among the initial members of the referenced group, which the agent stepper turns into its id, and
-            rules read the member with `agent.referenced(state)`.
+            id, or `None`. A negative value names no member, nor does any value in a model without that group. The
+            initial values of the group give the position of the member among the initial members of the referenced
+            group, which the agent stepper turns into its id, and rules read the member with `agent.referenced(state)`.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import oo
