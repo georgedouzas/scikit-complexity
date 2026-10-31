@@ -126,7 +126,7 @@ class FirmElement(Element):
         bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         loan: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         rate: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        partner: Annotated[float, StateSpec(domain=ZZ)] = -1,
+        partner: Annotated[float, StateSpec(domain=ZZ, reference='banks')] = -1,
         gross_return: Annotated[float, StateSpec()] = 0.0,
         injected: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         defaulted: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
@@ -224,8 +224,8 @@ class LenderElement(Element):
     """Bank that lends up to a multiple of its equity at a rate that falls with its equity.
 
     The bank asks the rate `alpha * equity ** -alpha` of Delli Gatti et al. (2010), so better capitalised banks lend
-    cheaper, and it offers loans up to `equity / capital_ratio`. The class attribute `borrowers` names the path of the
-    group of firms whose interest and defaults reach the bank.
+    cheaper, and it offers loans up to `equity / capital_ratio`. The maps of its settlement read the firms bound to
+    their role `sources`, whose interest and defaults reach the bank they name in their reference state `partner`.
 
     Args:
         label:
@@ -260,8 +260,6 @@ class LenderElement(Element):
         >>> GroupElement('banks', element=LenderElement, size=5, values={'equity': 100.0}).size
         5
     """
-
-    borrowers: ClassVar[str] = 'firms'
 
     def __init__(
         self,
@@ -305,11 +303,11 @@ class LenderElement(Element):
             ('losses', lambda agent, model: 0.0),
         )
 
-    @classmethod
-    def _get_borrowers(cls, agent: LenderView, model: ModelView) -> list[FirmView]:
-        """Return the firms that borrowed from a bank in the step."""
-        firms = model.agents(cls.borrowers, FirmView)
-        return [firm for firm in firms if firm.loan > 0 and int(firm.partner) == agent.id]
+    @staticmethod
+    def _get_borrowers(agent: LenderView, model: ModelView) -> list[FirmView]:
+        """Return the firms bound to the role `sources` that borrowed from a bank in the step."""
+        firms = model.agents('sources', FirmView)
+        return [firm for firm in firms if firm.loan > 0 and firm.referenced('partner') is agent]
 
     @staticmethod
     def get_income(agent: LenderView, model: ModelView) -> float:
@@ -556,6 +554,7 @@ def credit_networks(
                 target='banks',
                 state=name,
                 function=function,
+                sources=('firms',),
                 mode='increment',
                 form='agent',
                 phase='settle',
