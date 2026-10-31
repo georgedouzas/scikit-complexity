@@ -8,23 +8,24 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR, oo, sin, vector
+from sage.all__sagemath_symbolics import Expression, cos, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import GradientInteraction, RateInteraction
 from ....core.laws.utils import mod, series, where
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.solvers import EulerMaruyamaSolver
 from ....specs import ParameterSpec, RoleSpec
 from ..._catalog import register_model
-from ._diffusion import BrownianParticleElement
+from ._diffusion import BrownianParticleElement, ThermalNoiseInteraction
 
 
-class TiltedWashboardInteraction(Interaction):
+class TiltedWashboardInteraction(GradientInteraction):
     """Tilted periodic potential `U(x) - f x`, with `U(x) = U0 cos(2 pi x / L)`, on overdamped particles on a line.
+
+    The force divides by the friction `gamma` of the target.
 
     Args:
         label:
@@ -57,30 +58,30 @@ class TiltedWashboardInteraction(Interaction):
         L: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         f: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, states='x', divisor='gamma')
         self.U0 = U0
         self.L = L
         self.f = f
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the drift down the tilted potential.
+    def _get_potential(self, s: SimpleNamespace) -> Expression:
+        """Return the tilted potential `U0 cos(2 pi x / L) - f x`.
 
         Args:
             s:
-                The namespace of the symbols the laws can use.
+                The namespace of the symbols the potential can use.
 
         Returns:
-            laws:
-                The laws of the component.
+            potential:
+                The potential.
         """
-        position = s.target.x
-        force = 2 * math.pi * s.U0 / s.L * sin(2 * math.pi * position[0] / s.L) + s.f
-        return [RateLaw(position, vector(SR, [force / s.target.gamma]))]
+        position = s.target.x[0]
+        return s.U0 * cos(2 * math.pi * position / s.L) - s.f * position
 
 
-class FlashingSawtoothInteraction(Interaction):
+class FlashingSawtoothInteraction(RateInteraction):
     """Sawtooth potential on overdamped particles on a line, turned on and off at given times.
+
+    Its force is the rate of the position, divided by the friction `gamma` of the target.
 
     The potential of period `L` has a minimum at every multiple of `L`, rises linearly by `barrier` over the fraction
     `asymmetry` of the period, and falls back over the rest. It is on from time 0 to the first of the `switches`, off
@@ -121,30 +122,28 @@ class FlashingSawtoothInteraction(Interaction):
         asymmetry: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
         switches: tuple[float, ...] = (),
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, state='x', divisor='gamma')
         self.barrier = barrier
         self.L = L
         self.asymmetry = asymmetry
         self.switches = switches
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the drift down the sawtooth while it is on.
+    def _get_rate(self, namespace: SimpleNamespace) -> object:
+        """Return the force of the sawtooth while it is on.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the rate can use.
 
         Returns:
-            laws:
-                The laws of the component.
+            rate:
+                The force, before the division by the friction.
         """
+        s = namespace
         times = (0.0, *self.switches)
         on = series(s.t, times, [float(index % 2 == 0) for index in range(len(times))], 'previous')
-        position = s.target.x
         rise = s.asymmetry * s.L
-        force = where(mod(position[0], s.L) < rise, -s.barrier / rise, s.barrier / (s.L - rise))
-        return [RateLaw(position, vector(SR, [on * force / s.target.gamma]))]
+        return on * where(mod(s.target.x[0], s.L) < rise, -s.barrier / rise, s.barrier / (s.L - rise))
 
 
 @register_model(
@@ -205,7 +204,8 @@ def tilted_periodic_potential(
         values={'x': np.zeros((n_particles, 1)), 'gamma': gamma, 'temperature': kT},
     )
     washboard = TiltedWashboardInteraction('washboard', target='particles', U0=U0, L=L, f=f)
-    return System(elements=[particles], interactions=[washboard], space=ContinuousSpace(n_dim=1))
+    bath = ThermalNoiseInteraction('bath', target='particles')
+    return System(elements=[particles], interactions=[washboard, bath], space=ContinuousSpace(n_dim=1))
 
 
 @register_model(
@@ -288,4 +288,5 @@ def flashing_ratchet(
         asymmetry=asymmetry,
         switches=tuple(float(time) for time in times[times < duration]),
     )
-    return System(elements=[particles], interactions=[sawtooth], space=ContinuousSpace(n_dim=1))
+    bath = ThermalNoiseInteraction('bath', target='particles')
+    return System(elements=[particles], interactions=[sawtooth, bath], space=ContinuousSpace(n_dim=1))

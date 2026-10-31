@@ -10,12 +10,12 @@ from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, exp, oo, sin, sqrt, vector
+from sage.all__sagemath_symbolics import SR, Expression, exp, oo, sin, sqrt, vector
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
+from ....core.interactions import GradientInteraction, RateInteraction
+from ....core.laws import BaseLaw, BoundaryLaw
 from ....core.laws.utils import pulse_train, where
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
@@ -23,13 +23,16 @@ from ....engine.solvers import EulerMaruyamaSolver
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.particles import LangevinThermostatInteraction, MassPointElement
-from ._brownian import DoubleWellElement
+from ._brownian import DoubleWellElement, _get_double_well_interactions
 
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.05})
 
 
 class BrownianParticleElement(Element):
-    """Overdamped Brownian particle, `dx = F / gamma dt + sqrt(2 temperature / gamma) dW`, pushed by interactions.
+    """Overdamped Brownian particle at the position `x`, with the friction `gamma` and the thermal energy `temperature`.
+
+    The particle moves by `dx = F / gamma dt + sqrt(2 temperature / gamma) dW`, with the thermal noise of
+    `ThermalNoiseInteraction` and the forces of other interactions, which divide by `gamma`.
 
     Args:
         label:
@@ -67,25 +70,53 @@ class BrownianParticleElement(Element):
         self.gamma = gamma
         self.temperature = temperature
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the thermal noise.
+
+class ThermalNoiseInteraction(RateInteraction):
+    """Thermal noise of overdamped particles, the random force `sqrt(2 gamma temperature) dW` divided by `gamma`.
+
+    The friction `gamma` and the thermal energy `temperature` are parameters of the target, so every component of the
+    position diffuses with the coefficient `temperature / gamma`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particle or the group.
+
+        state:
+            The name of the state that holds the positions.
+
+    Examples:
+        >>> from skcomplex.models.physics.soft_matter import ThermalNoiseInteraction
+        >>> ThermalNoiseInteraction('bath', target='beads').divisor
+        'gamma'
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], state: str = 'x') -> None:
+        super().__init__(label, target=target, state=state, divisor='gamma')
+
+    def _get_noise(self, namespace: SimpleNamespace) -> object:
+        """Return the amplitude `sqrt(2 gamma temperature)` of the random force.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the amplitude can use.
 
         Returns:
-            laws:
-                The laws of the component.
+            amplitude:
+                The noise amplitude, before the division by the friction.
         """
-        return [NoiseLaw(s.x, sqrt(2 * s.temperature / s.gamma))]
+        target = namespace.target
+        return sqrt(2 * target.gamma * target.temperature)
 
 
-class OpticalTrapInteraction(Interaction):
-    """Harmonic optical trap on overdamped particles, `F = -k (x - c(t))` with one stiffness per axis.
+class OpticalTrapInteraction(GradientInteraction):
+    """Harmonic optical trap on overdamped particles, the potential `sum_d k_d (x_d - c_d(t))^2 / 2` of every axis.
 
     The center oscillates as `c(t) = amplitude sin(2 pi frequency t)`, and a blinking trap is on for the first
-    `duty` fraction of every `blink_period` and off for the rest.
+    `duty` fraction of every `blink_period` and off for the rest. The force divides by the friction `gamma` of the
+    target.
 
     Args:
         label:
@@ -126,40 +157,42 @@ class OpticalTrapInteraction(Interaction):
         blink_period: float | None = None,
         duty: float = 0.5,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, states='x', divisor='gamma')
         self.k = k
         self.amplitude = amplitude
         self.frequency = frequency
         self.blink_period = blink_period
         self.duty = duty
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the drift towards the center of the trap.
+    def _get_potential(self, namespace: SimpleNamespace) -> Expression:
+        """Return the potential of the trap, switched by the blinking.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the potential can use.
 
         Returns:
-            laws:
-                The laws of the component.
+            potential:
+                The potential.
         """
+        s = namespace
         center = s.amplitude * sin(2 * math.pi * s.frequency * s.t)
         on = 1 if self.blink_period is None else pulse_train(s.t, self.blink_period, self.duty * self.blink_period)
-        position = s.target.x
-        force = vector(
-            SR,
-            [-stiffness * (item - middle) for stiffness, item, middle in zip(s.k, position, center, strict=True)],
+        energy = sum(
+            (
+                stiffness * (item - middle) ** 2 / 2
+                for stiffness, item, middle in zip(s.k, s.target.x, center, strict=True)
+            ),
+            SR(0),
         )
-        return [RateLaw(position, on * force / s.target.gamma)]
+        return on * energy
 
 
-class SpeckleFieldInteraction(Interaction):
+class SpeckleFieldInteraction(GradientInteraction):
     """Random optical speckle field of Gaussian hotspots, which drags particles up its gradient at `u grad(I)`.
 
-    The intensity is `I(x) = sum_i I_i exp(-|x - c_i|^2 / d_i^2)`, with hotspot centers, intensities relative to
-    `strength`, and decay lengths fixed when the field is created.
+    The potential is `-u I(x)`, with the intensity `I(x) = sum_i I_i exp(-|x - c_i|^2 / d_i^2)` of hotspots whose
+    centers, intensities relative to `strength`, and decay lengths are fixed when the field is created.
 
     Args:
         label:
@@ -198,44 +231,68 @@ class SpeckleFieldInteraction(Interaction):
         intensities: tuple[float, ...] = (),
         lengths: tuple[float, ...] = (),
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, states='x')
         self.strength = strength
         self.centers = centers
         self.intensities = intensities
         self.lengths = lengths
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the drift up the intensity gradient.
+    def _get_potential(self, namespace: SimpleNamespace) -> Expression:
+        """Return the potential `-u I(x)` of the speckle field.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the potential can use.
 
         Returns:
-            laws:
-                The laws of the component.
+            potential:
+                The potential.
         """
-        position = s.target.x
+        position = namespace.target.x
         intensity = SR(0)
         for center, height, length in zip(self.centers, self.intensities, self.lengths, strict=True):
             offset = position - vector(SR, center)
             intensity += height * exp(-offset.dot_product(offset) / length**2)
-        return [RateLaw(position, s.strength * vector(SR, [intensity.diff(item) for item in position]))]
+        return -namespace.strength * intensity
 
 
 class ScaledWalkerElement(Element):
-    """Scaled walker element."""
+    """Walker at the position `x` whose diffusion coefficient `K alpha (t + t0)^(alpha - 1)` changes in time.
+
+    Args:
+        label:
+            The label of the walker or the group.
+
+        visual:
+            How the walker is drawn, or `None` for none.
+
+        x:
+            The initial position.
+
+        K:
+            The generalized diffusion coefficient.
+
+        alpha:
+            The anomalous diffusion exponent.
+
+        t0:
+            The time offset of the diffusion coefficient.
+
+    Examples:
+        >>> from skcomplex.models.physics.soft_matter import ScaledWalkerElement
+        >>> ScaledWalkerElement('walker', alpha=1.5).alpha
+        1.5
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec()] = 0.0,
-        K: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        alpha: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        t0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        x: Annotated[float, StateSpec()] = 0.0,
+        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        t0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
@@ -243,17 +300,12 @@ class ScaledWalkerElement(Element):
         self.alpha = alpha
         self.t0 = t0
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the scaled walker element."""
-        return [NoiseLaw(s.x, sqrt(2 * s.K * s.alpha * (s.t + s.t0) ** (s.alpha - 1)))]
-
 
 class ModulatedParticleElement(Element):
-    """Particle in a box `[0, L]` whose noise grows across it, `dx = sigma(x) dW` with `sigma = s0 + ds (x / L - 1/2)`.
+    """Particle at the position `x` in a box `[0, L]` whose walls reflect it.
 
-    The walls reflect the particle at every frame, so frames must be short against the time to cross the box. The
-    stationary density is flat in the anti-Itô convention, as for a particle at
-    thermal equilibrium, `1 / sigma` in the Stratonovich convention, and `1 / sigma^2` in the Itô convention.
+    The noise amplitude `sigma = s0 + ds (x / L - 1/2)` grows across the box. The walls reflect the particle at every
+    frame, so frames must be short against the time to cross the box.
 
     Args:
         label:
@@ -274,9 +326,6 @@ class ModulatedParticleElement(Element):
         L:
             The length of the box.
 
-        convention:
-            The stochastic calculus of the noise, `'ito'`, `'stratonovich'`, or `'anti-ito'`.
-
     Examples:
         >>> from skcomplex.models.physics.soft_matter import ModulatedParticleElement
         >>> ModulatedParticleElement('bead').ds
@@ -292,17 +341,15 @@ class ModulatedParticleElement(Element):
         s0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         ds: Annotated[float, ParameterSpec()] = 1.8,
         L: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        convention: str = 'anti-ito',
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
         self.s0 = s0
         self.ds = ds
         self.L = L
-        self.convention = convention
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the multiplicative noise and the reflecting walls.
+        """Return the reflection of the particle at the walls of the box.
 
         Args:
             s:
@@ -310,11 +357,9 @@ class ModulatedParticleElement(Element):
 
         Returns:
             laws:
-                The laws of the component.
+                The boundary law of the position.
         """
-        reflected = where(s.x < 0, -s.x, where(s.x > s.L, 2 * s.L - s.x, s.x))
-        noise = NoiseLaw(s.x, s.s0 + s.ds * (s.x / s.L - 0.5), convention=self.convention)
-        return [noise, BoundaryLaw(s.x, reflected)]
+        return [BoundaryLaw(s.x, where(s.x < 0, -s.x, where(s.x > s.L, 2 * s.L - s.x, s.x)))]
 
 
 @register_model(
@@ -377,7 +422,7 @@ def brownian_motion(
             size=n_particles,
             values={'x': np.zeros((n_particles, n_dim)), 'gamma': gamma, 'temperature': kT},
         )
-        return System(elements=[beads], space=space)
+        return System(elements=[beads], interactions=[ThermalNoiseInteraction('bath', target='beads')], space=space)
     velocities = np.random.default_rng(random_state).normal(0.0, math.sqrt(kT / m), (n_particles, n_dim))
     beads = GroupElement(
         'beads',
@@ -461,7 +506,8 @@ def optical_trap(
         blink_period=blink_period,
         duty=duty,
     )
-    return System(elements=[beads], interactions=[trap], space=ContinuousSpace(n_dim=n_dim))
+    bath = ThermalNoiseInteraction('bath', target='beads')
+    return System(elements=[beads], interactions=[trap, bath], space=ContinuousSpace(n_dim=n_dim))
 
 
 @register_model(
@@ -507,7 +553,7 @@ def kramers_escape(
         size=n_particles,
         values={'x': positions, 'amplitude': 0.0, 'D': D},
     )
-    return System(elements=[group])
+    return System(elements=[group], interactions=_get_double_well_interactions('particles'))
 
 
 @register_model(
@@ -551,16 +597,22 @@ def multiplicative_noise(
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import multiplicative_noise
-        >>> multiplicative_noise(10, convention='ito').elements[0].values['convention']
+        >>> multiplicative_noise(10, convention='ito').interactions[0].convention
         'ito'
     """
     group = GroupElement(
         'particles',
         element=ModulatedParticleElement,
         size=n_particles,
-        values={'x': L / 2, 's0': s0, 'ds': ds, 'L': L, 'convention': convention},
+        values={'x': L / 2, 's0': s0, 'ds': ds, 'L': L},
     )
-    return System(elements=[group])
+    noise = RateInteraction(
+        'noise',
+        target='particles',
+        noise=lambda s: s.target.s0 + s.target.ds * (s.target.x / s.target.L - 0.5),
+        convention=convention,
+    )
+    return System(elements=[group], interactions=[noise])
 
 
 @register_model(
@@ -610,6 +662,13 @@ def scaled_brownian_motion(
                 element=ScaledWalkerElement,
                 size=n_particles,
                 values={'K': K, 'alpha': alpha, 't0': t0},
+            ),
+        ],
+        interactions=[
+            RateInteraction(
+                'noise',
+                target='walkers',
+                noise=lambda s: sqrt(2 * s.target.K * s.target.alpha * (s.t + s.target.t0) ** (s.target.alpha - 1)),
             ),
         ],
     )
@@ -691,4 +750,5 @@ def diffusion_in_a_speckle_field(
         size=n_particles,
         values={'x': positions, 'gamma': 1.0, 'temperature': D},
     )
-    return System(elements=[beads], interactions=[speckle], space=ContinuousSpace(n_dim=2))
+    bath = ThermalNoiseInteraction('bath', target='beads')
+    return System(elements=[beads], interactions=[speckle, bath], space=ContinuousSpace(n_dim=2))

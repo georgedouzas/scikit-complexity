@@ -20,39 +20,75 @@ from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
-def _frictional_block_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the springs, the Coulomb friction with sticking, and the shaking of a block of the chain."""
-    force = s.k * laplacian(s.x) - s.anchor * s.x
-    moving = abs(s.v) > s.v_stick
-    direction = where(moving, where(s.v > 0, 1, -1), where(force > 0, 1, -1))
-    stuck = both(abs(s.v) <= s.v_stick, abs(force) < s.mu_s)
-    shaking = pulse_train(s.t, s.shake_time + s.relax_time, s.shake_time)
-    return [
-        RateLaw(s.x, where(moving, s.v, 0)),
-        RateLaw(s.v, where(stuck, 0, (force - s.mu_d * direction) / s.m)),
-        NoiseLaw(s.v, s.amplitude * shaking / s.m),
-    ]
-
-
 class FrictionalBlockElement(Element):
-    """Frictional block element."""
+    """Block of a chain on a rough floor, at the position `x` with the velocity `v`, joined to its neighbours.
+
+    The springs of stiffness `k` and an anchor spring pull the block, Coulomb friction holds it while the force stays
+    below `mu_s` and slows it by `mu_d` while it slides, and periodic shaking of amplitude `amplitude` kicks it during
+    the first `shake_time` of every `shake_time + relax_time`.
+
+    Args:
+        label:
+            The label of the block.
+
+        visual:
+            How the block is drawn, or `None` for none.
+
+        x:
+            The initial position.
+
+        v:
+            The initial velocity.
+
+        m:
+            The mass.
+
+        k:
+            The stiffness of the springs between neighbours.
+
+        anchor:
+            The stiffness of the spring to the rest position.
+
+        mu_s:
+            The static friction force.
+
+        mu_d:
+            The dynamic friction force.
+
+        amplitude:
+            The amplitude of the shaking force.
+
+        shake_time:
+            The duration of every shaking.
+
+        relax_time:
+            The time between shakings.
+
+        v_stick:
+            The speed below which the block can stick.
+
+    Examples:
+        >>> from skcomplex.models.physics.soft_matter import FrictionalBlockElement
+        >>> FrictionalBlockElement('block', mu_s=2.0).mu_s
+        2.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec()] = 0.0,
-        v: Annotated[object, StateSpec()] = 0.0,
-        m: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        k: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        anchor: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        mu_s: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        mu_d: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        amplitude: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        shake_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        relax_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 8.0,
-        v_stick: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.02,
+        x: Annotated[float, StateSpec()] = 0.0,
+        v: Annotated[float, StateSpec()] = 0.0,
+        m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        anchor: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        mu_s: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        mu_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        amplitude: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        shake_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        relax_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 8.0,
+        v_stick: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.02,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
@@ -68,8 +104,26 @@ class FrictionalBlockElement(Element):
         self.v_stick = v_stick
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the frictional block element."""
-        return _frictional_block_laws(s)
+        """Return the springs, the Coulomb friction with sticking, and the shaking of the block.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate laws of the position and the velocity, and the noise law of the shaking.
+        """
+        force = s.k * laplacian(s.x) - s.anchor * s.x
+        moving = abs(s.v) > s.v_stick
+        direction = where(moving, where(s.v > 0, 1, -1), where(force > 0, 1, -1))
+        stuck = both(abs(s.v) <= s.v_stick, abs(force) < s.mu_s)
+        shaking = pulse_train(s.t, s.shake_time + s.relax_time, s.shake_time)
+        return [
+            RateLaw(s.x, where(moving, s.v, 0)),
+            RateLaw(s.v, where(stuck, 0, (force - s.mu_d * direction) / s.m)),
+            NoiseLaw(s.v, s.amplitude * shaking / s.m),
+        ]
 
 
 @register_model(

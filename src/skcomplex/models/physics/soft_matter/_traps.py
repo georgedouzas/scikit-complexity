@@ -12,7 +12,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, LocalRuleLaw
+from ....core.interactions import LocalRuleInteraction
 from ....core.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.system import System
 from ....specs import ObservableSpec, StateSpec, VisualSpec
@@ -86,20 +86,6 @@ class TrapSiteElement(Element):
         self.clock = clock
         self.tau = tau
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the deterministic hops of the walkers out of their traps.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        targets = (s.occupied, s.visited, s.clock)
-        return [LocalRuleLaw(targets, ALONG_ROW, _hop, reads=(*targets, s.tau))]
-
 
 def _trap_observables(system: System) -> list[ObservableSpec]:
     """Return the visits, the walkers, and the mean position of the traps."""
@@ -169,4 +155,12 @@ def biased_trap_walk(
         values={'occupied': start, 'visited': start, 'tau': tau},
         visual=VISITED,
     )
-    return System(elements=[traps])
+    hops = LocalRuleInteraction(
+        'hops',
+        target='traps',
+        state=('occupied', 'visited', 'clock'),
+        rule=_hop,
+        neighborhood=ALONG_ROW,
+        reads=('occupied', 'visited', 'clock', 'tau'),
+    )
+    return System(elements=[traps], interactions=[hops])
