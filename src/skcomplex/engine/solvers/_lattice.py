@@ -1,21 +1,21 @@
-"""Solver of lattice dynamics that applies every local rule, drive, relaxation, and extremal law once per step."""
+"""Solver of lattice dynamics that applies every local rule, drive, cascade, and extremal law once per step."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import math
 
-from ...core.laws import BoundaryLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, RelaxationLaw, UpdateLaw
+from ...core.laws import BoundaryLaw, CascadeLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, UpdateLaw
 from ...core.spaces import DiscreteTime, LatticeSpace, NetworkSpace
-from ...specs import RelaxationRecordSpec, RunStateSpec, SupportSpec
+from ...specs import CascadeRecordSpec, RunStateSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind
 from ._solver import Solver
 
 
 class LatticeSolver(Solver):
-    """Solver of lattice dynamics that applies every local rule, drive, relaxation, and extremal law once per step.
+    """Solver of lattice dynamics that applies every local rule, drive, cascade, and extremal law once per step.
 
-    Steps apply in the order the laws are declared, and the boundary laws apply after every step. Relaxations record
+    Steps apply in the order the laws are declared, and the boundary laws apply after every step. Cascades record
     their size, duration, and area as events, and extremal laws record the site and the value of every application.
 
     Examples:
@@ -37,7 +37,7 @@ class LatticeSolver(Solver):
         return SupportSpec(
             time={DiscreteTime},
             space={LatticeSpace, NetworkSpace},
-            laws={LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw, UpdateLaw, BoundaryLaw},
+            laws={LocalRuleLaw, DriveLaw, CascadeLaw, ExtremalLaw, UpdateLaw, BoundaryLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -71,7 +71,7 @@ class LatticeSolver(Solver):
             current = RunStateSpec(float(step + 1), state, p, self.rng_)
             for item in self.problem_.lattice:
                 result = item.run(current).values_
-                if isinstance(result, RelaxationRecordSpec):
+                if isinstance(result, CascadeRecordSpec):
                     self.locator_.records.append(result)
                 elif isinstance(result, list):
                     self.locator_.records.extend(result)

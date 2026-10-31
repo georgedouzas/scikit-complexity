@@ -1,4 +1,4 @@
-"""Define the relaxation record spec."""
+"""Define the cascade record spec."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,12 +9,12 @@ from ._base_record_spec import BaseRecordSpec
 
 
 @dataclass(frozen=True)
-class RelaxationRecordSpec(BaseRecordSpec):
-    """Relaxation of a lattice within one step, such as an avalanche.
+class CascadeRecordSpec(BaseRecordSpec):
+    """Cascade of a lattice within one step, such as an avalanche.
 
     Args:
         label:
-            The label of the relaxation.
+            The label of the cascade.
 
         time:
             The time of the step.
@@ -23,7 +23,7 @@ class RelaxationRecordSpec(BaseRecordSpec):
             The number of site updates.
 
         duration:
-            The number of relaxation iterations.
+            The number of iterations of the cascade.
 
         area:
             The number of distinct sites that changed.

@@ -7,7 +7,7 @@ import pytest
 from sage.all__sagemath_symbolics import ZZ
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
-from skcomplex.core.laws import DriveLaw, LocalRuleLaw, RelaxationLaw, SampleLaw
+from skcomplex.core.laws import CascadeLaw, DriveLaw, LocalRuleLaw, SampleLaw
 from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import (
     BoxNeighborhood,
@@ -377,7 +377,7 @@ def test_relaxation_records_avalanches():
         def _get_laws(self, s):
             """Return the laws of the pile element."""
             return [
-                RelaxationLaw(
+                CascadeLaw(
                     drive=[DriveLaw(s.height, lambda height, *, random: height + (np.arange(height.size) == 2))],
                     relax=[
                         LocalRuleLaw(
@@ -428,7 +428,7 @@ def test_relaxation_without_end_raises():
         def _get_laws(self, s):
             """Return the laws of the restless element."""
             return [
-                RelaxationLaw(
+                CascadeLaw(
                     [],
                     [LocalRuleLaw(s.value, LatticeNeighborhood(((0,),)), lambda value: value + 1)],
                     lambda _: False,
@@ -560,7 +560,7 @@ def _pile(activity, evaluated):
         def _get_laws(self, s):
             """Return the laws of the pile element."""
             return [
-                RelaxationLaw(
+                CascadeLaw(
                     drive=[DriveLaw(s.height, drop)],
                     relax=[LocalRuleLaw(s.height, VonNeumannNeighborhood(center=True), topple)],
                     stable=lambda heights: bool((heights < 4).all()),

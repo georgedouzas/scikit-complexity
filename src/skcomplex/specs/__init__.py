@@ -9,6 +9,7 @@ from ._base_spec import BaseSpec
 from ._base_structure_spec import BaseStructureSpec
 from ._call_spec import CallSpec
 from ._capacity_rows_spec import CapacityRowsSpec
+from ._cascade_record_spec import CascadeRecordSpec
 from ._control_solution_spec import ControlSolutionSpec
 from ._dialect_spec import DialectSpec
 from ._draw_spec import DrawSpec
@@ -46,7 +47,6 @@ from ._phase_spec import PhaseSpec
 from ._phases_schedule_spec import ACTIVATIONS, PhasesScheduleSpec
 from ._read_spec import ReadSpec
 from ._reduction_spec import ReductionSpec
-from ._relaxation_record_spec import RelaxationRecordSpec
 from ._renewal_record_spec import RenewalRecordSpec
 from ._requirement_spec import RequirementSpec
 from ._role_spec import RoleSpec, Spec
@@ -90,6 +90,7 @@ __all__ = [
     'BaseStructureSpec',
     'CallSpec',
     'CapacityRowsSpec',
+    'CascadeRecordSpec',
     'ControlSolutionSpec',
     'DialectSpec',
     'DrawSpec',
@@ -127,7 +128,6 @@ __all__ = [
     'PhasesScheduleSpec',
     'ReadSpec',
     'ReductionSpec',
-    'RelaxationRecordSpec',
     'RenewalRecordSpec',
     'RequirementSpec',
     'RoleSpec',

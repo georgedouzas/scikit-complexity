@@ -6,13 +6,13 @@
 import itertools
 
 from ...core.laws import (
+    CascadeLaw,
     DriveLaw,
     ExtremalLaw,
     JumpLaw,
     LocalRuleLaw,
     NoiseLaw,
     RateLaw,
-    RelaxationLaw,
     RuleLaw,
     SampleLaw,
     UpdateLaw,
@@ -20,7 +20,7 @@ from ...core.laws import (
 from ...types import FormKind
 from ._renewal_law import RenewalLaw
 
-LATTICE_LAWS: tuple[type, ...] = (LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw)
+LATTICE_LAWS: tuple[type, ...] = (LocalRuleLaw, DriveLaw, CascadeLaw, ExtremalLaw)
 STEPWISE_FORMS: dict[frozenset[type], FormKind] = {
     frozenset({RenewalLaw}): FormKind.RENEWAL,
     frozenset({RuleLaw}): FormKind.AGENT,

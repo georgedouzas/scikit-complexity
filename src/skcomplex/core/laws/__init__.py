@@ -5,6 +5,7 @@
 
 from ._base import BaseLaw
 from ._boundary import BoundaryLaw
+from ._cascade import CascadeLaw
 from ._crossing import CrossingLaw
 from ._destruction import DestructionLaw
 from ._dissipator import DissipatorLaw
@@ -22,7 +23,6 @@ from ._match import MatchLaw
 from ._noise import NoiseLaw
 from ._proliferation import ProliferationLaw
 from ._rate import RateLaw
-from ._relaxation import RelaxationLaw
 from ._rule import RuleLaw
 from ._sample import SampleLaw
 from ._transfer import Sink, Source, TransferLaw
@@ -32,6 +32,7 @@ from ._update import UpdateLaw
 __all__: list[str] = [
     'BaseLaw',
     'BoundaryLaw',
+    'CascadeLaw',
     'CrossingLaw',
     'DestructionLaw',
     'DissipatorLaw',
@@ -49,7 +50,6 @@ __all__: list[str] = [
     'NoiseLaw',
     'ProliferationLaw',
     'RateLaw',
-    'RelaxationLaw',
     'RuleLaw',
     'SampleLaw',
     'Sink',

@@ -18,6 +18,7 @@ from numba.core.dispatcher import Dispatcher
 
 from ...core.laws import (
     BoundaryLaw,
+    CascadeLaw,
     CrossingLaw,
     DestructionLaw,
     DissipatorLaw,
@@ -35,7 +36,6 @@ from ...core.laws import (
     NoiseLaw,
     ProliferationLaw,
     RateLaw,
-    RelaxationLaw,
     RuleLaw,
     SampleLaw,
     TransferLaw,
@@ -147,7 +147,7 @@ class NumbaBackend(BaseBackend):
                 NoiseLaw,
                 ProliferationLaw,
                 RateLaw,
-                RelaxationLaw,
+                CascadeLaw,
                 RuleLaw,
                 SampleLaw,
                 TransferLaw,

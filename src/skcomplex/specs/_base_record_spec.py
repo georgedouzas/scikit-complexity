@@ -10,7 +10,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class BaseRecordSpec(BaseSpec):
-    """Base of the records: something that happened at one time of a run, such as an event or a relaxation.
+    """Base of the records: something that happened at one time of a run, such as an event or a cascade.
 
     Every record has the readers `label`, the name of what happened, and `time`, the time it happened at.
     """

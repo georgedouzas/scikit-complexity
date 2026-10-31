@@ -100,6 +100,10 @@ class MonteCarloKernel(BaseKernel):
             return -values
         if self.move.kind == 'random-value':
             return np.asarray(self.move.values)[rng.integers(len(self.move.values), size=values.size)]
+        if self.move.kind == 'gaussian':
+            return values + rng.normal(0.0, self.move.width, size=values.size)
+        if self.move.kind == 'function' and self.move.function is not None:
+            return np.broadcast_to(np.asarray(self.move.function(values.copy(), rng), dtype=float), values.shape)
         return values + rng.uniform(-self.move.width, self.move.width, size=values.size)
 
     def _update(self, x: Array, p: Array, sites: Indices, rng: np.random.Generator) -> None:

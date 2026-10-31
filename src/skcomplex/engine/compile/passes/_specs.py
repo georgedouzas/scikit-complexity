@@ -4,7 +4,7 @@
 # License: MIT
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from types import SimpleNamespace
 
@@ -18,7 +18,7 @@ from ....core.specs import NodeSpec
 from ....errors import LabelError, RoleError, ValidationError
 from ....specs import EntrySpec, WienerProcessSpec
 from ....types import VariableKind
-from ..._utils import declarations_of, domain_of, symbol, vector
+from ..._utils import bound_labels, declarations_of, domain_of, symbol, vector
 from ...problems import (
     BlockSpec,
     DeclarationsSpec,
@@ -275,14 +275,21 @@ class SpecsPass(BasePass):
         entries: object,
         elements: dict[str, BlockSpec],
     ) -> list[tuple[BlockSpec, int | None]]:
-        """Return the blocks and member indices of the entries of a variadic role, in the given order."""
-        if not isinstance(entries, list | tuple):
+        """Return the blocks and member indices of the entries of a variadic role, in the given order.
+
+        An entry is an element path or a group member reference, alone or paired with the name of a state, and the
+        entries may be the keys of a mapping. A role bound to `None` has no entries.
+        """
+        if entries is None:
+            return []
+        labels = bound_labels(entries)
+        if not isinstance(entries, list | tuple | Mapping) or len(labels) != len(entries):
             error_msg = (
                 f'Interaction {node.path} binds its variadic role {role!r} to {entries!r}. Bind a list of element '
-                'paths and group member references.'
+                'paths and group member references, or of pairs of one of them and a state name.'
             )
             raise RoleError(error_msg)
-        return [SpecsPass._resolve_entry(node, role, entry, elements) for entry in entries]
+        return [SpecsPass._resolve_entry(node, role, label, elements) for label in labels]
 
     @staticmethod
     def _entry_namespace(

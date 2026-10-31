@@ -9,7 +9,7 @@ import numpy as np
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..specs import RelaxationRecordSpec
+from ..specs import CascadeRecordSpec
 from ..types import Array, DataKind
 from ._base import BaseAnalysis
 from .types import Source
@@ -39,7 +39,7 @@ class EventAnalysis(BaseAnalysis):
       `threshold` of 0 between two bursts, such as the distance from an invariant manifold of on-off intermittency.
     - `'excursions'`: the excursions of a series above `threshold`, every maximal run of values above it, with the
       profile of every excursion, its values minus the threshold, its size, the sum of the profile, and its duration,
-      the number of its samples. A sequence of records with a `size` and a `duration`, such as the relaxation records
+      the number of its samples. A sequence of records with a `size` and a `duration`, such as the cascade records
       of a lattice, holds excursions already.
     - `'branching'`: the branching ratio of the series by the multistep regression estimator of `mrestimator`, which
       fits `r_k ∝ m^k` to the regression slopes `r_k` of the values `k` steps apart, and stays unbiased when only a
@@ -175,7 +175,7 @@ class EventAnalysis(BaseAnalysis):
                 raise AnalysisError(error_msg)
             self.times_: Array | None = None
             self.values_: Array | None = None
-            self.labels_ = ['relaxations']
+            self.labels_ = ['cascades']
             self.sizes_ = np.asarray([record.size for record in records], dtype=np.float64)
             self.durations_ = np.asarray([record.duration for record in records], dtype=np.float64)
             self.shapes_: list[Array] = []
@@ -270,11 +270,11 @@ class EventAnalysis(BaseAnalysis):
         return clock[ends[complete] - 1] - clock[starts[complete]] + step
 
     @staticmethod
-    def _records(source: object) -> list[RelaxationRecordSpec]:
+    def _records(source: object) -> list[CascadeRecordSpec]:
         """Return the records of excursions of a source, each with a size and a duration, or nothing for values."""
         if isinstance(source, np.ndarray | Trajectory) or not isinstance(source, Sequence):
             return []
-        records = [item for item in source if isinstance(item, RelaxationRecordSpec)]
+        records = [item for item in source if isinstance(item, CascadeRecordSpec)]
         return records if records and len(records) == len(source) else []
 
     @staticmethod

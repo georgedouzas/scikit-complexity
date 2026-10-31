@@ -1,4 +1,4 @@
-"""Relaxation compiled for a lattice, with its drive and relaxation laws."""
+"""Cascade compiled for a lattice, with its drive and the laws that relax it."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,15 +10,15 @@ import numpy.typing as npt
 
 from ...core.specs import LatticeStateSpec
 from ...errors import SolverError
-from ...specs import RelaxationRecordSpec, RunStateSpec
+from ...specs import CascadeRecordSpec, RunStateSpec
 from ...types import Array
 from ._base import BaseKernel
 from ._drive_kernel import DriveKernel
 from ._rule_kernel import RuleKernel
 
 
-class RelaxationKernel(BaseKernel):
-    """Relaxation compiled for a lattice, with its drive and relaxation laws.
+class CascadeKernel(BaseKernel):
+    """Cascade compiled for a lattice, with its drive and the laws that relax it.
 
     Args:
         label:
@@ -37,17 +37,17 @@ class RelaxationKernel(BaseKernel):
             The stability condition on the targets' arrays in lattice shape.
 
         max_iterations:
-            The largest number of relaxation iterations in one step.
+            The largest number of iterations in one step.
 
         activity:
             The function that marks the active sites of an iteration, or `None` to count the sites that change.
 
     Attributes:
         values_:
-            The record of the relaxation of the last run, or `None` when the lattice did not change.
+            The record of the cascade of the last run, or `None` when the lattice did not change.
     """
 
-    values_: RelaxationRecordSpec | None
+    values_: CascadeRecordSpec | None
 
     def __init__(
         self,
@@ -77,7 +77,7 @@ class RelaxationKernel(BaseKernel):
         return bool(self.stable(*self._arrays(x)))
 
     def _run(self, inputs: RunStateSpec | None) -> None:
-        """Apply the drive, then relax until stable, and set the record of a relaxation that changed the lattice.
+        """Apply the drive, then relax until stable, and set the record of a cascade that changed the lattice.
 
         The state vector of the state is updated in place, and the record holds the time of the state.
 
@@ -87,8 +87,8 @@ class RelaxationKernel(BaseKernel):
         """
         self.values_ = self._relax(self._state_of(inputs))
 
-    def _relax(self, state: RunStateSpec) -> RelaxationRecordSpec | None:
-        """Apply the drive, then relax until stable, and return the record of a relaxation that changed the lattice.
+    def _relax(self, state: RunStateSpec) -> CascadeRecordSpec | None:
+        """Apply the drive, then relax until stable, and return the record of a cascade that changed the lattice.
 
         Args:
             state:
@@ -96,7 +96,7 @@ class RelaxationKernel(BaseKernel):
 
         Returns:
             record:
-                The record of the relaxation, or `None` when the lattice did not change.
+                The record of the cascade, or `None` when the lattice did not change.
 
         Raises:
             SolverError:
@@ -111,7 +111,7 @@ class RelaxationKernel(BaseKernel):
         while not self._is_stable(x):
             if duration >= self.max_iterations:
                 error_msg = (
-                    f'The relaxation {self.label} is not stable after {self.max_iterations} iterations. Check its '
+                    f'The cascade {self.label} is not stable after {self.max_iterations} iterations. Check its '
                     'stability condition or raise max_iterations.'
                 )
                 raise SolverError(error_msg)
@@ -131,4 +131,4 @@ class RelaxationKernel(BaseKernel):
         if not duration:
             return None
         area = int(changed.sum()) if changed is not None else 0
-        return RelaxationRecordSpec(self.label, time, size, duration, area)
+        return CascadeRecordSpec(self.label, time, size, duration, area)

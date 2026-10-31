@@ -11,7 +11,7 @@ from ....core.interactions import BaseInteraction
 from ....core.laws import MatchLaw, RuleLaw
 from ....core.specs import NodeSpec
 from ....types import VariableKind
-from ..._utils import declarations_of
+from ..._utils import bound_labels, declarations_of
 from .._base import BasePass
 from .._compilation import Compilation
 from .._probe import probe_laws
@@ -54,8 +54,7 @@ class AgentsPass(BasePass):
         """Return the paths of the components the roles of an interaction bind, without member indices."""
         paths = set()
         for name in declarations_of(type(node.component), VariableKind.ROLE):
-            value = getattr(node.component, name)
-            for item in [value] if isinstance(value, str) else value if isinstance(value, list | tuple) else ():
+            for item in bound_labels(getattr(node.component, name)):
                 paths.add(_MEMBER_SUFFIX.sub('', f'{node.scope}{item}'))
         return paths
 

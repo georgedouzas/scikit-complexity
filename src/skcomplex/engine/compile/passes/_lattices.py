@@ -1,4 +1,4 @@
-"""Compile the laws of lattices: local rules, drives, relaxations, extremal updates, and Monte Carlo sampling."""
+"""Compile the laws of lattices: local rules, drives, cascades, extremal updates, and Monte Carlo sampling."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +13,7 @@ import numba
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....core.laws import BaseLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, RelaxationLaw, SampleLaw
+from ....core.laws import BaseLaw, CascadeLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, SampleLaw
 from ....core.laws.utils import neighborhoods_in
 from ....core.spaces import (
     AdjacencyNeighborhood,
@@ -40,10 +40,10 @@ from ....specs import (
 from ....types import Array, Indices
 from ..._utils import symbol
 from ...problems import DeclarationsSpec, ExpressionPrinter, KernelSpec, SourceLoader
+from ...problems._cascade_kernel import CascadeKernel
 from ...problems._drive_kernel import DriveKernel
 from ...problems._extremal_kernel import ExtremalKernel
 from ...problems._monte_carlo_kernel import MonteCarloKernel
-from ...problems._relaxation_kernel import RelaxationKernel
 from ...problems._rule_kernel import RuleKernel
 from ...types import ReadKind
 from .._base import BaseCompiler, BasePass
@@ -52,11 +52,11 @@ from .._laws import LATTICE_LAWS
 
 _COLORING_STRATEGY = 'largest_first'
 
-type LatticeStep = RuleKernel | DriveKernel | RelaxationKernel | MonteCarloKernel | ExtremalKernel
+type LatticeStep = RuleKernel | DriveKernel | CascadeKernel | MonteCarloKernel | ExtremalKernel
 
 
 class LatticeProblemPass(BasePass):
-    """Pass that adds the steps of local rules, drives, relaxations, extremal updates, and Monte Carlo sampling."""
+    """Pass that adds the steps of local rules, drives, cascades, extremal updates, and Monte Carlo sampling."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -153,8 +153,8 @@ class LatticeProblemPass(BasePass):
             return LatticeProblemPass._compile_rule(law, context)
         if isinstance(law, DriveLaw):
             return LatticeProblemPass._compile_drive(law, context)
-        if isinstance(law, RelaxationLaw):
-            return LatticeProblemPass._compile_relaxation(law, context)
+        if isinstance(law, CascadeLaw):
+            return LatticeProblemPass._compile_cascade(law, context)
         if isinstance(law, ExtremalLaw):
             return LatticeProblemPass._compile_extremal(law, context)
         if isinstance(law, SampleLaw):
@@ -167,7 +167,7 @@ class LatticeProblemPass(BasePass):
         declarations: DeclarationsSpec,
         fused: bool,
     ) -> tuple[LatticeStep, ...]:
-        """Return the steps of local rules, drives, relaxations, extremal laws, and samples in declaration order."""
+        """Return the steps of local rules, drives, cascades, extremal laws, and samples in declaration order."""
         steps: list[LatticeStep] = []
         for spec, laws in specs:
             if not any(isinstance(law, LATTICE_LAWS) for law in laws):
@@ -542,38 +542,38 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _compile_part(law: object, context: LatticeContextSpec) -> RuleKernel | DriveKernel:
-        """Return a law of a relaxation compiled."""
+        """Return a law of a cascade compiled."""
         if isinstance(law, LocalRuleLaw):
             return LatticeProblemPass._compile_rule(law, context)
         if isinstance(law, DriveLaw):
             return LatticeProblemPass._compile_drive(law, context)
-        error_msg = f'A relaxation of {context.owner} holds {law!r}, which is not a local rule or a drive.'
+        error_msg = f'A cascade of {context.owner} holds {law!r}, which is not a local rule or a drive.'
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _compile_relaxation(law: RelaxationLaw, context: LatticeContextSpec) -> RelaxationKernel:
-        """Return a relaxation compiled for its lattice.
+    def _compile_cascade(law: CascadeLaw, context: LatticeContextSpec) -> CascadeKernel:
+        """Return a cascade compiled for its lattice.
 
         Args:
             law:
-                The relaxation.
+                The cascade.
 
             context:
                 The lattice states and symbols of its component.
 
         Returns:
-            relaxation:
-                The compiled relaxation.
+            cascade:
+                The compiled cascade.
         """
         if not law.relax:
-            error_msg = f'A relaxation of {context.owner} has no relaxation laws.'
+            error_msg = f'A cascade of {context.owner} has no laws to relax with.'
             raise ValidationError(error_msg)
         return (
-            RelaxationKernel(
+            CascadeKernel(
                 law.label or context.owner,
                 tuple(LatticeProblemPass._compile_part(item, context) for item in law.drive),
                 tuple(LatticeProblemPass._compile_part(item, context) for item in law.relax),
-                tuple(LatticeProblemPass._lattice_state(context, item, 'A relaxation') for item in law._get_targets()),
+                tuple(LatticeProblemPass._lattice_state(context, item, "A cascade") for item in law._get_targets()),
                 law.stable,
                 max_iterations=int(law.max_iterations),
                 activity=law.activity,
@@ -661,9 +661,10 @@ class LatticeProblemPass(BasePass):
         """
         owner = f'The Monte Carlo laws of {context.owner}'
         target = LatticeProblemPass._lattice_state(context, move.target, 'A move')
-        if sampler.kind == 'heat-bath' and move.kind == 'rotate':
+        if sampler.kind == 'heat-bath' and move.kind in {'rotate', 'gaussian', 'function'}:
             error_msg = (
-                f'{owner} use a heat-bath sampler with a rotation, which has no finite set of values to draw from.'
+                f'{owner} use a heat-bath sampler with a {move.kind} move, which has no finite set of values to draw '
+                'from.'
             )
             raise ValidationError(error_msg)
         space = target.space

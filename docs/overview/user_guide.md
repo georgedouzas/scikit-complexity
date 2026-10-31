@@ -172,7 +172,7 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.ecology import PopulationElement
 
 
-class ThresholdInteraction(Interaction):
+class CullInteraction(Interaction):
     def __init__(self, label, *, target: Annotated[str, RoleSpec()]):
         super().__init__(label)
         self.target = target
@@ -184,7 +184,7 @@ class ThresholdInteraction(Interaction):
 
 culled = System(
     elements=[PopulationElement('deer', n=60.0)],
-    interactions=[ThresholdInteraction('cull', target='deer')],
+    interactions=[CullInteraction('cull', target='deer')],
 )
 print(round(float(Simulation(culled, dt=1.0).check().prepare().run(until=20).trajectory_.values('deer.n')[-1])))
 ```
@@ -1527,7 +1527,7 @@ visuals are parts of the engine, beside those of every other kind.
 | Kind | Core | Engine |
 | --- | --- | --- |
 | agents | `RuleLaw`, `MatchLaw` | the agents passes, `MesaSolver` |
-| lattices | `LocalRuleLaw`, `DriveLaw`, `RelaxationLaw`, `ExtremalLaw`, `LatticeElement`, `LatticeSpace`, `EnergySpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
+| lattices | `LocalRuleLaw`, `DriveLaw`, `CascadeLaw`, `ExtremalLaw`, `LatticeElement`, `LatticeSpace`, `EnergySpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
 | finitely generated groups | `CayleySpace` | `CayleyVisual` |
 | rewriting, in `skcomplex.models.mathematics.fractals` | `ProductionLaw`, `SubstitutionLaw`, `WordElement`, `PatchElement` | `RewritingCompiler`, `RewritingSolver`, `GeometryVisual` |
 | quantum | `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec` | a system compiler, `UnitarySolver`, `LindbladSolver`, `QuantumTrajectoriesSolver` |
@@ -2150,9 +2150,9 @@ print(np.array_equal(trajectory.lattice('cells.alive')[-1], np.roll(glider, (1, 
   the states in lattice shape.
 - `DriveLaw(target, function)` changes a whole lattice at once, such as dropping a grain on a random site.
 
-**Relaxation.** `RelaxationLaw(drive, relax, stable)` separates a slow drive from a fast relaxation, as in
+**Cascades.** `CascadeLaw(drive, relax, stable)` separates a slow drive from a fast cascade, as in
 self-organised criticality. Every step applies the drive laws once and the relax laws until `stable` holds, and each
-relaxation is recorded among the trajectory's events with its size, duration, and area. `activity` marks the sites
+cascade is recorded among the trajectory's events with its size, duration, and area. `activity` marks the sites
 that count as updates, such as the toppling sites of a sandpile.
 
 ```python

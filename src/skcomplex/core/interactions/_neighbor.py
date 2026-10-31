@@ -27,7 +27,7 @@ class NeighborInteraction(BaseInteraction):
     reductions, only one end is a law of that end's member, and runs once per member rather than once per edge. Inside
     its reductions the other end stands for the other members of the group, so
     `mean(f(namespace.source.x, namespace.target.x), over=namespace.source)` is the mean of `f` over every member for
-    the target. Relaxation, drive, and local rule laws are laws of the members, and a relaxation records its cascades
+    the target. Cascade, drive, and local rule laws are laws of the members, and a cascade records its cascades
     as events.
 
     Args:

@@ -46,7 +46,7 @@ class FrameSpec(BaseSpec):
             A mapping from observable path to its value at this frame.
 
         events:
-            The events, relaxations, and renewals since the previous frame, in order.
+            The events, cascades, and renewals since the previous frame, in order.
 
         structures:
             A mapping from the path of a rewritten element to its word or patch at this frame.
