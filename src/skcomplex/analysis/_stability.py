@@ -423,7 +423,11 @@ class StabilityAnalysis(BaseAnalysis):
         """Return the interactions of a system whose every role binds one field, or raise an error for another."""
         bound = []
         for interaction in system.interactions:
-            roles = declarations_of(type(interaction), VariableKind.ROLE)
+            roles = [
+                name
+                for name in declarations_of(type(interaction), VariableKind.ROLE)
+                if getattr(interaction, name) is not None
+            ]
             if not roles or any(getattr(interaction, name) != field.label for name in roles):
                 error_msg = f'The interaction {interaction.label} binds a part other than the field {field.label}.'
                 raise AnalysisError(error_msg)

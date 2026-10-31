@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from enum import StrEnum
 
 import numpy as np
@@ -22,6 +22,7 @@ type Pair = tuple[int, int]
 type VectorFunction = Callable[[float, Array, Array], Array]
 type ProcessKey = tuple[str, str, str | int]
 type Preference = Callable[[object, object], float]
+type Stoichiometry = Mapping[tuple[str, str] | str, float]
 
 
 class DataKind(StrEnum):

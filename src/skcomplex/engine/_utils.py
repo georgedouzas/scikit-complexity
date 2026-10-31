@@ -116,7 +116,7 @@ def bound_labels(value: object) -> list[str]:
 
     A role binds one label, a sequence of labels, or the entries of a variadic role. An entry is a label, or a pair of
     a label and the name of a state, and the entries may be the keys of a mapping, such as the coefficients of a
-    reaction.
+    reaction. A key of a mapping that is a name alone is a state of the element another role binds, not a label.
 
     Args:
         value:
@@ -128,12 +128,16 @@ def bound_labels(value: object) -> list[str]:
 
     Examples:
         >>> from skcomplex.engine._utils import bound_labels
-        >>> bound_labels({('cell', 'u'): 2.0, 'tank': 1.0})
+        >>> bound_labels({('cell', 'u'): 2.0, 'v': 1.0})
+        ['cell']
+        >>> bound_labels(['cell', 'tank'])
         ['cell', 'tank']
     """
     if isinstance(value, str):
         return [value]
-    entries = list(value) if isinstance(value, Mapping | list | tuple) else []
+    if isinstance(value, Mapping):
+        return [entry[0] for entry in value if isinstance(entry, tuple) and entry and isinstance(entry[0], str)]
+    entries = list(value) if isinstance(value, list | tuple) else []
     labels = [entry[0] if isinstance(entry, tuple) and entry else entry for entry in entries]
     return [label for label in labels if isinstance(label, str)]
 

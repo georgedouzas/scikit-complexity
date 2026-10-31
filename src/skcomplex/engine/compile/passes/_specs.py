@@ -278,12 +278,15 @@ class SpecsPass(BasePass):
         """Return the blocks and member indices of the entries of a variadic role, in the given order.
 
         An entry is an element path or a group member reference, alone or paired with the name of a state, and the
-        entries may be the keys of a mapping. A role bound to `None` has no entries.
+        entries may be the keys of a mapping, where a state name alone names a state of another role and binds nothing.
+        A role bound to `None` has no entries.
         """
         if entries is None:
             return []
         labels = bound_labels(entries)
-        if not isinstance(entries, list | tuple | Mapping) or len(labels) != len(entries):
+        if isinstance(entries, Mapping):
+            entries = [entry for entry in entries if not isinstance(entry, str)]
+        if not isinstance(entries, list | tuple) or len(labels) != len(entries):
             error_msg = (
                 f'Interaction {node.path} binds its variadic role {role!r} to {entries!r}. Bind a list of element '
                 'paths and group member references, or of pairs of one of them and a state name.'
@@ -736,7 +739,7 @@ class SpecsPass(BasePass):
         labels = {
             role: getattr(node.component, role)
             for role, declaration in declared.items()
-            if not (declaration.noise and getattr(node.component, role) is None)
+            if declaration.variadic or getattr(node.component, role) is not None
         }
         variadic = {
             role: SpecsPass._resolve_entries(node, role, labels[role], elements)
