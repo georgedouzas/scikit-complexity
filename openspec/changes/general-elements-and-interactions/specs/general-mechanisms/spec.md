@@ -194,6 +194,19 @@ rewire nodes and edges.
 - **WHEN** a ride-sharing model matches riders with idle cars by `StableMatchingSpec`
 - **THEN** it uses `MatchingInteraction`, and no rider and car prefer each other to their matches
 
+#### Scenario: Life cycle variants
+- **WHEN** a life cycle gives births into another group with values of the parent, keeps a share of a split state,
+  replaces parents by their offspring, renews dying agents in place, removes kin of another group, or brings arrivals
+  without a parent at placed locations
+- **THEN** the new agents join the named group with the given values, the parent keeps that share, a parent that gave
+  birth is gone, a renewed agent keeps its identity and the states the new values leave out, the first kin member is
+  removed, and a Poisson number of arrivals of the given mean appear, with the counts reported as `births`, `deaths`,
+  and `arrivals`
+
+#### Scenario: Growth from outside a network
+- **WHEN** a `TopologyInteraction` adds nodes without a target, with values drawn from the generator
+- **THEN** one node joins per step with its edges, as in Barabási-Albert growth, and every new node takes its own draw
+
 #### Scenario: Galam groups
 - **WHEN** the Galam discussion model draws groups of three every step
 - **THEN** it uses `GroupingInteraction`, and the majority of every group wins as before the change

@@ -238,8 +238,8 @@ class TopologyKernel(BaseKernel):
         """Join a node to new ends drawn by the weights of a request, with the values of an edge request."""
         request, network = item.request, item.network
         allowed = self._allowed(item, end, p)
-        values = dict(request.values) if request.kind == 'add-edge' else {}
         for other in self._draw(self._weights(item, t, x, p), allowed, request.edges, rng):
+            values = self._initial_values(request, rng) if request.kind == 'add-edge' else {}
             self._add_edge(network, request.layer, (end, other), x, p, values=values)
 
     def _rewire(
@@ -283,7 +283,7 @@ class TopologyKernel(BaseKernel):
             return
         kind = request.kind
         if kind == 'add-node':
-            node = self._add_node(network, x, p, dict(request.values))
+            node = self._add_node(network, x, p, self._initial_values(request, rng))
             self._join(item, node, t, x, p, rng=rng)
         elif kind == 'add-edge':
             self._join(item, row, t, x, p, rng=rng)
@@ -293,6 +293,11 @@ class TopologyKernel(BaseKernel):
             self._clear(network.edges[request.layer], row, p)
         else:
             self._rewire(item, row, t, x, p, rng=rng)
+
+    @staticmethod
+    def _initial_values(request: TopologyRequestSpec, rng: np.random.Generator) -> dict[str, object]:
+        """Return the values of a new node or edge of a request, drawing those given as functions of the generator."""
+        return {name: value(rng) if callable(value) else value for name, value in request.values}
 
     @staticmethod
     def _write(group: CapacityRowsSpec, row: int, x: Array, p: Array, values: Mapping[str, object]) -> None:

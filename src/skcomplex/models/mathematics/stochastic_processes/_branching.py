@@ -4,23 +4,21 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import LifeCycleInteraction
 from ....core.system import System
-from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._individual_view import IndividualView
 
 
 class IndividualElement(Element):
-    """Individual of a Galton-Watson process, replaced in the next generation by a Poisson number of offspring.
+    """Individual of a Galton-Watson process, which the life cycle of the model replaces by its offspring.
 
     Args:
         label:
@@ -59,33 +57,6 @@ class IndividualElement(Element):
         """Return the view of the agents, which types their states and parameters."""
         return IndividualView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the reproduction rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.reproduce)]
-
-    def reproduce(self, agent: IndividualView, model: ModelView) -> None:
-        """Create the offspring of the individual and remove it.
-
-        Args:
-            agent:
-                The individual.
-
-            model:
-                The model.
-        """
-        for _ in range(int(model.rng.poisson(agent.m))):
-            agent.create(generation=agent.generation + 1)
-        agent.remove()
-
 
 @register_model(
     field='mathematics/stochastic_processes',
@@ -118,5 +89,15 @@ def galton_watson(n_individuals: int = 10, *, m: float = 1.0) -> System:
     return System(
         elements=[
             GroupElement('population', element=IndividualElement, size=n_individuals, values={'m': m}, variable=True),
+        ],
+        interactions=[
+            LifeCycleInteraction(
+                'reproduction',
+                target='population',
+                birth=1.0,
+                offspring=lambda agent, model: int(model.rng.poisson(agent.m)),
+                values=lambda agent, model: {'generation': agent.generation + 1},
+                replace=True,
+            ),
         ],
     )

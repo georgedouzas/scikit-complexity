@@ -45,8 +45,9 @@ class TopologyRequestSpec(BaseSpec):
             The layer whose edges the request changes, or `None` for the graph of the network.
 
         values:
-            The initial states of a new node or edge as pairs of a state name and a value, which default to the
-            defaults of the element type.
+            The initial states of a new node or edge as pairs of a state name and a value, or a function of the
+            random number generator that draws the value for every new node or edge, which default to the defaults of
+            the element type.
 
     Examples:
         >>> from skcomplex.core.laws import UpdateLaw
