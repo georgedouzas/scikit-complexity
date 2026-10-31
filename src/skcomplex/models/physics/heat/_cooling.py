@@ -3,40 +3,56 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import RelaxationInteraction
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
 class CoffeeCupElement(Element):
-    """Coffee cup element."""
+    """Cup of coffee at the temperature `T` in a room at the temperature `room`, exchanging heat at the rate `k`.
+
+    Args:
+        label:
+            The label of the cup.
+
+        visual:
+            How the cup is drawn, or `None` for none.
+
+        T:
+            The initial temperature of the coffee.
+
+        room:
+            The temperature of the room.
+
+        k:
+            The rate of heat exchange.
+
+    Examples:
+        >>> from skcomplex.models.physics.heat import CoffeeCupElement
+        >>> CoffeeCupElement('coffee', k=0.2).k
+        0.2
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        T: Annotated[object, StateSpec()] = 90.0,
-        room: Annotated[object, ParameterSpec()] = 20.0,
-        k: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        T: Annotated[float, StateSpec()] = 90.0,
+        room: Annotated[float, ParameterSpec()] = 20.0,
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
         super().__init__(label, visual=visual)
         self.T = T
         self.room = room
         self.k = k
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the coffee cup element."""
-        return [RateLaw(s.T, -s.k * (s.T - s.room))]
 
 
 @register_model(
@@ -70,4 +86,11 @@ def cooling_coffee(T: float = 90.0, *, room: float = 20.0, k: float = 0.1) -> Sy
         >>> cooling_coffee(T=5.0).elements[0].T
         5.0
     """
-    return System(elements=[CoffeeCupElement('coffee', T=T, room=room, k=k)])
+    cooling = RelaxationInteraction(
+        'cooling',
+        target='coffee',
+        state='T',
+        goal=lambda s: s.target.room,
+        time=lambda s: 1 / s.target.k,
+    )
+    return System(elements=[CoffeeCupElement('coffee', T=T, room=room, k=k)], interactions=[cooling])
