@@ -7,10 +7,7 @@ from ._element import Element
 from ._field import FieldElement
 from ._group import GroupElement
 from ._lattice import LatticeElement
-from ._logistic_map import LogisticMapElement
 from ._particle import ParticleElement
-from ._stuart_landau import StuartLandauElement
-from ._van_der_pol import VanDerPolElement
 
 __all__: list[str] = [
     'BaseElement',
@@ -20,8 +17,5 @@ __all__: list[str] = [
     'FieldElement',
     'GroupElement',
     'LatticeElement',
-    'LogisticMapElement',
     'ParticleElement',
-    'StuartLandauElement',
-    'VanDerPolElement',
 ]

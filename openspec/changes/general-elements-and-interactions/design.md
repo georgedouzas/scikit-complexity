@@ -44,8 +44,8 @@ the states it reads and writes as constructor arguments. Each is a subclass of t
 - `PairInteraction`: pair force, alignment within a radius.
 - `HyperedgeInteraction`: group mechanisms.
 
-Elements are added only where several fields declare the same states or equation: `DensityElement`,
-`CompartmentElement`, `StuartLandauElement`, `VanDerPolElement`, and `LogisticMapElement`. A model that needs other states keeps its own element and binds the core interactions to it.
+Elements are added only where several fields declare the same states: `DensityElement`
+and `CompartmentElement`. A model that needs other states keeps its own element and binds the core interactions to it.
 
 Alternative considered: mechanisms as elements with built-in laws, such as a `WalkerElement`. Rejected, because a
 model then cannot combine two mechanisms on one element without multiple inheritance.
@@ -125,12 +125,10 @@ compilation supports it. If it does not, that model keeps its `RuleLaw` and the 
 mechanism to the space in this change.
 
 ### Duplicates resolve by reach
-- An equation that more than one field uses goes to the core under its mathematical name:
-  - `StuartLandauElement`, which `HopfElement` and `MeanFieldAmplitudeElement` become;
-  - `VanDerPolElement`, for the physics oscillators and the ice-age model of earth;
-  - `LogisticMapElement`, for the mathematics map and the physics logistic units and nodes, removing the copied
-    `_logistic` helper.
-- An equation that one field uses twice goes to that field's `common` package. FitzHugh-Nagumo moves to
+- A named equation, such as Stuart-Landau, Van der Pol, or the logistic map, is a realization, not a core primitive.
+  Each field keeps its own class, since a field never imports another field's package.
+- An equation that one field uses twice goes to that field's `common` package, or stays next to its one user. The
+  physics Stuart-Landau copies become one in `physics/common`. FitzHugh-Nagumo moves to
   `biology/common/excitable`.
 - The meadow and commons models keep their elements and use the core foraging and regrowth.
 - Both `ExponentialGrowthInteraction` classes become `GrowthInteraction(form='exponential')`.

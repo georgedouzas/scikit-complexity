@@ -67,10 +67,10 @@ reset the state, or redistribute it to its neighbours, and SHALL record every ca
 
 ### Requirement: Choices by a rule
 `ChoiceInteraction` SHALL set a discrete state of every member to one of its options, drawn from the utilities of the
-options by the rule `'logit'`, `'heat_bath'`, `'metropolis'`, or `'fermi'`, with an intensity of choice.
+options by the rule `'logit'`, which is the heat-bath rule, `'metropolis'`, or `'fermi'`, with an intensity of choice.
 
 #### Scenario: Glauber dynamics
-- **WHEN** fully connected spins choose by the heat-bath rule at inverse temperature 2
+- **WHEN** fully connected spins choose by the logit rule at inverse temperature 2
 - **THEN** the magnetization approaches the mean-field solution of `m = tanh(2 m)`
 
 ### Requirement: Imitation of neighbours
@@ -168,14 +168,13 @@ networks with hyperedges.
 - **WHEN** the Galam discussion model runs with groups of three
 - **THEN** its groups are hyperedges of a network, and the majority of every group wins as before the change
 
-### Requirement: One class per equation
-Every equation SHALL be defined once: by the core when models of more than one field use it, and otherwise by the
-`common` package of its field. `StuartLandauElement`, `VanDerPolElement`, and `LogisticMapElement` SHALL live in the
-core.
+### Requirement: One class per equation within a field
+A named equation SHALL be a realization of a field, never a core class. Within one field it SHALL be defined once, in
+the `common` package of the field when several of its packages use it, and next to its model otherwise.
 
-#### Scenario: Stuart-Landau once
-- **WHEN** the amplitude-death, oscillator, and Hopf normal-form models run
-- **THEN** all three use the core `StuartLandauElement`, and no model module defines another
+#### Scenario: Stuart-Landau once in physics
+- **WHEN** the physics amplitude-death and oscillator models run
+- **THEN** both use one `StuartLandauElement` of `physics/common`, and the core defines none
 
 ### Requirement: Neighbour interactions carry member laws, degrees, delays, and cascades
 `NeighborInteraction` SHALL take laws of the members at either end of an edge that run once per member, SHALL offer

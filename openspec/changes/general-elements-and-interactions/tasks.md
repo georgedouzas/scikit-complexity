@@ -13,13 +13,13 @@
 - [ ] 1.6 Add `SpreadingInteraction` over neighbours, with recovery and loss of immunity; verify the contact process dies out below and survives above its critical rate on a square lattice.
 - [ ] 1.7 Add `CouplingInteraction` with a coupling function, lag, delay, and mean field; verify Kuramoto order above 0.8 for 500 oscillators above the critical strength on a complete graph, and the delayed and lagged variants against their reference tests.
 - [ ] 1.8 Add `ThresholdInteraction` with reset and redistribution, recording cascades as events; verify sandpile avalanche sizes follow a power law over two decades on a 50 by 50 lattice.
-- [x] 1.9 Add `ChoiceInteraction` with the rules `'logit'`, `'heat_bath'`, `'metropolis'`, and `'fermi'`; verify heat-bath fully connected spins approach `m = tanh(2 m)`, and logit probabilities against `exp(beta u) / sum`.
+- [x] 1.9 Add `ChoiceInteraction` with the rules `'logit'`, `'metropolis'`, and `'fermi'`, where logit is the heat-bath rule; verify logit fully connected spins approach `m = tanh(2 m)`, and logit probabilities against `exp(beta u) / sum`.
 - [ ] 1.10 Add `ImitationInteraction` with the rules `'random'`, `'majority'`, and `'best'`; verify voter consensus on a ring of 50, with the winning probability equal to the initial fraction over 200 runs.
 - [ ] 1.11 Add `ForagingInteraction` and `RegrowthInteraction`; verify energy gain, metabolism, splitting reproduction, death at zero energy, and regrowth by delay and towards a capacity in unit tests.
 - [ ] 1.12 Add `OrnsteinUhlenbeckInteraction`, additive and multiplicative; verify the stationary variance `sigma**2 / (2 theta)` within 5 percent, and the log-normal mean of the geometric case.
 - [ ] 1.13 Add `AlignmentInteraction`, polar and nematic, with noise and repulsion and attraction zones; verify Vicsek polar order above 0.9 at low noise.
 - [x] 1.14 Add `EvolutionInteraction` with tournament and roulette selection, crossover, and mutation over an alphabet or Gaussian, as private methods that replace `evolve`; verify the mean fitness rises on the count of ones over 50 generations and two runs with one seed agree.
-- [ ] 1.15 Add `StuartLandauElement`, `VanDerPolElement`, and `LogisticMapElement`; verify each against its reference trajectory (limit-cycle radius, relaxation period, and the logistic map's period doubling at `r = 3`).
+- [x] 1.15 Keep named equations out of the core: no `StuartLandauElement`, `VanDerPolElement`, or `LogisticMapElement` in `skcomplex.core`; verify `skcomplex.core.elements.__all__` names none of them.
 - [ ] 1.16 Export every new class from its package, and verify the field-term test and `tests/test_types.py` pass with every new name.
 
 ## 2. Forces and potentials
@@ -53,7 +53,7 @@ Each task rewrites the classes of one cluster in `inventory.md` to the core clas
 - [ ] 4.12 Rewrite cluster 12, class densities, to `DensityElement`; verify the touched packages' tests.
 - [ ] 4.13 Rewrite cluster 13, growth and decay, and its state holders, replacing both `ExponentialGrowthInteraction` classes; verify the touched packages' tests.
 - [ ] 4.14 Rewrite cluster 14, alignment; verify the touched packages' tests.
-- [ ] 4.15 Replace the duplicated equations of section D with the core `StuartLandauElement`, `VanDerPolElement`, and `LogisticMapElement`, and move FitzHugh-Nagumo to `biology/common/excitable`; verify the touched packages' tests, and that no model module defines another class of these equations.
+- [ ] 4.15 Merge the duplicated equations of section D within each field: one `StuartLandauElement` in `physics/common`, one Van der Pol and one logistic map per field where a field has two, and FitzHugh-Nagumo in `biology/common/excitable`; verify the touched packages' tests, and that no field defines one equation twice.
 
 ## 5. Group mechanisms on hyperedges
 

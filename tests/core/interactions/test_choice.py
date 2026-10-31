@@ -42,15 +42,15 @@ def _fixed(namespace: object, option: float) -> float:
     return option
 
 
-def test_choice_interaction_heat_bath_reaches_mean_field():
-    """Test that fully connected spins under the heat-bath rule at intensity 2 reach the root of `m = tanh(2 m)`."""
+def test_choice_interaction_logit_reaches_mean_field():
+    """Test that fully connected spins under the logit rule at intensity 2 reach the root of `m = tanh(2 m)`."""
     choice = ChoiceInteraction(
         'choice',
         members='members',
         state='option',
         options=(-1, 1),
         utility=lambda s, option: option * mean(s.members.option),
-        rule='heat_bath',
+        rule='logit',
         intensity=2.0,
     )
     initial = np.where(np.random.default_rng(0).random(1000) < 0.7, 1.0, -1.0)

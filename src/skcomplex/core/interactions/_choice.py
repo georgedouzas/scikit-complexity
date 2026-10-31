@@ -16,7 +16,7 @@ from ..laws import BaseLaw, UpdateLaw
 from ..laws.utils import categorical, uniform, where
 from ._interaction import Interaction
 
-RULES = ('logit', 'heat_bath', 'metropolis', 'fermi')
+RULES = ('logit', 'metropolis', 'fermi')
 MIN_OPTIONS = 2
 
 
@@ -25,7 +25,7 @@ class ChoiceInteraction(Interaction):
 
     The utility `u_k` of option `k` is a symbolic expression that `utility(namespace, option)` returns, where
     `namespace.members` holds the states and parameters of the group and `namespace.intensity` is the intensity of
-    choice `beta`. The rules `'logit'` and `'heat_bath'` draw option `k` with probability
+    choice `beta`. The rule `'logit'`, which is the heat-bath rule, draws option `k` with probability
     `exp(beta u_k) / sum_j exp(beta u_j)`. The rules `'metropolis'` and `'fermi'` propose one of the other options
     uniformly and accept it with probability `min(1, exp(beta (u_new - u_old)))` or
     `1 / (1 + exp(-beta (u_new - u_old)))`. Every member draws at once in every step of a discrete-time system.
@@ -47,7 +47,7 @@ class ChoiceInteraction(Interaction):
             The function `utility(namespace, option)` that returns the utility of an option as a symbolic expression.
 
         rule:
-            The rule of the draw, `'logit'`, `'heat_bath'`, `'metropolis'`, or `'fermi'`.
+            The rule of the draw, `'logit'`, `'metropolis'`, or `'fermi'`.
 
         intensity:
             The intensity of choice `beta`, zero for uniform choice.
@@ -140,6 +140,6 @@ class ChoiceInteraction(Interaction):
         """
         state = getattr(namespace.members, self.state)
         utilities = [SR(self.utility(namespace, option)) for option in self.options]
-        if self.rule in ('logit', 'heat_bath'):
+        if self.rule == 'logit':
             return [UpdateLaw(state, self._draw_softmax(state, utilities, namespace.intensity))]
         return [UpdateLaw(state, self._draw_proposal(state, utilities, namespace.intensity))]

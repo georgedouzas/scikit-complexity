@@ -31,7 +31,7 @@ wherever another field needs them.
   | spreading of a state to neighbours, with recovery and loss of immunity | `SpreadingInteraction` |
   | coupling of a state to others through a function, with lag, delay, or mean field | `CouplingInteraction` |
   | threshold crossing with reset or redistribution | `ThresholdInteraction` |
-  | choice among options by logit, heat-bath, Metropolis, or Fermi rule | `ChoiceInteraction` |
+  | choice among options by the logit (heat-bath), Metropolis, or Fermi rule | `ChoiceInteraction` |
   | imitation of a neighbour's discrete state, at random, by majority, or of the best | `ImitationInteraction` |
   | foraging of a resource with an energy budget, and regrowth of the resource | `ForagingInteraction`, `RegrowthInteraction` |
   | Ornstein-Uhlenbeck and geometric Brownian noise | `OrnsteinUhlenbeckInteraction` |
@@ -42,9 +42,6 @@ wherever another field needs them.
   | linear damping and a constant force | `DampingInteraction`, `ConstantForceInteraction` |
   | densities over activity classes, for encounter laws | `DensityElement` |
   | compartments whose states are counts or fractions | `CompartmentElement` |
-  | Stuart-Landau amplitude oscillator, shared by physics and mathematics | `StuartLandauElement` |
-  | Van der Pol relaxation oscillator, shared by physics and earth | `VanDerPolElement` |
-  | logistic map, shared by mathematics and physics | `LogisticMapElement` |
 
 - **BREAKING: matching moves to the core with neutral roles.** `MarketInteraction` becomes `MatchingInteraction`, whose
   roles are `requesters` and `providers` and whose states are `limit`, `quantity`, and `budget`, and the protocols
@@ -73,9 +70,8 @@ wherever another field needs them.
   class and keeps only what is its own, so the models become examples of the core. That is about 200 classes,
   listed in `inventory.md`.
 - **Duplicates are removed.**
-  - One `StuartLandauElement` in the core replaces the two physics copies and the mathematics `HopfElement`.
-  - One `VanDerPolElement` and one `LogisticMapElement` in the core replace the copies in physics, earth, and
-    mathematics.
+  - One `StuartLandauElement` in `physics/common` replaces the two physics copies. Named equations stay realizations
+    of their fields, so mathematics and earth keep their own Hopf, Van der Pol, and logistic-map classes.
   - One FitzHugh-Nagumo element in a new `biology/common/excitable` family replaces the physiology and neuroscience
     copies.
   - The meadow and commons models share the core foraging and regrowth.
@@ -108,7 +104,7 @@ wherever another field needs them.
   - `skcomplex.models.physics.common.particles` is rebuilt on the core.
   - About 200 model classes across all nine fields are rewritten.
 - **API:** breaking for imports of `MarketInteraction`, the market protocols, `InstitutionInteraction`,
-  `logit_choice`, `evolve`, `HopfElement`, the two `StuartLandauElement`, `ExponentialGrowthInteraction`, and the
+  `logit_choice`, `evolve`, the two physics `StuartLandauElement`, `ExponentialGrowthInteraction`, and the
   duplicated meadow/commons classes. Model factories keep their names and parameters, and their trajectories stay the
   same within the tolerance of their tests.
 - **Specs:** the field-term test of the core keeps guarding every new name.
