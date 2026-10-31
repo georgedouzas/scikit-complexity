@@ -6,7 +6,6 @@ from ._kinetic import DebtExchangeInteraction, SavingExchangeInteraction, Saving
 from ._kolkata import CrowdAvoidanceInteraction, DinerElement, RestaurantsInteraction, kolkata_restaurant
 from ._minority import MinorityGameInteraction, MinorityPlayerElement, minority_game, strategy_table
 from ._welfare import (
-    WealthClassElement,
     WealthExchangeInteraction,
     WelfarePolicyInteraction,
     exchange_table,
@@ -31,7 +30,6 @@ __all__: list[str] = [
     'SavingExchangeInteraction',
     'SavingTraderElement',
     'TraderElement',
-    'WealthClassElement',
     'WealthExchangeInteraction',
     'WelfarePolicyInteraction',
     'boltzmann_wealth',

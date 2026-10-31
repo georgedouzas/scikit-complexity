@@ -12,13 +12,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement
-from ....core.interactions import BaseInteraction, Interaction
-from ....core.laws import BaseLaw, EncounterLaw
+from ....core.elements import DensityElement, GroupElement
+from ....core.interactions import BaseInteraction, EncounterInteraction
 from ....core.laws.utils import moment, total
 from ....core.spaces import ContinuousTime, LatticeSpace
 from ....core.system import System
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec, ParameterSpec
 from ..._catalog import register_model
 
 WELFARE_REFERENCES = ('Bellomo et al. 2017', 'Dolfin and Lachowicz 2014', 'Bertotti and Delitala 2008')
@@ -197,45 +196,21 @@ def wealth_observables(classes: int) -> list[ObservableSpec]:
     ]
 
 
-class WealthClassElement(Element):
-    """Density of the population at one wealth class, a member of a distribution over wealth classes.
-
-    Args:
-        label:
-            The label of the distribution.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        f:
-            The initial density.
-
-    Examples:
-        >>> from skcomplex.models.economics.econophysics import WealthClassElement
-        >>> GroupElement('wealth', element=WealthClassElement, size=9, values={'f': 1 / 9}).size
-        9
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.f = f
-
-
-class WealthExchangeInteraction(Interaction):
+class WealthExchangeInteraction(EncounterInteraction):
     """Conservative encounters between wealth classes, with cooperation and competition.
+
+    A candidate of class `h` meets a field particle of class `k` at the rate `eta` and moves by the transition table
+    of `exchange_table`.
 
     Args:
         label:
             The label of the interaction.
 
-        population:
-            The path of the distribution over wealth classes.
+        candidate:
+            The path of the distribution over wealth classes whose particles move.
+
+        field:
+            The path of the distribution over wealth classes they meet, the candidate again.
 
         classes:
             The number of wealth classes.
@@ -251,7 +226,7 @@ class WealthExchangeInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import WealthExchangeInteraction
-        >>> WealthExchangeInteraction('exchange', population='wealth').competition
+        >>> WealthExchangeInteraction('exchange', candidate='wealth', field='wealth').check().competition
         0.3
     """
 
@@ -259,48 +234,42 @@ class WealthExchangeInteraction(Interaction):
         self,
         label: str,
         *,
-        population: Annotated[str, RoleSpec()],
+        candidate: str,
+        field: str,
         classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 9,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         cooperation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
         competition: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
     ) -> None:
-        super().__init__(label)
-        self.population = population
+        super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.classes = classes
         self.eta = eta
         self.cooperation = cooperation
         self.competition = competition
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the encounter of the population with itself.
+    def _get_rate(self, s: SimpleNamespace) -> Expression:
+        """Return the encounter rate `eta`."""
+        return s.eta
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        table = exchange_table(int(self.classes), s.cooperation, s.competition)
-        return [EncounterLaw(s.population.f, s.population.f, s.eta, table)]
+    def _get_kernel(self, s: SimpleNamespace) -> npt.NDArray[np.object_]:
+        """Return the transition table of the encounters, with the cooperation and competition parameters."""
+        return exchange_table(int(self.classes), s.cooperation, s.competition)
 
 
-class WelfarePolicyInteraction(Interaction):
+class WelfarePolicyInteraction(EncounterInteraction):
     """Welfare policy that taxes the richest classes and helps the poorest, a micro-scale external action.
 
     The policy is an encounter whose field role binds a group with a fixed density, so it acts on the transitions of
-    the population at the rate `tax` times that density.
+    the population at the rate `tax` times that density, by the pattern and the table of `policy_table`.
 
     Args:
         label:
             The label of the interaction.
 
-        population:
+        candidate:
             The path of the distribution over wealth classes.
 
-        policy:
+        field:
             The path of the group of one member whose fixed density is the strength of the policy.
 
         classes:
@@ -311,7 +280,7 @@ class WelfarePolicyInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import WelfarePolicyInteraction
-        >>> WelfarePolicyInteraction('welfare', population='wealth', policy='state').tax
+        >>> WelfarePolicyInteraction('welfare', candidate='wealth', field='state').check().tax
         0.1
     """
 
@@ -319,30 +288,24 @@ class WelfarePolicyInteraction(Interaction):
         self,
         label: str,
         *,
-        population: Annotated[str, RoleSpec()],
-        policy: Annotated[str, RoleSpec()],
+        candidate: str,
+        field: str,
         classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 9,
         tax: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label)
-        self.population = population
-        self.policy = policy
+        super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.classes = classes
         self.tax = tax
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the encounter of the population with the policy.
+    def _get_rate(self, s: SimpleNamespace) -> npt.NDArray[np.object_]:
+        """Return the rate pattern of the policy times the tax."""
+        pattern, _ = policy_table(int(self.classes))
+        return pattern * s.tax
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        pattern, table = policy_table(int(self.classes))
-        return [EncounterLaw(s.population.f, s.policy.f, pattern * s.tax, table)]
+    def _get_kernel(self, s: SimpleNamespace) -> npt.NDArray[np.float64]:
+        """Return the transition table of the policy."""
+        _, table = policy_table(int(self.classes))
+        return table
 
 
 @register_model(
@@ -400,7 +363,7 @@ def kinetic_wealth_welfare(
     components: list[GroupElement] = [
         GroupElement(
             'wealth',
-            element=WealthClassElement,
+            element=DensityElement,
             size=classes,
             on='sites',
             values={'f': initial / initial.sum()},
@@ -409,7 +372,8 @@ def kinetic_wealth_welfare(
     interactions: list[BaseInteraction] = [
         WealthExchangeInteraction(
             'exchange',
-            population='wealth',
+            candidate='wealth',
+            field='wealth',
             classes=classes,
             eta=eta,
             cooperation=cooperation,
@@ -417,9 +381,9 @@ def kinetic_wealth_welfare(
         ),
     ]
     if tax > 0:
-        components.append(GroupElement('state', element=WealthClassElement, size=1, values={'f': 1.0}))
+        components.append(GroupElement('state', element=DensityElement, size=1, values={'f': 1.0}))
         interactions.append(
-            WelfarePolicyInteraction('welfare', population='wealth', policy='state', classes=classes, tax=tax),
+            WelfarePolicyInteraction('welfare', candidate='wealth', field='state', classes=classes, tax=tax),
         )
     return System(
         elements=components,
