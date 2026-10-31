@@ -1,7 +1,6 @@
 """Crowds: pedestrians driven by social forces, evacuations, and criminality against security forces."""
 
 from ._criminality import (
-    CitizensElement,
     CriminalContagionInteraction,
     DeterrenceInteraction,
     RecruitmentInteraction,
@@ -17,7 +16,6 @@ from ._criminality import (
 )
 from ._evacuation import (
     CrowdingInteraction,
-    PedestriansElement,
     WalkingInteraction,
     building_of,
     crowding_table,
@@ -32,12 +30,10 @@ from ._evacuation import (
 from ._pedestrians import MotivationInteraction, SocialRepulsionInteraction, WallsInteraction, social_force
 
 __all__: list[str] = [
-    'CitizensElement',
     'CriminalContagionInteraction',
     'CrowdingInteraction',
     'DeterrenceInteraction',
     'MotivationInteraction',
-    'PedestriansElement',
     'RecruitmentInteraction',
     'SecurityAgentsElement',
     'SocialRepulsionInteraction',

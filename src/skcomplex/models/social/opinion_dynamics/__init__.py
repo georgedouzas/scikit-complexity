@@ -34,7 +34,6 @@ from ._discussant_view import DiscussantView
 from ._influencee_view import InfluenceeView
 from ._kinetic_opinion import (
     OpinionEncountersInteraction,
-    OpinionLevelElement,
     kinetic_opinion,
     mean_opinion,
     opinion_grid,
@@ -96,7 +95,6 @@ __all__: list[str] = [
     'NamerView',
     'NamingGamesInteraction',
     'OpinionEncountersInteraction',
-    'OpinionLevelElement',
     'PersuaderElement',
     'PersuaderView',
     'PersuasionInteraction',

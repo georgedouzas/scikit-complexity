@@ -12,13 +12,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, EncounterLaw
+from ....core.elements import DensityElement, GroupElement
+from ....core.interactions import EncounterInteraction
 from ....core.laws.utils import moment
 from ....core.spaces import ContinuousTime, LatticeSpace
 from ....core.system import System
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec, ParameterSpec, RoleSpec
 from ..._catalog import register_model
 
 OPINION_REFERENCES = ('Bellomo et al. 2017', 'Toscani 2006', 'Deffuant et al. 2000')
@@ -121,45 +120,18 @@ def opinion_variance(s: SimpleNamespace, opinions: npt.NDArray[np.float64]) -> E
     return moment(s.f, 2, opinions, central=True)
 
 
-class OpinionLevelElement(Element):
-    """Density of the population at one opinion level, a member of a distribution over opinions.
-
-    Args:
-        label:
-            The label of the distribution.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
-        f:
-            The initial density.
-
-    Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import OpinionLevelElement
-        >>> GroupElement('opinions', element=OpinionLevelElement, size=7, values={'f': 1 / 7}).size
-        7
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.f = f
-
-
-class OpinionEncountersInteraction(Interaction):
+class OpinionEncountersInteraction(EncounterInteraction):
     """Conservative encounters between opinion levels, which persuade close opinions and repel distant ones.
 
     Args:
         label:
             The label of the interaction.
 
-        population:
-            The path of the distribution over opinion levels.
+        candidate:
+            The path of the distribution over opinion levels whose members move.
+
+        field:
+            The path of the distribution over opinion levels they meet, usually the same distribution.
 
         levels:
             The number of opinion levels.
@@ -178,7 +150,7 @@ class OpinionEncountersInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import OpinionEncountersInteraction
-        >>> OpinionEncountersInteraction('encounters', population='opinions').confidence
+        >>> OpinionEncountersInteraction('encounters', candidate='opinions', field='opinions').confidence
         2
     """
 
@@ -186,34 +158,28 @@ class OpinionEncountersInteraction(Interaction):
         self,
         label: str,
         *,
-        population: Annotated[str, RoleSpec()],
+        candidate: Annotated[str, RoleSpec()],
+        field: Annotated[str, RoleSpec()],
         levels: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 7,
         confidence: Annotated[int, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         persuasion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         repulsion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label)
-        self.population = population
+        super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.levels = levels
         self.confidence = confidence
         self.eta = eta
         self.persuasion = persuasion
         self.repulsion = repulsion
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the encounter of the population with itself.
+    def _get_rate(self, s: SimpleNamespace) -> object:
+        """Return the encounter rate."""
+        return s.eta
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        table = persuasion_table(int(self.levels), int(self.confidence), s.persuasion, s.repulsion)
-        return [EncounterLaw(s.population.f, s.population.f, s.eta, table)]
+    def _get_kernel(self, s: SimpleNamespace) -> object:
+        """Return the table of the persuasion and repulsion of the opinion levels."""
+        return persuasion_table(int(self.levels), int(self.confidence), s.persuasion, s.repulsion)
 
 
 def _levels_of(system: System) -> int:
@@ -298,7 +264,7 @@ def kinetic_opinion(
         elements=[
             GroupElement(
                 'opinions',
-                element=OpinionLevelElement,
+                element=DensityElement,
                 size=levels,
                 on='sites',
                 values={'f': initial / initial.sum()},
@@ -307,7 +273,8 @@ def kinetic_opinion(
         interactions=[
             OpinionEncountersInteraction(
                 'encounters',
-                population='opinions',
+                candidate='opinions',
+                field='opinions',
                 levels=levels,
                 confidence=confidence,
                 eta=eta,

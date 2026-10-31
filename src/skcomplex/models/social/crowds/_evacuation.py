@@ -13,13 +13,13 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
+from ....core.elements import DensityElement, GroupElement
+from ....core.interactions import EncounterInteraction, Interaction
 from ....core.laws import BaseLaw, EncounterLaw
 from ....core.laws.utils import moment
 from ....core.spaces import ContinuousTime, LatticeSpace
 from ....core.system import System
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec, ParameterSpec, RoleSpec
 from ..._catalog import register_model
 
 EVACUATION_REFERENCES = ('Bellomo et al. 2017', 'Bellomo and Gibelli 2015', 'Agnelli, Colasuonno, and Knopoff 2015')
@@ -222,47 +222,17 @@ def mean_speed(s: SimpleNamespace, rooms: int, speeds: int) -> Expression:
     return moment(s.f, 1, np.tile(walking_speeds(speeds), rooms + 1), normalized=True)
 
 
-class PedestriansElement(Element):
-    """Density of pedestrians at one site of a crowd, a pair of a room and a speed class.
-
-    Args:
-        label:
-            The label of the crowd.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
-        f:
-            The initial density.
-
-    Examples:
-        >>> from skcomplex.models.social.crowds import PedestriansElement
-        >>> GroupElement('signs', element=PedestriansElement, size=1, values={'f': 1.0}).check().prepare().size_
-        1
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.f = f
-
-
-class WalkingInteraction(Interaction):
+class WalkingInteraction(EncounterInteraction):
     """Walking of pedestrians to the next room on the way out, an encounter with the exit signs.
 
     Args:
         label:
             The label of the interaction.
 
-        crowd:
+        candidate:
             The path of the crowd, a distribution over rooms and speed classes.
 
-        signs:
+        field:
             The path of the group of one member whose fixed density is the guidance of the exit signs.
 
         branching:
@@ -279,7 +249,7 @@ class WalkingInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.models.social.crowds import WalkingInteraction
-        >>> WalkingInteraction('walking', crowd='crowd', signs='signs').mobility
+        >>> WalkingInteraction('walking', candidate='crowd', field='signs').mobility
         0.5
     """
 
@@ -287,35 +257,28 @@ class WalkingInteraction(Interaction):
         self,
         label: str,
         *,
-        crowd: Annotated[str, RoleSpec()],
-        signs: Annotated[str, RoleSpec()],
+        candidate: Annotated[str, RoleSpec()],
+        field: Annotated[str, RoleSpec()],
         branching: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 2,
         depth: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 2,
         speeds: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
         mobility: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label)
-        self.crowd = crowd
-        self.signs = signs
+        super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.branching = branching
         self.depth = depth
         self.speeds = speeds
         self.mobility = mobility
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the encounter of the crowd with the exit signs.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
+    def _get_rate(self, s: SimpleNamespace) -> object:
+        """Return the rate at which every speed class of every room leaves it."""
         building = building_of(int(self.branching), int(self.depth))
-        pattern, table = walking_table(building, 0, int(self.speeds))
-        return [EncounterLaw(s.crowd.f, s.signs.f, pattern * s.mobility, table)]
+        return walking_table(building, 0, int(self.speeds))[0] * s.mobility
+
+    def _get_kernel(self, s: SimpleNamespace) -> object:
+        """Return the table that moves a walker to the next room on the way out."""
+        building = building_of(int(self.branching), int(self.depth))
+        return walking_table(building, 0, int(self.speeds))[1]
 
 
 class CrowdingInteraction(Interaction):
@@ -485,18 +448,18 @@ def evacuation(
         elements=[
             GroupElement(
                 'crowd',
-                element=PedestriansElement,
+                element=DensityElement,
                 on='sites',
                 space=crowd_space,
                 values={'f': initial.ravel()},
             ),
-            GroupElement('signs', element=PedestriansElement, size=1, values={'f': 1.0}),
+            GroupElement('signs', element=DensityElement, size=1, values={'f': 1.0}),
         ],
         interactions=[
             WalkingInteraction(
                 'walking',
-                crowd='crowd',
-                signs='signs',
+                candidate='crowd',
+                field='signs',
                 branching=branching,
                 depth=depth,
                 speeds=speeds,
