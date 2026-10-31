@@ -12,10 +12,7 @@ from ._oscillators import (
     oregonator,
 )
 from ._reactions import (
-    BindingInteraction,
-    DissociationInteraction,
     SchloglElement,
-    SpeciesElement,
     chemical_langevin_equation,
     chemical_langevin_network,
     michaelis_menten,
@@ -28,17 +25,14 @@ from ._reactors import (
 )
 
 __all__: list[str] = [
-    'BindingInteraction',
     'BrusselatorReactionElement',
     'CatalystPelletElement',
     'CubicAutocatalysisElement',
     'CyclicCellElement',
-    'DissociationInteraction',
     'HodgepodgeCellElement',
     'OregonatorElement',
     'PulsedElectrodeElement',
     'SchloglElement',
-    'SpeciesElement',
     'brusselator_ode',
     'catalyst_pellet',
     'chemical_langevin_equation',

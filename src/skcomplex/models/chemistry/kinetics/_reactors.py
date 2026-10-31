@@ -7,10 +7,11 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import exp, oo
+from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
+from ....core.interactions import ReactionInteraction, RelaxationInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import pulse_train
 from ....core.system import System
@@ -18,28 +19,63 @@ from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
+def _get_surface_reaction(s: SimpleNamespace) -> Expression:
+    """Return the Langmuir-Hinshelwood propensity `k c / (1 + K c)^2` of the reaction at the surface of a pellet."""
+    pellet = s.reactants[0]
+    return pellet.k * pellet.c / (1 + pellet.K * pellet.c) ** 2
+
+
+def _get_transfer_time(s: SimpleNamespace) -> Expression:
+    """Return the time `1 / h` of the mass transfer from the bulk to the surface of a pellet."""
+    return 1 / s.target.h
+
+
 class CatalystPelletElement(Element):
-    """Catalyst pellet element."""
+    """Catalyst pellet, the concentration `c` of the reactant at its surface relative to the bulk.
+
+    The mass transfer and the surface reaction of `catalyst_pellet` change the concentration and read their constants
+    from the pellet.
+
+    Args:
+        label:
+            The label of the pellet.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        c:
+            The initial surface concentration.
+
+        h:
+            The coefficient of mass transfer from the bulk.
+
+        k:
+            The rate constant of the surface reaction.
+
+        K:
+            The adsorption constant, which sets the inhibition.
+
+    Examples:
+        >>> from skcomplex.models.chemistry.kinetics import CatalystPelletElement
+        >>> CatalystPelletElement('pellet').K
+        20.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        c: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        h: Annotated[object, ParameterSpec()] = 0.1,
-        k: Annotated[object, ParameterSpec()] = 10.0,
-        K: Annotated[object, ParameterSpec()] = 20.0,
+        c: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        h: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.c = c
         self.h = h
         self.k = k
         self.K = K
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the catalyst pellet element."""
-        return [RateLaw(s.c, s.h * (1 - s.c) - s.k * s.c / (1 + s.K * s.c) ** 2)]
 
 
 class PulsedElectrodeElement(Element):
@@ -169,7 +205,13 @@ def catalyst_pellet(c: float = 1.0, *, h: float = 0.1, k: float = 10.0, K: float
         >>> catalyst_pellet(k=5.0).elements[0].k
         5.0
     """
-    return System(elements=[CatalystPelletElement('pellet', c=c, h=h, k=k, K=K)])
+    return System(
+        elements=[CatalystPelletElement('pellet', c=c, h=h, k=k, K=K)],
+        interactions=[
+            RelaxationInteraction('transfer', target='pellet', state='c', goal=1.0, time=_get_transfer_time),
+            ReactionInteraction('reaction', reactants={('pellet', 'c'): 1}, propensity=_get_surface_reaction),
+        ],
+    )
 
 
 @register_model(

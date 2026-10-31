@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -12,7 +11,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, LocalRuleLaw
+from ....core.interactions import LocalRuleInteraction
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -31,7 +30,8 @@ class CyclicCellElement(Element):
     """Cell of Griffeath's cyclic cellular automaton, with `n` levels that follow each other in a cycle.
 
     A cell moves from level `k` to level `k + 1` modulo `n` when at least `threshold` of its neighbours hold that
-    level, so every level eats its predecessor and random initial levels organize into spiral waves.
+    level, by the local rule of `cyclic_cellular_automaton`, so every level eats its predecessor and random initial
+    levels organize into spiral waves.
 
     Args:
         label:
@@ -68,19 +68,6 @@ class CyclicCellElement(Element):
         self.level = level
         self.n = n
         self.threshold = threshold
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that advances a cell to the following level.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [LocalRuleLaw(s.level, VonNeumannNeighborhood(center=True), _advance_cyclically)]
 
 
 @register_model(
@@ -129,6 +116,15 @@ def cyclic_cellular_automaton(
                 element=CyclicCellElement,
                 space=space,
                 values={'level': levels, 'n': n, 'threshold': threshold},
+            ),
+        ],
+        interactions=[
+            LocalRuleInteraction(
+                'advance',
+                target='cells',
+                state='level',
+                rule=_advance_cyclically,
+                neighborhood=VonNeumannNeighborhood(center=True),
             ),
         ],
     )

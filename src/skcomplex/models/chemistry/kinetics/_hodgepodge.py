@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -12,7 +11,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, LocalRuleLaw
+from ....core.interactions import LocalRuleInteraction
 from ....core.spaces import LatticeSpace, MooreNeighborhood
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -20,11 +19,28 @@ from ....types import Array
 from ..._catalog import register_model
 
 
+def _infect(
+    level: Array,
+    *around: Array,
+    n: float | Array,
+    k1: float | Array,
+    k2: float | Array,
+    g: float | Array,
+) -> Array:
+    """Return the next levels: healthy cells catch the infection, infected cells worsen, and ill cells heal."""
+    neighbours = np.stack(around)
+    infected = ((neighbours > 0) & (neighbours < n)).sum(axis=0)
+    ill = (neighbours >= n).sum(axis=0)
+    healthy = np.floor(infected / k1) + np.floor(ill / k2)
+    worsening = np.minimum(np.floor((level + neighbours.sum(axis=0)) / (infected + ill + 1)) + g, n)
+    return np.where(level <= 0, np.minimum(healthy, n), np.where(level >= n, 0.0, worsening))
+
+
 class HodgepodgeCellElement(Element):
     """Cell of the hodgepodge machine of Gerhardt and Schuster, healthy at 0, infected below `n`, and ill at `n`.
 
     Healthy cells catch the infection from their infected and ill neighbours, infected cells worsen by the mean of their
-    neighbourhood plus `g`, and ill cells heal.
+    neighbourhood plus `g`, and ill cells heal, by the local rule of `hodgepodge`.
 
     Args:
         label:
@@ -71,35 +87,6 @@ class HodgepodgeCellElement(Element):
         self.k1 = k1
         self.k2 = k2
         self.g = g
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of infection, worsening, and healing.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-
-        def rule(
-            level: Array,
-            *around: Array,
-            n: float | Array,
-            k1: float | Array,
-            k2: float | Array,
-            g: float | Array,
-        ) -> Array:
-            neighbours = np.stack(around)
-            infected = ((neighbours > 0) & (neighbours < n)).sum(axis=0)
-            ill = (neighbours >= n).sum(axis=0)
-            healthy = np.floor(infected / k1) + np.floor(ill / k2)
-            worsening = np.minimum(np.floor((level + neighbours.sum(axis=0)) / (infected + ill + 1)) + g, n)
-            return np.where(level <= 0, np.minimum(healthy, n), np.where(level >= n, 0.0, worsening))
-
-        return [LocalRuleLaw(s.level, MooreNeighborhood(center=True), rule)]
 
 
 @register_model(
@@ -156,6 +143,15 @@ def hodgepodge(
                 element=HodgepodgeCellElement,
                 space=space,
                 values={'level': levels, 'n': n, 'k1': k1, 'k2': k2, 'g': g},
+            ),
+        ],
+        interactions=[
+            LocalRuleInteraction(
+                'infection',
+                target='cells',
+                state='level',
+                rule=_infect,
+                neighborhood=MooreNeighborhood(center=True),
             ),
         ],
     )

@@ -8,10 +8,11 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import Expression
 
 from ....core.elements import Element, FieldElement
+from ....core.interactions import DiffusionInteraction
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.solvers import RK4Solver
@@ -21,7 +22,41 @@ from ..._catalog import register_model
 
 
 class GrayScottElement(Element):
-    """Gray scott element."""
+    """Site of the Gray-Scott model, the substrate `u` and the activator `v` with their reactions.
+
+    The site carries the cubic autocatalysis of the activator on the substrate, the feed `F` of the substrate, and the
+    removal `F + k` of the activator. The diffusions of `gray_scott` read `Du` and `Dv`.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        u:
+            The initial substrate.
+
+        v:
+            The initial activator.
+
+        Du:
+            The diffusion of the substrate.
+
+        Dv:
+            The diffusion of the activator.
+
+        F:
+            The feed rate.
+
+        k:
+            The kill rate.
+
+    Examples:
+        >>> from skcomplex.models.chemistry.pattern_formation import GrayScottElement
+        >>> GrayScottElement('cell').k
+        0.065
+    """
 
     def __init__(
         self,
@@ -44,15 +79,58 @@ class GrayScottElement(Element):
         self.k = k
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the gray scott element."""
+        """Return the cubic autocatalysis `U + 2V -> 3V` with the feed of `u` and the removal of `v` at a site.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The reaction rates of `u` and `v`.
+        """
         return [
-            RateLaw(s.u, s.Du * laplacian(s.u) - s.u * s.v**2 + s.F * (1 - s.u)),
-            RateLaw(s.v, s.Dv * laplacian(s.v) + s.u * s.v**2 - (s.F + s.k) * s.v),
+            RateLaw(s.u, -s.u * s.v**2 + s.F * (1 - s.u)),
+            RateLaw(s.v, s.u * s.v**2 - (s.F + s.k) * s.v),
         ]
 
 
 class BrusselatorElement(Element):
-    """Brusselator element."""
+    """Site of the Brusselator, the concentrations `u` and `v` with their reactions.
+
+    The site carries the reactions `A -> U`, `B + U -> V + D`, `2U + V -> 3U`, and `U -> E`. The diffusions of
+    `brusselator` read `Du` and `Dv`.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        u:
+            The initial concentration of `u`.
+
+        v:
+            The initial concentration of `v`.
+
+        a:
+            The feed of `u`.
+
+        b:
+            The conversion of `u` into `v`.
+
+        Du:
+            The diffusion of `u`.
+
+        Dv:
+            The diffusion of `v`.
+
+    Examples:
+        >>> from skcomplex.models.chemistry.pattern_formation import BrusselatorElement
+        >>> BrusselatorElement('cell').Dv
+        8.0
+    """
 
     def __init__(
         self,
@@ -75,15 +153,58 @@ class BrusselatorElement(Element):
         self.Dv = Dv
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the brusselator element."""
+        """Return the reactions of the Brusselator at a site.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The reaction rates of `u` and `v`.
+        """
         return [
-            RateLaw(s.u, s.Du * laplacian(s.u) + s.a - (s.b + 1) * s.u + s.u**2 * s.v),
-            RateLaw(s.v, s.Dv * laplacian(s.v) + s.b * s.u - s.u**2 * s.v),
+            RateLaw(s.u, s.a - (s.b + 1) * s.u + s.u**2 * s.v),
+            RateLaw(s.v, s.b * s.u - s.u**2 * s.v),
         ]
 
 
 class SchnakenbergElement(Element):
-    """Schnakenberg element."""
+    """Site of the Schnakenberg model, the activator `u` and the inhibitor `v` with their reactions.
+
+    The site carries the productions `a` of `u` and `b` of `v`, the decay of `u`, and the autocatalysis
+    `2U + V -> 3U`. The diffusions of `schnakenberg` read `Du` and `Dv`.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        u:
+            The initial activator.
+
+        v:
+            The initial inhibitor.
+
+        a:
+            The production of `u`.
+
+        b:
+            The production of `v`.
+
+        Du:
+            The diffusion of the activator.
+
+        Dv:
+            The diffusion of the inhibitor.
+
+    Examples:
+        >>> from skcomplex.models.chemistry.pattern_formation import SchnakenbergElement
+        >>> SchnakenbergElement('cell').Dv
+        40.0
+    """
 
     def __init__(
         self,
@@ -106,11 +227,38 @@ class SchnakenbergElement(Element):
         self.Dv = Dv
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the schnakenberg element."""
+        """Return the reactions of the Schnakenberg model at a site.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The reaction rates of `u` and `v`.
+        """
         return [
-            RateLaw(s.u, s.Du * laplacian(s.u) + s.a - s.u + s.u**2 * s.v),
-            RateLaw(s.v, s.Dv * laplacian(s.v) + s.b - s.u**2 * s.v),
+            RateLaw(s.u, s.a - s.u + s.u**2 * s.v),
+            RateLaw(s.v, s.b - s.u**2 * s.v),
         ]
+
+
+def _get_u_diffusion(s: SimpleNamespace) -> Expression:
+    """Return the diffusion coefficient `Du` of the sites."""
+    return s.target.Du
+
+
+def _get_v_diffusion(s: SimpleNamespace) -> Expression:
+    """Return the diffusion coefficient `Dv` of the sites."""
+    return s.target.Dv
+
+
+def _get_diffusions() -> list[DiffusionInteraction]:
+    """Return the diffusions of `u` and `v` on the field `cells`, at the coefficients `Du` and `Dv` of its sites."""
+    return [
+        DiffusionInteraction('u_diffusion', target='cells', state='u', coefficient=_get_u_diffusion),
+        DiffusionInteraction('v_diffusion', target='cells', state='v', coefficient=_get_v_diffusion),
+    ]
 
 
 def _noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.Generator | None) -> Array:
@@ -169,7 +317,10 @@ def gray_scott(
     u[middle], v[middle] = 0.5, 0.25
     noise = _noise(shape, 0.01, random_state)
     values = {'u': u + noise, 'v': v + np.abs(noise), 'Du': Du, 'Dv': Dv, 'F': F, 'k': k}
-    return System(elements=[FieldElement('cells', element=GrayScottElement, space=LatticeSpace(shape), values=values)])
+    return System(
+        elements=[FieldElement('cells', element=GrayScottElement, space=LatticeSpace(shape), values=values)],
+        interactions=_get_diffusions(),
+    )
 
 
 @register_model(
@@ -228,6 +379,7 @@ def brusselator(
     }
     return System(
         elements=[FieldElement('cells', element=BrusselatorElement, space=LatticeSpace(shape), values=values)],
+        interactions=_get_diffusions(),
     )
 
 
@@ -302,4 +454,5 @@ def schnakenberg(
                 values=values,
             ),
         ],
+        interactions=_get_diffusions(),
     )
