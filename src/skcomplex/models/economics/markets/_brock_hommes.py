@@ -12,13 +12,13 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
+from ....core.interactions import FeedbackInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.institutions import InstitutionInteraction
 from ..common.learning import heuristics, logit_choice
 from ._fitness_spec import _FitnessSpec
 from ._market_state_spec import _MarketStateSpec
@@ -106,7 +106,7 @@ class SpeculatorElement(Element):
         return list(cached.fitness)
 
 
-class HeuristicPricingInteraction(InstitutionInteraction):
+class HeuristicPricingInteraction(FeedbackInteraction[ModelView]):
     """Market maker that clears the risky asset at the price where the mean forecast of the traders is met.
 
     The deviation `x` of the price from its fundamental value clears at `R x_t = sum_h n_h f_h + eps_t`, where `n_h`

@@ -1,25 +1,33 @@
-"""Ridesharing: riders who request trips on a city grid and cabs that a dispatcher sends to the nearest of them."""
+"""Ridesharing: riders who request trips on a city grid and cabs that a stable matching sends to them."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, MatchLaw, RuleLaw
-from ....core.laws.utils import matches, transfer
+from ....core.interactions import Interaction, MatchingInteraction, StableMatchingProtocol
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.laws.utils import transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import ModelView
-from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....errors import ArgumentError
+from ....specs import (
+    MatchSpec,
+    ObservableSpec,
+    ParameterSpec,
+    PhaseSpec,
+    PhasesScheduleSpec,
+    RoleSpec,
+    StateSpec,
+    VisualSpec,
+)
 from ..._catalog import register_model
 from ._cab_view import CabView
 from ._rider_view import RiderView
@@ -53,50 +61,37 @@ def _ridesharing_observables(system: System) -> list[ObservableSpec]:
     ]
 
 
-def nearest_cab(
-    left: Sequence[object],
-    right: Sequence[object],
-    rng: np.random.Generator,
-    capacity: int,
-) -> list[tuple[object, object]]:
-    """Pairing of unassigned riders, the longest waiting first, with the nearest idle cab by blocks.
+def _nearness(rider: object, cab: object) -> float:
+    """Return the preference of a rider for a cab, higher for a cab fewer blocks away."""
+    if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
+        error_msg = f'A rider ranks cabs, but got {rider!r} and {cab!r}.'
+        raise ArgumentError(error_msg)
+    return -float(_blocks(_cell(rider.location), _cell(cab.location)))
 
-    Args:
-        left:
-            The riders.
 
-        right:
-            The cabs.
+def _patience(cab: object, rider: object) -> float:
+    """Return the preference of a cab for a rider, higher for a rider who waited longer."""
+    if not isinstance(rider, RiderView):
+        error_msg = f'A cab ranks riders, but got {rider!r}.'
+        raise ArgumentError(error_msg)
+    return rider.waited
 
-        rng:
-            The random generator, which breaks ties between riders that waited as long.
 
-        capacity:
-            The largest number of riders of a cab, which a cab on a trip does not take.
-
-    Returns:
-        pairs:
-            The pairs of riders and the cabs sent to them.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.models.engineering.traffic import nearest_cab
-        >>> nearest_cab([], [], np.random.default_rng(0), 1)
-        []
-    """
-    riders = [rider for rider in left if isinstance(rider, RiderView) and not rider.assigned]
-    keys = np.array([rng.random(len(riders)), [-rider.waited for rider in riders]])
-    order: npt.NDArray[np.intp] | list[int] = np.lexsort(keys) if riders else []
-    free = [cab for cab in right if isinstance(cab, CabView) and cab.task == IDLE]
-    pairs: list[tuple[object, object]] = []
-    for index in order:
-        if not free:
-            break
-        rider = riders[int(index)]
-        cell = _cell(rider.location)
-        nearest = min(range(len(free)), key=lambda item: _blocks(cell, _cell(free[item].location)))
-        pairs.append((rider, free.pop(nearest)))
-    return pairs
+def _dispatch(ride: MatchSpec, model: ModelView) -> None:
+    """Send the cab of a ride to its rider."""
+    del model
+    rider, cab = ride.requester, ride.provider
+    if not isinstance(rider, RiderView) or not isinstance(cab, CabView):
+        error_msg = f'A ride matches a rider with a cab, but got {rider!r} and {cab!r}.'
+        raise ArgumentError(error_msg)
+    new_target_x_value, new_target_y_value = _cell(rider.location)
+    cab.target_x = new_target_x_value
+    cab.target_y = new_target_y_value
+    new_destination_x, new_destination_y = rider.destination_x, rider.destination_y
+    cab.destination_x = new_destination_x
+    cab.destination_y = new_destination_y
+    cab.rider = float(rider.id)
+    cab.task = PICKING_UP
 
 
 class RiderElement(Element):
@@ -118,8 +113,8 @@ class RiderElement(Element):
         waited:
             The number of steps the rider has waited.
 
-        assigned:
-            One once a cab is on its way, zero before.
+        seats:
+            The seats the rider still requests, one until a cab is on its way and zero after.
 
         money:
             The money of the rider.
@@ -138,14 +133,14 @@ class RiderElement(Element):
         destination_x: Annotated[float, StateSpec(domain=NN)] = 0.0,
         destination_y: Annotated[float, StateSpec(domain=NN)] = 0.0,
         waited: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        assigned: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        seats: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         money: Annotated[float, StateSpec()] = 100.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.destination_x = destination_x
         self.destination_y = destination_y
         self.waited = waited
-        self.assigned = assigned
+        self.seats = seats
         self.money = money
 
     @classmethod
@@ -209,6 +204,9 @@ class CabElement(Element):
         rider:
             The id of the rider the cab is sent to.
 
+        seats:
+            The free seats of the cab, one when idle and zero on a trip.
+
         money:
             The fares the cab collected.
 
@@ -235,6 +233,7 @@ class CabElement(Element):
         destination_x: Annotated[float, StateSpec(domain=NN)] = 0.0,
         destination_y: Annotated[float, StateSpec(domain=NN)] = 0.0,
         rider: Annotated[float, StateSpec()] = -1.0,
+        seats: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         money: Annotated[float, StateSpec()] = 0.0,
         base_fare: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
         block_fare: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
@@ -246,6 +245,7 @@ class CabElement(Element):
         self.destination_x = destination_x
         self.destination_y = destination_y
         self.rider = rider
+        self.seats = seats
         self.money = money
         self.base_fare = base_fare
         self.block_fare = block_fare
@@ -304,24 +304,20 @@ class CabElement(Element):
             self._pick_up(agent, model)
         else:
             agent.task = IDLE
+            agent.seats = 1.0
 
 
-class DispatchInteraction(Interaction):
-    """Dispatcher that admits new riders and sends the nearest idle cab to every waiting rider.
+class ArrivalInteraction(Interaction):
+    """Arrival of new riders at random cells with random destinations.
 
-    Every step a Poisson number of riders, with mean `demand`, appear at random cells with random destinations. The
-    matching law pairs the waiting riders, the longest waiting first, with the nearest idle cabs, and every paired cab
-    sets off to its rider.
+    Every step a Poisson number of riders, with mean `demand`, appear at random cells with random destinations.
 
     Args:
         label:
-            The label of the dispatcher.
+            The label of the arrivals.
 
         riders:
             The path of the group of riders.
-
-        cabs:
-            The path of the group of cabs.
 
         demand:
             The mean number of new riders in a step.
@@ -333,8 +329,8 @@ class DispatchInteraction(Interaction):
             The number of rows of the grid.
 
     Examples:
-        >>> from skcomplex.models.engineering.traffic import DispatchInteraction
-        >>> DispatchInteraction('dispatch', riders='riders', cabs='cabs').reports
+        >>> from skcomplex.models.engineering.traffic import ArrivalInteraction
+        >>> ArrivalInteraction('arrival', riders='riders').reports
         ('arrivals',)
     """
 
@@ -345,20 +341,18 @@ class DispatchInteraction(Interaction):
         label: str,
         *,
         riders: Annotated[str, RoleSpec()],
-        cabs: Annotated[str, RoleSpec()],
         demand: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         width: int = 30,
         height: int = 30,
     ) -> None:
         super().__init__(label)
         self.riders = riders
-        self.cabs = cabs
         self.demand = demand
         self.width = width
         self.height = height
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the arrival of riders, the matching of riders with cabs, and the rule that dispatches the cabs.
+        """Return the arrival of riders.
 
         Args:
             s:
@@ -368,47 +362,20 @@ class DispatchInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        return [
-            RuleLaw(self.admit, phase='arrival'),
-            MatchLaw('riders', 'cabs', pairing=nearest_cab, label='rides', phase='dispatch'),
-            RuleLaw(self.dispatch, phase='dispatch'),
-        ]
+        return [RuleLaw(self.admit, phase='arrival')]
 
     def admit(self, model: ModelView) -> None:
         """Create the riders of the step at random cells with random destinations.
 
         Args:
             model:
-                The model view of the dispatcher.
+                The model view of the arrivals.
         """
         arrivals = int(model.rng.poisson(model.parameter('demand')))
         for _ in range(arrivals):
             x, y, to_x, to_y = model.rng.integers((self.width, self.height, self.width, self.height))
             model.create('riders', location=(int(x), int(y)), destination_x=float(to_x), destination_y=float(to_y))
         model.report('arrivals', arrivals)
-
-    def dispatch(self, model: ModelView) -> None:
-        """Send every paired cab to its rider.
-
-        Args:
-            model:
-                The model view of the dispatcher.
-        """
-        pairs = [
-            (rider, cab)
-            for rider, cab in matches(model, 'rides')
-            if isinstance(rider, RiderView) and isinstance(cab, CabView)
-        ]
-        for rider, cab in pairs:
-            new_target_x_value, new_target_y_value = _cell(rider.location)
-            cab.target_x = new_target_x_value
-            cab.target_y = new_target_y_value
-            new_destination_x, new_destination_y = rider.destination_x, rider.destination_y
-            cab.destination_x = new_destination_x
-            cab.destination_y = new_destination_y
-            cab.rider = float(rider.id)
-            cab.task = PICKING_UP
-            rider.assigned = 1.0
 
 
 @register_model(
@@ -428,13 +395,14 @@ def ridesharing(
     block_fare: float = 0.5,
     random_state: int | np.random.Generator | None = 0,
 ) -> System:
-    """Return riders who request trips on a city grid and cabs that a dispatcher sends to the nearest of them.
+    """Return riders who request trips on a city grid and cabs that a stable matching sends to them.
 
-    Every step new riders appear at random cells with random destinations, the dispatcher pairs the waiting riders,
-    the longest waiting first, with the nearest idle cabs, and every cab drives one block a step to its rider, collects
-    the fare, and drives the rider to its destination. While the demand stays below the trips the fleet can serve,
-    riders wait about as long as a cab takes to reach them. As the demand approaches that capacity, every cab is busy,
-    the queue of waiting riders grows, and the waiting time rises steeply, as in a queue near saturation.
+    Every step new riders appear at random cells with random destinations, and the dispatch matches the waiting
+    riders with the idle cabs by a stable matching in which riders prefer nearer cabs and cabs prefer riders who waited
+    longer. Every cab drives one block a step to its rider, collects the fare, and drives the rider to its destination.
+    While the demand stays below the trips the fleet can serve, riders wait about as long as a cab takes to reach them.
+    As the demand approaches that capacity, every cab is busy, the queue of waiting riders grows, and the waiting time
+    rises steeply, as in a queue near saturation.
 
     Args:
         n_cabs:
@@ -460,7 +428,7 @@ def ridesharing(
 
     Returns:
         system:
-            The model, with the groups `riders` and `cabs` and the dispatcher `dispatch`.
+            The model, with the groups `riders` and `cabs`, the arrivals `arrival`, and the matching `dispatch`.
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import ridesharing
@@ -487,7 +455,16 @@ def ridesharing(
     return System(
         elements=[riders, cabs],
         interactions=[
-            DispatchInteraction('dispatch', riders='riders', cabs='cabs', demand=demand, width=width, height=height),
+            ArrivalInteraction('arrival', riders='riders', demand=demand, width=width, height=height),
+            MatchingInteraction(
+                'dispatch',
+                requesters='riders',
+                providers='cabs',
+                protocol=StableMatchingProtocol(requester_preference=_nearness, provider_preference=_patience),
+                quantity='seats',
+                phase='dispatch',
+                on_match=_dispatch,
+            ),
         ],
         space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'),
         time=DiscreteTime(

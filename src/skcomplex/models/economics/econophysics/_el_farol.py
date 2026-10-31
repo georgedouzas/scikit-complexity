@@ -14,6 +14,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
+from ....core.interactions import FeedbackInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
@@ -21,7 +22,6 @@ from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
-from ..common.institutions import InstitutionInteraction
 from ..common.learning import heuristics
 from ._patron_view import PatronView
 from ._pool_spec import _PoolSpec
@@ -187,7 +187,7 @@ class PatronElement(Element):
         agent.attends = float(agent.forecast < model.parameters[f'{self.bar}.capacity'])
 
 
-class BarInteraction(InstitutionInteraction):
+class BarInteraction(FeedbackInteraction[ModelView]):
     """El Farol bar, which counts its patrons every week and reports the attendance.
 
     Args:

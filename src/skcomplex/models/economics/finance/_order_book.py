@@ -4,6 +4,7 @@
 # License: MIT
 
 import math
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
@@ -12,15 +13,22 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
+from ....core.interactions import BaseMatchingProtocol, MatchingInteraction, PriceTimePriorityProtocol
 from ....core.laws import BaseLaw, RuleLaw
-from ....core.laws.utils import transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import ModelView
-from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import (
+    MatchSpec,
+    ObservableSpec,
+    ParameterSpec,
+    PhaseSpec,
+    PhasesScheduleSpec,
+    RoleSpec,
+    StateSpec,
+    VisualSpec,
+)
 from ..._catalog import register_model
-from ..common.markets import ClearingSpec, Order, OrderBookProtocol
 from ._stock_trader_view import StockTraderView
 
 LOWEST_PRICE = 0.01
@@ -221,27 +229,52 @@ class StockTraderElement(Element):
             agent.strategy = other.strategy
 
 
-class BookInteraction(Interaction):
-    """Limit order book that matches the orders of the traders with price-time priority and settles the trades.
+class BookInteraction(MatchingInteraction[ModelView]):
+    """Limit order book that matches the orders of the traders and reports the last traded price.
 
-    The book matches buy and sell orders with the order book protocol of `skcomplex.models.economics.common.markets`,
-    and every trade is two transfers, money from buyer to seller and shares from seller to buyer, so the total money and
-    the total shares stay the same, which the default run checks as invariants. The book reports the last traded
-    `price`, the previous price when nothing trades, and the traded `volume`.
+    The book is a matching of the traders with themselves, which binds the requesters' limit to their `bid` and the
+    providers' to their `ask`, and every trade is two transfers, money from buyer to seller and shares from seller to
+    buyer, so the total money and the total shares stay the same, which the default run checks as invariants. The book
+    reports the last traded `price`, the previous price when nothing trades, and the traded `volume`.
 
     Args:
         label:
             The label of the book.
 
-        traders:
-            The path of the group of traders.
+        requesters:
+            The path of the group of buying traders.
+
+        providers:
+            The path of the group of selling traders.
+
+        protocol:
+            The protocol that matches the orders, such as `PriceTimePriorityProtocol()`, or `None` for
+            `RandomSearchProtocol()`.
+
+        limit:
+            The states with the limit prices of the buyers and of the sellers.
+
+        quantity:
+            The states with the quantities the buyers want and the sellers offer.
+
+        budget:
+            The state of a buyer with the money it can spend.
+
+        transfers:
+            The states every trade moves, money paid by the buyer and shares delivered to it.
+
+        phase:
+            The phase the book clears in.
+
+        on_match:
+            A function of every trade and the model view, run after the transfers, or `None`.
 
         opening:
             The price before the first trade.
 
     Examples:
         >>> from skcomplex.models.economics.finance import BookInteraction
-        >>> BookInteraction('book', traders='traders').reports
+        >>> BookInteraction('book', requesters='traders', providers='traders').reports
         ('price', 'volume')
     """
 
@@ -251,45 +284,49 @@ class BookInteraction(Interaction):
         self,
         label: str,
         *,
-        traders: Annotated[str, RoleSpec()],
+        requesters: Annotated[str, RoleSpec()],
+        providers: Annotated[str, RoleSpec()],
+        protocol: BaseMatchingProtocol | None = None,
+        limit: str | tuple[str, str] = ('bid', 'ask'),
+        quantity: str | tuple[str, str] = ('demand', 'supply'),
+        budget: str = 'money',
+        transfers: Sequence[tuple[str, int]] = (('money', -1), ('shares', 1)),
+        phase: str | None = 'trade',
+        on_match: Callable[[MatchSpec, ModelView], None] | None = None,
         opening: float = 100.0,
     ) -> None:
-        super().__init__(label)
-        self.traders = traders
+        super().__init__(
+            label,
+            requesters=requesters,
+            providers=providers,
+            protocol=protocol,
+            limit=limit,
+            quantity=quantity,
+            budget=budget,
+            transfers=transfers,
+            phase=phase,
+            on_match=on_match,
+        )
         self.opening = opening
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the matching and settlement rule.
+    def _report_matches(self, matches: list[MatchSpec], unmatched: float, model: ModelView) -> None:
+        """Report the last traded price, the previous price when nothing trades, and the traded volume.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            matches:
+                The trades of the clearing.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.settle, phase='trade')]
+            unmatched:
+                The quantity of both sides left after the clearing, which the book does not report.
 
-    def settle(self, model: ModelView) -> None:
-        """Match the orders, transfer the money and the shares of every trade, and report the price and the volume.
-
-        Args:
             model:
                 The model view of the book.
         """
-        traders = model.agents('traders', StockTraderView)
-        buyers = [Order(trader, trader.bid, trader.demand, trader.money) for trader in traders if trader.demand > 0]
-        sellers = [Order(trader, trader.ask, trader.supply) for trader in traders if trader.supply > 0]
-        protocol = OrderBookProtocol().check().prepare()
-        trades = protocol.run(ClearingSpec(buyers, sellers, model.rng, {})).trades_
-        for trade in trades:
-            transfer(trade.buyer, trade.seller, trade.quantity * trade.price, 'money')
-            transfer(trade.seller, trade.buyer, trade.quantity, 'shares')
+        del unmatched
         last = model.history('price', 1)
-        price = trades[-1].price if trades else (float(last[-1]) if len(last) else self.opening)
+        price = matches[-1].price if matches else (float(last[-1]) if len(last) else self.opening)
         model.report('price', price)
-        model.report('volume', sum(trade.quantity for trade in trades))
+        model.report('volume', sum(match.quantity for match in matches))
 
 
 @register_model(
@@ -379,7 +416,15 @@ def order_book(
     )
     return System(
         elements=[traders],
-        interactions=[BookInteraction('book', traders='traders', opening=fundamental)],
+        interactions=[
+            BookInteraction(
+                'book',
+                requesters='traders',
+                providers='traders',
+                protocol=PriceTimePriorityProtocol(),
+                opening=fundamental,
+            ),
+        ],
         space=LatticeSpace((width, height), boundary='periodic', neighborhood='von_neumann'),
         time=DiscreteTime(
             schedule=PhasesScheduleSpec(

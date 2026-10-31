@@ -13,6 +13,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
+from ....core.interactions import FeedbackInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
@@ -21,7 +22,6 @@ from ....errors import SpaceError
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
-from ..common.institutions import InstitutionInteraction
 from ._forager_view import ForagerView
 from ._patch_map_spec import _PatchMapSpec
 from ._sugar_patch_view import SugarPatchView
@@ -265,7 +265,7 @@ def gini(values: npt.ArrayLike) -> float:
     return float(np.sum((2 * ranks - len(array) - 1) * array) / (len(array) * array.sum()))
 
 
-class CensusInteraction(InstitutionInteraction):
+class CensusInteraction(FeedbackInteraction[ModelView]):
     """Census that reports the population of foragers and the Gini coefficient of their wealth.
 
     Args:

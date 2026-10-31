@@ -12,13 +12,13 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
+from ....core.interactions import FeedbackInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.institutions import InstitutionInteraction
 from ._depositor_view import DepositorView
 from ._reserve_bank_view import ReserveBankView
 
@@ -248,7 +248,7 @@ class ReserveBankElement(Element):
         bank.reserves += excess
 
 
-class RegulatorInteraction(InstitutionInteraction):
+class RegulatorInteraction(FeedbackInteraction[ModelView]):
     """Central bank that sets the reserve ratio of the banks, changing it from `ratio` to `new_ratio` at `change_at`.
 
     Args:

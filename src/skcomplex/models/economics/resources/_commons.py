@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
+from ....core.interactions import FeedbackInteraction, Interaction
 from ....core.laws import BaseLaw, MatchLaw, RuleLaw
 from ....core.laws.utils import matches, transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
@@ -20,7 +20,6 @@ from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.institutions import InstitutionInteraction
 from ._cow_view import CowView
 from ._herder_view import HerderView
 from ._pasture_view import PastureView
@@ -406,7 +405,7 @@ class GrazingInteraction(Interaction):
                 cow.remove()
 
 
-class RegulatorInteraction(InstitutionInteraction):
+class RegulatorInteraction(FeedbackInteraction[ModelView]):
     """Regulator that halves the quota of cows per herder when the grass runs short and raises it when it recovers.
 
     The quota is the adaptive parameter `quota` of every herder. It halves, down to one cow, when the grass falls below

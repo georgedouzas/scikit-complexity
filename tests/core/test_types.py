@@ -1,11 +1,12 @@
 """Test the `types` module of `skcomplex.core`."""
 
 import typing
+from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from skcomplex.core.types import Process, Target
+from skcomplex.core.types import AgentViewProtocol, Preference, Process, Target
 
 
 def test_targets_are_symbolic_expressions_or_vectors():
@@ -16,3 +17,14 @@ def test_targets_are_symbolic_expressions_or_vectors():
 def test_processes_may_be_nothing():
     """Test that a process may be nothing."""
     assert type(None) in typing.get_args(Process.__value__)
+
+
+def test_agent_views_have_an_id():
+    """Test that an object with an id is an agent view, and one without is not."""
+    assert isinstance(SimpleNamespace(id=1), AgentViewProtocol)
+    assert not isinstance(SimpleNamespace(level=1.0), AgentViewProtocol)
+
+
+def test_preferences_score_two_agents():
+    """Test that a preference is a function of two agents that returns a score."""
+    assert typing.get_args(Preference.__value__)[-1] is float

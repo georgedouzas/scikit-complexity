@@ -1,4 +1,4 @@
-"""Define the types of the core: the targets of laws, the pairings of matches, and the protocols of the core."""
+"""Define the types of the core: the targets of laws, the pairings and preferences of matches, and the protocols."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,6 +22,7 @@ type Target = Expression | FreeModuleElement
 type Process = str | tuple[str, ...] | Expression | FreeModuleElement | None
 type Pairing = Callable[[Sequence[object], Sequence[object], np.random.Generator, int], list[tuple[object, object]]]
 type Reach = LatticeNeighborhood | MemoryNeighborhood
+type Preference = Callable[[object, object], float]
 
 
 @runtime_checkable
@@ -86,6 +87,15 @@ class SubshiftProtocol(Protocol):
 
 
 @runtime_checkable
+class AgentViewProtocol(Protocol):
+    """Agent as rules read it, such as `AgentView` of the agent stepper: its id, states, and parameters."""
+
+    @property
+    def id(self) -> int:
+        """Unique id of the agent."""
+
+
+@runtime_checkable
 class ModelViewProtocol(Protocol):
     """Model as agent rules read it, such as `ModelView` of the agent stepper: its agents, storage, and randomness."""
 
@@ -97,5 +107,8 @@ class ModelViewProtocol(Protocol):
     def storage(self) -> MutableMapping[str, object]:
         """Mutable mapping private to the owner of the rule that persists across the steps of one run."""
 
-    def agents(self, name: str) -> Sequence[object]:
+    def agents(self, name: str) -> Sequence[AgentViewProtocol]:
         """Return the agents of a group bound to a role of the owner, or of a group by path."""
+
+    def report(self, name: str, value: float) -> None:
+        """Publish a value of the owner as the reporter `<owner>.<name>`."""

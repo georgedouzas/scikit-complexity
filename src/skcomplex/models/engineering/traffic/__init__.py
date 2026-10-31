@@ -10,13 +10,13 @@ from ._drivers import (
     ring_road_drivers,
 )
 from ._langevin import LangevinDrivingInteraction, TrafficMomentsElement, langevin_traffic, traffic_density_equation
-from ._ridesharing import CabElement, DispatchInteraction, RiderElement, nearest_cab, ridesharing
+from ._ridesharing import ArrivalInteraction, CabElement, RiderElement, ridesharing
 from ._traffic import RoadElement, nagel_schreckenberg
 
 __all__: list[str] = [
+    'ArrivalInteraction',
     'CabElement',
     'CarelessBrakingInteraction',
-    'DispatchInteraction',
     'DriverElement',
     'LangevinDrivingInteraction',
     'MotoristElement',
@@ -30,7 +30,6 @@ __all__: list[str] = [
     'langevin_traffic',
     'lighthill_whitham_richards',
     'nagel_schreckenberg',
-    'nearest_cab',
     'optimal_velocity',
     'payne',
     'ridesharing',
