@@ -635,7 +635,10 @@ def test_reduction_of_one_end_reads_the_other_end_as_every_member(backend):
     system = System(
         elements=[
             LatticeElement(
-                'cells', element=OscillatorElement, space=NetworkSpace(nx.path_graph(3)), values={'theta': theta},
+                'cells',
+                element=OscillatorElement,
+                space=NetworkSpace(nx.path_graph(3)),
+                values={'theta': theta},
             ),
         ],
         interactions=[MeanFieldInteraction('field', cells='cells')],
