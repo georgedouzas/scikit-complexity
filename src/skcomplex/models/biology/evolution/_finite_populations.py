@@ -12,9 +12,10 @@ from sage.all__sagemath_symbolics import NN, ZZ, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
+from ....core.interactions import EvolutionInteraction, Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
+from ....core.types import ModelViewProtocol
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
@@ -23,7 +24,6 @@ from ._climber_view import ClimberView
 from ._individual_view import IndividualView
 
 ORGANISMS = 'organisms'
-UPWARD_MUTATION = 0.5
 
 
 @lru_cache(maxsize=16)
@@ -103,80 +103,73 @@ class IndividualElement(Element):
         return IndividualView
 
 
-class MoranStepInteraction(Interaction):
+class MoranStepInteraction(EvolutionInteraction):
     """One generation of the Moran process: as many birth and death events as there are individuals.
 
-    At every event an individual reproduces with probability proportional to its fitness `(1 + selection)^trait`,
+    At every event an individual reproduces with probability proportional to its fitness `(1 + advantage)^trait`,
     its offspring mutates to the trait one above or one below with probability `mutation / 2` each, and it replaces an
-    individual chosen uniformly at random, so the size of the population stays constant.
+    individual chosen uniformly at random, so the size of the population stays constant. It is the Moran replacement
+    of `EvolutionInteraction` with proportional selection and steps of the trait.
 
     Args:
         label:
             The label of the interaction.
 
-        population:
+        target:
             The path of the group of individuals.
 
-        selection:
+        advantage:
             The selective advantage of one unit of the trait.
 
         mutation:
             The probability that an offspring mutates.
 
+        phase:
+            The phase of the step the generation runs in, or `None` for the default phase.
+
     Examples:
         >>> from skcomplex.models.biology.evolution import MoranStepInteraction
-        >>> MoranStepInteraction('moran', population='population', selection=0.1).selection
-        0.1
+        >>> MoranStepInteraction('moran', target='population', advantage=0.1).check().replacement
+        'moran'
     """
 
     def __init__(
         self,
         label: str,
         *,
-        population: Annotated[str, RoleSpec()],
-        selection: Annotated[float, ParameterSpec()] = 0.0,
-        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        target: Annotated[str, RoleSpec()],
+        advantage: Annotated[float, ParameterSpec()] = 0.0,
+        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
+        phase: str | None = None,
     ) -> None:
-        super().__init__(label)
-        self.population = population
-        self.selection = selection
-        self.mutation = mutation
+        super().__init__(
+            label,
+            target=target,
+            strategy='trait',
+            selection='proportional',
+            replacement='moran',
+            mutation=mutation,
+            alphabet=None,
+            change='step',
+            phase=phase,
+        )
+        self.advantage = advantage
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the generation rule.
+    def _evaluate(self, strategies: Array, model: ModelViewProtocol) -> Array:
+        """Return the fitness `(1 + advantage)^trait` of every trait.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            strategies:
+                The traits.
+
+            model:
+                The model view of the interaction.
 
         Returns:
-            laws:
-                The laws of the component.
+            fitness:
+                The fitness of every trait.
         """
-        return [RuleLaw(self.generation)]
-
-    def generation(self, model: ModelView) -> None:
-        """Run one birth and death event per individual.
-
-        Args:
-            model:
-                The model.
-        """
-        individuals = model.agents(self.population, IndividualView)
-        selection = model.parameter('selection')
-        mutation = model.parameter('mutation')
-        traits = np.asarray([individual.trait for individual in individuals], dtype=np.float64)
-        rng = model.rng
-        for _ in range(len(traits)):
-            weights = (1 + selection) ** traits
-            parent = rng.choice(len(traits), p=weights / weights.sum())
-            child = traits[parent]
-            if rng.random() < mutation:
-                child += 1 if rng.random() < UPWARD_MUTATION else -1
-            traits[rng.integers(len(traits))] = child
-        for individual, trait in zip(individuals, traits, strict=True):
-            individual.trait = trait
-            individual.fitness = (1 + selection) ** trait
+        return (1 + model.parameter('advantage')) ** np.ravel(strategies)
 
 
 class TangledNatureStepInteraction(Interaction):
@@ -300,21 +293,23 @@ class TangledNatureStepInteraction(Interaction):
                 alive.pop(victim).remove()
 
 
-class AdaptiveClimbingInteraction(Interaction):
+class AdaptiveClimbingInteraction(EvolutionInteraction):
     """One generation of a population that climbs a random fitness landscape as a whole, under strong selection.
 
     All individuals share one genome. Each mutates one random locus with probability `u`, to a genome of random fitness
-    in [0, 1]. If a mutant is fitter, the whole population takes the fittest mutant. If every individual mutated to a
-    less fit genome, the population escapes to the fittest of them. Otherwise it stays.
+    in [0, 1], with probability `mutation`. If a mutant is fitter, the whole population takes the fittest mutant. If
+    every individual mutated to a less fit genome, the population escapes to the fittest of them. Otherwise it stays.
+    It is the best-mutant
+    replacement of `EvolutionInteraction` on genomes stored as the integers their bits spell.
 
     Args:
         label:
             The label of the interaction.
 
-        population:
+        target:
             The path of the group of individuals.
 
-        u:
+        mutation:
             The probability that an individual mutates in a generation.
 
         length:
@@ -325,59 +320,62 @@ class AdaptiveClimbingInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.models.biology.evolution import AdaptiveClimbingInteraction
-        >>> AdaptiveClimbingInteraction('climbing', population='population', u=0.1).u
-        0.1
+        >>> AdaptiveClimbingInteraction('climbing', target='population', mutation=0.1).check().replacement
+        'best-mutant'
     """
 
     def __init__(
         self,
         label: str,
         *,
-        population: Annotated[str, RoleSpec()],
-        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        target: Annotated[str, RoleSpec()],
+        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.1,
         length: int = 20,
         seed: int = 0,
     ) -> None:
-        super().__init__(label)
-        self.population = population
-        self.u = u
+        super().__init__(label, target=target, strategy='trait', replacement='best-mutant', mutation=mutation)
         self.length = length
         self.seed = seed
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the generation rule.
+    def _evaluate(self, strategies: Array, model: ModelViewProtocol) -> Array:
+        """Return the random fitness of every genome.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            strategies:
+                The genomes.
+
+            model:
+                The model view of the interaction.
 
         Returns:
-            laws:
-                The laws of the component.
+            fitness:
+                The fitness of every genome.
         """
-        return [RuleLaw(self.generation)]
+        return np.array([_random_fitness(int(genome), self.seed) for genome in np.ravel(strategies)])
 
-    def generation(self, model: ModelView) -> None:
-        """Mutate, then move the population to a fitter mutant or let it escape.
+    def _mutate(self, children: Array, probability: float, rng: np.random.Generator, population: Array) -> Array:
+        """Return the genomes, each with one random locus flipped with the probability of mutation.
 
         Args:
-            model:
-                The model.
+            children:
+                The genomes, one row per individual.
+
+            probability:
+                The probability that a genome mutates.
+
+            rng:
+                The random number generator.
+
+            population:
+                The genomes of the population.
+
+        Returns:
+            children:
+                The mutated genomes.
         """
-        individuals = model.agents(self.population, IndividualView)
-        genome = int(individuals[0].trait)
-        current = _random_fitness(genome, self.seed)
-        rng = model.rng
-        mutated = rng.random(len(individuals)) < model.parameter('u')
-        mutants = [genome ^ (1 << int(rng.integers(self.length))) for _ in range(int(mutated.sum()))]
-        if not mutants:
-            return
-        best = max(mutants, key=lambda mutant: _random_fitness(mutant, self.seed))
-        if _random_fitness(best, self.seed) <= current and not mutated.all():
-            return
-        for individual in individuals:
-            individual.trait = float(best)
-            individual.fitness = _random_fitness(best, self.seed)
+        flips = (rng.random(len(children)) < probability).astype(np.int64)
+        loci = rng.integers(self.length, size=len(children))
+        return (children.astype(np.int64) ^ (flips << loci)[:, None]).astype(float)
 
 
 class ClimberElement(Element):
@@ -522,7 +520,7 @@ def moran_process(
                 variable=True,
             ),
         ],
-        interactions=[MoranStepInteraction('moran', population='population', selection=selection, mutation=mutation)],
+        interactions=[MoranStepInteraction('moran', target='population', advantage=selection, mutation=mutation)],
     )
 
 
@@ -663,7 +661,9 @@ def adaptive_climbing(
                 visual=VisualSpec('agents', {'color_by': 'fitness'}),
             ),
         ],
-        interactions=[AdaptiveClimbingInteraction('climbing', population='population', u=u, length=length, seed=seed)],
+        interactions=[
+            AdaptiveClimbingInteraction('climbing', target='population', mutation=u, length=length, seed=seed),
+        ],
     )
 
 

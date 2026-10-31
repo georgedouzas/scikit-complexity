@@ -8,9 +8,7 @@ from ....types import Array
 
 
 class StrategistView(AgentView):
-    """View of a strategist of the iterated prisoner's dilemma, with its states and parameters as attributes."""
+    """View of a strategist of the iterated prisoner's dilemma, with its states as attributes."""
 
     genome: Array
     fitness: float
-    death: float
-    mutation: float

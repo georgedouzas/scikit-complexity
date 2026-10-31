@@ -4,7 +4,6 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -13,10 +12,9 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import EvolutionInteraction
 from ....core.system import System
-from ....engine.solvers import ModelView
+from ....core.types import ModelViewProtocol
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
@@ -75,24 +73,26 @@ class BitStringElement(Element):
         return BitStringView
 
 
-class ReproductionInteraction(Interaction):
+class ReproductionInteraction(EvolutionInteraction):
     """Death at a constant rate and replacement by mutated copies of parents chosen in proportion to their fitness.
 
-    The fitness of a genome is the mean over its loci of a value given to each allele of each locus, an additive
-    landscape with one value for a 0 and one for a 1 at every locus.
+    It is the death-birth replacement of `EvolutionInteraction`, with parents drawn among all agents, on genomes stored
+    as the integers their bits spell. A newborn has one random bit flipped with probability `mutation`. The fitness of
+    a genome is the mean over its loci of a value given to each allele of each locus, an additive landscape with one
+    value for a 0 and one for a 1 at every locus.
 
     Args:
         label:
             The label of the interaction.
+
+        target:
+            The path of the group of bit strings.
 
         death:
             The probability that an agent dies in a step.
 
         mutation:
             The probability that a newborn has one random bit flipped.
-
-        population:
-            The path of the group of bit strings.
 
         zero_values:
             The value of a 0 at every locus.
@@ -103,7 +103,7 @@ class ReproductionInteraction(Interaction):
     Examples:
         >>> from skcomplex.models.computer_science.evolutionary_computation import ReproductionInteraction
         >>> ReproductionInteraction(
-        ...     'reproduction', population='genomes', zero_values=(0.1, 0.2), one_values=(0.9, 0.3)
+        ...     'reproduction', target='genomes', zero_values=(0.1, 0.2), one_values=(0.9, 0.3)
         ... ).mutation
         0.05
     """
@@ -112,52 +112,64 @@ class ReproductionInteraction(Interaction):
         self,
         label: str,
         *,
-        death: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        population: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
+        death: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.1,
+        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.05,
         zero_values: tuple[float, ...] = (),
         one_values: tuple[float, ...] = (),
     ) -> None:
-        super().__init__(label)
-        self.death = death
-        self.mutation = mutation
-        self.population = population
+        super().__init__(
+            label,
+            target=target,
+            strategy='genome',
+            selection='proportional',
+            replacement='death-birth',
+            mutation=mutation,
+            death=death,
+            parents='all',
+        )
         self.zero_values = zero_values
         self.one_values = one_values
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of one generation step.
+    def _evaluate(self, strategies: Array, model: ModelViewProtocol) -> Array:
+        """Return the fitness of every genome on the additive landscape.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            strategies:
+                The genomes.
+
+            model:
+                The model view of the interaction.
 
         Returns:
-            laws:
-                The laws of the component.
+            fitness:
+                The fitness of every genome.
         """
-        return [RuleLaw(self.reproduce)]
+        return _fitness_of(np.ravel(strategies), np.asarray(self.zero_values), np.asarray(self.one_values))
 
-    def reproduce(self, model: ModelView) -> None:
-        """Replace the dead by mutated copies of parents chosen by fitness, and update every fitness.
+    def _mutate(self, children: Array, probability: float, rng: np.random.Generator, population: Array) -> Array:
+        """Return the genomes of the newborns, each with one random bit flipped with the probability of mutation.
 
         Args:
-            model:
-                The model.
+            children:
+                The genomes, one row per newborn.
+
+            probability:
+                The probability that a newborn mutates.
+
+            rng:
+                The random number generator.
+
+            population:
+                The genomes of the population.
+
+        Returns:
+            children:
+                The mutated genomes.
         """
-        agents = model.agents('population', BitStringView)
-        genomes = np.array([agent.genome for agent in agents], dtype=float)
-        fitness = np.array([agent.fitness for agent in agents], dtype=float)
-        rng = model.rng
-        dead = np.flatnonzero(rng.random(len(agents)) < model.parameter('death'))
-        parents = rng.choice(len(agents), size=dead.size, p=fitness / fitness.sum())
-        flips = rng.random(dead.size) < model.parameter('mutation')
-        loci = rng.integers(0, len(self.zero_values), size=dead.size)
-        genomes[dead] = genomes[parents].astype(np.int64) ^ (flips.astype(np.int64) << loci)
-        zero_values, one_values = np.asarray(self.zero_values), np.asarray(self.one_values)
-        for agent, genome, value in zip(agents, genomes, _fitness_of(genomes, zero_values, one_values), strict=True):
-            agent.genome = float(genome)
-            agent.fitness = float(value)
+        flips = (rng.random(len(children)) < probability).astype(np.int64)
+        loci = rng.integers(0, len(self.zero_values), size=len(children))
+        return (children.astype(np.int64) ^ (flips << loci)[:, None]).astype(float)
 
 
 @register_model(
@@ -201,7 +213,7 @@ def bit_string_evolution(
 
     Examples:
         >>> from skcomplex.models.computer_science.evolutionary_computation import bit_string_evolution
-        >>> bit_string_evolution(10, n_bits=4).interactions[0].population
+        >>> bit_string_evolution(10, n_bits=4).interactions[0].target
         'genomes'
     """
     rng = np.random.default_rng(random_state)
@@ -210,7 +222,7 @@ def bit_string_evolution(
     fitness = _fitness_of(genomes, zero_values, one_values)
     reproduction = ReproductionInteraction(
         'reproduction',
-        population='genomes',
+        target='genomes',
         death=death,
         mutation=mutation,
         zero_values=tuple(zero_values.tolist()),
