@@ -3,10 +3,10 @@
 ## 1. Core mechanisms
 
 - [x] 1.1 Work on `development`, cutting one worktree branch per parallel agent from it, and verify `git status` is clean before the first merge.
-- [ ] 1.2 Add `CompartmentElement` and `DensityElement` to `skcomplex.core.elements`, one module each, with docstrings and doctests; verify tests in `tests/core/elements/` for declared compartments and a density used by an `EncounterLaw` pass.
-- [ ] 1.3 Add `ReactionInteraction` with the modes `'rate'`, `'jump'`, and `'langevin'`; verify a test that runs `S + I -> 2 I` and `I -> R` in rate and jump mode with 100,000 units, the jump means within 2 percent of the rate solution, and `S + I + R` constant.
-- [ ] 1.4 Add `GrowthInteraction` with the forms `'exponential'`, `'logistic'`, `'gompertz'`, `'power'`, and `'bertalanffy'`, and the capacity, exponent, harvest, and delay; verify tests of each form against its closed solution and of the logistic inflection at half the capacity.
-- [ ] 1.5 Add `RandomWalkInteraction` with the steps `'neighbor'`, `'gaussian'`, and `'levy'`, a step probability, a rate, and a cost; verify the mean squared displacement `4 D t` within 5 percent for 10,000 Gaussian walkers, and neighbour steps on a lattice and a network.
+- [x] 1.2 Add `CompartmentElement` and `DensityElement` to `skcomplex.core.elements`, one module each, with docstrings and doctests; verify tests in `tests/core/elements/` for declared compartments and a density used by an `EncounterLaw` pass.
+- [x] 1.3 Add `ReactionInteraction` with the modes `'rate'`, `'jump'`, and `'langevin'`; verify a test that runs `S + I -> 2 I` and `I -> R` in rate and jump mode with 100,000 units, the jump means within 2 percent of the rate solution, and `S + I + R` constant.
+- [x] 1.4 Add `GrowthInteraction` with the forms `'exponential'`, `'logistic'`, `'gompertz'`, `'power'`, and `'bertalanffy'`, and the capacity, exponent, harvest, and delay; verify tests of each form against its closed solution and of the logistic inflection at half the capacity.
+- [x] 1.5 Add `RandomWalkInteraction` with the steps `'neighbor'`, `'gaussian'`, and `'levy'`, a step probability, a rate, and a cost; verify the mean squared displacement `4 D t` within 5 percent for 10,000 Gaussian walkers, and neighbour steps on a lattice and a network.
 - [ ] 1.17 Extend the edge kernel of `NeighborInteraction` with per-member laws of either end, the degrees of the source and the target, `delayed` reads of both ends, and `RelaxationLaw`, `DriveLaw`, and `LocalRuleLaw`; verify each on a network and a lattice, including recovery compiled once per member and an avalanche recorded as an event on a network.
 - [ ] 1.18 Let a reduction read the reading member apart from the reduced one; verify that the mean of `sin(other.x - x)` over a group of three gives `[0.584, 0, -0.584]` for phases `[0, 1, 2]`-style inputs against a direct NumPy evaluation.
 - [ ] 1.19 Add a reduction that returns the state of the neighbour at which an expression is largest; verify it against a direct evaluation on a ring and a network.
@@ -15,24 +15,24 @@
 - [ ] 1.8 Add `ThresholdInteraction` with reset and redistribution, recording cascades as events; verify sandpile avalanche sizes follow a power law over two decades on a 50 by 50 lattice.
 - [x] 1.9 Add `ChoiceInteraction` with the rules `'logit'`, `'metropolis'`, and `'fermi'`, where logit is the heat-bath rule; verify logit fully connected spins approach `m = tanh(2 m)`, and logit probabilities against `exp(beta u) / sum`.
 - [ ] 1.10 Add `ImitationInteraction` with the rules `'random'`, `'majority'`, and `'best'`; verify voter consensus on a ring of 50, with the winning probability equal to the initial fraction over 200 runs.
-- [ ] 1.11 Add `ForagingInteraction` and `RegrowthInteraction`; verify energy gain, metabolism, splitting reproduction, death at zero energy, and regrowth by delay and towards a capacity in unit tests.
-- [ ] 1.12 Add `OrnsteinUhlenbeckInteraction`, additive and multiplicative; verify the stationary variance `sigma**2 / (2 theta)` within 5 percent, and the log-normal mean of the geometric case.
-- [ ] 1.13 Add `AlignmentInteraction`, polar and nematic, with noise and repulsion and attraction zones; verify Vicsek polar order above 0.9 at low noise.
+- [x] 1.11 Add `ForagingInteraction` and `RegrowthInteraction`; verify energy gain, metabolism, splitting reproduction, death at zero energy, and regrowth by delay and towards a capacity in unit tests.
+- [x] 1.12 Add `OrnsteinUhlenbeckInteraction`, additive and multiplicative; verify the stationary variance `sigma**2 / (2 theta)` within 5 percent, and the log-normal mean of the geometric case.
+- [x] 1.13 Add `AlignmentInteraction`, polar and nematic, with noise and repulsion and attraction zones; verify Vicsek polar order above 0.9 at low noise.
 - [x] 1.14 Add `EvolutionInteraction` with tournament and roulette selection, crossover, and mutation over an alphabet or Gaussian, as private methods that replace `evolve`; verify the mean fitness rises on the count of ones over 50 generations and two runs with one seed agree.
 - [x] 1.15 Keep named equations out of the core: no `StuartLandauElement`, `VanDerPolElement`, or `LogisticMapElement` in `skcomplex.core`; verify `skcomplex.core.elements.__all__` names none of them.
 - [ ] 1.16 Export every new class from its package, and verify the field-term test and `tests/test_types.py` pass with every new name.
 
 ## 2. Forces and potentials
 
-- [ ] 2.1 Give `PotentialInteraction` and `PairPotentialInteraction` the `position`, `velocity`, and `mass` state names, defaulting to `x`, `v`, and `m`; verify a pair potential on states `r` and `u` and the existing potential tests.
-- [ ] 2.2 Add `PairForceInteraction`, which takes an energy function of the distance and a cutoff, `DampingInteraction`, and `ConstantForceInteraction` moved from physics; verify forces against the gradient of the energy and damping against exponential decay.
-- [ ] 2.3 Rebuild `physics/common/particles` on the core: Lennard-Jones, soft spheres, springs, gravity, and the harmonic potential on `PairForceInteraction` or `PotentialInteraction`, the thermostat on `OrnsteinUhlenbeckInteraction`, with their LAMMPS translations; verify the Lennard-Jones minimum at `2 ** (1 / 6)`, the thermostat's equilibrium temperature within 5 percent, and the LAMMPS agreement tests.
+- [x] 2.1 Give `PotentialInteraction` and `PairPotentialInteraction` the `position`, `velocity`, and `mass` state names, defaulting to `x`, `v`, and `m`; verify a pair potential on states `r` and `u` and the existing potential tests.
+- [x] 2.2 Add `PairForceInteraction`, which takes an energy function of the distance and a cutoff, `DampingInteraction`, and `ConstantForceInteraction` moved from physics; verify forces against the gradient of the energy and damping against exponential decay.
+- [x] 2.3 Rebuild `physics/common/particles` on the core: Lennard-Jones, soft spheres, springs, gravity, and the harmonic potential on `PairForceInteraction` or `PotentialInteraction`, the thermostat on `OrnsteinUhlenbeckInteraction`, with their LAMMPS translations; verify the Lennard-Jones minimum at `2 ** (1 / 6)`, the thermostat's equilibrium temperature within 5 percent, and the LAMMPS agreement tests.
 
 ## 3. Matching, feedback, and learning in the core
 
-- [ ] 3.1 Move the market protocols to the core as `BaseMatchingProtocol` and the seven protocols named in the proposal, `Order` to the private `_Offer`, and `Trade` to `MatchSpec`; verify the moved protocol tests, including price-time priority and stable matching, under the new names.
-- [ ] 3.2 Add `MatchingInteraction` with the `requesters` and `providers` roles, the `limit`, `quantity`, and `budget` state names, and `transfers`; port the double auction, labour, order book, and credit models and the ride-sharing dispatch to it; verify their tests pass, and the ride-sharing test with `StableMatchingProtocol`.
-- [ ] 3.3 Move `InstitutionInteraction` to the core as `FeedbackInteraction` and port its seven users; verify their tests and a feedback test that changes a parameter only at rounds where an observable exceeds a target.
+- [x] 3.1 Move the market protocols to the core as `BaseMatchingProtocol` and the seven protocols named in the proposal, `Order` to the private `_Offer`, and `Trade` to `MatchSpec`; verify the moved protocol tests, including price-time priority and stable matching, under the new names.
+- [x] 3.2 Add `MatchingInteraction` with the `requesters` and `providers` roles, the `limit`, `quantity`, and `budget` state names, and `transfers`; port the double auction, labour, order book, and credit models and the ride-sharing dispatch to it; verify their tests pass, and the ride-sharing test with `StableMatchingProtocol`.
+- [x] 3.3 Move `InstitutionInteraction` to the core as `FeedbackInteraction` and port its seven users; verify their tests and a feedback test that changes a parameter only at rounds where an observable exceeds a target.
 - [ ] 3.4 Rename `economics/common/learning` to `economics/common/forecasting`, keep only the forecasting heuristics, and port the users of `logit_choice` and `evolve` to `ChoiceInteraction` and `EvolutionInteraction`; verify their tests, and that `markets` and `institutions` no longer exist in `economics/common`.
 
 ## 4. Model rewrites
