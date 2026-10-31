@@ -8,15 +8,13 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
+from ....core.interactions import EvolutionInteraction, Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
 from ....engine.solvers import ModelView
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import RoleSpec, StateSpec, VisualSpec
 from ....types import Array, IntArray
 from ..._catalog import register_model
 from ._strategy_view import StrategyView
@@ -74,19 +72,6 @@ def _evaluate(
     return scores.mean(axis=1)
 
 
-def _offspring(strategies: IntArray, scores: Array, rng: np.random.Generator, mutation: float) -> IntArray:
-    """Return children of parents chosen by rank, by single-point crossover and per-gene mutation."""
-    size = strategies.shape[0]
-    ranks = np.empty(size)
-    ranks[np.argsort(scores)] = np.arange(1, size + 1)
-    parents = rng.choice(size, size=(size, 2), p=ranks / ranks.sum())
-    cuts = rng.integers(1, N_SITUATIONS, size=(size, 1))
-    first = np.arange(N_SITUATIONS) < cuts
-    children = np.where(first, strategies[parents[:, 0]], strategies[parents[:, 1]])
-    mutated = rng.random(children.shape) < mutation
-    return np.where(mutated, rng.integers(0, N_ACTIONS, children.shape), children)
-
-
 class StrategyElement(Element):
     """Strategy of Robby, the action for each of the 243 situations he can see, with its last measured score.
 
@@ -130,22 +115,18 @@ class StrategyElement(Element):
         return StrategyView
 
 
-class EvolutionInteraction(Interaction):
-    """Generation of a genetic algorithm: score every strategy in random rooms and breed the next generation.
+class RoomCleaningInteraction(Interaction):
+    """Score of every strategy of Robby, the mean of its scores in sessions of cleaning random rooms.
 
     Every strategy cleans `sessions` random rooms of side `side`, with a can in each cell with probability `density`,
-    for `n_actions` actions. A picked can scores 10, picking up nothing scores -1, and bumping into a wall scores -5.
-    Parents are chosen with probabilities proportional to their rank, and every child takes a single-point crossover of
-    two parents, with each action replaced by a random one with probability `mutation`.
+    for `n_actions` actions, and its state `score` takes the mean score. A picked can scores 10, picking up nothing
+    scores -1, and bumping into a wall scores -5.
 
     Args:
         label:
             The label of the interaction.
 
-        mutation:
-            The probability that an action of a child is replaced by a random one.
-
-        population:
+        target:
             The path of the group of strategies.
 
         sessions:
@@ -160,9 +141,12 @@ class EvolutionInteraction(Interaction):
         density:
             The probability that a cell holds a can.
 
+        phase:
+            The phase of the step the scoring runs in, or `None` for the default phase.
+
     Examples:
-        >>> from skcomplex.models.computer_science.evolutionary_computation import EvolutionInteraction
-        >>> EvolutionInteraction('evolution', population='strategies').sessions
+        >>> from skcomplex.models.computer_science.evolutionary_computation import RoomCleaningInteraction
+        >>> RoomCleaningInteraction('scoring', target='strategies').sessions
         10
     """
 
@@ -170,23 +154,30 @@ class EvolutionInteraction(Interaction):
         self,
         label: str,
         *,
-        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-        population: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
         sessions: int = 10,
         n_actions: int = 100,
         side: int = 10,
         density: float = 0.5,
+        phase: str | None = None,
     ) -> None:
         super().__init__(label)
-        self.mutation = mutation
-        self.population = population
+        self.target = target
         self.sessions = sessions
         self.n_actions = n_actions
         self.side = side
         self.density = density
+        self.phase = phase
+
+    def _score_agents(self, model: ModelView) -> None:
+        """Set the score of every strategy of the target to its mean score in random rooms."""
+        agents = model.agents('target', StrategyView)
+        strategies = np.array([agent.actions for agent in agents], dtype=np.int64)
+        for agent, score in zip(agents, self.score(strategies, model.rng), strict=True):
+            agent.score = float(score)
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of one generation.
+        """Return the rule that scores the strategies.
 
         Args:
             s:
@@ -194,9 +185,9 @@ class EvolutionInteraction(Interaction):
 
         Returns:
             laws:
-                The laws of the component.
+                The scoring rule.
         """
-        return [RuleLaw(self.breed)]
+        return [RuleLaw(self._score_agents, phase=self.phase)]
 
     def score(self, strategies: IntArray, rng: np.random.Generator) -> Array:
         """Return the mean score of strategies in random rooms.
@@ -221,21 +212,6 @@ class EvolutionInteraction(Interaction):
             density=self.density,
         )
 
-    def breed(self, model: ModelView) -> None:
-        """Replace the strategies by the next generation and score it.
-
-        Args:
-            model:
-                The model.
-        """
-        agents = model.agents('population', StrategyView)
-        strategies = np.array([agent.actions for agent in agents], dtype=np.int64)
-        scores = np.array([agent.score for agent in agents], dtype=float)
-        children = _offspring(strategies, scores, model.rng, model.parameter('mutation'))
-        for agent, actions, score in zip(agents, children, self.score(children, model.rng), strict=True):
-            agent.actions = actions
-            agent.score = float(score)
-
 
 @register_model(
     field='computer_science/evolutionary_computation',
@@ -253,15 +229,17 @@ def robby_ga(
 ) -> System:
     """Return Mitchell's genetic algorithm that evolves strategies for Robby, a robot that collects cans in a room.
 
-    Each step is one generation. Random strategies score far below zero because they bump into walls, and evolution
-    finds strategies that avoid walls and collect cans.
+    Each step is one generation. Parents are selected with probabilities proportional to their rank, every pair of
+    parents exchanges the tails of their strategies after a random cut, and every action of a child mutates to another
+    action with probability `mutation`. Then every child is scored in random rooms. Random strategies score far below
+    zero because they bump into walls, and evolution finds strategies that avoid walls and collect cans.
 
     Args:
         n_strategies:
             The size of the population.
 
         mutation:
-            The probability that an action of a child is replaced by a random one.
+            The probability that an action of a child is replaced by another one.
 
         sessions:
             The number of rooms a strategy cleans to be scored.
@@ -284,13 +262,17 @@ def robby_ga(
     rng = np.random.default_rng(random_state)
     evolution = EvolutionInteraction(
         'evolution',
-        population='strategies',
+        target='strategies',
+        strategy='actions',
+        fitness='score',
+        selection='rank',
+        crossover=1.0,
         mutation=mutation,
-        sessions=sessions,
-        n_actions=n_actions,
+        alphabet=N_ACTIONS,
     )
+    scoring = RoomCleaningInteraction('scoring', target='strategies', sessions=sessions, n_actions=n_actions)
     actions = rng.integers(0, N_ACTIONS, size=(n_strategies, N_SITUATIONS))
-    scores = evolution.score(actions, rng)
+    scores = scoring.score(actions, rng)
     return System(
         elements=[
             GroupElement(
@@ -300,5 +282,5 @@ def robby_ga(
                 values={'actions': actions, 'score': scores},
             ),
         ],
-        interactions=[evolution],
+        interactions=[evolution, scoring],
     )
