@@ -7,8 +7,6 @@ from ._ensembles import (
     random_graph_ensembles,
 )
 from ._growth import (
-    AttachmentElement,
-    CopyingElement,
     CopyingVertexElement,
     LinkElement,
     TriadVertexElement,
@@ -28,8 +26,6 @@ from ._processes import (
 from ._structure import NetworkMeasuresElement, NetworkNodeElement, network_structure_analysis
 
 __all__: list[str] = [
-    'AttachmentElement',
-    'CopyingElement',
     'CopyingVertexElement',
     'EnsembleNodeElement',
     'FailingElement',
