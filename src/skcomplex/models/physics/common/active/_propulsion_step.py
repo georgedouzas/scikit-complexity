@@ -54,7 +54,7 @@ class PropulsionStepInteraction(MapInteraction):
         state: str = 'x',
         heading: str = 'theta',
     ) -> None:
-        super().__init__(label, target=target, state=state, function=self._step, form='increment')
+        super().__init__(label, target=target, state=state, function=self._step, mode='increment')
         self.speed = speed
         self.heading = heading
 

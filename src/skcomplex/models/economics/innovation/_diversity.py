@@ -98,7 +98,7 @@ def creative_phase_transition(x: float = 0.1, *, r: float = 5.0) -> System:
     return System(
         elements=[AdjacentPossibleElement('system', x=x, d=r * x**2 * (1 - x), r=r)],
         interactions=[
-            MapInteraction('combination', target='system', state='x', function=lambda s: s.target.d, form='increment'),
+            MapInteraction('combination', target='system', state='x', function=lambda s: s.target.d, mode='increment'),
             MapInteraction('adjacent_possible', target='system', state='d', function=_new_entities),
         ],
     )
