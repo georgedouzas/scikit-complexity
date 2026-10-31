@@ -29,6 +29,7 @@ from ....specs import (
     VisualSpec,
 )
 from ..._catalog import register_model
+from ..common.forecasting import heuristics
 from ._stock_trader_view import StockTraderView
 
 LOWEST_PRICE = 0.01
@@ -185,9 +186,10 @@ class StockTraderElement(Element):
         """
         price, previous = self._prices(model)
         if agent.strategy:
-            expected = price + model.parameter('extrapolation') * (price - previous)
+            expected = heuristics.trend([previous, price], strength=model.parameter('extrapolation'))
         else:
-            expected = price + model.parameter('reversion') * (model.parameter('fundamental') - price)
+            reversion = 1 - model.parameter('reversion')
+            expected = heuristics.fundamental([price], fundamental=model.parameter('fundamental'), reversion=reversion)
         expected = max(LOWEST_PRICE, expected * (1 + model.parameter('noise') * model.rng.normal()))
         buying = expected > price
         new_bid, new_ask = (expected, 0.0) if buying else (0.0, expected)

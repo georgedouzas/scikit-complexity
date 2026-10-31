@@ -7,11 +7,11 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import RateInteraction
 from ....core.laws.utils import advection, laplacian
 from ....core.spaces import LatticeSpace
 from ....core.system import System
@@ -20,7 +20,35 @@ from ..._catalog import register_model
 
 
 class ArbitrageDensityElement(Element):
-    """Arbitrage density element."""
+    """Density of a good carried by random-walk traders, minimally coupled to an exchange rate connection.
+
+    Args:
+        label:
+            The label of the density.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        rho:
+            The density of the good.
+
+        D:
+            The diffusion constant of the traders.
+
+        A_x:
+            The initial spatial component of the exchange rate connection.
+
+        E:
+            The arbitrage field strength, the growth rate of the spatial component.
+
+        A_t:
+            The temporal component of the exchange rate connection.
+
+    Examples:
+        >>> from skcomplex.models.economics.finance import ArbitrageDensityElement
+        >>> ArbitrageDensityElement('market', E=1.0).E
+        1.0
+    """
 
     def __init__(
         self,
@@ -40,16 +68,16 @@ class ArbitrageDensityElement(Element):
         self.E = E
         self.A_t = A_t
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the arbitrage density element."""
-        return [
-            RateLaw(
-                s.rho,
-                s.D * laplacian(s.rho)
-                - advection(s.rho, [2 * s.D * (s.A_x + s.E * s.t)])
-                + (s.D * (s.A_x + s.E * s.t) ** 2 + s.A_t) * s.rho,
-            ),
-        ]
+
+def _covariant_diffusion(s: SimpleNamespace) -> Expression:
+    """Return `D (d_x - A_x(t))^2 rho + A_t rho`, with the connection `A_x(t) = A_x + E t`."""
+    market = s.target
+    connection = market.A_x + market.E * s.t
+    return (
+        market.D * laplacian(market.rho)
+        - advection(market.rho, [2 * market.D * connection])
+        + (market.D * connection**2 + market.A_t) * market.rho
+    )
 
 
 @register_model(
@@ -107,4 +135,5 @@ def arbitrage_traders(
     values = {'rho': rho, 'D': D, 'A_x': A_x, 'E': E, 'A_t': A_t}
     line = LatticeSpace(n_sites, spacing=spacing, boundary='periodic')
     market = FieldElement('market', element=ArbitrageDensityElement, space=line, values=values)
-    return System(elements=[market])
+    transport = RateInteraction('transport', target='market', state='rho', rate=_covariant_diffusion)
+    return System(elements=[market], interactions=[transport])
