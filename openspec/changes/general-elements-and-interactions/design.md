@@ -111,9 +111,9 @@ Choice and learning:
 | Class | Operation |
 | --- | --- |
 | `ChoiceInteraction(target, state, options, utility, rule='logit', intensity=1.0, schedule='synchronous', activity=1.0)` | draws an option by the logit, Metropolis, Fermi, or best rule, symbolic or agent |
-| `ImitationInteraction(target, state, payoff, options, rate, rule)` | copies a neighbour's state at random, by majority, from the best, or by the Fermi rule |
-| `ReinforcementInteraction(target, scores, payoff, rate)` | moves the score of every option towards its realized payoff |
-| `EvolutionInteraction(target, strategy, fitness, selection, replacement, crossover, mutation)` | selection by tournament, roulette, or rank, replacement of the generation, by Moran, or death-birth, crossover, and mutation over an alphabet, Gaussian, or a function |
+| `ImitationInteraction(target, state, payoff, options, rate, rule, intensity, form='rate', probability, layer, phase)` | copies a neighbour's state at random, by majority, from the best, from a random better neighbour (`'better'`, agent form), or by the Fermi rule, as jumps, per-step updates, or an agent rule (`form='agent'`) |
+| `ReinforcementInteraction(target, scores, payoff, rate, rule='average', form, phase)` | moves the score of every option towards its realized payoff, or adds it (`rule='cumulative'`); in the agent form the scores may be one vector state, and a one-member group holds scores several groups share |
+| `EvolutionInteraction(target, strategy, fitness, selection, replacement, crossover, mutation, ..., change='other', parents='survivors', fraction, period=1, evaluate=None, reset=None, phase)` | selection by tournament, roulette (minus the minimum), proportional, or rank; replacement of the generation, by Moran, death-birth among survivors or all, truncation of the least fit `fraction`, or best mutant; mutation to another symbol, a redrawn one, one gene, a step, a new label, Gaussian, or a function; every `period` steps; strategies over one or several states; fitness from a state, `None` (neutral), or `evaluate`/`_evaluate`; `reset` states of the replaced; `crossover`, `death`, `fraction` are parameters and subclasses may declare `mutation` one |
 
 Agents, groups, and exchange:
 
@@ -134,6 +134,11 @@ The matching rules are frozen specs of `skcomplex.specs` that hold only the sett
 `GreedyMatchingSpec(score, candidates, capacity, clearing)`. `MatchingInteraction` runs each algorithm as its own
 private method, chosen by the type of its `rule`, on the offers it reads directly, so no protocol class or round spec
 exists.
+
+Learning and evolution realizations stay thin subclasses that override `_evaluate` or `_mutate` (Moran, adaptive
+climbing, neutral speciation, bit-string reproduction), and the choice, reinforcement, imitation, and evolution of the
+minority game, El Farol, the order book, and the prisoner's dilemma tournament are separate general interactions in
+phases. Neighbour interactions may return agent rules, which run as model rules.
 
 ### Elements, laws, and utilities
 - Elements: `Element`, `GroupElement`, `FieldElement`, `LatticeElement`, `CompartmentElement`, whose state `n` a model renames by a
