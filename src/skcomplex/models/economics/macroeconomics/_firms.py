@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
+from collections.abc import Callable
 from typing import Annotated
 
 import numpy as np
@@ -11,7 +11,8 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import MapInteraction
+from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -102,37 +103,46 @@ class InvestingFirmElement(Element):
         """Return the view of a firm, with its states and parameters."""
         return InvestingFirmView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of one period.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.trade)]
-
-    def trade(self, agent: InvestingFirmView, model: ModelView) -> None:
-        """Invest, produce, borrow, sell, and update the net worth, with replacement of a bankrupt firm.
+    @staticmethod
+    def get_price(agent: InvestingFirmView, model: ModelView) -> float:
+        """Return a random price, `pbar + 2 U(0, 1)`.
 
         Args:
             agent:
                 The firm.
 
             model:
-                The model.
+                The model view of the pricing.
+
+        Returns:
+            price:
+                The price of the period.
         """
-        agent.K = agent.K + agent.gamma * agent.Z
-        agent.Y = agent.phi * agent.K
-        agent.B = max(agent.K - agent.A, 0.0)
-        agent.P = agent.pbar + 2.0 * float(model.rng.random())
-        agent.Z = agent.P * agent.Y - agent.r * agent.K
-        agent.A = agent.A + agent.Z
-        if agent.A < 0:
-            agent.Z, agent.K, agent.A = 0.0, 1.0, 1.0
+        return agent.pbar + 2.0 * float(model.rng.random())
+
+    @staticmethod
+    def get_steps() -> tuple[tuple[str, str, Callable[[InvestingFirmView, ModelView], float]], ...]:
+        """Return the steps of a period in their order, each a label, a state, and the function of its next value.
+
+        A firm invests, produces, borrows, sells, earns, adds the profit to its net worth, and, when the net worth
+        turns negative, is replaced by an entrant, whose profit, capital, and net worth the last three steps reset.
+
+        Returns:
+            steps:
+                The label of every step, the state it sets, and the function of its next value of the firm and the
+                model view.
+        """
+        return (
+            ('investment', 'K', lambda agent, model: agent.K + agent.gamma * agent.Z),
+            ('production', 'Y', lambda agent, model: agent.phi * agent.K),
+            ('borrowing', 'B', lambda agent, model: max(agent.K - agent.A, 0.0)),
+            ('pricing', 'P', InvestingFirmElement.get_price),
+            ('profit', 'Z', lambda agent, model: agent.P * agent.Y - agent.r * agent.K),
+            ('accumulation', 'A', lambda agent, model: agent.A + agent.Z),
+            ('entry_profit', 'Z', lambda agent, model: 0.0 if agent.A < 0 else agent.Z),
+            ('entry_capital', 'K', lambda agent, model: 1.0 if agent.A < 0 else agent.K),
+            ('entry_worth', 'A', lambda agent, model: 1.0 if agent.A < 0 else agent.A),
+        )
 
 
 @register_model(
@@ -191,4 +201,8 @@ def toy_firm_investment(
         size=n_firms,
         values={'Z': profits, 'gamma': gamma, 'phi': phi, 'r': r, 'pbar': pbar},
     )
-    return System(elements=[firms])
+    steps = [
+        MapInteraction(label, target='firms', state=name, function=function, form='agent')
+        for label, name, function in InvestingFirmElement.get_steps()
+    ]
+    return System(elements=[firms], interactions=steps, time=DiscreteTime())
