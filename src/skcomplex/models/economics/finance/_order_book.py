@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import MatchingInteraction
+from ....core.interactions import MapInteraction, MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
@@ -155,7 +155,7 @@ class StockTraderElement(Element):
         return StockTraderView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the quoting, accounting, and imitation rules in their phases.
+        """Return the quoting and imitation rules in their phases.
 
         Args:
             s:
@@ -165,16 +165,13 @@ class StockTraderElement(Element):
             laws:
                 The laws of the component.
         """
-        return [
-            RuleLaw(self.quote, phase='quote'),
-            RuleLaw(self.account, phase='account'),
-            RuleLaw(self.imitate, phase='imitation'),
-        ]
+        return [RuleLaw(self.quote, phase='quote'), RuleLaw(self.imitate, phase='imitation')]
 
-    def _prices(self, model: ModelView) -> tuple[float, float]:
+    @staticmethod
+    def _prices(agent: StockTraderView, model: ModelView) -> tuple[float, float]:
         """Return the last two prices of the book, the fundamental value before the first."""
         history = model.history('book.price', 2)
-        prices = [value for value in history if math.isfinite(value)] or [model.parameter('fundamental')]
+        prices = [value for value in history if math.isfinite(value)] or [agent.fundamental]
         return prices[-1], prices[0]
 
     def quote(self, agent: StockTraderView, model: ModelView) -> None:
@@ -187,7 +184,7 @@ class StockTraderElement(Element):
             model:
                 The model.
         """
-        price, previous = self._prices(model)
+        price, previous = self._prices(agent, model)
         if agent.strategy:
             expected = heuristics.trend([previous, price], strength=model.parameter('extrapolation'))
         else:
@@ -201,20 +198,40 @@ class StockTraderElement(Element):
         agent.demand = float(buying and agent.money >= expected)
         agent.supply = float(not buying and agent.shares >= 1)
 
-    def account(self, agent: StockTraderView, model: ModelView) -> None:
-        """Value the wealth at the last price and record its change.
+    @staticmethod
+    def get_gain(agent: StockTraderView, model: ModelView) -> float:
+        """Return the change of the wealth valued at the last price, zero before the first valuation.
 
         Args:
             agent:
                 The trader.
 
             model:
-                The model.
+                The model view of the accounting.
+
+        Returns:
+            gain:
+                The change of the wealth in the step.
         """
-        price, _ = self._prices(model)
-        wealth = agent.money + agent.shares * price
-        agent.gain = wealth - agent.wealth if agent.wealth else 0.0
-        agent.wealth = wealth
+        return StockTraderElement.get_wealth(agent, model) - agent.wealth if agent.wealth else 0.0
+
+    @staticmethod
+    def get_wealth(agent: StockTraderView, model: ModelView) -> float:
+        """Return the money plus the shares valued at the last price.
+
+        Args:
+            agent:
+                The trader.
+
+            model:
+                The model view of the accounting.
+
+        Returns:
+            wealth:
+                The wealth of the trader.
+        """
+        price, _ = StockTraderElement._prices(agent, model)
+        return agent.money + agent.shares * price
 
     def imitate(self, agent: StockTraderView, model: ModelView) -> None:
         """Copy the strategy of a random neighbour whose wealth grew more, with the probability of imitation.
@@ -418,6 +435,17 @@ def order_book(
         },
         location=cells,
     )
+    accounts = [
+        MapInteraction(
+            f'{name}_account',
+            target='traders',
+            state=name,
+            function=function,
+            form='agent',
+            phase='account',
+        )
+        for name, function in (('gain', StockTraderElement.get_gain), ('wealth', StockTraderElement.get_wealth))
+    ]
     return System(
         elements=[traders],
         interactions=[
@@ -428,6 +456,7 @@ def order_book(
                 rule=ContinuousClearingSpec(),
                 opening=fundamental,
             ),
+            *accounts,
         ],
         space=LatticeSpace((width, height), boundary='periodic', neighborhood='von_neumann'),
         time=DiscreteTime(

@@ -33,6 +33,7 @@ from ....specs import (
 )
 from ....types import Array
 from ..._catalog import register_model
+from ..common.resources import RegrowthInteraction
 from ._business_view import BusinessView
 from ._central_bank_view import CentralBankView
 from ._people_spec import _PeopleSpec
@@ -113,6 +114,8 @@ def _wander(agent: SettlerView, model: ModelView, sight: float) -> None:
 class PlotElement(Element):
     """Patch of land whose food grows back by a share of its capacity every step, harvested against a resistance.
 
+    The regrowth is a `RegrowthInteraction` of the group of patches, relative to the capacity.
+
     Args:
         label:
             The label of the patch or the site group.
@@ -158,31 +161,6 @@ class PlotElement(Element):
     def _get_view(cls) -> type[PlotView]:
         """Return the view of a patch, with its food, capacity, resistance, and regrowth."""
         return PlotView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the regrowth rule in the phase of growth.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.grow, phase='growth')]
-
-    def grow(self, agent: PlotView, model: ModelView) -> None:
-        """Grow food back up to the capacity.
-
-        Args:
-            agent:
-                The patch.
-
-            model:
-                The model.
-        """
-        agent.food = min(agent.capacity, agent.food + agent.regrowth * agent.capacity)
 
 
 class SettlerElement(Element):
@@ -1076,7 +1054,18 @@ def metaphoria(
     )
     return System(
         elements=[patches, people, *economy],
-        interactions=[*exchange, EstateInteraction('census', people='people')],
+        interactions=[
+            RegrowthInteraction(
+                'regrowth',
+                target='patches',
+                state='food',
+                growth='regrowth',
+                relative=True,
+                phase='growth',
+            ),
+            *exchange,
+            EstateInteraction('census', people='people'),
+        ],
         space=space,
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec(name) for name in PHASES])),
     )
