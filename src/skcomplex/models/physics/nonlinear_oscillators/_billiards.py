@@ -73,7 +73,8 @@ class SinaiBilliardElement(Element):
         self,
         label: str,
         visual: VisualSpec | None = VisualSpec(
-            'bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _sinai_walls},
+            'bodies',
+            {'positions': ('x', 'y'), 'trail': None, 'outline': _sinai_walls},
         ),
         *,
         x: Annotated[float, StateSpec()] = 0.1,
