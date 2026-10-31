@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import RR, Expression, oo
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.elements import CompartmentElement, Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import Interaction, PairCouplingInteraction
 from skcomplex.core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import mod
@@ -19,13 +19,13 @@ from skcomplex.engine._utils import domain_of, symbol
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.errors import IncompatibleLawsError, LabelError, RoleError, SpaceError, ValidationError
-from skcomplex.models.biology.ecology import (
+from skcomplex.models.biology.common.populations import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
     PopulationElement,
-    PredationInteraction,
 )
-from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
+from skcomplex.models.biology.ecology import PredationInteraction
+from skcomplex.models.biology.epidemiology import InfectionInteraction, RecoveryInteraction
 from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.models.physics.common.particles import (

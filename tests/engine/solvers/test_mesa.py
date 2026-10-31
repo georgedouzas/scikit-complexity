@@ -17,7 +17,7 @@ from skcomplex.engine.compile.passes._agents_problem import AGENT_RESERVED_NAMES
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import AgentView, MesaSolver
 from skcomplex.errors import IncompatibleLawsError, LabelError, SimulationError, SpaceError, ValidationError
-from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
+from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, StepSpec, VisualSpec
 from skcomplex.types import FormKind
 

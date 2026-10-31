@@ -16,13 +16,13 @@ from skcomplex.engine.compile._observables import ObservableEvaluator
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.solvers import CoSimulationSolver, ScipyODESolver
 from skcomplex.errors import IncompatibleLawsError, SolverError, ValidationError
-from skcomplex.models.biology.ecology import (
+from skcomplex.models.biology.common.populations import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
     MortalityInteraction,
     PopulationElement,
-    PredationInteraction,
 )
+from skcomplex.models.biology.ecology import PredationInteraction
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.models.economics.resources import harvesting
 from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec

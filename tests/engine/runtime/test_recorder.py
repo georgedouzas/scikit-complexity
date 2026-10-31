@@ -5,7 +5,7 @@ import pytest
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import RecorderObserver, Simulation
 from skcomplex.errors import SimulationError
-from skcomplex.models.biology.ecology import PopulationElement
+from skcomplex.models.biology.common.populations import PopulationElement
 
 
 def test_recorder_builds_the_trajectory_of_its_frames():

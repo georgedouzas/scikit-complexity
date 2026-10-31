@@ -169,7 +169,7 @@ from skcomplex.core.laws import RateLaw
 from skcomplex.specs import RoleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.ecology import PopulationElement
+from skcomplex.models.biology.common.populations import PopulationElement
 
 
 class CullInteraction(Interaction):
@@ -387,7 +387,8 @@ a slash-separated path.
 
 ```python
 from skcomplex.core.system import System
-from skcomplex.models.biology.ecology import PopulationElement, PredationInteraction
+from skcomplex.models.biology.common.populations import PopulationElement
+from skcomplex.models.biology.ecology import PredationInteraction
 
 landscape = System(
     systems=[
@@ -3119,7 +3120,7 @@ from skcomplex.specs import CallSpec
 from skcomplex.specs import ParameterSpec, RoleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.ecology import PopulationElement
+from skcomplex.models.biology.common.populations import PopulationElement
 
 
 @numba.njit

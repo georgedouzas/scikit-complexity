@@ -8,7 +8,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.runtime import ConservationObserver, Simulation
 from skcomplex.errors import SimulationError, ValidationError
 from skcomplex.models import create
-from skcomplex.models.biology.ecology import PopulationElement
+from skcomplex.models.biology.common.populations import PopulationElement
 
 
 def test_conservation_observer_keeps_the_totals():

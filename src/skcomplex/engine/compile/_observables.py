@@ -213,7 +213,7 @@ class ObservableEvaluator:
         >>> from skcomplex.engine.compile import ObservableEvaluator, compile_system
         >>> from skcomplex.specs import ObservableSpec
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import PopulationElement
+        >>> from skcomplex.models.biology.common.populations import PopulationElement
         >>> system = System(
         ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'n': [2.0, 6.0]})]
         ... )
@@ -785,7 +785,7 @@ class ObservableEvaluator:
             >>> from skcomplex.engine.compile import compile_system
             >>> from skcomplex.engine.compile import ObservableEvaluator
             >>> from skcomplex.core.system import System
-            >>> from skcomplex.models.biology.ecology import PopulationElement
+            >>> from skcomplex.models.biology.common.populations import PopulationElement
             >>> problem = compile_system(System(elements=[PopulationElement('rabbits')]))
             >>> ObservableEvaluator._namespace_of(problem).rabbits.n
             n_rabbits

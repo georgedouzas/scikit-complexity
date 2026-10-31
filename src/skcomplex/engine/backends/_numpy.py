@@ -57,7 +57,7 @@ class NumpyBackend(BaseBackend):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.engine.backends import NumpyBackend
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import PopulationElement
+        >>> from skcomplex.models.biology.common.populations import PopulationElement
         >>> compile_system(System(elements=[PopulationElement('a')]), backend=NumpyBackend()).backend
         'numpy'
     """

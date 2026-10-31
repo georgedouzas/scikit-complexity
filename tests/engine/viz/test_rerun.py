@@ -27,7 +27,7 @@ from skcomplex.engine.viz import (
     SiteVisual,
 )
 from skcomplex.models import create, describe
-from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
+from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.models.computer_science.automata import game_of_life
 from skcomplex.models.physics.common.particles import ConstantForceInteraction, MassPointElement
 from skcomplex.models.physics.statistical_mechanics import ideal_gas

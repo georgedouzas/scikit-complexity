@@ -23,7 +23,7 @@ class RecorderObserver(BaseObserver):
 
     Examples:
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import PopulationElement
+        >>> from skcomplex.models.biology.common.populations import PopulationElement
         >>> from skcomplex.engine.runtime import RecorderObserver, Simulation
         >>> recorder = RecorderObserver()
         >>> simulation = Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[recorder])

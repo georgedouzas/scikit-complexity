@@ -139,7 +139,7 @@ class PassCompiler(BaseCompiler):
     Examples:
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.compile import PassCompiler
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
+        >>> from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> system = System(
         ...     elements=[PopulationElement('rabbits', n=10)],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],

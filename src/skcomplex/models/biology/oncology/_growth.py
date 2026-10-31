@@ -17,6 +17,13 @@ from ....core.laws.utils import minimum, pulse_train
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.populations import (
+    ExponentialGrowthInteraction,
+    GompertzGrowthInteraction,
+    GrowthInteraction,
+    MortalityInteraction,
+    PowerLawGrowthInteraction,
+)
 
 GROWTH_REFERENCES = ('Padmanabhan, Meskin, and Al Moustafa 2021', 'Benzekry et al. 2014')
 
@@ -121,241 +128,6 @@ class ExponentialLinearGrowthInteraction(RateInteraction):
         """
         exponential = s.r0 * s.target.n
         return minimum(exponential, s.r)
-
-
-class PowerLawGrowthInteraction(RateInteraction):
-    """Growth of a proliferating part that scales as a power of the size, `dn/dt = r n^p`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the tumour.
-
-        r:
-            The growth rate.
-
-        p:
-            The exponent, `2/3` for a proliferating rim and 1 for exponential growth.
-
-    Examples:
-        >>> from skcomplex.models.biology.oncology import PowerLawGrowthInteraction
-        >>> PowerLawGrowthInteraction('growth', target='tumour').p
-        0.58
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.32,
-        p: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.58,
-    ) -> None:
-        super().__init__(label, target=target, state='n')
-        self.r = r
-        self.p = p
-
-    def _get_rate(self, s: SimpleNamespace) -> Expression:
-        """Return the rate `r n^p`.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            rate:
-                The rate of the size of the tumour.
-        """
-        return s.r * s.target.n**s.p
-
-
-class ExponentialGrowthInteraction(RateInteraction):
-    """Growth at a constant per capita rate, `dn/dt = r n`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the tumour.
-
-        r:
-            The per capita growth rate.
-
-    Examples:
-        >>> from skcomplex.models.biology.oncology import ExponentialGrowthInteraction
-        >>> ExponentialGrowthInteraction('growth', target='tumour', r=0.223).r
-        0.223
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec()] = 0.223,
-    ) -> None:
-        super().__init__(label, target=target, state='n')
-        self.r = r
-
-    def _get_rate(self, s: SimpleNamespace) -> Expression:
-        """Return the rate `r n`.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            rate:
-                The rate of the size of the tumour.
-        """
-        return s.r * s.target.n
-
-
-class LossInteraction(RateInteraction):
-    """Loss at a constant per capita rate, `dn/dt = -d n`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the tumour.
-
-        d:
-            The per capita loss rate.
-
-    Examples:
-        >>> from skcomplex.models.biology.oncology import LossInteraction
-        >>> LossInteraction('loss', target='tumour', d=0.8).d
-        0.8
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, target=target, state='n')
-        self.d = d
-
-    def _get_rate(self, s: SimpleNamespace) -> Expression:
-        """Return the rate `-d n`.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            rate:
-                The rate of the size of the tumour.
-        """
-        return -s.d * s.target.n
-
-
-class GeneralizedLogisticGrowthInteraction(RateInteraction):
-    """Growth that saturates at a carrying capacity, `dn/dt = r n (1 - (n / K)^p)`, logistic for `p = 1`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the tumour.
-
-        r:
-            The growth rate at low density.
-
-        K:
-            The carrying capacity.
-
-        p:
-            The exponent of the saturation.
-
-    Examples:
-        >>> from skcomplex.models.biology.oncology import GeneralizedLogisticGrowthInteraction
-        >>> GeneralizedLogisticGrowthInteraction('growth', target='tumour', p=2.0).p
-        2.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.305,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1221.0,
-        p: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, target=target, state='n')
-        self.r = r
-        self.K = K
-        self.p = p
-
-    def _get_rate(self, s: SimpleNamespace) -> Expression:
-        """Return the rate `r n (1 - (n / K)^p)`.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            rate:
-                The rate of the size of the tumour.
-        """
-        return s.r * s.target.n * (1 - (s.target.n / s.K) ** s.p)
-
-
-class GompertzGrowthInteraction(RateInteraction):
-    """Growth that slows as the logarithm of the room left, `dn/dt = r n log(K / n)`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the tumour.
-
-        r:
-            The rate at which the growth slows.
-
-        K:
-            The carrying capacity.
-
-    Examples:
-        >>> from skcomplex.models.biology.oncology import GompertzGrowthInteraction
-        >>> GompertzGrowthInteraction('growth', target='tumour', K=2000.0).K
-        2000.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.0719,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1964.0,
-    ) -> None:
-        super().__init__(label, target=target, state='n')
-        self.r = r
-        self.K = K
-
-    def _get_rate(self, s: SimpleNamespace) -> Expression:
-        """Return the rate `r n log(K / n)`.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            rate:
-                The rate of the size of the tumour.
-        """
-        return s.r * s.target.n * log(s.K / s.target.n)
 
 
 class VascularSupportInteraction(Interaction):
@@ -592,7 +364,7 @@ def von_bertalanffy(n: float = 1.0, *, r: float = 2.32, p: float = 0.918, d: flo
         elements=[TumourElement('tumour', n=n)],
         interactions=[
             PowerLawGrowthInteraction('growth', target='tumour', r=r, p=p),
-            LossInteraction('loss', target='tumour', d=d),
+            MortalityInteraction('loss', target='tumour', d=d),
         ],
     )
 
@@ -633,7 +405,7 @@ def generalized_logistic(n: float = 10.0, *, r: float = 0.305, K: float = 1221.0
     """
     return System(
         elements=[TumourElement('tumour', n=n)],
-        interactions=[GeneralizedLogisticGrowthInteraction('growth', target='tumour', r=r, K=K, p=p)],
+        interactions=[GrowthInteraction('growth', target='tumour', r=r, K=K, p=p, form='logistic')],
     )
 
 

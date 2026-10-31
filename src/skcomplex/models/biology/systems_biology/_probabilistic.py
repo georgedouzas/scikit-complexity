@@ -11,9 +11,10 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import NN, SR, Expression
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
+from ....core.base import BasePart
 from ....core.elements import Element
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, UpdateLaw
+from ....core.interactions import MapInteraction
+from ....core.laws import UpdateLaw
 from ....core.laws.utils import categorical, where
 from ....core.system import System
 from ....errors import ValidationError
@@ -64,11 +65,12 @@ class ProbabilisticNodeElement(Element):
         self.function = function
 
 
-class ProbabilisticFunctionInteraction(Interaction):
-    """Synchronous update of a node by one of several truth tables, drawn with given probabilities at every step.
+class ProbabilisticFunctionInteraction(MapInteraction):
+    """Synchronous map of a node by one of several truth tables, drawn with given probabilities at every step.
 
     Each table of `2^k` entries reads the `k` inputs as the bits of a binary number, from the most significant, and
-    gives the next value of the target. The target also records the index of the drawn table.
+    gives the next value `x` of the target. A second update of the same step records the index of the drawn table in
+    the state `function` of the target, from the same draw.
 
     Args:
         label:
@@ -108,8 +110,7 @@ class ProbabilisticFunctionInteraction(Interaction):
         tables: Sequence[Sequence[int]] = ((0,),),
         probabilities: Sequence[float] = (1.0,),
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, state='x', function=self._get_drawn_value)
         self.inputs = inputs
         self.tables = tables
         self.probabilities = probabilities
@@ -145,24 +146,32 @@ class ProbabilisticFunctionInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the update of the target by the drawn table and the record of the drawn index.
+    def _get_draw(self) -> Expression:
+        """Return the index of the table drawn in a step, one draw for the value and its record."""
+        return categorical('function', list(self.probabilities))
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        inputs = [item.x for item in s.inputs]
-        chosen = categorical('function', list(self.probabilities))
+    def _get_drawn_value(self, namespace: SimpleNamespace) -> Expression:
+        """Return the value of the drawn truth table of the inputs."""
+        inputs = [item.x for item in namespace.inputs]
+        chosen = self._get_draw()
         values = [self._get_table_value(inputs, table) for table in self.tables]
         value = values[-1]
         for index in range(len(values) - 2, -1, -1):
             value = where(chosen == index, values[index], value)
-        return [UpdateLaw(s.target.x, value), UpdateLaw(s.target.function, chosen)]
+        return value
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+        """Return the map of the target by the drawn table and the record of the drawn index.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The update of the value and the update of the index of the drawn table.
+        """
+        return [*super()._get_laws(namespace), UpdateLaw(namespace.target.function, self._get_draw())]
 
 
 @register_model(

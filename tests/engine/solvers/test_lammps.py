@@ -18,12 +18,12 @@ from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 from skcomplex.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, VelocityVerletSolver
 from skcomplex.errors import BackendError, SolverError
-from skcomplex.models.biology.ecology import (
+from skcomplex.models.biology.common.populations import (
     LogisticGrowthInteraction,
     MortalityInteraction,
     PopulationElement,
-    PredationInteraction,
 )
+from skcomplex.models.biology.ecology import PredationInteraction
 from skcomplex.models.physics.common.particles import (
     LAMMPS_FIXES,
     ConstantForceInteraction,

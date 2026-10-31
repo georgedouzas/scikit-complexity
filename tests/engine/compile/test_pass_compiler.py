@@ -7,7 +7,7 @@ from skcomplex.engine.compile import PassCompiler, QuantumCompiler
 from skcomplex.engine.problems import ProblemSpec
 from skcomplex.engine.solvers import GillespieSolver
 from skcomplex.errors import NotCheckedError, SolverError, ValidationError
-from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
+from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.models.mathematics.fractals import RewritingCompiler
 from skcomplex.models.physics.common.quantum import QubitElement
 from skcomplex.specs import ObservableSpec, ValidationReportSpec

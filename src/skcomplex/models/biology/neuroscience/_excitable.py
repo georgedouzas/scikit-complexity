@@ -8,15 +8,16 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
+from sage.all__sagemath_symbolics import NN, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, LocalRuleLaw
-from ....core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
+from ....core.interactions import TransitionInteraction
+from ....core.laws.utils import neighbors, where
+from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ....types import AnyArray, Array
+from ....types import AnyArray
 from ..._catalog import register_model
 
 EXCITED = 1
@@ -30,10 +31,10 @@ def _excited_fraction(phases: AnyArray) -> float:
 class ExcitableElement(Element):
     """Cyclic excitable element of the Kinouchi-Copelli network: quiescent at 0, excited at 1, refractory up to `m - 1`.
 
-    Every step, a quiescent element is excited by the external stimulus with probability `1 - exp(-r)`, where `r` is
-    the stimulus rate per step, or by each excited neighbour with the transmission probability `p`, so it stays
-    quiescent with probability `exp(-r) (1 - p)^n` when `n` neighbours are excited. An excited or refractory element
-    moves to the next state, and the last refractory state returns to quiescence.
+    Transitions move its phase every step. A quiescent element is excited by the external stimulus with probability
+    `1 - exp(-r)`, where `r` is the stimulus rate per step, or by each excited neighbour with the transmission
+    probability `p`, so it stays quiescent with probability `exp(-r) (1 - p)^n` when `n` neighbours are excited. An
+    excited or refractory element moves to the next state, and the last refractory state returns to quiescence.
 
     Args:
         label:
@@ -51,13 +52,10 @@ class ExcitableElement(Element):
         stimulus:
             The rate `r` of the external stimulus per step.
 
-        n_states:
-            The number of states `m` of the cycle.
-
     Examples:
         >>> from skcomplex.models.biology.neuroscience import ExcitableElement
-        >>> ExcitableElement('neuron').n_states
-        5
+        >>> ExcitableElement('neuron').p
+        0.1
     """
 
     def __init__(
@@ -68,34 +66,33 @@ class ExcitableElement(Element):
         phase: Annotated[float, StateSpec(domain=NN)] = 0,
         p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         stimulus: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        n_states: int = 5,
     ) -> None:
         super().__init__(label, visual=visual)
         self.phase = phase
         self.p = p
         self.stimulus = stimulus
-        self.n_states = n_states
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the stochastic rule of excitation by the stimulus and the neighbours, and of the refractory cycle.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+def _get_excitation(s: SimpleNamespace) -> Expression:
+    """Return the probability that the stimulus or an excited neighbour excites a quiescent element in a step."""
+    excited = neighbors(where(s.target.other.phase == EXCITED, 1, 0))
+    probability: Expression = 1 - exp(-s.target.stimulus) * (1 - s.target.p) ** excited
+    return probability
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        n_states = self.n_states
 
-        def excite(phase: Array, *around: Array, p: float | Array, stimulus: float | Array, random: Array) -> Array:
-            excited = sum((item == EXCITED for item in around), np.zeros(np.shape(phase)))
-            quiet = np.exp(-stimulus) * (1 - p) ** excited
-            fires = np.where(random >= quiet, float(EXCITED), 0.0)
-            return np.where(phase == 0, fires, (phase + 1) % n_states)
-
-        return [LocalRuleLaw(s.phase, AdjacencyNeighborhood(), excite, stochastic=True)]
+def _get_cycle(n_states: int) -> list[TransitionInteraction]:
+    """Return the moves of an excited or refractory element to the next state of the cycle, the last to quiescence."""
+    return [
+        TransitionInteraction(
+            f'cycle_{phase}',
+            target='neurons',
+            state='phase',
+            source=phase,
+            destination=(phase + 1) % n_states,
+            condition=lambda s: 1,
+        )
+        for phase in range(EXCITED, n_states)
+    ]
 
 
 @register_model(
@@ -168,6 +165,14 @@ def kinouchi_copelli(
         'neurons',
         element=ExcitableElement,
         space=NetworkSpace(graph),
-        values={'phase': phase, 'p': sigma / degree, 'stimulus': stimulus, 'n_states': n_states},
+        values={'phase': phase, 'p': sigma / degree, 'stimulus': stimulus},
     )
-    return System(elements=[neurons], time=DiscreteTime())
+    excitation = TransitionInteraction(
+        'excitation',
+        target='neurons',
+        state='phase',
+        source=0,
+        destination=EXCITED,
+        probability=_get_excitation,
+    )
+    return System(elements=[neurons], interactions=[excitation, *_get_cycle(n_states)], time=DiscreteTime())

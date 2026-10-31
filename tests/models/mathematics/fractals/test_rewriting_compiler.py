@@ -18,7 +18,7 @@ from skcomplex.engine._utils import symbol
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import IncompatibleLawsError, ValidationError
-from skcomplex.models.biology.ecology import PopulationElement
+from skcomplex.models.biology.common.populations import PopulationElement
 from skcomplex.models.mathematics.fractals import (
     AffineSpec,
     GeometrySpec,

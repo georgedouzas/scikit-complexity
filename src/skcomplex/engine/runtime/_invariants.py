@@ -30,7 +30,7 @@ class InvariantObserver(BaseObserver):
         >>> from skcomplex.specs import ObservableSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import InvariantObserver, Simulation
-        >>> from skcomplex.models.biology.ecology import PopulationElement
+        >>> from skcomplex.models.biology.common.populations import PopulationElement
         >>> system = System(
         ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'n': [2.0, 6.0]})]
         ... )

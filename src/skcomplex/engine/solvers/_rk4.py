@@ -50,7 +50,7 @@ class RK4Solver(Solver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
+        >>> from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.engine.solvers import RK4Solver
         >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(

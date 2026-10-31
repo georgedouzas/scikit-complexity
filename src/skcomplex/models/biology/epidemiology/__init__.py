@@ -1,6 +1,5 @@
 """Epidemiology: compartmental, network, metapopulation, and agent-based models of infection and recovery."""
 
-from ....core.elements import CompartmentElement
 from ._adaptive import (
     ActiveHostElement,
     CarrierElement,
@@ -27,7 +26,6 @@ from ._vaccination import VaccinatedPopulationElement, sir_vaccination
 __all__: list[str] = [
     'ActiveHostElement',
     'CarrierElement',
-    'CompartmentElement',
     'DegreeClassElement',
     'EpidemicCenterElement',
     'HostElement',
