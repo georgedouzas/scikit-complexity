@@ -15,6 +15,7 @@ from ._patch_structure_spec import PatchStructureSpec
 from ._production_law import ProductionLaw
 from ._prototile_spec import PrototileSpec
 from ._quadratic import QuadraticMapElement, julia, mandelbrot
+from ._random_affine_map import RandomAffineMapInteraction
 from ._rewriting_compiler import RewritingCompiler
 from ._rewriting_error import RewritingError
 from ._rewriting_problem_spec import RewritingProblemSpec
@@ -45,6 +46,7 @@ __all__: list[str] = [
     'ProductionLaw',
     'PrototileSpec',
     'QuadraticMapElement',
+    'RandomAffineMapInteraction',
     'RewritingCompiler',
     'RewritingError',
     'RewritingProblemSpec',
