@@ -3384,8 +3384,8 @@ agents learn from their past.
   `ChoiceInteraction(form='agent')` draws an option by the logit, Metropolis, Fermi, or best rule from a utility
   `utility(agent, model, option)` that can read `model.history` and `model.storage`, `ReinforcementInteraction` moves
   the scores of options towards their realized payoffs, and `EvolutionInteraction` replaces strategies by selection,
-  crossover, and mutation with the model's random stream. `imitate`, in `skcomplex.models.social.cooperation`, copies
-  the best neighbour.
+  crossover, and mutation with the model's random stream. `ImitationInteraction(rule='best')` copies the best
+  neighbour.
 
 ```python
 from typing import Annotated, ClassVar
