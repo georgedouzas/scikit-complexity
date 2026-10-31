@@ -13,8 +13,7 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sign, sin, sqr
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import CrossingInteraction, EulerLagrangeInteraction, Interaction
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import CrossingInteraction, EulerLagrangeInteraction
 from ....core.laws.utils import derivative
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
@@ -155,11 +154,12 @@ class DoublePendulumInteraction(EulerLagrangeInteraction):
         return kinetic + (p.m1 + p.m2) * p.g * p.l1 * cos(p.theta1) + p.m2 * p.g * p.l2 * cos(p.theta2)
 
 
-class PendulumSpringInteraction(Interaction):
+class PendulumSpringInteraction(EulerLagrangeInteraction):
     """Spring between the bobs of two pendulums, which stretches with the horizontal distance of the bobs.
 
-    The spring of stiffness `k` has the energy `k (l2 sin θ2 - l1 sin θ1)² / 2`, whose torque on every pendulum,
-    divided by its moment of inertia `m l²`, adds to its angular acceleration.
+    The spring of stiffness `k` adds the Lagrangian `-k (l2 sin θ2 - l1 sin θ1)² / 2` to the Euler-Lagrange equations
+    of the two angles, so its torque on every pendulum divides by the moment of inertia `m l²` of the pendulum's own
+    Lagrangian.
 
     Args:
         label:
@@ -188,27 +188,25 @@ class PendulumSpringInteraction(Interaction):
         second: Annotated[str, RoleSpec()],
         k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, target=first, states='theta')
         self.first = first
         self.second = second
         self.k = k
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the angular accelerations the spring gives the two pendulums.
+    def _get_lagrangian(self, namespace: SimpleNamespace) -> Expression:
+        """Return minus the energy of the spring.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use, with `s.first` and `s.second`.
+            namespace:
+                The namespace of the symbols the Lagrangian can use, with `first` and `second`.
 
         Returns:
-            laws:
-                The rate laws of the two angles.
+            lagrangian:
+                The Lagrangian of the spring.
         """
-        stretch = s.second.l * sin(s.second.theta) - s.first.l * sin(s.first.theta)
-        return [
-            RateLaw(s.first.theta, s.k * stretch * cos(s.first.theta) / (s.first.m * s.first.l)),
-            RateLaw(s.second.theta, -s.k * stretch * cos(s.second.theta) / (s.second.m * s.second.l)),
-        ]
+        first, second = namespace.first, namespace.second
+        stretch = second.l * sin(second.theta) - first.l * sin(first.theta)
+        return -namespace.k * stretch**2 / 2
 
 
 class CartPendulumElement(Element):
@@ -631,11 +629,11 @@ class ClockPendulumInteraction(EulerLagrangeInteraction):
         return kinetic + p.m * p.g * p.l * cos(p.theta)
 
 
-class SupportSpringInteraction(Interaction):
+class SupportSpringInteraction(EulerLagrangeInteraction):
     """Spring of stiffness `k` between the supports of two pendulum clocks.
 
-    The spring pulls the supports by the force `k (x2 - x1)`, and every clock answers with the accelerations of its
-    support and its pendulum, through the inverse of its mass matrix.
+    The spring adds the Lagrangian `-k (x2 - x1)² / 2` to the Euler-Lagrange equations of the supports, so every clock
+    answers with the accelerations of its support and its pendulum through the mass matrix of its own Lagrangian.
 
     Args:
         label:
@@ -664,32 +662,23 @@ class SupportSpringInteraction(Interaction):
         second: Annotated[str, RoleSpec()],
         k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, target=first, states='x')
         self.first = first
         self.second = second
         self.k = k
 
-    def _get_response(self, clock: SimpleNamespace, force: Expression) -> list[BaseLaw]:
-        """Return the accelerations of a clock's support and pendulum under a horizontal force on the support."""
-        inertia = clock.M + clock.m * sin(clock.theta) ** 2
-        return [
-            RateLaw(clock.x, force / inertia),
-            RateLaw(clock.theta, -cos(clock.theta) * force / (clock.l * inertia)),
-        ]
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the accelerations the spring gives the supports and pendulums of both clocks.
+    def _get_lagrangian(self, namespace: SimpleNamespace) -> Expression:
+        """Return minus the energy of the spring.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use, with `s.first` and `s.second`.
+            namespace:
+                The namespace of the symbols the Lagrangian can use, with `first` and `second`.
 
         Returns:
-            laws:
-                The rate laws of the positions and angles of both clocks.
+            lagrangian:
+                The Lagrangian of the spring.
         """
-        force = s.k * (s.second.x - s.first.x)
-        return [*self._get_response(s.first, force), *self._get_response(s.second, -force)]
+        return -namespace.k * (namespace.second.x - namespace.first.x) ** 2 / 2
 
 
 class MagnetInteraction(PotentialEnergyInteraction):

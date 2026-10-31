@@ -7,24 +7,30 @@ from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Annotated
 
+from sage.modules.free_module_element import FreeModuleElement
+
 from ...errors import ValidationError
 from ...specs import RoleSpec
 from ..base import BasePart
 from ..laws import FluxLaw, RateLaw
+from ..laws.utils import divergence
 from ._interaction import Interaction
 
 LIMITERS = ('minmod', 'van-leer', None)
-RIEMANN_SOLVERS = ('rusanov', 'godunov')
+RIEMANN_SOLVERS = ('rusanov', 'godunov', None)
 
 
 class ConservationInteraction(Interaction):
     """Conservation law `du/dt + divergence(flux(ns)) = source(ns)` of a state `u` of a field.
 
     The flux is one expression for a field of one dimension, or one expression per dimension, of the states of the
-    field, and the interaction lowers it to a finite-volume flux law with a slope limiter and a numerical flux. Without
-    a source the total of the state on a periodic field stays constant. A flux or a source function takes the namespace
-    of the interaction, with the namespace `target` of the field, the time `t`, and the symbols of the parameters a
-    subclass declares.
+    field, and the interaction lowers it to a finite-volume flux law with a slope limiter and a numerical flux, or,
+    without a numerical flux, to the rate `-divergence(flux)` that the field discretizes by its own operators, as a
+    spectral or finite-difference field does. Without a source the total of the state on a periodic field stays
+    constant. The conservation laws of several states of one field form one system, whose numerical flux reads the
+    wave speeds of all of them, and a flux may read parameters that vary across the cells. A flux or a source function
+    takes the namespace of the interaction, with the namespace `target` of the field, the time `t`, and the symbols of
+    the parameters a subclass declares.
 
     Args:
         label:
@@ -46,7 +52,8 @@ class ConservationInteraction(Interaction):
             The slope limiter of the reconstruction, `'minmod'`, `'van-leer'`, or `None` for first order.
 
         riemann:
-            The numerical flux, `'rusanov'` or `'godunov'`, the exact solver for one state.
+            The numerical flux of a finite-volume field, `'rusanov'` or `'godunov'`, the exact solver for one state, or
+            `None` for the divergence of the flux on a field of another discretization.
 
     Raises:
         ValidationError:
@@ -85,7 +92,7 @@ class ConservationInteraction(Interaction):
         flux: Callable[[SimpleNamespace], object] | None = None,
         source: Callable[[SimpleNamespace], object] | None = None,
         limiter: str | None = 'minmod',
-        riemann: str = 'rusanov',
+        riemann: str | None = 'rusanov',
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -116,15 +123,23 @@ class ConservationInteraction(Interaction):
             error_msg = f'Unknown limiter {self.limiter!r} of {self.label!r}. Use minmod, van-leer, or None.'
             raise ValidationError(error_msg)
         if self.riemann not in RIEMANN_SOLVERS:
-            error_msg = f'Unknown numerical flux {self.riemann!r} of {self.label!r}. Use rusanov or godunov.'
+            error_msg = f'Unknown numerical flux {self.riemann!r} of {self.label!r}. Use rusanov, godunov, or None.'
             raise ValidationError(error_msg)
+
+    def _get_flux(self, namespace: SimpleNamespace) -> object:
+        """Return the flux, or `None` for none, the hook a subclass overrides to derive it from its arguments."""
+        return None if self.flux is None else self.flux(namespace)
 
     def _get_transport_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
         """Return the laws of the divergence of the flux, the hook a subclass overrides to lower its own flux."""
-        if self.flux is None:
+        flux = self._get_flux(namespace)
+        if flux is None:
             return []
         state = getattr(namespace.target, self.state)
-        return [FluxLaw(state, self.flux(namespace), limiter=self.limiter, riemann=self.riemann)]
+        if self.riemann is None:
+            components = list(flux) if isinstance(flux, FreeModuleElement | list | tuple) else [flux]
+            return [RateLaw(state, -divergence(components))]
+        return [FluxLaw(state, flux, limiter=self.limiter, riemann=self.riemann)]
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
         """Return the laws of the divergence of the flux and the rate of the source.

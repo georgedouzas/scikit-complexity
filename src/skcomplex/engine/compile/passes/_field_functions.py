@@ -78,22 +78,29 @@ class FieldFunctionsPass(BasePass):
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         declarations: DeclarationsSpec,
     ) -> tuple[FiniteVolumeKernel, ...]:
-        """Return the conservation laws of every finite-volume field from the flux laws of its component."""
-        volumes = []
+        """Return the conservation laws of every finite-volume field from the flux laws of all its components.
+
+        The flux laws of one field, from its element and from any interaction, form one system, whose wave speeds
+        come from the Jacobian of all its fluxes.
+        """
+        found: dict[str, list[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]]] = {}
         for spec, laws in specs:
-            fluxes = [law for law in laws if isinstance(law, FluxLaw)]
-            if not fluxes:
-                continue
-            targets = [(law, spec._target_references(law._get_targets()[0])[0]) for law in fluxes]
-            owners = {reference.entry.name.rpartition('.')[0] for _, reference in targets}
-            for owner in sorted(owners):
-                block = declarations.blocks[owner]
-                place = block.node.component
-                if not isinstance(place, FieldElement):
+            for law in laws:
+                if not isinstance(law, FluxLaw):
+                    continue
+                reference = spec._target_references(law._get_targets()[0])[0]
+                owner = reference.entry.name.rpartition('.')[0]
+                if not isinstance(declarations.blocks[owner].node.component, FieldElement):
                     error_msg = f'{spec.owner} declares fluxes of {owner}, which is not a field.'
                     raise ValidationError(error_msg)
-                mine = [(law, reference) for law, reference in targets if reference.entry.name.startswith(f'{owner}.')]
-                volumes.append(FieldFunctionsPass._compile_volumes(mine, spec.references, place, owner))
+                found.setdefault(owner, []).append((law, reference, spec.references))
+        volumes = []
+        for owner in sorted(found):
+            place = declarations.blocks[owner].node.component
+            if not isinstance(place, FieldElement):
+                error_msg = f'{owner} declares fluxes, but it is not a field.'
+                raise ValidationError(error_msg)
+            volumes.append(FieldFunctionsPass._compile_volumes(found[owner], place, owner))
         return tuple(volumes)
 
     @staticmethod
@@ -233,13 +240,40 @@ class FieldFunctionsPass(BasePass):
         return functions, volumes, (constrained, fixed)
 
     @staticmethod
-    def _symbol(target: Expression, references: Mapping[Expression, ReferenceSpec]) -> Expression:
-        """Return the member symbol of a flux target after checking it is a member state."""
-        reference = references.get(target)
-        if reference is None or not reference.is_state or reference.source is not ReadKind.MEMBER:
-            error_msg = f'A flux targets {target}, which is not a state of a field.'
+    def _canonical(
+        laws: Sequence[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
+        owner: str,
+    ) -> tuple[list[list[Expression]], list[Expression], list[ReferenceSpec]]:
+        """Return the flux components in symbols shared by all the laws, the state symbols, and the parameters read.
+
+        Every law reads the states and parameters through the symbols of its own namespace, so the conserved states
+        become one symbol each, by their entries, and so do the other values the fluxes read, parameters or states
+        that no flux conserves, by their entries and how they are read.
+        """
+        names = [reference.entry.name for _, reference, _ in laws]
+        if len(set(names)) != len(names):
+            error_msg = f'Two flux laws conserve the same state of {owner}. Give one flux per state.'
             raise ValidationError(error_msg)
-        return target
+        states = [SR.var(f'_volume_state_{index}') for index in range(len(names))]
+        parameters: dict[tuple[str, int, object], tuple[Expression, ReferenceSpec]] = {}
+        expressions = []
+        for law, _, references in laws:
+            components = list(law.flux) if isinstance(law.flux, FreeModuleElement | list | tuple) else [law.flux]
+            replacements = {}
+            for item in {variable for value in components for variable in SR(value).variables()}:
+                reference = references.get(item)
+                if reference is None:
+                    error_msg = f'The fluxes of {owner} read {item}, which is not a state or parameter.'
+                    raise ValidationError(error_msg)
+                if reference.is_state and reference.entry.name in names and reference.source is ReadKind.MEMBER:
+                    replacements[item] = states[names.index(reference.entry.name)]
+                    continue
+                key = (reference.entry.name, reference.column, reference.source)
+                if key not in parameters:
+                    parameters[key] = (SR.var(f'_volume_parameter_{len(parameters)}'), reference)
+                replacements[item] = parameters[key][0]
+            expressions.append([SR(value).subs(replacements) for value in components])
+        return expressions, states, [reference for _, reference in parameters.values()]
 
     @staticmethod
     def _function_of(printed: object, owner: str) -> Callable[..., object]:
@@ -267,8 +301,7 @@ class FieldFunctionsPass(BasePass):
 
     @staticmethod
     def _compile_volumes(
-        laws: Sequence[tuple[FluxLaw, ReferenceSpec]],
-        references: Mapping[Expression, ReferenceSpec],
+        laws: Sequence[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
         place: FieldElement,
         owner: str,
     ) -> FiniteVolumeKernel:
@@ -276,10 +309,8 @@ class FieldFunctionsPass(BasePass):
 
         Args:
             laws:
-                The flux laws of the field with the references of their targets.
-
-            references:
-                The references of the symbols of the field's namespace.
+                The flux laws of the field, with the reference of every target and the references of the namespace
+                of the component that returns the law.
 
             place:
                 The field.
@@ -293,43 +324,25 @@ class FieldFunctionsPass(BasePass):
 
         Raises:
             ValidationError:
-                The field is not a finite-volume field on a lattice, or the fluxes are not one per dimension.
+                The field is not a finite-volume field on a lattice, the fluxes are not one per dimension, read
+                symbols that are neither conserved states nor parameters, or ask for different schemes.
         """
         space = place.space
         if place.discretization != 'finite-volume' or not isinstance(space, LatticeSpace):
             error_msg = f'{owner} declares fluxes, which need a finite-volume field on a lattice.'
             raise ValidationError(error_msg)
-        states = [FieldFunctionsPass._symbol(law._get_targets()[0], references) for law, _ in laws]
+        expressions, states, parameters = FieldFunctionsPass._canonical(laws, owner)
         n_dim = space.n_dim_
-        expressions = []
-        for law, _ in laws:
-            components = list(law.flux) if isinstance(law.flux, FreeModuleElement | list | tuple) else [law.flux]
-            if len(components) != n_dim:
-                error_msg = f'A flux of {owner} has {len(components)} components for a {n_dim}D lattice.'
-                raise ValidationError(error_msg)
-            expressions.append([SR(item) for item in components])
-        parameters = sorted(
-            {
-                item
-                for row in expressions
-                for value in row
-                for item in value.variables()
-                if item not in states and item in references
-            },
-            key=str,
-        )
-        unknown = {
-            item for row in expressions for value in row for item in value.variables() if item not in states
-        } - set(
-            parameters,
-        )
-        if unknown:
-            error_msg = (
-                f'The fluxes of {owner} read {", ".join(map(str, unknown))}, which are not states or parameters.'
-            )
+        if any(len(row) != n_dim for row in expressions):
+            error_msg = f'A flux of {owner} has not one component per dimension of its {n_dim}D lattice.'
             raise ValidationError(error_msg)
+        first = laws[0][0]
+        if any((law.limiter, law.riemann) != (first.limiter, first.riemann) for law, _, _ in laws):
+            error_msg = f'The fluxes of {owner} ask for different limiters or numerical fluxes. Give one scheme.'
+            raise ValidationError(error_msg)
+        symbols = [SR.var(f'_volume_parameter_{index}') for index in range(len(parameters))]
         columns = list(zip(*expressions, strict=True))
-        printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare([*states, *parameters])
+        printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare([*states, *symbols])
         fluxes = tuple(FieldFunctionsPass._function_of(printer.run(list(column)).code_, owner) for column in columns)
         jacobians = tuple(
             FieldFunctionsPass._function_of(
@@ -338,32 +351,33 @@ class FieldFunctionsPass(BasePass):
             )
             for column in columns
         )
-        first = laws[0][0]
         critical: tuple[Callable[..., object], ...] = ()
         if first.riemann == 'godunov':
             if len(states) != 1:
                 error_msg = f'The fluxes of {owner} ask for the Godunov flux, which is exact for one state only.'
                 raise ValidationError(error_msg)
             roots = []
-            critical_printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare(parameters)
+            critical_printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare(symbols)
             for column in columns:
                 found = [item.rhs() for item in solve(column[0].diff(states[0]) == 0, states[0])]
                 roots.append(FieldFunctionsPass._function_of(critical_printer.run(found).code_, owner))
             critical = tuple(roots)
         boundaries = tuple(
             (kind, float(SR(value)) if not callable(value) else 0.0)
-            for kind, value in (place._get_boundary(reference.entry.name.rpartition('.')[2]) for _, reference in laws)
+            for kind, value in (
+                place._get_boundary(reference.entry.name.rpartition('.')[2]) for _, reference, _ in laws
+            )
         )
         return (
             FiniteVolumeKernel(
                 owner,
-                tuple(reference.entry.start for _, reference in laws),
+                tuple(reference.entry.start for _, reference, _ in laws),
                 space.shape_,
                 space.spacings_,
                 boundaries,
                 fluxes=fluxes,
                 jacobians=jacobians,
-                parameters=tuple(references[item] for item in parameters),
+                parameters=tuple(parameters),
                 limiter=first.limiter,
                 riemann=first.riemann,
                 critical=critical,

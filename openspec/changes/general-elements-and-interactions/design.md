@@ -65,17 +65,32 @@ compose. Two laws with the same source, or a law that declares neither, stay an 
 updates the members one after the other, in increasing order of that expression, each reading the values set before
 it, which gives the sequential and random-order schedules of maps.
 
+### Summed equations, coupled conservation laws, and divisors
+- An `EquationLaw` may name its `target`, the state whose equation it is. The compiler adds the equations of one target
+  from every element and interaction before it solves for the highest derivatives, so a term may hold no highest
+  derivative. `EulerLagrangeInteraction` names every coordinate, so Lagrangians of separate interactions sum, as the
+  springs between pendulums and between clock supports do.
+- The flux laws of one finite-volume field, from its element and any interactions, compile into one kernel, in shared
+  symbols per state, so the Rusanov speed is the spectral radius of the Jacobian of the whole system. Parameters and
+  states that no flux conserves are read per cell, piecewise constant at the interfaces; the Godunov flux takes uniform
+  parameters only.
+- A divisor is the name of a state or parameter, which LAMMPS reads as a mass, or a function of the moving member's
+  namespace, such as a moment of inertia; a gradient takes a mapping of one divisor per moving state. The two-mass
+  spring and damper of engineering, `engineering/common/mechanics/SpringDamperInteraction`, is a gradient subclass with
+  one divisor per coordinate and a relative damper.
+
 ### The catalog of general interactions
 
 Continuous time:
 
 | Class | Operation | Lowers to |
 | --- | --- | --- |
-| `RateInteraction(target, state, rate, sources=(), noise=None, divisor=None)` | adds `rate(ns)`, and `noise(ns) dW`, to the highest derivative of a state of any order | `RateLaw`, `NoiseLaw`, `FractionalNoiseLaw` |
+| `RateInteraction(target, state, rate, sources=(), noise=None, divisor=None, hurst=None)` | adds `rate(ns)`, and `noise(ns) dW`, to the highest derivative of a state of any order; the divisor is a name or a function of the target, the Hurst index a number or a function of the namespace | `RateLaw`, `NoiseLaw`, `FractionalNoiseLaw` |
 | `RelaxationInteraction(RateInteraction)(target, state, goal, time, noise=None)` | relaxes a state towards a goal expression, `(goal - x) / time`, with optional noise (Ornstein-Uhlenbeck) | `RateLaw`, `NoiseLaw` |
-| `GradientInteraction(target, states, potential, sources=(), divisor=None, variational=False, conserved=False)` | moves states down the gradient of a potential: gradient flow on order 1, Newtonian on order 2, variational and conserved on fields | `RateLaw` |
-| `EulerLagrangeInteraction(target, states, lagrangian, dissipation=None, forcing=None)` | equations of motion of a Lagrangian, with Rayleigh dissipation and generalized forcing | `EquationLaw` |
-| `ConservationInteraction(target, state, flux, source=None)` | a conserved state of a field with a flux and a source | `FluxLaw` |
+| `GradientInteraction(target, states, potential, sources=(), divisor=None, variational=False, conserved=False)` | moves states down the gradient of a potential: gradient flow on order 1, Newtonian on order 2, variational and conserved on fields; the divisor is a name, a function of the member such as `m l^2`, or a mapping of one divisor per state | `RateLaw` |
+| `EulerLagrangeInteraction(target, states, lagrangian, dissipation=None, forcing=None)` | equations of motion of a Lagrangian, with Rayleigh dissipation and generalized forcing; the equations of one coordinate from several interactions add, so a coupling is an interaction whose Lagrangian holds only the coupling energy | `EquationLaw` with a `target` |
+| `ConservationInteraction(target, state, flux, source=None, limiter='minmod', riemann='rusanov')` | a conserved state of a field with a flux and a source; the flux laws of one field form one system and read per-cell parameters and other states; `riemann=None` lowers to `-divergence(flux)` for spectral and finite-difference fields | `FluxLaw`, or `RateLaw` of a divergence |
+| `AdvectionInteraction(ConservationInteraction)(target, state, drift, source=None, limiter='minmod', riemann='rusanov')` | a state carried by a drift field `a`, the flux `a u` in conservative form, such as a flow or the drift of a Fokker-Planck equation | as `ConservationInteraction` |
 | `DiffusionInteraction(ConservationInteraction)(target, state, coefficient)` | flux minus a coefficient times the gradient | Laplacian of the field |
 
 Discrete time:
@@ -97,7 +112,7 @@ Events and discrete states:
 
 | Class | Operation | Lowers to |
 | --- | --- | --- |
-| `JumpInteraction(target, changes, rate=None, probability=None, waiting=None, reset=None)` | stochastic events that change states by signed amounts, at a rate, with a probability per step, or after drawn waiting times | `JumpLaw` |
+| `JumpInteraction(target, changes, rate=None, probability=None, waiting=None, reset=None)` | stochastic events that change states by signed amounts, at a rate, with a probability per step, or after drawn waiting times, which reset scalar or vector states | `JumpLaw` |
 | `ReactionInteraction(JumpInteraction)(target=None, reactants=None, products=None, k=1.0, propensity=None, modifiers=None, mode='rate')` | mass action between species given as a pair of a path and a state, or as a state name of the `target` alone, with real stoichiometry and modifiers that the propensity reads but the reaction does not consume (a parameter of the target as a modifier is a buffered species), as rates, jumps, or Langevin noise; a group or field target reacts in every member | `RateLaw`, `JumpLaw`, `NoiseLaw` |
 | `TransitionInteraction(target, state, source, destination, rate=None, probability=None, condition=None, matrix=None, emission=None, observed=None, over='member', neighborhood=None, after=None, form='symbolic', phase=None)` | a discrete state moves between values at a rate, with a probability per step (combined over neighbours as `1 - prod(1 - p)`), when a condition holds, by a transition matrix, or by an emission matrix given another state, after a residence time (`residence(x)`) | `JumpLaw`, `UpdateLaw` with a `source`, `TransitionLaw`, `EmissionLaw`, or an agent `RuleLaw` |
 | `SpreadingInteraction(TransitionInteraction)` | the active value of a state spreads along edges, with recovery and return | edge and member laws |

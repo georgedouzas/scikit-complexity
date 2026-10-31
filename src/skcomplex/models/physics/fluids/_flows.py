@@ -5,7 +5,6 @@
 
 import math
 from collections.abc import Mapping, Sequence
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -14,9 +13,14 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement
-from ....core.interactions import ConservationInteraction
-from ....core.laws import BaseLaw, FluxLaw, RateLaw
-from ....core.laws.utils import divergence, gradient, inverse_laplacian, laplacian
+from ....core.interactions import (
+    AdvectionInteraction,
+    ConservationInteraction,
+    DiffusionInteraction,
+    Interaction,
+    RateInteraction,
+)
+from ....core.laws.utils import gradient, inverse_laplacian, laplacian
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.solvers import ETDRK4Solver, SSPRKSolver
@@ -27,6 +31,8 @@ from ..._catalog import register_model
 
 class KuramotoSivashinskyElement(Element):
     """Site of a flame front or a thin film, `du/dt = -d(u^2 / 2)/dx - laplacian(u) - laplacian(laplacian(u))`.
+
+    The conservation of the flux `u^2 / 2` and the rate of the linear operator are interactions of the model.
 
     Args:
         label:
@@ -53,19 +59,6 @@ class KuramotoSivashinskyElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.u = u
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the Kuramoto-Sivashinsky equation of the height.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate law of the height.
-        """
-        return [RateLaw(s.u, -divergence([s.u**2 / 2]) - laplacian(s.u) - laplacian(laplacian(s.u)))]
 
 
 @register_model(
@@ -106,6 +99,19 @@ def kuramoto_sivashinsky(modes: int = 128, *, length: float = 32 * math.pi) -> S
     positions = np.arange(1, modes + 1) * spacing
     values = {'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))}
     space = LatticeSpace(modes, spacing=spacing)
+    transport = ConservationInteraction(
+        'transport',
+        target='line',
+        state='u',
+        flux=lambda s: s.target.u**2 / 2,
+        riemann=None,
+    )
+    linear = RateInteraction(
+        'linear',
+        target='line',
+        state='u',
+        rate=lambda s: -laplacian(s.target.u) - laplacian(laplacian(s.target.u)),
+    )
     return System(
         elements=[
             FieldElement(
@@ -116,6 +122,7 @@ def kuramoto_sivashinsky(modes: int = 128, *, length: float = 32 * math.pi) -> S
                 discretization='spectral',
             ),
         ],
+        interactions=[transport, linear],
     )
 
 
@@ -129,7 +136,8 @@ class VorticityElement(Element):
     """Vorticity of an incompressible two-dimensional flow, `domega/dt + u . grad(omega) = nu laplacian(omega) + f`.
 
     The velocity comes from the streamfunction, the solution of a Poisson equation, so the flow is divergence free,
-    and the advection is written in conservative form so that dealiasing applies to it.
+    and the advection is written in conservative form so that dealiasing applies to it. The advection, the viscosity,
+    and the forcing are interactions of the model.
 
     Args:
         label:
@@ -167,27 +175,14 @@ class VorticityElement(Element):
         self.nu = nu
         self.f = f
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the vorticity equation.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        u, w = _velocity(s.omega)
-        return [RateLaw(s.omega, -divergence([u * s.omega, w * s.omega]) + s.nu * laplacian(s.omega) + s.f)]
-
 
 class BoussinesqElement(Element):
     """Vorticity and temperature of Boussinesq convection, in units of the thermal diffusion time.
 
     The temperature `theta` is the departure from the linear profile between a hot bottom and a cold top, so
     `dtheta/dt + u . grad(theta) = w + laplacian(theta)` and
-    `domega/dt + u . grad(omega) = Pr laplacian(omega) + Ra Pr dtheta/dx`.
+    `domega/dt + u . grad(omega) = Pr laplacian(omega) + Ra Pr dtheta/dx`. The advections, the diffusions, and the
+    buoyancy are interactions of the model.
 
     Args:
         label:
@@ -230,27 +225,6 @@ class BoussinesqElement(Element):
         self.Ra = Ra
         self.Pr = Pr
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the vorticity and temperature equations.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        u, w = _velocity(s.omega)
-        buoyancy = gradient(s.theta, 2)[0]
-        return [
-            RateLaw(
-                s.omega,
-                -divergence([u * s.omega, w * s.omega]) + s.Pr * laplacian(s.omega) + s.Ra * s.Pr * buoyancy,
-            ),
-            RateLaw(s.theta, -divergence([u * s.theta, w * s.theta]) + w + laplacian(s.theta)),
-        ]
-
 
 class BurgersElement(Element):
     """Site of a field `u` that the Burgers equation `du/dt + d(u^2 / 2)/dx = 0` carries.
@@ -284,6 +258,9 @@ class BurgersElement(Element):
 
 class ShallowWaterElement(Element):
     """Site of a channel of shallow water, with the depth `h` and the discharge `q` per unit width.
+
+    The mass `h` and the momentum `q` are conserved by two conservation interactions, with the fluxes `q` and
+    `q^2 / h + g h^2 / 2`, which form one hyperbolic system.
 
     Args:
         label:
@@ -321,18 +298,39 @@ class ShallowWaterElement(Element):
         self.q = q
         self.g = g
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the conservation of the mass and the momentum of the water.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The flux laws of the depth and the discharge.
-        """
-        return [FluxLaw(s.h, s.q), FluxLaw(s.q, s.q**2 / s.h + s.g * s.h**2 / 2)]
+def _get_flow_interactions(buoyant: bool) -> list[Interaction]:
+    """Return the advection and the viscosity of the vorticity, with its forcing or with the buoyancy and the heat."""
+    advection = AdvectionInteraction(
+        'advection',
+        target='flow',
+        state='omega',
+        drift=lambda s: _velocity(s.target.omega),
+        riemann=None,
+    )
+    if not buoyant:
+        viscosity = DiffusionInteraction('viscosity', target='flow', state='omega', coefficient=lambda s: s.target.nu)
+        forcing = RateInteraction('forcing', target='flow', state='omega', rate=lambda s: s.target.f)
+        return [advection, viscosity, forcing]
+    return [
+        advection,
+        DiffusionInteraction('viscosity', target='flow', state='omega', coefficient=lambda s: s.target.Pr),
+        RateInteraction(
+            'buoyancy',
+            target='flow',
+            state='omega',
+            rate=lambda s: s.target.Ra * s.target.Pr * gradient(s.target.theta, 2)[0],
+        ),
+        AdvectionInteraction(
+            'convection',
+            target='flow',
+            state='theta',
+            drift=lambda s: _velocity(s.target.omega),
+            source=lambda s: _velocity(s.target.omega)[1],
+            riemann=None,
+        ),
+        DiffusionInteraction('conduction', target='flow', state='theta', coefficient=1.0),
+    ]
 
 
 def _smooth_noise(shape: tuple[int, ...], modes: int, random_state: int | np.random.Generator | None) -> Array:
@@ -423,7 +421,7 @@ def incompressible_flow(
         discretization='spectral',
         symmetry=symmetry,
     )
-    return System(elements=[field])
+    return System(elements=[field], interactions=_get_flow_interactions(buoyancy is not None))
 
 
 @register_model(
@@ -625,4 +623,11 @@ def shallow_water(
         values=values,
         discretization='finite-volume',
     )
-    return System(elements=[field])
+    mass = ConservationInteraction('mass', target='channel', state='h', flux=lambda s: s.target.q)
+    momentum = ConservationInteraction(
+        'momentum',
+        target='channel',
+        state='q',
+        flux=lambda s: s.target.q**2 / s.target.h + s.target.g * s.target.h**2 / 2,
+    )
+    return System(elements=[field], interactions=[mass, momentum])
