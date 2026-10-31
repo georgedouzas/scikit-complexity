@@ -9,80 +9,133 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo, sin
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, LatticeElement
-from ....core.interactions import NeighborInteraction
-from ....core.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import neighbors
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ._kuramoto import PhaseOscillatorElement
+from ..common.oscillators import KuramotoCouplingInteraction, PhaseOscillatorElement
 from ._utils import _order_parameter
 
 NETWORKS = ('watts_strogatz', 'erdos_renyi', 'barabasi_albert')
 
 
 class LinkElement(Element):
-    """Link element."""
+    """Edge of a network with a weight `w`, which couplings along the edge read.
+
+    Args:
+        label:
+            The label of the edge or the group on the edges.
+
+        visual:
+            How the edge is drawn, or `None` for `default_visual_`.
+
+        w:
+            The weight of the edge.
+
+    Attributes:
+        default_visual_:
+            The visual of the edge when it sets none.
+
+    Examples:
+        >>> from skcomplex.models.physics.synchronization import LinkElement
+        >>> LinkElement('link', w=0.5).w
+        0.5
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        w: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        w: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.w = w
 
 
-def _logistic(r: Expression, x: Expression) -> Expression:
-    """Return the logistic map `r x (1 - x)`."""
-    return r * x * (1 - x)
-
-
 class LogisticNodeElement(Element):
-    """Logistic node element."""
+    """Logistic map on a node of a network, `x_i(t + 1) = (1 - epsilon) f(x_i) + epsilon mean_j f(x_j)`.
+
+    The map `f(x) = r x (1 - x)` of the node mixes with the mean of the maps of its neighbours `j` on the network. A
+    node with no neighbours keeps `(1 - epsilon) f(x_i)`.
+
+    Args:
+        label:
+            The label of the node or the group on the nodes.
+
+        visual:
+            How the node is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value.
+
+        r:
+            The growth rate of the logistic map.
+
+        epsilon:
+            The weight of the neighbours.
+
+    Attributes:
+        default_visual_:
+            The visual of the node when it sets none.
+
+    Examples:
+        >>> from skcomplex.models.physics.synchronization import LogisticNodeElement
+        >>> LogisticNodeElement('node').epsilon
+        0.5
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec()] = 0.5,
-        r: Annotated[object, ParameterSpec()] = 4.0,
-        epsilon: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        x: Annotated[float, StateSpec()] = 0.5,
+        r: Annotated[float, ParameterSpec()] = 4.0,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
         self.r = r
         self.epsilon = epsilon
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the logistic node element."""
-        return [
-            UpdateLaw(
-                s.x,
-                (1 - s.epsilon) * _logistic(s.r, s.x) + s.epsilon * neighbors(_logistic(s.r, s.other.x), reduce='mean'),
-            ),
-        ]
+    def _logistic(self, r: Expression, x: Expression) -> Expression:
+        """Return the logistic map `r x (1 - x)`."""
+        return r * x * (1 - x)
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the update of the value to the mix of its map and the mean map of the neighbours.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use, with the neighbour `namespace.other`.
+
+        Returns:
+            laws:
+                The update of the value.
+        """
+        s = namespace
+        own, others = self._logistic(s.r, s.x), neighbors(self._logistic(s.r, s.other.x), reduce='mean')
+        return [UpdateLaw(s.x, (1 - s.epsilon) * own + s.epsilon * others)]
 
 
-class EdgeCouplingInteraction(NeighborInteraction):
-    """Kuramoto coupling along one weighted edge, `theta_i' += K w_ij sin(theta_j - theta_i)` at both of its ends.
+class EdgeCouplingInteraction(KuramotoCouplingInteraction):
+    """Kuramoto coupling along the weighted edges of a network, `theta_i' += K w_ij sin(theta_j - theta_i)`.
 
-    The interaction runs once per edge of the network of its oscillators and reads the weight `w` of the edge from
-    the group on the edges.
+    The coupling runs once per edge of the network of its oscillators and reads the weight `w` of the edge from the
+    group on the edges.
 
     Args:
         label:
-            The label of the interaction.
+            The label of the interaction, unique among the parts of its system.
 
-        oscillators:
+        target:
             The path of the group of oscillators on the nodes.
 
         links:
@@ -91,38 +144,26 @@ class EdgeCouplingInteraction(NeighborInteraction):
         K:
             The coupling strength.
 
+        alpha:
+            The phase lag.
+
     Examples:
         >>> from skcomplex.models.physics.synchronization import EdgeCouplingInteraction
-        >>> EdgeCouplingInteraction('coupling', oscillators='nodes', links='edges', K=0.5).K
-        0.5
+        >>> EdgeCouplingInteraction('coupling', target='nodes', links='edges', K=0.5).weights
+        'w'
     """
 
     def __init__(
         self,
         label: str,
         *,
-        oscillators: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
         links: Annotated[str, RoleSpec()],
-        K: Annotated[float, ParameterSpec()] = 1.0,
+        K: float = 1.0,
+        alpha: float = 0.0,
     ) -> None:
-        super().__init__(label)
-        self.oscillators = oscillators
+        super().__init__(label, target=target, K=K, alpha=alpha, weights='w')
         self.links = links
-        self.K = K
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the pull of both ends of an edge towards each other.
-
-        Args:
-            s:
-                The namespace of the edge, with its ends `s.source` and `s.target` and its member `s.edge`.
-
-        Returns:
-            laws:
-                The rates of the phases at both ends.
-        """
-        pull = s.K * s.edge.w * sin(s.target.theta - s.source.theta)
-        return [RateLaw(s.source.theta, pull), RateLaw(s.target.theta, -pull)]
 
 
 def _network(name: str, n_nodes: int, degree: int, rewiring: float, seed: int) -> NetworkSpace:
@@ -210,7 +251,7 @@ def kuramoto_on_networks(
         visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
     )
     links = GroupElement('links', element=LinkElement, space=space, on='edges')
-    coupling = EdgeCouplingInteraction('coupling', oscillators='oscillators', links='links', K=K / mean_degree)
+    coupling = EdgeCouplingInteraction('coupling', target='oscillators', links='links', K=K / mean_degree)
     return System(elements=[oscillators, links], interactions=[coupling])
 
 

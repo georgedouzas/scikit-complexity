@@ -9,91 +9,32 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import oo, sqrt
+from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement, GroupElement, PointElement
-from ....core.interactions import PairInteraction
+from ....core.interactions import PairCouplingInteraction
 from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import advection, divergence, gradient, laplacian
 from ....core.spaces import ContinuousSpace, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import EulerMaruyamaSolver, RK4Solver
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ..common.active import SelfPropulsionInteraction
+from ..common.particles import SoftSphereInteraction
 from ._particles import ActiveParticleElement
 
 
-class SoftRepulsionInteraction(PairInteraction):
-    """Overdamped repulsion between overlapping disks, which pushes them apart at the speed `k (cutoff - r)`.
+class PhoreticAttractionInteraction(PairCouplingInteraction):
+    """Phoretic attraction between active colloids, the pair potential `-v0 R^2 / r` of an overdamped position.
+
+    Every member of a pair drifts towards the other at the speed `v0 R^2 / r^2`.
 
     Args:
         label:
-            The label of the interaction.
-
-        first:
-            The path of the group or particle of the first members.
-
-        second:
-            The path of the group or particle of the second members.
-
-        cutoff:
-            The contact distance, the sum of the two radii.
-
-        position:
-            The name of the vector state that holds the positions of the members.
-
-        k:
-            The stiffness times the mobility.
-
-        period:
-            The side of a periodic box, for minimum image distances, or `None` for an open space.
-
-    Examples:
-        >>> from skcomplex.models.physics.active_matter import SoftRepulsionInteraction
-        >>> SoftRepulsionInteraction('contact', first='swimmers', second='swimmers', k=50.0).k
-        50.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        position: str = 'x',
-        *,
-        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        period: float | None = None,
-    ) -> None:
-        super().__init__(label, first, second, cutoff=cutoff, position=position)
-        self.k = k
-        self.period = period
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the opposite displacements of the two members of an overlapping pair.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        separation = s.first.x - s.second.x
-        r = sqrt(separation.dot_product(separation))
-        push = s.k * (s.cutoff - r) * separation / r
-        return [RateLaw(s.first.x, push), RateLaw(s.second.x, -push)]
-
-
-class PhoreticAttractionInteraction(PairInteraction):
-    """Phoretic attraction between active colloids, a drift towards each other at the speed `v0 R^2 / r^2`.
-
-    Args:
-        label:
-            The label of the interaction.
+            The label of the interaction, unique among the parts of its system.
 
         first:
             The path of the group or particle of the first members.
@@ -114,7 +55,7 @@ class PhoreticAttractionInteraction(PairInteraction):
             The particle radius.
 
         period:
-            The side of a periodic box, for minimum image distances, or `None` for an open space.
+            The side of a periodic box, for minimum image distances, or `None` for the period of the space.
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import PhoreticAttractionInteraction
@@ -125,45 +66,43 @@ class PhoreticAttractionInteraction(PairInteraction):
     def __init__(
         self,
         label: str,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        first: str,
+        second: str,
+        cutoff: float = 1.0,
         position: str = 'x',
         *,
         v0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
         R: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         period: float | None = None,
     ) -> None:
-        super().__init__(label, first, second, cutoff=cutoff, position=position)
+        super().__init__(
+            label,
+            first,
+            second,
+            cutoff=cutoff,
+            position=position,
+            write=position,
+            potential=self._attraction,
+            period=period,
+        )
         self.v0 = v0
         self.R = R
-        self.period = period
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the drifts of the two members of a pair towards each other.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        separation = s.first.x - s.second.x
-        r = sqrt(separation.dot_product(separation))
-        drift = s.v0 * s.R**2 / r**2 * separation / r
-        return [RateLaw(s.first.x, -drift), RateLaw(s.second.x, drift)]
+    @staticmethod
+    def _attraction(namespace: SimpleNamespace, r: Expression) -> Expression:
+        """Return the potential `-v0 R^2 / r` of a pair at the distance `r`."""
+        return -namespace.v0 * namespace.R**2 / r
 
 
-class CuckerSmaleAlignmentInteraction(PairInteraction):
-    """Cucker-Smale alignment, `dv_i/dt = K / N sum_j psi(r_ij) (v_j - v_i)` with `psi(r) = (1 + r^2)^(-beta)`.
+class CuckerSmaleAlignmentInteraction(PairCouplingInteraction):
+    """Cucker-Smale alignment, `x_i'' += K / N psi(r_ij) (x_j' - x_i')` with `psi(r) = (1 + r^2)^(-beta)`.
 
-    The velocity `v` is the first derivative `x_d1` of the position `x` of order 2.
+    Every pair of members within the cutoff pulls their velocities, the first derivatives of their positions of order
+    2, towards each other with a weight that decays with their distance.
 
     Args:
         label:
-            The label of the interaction.
+            The label of the interaction, unique among the parts of its system.
 
         first:
             The path of the group or particle of the first members.
@@ -172,22 +111,22 @@ class CuckerSmaleAlignmentInteraction(PairInteraction):
             The path of the group or particle of the second members.
 
         cutoff:
-            The distance beyond which agents do not align, large for the original all-to-all model.
+            The distance beyond which pairs do not align, large for the all-to-all model.
 
         position:
-            The name of the vector state that holds the positions of the members.
+            The name of the vector state of order 2 that holds the positions of the members.
 
         K:
-            The coupling strength.
+            The strength of the alignment.
 
         beta:
-            The decay exponent of the communication weight.
+            The decay exponent of the weight.
 
         period:
-            The side of a periodic box, for minimum image distances, or `None` for an open space.
+            The side of a periodic box, for minimum image distances, or `None` for the period of the space.
 
         n_agents:
-            The number of agents `N` that normalizes the coupling.
+            The number of agents `N` that normalizes the alignment.
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import CuckerSmaleAlignmentInteraction
@@ -198,9 +137,9 @@ class CuckerSmaleAlignmentInteraction(PairInteraction):
     def __init__(
         self,
         label: str,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        first: str,
+        second: str,
+        cutoff: float = 1.0,
         position: str = 'x',
         *,
         K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
@@ -208,27 +147,27 @@ class CuckerSmaleAlignmentInteraction(PairInteraction):
         period: float | None = None,
         n_agents: int = 1,
     ) -> None:
-        super().__init__(label, first, second, cutoff=cutoff, position=position)
+        super().__init__(
+            label,
+            first,
+            second,
+            cutoff=cutoff,
+            position=position,
+            write=position,
+            function=self._align,
+            period=period,
+        )
         self.K = K
         self.beta = beta
-        self.period = period
         self.n_agents = n_agents
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the opposite velocity changes of the two members of a pair.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        separation = s.first.x - s.second.x
-        weight = s.K / self.n_agents * (1 + separation.dot_product(separation)) ** (-s.beta)
-        change = weight * (s.second.x_d1 - s.first.x_d1)
-        return [RateLaw(s.first.x, change), RateLaw(s.second.x, -change)]
+    def _align(self, namespace: SimpleNamespace) -> Expression:
+        """Return the pull `K / N psi(r) (x_j' - x_i')` of the velocity of the first member towards the second."""
+        first, second = namespace.first, namespace.second
+        separation = getattr(first, self.position) - getattr(second, self.position)
+        velocity = f'{self.position}_d1'
+        weight = namespace.K / self.n_agents * (1 + separation.dot_product(separation)) ** (-namespace.beta)
+        return weight * (getattr(second, velocity) - getattr(first, velocity))
 
 
 class PolarFluidElement(Element):
@@ -362,9 +301,14 @@ def _active_disks(
         'swimmers',
         element=ActiveParticleElement,
         size=n_particles,
-        values={'x': positions, 'theta': angles, 'speed': speed, 'D_t': 0.0, 'D_r': D_r},
+        values={'x': positions, 'theta': angles, 'D_t': 0.0, 'D_r': D_r},
     )
-    return System(elements=[group], space=ContinuousSpace(extent=(size, size), boundary='periodic'))
+    propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=speed)
+    return System(
+        elements=[group],
+        interactions=[propulsion],
+        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
+    )
 
 
 @register_model(
@@ -413,12 +357,12 @@ def motility_induced_phase_separation(
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import motility_induced_phase_separation
-        >>> motility_induced_phase_separation(16).interactions[0].k
+        >>> motility_induced_phase_separation(16).interactions[1].k
         50.0
     """
     size = math.sqrt(n_particles * math.pi / 4 / packing_fraction)
     system = _active_disks(n_particles, size, speed, D_r, random_state)
-    repulsion = SoftRepulsionInteraction('contact', first='swimmers', second='swimmers', cutoff=1.0, period=size, k=k)
+    repulsion = SoftSphereInteraction('contact', first='swimmers', second='swimmers', cutoff=1.0, period=size, k=k)
     return System(elements=system.elements, interactions=[*system.interactions, repulsion], space=system.space)
 
 
@@ -475,11 +419,11 @@ def living_crystals(
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import living_crystals
-        >>> living_crystals(16).interactions[1].v0
+        >>> living_crystals(16).interactions[2].v0
         20.0
     """
     system = _active_disks(n_particles, size, speed, D_r, random_state)
-    repulsion = SoftRepulsionInteraction('contact', first='swimmers', second='swimmers', cutoff=2.0, period=size, k=k)
+    repulsion = SoftSphereInteraction('contact', first='swimmers', second='swimmers', cutoff=2.0, period=size, k=k)
     attraction = PhoreticAttractionInteraction(
         'phoresis',
         first='swimmers',

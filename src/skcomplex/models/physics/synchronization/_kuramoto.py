@@ -11,236 +11,145 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, cos, oo, sin
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement
-from ....core.interactions import BaseInteraction, Interaction, PairInteraction
+from ....core.elements import GroupElement
+from ....core.interactions import BaseInteraction, Interaction, RateInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import delayed, mean
-from ....core.spaces import ContinuousSpace
+from ....core.spaces import ContinuousSpace, RadiusNeighborhood
 from ....core.system import System
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, RoleSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.oscillators import (
+    KuramotoCouplingInteraction,
+    PhaseOscillatorElement,
+    SitedOscillatorElement,
+    StuartLandauElement,
+)
 from ._utils import _order_parameter
 
 
-class PhaseOscillatorElement(Element):
-    """Phase oscillator element."""
+class DelayedCouplingInteraction(RateInteraction):
+    """Delayed sine coupling of one phase oscillator to another, `theta_t' += K sin(theta_s(t - tau) - theta_t)`.
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        theta: Annotated[object, StateSpec()] = 0.0,
-        omega: Annotated[object, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.theta = theta
-        self.omega = omega
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the phase oscillator element."""
-        return [RateLaw(s.theta, s.omega)]
-
-
-class DelayedCouplingInteraction(Interaction):
-    """Delayed coupling interaction."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        source: Annotated[object, RoleSpec()],
-        target: Annotated[object, RoleSpec()],
-        K: Annotated[object, ParameterSpec()] = 1.0,
-        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.source = source
-        self.target = target
-        self.K = K
-        self.tau = tau
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the delayed coupling interaction."""
-        return [RateLaw(s.target.theta, s.K * sin(delayed(s.source.theta, s.tau) - s.target.theta))]
-
-
-class SitedOscillatorElement(Element):
-    """Sited oscillator element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        theta: Annotated[object, StateSpec()] = 0.0,
-        x: Annotated[object, StateSpec(vector=True)] = 0.0,
-        omega: Annotated[object, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.theta = theta
-        self.x = x
-        self.omega = omega
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the sited oscillator element."""
-        return [RateLaw(s.theta, s.omega)]
-
-
-class PhaseLagInteraction(Interaction):
-    """Phase lag interaction."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[object, RoleSpec()],
-        K: Annotated[object, ParameterSpec()] = 1.0,
-        alpha: Annotated[object, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.K = K
-        self.alpha = alpha
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the phase lag interaction."""
-        return [RateLaw(s.target.theta, -s.K * sin(s.alpha))]
-
-
-def _mean_field_rate(s: SimpleNamespace) -> Expression:
-    """Return `K mean_j sin(theta_j - theta_i - alpha)`, written with the means of `cos theta_j` and `sin theta_j`."""
-    shifted = s.target.theta + s.alpha
-    return s.K * (mean(sin(s.source.theta)) * cos(shifted) - mean(cos(s.source.theta)) * sin(shifted))
-
-
-class MeanFieldCouplingInteraction(Interaction):
-    """Mean field coupling interaction."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[object, RoleSpec()],
-        source: Annotated[object, RoleSpec()],
-        K: Annotated[object, ParameterSpec()] = 1.0,
-        alpha: Annotated[object, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.source = source
-        self.K = K
-        self.alpha = alpha
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the mean field coupling interaction."""
-        return [RateLaw(s.target.theta, _mean_field_rate(s))]
-
-
-class MeanFieldAmplitudeElement(Element):
-    """Mean field amplitude element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 0.1,
-        y: Annotated[object, StateSpec()] = 0.0,
-        K: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        Delta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        omega: Annotated[object, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.K = K
-        self.Delta = Delta
-        self.omega = omega
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the mean field amplitude element."""
-        return [
-            RateLaw(s.x, (-s.Delta + s.K / 2 * (1 - s.x**2 - s.y**2)) * s.x - s.omega * s.y),
-            RateLaw(s.y, (-s.Delta + s.K / 2 * (1 - s.x**2 - s.y**2)) * s.y + s.omega * s.x),
-        ]
-
-
-def _spread_phases(size: int, seed: int) -> list[float]:
-    """Return phases drawn uniformly from the circle with a seed."""
-    return [float(phase) for phase in np.random.default_rng(seed).uniform(0, 2 * math.pi, size)]
-
-
-class PhaseCouplingInteraction(PairInteraction):
-    """Sine coupling with a phase lag between two phase oscillators, `theta_i' += K sin(theta_j - theta_i - alpha)`.
-
-    Every pair of members closer than the cutoff couples both ways. The members carry the vector state `x`, their
-    place, which decides the pairs.
+    The target reads the phase of the source as it was a delay `tau` earlier.
 
     Args:
         label:
-            The label of the interaction.
+            The label of the interaction, unique among the parts of its system.
 
-        first:
-            The path of the group of the first members.
+        source:
+            The path of the oscillator whose delayed phase the coupling reads.
 
-        second:
-            The path of the group of the second members.
-
-        cutoff:
-            The distance beyond which pairs do not interact.
-
-        position:
-            The name of the vector state that holds the positions of the members.
+        target:
+            The path of the oscillator whose phase the coupling turns.
 
         K:
-            The coupling strength of one pair.
+            The coupling strength.
 
-        alpha:
-            The phase lag.
-
-        period:
-            The side of a periodic box, for minimum image distances, or `None` for an open space.
+        tau:
+            The delay.
 
     Examples:
-        >>> from skcomplex.models.physics.synchronization import PhaseCouplingInteraction
-        >>> PhaseCouplingInteraction('coupling', first='phases', second='phases', K=0.1).alpha
-        0.0
+        >>> from types import SimpleNamespace
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.models.physics.synchronization import DelayedCouplingInteraction
+        >>> coupling = DelayedCouplingInteraction('coupling', source='a', target='b').check().prepare()
+        >>> namespace = SimpleNamespace(source=SimpleNamespace(theta=var('a')), target=SimpleNamespace(theta=var('b')))
+        >>> [law.value for law in coupling.run(SimpleNamespace(**vars(namespace), K=var('K'), tau=1)).laws_]
+        [K*sin(-b + delayed(a, 1))]
     """
 
     def __init__(
         self,
         label: str,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        position: str = 'x',
         *,
+        source: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
         K: Annotated[float, ParameterSpec()] = 1.0,
-        alpha: Annotated[float, ParameterSpec()] = 0.0,
-        period: float | None = None,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, first, second, cutoff=cutoff, position=position)
+        super().__init__(label, target=target, state='theta')
+        self.source = source
         self.K = K
-        self.alpha = alpha
-        self.period = period
+        self.tau = tau
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the sine coupling of both members of a pair.
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
+        """Return `K sin(theta_s(t - tau) - theta_t)`.
 
         Args:
-            s:
+            namespace:
+                The namespace of the symbols the rate can use.
+
+        Returns:
+            rate:
+                The rate of the phase of the target.
+        """
+        return namespace.K * sin(delayed(namespace.source.theta, namespace.tau) - namespace.target.theta)
+
+
+class MeanFieldCouplingInteraction(Interaction):
+    """Kuramoto-Sakaguchi coupling of one population to the mean field of another, possibly itself.
+
+    Every member `i` of the target turns by `K mean_j sin(theta_j - theta_i - alpha)` over every member `j` of the
+    source, which it reads from the means of `cos theta_j` and `sin theta_j`, so the coupling costs time linear in the
+    sizes of the populations.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the population whose phases turn.
+
+        source:
+            The path of the population whose mean field the target reads.
+
+        K:
+            The coupling strength.
+
+        alpha:
+            The phase lag.
+
+    Examples:
+        >>> from skcomplex.models.physics.synchronization import MeanFieldCouplingInteraction
+        >>> MeanFieldCouplingInteraction('coupling', target='first', source='second', alpha=0.1).alpha
+        0.1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        source: Annotated[str, RoleSpec()],
+        K: Annotated[float, ParameterSpec()] = 1.0,
+        alpha: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.source = source
+        self.K = K
+        self.alpha = alpha
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rate `K (<sin theta_j> cos(theta_i + alpha) - <cos theta_j> sin(theta_i + alpha))`.
+
+        Args:
+            namespace:
                 The namespace of the symbols the laws can use.
 
         Returns:
             laws:
-                The laws of the component.
+                The rate of the phase of the target.
         """
-        first, second = s.first.theta, s.second.theta
-        return [
-            RateLaw(first, s.K * sin(second - first - s.alpha)),
-            RateLaw(second, s.K * sin(first - second - s.alpha)),
-        ]
+        shifted = namespace.target.theta + namespace.alpha
+        sines, cosines = mean(sin(namespace.source.theta)), mean(cos(namespace.source.theta))
+        return [RateLaw(namespace.target.theta, namespace.K * (sines * cos(shifted) - cosines * sin(shifted)))]
+
+
+def _spread_phases(size: int, seed: int) -> list[float]:
+    """Return phases drawn uniformly from the circle with a seed."""
+    return [float(phase) for phase in np.random.default_rng(seed).uniform(0, 2 * math.pi, size)]
 
 
 @register_model(
@@ -354,7 +263,14 @@ def kuramoto(n_oscillators: int = 50, *, K: float = 4.0, sigma: float = 1.0, see
         size=n_oscillators,
         values={'theta': _spread_phases(n_oscillators, seed), 'omega': rng.normal(0.0, sigma, n_oscillators)},
     )
-    coupling = MeanFieldCouplingInteraction('coupling', target='oscillators', source='oscillators', K=K)
+    coupling = KuramotoCouplingInteraction(
+        'coupling',
+        target='oscillators',
+        K=K,
+        mode='group',
+        reduce='mean',
+        include_self=True,
+    )
     return System(
         elements=[oscillators],
         interactions=[coupling],
@@ -489,7 +405,7 @@ def nonlocal_ring_chimera(
 
     Examples:
         >>> from skcomplex.models.physics.synchronization import nonlocal_ring_chimera
-        >>> nonlocal_ring_chimera(20, R=3).interactions[0].cutoff
+        >>> nonlocal_ring_chimera(20, R=3).interactions[0].neighborhood.radius
         3.5
     """
     weight = 1 / (2 * R)
@@ -507,18 +423,16 @@ def nonlocal_ring_chimera(
     return System(
         elements=[ring],
         interactions=[
-            PhaseCouplingInteraction(
+            KuramotoCouplingInteraction(
                 'coupling',
-                first='ring',
-                second='ring',
-                cutoff=R + 0.5,
-                period=float(n_oscillators),
+                target='ring',
                 K=weight,
                 alpha=alpha,
+                include_self=True,
+                neighborhood=RadiusNeighborhood(R + 0.5),
             ),
-            PhaseLagInteraction('lag', target='ring', K=weight, alpha=alpha),
         ],
-        space=ContinuousSpace(n_dim=1),
+        space=ContinuousSpace((float(n_oscillators),), boundary='periodic'),
     )
 
 
@@ -538,7 +452,8 @@ def ott_antonsen(
     """Return the Ott-Antonsen equation for the order parameter of infinitely many Kuramoto oscillators.
 
     For natural frequencies with a Lorentzian distribution of center `omega` and half width `Delta`, the complex order
-    parameter `z = x + i y` follows exactly `z' = (i omega - Delta) z + (K / 2)(1 - |z|²) z`. Its modulus settles at
+    parameter `z = x + i y` follows exactly `z' = (i omega - Delta) z + (K / 2)(1 - |z|²) z`, a Stuart-Landau
+    oscillator with the growth rate `K / 2 - Delta` and the saturation `K / 2`. Its modulus settles at
     `sqrt(1 - 2 Delta / K)` above the critical coupling `K_c = 2 Delta`, and at 0 below it.
 
     Args:
@@ -560,7 +475,7 @@ def ott_antonsen(
 
     Examples:
         >>> from skcomplex.models.physics.synchronization import ott_antonsen
-        >>> ott_antonsen(K=3.0).elements[0].K
-        3.0
+        >>> ott_antonsen(K=3.0).elements[0].kappa
+        1.5
     """
-    return System(elements=[MeanFieldAmplitudeElement('field', x=r, y=0.0, K=K, Delta=Delta, omega=omega)])
+    return System(elements=[StuartLandauElement('field', x=r, y=0.0, mu=K / 2 - Delta, omega=omega, kappa=K / 2)])

@@ -14,7 +14,7 @@ from ._driven_particles import (
 )
 from ._fully_connected_spins import FullyConnectedSpinElement, curie_weiss, sherrington_kirkpatrick
 from ._gases import ideal_gas, lennard_jones_fluid
-from ._graph_spins import GraphIsingSpinElement, graph_ising
+from ._graph_spins import graph_ising
 from ._kinetic_temperature import KineticTemperatureAnalysis
 from ._master_equations import (
     MicrostateElement,
@@ -45,7 +45,13 @@ from ._quantum_spins import (
     quantum_heisenberg,
     total_magnetization,
 )
-from ._spin_glasses import BondSpinElement, MattisSpinElement, edwards_anderson, mattis_spin_glass
+from ._spin_glasses import (
+    BondSamplingInteraction,
+    BondSpinElement,
+    MattisSpinElement,
+    edwards_anderson,
+    mattis_spin_glass,
+)
 from ._spins import IsingSpinElement, PottsSpinElement, XYSpinElement, ising, potts, xy
 from ._susceptibility import SusceptibilityAnalysis
 from ._traps import TrapWalkerElement, trap_model
@@ -53,6 +59,7 @@ from ._urns import EhrenfestUrnElement, ehrenfest_urn
 from ._walker_view import WalkerView
 
 __all__: list[str] = [
+    'BondSamplingInteraction',
     'BondSpinElement',
     'ContactSiteElement',
     'DephasingInteraction',
@@ -60,7 +67,6 @@ __all__: list[str] = [
     'ExclusionHopsInteraction',
     'ExclusionSiteElement',
     'FullyConnectedSpinElement',
-    'GraphIsingSpinElement',
     'IsingSpinElement',
     'KineticTemperatureAnalysis',
     'MattisSpinElement',

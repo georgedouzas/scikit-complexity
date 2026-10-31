@@ -3,10 +3,10 @@
 from ._absorbing import ActiveFieldElement, directed_percolation_langevin
 from ._crackling_noise import CracklingNoiseAnalysis
 from ._criticality import (
+    AvalancheInteraction,
+    FireInteraction,
     ForestElement,
-    MannaCellElement,
     SandpileCellElement,
-    SpreadingForestElement,
     forest_fire,
     hexagonal_forest_fire,
     manna_sandpile,
@@ -17,13 +17,13 @@ from ._learning import LearningAgentElement, sk_game
 
 __all__: list[str] = [
     'ActiveFieldElement',
+    'AvalancheInteraction',
     'CracklingNoiseAnalysis',
+    'FireInteraction',
     'ForestElement',
     'LearnerElement',
     'LearningAgentElement',
-    'MannaCellElement',
     'SandpileCellElement',
-    'SpreadingForestElement',
     'directed_percolation_langevin',
     'evolutionary_sk_game',
     'forest_fire',

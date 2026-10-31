@@ -4,10 +4,7 @@ from ._billiards import MushroomBilliardElement, SinaiBilliardElement, billiards
 from ._oscillators import (
     AdlerPhaseElement,
     DuffingElement,
-    ForcedVanDerPolElement,
     HenonHeilesElement,
-    StuartLandauElement,
-    VanDerPolElement,
     adler_equation,
     duffing,
     forced_van_der_pol,
@@ -19,12 +16,9 @@ from ._oscillators import (
 __all__: list[str] = [
     'AdlerPhaseElement',
     'DuffingElement',
-    'ForcedVanDerPolElement',
     'HenonHeilesElement',
     'MushroomBilliardElement',
     'SinaiBilliardElement',
-    'StuartLandauElement',
-    'VanDerPolElement',
     'adler_equation',
     'billiards',
     'duffing',

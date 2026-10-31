@@ -21,22 +21,71 @@ from ..._catalog import register_model
 
 
 class ActiveFieldElement(Element):
-    """Active field element."""
+    """Site of the Langevin equation of directed percolation with a conserved field, an activity `rho` and a field `nu`.
+
+    The activity grows at the rate `a + b nu`, saturates, diffuses, and fluctuates with the multiplicative noise
+    `e sqrt(rho)` of an absorbing state, `rho_t = (a + b nu) rho - c rho^2 + d laplacian(rho) + e sqrt(rho) eta`. The
+    field diffuses, gains `f`, and is consumed by the activity, `nu_t = laplacian(nu) + f - g rho`. Both stay
+    nonnegative.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the site is drawn, or `None` for `default_visual_`.
+
+        rho:
+            The initial activity.
+
+        nu:
+            The initial field.
+
+        a:
+            The linear growth rate of the activity.
+
+        b:
+            The growth of the activity per unit of the field.
+
+        c:
+            The saturation of the activity.
+
+        d:
+            The diffusion coefficient of the activity.
+
+        e:
+            The amplitude of the noise.
+
+        f:
+            The input of the field.
+
+        g:
+            The consumption of the field by the activity.
+
+    Attributes:
+        default_visual_:
+            The visual of the site when it sets none.
+
+    Examples:
+        >>> from skcomplex.models.physics.criticality import ActiveFieldElement
+        >>> ActiveFieldElement('site').e
+        0.2
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        rho: Annotated[object, StateSpec()] = 0.5,
-        nu: Annotated[object, StateSpec()] = 1.0,
-        a: Annotated[object, ParameterSpec()] = -1.0,
-        b: Annotated[object, ParameterSpec()] = 1.0,
-        c: Annotated[object, ParameterSpec()] = 1.0,
-        d: Annotated[object, ParameterSpec()] = 1.0,
-        e: Annotated[object, ParameterSpec()] = 0.2,
-        f: Annotated[object, ParameterSpec()] = 0.0,
-        g: Annotated[object, ParameterSpec()] = 0.0,
+        rho: Annotated[float, StateSpec()] = 0.5,
+        nu: Annotated[float, StateSpec()] = 1.0,
+        a: Annotated[float, ParameterSpec()] = -1.0,
+        b: Annotated[float, ParameterSpec()] = 1.0,
+        c: Annotated[float, ParameterSpec()] = 1.0,
+        d: Annotated[float, ParameterSpec()] = 1.0,
+        e: Annotated[float, ParameterSpec()] = 0.2,
+        f: Annotated[float, ParameterSpec()] = 0.0,
+        g: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.rho = rho
@@ -49,8 +98,18 @@ class ActiveFieldElement(Element):
         self.f = f
         self.g = g
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the active field element."""
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rates, the noise, and the nonnegative bounds of the activity and the field.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of `rho` and `nu`.
+        """
+        s = namespace
         return [
             RateLaw(s.rho, (s.a + s.b * s.nu) * s.rho - s.c * s.rho**2 + s.d * laplacian(s.rho)),
             NoiseLaw(s.rho, s.e * sqrt(s.rho)),

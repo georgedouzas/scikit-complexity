@@ -13,13 +13,13 @@ from sage.all__sagemath_symbolics import ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, SampleLaw
 from ....core.laws.utils import neighbors
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
 from ....errors import ValidationError
-from ....specs import EnergySpec, MoveSpec, ObservableSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.spins import SpinSamplingInteraction
 from ._fully_connected_spins import SPIN_IMAGE
 
 NEAREST = VonNeumannNeighborhood()
@@ -51,11 +51,41 @@ def _overlap(member: SimpleNamespace) -> Expression:
     return member.spin * member.pattern
 
 
+class BondSamplingInteraction(SpinSamplingInteraction):
+    """Metropolis sweeps of Ising spins with quenched couplings to their neighbours, of energy `-s (sum J_k s_k + h)`.
+
+    The couplings `J_up`, `J_left`, `J_right`, and `J_down` are constant states of every spin, in the order of the
+    offsets of the von Neumann neighbourhood, and the field `h` and the temperature are its parameters.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the lattice group of spins.
+
+    Examples:
+        >>> from skcomplex.models.physics.statistical_mechanics import BondSamplingInteraction
+        >>> BondSamplingInteraction('sampling', target='spins').neighborhood
+        VonNeumannNeighborhood()
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label, target=target, state='spin', energy=self._energy, neighborhood=NEAREST)
+
+    def _energy(self, namespace: SimpleNamespace) -> Expression:
+        """Return the local energy `-s (sum_k J_k s_k + h)` of a spin."""
+        s = namespace.target
+        couplings = (s.J_up, s.J_left, s.J_right, s.J_down)
+        neighbours = neighbors(s.spin, NEAREST, reduce='each')
+        return -s.spin * (sum(coupling * other for coupling, other in zip(couplings, neighbours, strict=True)) + s.h)
+
+
 class BondSpinElement(Element):
     """Ising spin on a square lattice with quenched couplings to its four neighbours, of local energy `-s sum J_k s_k`.
 
     The couplings are constant states of every site, so a bond between two sites is stored at both of them with the same
-    value. The spins flip by Metropolis Monte Carlo at the temperature `T`, with the energy
+    value. A `BondSamplingInteraction` flips the spins by Metropolis Monte Carlo at the temperature `T`, with the energy
     `-sum_<ij> J_ij s_i s_j - h sum_i s_i`.
 
     Args:
@@ -113,30 +143,6 @@ class BondSpinElement(Element):
         self.J_down = J_down
         self.h = h
         self.temperature = temperature
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the local energy, the spin flip, and the Metropolis sampler.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        couplings = (s.J_up, s.J_left, s.J_right, s.J_down)
-        field = sum(
-            coupling * other
-            for coupling, other in zip(couplings, neighbors(s.spin, NEAREST, reduce='each'), strict=True)
-        )
-        return [
-            SampleLaw(
-                EnergySpec(-s.spin * (field + s.h), NEAREST),
-                MoveSpec(s.spin, 'flip'),
-                SamplerSpec('metropolis', s.temperature),
-            ),
-        ]
 
 
 class MattisSpinElement(BondSpinElement):
@@ -285,7 +291,7 @@ def edwards_anderson(
         values={'spin': spins, 'h': h, 'temperature': temperature, **_bond_states(right, down)},
         visual=SPIN_IMAGE,
     )
-    return System(elements=[group])
+    return System(elements=[group], interactions=[BondSamplingInteraction('sampling', target='spins')])
 
 
 def _pattern_observables(system: System) -> list[ObservableSpec]:
@@ -359,4 +365,4 @@ def mattis_spin_glass(
         values={'spin': spins, 'pattern': pattern, 'h': h, 'temperature': temperature, **_bond_states(right, down)},
         visual=VisualSpec('image', {'states': ()}),
     )
-    return System(elements=[group])
+    return System(elements=[group], interactions=[BondSamplingInteraction('sampling', target='spins')])

@@ -18,22 +18,57 @@ from ..._catalog import register_model
 
 
 class EhrenfestUrnElement(Element):
-    """Ehrenfest urn element."""
+    """First box of the Ehrenfest urn, which holds `n` of the `N` balls, one of which moves to the other box every step.
+
+    The count falls by one with the probability `n / N` that the drawn ball is in the box, and rises by one otherwise.
+
+    Args:
+        label:
+            The label of the box.
+
+        visual:
+            How the box is drawn, or `None` for `default_visual_`.
+
+        n:
+            The initial number of balls in the box.
+
+        N:
+            The number of balls in both boxes.
+
+    Attributes:
+        default_visual_:
+            The visual of the element when it sets none.
+
+    Examples:
+        >>> from skcomplex.models.physics.statistical_mechanics import EhrenfestUrnElement
+        >>> EhrenfestUrnElement('urn', n=10).N
+        40
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        n: Annotated[object, StateSpec(domain=NN)] = 0,
-        N: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 40,
+        n: Annotated[int, StateSpec(domain=NN)] = 0,
+        N: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 40,
     ) -> None:
         super().__init__(label, visual=visual)
         self.n = n
         self.N = N
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the ehrenfest urn element."""
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the move of one ball, out of the box with probability `n / N` and into it otherwise.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The update of the count.
+        """
+        s = namespace
         return [UpdateLaw(s.n, s.n + 1 - 2 * bernoulli('pick', s.n / s.N))]
 
 

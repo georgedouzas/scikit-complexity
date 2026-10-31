@@ -4,96 +4,18 @@
 # License: MIT
 
 
-from types import SimpleNamespace
-from typing import Annotated
-
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import ZZ, oo
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, SampleLaw
-from ....core.laws.utils import neighbors
+from ....core.elements import LatticeElement
 from ....core.spaces import AdjacencyNeighborhood, NetworkSpace
 from ....core.system import System
-from ....specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.spins import IsingSamplingInteraction
+from ._spins import IsingSpinElement
 
 NODES = 400
 DEGREE = 4
-
-
-class GraphIsingSpinElement(Element):
-    """Ising spin on a node of a graph, with local energy `-J s sum(neighbours) - h s` over the node's edges.
-
-    The sampler updates the classes of a proper coloring of the graph in turn, so no two neighbours flip together.
-
-    Args:
-        label:
-            The label of the spin or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        spin:
-            The initial spin, 1 or -1.
-
-        J:
-            The coupling between neighbouring spins.
-
-        h:
-            The external field.
-
-        temperature:
-            The temperature in units of the coupling.
-
-        sampler:
-            The acceptance rule, `'metropolis'`, `'glauber'`, or `'heat-bath'`.
-
-    Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import GraphIsingSpinElement
-        >>> GraphIsingSpinElement('spin').sampler
-        'metropolis'
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        J: Annotated[float, ParameterSpec()] = 1.0,
-        h: Annotated[float, ParameterSpec()] = 0.0,
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        sampler: str = 'metropolis',
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.spin = spin
-        self.J = J
-        self.h = h
-        self.temperature = temperature
-        self.sampler = sampler
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the neighbour-sum energy, the spin flip, and the colored sampler.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        energy = -s.J * s.spin * neighbors(s.other.spin, reduce='sum') - s.h * s.spin
-        return [
-            SampleLaw(
-                EnergySpec(energy, AdjacencyNeighborhood()),
-                MoveSpec(s.spin, 'flip'),
-                SamplerSpec(self.sampler, s.temperature, 'colored'),
-            ),
-        ]
 
 
 @register_model(
@@ -157,8 +79,15 @@ def graph_ising(
     space = NetworkSpace(graph)
     group = LatticeElement(
         'spins',
-        element=GraphIsingSpinElement,
+        element=IsingSpinElement,
         space=space,
-        values={'spin': spins, 'J': J, 'h': h, 'temperature': temperature, 'sampler': sampler},
+        values={'spin': spins, 'J': J, 'h': h, 'temperature': temperature},
     )
-    return System(elements=[group])
+    sampling = IsingSamplingInteraction(
+        'sampling',
+        target='spins',
+        rule=sampler,
+        schedule='colored',
+        neighborhood=AdjacencyNeighborhood(),
+    )
+    return System(elements=[group], interactions=[sampling])

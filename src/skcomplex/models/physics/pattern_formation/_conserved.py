@@ -19,19 +19,58 @@ from ..._catalog import register_model
 
 
 class NonreciprocalMixtureElement(Element):
-    """Nonreciprocal mixture element."""
+    """Site of two conserved fields coupled nonreciprocally, a demixing field `phi` and a diffusing field `psi`.
+
+    The fields follow `phi_t = laplacian(-phi + phi^3 - kappa laplacian(phi) + (chi + alpha) psi)` and
+    `psi_t = laplacian(D psi + (chi - alpha) phi)`. The reciprocal coupling `chi` derives from a free energy, and the
+    nonreciprocal coupling `alpha` does not, so above a threshold the demixed domains travel.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the site is drawn, or `None` for `default_visual_`.
+
+        phi:
+            The initial demixing field.
+
+        psi:
+            The initial diffusing field.
+
+        chi:
+            The reciprocal coupling.
+
+        alpha:
+            The nonreciprocal coupling.
+
+        D:
+            The diffusion coefficient of `psi`.
+
+        kappa:
+            The stiffness of the interfaces of `phi`.
+
+    Attributes:
+        default_visual_:
+            The visual of the site when it sets none.
+
+    Examples:
+        >>> from skcomplex.models.physics.pattern_formation import NonreciprocalMixtureElement
+        >>> NonreciprocalMixtureElement('site').alpha
+        0.3
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        phi: Annotated[object, StateSpec()] = 0.0,
-        psi: Annotated[object, StateSpec()] = 0.0,
-        chi: Annotated[object, ParameterSpec()] = 0.0,
-        alpha: Annotated[object, ParameterSpec()] = 0.3,
-        D: Annotated[object, ParameterSpec()] = 0.1,
-        kappa: Annotated[object, ParameterSpec()] = 1.0,
+        phi: Annotated[float, StateSpec()] = 0.0,
+        psi: Annotated[float, StateSpec()] = 0.0,
+        chi: Annotated[float, ParameterSpec()] = 0.0,
+        alpha: Annotated[float, ParameterSpec()] = 0.3,
+        D: Annotated[float, ParameterSpec()] = 0.1,
+        kappa: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.phi = phi
@@ -41,10 +80,21 @@ class NonreciprocalMixtureElement(Element):
         self.D = D
         self.kappa = kappa
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the nonreciprocal mixture element."""
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the conserved rates of both fields.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rates of `phi` and `psi`.
+        """
+        s = namespace
+        potential = -s.phi + s.phi**3 - s.kappa * laplacian(s.phi) + (s.chi + s.alpha) * s.psi
         return [
-            RateLaw(s.phi, laplacian(-s.phi + s.phi**3 - s.kappa * laplacian(s.phi) + (s.chi + s.alpha) * s.psi)),
+            RateLaw(s.phi, laplacian(potential)),
             RateLaw(s.psi, laplacian(s.D * s.psi + (s.chi - s.alpha) * s.phi)),
         ]
 

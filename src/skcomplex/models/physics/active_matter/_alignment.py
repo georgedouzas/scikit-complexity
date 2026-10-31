@@ -12,13 +12,13 @@ from sage.all__sagemath_symbolics import Expression, I, exp, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.elements import GroupElement
-from ....core.interactions import PairInteraction
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import PairCouplingInteraction
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.solvers import EulerMaruyamaSolver
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, VisualSpec
+from ....specs import ObservableSpec, ParameterSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.active import SelfPropulsionInteraction
 from ._particles import ActiveParticleElement
 
 HEADINGS = VisualSpec(
@@ -37,15 +37,15 @@ def _polarization(s: SimpleNamespace) -> Expression:
     return abs(s.mean_heading)
 
 
-class PolarAlignmentInteraction(PairInteraction):
-    """Alignment torque between two particles closer than the cutoff, `dtheta_i/dt = gamma sin(theta_j - theta_i)`.
+class PolarAlignmentInteraction(PairCouplingInteraction):
+    """Alignment torque between two particles closer than the cutoff, `theta_i' += gamma sin(theta_j - theta_i)`.
 
     Summed over every neighbour `j` within the interaction range `d0`, the cutoff, the torque turns each particle
     towards the headings of its neighbours.
 
     Args:
         label:
-            The label of the interaction.
+            The label of the interaction, unique among the parts of its system.
 
         first:
             The path of the group or particle of the first members.
@@ -63,7 +63,7 @@ class PolarAlignmentInteraction(PairInteraction):
             The strength of the alignment.
 
         period:
-            The side of a periodic box, for minimum image distances, or `None` for an open space.
+            The side of a periodic box, for minimum image distances, or `None` for the period of the space.
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import PolarAlignmentInteraction
@@ -74,31 +74,30 @@ class PolarAlignmentInteraction(PairInteraction):
     def __init__(
         self,
         label: str,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        first: str,
+        second: str,
+        cutoff: float = 1.0,
         position: str = 'x',
         *,
         gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         period: float | None = None,
     ) -> None:
-        super().__init__(label, first, second, cutoff=cutoff, position=position)
+        super().__init__(
+            label,
+            first,
+            second,
+            cutoff=cutoff,
+            position=position,
+            write='theta',
+            function=self._torque,
+            period=period,
+        )
         self.gamma = gamma
-        self.period = period
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the opposite torques on the two members of a pair.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        torque = s.gamma * sin(s.second.theta - s.first.theta)
-        return [RateLaw(s.first.theta, torque), RateLaw(s.second.theta, -torque)]
+    @staticmethod
+    def _torque(namespace: SimpleNamespace) -> Expression:
+        """Return the torque `gamma sin(theta_j - theta_i)` on the first member of a pair."""
+        return namespace.gamma * sin(namespace.second.theta - namespace.first.theta)
 
 
 @register_model(
@@ -173,7 +172,6 @@ def aligning_active_brownian_particles(
         values={
             'x': rng.uniform(0.0, size, (n_particles, 2)),
             'theta': rng.uniform(0.0, 2 * math.pi, n_particles),
-            'speed': speed,
             'D_t': D_t,
             'D_r': D_r,
         },
@@ -189,6 +187,6 @@ def aligning_active_brownian_particles(
     )
     return System(
         elements=[swimmers],
-        interactions=[alignment],
+        interactions=[alignment, SelfPropulsionInteraction('propulsion', target='swimmers', speed=speed)],
         space=ContinuousSpace(extent=(size, size), boundary='periodic'),
     )

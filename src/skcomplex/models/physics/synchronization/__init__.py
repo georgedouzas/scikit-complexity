@@ -2,7 +2,6 @@
 
 from ._amplitude_death import (
     GlobalCouplingInteraction,
-    StuartLandauElement,
     heterogeneous_global_coupling,
     oscillator_death,
 )
@@ -16,12 +15,7 @@ from ._chaos import (
 )
 from ._kuramoto import (
     DelayedCouplingInteraction,
-    MeanFieldAmplitudeElement,
     MeanFieldCouplingInteraction,
-    PhaseCouplingInteraction,
-    PhaseLagInteraction,
-    PhaseOscillatorElement,
-    SitedOscillatorElement,
     delayed_kuramoto,
     kuramoto,
     kuramoto_sakaguchi_chimera,
@@ -38,11 +32,10 @@ from ._networks import (
 from ._pulses import (
     IntegrateAndFireOscillatorElement,
     WinfreeMeanFieldInteraction,
-    WinfreeOscillatorElement,
     mirollo_strogatz,
     winfree,
 )
-from ._swarmalators import SwarmalatorCouplingInteraction, SwarmalatorElement, swarmalators
+from ._swarmalators import SwarmalatorCouplingInteraction, swarmalators
 
 __all__: list[str] = [
     'AggregateAveragingInteraction',
@@ -54,18 +47,10 @@ __all__: list[str] = [
     'LinkElement',
     'LogisticNodeElement',
     'LogisticUnitElement',
-    'MeanFieldAmplitudeElement',
     'MeanFieldCouplingInteraction',
-    'PhaseCouplingInteraction',
-    'PhaseLagInteraction',
-    'PhaseOscillatorElement',
     'RosslerOscillatorElement',
-    'SitedOscillatorElement',
-    'StuartLandauElement',
     'SwarmalatorCouplingInteraction',
-    'SwarmalatorElement',
     'WinfreeMeanFieldInteraction',
-    'WinfreeOscillatorElement',
     'aggregate_averaging_synchronization',
     'coupled_map_lattices_on_networks',
     'coupled_rossler',

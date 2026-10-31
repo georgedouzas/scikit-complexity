@@ -9,7 +9,7 @@ from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, cos, oo, pi, sin, sqrt, vector
+from sage.all__sagemath_symbolics import oo, pi, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
@@ -20,16 +20,18 @@ from ....engine.solvers import EulerMaruyamaSolver, ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ..common.active import SelfPropulsionInteraction
 from ._tumbler_view import TumblerView
 
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.2})
 
 
 class ActiveParticleElement(Element):
-    """Self-propelled particle in the plane, `dx = v (cos theta, sin theta) dt + sqrt(2 D_t) dW`.
+    """Active particle in the plane, whose position diffuses, `dx = sqrt(2 D_t) dW`, and whose orientation turns.
 
-    The orientation turns at the angular velocity `omega` and diffuses, `dtheta = omega dt + sqrt(2 D_r) dW`. With
-    `omega = 0` it is an active Brownian particle, and otherwise a chiral active particle.
+    The orientation turns at the angular velocity `omega` and diffuses, `dtheta = omega dt + sqrt(2 D_r) dW`. A
+    `SelfPropulsionInteraction` adds the drift `v (cos theta, sin theta)` of the position. With `omega = 0` it is an
+    active Brownian particle, and otherwise a chiral active particle.
 
     Args:
         label:
@@ -44,9 +46,6 @@ class ActiveParticleElement(Element):
         theta:
             The initial orientation.
 
-        speed:
-            The self-propulsion speed.
-
         D_t:
             The translational diffusion coefficient.
 
@@ -58,7 +57,7 @@ class ActiveParticleElement(Element):
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import ActiveParticleElement
-        >>> ActiveParticleElement('swimmer', speed=2.0).speed
+        >>> ActiveParticleElement('swimmer', D_r=2.0).D_r
         2.0
     """
 
@@ -69,7 +68,6 @@ class ActiveParticleElement(Element):
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True)] = 0.0,
         theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
-        speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         D_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         D_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         omega: Annotated[float, ParameterSpec()] = 0.0,
@@ -77,13 +75,12 @@ class ActiveParticleElement(Element):
         super().__init__(label, visual=visual)
         self.x = x
         self.theta = theta
-        self.speed = speed
         self.D_t = D_t
         self.D_r = D_r
         self.omega = omega
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the self-propulsion, the turning, and the translational and rotational noise.
+        """Return the translational noise, and the turning and the rotational noise.
 
         Args:
             s:
@@ -94,7 +91,6 @@ class ActiveParticleElement(Element):
                 The laws of the component.
         """
         return [
-            RateLaw(s.x, s.speed * vector(SR, [cos(s.theta), sin(s.theta)])),
             NoiseLaw(s.x, sqrt(2 * s.D_t)),
             RateLaw(s.theta, s.omega),
             NoiseLaw(s.theta, sqrt(2 * s.D_r)),
@@ -404,9 +400,10 @@ def active_brownian_particles(
         'swimmers',
         element=ActiveParticleElement,
         size=n_particles,
-        values={'x': positions, 'theta': angles, 'speed': speed, 'D_t': D_t, 'D_r': D_r},
+        values={'x': positions, 'theta': angles, 'D_t': D_t, 'D_r': D_r},
     )
-    return System(elements=[group], space=ContinuousSpace(n_dim=2))
+    propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=speed)
+    return System(elements=[group], interactions=[propulsion], space=ContinuousSpace(n_dim=2))
 
 
 @register_model(
@@ -465,9 +462,10 @@ def chiral_active_particles(
         'swimmers',
         element=ActiveParticleElement,
         size=n_particles,
-        values={'x': positions, 'theta': angles, 'speed': speed, 'omega': omega, 'D_t': D_t, 'D_r': D_r},
+        values={'x': positions, 'theta': angles, 'omega': omega, 'D_t': D_t, 'D_r': D_r},
     )
-    return System(elements=[group], space=ContinuousSpace(n_dim=2))
+    propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=speed)
+    return System(elements=[group], interactions=[propulsion], space=ContinuousSpace(n_dim=2))
 
 
 @register_model(

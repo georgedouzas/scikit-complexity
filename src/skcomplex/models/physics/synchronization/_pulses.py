@@ -11,88 +11,110 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
+from ....core.interactions import CouplingInteraction
 from ....core.laws import BaseLaw, CrossingLaw, RateLaw
-from ....core.laws.utils import maximum, mean, where
+from ....core.laws.utils import maximum, where
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.oscillators import PhaseOscillatorElement
 from ._utils import _order_parameter
 
 
-def _influence(theta: Expression) -> Expression:
-    """Return the Winfree influence `1 + cos(theta)` that an oscillator sends."""
-    return 1 + cos(theta)
+class WinfreeMeanFieldInteraction(CouplingInteraction):
+    """Winfree coupling `theta_i' += K mean_j P(theta_j) R(theta_i)` over every member `j` of the group.
 
+    The influence `P(theta) = 1 + cos(theta)` that an oscillator sends and the sensitivity `R(theta) = -sin(theta)` with
+    which it responds make every oscillator respond to the mean influence of the group.
 
-def _sensitivity(theta: Expression) -> Expression:
-    """Return the Winfree sensitivity `-sin(theta)` with which an oscillator responds."""
-    return -sin(theta)
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
 
+        target:
+            The path of the group of oscillators.
 
-def _integrate_and_fire_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the charging of an oscillator and the firing of the most charged ones, which kick the others up."""
-    largest = maximum(s.x)
-    kicked = where(s.x + s.epsilon >= 1, 0, s.x + s.epsilon)
-    return [
-        RateLaw(s.x, s.S - s.gamma * s.x),
-        CrossingLaw(largest - 1, {s.x: where(s.x >= largest, 0, kicked)}, direction=1, label='fire'),
-    ]
+        K:
+            The coupling strength.
 
-
-class WinfreeOscillatorElement(Element):
-    """Winfree oscillator element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        theta: Annotated[object, StateSpec()] = 0.0,
-        omega: Annotated[object, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.theta = theta
-        self.omega = omega
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the winfree oscillator element."""
-        return [RateLaw(s.theta, s.omega)]
-
-
-class WinfreeMeanFieldInteraction(Interaction):
-    """Winfree mean field interaction."""
+    Examples:
+        >>> from types import SimpleNamespace
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.models.physics.synchronization import WinfreeMeanFieldInteraction
+        >>> coupling = WinfreeMeanFieldInteraction('coupling', target='oscillators')
+        >>> member, other = SimpleNamespace(theta=var('a')), SimpleNamespace(theta=var('b'))
+        >>> coupling.function(SimpleNamespace(K=var('K'), member=member, other=other))
+        -K*(cos(b) + 1)*sin(a)
+    """
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[object, RoleSpec()],
-        K: Annotated[object, ParameterSpec()] = 1.0,
+        target: Annotated[str, RoleSpec()],
+        K: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(
+            label,
+            target=target,
+            read='theta',
+            write='theta',
+            function=self._response,
+            reduce='mean',
+            mode='group',
+            include_self=True,
+        )
         self.K = K
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the winfree mean field interaction."""
-        return [
-            RateLaw(s.target.theta, s.K * mean(_influence(s.target.theta)) * _sensitivity(s.target.theta)),
-        ]
+    def _response(self, namespace: SimpleNamespace) -> Expression:
+        """Return the response `K P(theta_j) R(theta_i)` of a member to one other member."""
+        return namespace.K * (1 + cos(namespace.other.theta)) * -sin(namespace.member.theta)
 
 
 class IntegrateAndFireOscillatorElement(Element):
-    """Integrate and fire oscillator element."""
+    """Integrate-and-fire oscillator that charges as `x' = S - gamma x` and fires at 1, kicking the others up.
+
+    Firing is an event whose guard is the group maximum of the charges. It resets the most charged oscillators to 0 and
+    lifts every other one by `epsilon`, and an oscillator lifted to 1 fires at the same instant and resets to 0.
+
+    Args:
+        label:
+            The label of the oscillator or the group.
+
+        visual:
+            How the oscillator is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial charge.
+
+        S:
+            The charging input.
+
+        gamma:
+            The leak rate.
+
+        epsilon:
+            The strength of a pulse.
+
+    Attributes:
+        default_visual_:
+            The visual of the oscillator when it sets none.
+
+    Examples:
+        >>> from skcomplex.models.physics.synchronization import IntegrateAndFireOscillatorElement
+        >>> IntegrateAndFireOscillatorElement('oscillator').epsilon
+        0.1
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec()] = 0.0,
-        S: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        gamma: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        epsilon: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        x: Annotated[float, StateSpec()] = 0.0,
+        S: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
@@ -100,9 +122,24 @@ class IntegrateAndFireOscillatorElement(Element):
         self.gamma = gamma
         self.epsilon = epsilon
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the integrate and fire oscillator element."""
-        return _integrate_and_fire_laws(s)
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the charging of the oscillator and the firing of the most charged ones, which kick the others up.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate of the charge and the firing event.
+        """
+        s = namespace
+        largest = maximum(s.x)
+        kicked = where(s.x + s.epsilon >= 1, 0, s.x + s.epsilon)
+        return [
+            RateLaw(s.x, s.S - s.gamma * s.x),
+            CrossingLaw(largest - 1, {s.x: where(s.x >= largest, 0, kicked)}, direction=1, label='fire'),
+        ]
 
 
 @register_model(
@@ -144,7 +181,7 @@ def winfree(n_oscillators: int = 50, *, K: float = 0.5, spread: float = 0.1, see
     """
     oscillators = GroupElement(
         'oscillators',
-        element=WinfreeOscillatorElement,
+        element=PhaseOscillatorElement,
         size=n_oscillators,
         values={
             'theta': np.random.default_rng(seed).uniform(0, 2 * np.pi, n_oscillators),

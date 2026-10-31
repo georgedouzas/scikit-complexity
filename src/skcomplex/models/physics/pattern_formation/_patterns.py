@@ -19,6 +19,7 @@ from ....engine.solvers import ETDRK4Solver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ..common.fields import SwiftHohenbergEnergyInteraction
 
 
 def _noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.Generator | None) -> Array:
@@ -27,17 +28,50 @@ def _noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.G
 
 
 class GinzburgLandauElement(Element):
-    """Ginzburg landau element."""
+    """Site of the complex Ginzburg-Landau equation `A_t = A + (1 + i b) laplacian(A) - (1 - i c) |A|^2 A`.
+
+    The amplitude `A = u + i v` is held as its real and imaginary parts. Without the Laplacian every site is a
+    Stuart-Landau oscillator, and the dispersion `b` and the nonlinear frequency shift `c` set whether plane waves are
+    stable or break into spiral defect chaos.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the site is drawn, or `None` for `default_visual_`.
+
+        u:
+            The initial real part of the amplitude.
+
+        v:
+            The initial imaginary part of the amplitude.
+
+        b:
+            The linear dispersion.
+
+        c:
+            The nonlinear frequency shift.
+
+    Attributes:
+        default_visual_:
+            The visual of the site when it sets none.
+
+    Examples:
+        >>> from skcomplex.models.physics.pattern_formation import GinzburgLandauElement
+        >>> GinzburgLandauElement('site').c
+        -1.5
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        u: Annotated[object, StateSpec()] = 0.0,
-        v: Annotated[object, StateSpec()] = 0.0,
-        b: Annotated[object, ParameterSpec()] = 1.0,
-        c: Annotated[object, ParameterSpec()] = -1.5,
+        u: Annotated[float, StateSpec()] = 0.0,
+        v: Annotated[float, StateSpec()] = 0.0,
+        b: Annotated[float, ParameterSpec()] = 1.0,
+        c: Annotated[float, ParameterSpec()] = -1.5,
     ) -> None:
         super().__init__(label, visual=visual)
         self.u = u
@@ -45,32 +79,51 @@ class GinzburgLandauElement(Element):
         self.b = b
         self.c = c
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the ginzburg landau element."""
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rates of the real and imaginary parts of the amplitude.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rates of `u` and `v`.
+        """
+        s = namespace
+        square = s.u**2 + s.v**2
         return [
-            RateLaw(s.u, s.u + laplacian(s.u) - s.b * laplacian(s.v) - (s.u**2 + s.v**2) * (s.u - s.c * s.v)),
-            RateLaw(s.v, s.v + s.b * laplacian(s.u) + laplacian(s.v) - (s.u**2 + s.v**2) * (s.c * s.u + s.v)),
+            RateLaw(s.u, s.u + laplacian(s.u) - s.b * laplacian(s.v) - square * (s.u - s.c * s.v)),
+            RateLaw(s.v, s.v + s.b * laplacian(s.u) + laplacian(s.v) - square * (s.c * s.u + s.v)),
         ]
 
 
-class SwiftHohenbergElement(Element):
-    """Swift hohenberg element."""
+class PatternFieldElement(Element):
+    """Site of a real field `u` whose patterns a free energy selects.
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        u: Annotated[object, StateSpec()] = 0.0,
-        r: Annotated[object, ParameterSpec()] = 0.3,
-    ) -> None:
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the site is drawn, or `None` for `default_visual_`.
+
+        u:
+            The initial value of the field.
+
+    Attributes:
+        default_visual_:
+            The visual of the site when it sets none.
+
+    Examples:
+        >>> from skcomplex.models.physics.pattern_formation import PatternFieldElement
+        >>> PatternFieldElement('site', u=0.1).u
+        0.1
+    """
+
+    def __init__(self, label: str, visual: VisualSpec | None = None, *, u: Annotated[float, StateSpec()] = 0.0) -> None:
         super().__init__(label, visual=visual)
         self.u = u
-        self.r = r
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the swift hohenberg element."""
-        return [RateLaw(s.u, (s.r - 1) * s.u - 2 * laplacian(s.u) - laplacian(laplacian(s.u)) - s.u**3)]
 
 
 @register_model(
@@ -170,14 +223,15 @@ def swift_hohenberg(
 
     Examples:
         >>> from skcomplex.models.physics.pattern_formation import swift_hohenberg
-        >>> swift_hohenberg((8, 8), r=0.1).elements[0].values['r']
+        >>> swift_hohenberg((8, 8), r=0.1).interactions[0].r
         0.1
     """
     shape = tuple(shape)
-    values = {'u': _noise(shape, 0.01, random_state), 'r': r}
+    values = {'u': _noise(shape, 0.01, random_state)}
     space = LatticeSpace(shape, spacing=length / shape[0])
     return System(
         elements=[
-            FieldElement('cells', element=SwiftHohenbergElement, space=space, values=values, discretization='spectral'),
+            FieldElement('cells', element=PatternFieldElement, space=space, values=values, discretization='spectral'),
         ],
+        interactions=[SwiftHohenbergEnergyInteraction('energy', target='cells', r=r)],
     )
