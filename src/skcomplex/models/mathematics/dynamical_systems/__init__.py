@@ -12,7 +12,6 @@ from ._driven_flows import DrivenRosslerElement, ou_driven_rossler
 from ._flows import (
     BlowUpElement,
     JerkElement,
-    LorenzElement,
     RosslerElement,
     finite_time_blow_up,
     lorenz,
@@ -68,7 +67,6 @@ __all__: list[str] = [
     'IntermittencyMapElement',
     'JerkElement',
     'LogisticMapElement',
-    'LorenzElement',
     'NewtonMapElement',
     'RosslerElement',
     'SaddleNodeElement',

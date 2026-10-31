@@ -17,16 +17,44 @@ from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
-def _subcritical_hopf_rates(s: SimpleNamespace) -> tuple[Expression, Expression]:
-    """Return the real and imaginary parts of the right-hand side of the subcritical Hopf normal form."""
-    radius = s.x**2 + s.y**2
-    real = s.alpha + radius - s.gamma * radius**2
-    imaginary = s.omega + s.q * radius - s.s * radius**2
-    return real * s.x - imaginary * s.y, imaginary * s.x + real * s.y
-
-
 class SubcriticalHopfElement(Element):
-    """Subcritical hopf element."""
+    """Subcritical Hopf normal form `z' = (alpha + i omega) z + (1 + i q) |z|^2 z - (gamma + i s) |z|^4 z`.
+
+    The complex amplitude is `z = x + i y`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial real part of `z`.
+
+        y:
+            The initial imaginary part of `z`.
+
+        alpha:
+            The bifurcation parameter, the linear growth rate.
+
+        omega:
+            The angular frequency at small amplitude.
+
+        q:
+            The nonlinear frequency shift of the cubic term.
+
+        gamma:
+            The stabilizing quintic coefficient, positive.
+
+        s:
+            The nonlinear frequency shift of the quintic term.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import SubcriticalHopfElement
+        >>> SubcriticalHopfElement('form', alpha=0.1).alpha
+        0.1
+    """
 
     def __init__(
         self,
@@ -50,9 +78,26 @@ class SubcriticalHopfElement(Element):
         self.gamma = gamma
         self.s = s
 
+    def _get_rates(self, s: SimpleNamespace) -> tuple[Expression, Expression]:
+        """Return the rates of the real and the imaginary part of the amplitude."""
+        radius = s.x**2 + s.y**2
+        real = s.alpha + radius - s.gamma * radius**2
+        imaginary = s.omega + s.q * radius - s.s * radius**2
+        return real * s.x - imaginary * s.y, imaginary * s.x + real * s.y
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the subcritical hopf element."""
-        return [RateLaw(s.x, _subcritical_hopf_rates(s)[0]), RateLaw(s.y, _subcritical_hopf_rates(s)[1])]
+        """Return the rates of the real and the imaginary part of the amplitude.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
+        real, imaginary = self._get_rates(s)
+        return [RateLaw(s.x, real), RateLaw(s.y, imaginary)]
 
 
 @register_model(

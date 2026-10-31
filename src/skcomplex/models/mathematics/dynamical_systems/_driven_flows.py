@@ -3,59 +3,84 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element
-from ....core.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.interactions import RateInteraction, RelaxationInteraction
 from ....core.system import System
 from ....engine.solvers import EulerMaruyamaSolver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._flows import RosslerElement
 
 
-class DrivenRosslerElement(Element):
-    """Driven rossler element."""
+class DrivenRosslerElement(RosslerElement):
+    """Rössler flow with a control `eta`, the state that the drive adds to the rate of `y` and that relaxes to 0.
+
+    The element holds the flow and the states and parameters of its control. The interactions of the model add the
+    control to the rate of `y` and make it an Ornstein-Uhlenbeck process of correlation time `tau` and noise `rho`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        z:
+            The initial third coordinate.
+
+        eta:
+            The initial control.
+
+        a:
+            The feedback of the second coordinate on itself.
+
+        b:
+            The constant drive of the third coordinate.
+
+        c:
+            The threshold of the third coordinate's growth.
+
+        tau:
+            The correlation time of the control.
+
+        rho:
+            The amplitude of the noise of the control.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import DrivenRosslerElement
+        >>> DrivenRosslerElement('rossler', tau=10.0).tau
+        10.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec()] = 1.0,
-        y: Annotated[object, StateSpec()] = 1.0,
-        z: Annotated[object, StateSpec()] = 1.0,
-        eta: Annotated[object, StateSpec()] = 0.0,
-        a: Annotated[object, ParameterSpec()] = 0.2,
-        b: Annotated[object, ParameterSpec()] = 0.4,
-        c: Annotated[object, ParameterSpec()] = 5.743,
-        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 50.0,
-        rho: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        x: float = 1.0,
+        y: float = 1.0,
+        z: float = 1.0,
+        eta: Annotated[float, StateSpec()] = 0.0,
+        a: float = 0.2,
+        b: float = 0.4,
+        c: float = 5.743,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 50.0,
+        rho: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.z = z
+        super().__init__(label, visual=visual, x=x, y=y, z=z, a=a, b=b, c=c)
         self.eta = eta
-        self.a = a
-        self.b = b
-        self.c = c
         self.tau = tau
         self.rho = rho
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the driven rossler element."""
-        return [
-            RateLaw(s.x, -s.y - s.z),
-            RateLaw(s.y, s.x + s.a * s.y + s.eta),
-            RateLaw(s.z, s.b + s.z * (s.x - s.c)),
-            RateLaw(s.eta, -s.eta / s.tau),
-            NoiseLaw(s.eta, s.rho / s.tau),
-        ]
 
 
 @register_model(
@@ -122,4 +147,12 @@ def ou_driven_rossler(
         10.0
     """
     rossler = DrivenRosslerElement('rossler', x=x, y=y, z=z, eta=eta, a=a, b=b, c=c, tau=tau, rho=rho)
-    return System(elements=[rossler])
+    drive = RateInteraction('drive', target='rossler', state='y', rate=lambda s: s.target.eta)
+    control = RelaxationInteraction(
+        'control',
+        target='rossler',
+        state='eta',
+        time=lambda s: s.target.tau,
+        noise=lambda s: s.target.rho / s.target.tau,
+    )
+    return System(elements=[rossler], interactions=[drive, control])
