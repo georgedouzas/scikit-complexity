@@ -15,12 +15,12 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.errors import RegistryError, ValidationError
 from skcomplex.models import ModelCatalog, catalog, create, describe, register_model, run
-from skcomplex.models.biology.ecology import (
+from skcomplex.models.biology.common.populations import (
     ExponentialGrowthInteraction,
     MortalityInteraction,
     PopulationElement,
-    PredationInteraction,
 )
+from skcomplex.models.biology.ecology import PredationInteraction
 
 
 def test_create_unknown_name_suggests_close_names():

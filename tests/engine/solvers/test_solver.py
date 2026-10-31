@@ -21,7 +21,7 @@ from skcomplex.engine.solvers import (
     VelocityVerletSolver,
 )
 from skcomplex.errors import SolverError
-from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
+from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.specs import StateSpec, StepSpec, VisualSpec
 

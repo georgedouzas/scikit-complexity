@@ -123,7 +123,7 @@ class RerunObserver(BaseObserver):
         >>> import tempfile
         >>> from pathlib import Path
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
+        >>> from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.viz import RerunObserver
         >>> system = System(

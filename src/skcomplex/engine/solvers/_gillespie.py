@@ -25,7 +25,8 @@ class GillespieSolver(Solver):
         >>> import numpy as np
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.epidemiology import CompartmentElement, RecoveryInteraction
+        >>> from skcomplex.core.elements import CompartmentElement
+        >>> from skcomplex.models.biology.epidemiology import RecoveryInteraction
         >>> from skcomplex.engine.solvers import GillespieSolver
         >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(

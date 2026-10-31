@@ -10,7 +10,7 @@ from skcomplex.engine.compile import QuantumCompiler
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import AnalysisError, ParameterError, ValidationError
 from skcomplex.models import create, describe
-from skcomplex.models.biology.ecology import PopulationElement
+from skcomplex.models.biology.common.populations import PopulationElement
 from skcomplex.models.physics.common.quantum import SpinElement
 from skcomplex.models.physics.statistical_mechanics import total_magnetization
 from skcomplex.specs import SectorSpec

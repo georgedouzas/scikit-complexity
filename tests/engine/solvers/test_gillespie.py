@@ -5,12 +5,13 @@ import time
 import numpy as np
 import pytest
 
+from skcomplex.core.elements import CompartmentElement
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import GillespieSolver
-from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
+from skcomplex.models.biology.epidemiology import InfectionInteraction, RecoveryInteraction
 from skcomplex.specs import StepSpec
 
 

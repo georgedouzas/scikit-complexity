@@ -21,7 +21,7 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
     Examples:
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import BaseObserver, Simulation
-        >>> from skcomplex.models.biology.ecology import PopulationElement
+        >>> from skcomplex.models.biology.common.populations import PopulationElement
         >>> class CountingObserver(BaseObserver):
         ...     def _prepare(self, context):
         ...         self.count_ = 0

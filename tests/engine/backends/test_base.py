@@ -9,7 +9,7 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.elements import CompartmentElement, Element, GroupElement
 from skcomplex.core.interactions import Interaction, PairCouplingInteraction
 from skcomplex.core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.spaces import ContinuousSpace
@@ -28,8 +28,8 @@ from skcomplex.engine.solvers import (
 )
 from skcomplex.errors import BackendWarning, SolverError
 from skcomplex.models import create
-from skcomplex.models.biology.ecology import PopulationElement
-from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
+from skcomplex.models.biology.common.populations import PopulationElement
+from skcomplex.models.biology.epidemiology import InfectionInteraction, RecoveryInteraction
 from skcomplex.models.physics.common.particles import HarmonicPotentialInteraction, MassPointElement
 from skcomplex.specs import CallSpec, LoweredFunctionsSpec, ParameterSpec, RoleSpec, StateSpec, StepSpec, VisualSpec
 from skcomplex.types import FormKind

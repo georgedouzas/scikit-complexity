@@ -48,7 +48,7 @@ class Trajectory:
 
     Examples:
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
+        >>> from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.engine.runtime import Simulation
         >>> system = System(
         ...     elements=[PopulationElement('a', n=1)],

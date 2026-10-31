@@ -49,7 +49,7 @@ class RewritingCompiler(BaseCompiler):
     Examples:
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.mathematics.fractals import RewritingCompiler
-        >>> from skcomplex.models.biology.ecology import PopulationElement
+        >>> from skcomplex.models.biology.common.populations import PopulationElement
         >>> RewritingCompiler().check().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
         False
     """

@@ -4,12 +4,12 @@ import pytest
 
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.ecology import (
+from skcomplex.models.biology.common.populations import (
     LogisticGrowthInteraction,
     MortalityInteraction,
     PopulationElement,
-    PredationInteraction,
 )
+from skcomplex.models.biology.ecology import PredationInteraction
 
 
 def test_logistic_growth_saturates():

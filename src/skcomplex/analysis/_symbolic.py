@@ -149,7 +149,7 @@ class SymbolicAnalysis(BaseAnalysis):
     Examples:
         >>> from skcomplex.analysis import SymbolicAnalysis
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
+        >>> from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> system = System(
         ...     elements=[PopulationElement('a', n=2)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=0.5)],

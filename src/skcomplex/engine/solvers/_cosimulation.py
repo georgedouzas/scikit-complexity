@@ -88,7 +88,7 @@ class CoSimulationSolver(Solver):
 
     Examples:
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
+        >>> from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.solvers import CoSimulationSolver
         >>> system = System(

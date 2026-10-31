@@ -21,7 +21,7 @@ from skcomplex.engine.viz import (
 )
 from skcomplex.errors import ValidationError
 from skcomplex.models import create
-from skcomplex.models.biology.ecology import PopulationElement
+from skcomplex.models.biology.common.populations import PopulationElement
 from skcomplex.models.physics.heat import HeatElement
 from skcomplex.specs import StateSpec, VisualSpec
 

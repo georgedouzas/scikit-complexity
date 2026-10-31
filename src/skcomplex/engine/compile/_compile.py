@@ -83,7 +83,7 @@ def compile_system(
     Examples:
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
+        >>> from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> problem = compile_system(
         ...     System(
         ...         elements=[PopulationElement('rabbits', n=10)],

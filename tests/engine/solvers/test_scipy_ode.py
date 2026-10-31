@@ -23,12 +23,8 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import CrankNicolsonSolver, RK4Solver, ScipyODESolver
 from skcomplex.errors import SolverError, ValidationError
 from skcomplex.models import create, run
-from skcomplex.models.biology.ecology import (
-    ExponentialGrowthInteraction,
-    FisherKPPElement,
-    PopulationElement,
-    fisher_kpp,
-)
+from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
+from skcomplex.models.biology.ecology import FisherKPPElement, fisher_kpp
 from skcomplex.models.physics.heat import heat_diffusion
 from skcomplex.models.physics.mechanics import harmonic_oscillator
 from skcomplex.specs import ParameterSpec, RoleSpec, RunStateSpec, StateSpec, StepSpec, VisualSpec

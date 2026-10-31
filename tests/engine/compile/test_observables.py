@@ -15,7 +15,7 @@ from skcomplex.engine.compile import ObservableEvaluator, PassCompiler, compile_
 from skcomplex.engine.compile.passes._quantum_compiler import QuantumCompiler
 from skcomplex.errors import RoleError
 from skcomplex.models import catalog, create, describe
-from skcomplex.models.biology.ecology import PopulationElement
+from skcomplex.models.biology.common.populations import PopulationElement
 from skcomplex.specs import RoleSpec, StateSpec, VisualSpec
 
 

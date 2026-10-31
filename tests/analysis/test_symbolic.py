@@ -7,7 +7,7 @@ import pytest
 from sage.all__sagemath_symbolics import SR, cos, diff, function, sin, sqrt
 
 from skcomplex.analysis import SymbolicAnalysis
-from skcomplex.core.elements import Element
+from skcomplex.core.elements import CompartmentElement, Element
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import derivative, lag
@@ -17,8 +17,8 @@ from skcomplex.engine.compile import QuantumCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import AnalysisError
 from skcomplex.models import create
-from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationElement
-from skcomplex.models.biology.epidemiology import CompartmentElement, RecoveryInteraction
+from skcomplex.models.biology.common.populations import LogisticGrowthInteraction, PopulationElement
+from skcomplex.models.biology.epidemiology import RecoveryInteraction
 from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.models.physics.common.particles import (

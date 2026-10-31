@@ -1,11 +1,5 @@
 """Ecology: population growth, predation, competition, food webs, succession, grazing, and neutral communities."""
 
-from ..common.populations import (
-    ExponentialGrowthInteraction,
-    LogisticGrowthInteraction,
-    MortalityInteraction,
-    PopulationElement,
-)
 from ._agent_predation import PredatorElement, PreyElement, agent_based_lotka_volterra
 from ._cell_quota import QuotaPhytoplanktonElement, droop_cell_quota
 from ._clustering import HabitatPatchElement, HoppingInteraction, neutral_clustering
@@ -52,7 +46,6 @@ __all__: list[str] = [
     'CompetitionInteraction',
     'CowElement',
     'EmotionMarksElement',
-    'ExponentialGrowthInteraction',
     'FisherKPPElement',
     'ForagerElement',
     'GeneralizedLotkaVolterraInteraction',
@@ -62,9 +55,7 @@ __all__: list[str] = [
     'HerdingInteraction',
     'HoppingInteraction',
     'LinearGrowthInteraction',
-    'LogisticGrowthInteraction',
     'MicrobeElement',
-    'MortalityInteraction',
     'MutualismInteraction',
     'NeutralReplacementInteraction',
     'NeutralSpeciesElement',
@@ -73,7 +64,6 @@ __all__: list[str] = [
     'PastureElement',
     'PioneerGrowthInteraction',
     'PlantElement',
-    'PopulationElement',
     'PredationInteraction',
     'PredatorElement',
     'PredatorPreyEventsInteraction',

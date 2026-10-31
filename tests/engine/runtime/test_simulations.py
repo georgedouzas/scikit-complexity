@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import LoopAnalysis
-from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.elements import CompartmentElement, Element, GroupElement
 from skcomplex.core.laws import RateLaw, RuleLaw
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
@@ -17,12 +17,12 @@ from skcomplex.engine.runtime import BaseObserver, ConservationObserver, RealTim
 from skcomplex.engine.solvers import GillespieSolver, RK4Solver
 from skcomplex.errors import ParameterError, SimulationError, SolverError, ValidationError
 from skcomplex.models import create, describe
-from skcomplex.models.biology.ecology import (
+from skcomplex.models.biology.common.populations import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
     PopulationElement,
 )
-from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
+from skcomplex.models.biology.epidemiology import InfectionInteraction, RecoveryInteraction
 from skcomplex.models.economics.finance import geometric_brownian_motion
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.models.physics.common.particles import ConstantForceInteraction, MassPointElement
