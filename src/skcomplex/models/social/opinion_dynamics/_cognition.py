@@ -3,8 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
-from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
@@ -14,11 +12,10 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import GroupingInteraction
 from ....core.spaces import NetworkSpace
 from ....core.system import System
-from ....engine.solvers import ModelView
+from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
@@ -115,10 +112,10 @@ class ThinkerElement(Element):
         return ThinkerView
 
 
-class ConversationsInteraction(Interaction):
-    """Conversations of the cognitive consistency model, as many per step as there are agents.
+class ConversationsInteraction(GroupingInteraction):
+    """Conversations of the cognitive consistency model, one per agent and step, the agents speaking in random order.
 
-    A random speaker talks to a random neighbour about F1 or F2. The hearer averages its valence of the topic with the
+    A speaker talks to a random neighbour about F1 or F2. The hearer averages its valence of the topic with the
     speaker's and settles its belief network, and its attitude is its valence of X.
 
     Args:
@@ -128,10 +125,13 @@ class ConversationsInteraction(Interaction):
         target:
             The path of the group of thinkers.
 
+        phase:
+            The phase of the step the conversations run in, or `None` for the default phase.
+
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import ConversationsInteraction
-        >>> ConversationsInteraction('talks', target='thinkers').target
-        'thinkers'
+        >>> ConversationsInteraction('talks', target='thinkers').groups
+        'neighborhood'
     """
 
     def __init__(
@@ -139,42 +139,29 @@ class ConversationsInteraction(Interaction):
         label: str,
         *,
         target: Annotated[str, RoleSpec()],
+        phase: str | None = None,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, groups='neighborhood', phase=phase)
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the conversation rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.converse)]
-
-    def converse(self, model: ModelView) -> None:
-        """Run one conversation per agent.
+    def act_on(self, members: list[AgentViewProtocol], model: ModelViewProtocol) -> None:
+        """Let the first member speak to a random neighbour, who averages the topic and settles its beliefs.
 
         Args:
+            members:
+                The speaker, followed by its neighbours.
+
             model:
-                The model.
+                The model view of the rule.
         """
-        agents = model.agents(self.target, ThinkerView)
-        for _ in range(len(agents)):
-            speaker = agents[int(model.rng.integers(len(agents)))]
-            neighbors = [item for item in speaker.neighbors() if isinstance(item, ThinkerView)]
-            if not neighbors:
-                continue
-            hearer = neighbors[int(model.rng.integers(len(neighbors)))]
-            topic = TOPICS[int(model.rng.integers(len(TOPICS)))]
-            valences = np.array(hearer.valences, dtype=np.float64)
-            valences[topic] = (valences[topic] + np.asarray(speaker.valences, dtype=np.float64)[topic]) / 2
-            settled = settle(valences, hearer.decay)
-            hearer.valences, hearer.attitude = settled, float(settled[1])
+        speaker, *neighbors = [member for member in members if isinstance(member, ThinkerView)]
+        if not neighbors:
+            return
+        hearer = neighbors[int(model.rng.integers(len(neighbors)))]
+        topic = TOPICS[int(model.rng.integers(len(TOPICS)))]
+        valences = np.array(hearer.valences, dtype=np.float64)
+        valences[topic] = (valences[topic] + np.asarray(speaker.valences, dtype=np.float64)[topic]) / 2
+        settled = settle(valences, hearer.decay)
+        hearer.valences, hearer.attitude = settled, float(settled[1])
 
 
 @register_model(

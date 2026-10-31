@@ -3,8 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from functools import partial
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
@@ -13,13 +13,12 @@ from sage.sets.real_set import RealSet
 from scipy import ndimage
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import GroupingInteraction
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.solvers import ModelView
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....types import IntArray
+from ....core.types import AgentViewProtocol, ModelViewProtocol
+from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....types import AnyArray, IntArray
 from ..._catalog import register_model
 from ._village_view import VillageView
 
@@ -88,9 +87,6 @@ def largest_region(locations: npt.ArrayLike, cultures: npt.ArrayLike, width: int
 class VillageElement(Element):
     """Village of Axelrod's model, with a culture of `F` features of `q` traits each, stored as one integer.
 
-    Every step the village picks a random neighbour and, with probability equal to the fraction of features they
-    share, copies the trait of one feature on which they differ.
-
     Args:
         label:
             The label of the agent or group.
@@ -134,30 +130,49 @@ class VillageElement(Element):
         """Return the class of the views of the agents, whose attributes are the states and parameters."""
         return VillageView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the cultural interaction rule.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class CulturalInfluenceInteraction(GroupingInteraction):
+    """Cultural influence of Axelrod's model, where every village in turn may copy a trait of a random neighbour.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.interact)]
+    Every step every village, in random order, picks a random neighbour and, with probability equal to the fraction of
+    features they share, copies the trait of one feature on which they differ.
 
-    def interact(self, agent: VillageView, model: ModelView) -> None:
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of villages.
+
+        phase:
+            The phase of the step the influence runs in, or `None` for the default phase.
+
+    Examples:
+        >>> from skcomplex.models.social.opinion_dynamics import CulturalInfluenceInteraction
+        >>> CulturalInfluenceInteraction('influence', target='villages').groups
+        'neighborhood'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        phase: str | None = None,
+    ) -> None:
+        super().__init__(label, target=target, groups='neighborhood', phase=phase)
+
+    def act_on(self, members: list[AgentViewProtocol], model: ModelViewProtocol) -> None:
         """Copy one differing trait of a random neighbour with probability equal to the cultural overlap.
 
         Args:
-            agent:
-                The village.
+            members:
+                The village, followed by its neighbours.
 
             model:
-                The model.
+                The model view of the rule.
         """
-        neighbors = [item for item in agent.neighbors() if isinstance(item, VillageView)]
+        agent, *neighbors = [member for member in members if isinstance(member, VillageView)]
         if not neighbors:
             return
         neighbor = neighbors[int(model.rng.integers(len(neighbors)))]
@@ -170,73 +185,44 @@ class VillageElement(Element):
             agent.culture += float((int(other[feature]) - int(own[feature])) * traits**feature)
 
 
-class CultureCensusInteraction(Interaction):
-    """Census of the cultures of the villages, which reports the share of the largest cultural region.
+def _count_cultures(cultures: AnyArray) -> int:
+    """Return the number of distinct cultures."""
+    return len(np.unique(cultures))
+
+
+def culture_observables(width: int, height: int) -> list[ObservableSpec]:
+    """Return the share of the largest cultural region and the number of cultures of a full grid of villages.
 
     Args:
-        label:
-            The label of the census.
-
-        villages:
-            The path of the group of villages.
-
         width:
             The number of columns of the grid.
 
         height:
             The number of rows of the grid.
 
-        phase:
-            The phase in which the census counts.
+    Returns:
+        observables:
+            The observables `largest_region` and `cultures`, each reducing the cultures of the group `villages`.
 
     Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import CultureCensusInteraction
-        >>> CultureCensusInteraction('census', villages='villages', width=5, height=5).width
-        5
+        >>> from skcomplex.models.social.opinion_dynamics import culture_observables
+        >>> [item.label for item in culture_observables(5, 4)]
+        ['largest_region', 'cultures']
     """
+    locations = [(x, y) for x in range(width) for y in range(height)]
+    region = partial(largest_region, locations, width=width, height=height)
+    return [
+        ObservableSpec('largest_region', group='villages', variable='culture', reduce=region),
+        ObservableSpec('cultures', group='villages', variable='culture', reduce=_count_cultures),
+    ]
 
-    reports: ClassVar[tuple[str, ...]] = ('largest_region', 'cultures')
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        villages: Annotated[str, RoleSpec()],
-        width: int = 10,
-        height: int = 10,
-        phase: str | None = None,
-    ) -> None:
-        super().__init__(label)
-        self.villages = villages
-        self.width = width
-        self.height = height
-        self.phase = phase
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of the census in its phase.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.act, phase=self.phase)]
-
-    def act(self, model: ModelView) -> None:
-        """Report the share of the largest region and the number of distinct cultures.
-
-        Args:
-            model:
-                The model view of the census.
-        """
-        agents = model.agents('villages', VillageView)
-        cultures = [agent.culture for agent in agents]
-        locations = np.array([agent.location for agent in agents], dtype=np.int64)
-        model.report('largest_region', largest_region(locations, cultures, self.width, self.height))
-        model.report('cultures', len(set(cultures)))
+def _get_culture_observables(system: System) -> list[ObservableSpec]:
+    """Return the culture observables of the grid of a model."""
+    if not isinstance(system.space, LatticeSpace):
+        return []
+    width, height = (int(size) for size in np.atleast_1d(system.space.shape))
+    return culture_observables(width, height)
 
 
 @register_model(
@@ -244,6 +230,7 @@ class CultureCensusInteraction(Interaction):
     tags=('culture', 'agents', 'grid', 'social influence', 'phase transition'),
     references=('Axelrod 1997', 'Castellano, Fortunato, and Loreto 2009'),
     defaults={'until': 200},
+    observables=_get_culture_observables,
 )
 def axelrod(
     width: int = 20,
@@ -276,8 +263,8 @@ def axelrod(
 
     Returns:
         system:
-            The model, with the group `villages` and the census `census`, which reports the share of the largest
-            cultural region `census.largest_region` and the number of cultures `census.cultures`.
+            The model, with the group `villages` and the influence `influence`. `culture_observables` gives the
+            share of the largest cultural region and the number of cultures.
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import axelrod
@@ -298,6 +285,6 @@ def axelrod(
     )
     return System(
         elements=[villages],
-        interactions=[CultureCensusInteraction('census', villages='villages', width=width, height=height)],
+        interactions=[CulturalInfluenceInteraction('influence', target='villages')],
         space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann', capacity=1),
     )

@@ -13,10 +13,11 @@ from sage.all__sagemath_symbolics import NN, ZZ, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
+from ....core.interactions import GroupingInteraction, Interaction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace, NetworkSpace
 from ....core.system import System
+from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
@@ -71,30 +72,50 @@ class PersuaderElement(Element):
         """Return the class of the views of the agents, whose attributes are the states and parameters."""
         return PersuaderView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the persuasion rule.
+
+class PersuasionInteraction(GroupingInteraction):
+    """Persuasion of the Sznajd model, where an agreeing pair of neighbours convinces the neighbours of both.
+
+    Every step every agent, in random order, picks a random neighbour, and when both share an opinion every neighbour
+    of either adopts it. On a ring this is the original one-dimensional rule, where the pair convinces the two agents
+    beside it.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of persuaders.
+
+        phase:
+            The phase of the step the persuasion runs in, or `None` for the default phase.
+
+    Examples:
+        >>> from skcomplex.models.social.opinion_dynamics import PersuasionInteraction
+        >>> PersuasionInteraction('persuasion', target='people').groups
+        'neighborhood'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        phase: str | None = None,
+    ) -> None:
+        super().__init__(label, target=target, groups='neighborhood', phase=phase)
+
+    def act_on(self, members: list[AgentViewProtocol], model: ModelViewProtocol) -> None:
+        """Convince the neighbours of the first member and a random neighbour of it when the two agree.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.persuade)]
-
-    def persuade(self, agent: PersuaderView, model: ModelView) -> None:
-        """Convince the neighbours of the agent and a random neighbour when the two agree.
-
-        Args:
-            agent:
-                The persuader.
+            members:
+                The persuader, followed by its neighbours.
 
             model:
-                The model.
+                The model view of the rule.
         """
-        neighbors = [item for item in agent.neighbors() if isinstance(item, PersuaderView)]
+        agent, *neighbors = [member for member in members if isinstance(member, PersuaderView)]
         if not neighbors:
             return
         partner = neighbors[int(model.rng.integers(len(neighbors)))]
@@ -118,12 +139,9 @@ class CitizenElement(Element):
         opinion:
             The initial opinion, 0 or 1.
 
-        group_size:
-            The number of agents in each discussion group.
-
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import CitizenElement
-        >>> group = GroupElement('citizens', element=CitizenElement, size=10, values={'group_size': 3})
+        >>> group = GroupElement('citizens', element=CitizenElement, size=10, values={'opinion': 1.0})
         >>> group.label, group.element.__name__, group.size
         ('citizens', 'CitizenElement', 10)
     """
@@ -134,11 +152,9 @@ class CitizenElement(Element):
         visual: VisualSpec | None = None,
         *,
         opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        group_size: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
     ) -> None:
         super().__init__(label, visual=visual)
         self.opinion = opinion
-        self.group_size = group_size
 
     @classmethod
     def _get_view(cls) -> type[CitizenView]:
@@ -146,7 +162,7 @@ class CitizenElement(Element):
         return CitizenView
 
 
-class DiscussionsInteraction(Interaction):
+class DiscussionsInteraction(GroupingInteraction):
     """Discussions of the Galam model, which split the agents into random groups that adopt their majority opinion.
 
     A tie in a group of even size goes to opinion 0, the status quo.
@@ -158,10 +174,16 @@ class DiscussionsInteraction(Interaction):
         target:
             The path of the group of citizens.
 
+        size:
+            The number of agents in each discussion group, the last group holding the remainder.
+
+        phase:
+            The phase of the step the discussions run in, or `None` for the default phase.
+
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import DiscussionsInteraction
-        >>> DiscussionsInteraction('talks', target='citizens').target
-        'citizens'
+        >>> DiscussionsInteraction('talks', target='citizens', size=4).size
+        4
     """
 
     def __init__(
@@ -169,40 +191,25 @@ class DiscussionsInteraction(Interaction):
         label: str,
         *,
         target: Annotated[str, RoleSpec()],
+        size: int = 3,
+        phase: str | None = None,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, groups='partition', size=size, phase=phase)
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the discussion rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.discuss)]
-
-    def discuss(self, model: ModelView) -> None:
-        """Split the citizens into random groups and give each group its majority opinion.
+    def act_on(self, members: list[AgentViewProtocol], model: ModelViewProtocol) -> None:
+        """Give every member of a discussion group the majority opinion of the group.
 
         Args:
+            members:
+                The citizens of the group.
+
             model:
-                The model.
+                The model view of the rule.
         """
-        agents = model.agents(self.target, CitizenView)
-        if not agents:
-            return
-        size = max(int(agents[0].group_size), 1)
-        order = model.rng.permutation(len(agents))
-        for start in range(0, len(agents), size):
-            members = [agents[index] for index in order[start : start + size]]
-            majority = float(2 * sum(member.opinion for member in members) > len(members))
-            for member in members:
-                member.opinion = majority
+        citizens = [member for member in members if isinstance(member, CitizenView)]
+        majority = float(2 * sum(citizen.opinion for citizen in citizens) > len(citizens))
+        for citizen in citizens:
+            citizen.opinion = majority
 
 
 class InfluenceeElement(Element):
@@ -357,7 +364,7 @@ def sznajd(
 
     Returns:
         system:
-            The model, with the group `people`.
+            The model, with the group `people` and the persuasion `persuasion`.
 
     Examples:
         >>> import networkx as nx
@@ -373,7 +380,11 @@ def sznajd(
         size=size,
         values={'opinion': _shares(size, share, random_state)},
     )
-    return System(elements=[people], space=NetworkSpace(graph))
+    return System(
+        elements=[people],
+        interactions=[PersuasionInteraction('persuasion', target='people')],
+        space=NetworkSpace(graph),
+    )
 
 
 @register_model(
@@ -417,9 +428,12 @@ def galam_majority(
         'citizens',
         element=CitizenElement,
         size=n_agents,
-        values={'opinion': _shares(n_agents, share, random_state), 'group_size': group_size},
+        values={'opinion': _shares(n_agents, share, random_state)},
     )
-    return System(elements=[citizens], interactions=[DiscussionsInteraction('talks', target='citizens')])
+    return System(
+        elements=[citizens],
+        interactions=[DiscussionsInteraction('talks', target='citizens', size=group_size)],
+    )
 
 
 @register_model(

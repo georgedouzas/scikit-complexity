@@ -10,4 +10,3 @@ class CitizenView(AgentView):
     """View of an agent of the Galam majority model, with its states and parameters as attributes."""
 
     opinion: float
-    group_size: float
