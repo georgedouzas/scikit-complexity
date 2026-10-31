@@ -23,19 +23,22 @@ class TopologyInteraction(NeighborInteraction):
 
     The action runs for every node of the group a role binds, `'add-node'`, `'remove-node'`, `'replace-node'`, which
     removes the node and adds a new one, and `'add-edge'`, or for every edge of its network, `'remove-edge'` and
-    `'rewire'`. It fires at a `rate`, with a `probability` per step, or with probability one, and only where the
-    `condition` holds. The rate, the probability, and the condition are numbers or functions of the namespace of an
-    edge, whose ends are `namespace.source` and `namespace.target`, and an action of the nodes reads the node as the
-    source. A new node joins `edges` other nodes, a node adding edges joins `edges` other nodes, and a rewiring keeps
-    the end `keep` of its edge. New ends are drawn with probability proportional to `toward(node)`, a function of the
-    namespace of a candidate node, or uniformly. The groups on the nodes and the edges of the network are variable.
+    `'rewire'`. Without a target, `'add-node'` runs once per step, adding one node from outside the network to the one
+    network whose groups are variable, as in growing networks. It fires at a `rate`, with a `probability` per step, or
+    with probability one, and only where the `condition` holds. The rate, the probability, and the condition are numbers
+    or functions of the namespace of an edge, whose ends are `namespace.source` and `namespace.target`, and an action of
+    the nodes reads the node as the source. A new node joins `edges` other nodes, a node adding edges joins `edges`
+    other nodes, and a rewiring keeps the end `keep` of its edge. New ends are drawn with probability proportional to
+    `toward(node)`, a function of the namespace of a candidate node, or uniformly. A new node or edge takes the
+    `values`, each a value or a function of the random number generator that draws it. The groups on the nodes and the
+    edges of the network are variable.
 
     Args:
         label:
             The label of the interaction, unique among the parts of its system.
 
         target:
-            The path of the group on the nodes of the network.
+            The path of the group on the nodes of the network, or `None` for an addition of one node per step.
 
         action:
             The change, `'add-node'`, `'remove-node'`, `'replace-node'`, `'add-edge'`, `'remove-edge'`, or
@@ -61,15 +64,16 @@ class TopologyInteraction(NeighborInteraction):
             The end of an edge a rewiring keeps, `'source'` or `'target'`.
 
         values:
-            The initial states of a new node or edge by name, which default to the defaults of the element type.
+            The initial states of a new node or edge by name, each a value or a function of the random number
+            generator that draws it, which default to the defaults of the element type.
 
         layer:
             The layer of the network whose edges change, or `None` for the graph of the network.
 
     Raises:
         ValidationError:
-            The action or the kept end is unknown, both a rate and a probability are given, or the number of edges is
-            not a whole number, raised by `check`.
+            The action or the kept end is unknown, both a rate and a probability are given, the number of edges is
+            not a whole number, or an action other than `'add-node'` has no target, raised by `check`.
 
     Examples:
         >>> import networkx as nx
@@ -91,7 +95,7 @@ class TopologyInteraction(NeighborInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str | None, RoleSpec(optional=True)] = None,
         action: str = 'add-edge',
         rate: Chance | None = None,
         probability: Chance | None = None,
@@ -119,7 +123,8 @@ class TopologyInteraction(NeighborInteraction):
         Raises:
             ValidationError:
                 The action or the kept end is unknown, both a rate and a probability are given, a condition or a
-                weight cannot be called, or the number of edges is not a whole number of at least 0.
+                weight cannot be called, the number of edges is not a whole number of at least 0, or an action other
+                than `'add-node'` has no target.
         """
         super()._check()
         if self.action not in ACTIONS:
@@ -127,6 +132,9 @@ class TopologyInteraction(NeighborInteraction):
             raise ValidationError(error_msg)
         if self.rate is not None and self.probability is not None:
             error_msg = f'{self.label!r} fires at a rate and with a probability. Give one of them.'
+            raise ValidationError(error_msg)
+        if self.target is None and self.action != 'add-node':
+            error_msg = f'{self.label!r} runs {self.action!r} without a target. Give the group on the nodes.'
             raise ValidationError(error_msg)
         for name in ('condition', 'toward'):
             value = getattr(self, name)

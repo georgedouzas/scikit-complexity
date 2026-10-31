@@ -736,7 +736,7 @@ class SpecsPass(BasePass):
         labels = {
             role: getattr(node.component, role)
             for role, declaration in declared.items()
-            if not (declaration.noise and getattr(node.component, role) is None)
+            if not ((declaration.noise or declaration.optional) and getattr(node.component, role) is None)
         }
         variadic = {
             role: SpecsPass._resolve_entries(node, role, labels[role], elements)
@@ -852,7 +852,9 @@ class SpecsPass(BasePass):
         time = declarations.time
         if not block.node.interaction:
             return [SpecsPass._member_spec(block, time)], declarations
-        if isinstance(block.node.component, NeighborInteraction):
+        component = block.node.component
+        bound = [role for role in declarations_of(component, VariableKind.ROLE) if getattr(component, role) is not None]
+        if isinstance(component, NeighborInteraction) and bound:
             return SpecsPass._edge_specs(block, elements, declarations)
         if isinstance(block.node.component, PairInteraction):
             return [SpecsPass._pair_spec(block, elements, time)], declarations

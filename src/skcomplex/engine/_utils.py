@@ -141,7 +141,7 @@ def bound_labels(value: object) -> list[str]:
 def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:
     """Return the declaration of a spec."""
     if isinstance(spec, RoleSpec):
-        return VariableSpec(VariableKind.ROLE, variadic=spec.variadic, noise=spec.noise)
+        return VariableSpec(VariableKind.ROLE, variadic=spec.variadic, noise=spec.noise, optional=spec.optional)
     if isinstance(spec, ParameterSpec):
         return VariableSpec(
             VariableKind.STATE if spec.adaptive else VariableKind.PARAMETER,

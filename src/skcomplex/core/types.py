@@ -163,5 +163,8 @@ class ModelViewProtocol(Protocol):
     def parameter(self, name: str) -> float:
         """Return the current value of a parameter of the owner."""
 
+    def create(self, group: str, location: object = None, **values: object) -> AgentViewProtocol:
+        """Create an agent of a group, a role of the owner or a path, at a location or by default a random place."""
+
     def report(self, name: str, value: float) -> None:
         """Publish a value of the owner as the reporter `<owner>.<name>`."""

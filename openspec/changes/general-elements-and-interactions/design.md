@@ -121,11 +121,11 @@ Agents, groups, and exchange:
 | --- | --- |
 | `MovementInteraction(target, step, probability=1.0, rate=None, condition=None, accept=None, exclusive=False)` | moves agents by neighbour, Gaussian, Lévy, best-cell, or a user step |
 | `TransferInteraction(source, target, amount, pairing, legs=(), guard=None)` | moves amounts of states between members, cells, or a source and a sink, as a rate or as agent rules |
-| `LifeCycleInteraction(target, birth, death, offspring=1, placement='here', inherit=(), mutate=None)` | births by splitting or by condition, and deaths by condition |
+| `LifeCycleInteraction(target, birth, death, rate=None, offspring=1, placement='here', inherit=(), split=(), mutate=None, phase=None, group=None, values=None, keep=None, reset=None, replace=False, renew=False, cull=None, kin=None, arrival=None)` | births by splitting, by condition, or at a rate, into the target's group or another, with inherited, given, split, and mutated values; deaths by condition, removal or renewal in place; parents replaced by offspring; removal of kin of another group; arrivals without a parent |
 | `GroupingInteraction(target, groups, act, size=2, capacity=None)` | draws pairs, a random partition, neighbourhoods, or groups by a chosen state each step, then acts on every group |
 | `MatchingInteraction(requesters, providers, rule, limit, quantity, budget, transfers, on_match)` | pairs requesters with providers by the algorithm its rule spec names, then transfers |
 | `FeedbackInteraction(rule)` | reads observables once per round and sets parameters |
-| `TopologyInteraction(target, action, rate=None, probability=None, condition=None, toward=None)` | adds or removes nodes and edges, and rewires, preferentially towards a weight |
+| `TopologyInteraction(target=None, action, rate=None, probability=None, condition=None, toward=None, edges=1, keep='source', values=None, layer=None)` | adds or removes nodes and edges, and rewires, preferentially towards a weight; without a target, adds one node per step from outside the network; new nodes and edges take values or draws |
 
 The matching rules are frozen specs of `skcomplex.specs` that hold only the settings of their algorithm:
 `RandomSearchSpec(tries, clearing)`, the default, `PartnerSwitchSpec(sample, intensity, partner)`, `QueueSpec(order)`,
@@ -164,6 +164,21 @@ and dissipators, rewriting systems, references from one agent to another, queues
 and algebraic feedback of control loops. A field-shared realization goes to `<field>/common/<family>`, as the
 inventory lists, such as `physics/common/oscillators`, `biology/common/pharmacokinetics`, and
 `economics/common/forecasting`.
+
+### Life cycle variants and growth from outside a network
+`LifeCycleInteraction` covers the variants of births and deaths by arguments whose defaults keep the plain cycle:
+`group` (an optional role, `RoleSpec(optional=True)`) makes births into another group, `values(parent, model)` gives
+the values of a new agent (a generation one higher, an owner, drawn states), `keep` the share of a split state the
+parent keeps (a random cut), `reset` the values of a parent after its birth (an age counter), `replace` removes a
+parent that gave birth (Galton-Watson, fission), `renew` renews a dying agent in place (re-entry of a bankrupt firm),
+`cull` with `kin` removes a member of another group the agent owns, `arrival` brings a Poisson number of agents
+without a parent, and a placement may be a function returning a location (an empty neighbouring cell, a random cell).
+It reports its `births`, `deaths`, and `arrivals`. A role declared `RoleSpec(optional=True)` may stay `None`, and a
+neighbour interaction with no bound role runs its laws once per step, so `TopologyInteraction(action='add-node')`
+without a target adds one node per step to the one network whose groups are variable (Barabási-Albert, Holme-Kim,
+vertex copying). Topology values given as functions of the generator are drawn for every new node or edge.
+The Tangled Nature step keeps its own rule: its attempts pick random organisms with replacement, `N / p_kill` times a
+generation, with kills interleaved, which a pass over every agent does not reproduce.
 
 ### Hyperedges
 The engine compiles the laws of a `HyperedgeInteraction` once per member and ignores the hyperedges. Laws run once per

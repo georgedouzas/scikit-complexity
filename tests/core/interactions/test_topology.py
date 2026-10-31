@@ -49,6 +49,26 @@ def test_get_laws_add_node_runs_once_per_node():
     assert _sizes(_run(nx.path_graph(10), change, 1), 1) == (20, 19)
 
 
+def test_get_laws_add_node_without_target_adds_one_node_per_step():
+    """Test that a node addition without a target adds one node per step from outside the network."""
+    change = TopologyInteraction('growth', action='add-node', edges=2)
+    assert _sizes(_run(nx.complete_graph(3), change, 5), 5) == (8, 13)
+
+
+def test_get_laws_draws_the_values_of_new_nodes():
+    """Test that a value given as a function of the generator is drawn for every new node."""
+    change = TopologyInteraction(
+        'growth',
+        target='nodes',
+        action='add-node',
+        values={'mark': lambda rng: rng.uniform(1.0, 2.0)},
+    )
+    trajectory = _run(nx.empty_graph(20), change, 1)
+    marks = np.asarray(trajectory.values('nodes.mark')[-1])[20:40]
+    assert len(set(marks.tolist())) == 20
+    assert ((marks >= 1.0) & (marks <= 2.0)).all()
+
+
 def test_get_laws_remove_node_removes_the_nodes_where_the_condition_holds():
     """Test that a conditional removal removes exactly the marked nodes."""
     marks = [1.0 if node % 2 else 0.0 for node in range(10)]
@@ -109,6 +129,12 @@ def test_get_laws_rate_removes_edges_by_jumps():
     change = TopologyInteraction('decay', target='nodes', action='remove-edge', rate=0.5)
     trajectory = _run(nx.cycle_graph(400), change, 2.0, dt=0.05)
     assert _sizes(trajectory, 40)[1] / 400 == pytest.approx(np.exp(-1.0), abs=0.06)
+
+
+def test_check_rejects_an_edge_action_without_target():
+    """Test that an action other than a node addition needs a target."""
+    with pytest.raises(ValidationError):
+        TopologyInteraction('change', action='add-edge').check()
 
 
 @pytest.mark.parametrize(
