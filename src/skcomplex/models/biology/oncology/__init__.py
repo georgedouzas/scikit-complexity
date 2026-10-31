@@ -104,6 +104,7 @@ from ._immunotherapy import (
     kirschner_panetta,
     tumour_immune_suppression,
 )
+from ._irradiation import IrradiationInteraction
 from ._optimal_therapy import (
     OptimalChemotherapyElement,
     OptimalImmunotherapyElement,
@@ -148,6 +149,7 @@ __all__: list[str] = [
     'Her2TumourElement',
     'IntermittentSuppressionElement',
     'IrradiatedTumourElement',
+    'IrradiationInteraction',
     'KirschnerPanettaTumourElement',
     'LeukaemiaStemCellsElement',
     'LogKillInteraction',

@@ -208,7 +208,11 @@ def immune_competition(
         ],
         interactions=[
             EncounterInteraction(
-                'proliferation', candidate='tumour', field='host', rate=lambda _: growth, outcome='proliferative',
+                'proliferation',
+                candidate='tumour',
+                field='host',
+                rate=lambda _: growth,
+                outcome='proliferative',
             ),
             EncounterInteraction(
                 'progression',

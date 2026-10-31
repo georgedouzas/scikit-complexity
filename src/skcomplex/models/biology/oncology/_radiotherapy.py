@@ -11,11 +11,12 @@ from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, CrossingLaw, RateLaw
-from ....core.laws.utils import pulse_train, where
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import pulse_train
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._irradiation import IrradiationInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
@@ -129,9 +130,8 @@ class RadiationCompetitionElement(Element):
 class IrradiatedTumourElement(Element):
     """Tumour in six compartments under linear-quadratic radiation fractions and a radiosensitizer.
 
-    The proliferating cells follow `dA1/dt = r A1 exp(-a_gamma u_tot)`. A fraction of dose `d` at time `t_i` moves the
-    lethally irradiated part `M = 1 - exp(-(1 + ap Us)(alpha d + beta d^2))` of `A1` to `A5` and raises the accumulated
-    dose `u_tot` by `(1 + au Us) d`. The cells of `A5` divide once into `A6`, `dA5/dt = -(r + m1) A5` and
+    The proliferating cells follow `dA1/dt = r A1 exp(-a_gamma u_tot)`, where `u_tot` is the dose that the fractions of
+    an irradiation accumulate. The lethally irradiated cells of `A5` divide once into `A6`, `dA5/dt = -(r + m1) A5` and
     `dA6/dt = 2 r A5 - m1 A6`, and both feed the dying chain `A2 -> A3 -> A4`, which leaves the tumour at the rate
     `m1`. The radiosensitizer is eliminated as `dUs/dt = -du Us`.
 
@@ -166,9 +166,6 @@ class IrradiatedTumourElement(Element):
         u_tot:
             The initial accumulated dose.
 
-        k:
-            The number of fractions delivered.
-
         r:
             The growth rate.
 
@@ -178,37 +175,13 @@ class IrradiatedTumourElement(Element):
         a_gamma:
             The inhibition of proliferation per unit of accumulated dose.
 
-        alpha:
-            The linear coefficient of the linear-quadratic model.
-
-        beta:
-            The quadratic coefficient of the linear-quadratic model.
-
-        ap:
-            The potency of the radiosensitizer in raising the cell kill.
-
-        au:
-            The potency of the radiosensitizer in raising the accumulated dose.
-
         du:
             The elimination rate of the radiosensitizer.
 
-        dose:
-            The dose of a fraction.
-
-        period:
-            The time between fractions.
-
-        start:
-            The time of the first fraction.
-
-        fractions:
-            The number of fractions.
-
     Examples:
         >>> from skcomplex.models.biology.oncology import IrradiatedTumourElement
-        >>> IrradiatedTumourElement('tumour', fractions=10).fractions
-        10
+        >>> IrradiatedTumourElement('tumour', A1=10.0).A1
+        10.0
     """
 
     def __init__(
@@ -224,19 +197,10 @@ class IrradiatedTumourElement(Element):
         A6: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         Us: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         u_tot: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        k: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.04,
         m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.26,
         a_gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.004,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.054,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0054,
-        ap: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.42,
-        au: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
         du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.544,
-        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        period: float = 1.0,
-        start: float = 0.125,
-        fractions: int = 10,
     ) -> None:
         super().__init__(label, visual=visual)
         self.A1 = A1
@@ -247,22 +211,13 @@ class IrradiatedTumourElement(Element):
         self.A6 = A6
         self.Us = Us
         self.u_tot = u_tot
-        self.k = k
         self.r = r
         self.m1 = m1
         self.a_gamma = a_gamma
-        self.alpha = alpha
-        self.beta = beta
-        self.ap = ap
-        self.au = au
         self.du = du
-        self.dose = dose
-        self.period = period
-        self.start = start
-        self.fractions = fractions
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth and transit of the compartments and the fractions as events.
+        """Return the growth and transit of the compartments and the elimination of the radiosensitizer.
 
         Args:
             s:
@@ -272,15 +227,6 @@ class IrradiatedTumourElement(Element):
             laws:
                 The laws of the component.
         """
-        damage = (1 + s.ap * s.Us) * (s.alpha * s.dose + s.beta * s.dose**2)
-        lethal = 1 - exp(-damage)
-        guard = where(s.k < self.fractions, s.t - self.start - s.k * self.period, -1)
-        reset = {
-            s.A1: s.A1 * exp(-damage),
-            s.A5: s.A5 + lethal * s.A1,
-            s.u_tot: s.u_tot + (1 + s.au * s.Us) * s.dose,
-            s.k: s.k + 1,
-        }
         return [
             RateLaw(s.A1, s.r * s.A1 * exp(-s.a_gamma * s.u_tot)),
             RateLaw(s.A2, s.m1 * (s.A5 + s.A6) - s.m1 * s.A2),
@@ -289,7 +235,6 @@ class IrradiatedTumourElement(Element):
             RateLaw(s.A5, -(s.r + s.m1) * s.A5),
             RateLaw(s.A6, 2 * s.r * s.A5 - s.m1 * s.A6),
             RateLaw(s.Us, -s.du * s.Us),
-            CrossingLaw(guard, reset, direction=1, label='fraction'),
         ]
 
 
@@ -474,14 +419,18 @@ def lq_radiosensitizer(
         r=r,
         m1=m1,
         a_gamma=a_gamma,
+        du=du,
+    )
+    irradiation = IrradiationInteraction(
+        'fraction',
+        target='tumour',
         alpha=alpha,
         beta=beta,
         ap=ap,
         au=au,
-        du=du,
         dose=dose,
         period=period,
         start=start,
         fractions=fractions,
     )
-    return System(elements=[tumour])
+    return System(elements=[tumour], interactions=[irradiation])
