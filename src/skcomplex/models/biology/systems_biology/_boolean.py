@@ -13,8 +13,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.elements import Element
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, UpdateLaw
+from ....core.interactions import MapInteraction
 from ....core.laws.utils import where
 from ....core.system import System
 from ....errors import ValidationError
@@ -37,12 +36,6 @@ YEAST_INPUTS = {
 }
 YEAST_DECAYING = ('Cln3', 'Cln1_2', 'Swi5', 'Cdc20', 'Mcm1')
 YEAST_START = ('Cln3', 'Cdh1', 'Sic1')
-
-
-def _pattern(inputs: Sequence[Expression], index: int) -> Expression:
-    """Return the product that is 1 when the inputs, read as bits from the most significant, spell an index."""
-    bits = [(index >> (len(inputs) - 1 - position)) & 1 for position in range(len(inputs))]
-    return prod((value if bit else 1 - value for value, bit in zip(inputs, bits, strict=True)), start=SR(1))
 
 
 class BooleanNodeElement(Element):
@@ -75,7 +68,7 @@ class BooleanNodeElement(Element):
         self.x = x
 
 
-class BooleanFunctionInteraction(Interaction):
+class BooleanFunctionInteraction(MapInteraction):
     """Synchronous update of a node by a truth table of any number of input nodes.
 
     A table of `2^k` entries reads the `k` inputs as the bits of a binary number, from the most significant, and gives
@@ -95,6 +88,10 @@ class BooleanFunctionInteraction(Interaction):
         table:
             The next value of the target for each of the `2^k` input patterns.
 
+    Raises:
+        ValidationError:
+            The table does not have one entry per pattern of the inputs.
+
     Examples:
         >>> from skcomplex.models.biology.systems_biology import BooleanFunctionInteraction
         >>> BooleanFunctionInteraction('and', target='c', inputs=['a', 'b'], table=(0, 0, 0, 1)).table
@@ -109,38 +106,38 @@ class BooleanFunctionInteraction(Interaction):
         inputs: Annotated[list[str], RoleSpec(variadic=True)],
         table: tuple[int, ...] = (0,),
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, state='x', function=self._get_next)
         self.inputs = inputs
         self.table = table
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the update of the target by the truth table.
+    def _get_pattern(self, inputs: Sequence[Expression], index: int) -> Expression:
+        """Return the product that is 1 when the inputs, read as bits from the most significant, spell an index."""
+        bits = [(index >> (len(inputs) - 1 - position)) & 1 for position in range(len(inputs))]
+        return prod((value if bit else 1 - value for value, bit in zip(inputs, bits, strict=True)), start=SR(1))
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+    def _get_next(self, s: SimpleNamespace) -> Expression:
+        """Return the next value of the target by the truth table."""
+        inputs = [item.x for item in s.inputs]
+        terms = [self._get_pattern(inputs, index) for index, entry in enumerate(self.table) if entry]
+        return sum(terms, start=SR(0))
 
-        Returns:
-            laws:
-                The laws of the component.
+    def _check(self) -> None:
+        """Raise an error for a table without one entry per pattern of the inputs.
 
         Raises:
             ValidationError:
                 The table does not have one entry per pattern of the inputs.
         """
-        if len(self.table) != 2 ** len(s.inputs):
+        super()._check()
+        if len(self.table) != 2 ** len(self.inputs):
             error_msg = (
-                f'BooleanFunction {self.label} reads {len(s.inputs)} inputs, which take {2 ** len(s.inputs)} '
+                f'BooleanFunction {self.label} reads {len(self.inputs)} inputs, which take {2 ** len(self.inputs)} '
                 f'patterns, but its table has {len(self.table)} entries.'
             )
             raise ValidationError(error_msg)
-        inputs = [item.x for item in s.inputs]
-        terms = [_pattern(inputs, index) for index, entry in enumerate(self.table) if entry]
-        return [UpdateLaw(s.target.x, sum(terms, start=SR(0)))]
 
 
-class ThresholdFunctionInteraction(Interaction):
+class ThresholdFunctionInteraction(MapInteraction):
     """Synchronous update of a node by the sign of the weighted sum of its active inputs, after Li et al.
 
     The node turns on when the sum `w_0 x_0 + w_1 x_1 + ...` over its inputs is positive and off when it is negative.
@@ -177,26 +174,16 @@ class ThresholdFunctionInteraction(Interaction):
         weights: Annotated[Sequence[float], ParameterSpec(per='inputs')] = (),
         decays: bool = False,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, state='x', function=self._get_next)
         self.inputs = inputs
         self.weights = weights
         self.decays = decays
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the threshold update of the target.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
+    def _get_next(self, s: SimpleNamespace) -> Expression:
+        """Return 1 for a positive weighted input, 0 for a negative one, and the held or decayed value for none."""
         total = sum((weight * item.x for weight, item in zip(s.weights, s.inputs, strict=True)), start=SR(0))
         unchanged = 0 if self.decays else s.target.x
-        return [UpdateLaw(s.target.x, where(total > 0, 1, where(total < 0, 0, unchanged)))]
+        return where(total > 0, 1, where(total < 0, 0, unchanged))
 
 
 @register_model(

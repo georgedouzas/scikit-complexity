@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
+from math import prod
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -18,7 +19,6 @@ from ....core.system import System
 from ....errors import ValidationError
 from ....specs import RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ._boolean import _pattern
 from .types import Candidates
 
 SHMULEVICH_INPUTS = ('x1', 'x2', 'x3')
@@ -86,6 +86,10 @@ class ProbabilisticFunctionInteraction(Interaction):
         probabilities:
             The probability of every table.
 
+    Raises:
+        ValidationError:
+            The tables and the probabilities differ in number, or a table does not have one entry per pattern.
+
     Examples:
         >>> from skcomplex.models.biology.systems_biology import ProbabilisticFunctionInteraction
         >>> function = ProbabilisticFunctionInteraction(
@@ -110,15 +114,36 @@ class ProbabilisticFunctionInteraction(Interaction):
         self.tables = tables
         self.probabilities = probabilities
 
-    def _table_value(self, inputs: list[Expression], table: Sequence[int]) -> Expression:
+    def _get_pattern(self, inputs: Sequence[Expression], index: int) -> Expression:
+        """Return the product that is 1 when the inputs, read as bits from the most significant, spell an index."""
+        bits = [(index >> (len(inputs) - 1 - position)) & 1 for position in range(len(inputs))]
+        return prod((value if bit else 1 - value for value, bit in zip(inputs, bits, strict=True)), start=SR(1))
+
+    def _get_table_value(self, inputs: list[Expression], table: Sequence[int]) -> Expression:
         """Return the value of one truth table of the inputs."""
-        if len(table) != 2 ** len(inputs):
+        return sum((self._get_pattern(inputs, index) for index, entry in enumerate(table) if entry), start=SR(0))
+
+    def _check(self) -> None:
+        """Raise an error for tables and probabilities that differ in number, or a table of the wrong size.
+
+        Raises:
+            ValidationError:
+                The tables and the probabilities differ in number, or a table does not have one entry per pattern.
+        """
+        super()._check()
+        if len(self.tables) != len(self.probabilities):
             error_msg = (
-                f'ProbabilisticFunction {self.label} reads {len(inputs)} inputs, which take {2 ** len(inputs)} '
-                f'patterns, but one of its tables has {len(table)} entries.'
+                f'ProbabilisticFunction {self.label} has {len(self.tables)} tables and {len(self.probabilities)} '
+                'probabilities. Give one probability per table.'
             )
             raise ValidationError(error_msg)
-        return sum((_pattern(inputs, index) for index, entry in enumerate(table) if entry), start=SR(0))
+        patterns = 2 ** len(self.inputs)
+        if any(len(table) != patterns for table in self.tables):
+            error_msg = (
+                f'ProbabilisticFunction {self.label} reads {len(self.inputs)} inputs, which take {patterns} '
+                'patterns, but one of its tables has another number of entries.'
+            )
+            raise ValidationError(error_msg)
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the update of the target by the drawn table and the record of the drawn index.
@@ -130,20 +155,10 @@ class ProbabilisticFunctionInteraction(Interaction):
         Returns:
             laws:
                 The laws of the component.
-
-        Raises:
-            ValidationError:
-                The tables and the probabilities differ in number, or a table does not have one entry per pattern.
         """
-        if len(self.tables) != len(self.probabilities):
-            error_msg = (
-                f'ProbabilisticFunction {self.label} has {len(self.tables)} tables and {len(self.probabilities)} '
-                'probabilities. Give one probability per table.'
-            )
-            raise ValidationError(error_msg)
         inputs = [item.x for item in s.inputs]
         chosen = categorical('function', list(self.probabilities))
-        values = [self._table_value(inputs, table) for table in self.tables]
+        values = [self._get_table_value(inputs, table) for table in self.tables]
         value = values[-1]
         for index in range(len(values) - 2, -1, -1):
             value = where(chosen == index, values[index], value)

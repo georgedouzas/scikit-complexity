@@ -6,19 +6,15 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import hill
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-
-
-def _saturating(rate: Expression, constant: Expression, amount: Expression) -> Expression:
-    """Return the Michaelis-Menten rate `rate * amount / (constant + amount)`."""
-    return rate * amount / (constant + amount)
 
 
 class PerClockElement(Element):
@@ -160,14 +156,14 @@ class PerClockElement(Element):
             laws:
                 The laws of the component.
         """
-        first = _saturating(s.V1, s.K, s.P0) - _saturating(s.V2, s.K, s.P1)
-        second = _saturating(s.V3, s.K, s.P1) - _saturating(s.V4, s.K, s.P2)
+        first = s.V1 * hill(s.P0, s.K) - s.V2 * hill(s.P1, s.K)
+        second = s.V3 * hill(s.P1, s.K) - s.V4 * hill(s.P2, s.K)
         transport = s.k1 * s.P2 - s.k2 * s.PN
         return [
-            RateLaw(s.M, s.v_s * s.K_I**s.n / (s.K_I**s.n + s.PN**s.n) - _saturating(s.v_m, s.K_m, s.M)),
+            RateLaw(s.M, s.v_s * (1 - hill(s.PN, s.K_I, s.n)) - s.v_m * hill(s.M, s.K_m)),
             RateLaw(s.P0, s.k_s * s.M - first),
             RateLaw(s.P1, first - second),
-            RateLaw(s.P2, second - transport - _saturating(s.v_d, s.K_d, s.P2)),
+            RateLaw(s.P2, second - transport - s.v_d * hill(s.P2, s.K_d)),
             RateLaw(s.PN, transport),
         ]
 
