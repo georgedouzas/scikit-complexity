@@ -9,13 +9,13 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, LatticeElement
-from ....core.interactions import SpreadingInteraction, TopologyInteraction
-from ....core.laws import BaseLaw, RateLaw, UpdateLaw
-from ....core.laws.utils import bernoulli, neighbors, where
+from ....core.interactions import SpreadingInteraction, TopologyInteraction, TransitionInteraction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import neighbors
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -115,9 +115,9 @@ class HostElement(Element):
 class ActiveHostElement(Element):
     """Node of an activity-driven network, susceptible at `i = 0` or infected at `i = 1`, in discrete time.
 
-    An infected node recovers with probability `mu`, and a susceptible node is infected with probability `lam` by every
-    infected neighbour along the edges of the previous step. A `TopologyInteraction` joins the node to other nodes with
-    the probability `a`, its activity.
+    A `TransitionInteraction` recovers an infected node with probability `mu` in a step, and another infects a
+    susceptible node with probability `lam` by every infected neighbour along the edges of the previous step. A
+    `TopologyInteraction` joins the node to other nodes with the probability `a`, its activity.
 
     Args:
         label:
@@ -160,22 +160,6 @@ class ActiveHostElement(Element):
         self.lam = lam
         self.mu = mu
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the infection along the edges and the recovery, one update of the state in a step.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The update of the state.
-        """
-        escape = (1 - s.lam) ** neighbors(s.other.i)
-        infected = bernoulli('infection', 1 - escape)
-        recovered = bernoulli('recovery', s.mu)
-        return [UpdateLaw(s.i, where(s.i > 1 / 2, 1 - recovered, infected))]
-
 
 def _get_susceptible(node: SimpleNamespace) -> object:
     """Return the weight of a candidate new end of an edge, 1 for a susceptible node and 0 otherwise."""
@@ -204,6 +188,18 @@ def _get_rewiring(keep: str) -> TopologyInteraction:
         toward=_get_susceptible,
         keep=keep,
     )
+
+
+def _get_infection(s: SimpleNamespace) -> Expression:
+    """Return the probability that at least one infected neighbour infects a node along its edges."""
+    probability: Expression = 1 - (1 - s.target.lam) ** neighbors(s.target.other.i)
+    return probability
+
+
+def _get_recovery(s: SimpleNamespace) -> Expression:
+    """Return the probability that an infected node recovers in a step."""
+    probability: Expression = s.target.mu
+    return probability
 
 
 def _initial_stream(seed: int | None) -> np.random.Generator:
@@ -441,6 +437,22 @@ def activity_driven_epidemics(
         interactions=[
             TopologyInteraction('firing', target='hosts', action='add-edge', probability=_get_activity, edges=m),
             TopologyInteraction('expiry', target='hosts', action='remove-edge'),
+            TransitionInteraction(
+                'infection',
+                target='hosts',
+                state='i',
+                source=0,
+                destination=1,
+                probability=_get_infection,
+            ),
+            TransitionInteraction(
+                'recovery',
+                target='hosts',
+                state='i',
+                source=1,
+                destination=0,
+                probability=_get_recovery,
+            ),
         ],
         time=DiscreteTime(),
     )
