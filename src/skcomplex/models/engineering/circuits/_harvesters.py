@@ -24,7 +24,7 @@ def _piezo_voltage(s: SimpleNamespace) -> Expression:
 
 
 class PiezoHarvesterElement(Element):
-    """Piezo harvester element."""
+    """Two-mass suspension of a car whose spring presses a piezoelectric bar as the road shakes it."""
 
     def __init__(
         self,
@@ -63,7 +63,7 @@ class PiezoHarvesterElement(Element):
         self.C = C
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the piezo harvester element."""
+        """Return the accelerations of the unsprung and the sprung mass."""
         return [
             RateLaw(
                 s.y1,

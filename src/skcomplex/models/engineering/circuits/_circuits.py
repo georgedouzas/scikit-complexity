@@ -10,7 +10,8 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, CrossingLaw, EquationLaw, RateLaw
+from ....core.interactions import ImpulseInteraction
+from ....core.laws import BaseLaw, EquationLaw, RateLaw
 from ....core.laws.utils import derivative, where
 from ....core.system import System
 from ....engine.solvers import ScipyODESolver
@@ -22,7 +23,7 @@ CHUA_NONLINEARITIES = ('piecewise-linear', 'sine')
 
 
 class CircuitElement(Element):
-    """Circuit element."""
+    """RLC circuit whose charge follows `L q'' + R q' + q / C = V cos(ω t)`."""
 
     def __init__(
         self,
@@ -47,7 +48,7 @@ class CircuitElement(Element):
         self.omega = omega
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the circuit element."""
+        """Return the equation of the charge."""
         return [
             EquationLaw(s.L * derivative(s.q, 2) + s.R * derivative(s.q, 1) + s.q / s.C == s.V * cos(s.omega * s.t)),
         ]
@@ -113,7 +114,7 @@ def _scroll_nonlinearity(x: Expression, a: Expression, b: Expression, c: Express
 
 
 class ChuaCircuitElement(Element):
-    """Chua circuit element."""
+    """Chua circuit with the piecewise-linear current of its diode."""
 
     def __init__(
         self,
@@ -138,7 +139,7 @@ class ChuaCircuitElement(Element):
         self.m1 = m1
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the chua circuit element."""
+        """Return the rates of the states of the circuit."""
         return [
             RateLaw(s.x, s.alpha * (s.y - s.x - s.m1 * s.x - (s.m0 - s.m1) * (abs(s.x + 1) - abs(s.x - 1)) / 2)),
             RateLaw(s.y, s.x - s.y + s.z),
@@ -147,7 +148,7 @@ class ChuaCircuitElement(Element):
 
 
 class MultiscrollChuaCircuitElement(Element):
-    """Multiscroll chua circuit element."""
+    """Chua circuit with a sine nonlinearity that gives attractors of many scrolls."""
 
     def __init__(
         self,
@@ -174,7 +175,7 @@ class MultiscrollChuaCircuitElement(Element):
         self.c = c
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the multiscroll chua circuit element."""
+        """Return the rates of the states of the circuit."""
         return [
             RateLaw(s.x, s.alpha * (s.y - _scroll_nonlinearity(s.x, s.a, s.b, s.c))),
             RateLaw(s.y, s.x - s.y + s.z),
@@ -183,7 +184,7 @@ class MultiscrollChuaCircuitElement(Element):
 
 
 class MixedModeChuaCircuitElement(Element):
-    """Mixed mode chua circuit element."""
+    """Slow-fast Chua circuit whose oscillations mix small and large amplitudes."""
 
     def __init__(
         self,
@@ -214,7 +215,7 @@ class MixedModeChuaCircuitElement(Element):
         self.c = c
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the mixed mode chua circuit element."""
+        """Return the rates of the states of the circuit."""
         return [
             RateLaw(s.x, (-s.y + (s.a + s.b * s.x) * s.x**2) / s.epsilon),
             RateLaw(s.y, s.alpha * (s.x - s.R * s.y - s.z)),
@@ -223,7 +224,7 @@ class MixedModeChuaCircuitElement(Element):
 
 
 class MemristorCircuitElement(Element):
-    """Memristor circuit element."""
+    """Oscillator built from a memristor, whose current depends on the flux through it."""
 
     def __init__(
         self,
@@ -248,7 +249,7 @@ class MemristorCircuitElement(Element):
         self.beta = beta
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the memristor circuit element."""
+        """Return the rates of the states of the circuit."""
         return [
             RateLaw(s.v, s.i / s.C),
             RateLaw(s.i, -(s.v + s.beta * (s.w**2 - 1) * s.i) / s.L),
@@ -257,7 +258,7 @@ class MemristorCircuitElement(Element):
 
 
 class TunnelDiodeCircuitElement(Element):
-    """Tunnel diode circuit element."""
+    """Oscillator of a tunnel diode with a cubic current, of the van der Pol type."""
 
     def __init__(
         self,
@@ -280,7 +281,7 @@ class TunnelDiodeCircuitElement(Element):
         self.gamma = gamma
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the tunnel diode circuit element."""
+        """Return the rates of the states of the circuit."""
         return [
             RateLaw(s.V, -(s.gamma * s.V**3 - s.alpha * s.V + s.i) / s.C),
             RateLaw(s.i, s.V / s.L),
@@ -288,7 +289,7 @@ class TunnelDiodeCircuitElement(Element):
 
 
 class KickedCircuitElement(Element):
-    """Kicked circuit element."""
+    """RLC circuit ringing down freely between the impulses of strength `A` that kick its rate."""
 
     def __init__(
         self,
@@ -297,35 +298,22 @@ class KickedCircuitElement(Element):
         *,
         x: Annotated[object, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.0,
-        clock: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         R: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         A: Annotated[object, ParameterSpec()] = 1.0,
-        T: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
         self.x_d1 = x_d1
-        self.clock = clock
         self.L = L
         self.R = R
         self.C = C
         self.A = A
-        self.T = T
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the kicked circuit element."""
-        return [
-            EquationLaw(s.L * s.C * derivative(s.x, 2) + s.R * s.C * derivative(s.x, 1) + s.x == 0),
-            RateLaw(s.clock, 1),
-            CrossingLaw(
-                s.clock - s.T,
-                {s.clock: 0, derivative(s.x, 1): derivative(s.x, 1) + s.A / (s.L * s.C)},
-                direction=1,
-                label='impulse',
-            ),
-        ]
+        """Return the free equation of the circuit between impulses."""
+        return [EquationLaw(s.L * s.C * derivative(s.x, 2) + s.R * s.C * derivative(s.x, 1) + s.x == 0)]
 
 
 @register_model(
@@ -630,12 +618,14 @@ def impulsive_circuits(
 
     Returns:
         system:
-            The model, with the response `circuit.x`, its rate `circuit.x_d1`, and the time since the last impulse
-            `circuit.clock`.
+            The model, with the response `circuit.x` and its rate `circuit.x_d1`, kicked by the impulses `impulse`.
 
     Examples:
         >>> from skcomplex.models.engineering.circuits import impulsive_circuits
-        >>> impulsive_circuits(T=3.0).elements[0].T
+        >>> impulsive_circuits(T=3.0).interactions[0].period
         3.0
     """
-    return System(elements=[KickedCircuitElement('circuit', x=x, x_d1=current, clock=0.0, L=L, R=R, C=C, A=A, T=T)])
+    circuit = KickedCircuitElement('circuit', x=x, x_d1=current, L=L, R=R, C=C, A=A)
+    kick = {'x_d1': lambda s: s.target.x_d1 + s.target.A / (s.target.L * s.target.C)}
+    impulse = ImpulseInteraction('impulse', target='circuit', reset=kick, period=T)
+    return System(elements=[circuit], interactions=[impulse])
