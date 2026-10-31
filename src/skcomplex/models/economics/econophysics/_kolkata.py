@@ -3,20 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
+from sage.all__sagemath_symbolics import NN
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
-from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
+from ....core.interactions import ChoiceInteraction, GroupingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import ModelView
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.types import AgentViewProtocol, ModelViewProtocol
+from ....specs import StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._diner_view import DinerView
 
@@ -24,7 +25,7 @@ STRATEGIES = ('random', 'crowd_avoiding')
 
 
 class DinerElement(Element):
-    """Diner of the Kolkata Paise Restaurant problem, who picks a restaurant at random every evening.
+    """Diner of the Kolkata Paise Restaurant problem, who goes to one restaurant every evening.
 
     Args:
         label:
@@ -42,12 +43,9 @@ class DinerElement(Element):
         served:
             Whether the diner got a meal, 1 or 0.
 
-        restaurants:
-            The number of restaurants.
-
     Examples:
         >>> from skcomplex.models.economics.econophysics import DinerElement
-        >>> GroupElement('diners', element=DinerElement, size=10, values={'restaurants': 10.0}).size
+        >>> GroupElement('diners', element=DinerElement, size=10).size
         10
     """
 
@@ -59,107 +57,113 @@ class DinerElement(Element):
         restaurant: Annotated[float, StateSpec(domain=NN)] = 0,
         crowd: Annotated[float, StateSpec(domain=NN)] = 0,
         served: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        restaurants: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.restaurant = restaurant
         self.crowd = crowd
         self.served = served
-        self.restaurants = restaurants
 
     @classmethod
     def _get_view(cls) -> type[DinerView]:
         """Return the view of the agents of the element."""
         return DinerView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the choice rule.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.choose)]
-
-    def choose(self, agent: DinerView, model: ModelView) -> None:
-        """Choose a restaurant uniformly at random.
-
-        Args:
-            agent:
-                The diner.
-
-            model:
-                The model.
-        """
-        agent.restaurant = float(model.rng.integers(int(agent.restaurants)))
-
-
-class CrowdAvoidingDinerElement(DinerElement):
-    """Diner of the stochastic crowd avoiding strategy, who leaves crowded restaurants.
+class CrowdAvoidanceInteraction(ChoiceInteraction):
+    """Stochastic crowd avoidance of diners, who leave crowded restaurants.
 
     A diner returns to last evening's restaurant with probability `1 / n`, with `n` the crowd it found there, and
-    otherwise picks one of the other restaurants at random, which raises the utilization to about 0.8.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        restaurant:
-            The restaurant chosen last, from 0 to the number of restaurants minus one.
-
-        crowd:
-            The number of diners at that restaurant, 0 before the first evening.
-
-        served:
-            Whether the diner got a meal, 1 or 0.
-
-        restaurants:
-            The number of restaurants.
-
-    Examples:
-        >>> from skcomplex.models.economics.econophysics import CrowdAvoidingDinerElement
-        >>> GroupElement('diners', element=CrowdAvoidingDinerElement, size=10, values={'restaurants': 10.0}).size
-        10
-    """
-
-    def choose(self, agent: DinerView, model: ModelView) -> None:
-        """Stay with probability one over the crowd, otherwise move to another random restaurant.
-
-        Args:
-            agent:
-                The diner.
-
-            model:
-                The model.
-        """
-        if agent.crowd < 1:
-            super().choose(agent, model)
-        elif model.rng.random() >= 1 / agent.crowd:
-            other = int(model.rng.integers(int(agent.restaurants) - 1))
-            agent.restaurant = float(other + (other >= agent.restaurant))
-
-
-class RestaurantsInteraction(Interaction):
-    """Restaurants that each serve one of the diners who come, chosen at random, every evening.
+    otherwise moves to one of the other restaurants at random, which raises the utilization to about 0.8. It is a
+    Metropolis choice of intensity 1 where every other restaurant has utility 0 and staying has the utility
+    `-log(1 - 1 / n)`, so a proposed move is accepted with probability `1 - 1 / n`.
 
     Args:
         label:
             The label of the interaction.
 
-        diners:
+        target:
+            The path of the group of diners.
+
+        options:
+            The restaurants, from 0 to their number minus one.
+
+        state:
+            The state of the diners that holds their restaurant.
+
+        intensity:
+            The intensity of choice, 1 for the stay probability `1 / n`.
+
+        activity:
+            The probability that a diner revises its choice in an evening.
+
+        phase:
+            The phase the choice runs in, or `None` for the default phase.
+
+    Examples:
+        >>> from skcomplex.models.economics.econophysics import CrowdAvoidanceInteraction
+        >>> CrowdAvoidanceInteraction('choice', target='diners', options=(0.0, 1.0)).check().rule
+        'metropolis'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: str,
+        options: Sequence[float],
+        state: str = 'restaurant',
+        intensity: float = 1.0,
+        activity: float = 1.0,
+        phase: str | None = None,
+    ) -> None:
+        super().__init__(
+            label,
+            target=target,
+            state=state,
+            options=options,
+            utility=self._get_utility,
+            rule='metropolis',
+            intensity=intensity,
+            activity=activity,
+            form='agent',
+            phase=phase,
+        )
+
+    def _get_utility(self, agent: DinerView, model: ModelViewProtocol, option: float) -> float:
+        """Return 0 for another restaurant and `-log(1 - 1 / n)` for staying at a crowd of `n`."""
+        if option != getattr(agent, self.state) or agent.crowd < 1:
+            return 0.0
+        if agent.crowd == 1:
+            return math.inf
+        return -math.log1p(-1 / agent.crowd)
+
+
+class RestaurantsInteraction(GroupingInteraction):
+    """Restaurants that each serve one meal every evening, to one of the diners who come chosen at random.
+
+    The diners are grouped by their restaurant. Every diner learns the crowd at its restaurant, and the first of the
+    group in a random order is served. The interaction reports the fraction of restaurants that serve a meal.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
             The path of the group of diners.
 
         n_restaurants:
             The number of restaurants.
 
+        by:
+            The state of the diners that holds their restaurant.
+
+        phase:
+            The phase the restaurants serve in, or `None` for the default phase.
+
     Examples:
         >>> from skcomplex.models.economics.econophysics import RestaurantsInteraction
-        >>> RestaurantsInteraction('restaurants', diners='diners', n_restaurants=5).n_restaurants
-        5
+        >>> RestaurantsInteraction('restaurants', target='diners', n_restaurants=5).check().groups
+        'state'
     """
 
     reports: ClassVar[tuple[str, ...]] = ('utilization',)
@@ -168,43 +172,51 @@ class RestaurantsInteraction(Interaction):
         self,
         label: str,
         *,
-        diners: Annotated[str, RoleSpec()],
+        target: str,
         n_restaurants: int = 100,
+        by: str = 'restaurant',
+        phase: str | None = None,
     ) -> None:
-        super().__init__(label)
-        self.diners = diners
+        super().__init__(label, target=target, groups='state', by=by, phase=phase)
         self.n_restaurants = n_restaurants
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the serving rule.
+    def act_on(self, members: list[AgentViewProtocol], model: ModelViewProtocol) -> None:
+        """Tell every diner of a restaurant its crowd and serve the first diner.
 
         Args:
-            s:
+            members:
+                The diners at one restaurant, in random order.
+
+            model:
+                The model view of the restaurants.
+        """
+        diners = [member for member in members if isinstance(member, DinerView)]
+        for position, member in enumerate(diners):
+            member.crowd = float(len(diners))
+            member.served = float(position == 0)
+
+    def report(self, model: ModelViewProtocol) -> None:
+        """Report the fraction of restaurants with at least one diner.
+
+        Args:
+            model:
+                The model view of the restaurants.
+        """
+        visited = {float(getattr(agent, str(self.by))) for agent in model.agents('target')}
+        model.report('utilization', len(visited) / self.n_restaurants)
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rule that serves the diners and the rule that reports the utilization.
+
+        Args:
+            namespace:
                 The namespace of the symbols the laws can use.
 
         Returns:
             laws:
-                The laws of the component.
+                The serving and the reporting rules.
         """
-        return [RuleLaw(self.serve)]
-
-    def serve(self, model: ModelView) -> None:
-        """Serve one random diner per visited restaurant and report the fraction of restaurants that serve.
-
-        Args:
-            model:
-                The model.
-        """
-        agents = model.agents('diners', DinerView)
-        choices = np.array([agent.restaurant for agent in agents], dtype=np.int64)
-        crowds = np.bincount(choices, minlength=self.n_restaurants)
-        order = model.rng.permutation(len(agents))
-        _, first = np.unique(choices[order], return_index=True)
-        served = np.zeros(len(agents), dtype=bool)
-        served[order[first]] = True
-        for agent, choice, meal in zip(agents, choices, served, strict=True):
-            agent.crowd, agent.served = float(crowds[choice]), float(meal)
-        model.report('utilization', np.count_nonzero(crowds) / self.n_restaurants)
+        return [*super()._get_laws(namespace), RuleLaw(self.report, phase=self.phase)]
 
 
 @register_model(
@@ -240,7 +252,8 @@ def kolkata_restaurant(
 
     Returns:
         system:
-            The model, with the group `diners` and the interaction `restaurants`, which reports the fraction of
+            The model, with the group `diners`, the choice `choice` of a restaurant every evening, uniform or by crowd
+            avoidance, and the interaction `restaurants`, which reports the fraction of
             restaurants that serve a meal `restaurants.utilization`.
 
     Raises:
@@ -249,20 +262,28 @@ def kolkata_restaurant(
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import kolkata_restaurant
-        >>> kolkata_restaurant(10, strategy='crowd_avoiding').elements[0].element.__name__
-        'CrowdAvoidingDinerElement'
+        >>> type(kolkata_restaurant(10, strategy='crowd_avoiding').interactions[0]).__name__
+        'CrowdAvoidanceInteraction'
     """
     if strategy not in STRATEGIES:
         error_msg = f'Unknown strategy {strategy!r}. Use one of {STRATEGIES}.'
         raise ValueError(error_msg)
     n_restaurants = n_agents if n_restaurants is None else n_restaurants
-    diner = CrowdAvoidingDinerElement if strategy == 'crowd_avoiding' else DinerElement
+    options = [float(restaurant) for restaurant in range(n_restaurants)]
     choices = np.random.default_rng(random_state).integers(n_restaurants, size=n_agents).astype(float)
-    diners = GroupElement(
-        'diners',
-        element=diner,
-        size=n_agents,
-        values={'restaurant': choices, 'restaurants': float(n_restaurants)},
+    diners = GroupElement('diners', element=DinerElement, size=n_agents, values={'restaurant': choices})
+    choice = (
+        CrowdAvoidanceInteraction('choice', target='diners', options=options)
+        if strategy == 'crowd_avoiding'
+        else ChoiceInteraction(
+            'choice',
+            target='diners',
+            state='restaurant',
+            options=options,
+            utility=lambda agent, model, option: 0.0,
+            intensity=0.0,
+            form='agent',
+        )
     )
-    restaurants = RestaurantsInteraction('restaurants', diners='diners', n_restaurants=n_restaurants)
-    return System(elements=[diners], interactions=[restaurants])
+    restaurants = RestaurantsInteraction('restaurants', target='diners', n_restaurants=n_restaurants)
+    return System(elements=[diners], interactions=[choice, restaurants])

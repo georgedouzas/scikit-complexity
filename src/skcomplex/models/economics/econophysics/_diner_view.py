@@ -9,10 +9,9 @@ from ....engine.solvers import AgentView
 class DinerView(AgentView):
     """Diner as the rules see it, with its restaurant, the crowd there, and whether it was served.
 
-    It reads its `restaurant`, the `crowd` there, whether it was `served`, and the number of `restaurants`.
+    It reads its `restaurant`, the `crowd` there, and whether it was `served`.
     """
 
     restaurant: float
     crowd: float
     served: float
-    restaurants: float
