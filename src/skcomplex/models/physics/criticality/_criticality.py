@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
@@ -13,9 +12,10 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, CascadeLaw, DriveLaw, LocalRuleLaw
+from ....core.interactions import CascadeInteraction, LocalRuleInteraction
 from ....core.spaces import (
     AdjacencyNeighborhood,
+    BaseNeighborhood,
     LatticeNeighborhood,
     LatticeSpace,
     NetworkSpace,
@@ -23,7 +23,7 @@ from ....core.spaces import (
     VonNeumannNeighborhood,
 )
 from ....core.system import System
-from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
 
@@ -32,115 +32,32 @@ SITE_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
     'triangular': TriangularNeighborhood(center=True),
     'graph': AdjacencyNeighborhood(center=True),
 }
-NEAREST_STEPS = np.array(VonNeumannNeighborhood().check().prepare().offsets_)
 MANNA_THRESHOLD = 2
 BURNING = 2
 
 
-def _drop_grain(heights: Array, *, random: np.random.Generator) -> Array:
-    """Return the heights with one grain added on a random site."""
-    following = heights.copy()
-    following[tuple(random.integers(size) for size in heights.shape)] += 1
-    return following
-
-
-def _topple_at_random(heights: Array, *, random: np.random.Generator) -> Array:
-    """Return the heights after every site with two or more grains sends two grains to random neighbours."""
-    active = np.argwhere(heights >= MANNA_THRESHOLD)
-    following = heights.copy()
-    following[tuple(active.T)] -= MANNA_THRESHOLD
-    targets = (
-        np.repeat(active, MANNA_THRESHOLD, axis=0)
-        + NEAREST_STEPS[random.integers(len(NEAREST_STEPS), size=2 * len(active))]
-    )
-    inside = np.all((targets >= 0) & (targets < heights.shape), axis=1)
-    np.add.at(following, tuple(targets[inside].T), 1)
-    return following
-
-
 class SandpileCellElement(Element):
-    """Site of the Bak-Tang-Wiesenfeld sandpile, which topples to its four neighbours when it holds four grains.
+    """Site of a sandpile, which holds a number of grains.
 
-    Every step drops one grain on a random site, then sites at or above the threshold topple until the pile is
-    stable. Grains that topple over the edge leave the pile.
+    An `AvalancheInteraction` drops the grains and topples the sites that hold too many.
 
     Args:
         label:
             The label of the site or the lattice group.
 
         visual:
-            How the element is drawn, or `None` for `default_visual_`.
+            How the site is drawn, or `None` for `default_visual_`.
 
         height:
             The initial number of grains.
 
-        threshold:
-            The number of grains at which a site topples.
+    Attributes:
+        default_visual_:
+            The visual of the site when it sets none.
 
     Examples:
         >>> from skcomplex.models.physics.criticality import SandpileCellElement
-        >>> SandpileCellElement('site').threshold
-        4
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        height: Annotated[float, StateSpec(domain=NN)] = 0,
-        threshold: int = 4,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.height = height
-        self.threshold = threshold
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the drive by single grains and the toppling relaxation.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        threshold = self.threshold
-
-        def topple(height: Array, *around: Array) -> Array:
-            return height - threshold * (height >= threshold) + sum(item >= threshold for item in around)
-
-        return [
-            CascadeLaw(
-                drive=[DriveLaw(s.height, _drop_grain)],
-                relax=[LocalRuleLaw(s.height, NEAREST, topple)],
-                stable=lambda heights: bool((heights < threshold).all()),
-                activity=lambda heights: heights >= threshold,
-                label='avalanche',
-            ),
-        ]
-
-
-class MannaCellElement(Element):
-    """Site of the Manna sandpile, which topples when it holds two grains and sends each to a random neighbour.
-
-    Every step drops one grain on a random site, then all sites with two or more grains topple at once until the pile
-    is stable. Grains that topple over the edge leave the pile.
-
-    Args:
-        label:
-            The label of the site or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        height:
-            The initial number of grains.
-
-    Examples:
-        >>> from skcomplex.models.physics.criticality import MannaCellElement
-        >>> MannaCellElement('site').height
+        >>> SandpileCellElement('site').height
         0
     """
 
@@ -154,33 +71,69 @@ class MannaCellElement(Element):
         super().__init__(label, visual=visual)
         self.height = height
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the drive by single grains and the stochastic toppling relaxation.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class AvalancheInteraction(CascadeInteraction):
+    """Slowly driven sandpile: every step drops one grain on a random site, and the full sites topple in avalanches.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            CascadeLaw(
-                drive=[DriveLaw(s.height, _drop_grain)],
-                relax=[DriveLaw(s.height, _topple_at_random)],
-                stable=lambda heights: bool((heights < MANNA_THRESHOLD).all()),
-                activity=lambda heights: heights >= MANNA_THRESHOLD,
-                label='avalanche',
-            ),
-        ]
+    A site that holds `threshold` grains topples. In the mode `'redistribute'` it sends one grain to each of its
+    neighbours, as in the Bak-Tang-Wiesenfeld sandpile, and in the mode `'random'` every grain goes to a neighbour drawn
+    at random, as in the Manna sandpile. Grains that topple over a fixed edge leave the pile, and every avalanche is
+    recorded as an event under the label of the interaction.
+
+    Args:
+        label:
+            The label of the interaction and of its avalanche events.
+
+        target:
+            The path of the lattice group of sites.
+
+        state:
+            The name of the state that holds the grains.
+
+        threshold:
+            The number of grains at which a site topples.
+
+        mode:
+            `'redistribute'` or `'random'`.
+
+    Examples:
+        >>> from skcomplex.models.physics.criticality import AvalancheInteraction
+        >>> AvalancheInteraction('avalanche', target='pile', threshold=2, mode='random').share
+        1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        state: str = 'height',
+        threshold: int = 4,
+        mode: str = 'redistribute',
+    ) -> None:
+        super().__init__(
+            label,
+            target=target,
+            state=state,
+            threshold=threshold,
+            share=1,
+            mode=mode,
+            drive=self._drop_grain,
+        )
+
+    @staticmethod
+    def _drop_grain(heights: Array, *, random: np.random.Generator) -> Array:
+        """Return the heights with one grain added on a random site."""
+        following = heights.copy()
+        following[tuple(random.integers(size) for size in heights.shape)] += 1
+        return following
 
 
 class ForestElement(Element):
     """Site of the Drossel-Schwabl forest fire: empty at 0, a tree at 1, or burning at 2.
 
-    Trees grow on empty sites with probability `growth`, catch fire from a burning neighbour or from lightning with
-    probability `lightning`, and burning sites become empty.
+    A `FireInteraction` grows trees on empty sites with probability `growth`, sets them on fire from a burning
+    neighbour or from lightning with probability `lightning`, and empties burning sites.
 
     Args:
         label:
@@ -218,89 +171,54 @@ class ForestElement(Element):
         self.growth = growth
         self.lightning = lightning
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the stochastic rule of growth, fire, and burning out.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class FireInteraction(LocalRuleInteraction):
+    """Stochastic rule of the Drossel-Schwabl forest fire on a cover of 0 for empty, 1 for a tree, and 2 for burning.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [LocalRuleLaw(s.cover, NEAREST, _burn, stochastic=True)]
-
-
-def _burn(cover: Array, *around: Array, growth: float | Array, lightning: float | Array, random: Array) -> Array:
-    """Return the covers after trees catch fire from burning neighbours or lightning, fires burn out, and trees grow."""
-    burning = np.any(np.stack(around) == BURNING, axis=0) if around else np.zeros(np.shape(cover), dtype=bool)
-    ignites = burning | (random < lightning)
-    tree = np.where(ignites, float(BURNING), 1.0)
-    empty = np.where(random < growth, 1.0, 0.0)
-    return np.where(cover == BURNING, 0.0, np.where(cover == 1, tree, empty))
-
-
-class SpreadingForestElement(Element):
-    """Site of the Drossel-Schwabl forest fire on a triangular lattice or a graph: empty at 0, a tree, or burning at 2.
-
-    Fire spreads to the six neighbours of a site of a triangular lattice, whose cells are the hexagons of a hexagonal
-    tiling, or to the neighbours of a node along its edges. Trees grow on empty sites with probability `growth`, catch
-    fire from a burning neighbour or from lightning with probability `lightning`, and burning sites become empty.
+    Every step a tree catches fire from a burning neighbour or from lightning with the probability `lightning` of the
+    site, a burning site becomes empty, and a tree grows on an empty site with the probability `growth` of the site.
 
     Args:
         label:
-            The label of the site or the lattice group.
+            The label of the interaction, unique among the parts of its system.
 
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
+        target:
+            The path of the lattice or network group of sites.
 
-        cover:
-            The initial cover, 0, 1, or 2.
-
-        growth:
-            The probability that a tree grows on an empty site per step.
-
-        lightning:
-            The probability that lightning strikes a tree per step.
-
-        neighbors:
-            `'triangular'` for the six neighbours of a triangular lattice or `'graph'` for the neighbours of a node.
+        neighborhood:
+            The neighbours a fire spreads to, the von Neumann neighbourhood of a square lattice, the six neighbours of
+            a triangular lattice, or the neighbours of a node, each with the site itself.
 
     Examples:
-        >>> from skcomplex.models.physics.criticality import SpreadingForestElement
-        >>> SpreadingForestElement('site').neighbors
-        'triangular'
+        >>> from skcomplex.models.physics.criticality import FireInteraction
+        >>> FireInteraction('fire', target='forest').stochastic
+        True
     """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
         *,
-        cover: Annotated[float, StateSpec(domain=NN)] = 0,
-        growth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        lightning: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-        neighbors: str = 'triangular',
+        target: Annotated[str, RoleSpec()],
+        neighborhood: BaseNeighborhood = NEAREST,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.cover = cover
-        self.growth = growth
-        self.lightning = lightning
-        self.neighbors = neighbors
+        super().__init__(
+            label,
+            target=target,
+            state='cover',
+            rule=self._burn,
+            neighborhood=neighborhood,
+            stochastic=True,
+        )
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the stochastic rule of growth, fire, and burning out over the neighbours of the site.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [LocalRuleLaw(s.cover, SITE_NEIGHBORHOODS[self.neighbors], _burn, stochastic=True)]
+    @staticmethod
+    def _burn(cover: Array, *around: Array, growth: float | Array, lightning: float | Array, random: Array) -> Array:
+        """Return the covers after trees catch fire, fires burn out, and trees grow."""
+        burning = np.any(np.stack(around) == BURNING, axis=0) if around else np.zeros(np.shape(cover), dtype=bool)
+        ignites = burning | (random < lightning)
+        tree = np.where(ignites, float(BURNING), 1.0)
+        empty = np.where(random < growth, 1.0, 0.0)
+        return np.where(cover == BURNING, 0.0, np.where(cover == 1, tree, empty))
 
 
 @register_model(
@@ -335,6 +253,7 @@ def sandpile(shape: Sequence[int] = (50, 50), *, random_state: int | np.random.G
     space = LatticeSpace(tuple(shape), boundary='fixed')
     return System(
         elements=[LatticeElement('pile', element=SandpileCellElement, space=space, values={'height': heights})],
+        interactions=[AvalancheInteraction('avalanche', target='pile')],
     )
 
 
@@ -369,7 +288,8 @@ def manna_sandpile(shape: Sequence[int] = (32, 32), *, random_state: int | np.ra
     heights = np.random.default_rng(random_state).integers(0, MANNA_THRESHOLD, size=tuple(shape)).astype(float)
     space = LatticeSpace(tuple(shape), boundary='fixed')
     return System(
-        elements=[LatticeElement('pile', element=MannaCellElement, space=space, values={'height': heights})],
+        elements=[LatticeElement('pile', element=SandpileCellElement, space=space, values={'height': heights})],
+        interactions=[AvalancheInteraction('avalanche', target='pile', threshold=MANNA_THRESHOLD, mode='random')],
     )
 
 
@@ -425,6 +345,7 @@ def forest_fire(
                 values={'cover': cover, 'growth': growth, 'lightning': lightning},
             ),
         ],
+        interactions=[FireInteraction('fire', target='forest')],
     )
 
 
@@ -495,13 +416,9 @@ def hexagonal_forest_fire(
     )
     forest = LatticeElement(
         'forest',
-        element=SpreadingForestElement,
+        element=ForestElement,
         space=space,
-        values={
-            'cover': initial,
-            'growth': growth,
-            'lightning': lightning,
-            'neighbors': 'triangular' if graph is None else 'graph',
-        },
+        values={'cover': initial, 'growth': growth, 'lightning': lightning},
     )
-    return System(elements=[forest])
+    neighborhood = SITE_NEIGHBORHOODS['triangular' if graph is None else 'graph']
+    return System(elements=[forest], interactions=[FireInteraction('fire', target='forest', neighborhood=neighborhood)])

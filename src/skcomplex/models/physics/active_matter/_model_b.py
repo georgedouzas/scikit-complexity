@@ -22,28 +22,55 @@ from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
-def _active_model_b_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the rate and the conserved noise of Active Model B+ for one site."""
-    phi = s.phi
-    slope = gradient(phi)
-    potential = -phi + phi**3 - s.kappa * laplacian(phi) + s.lam * sum(item**2 for item in slope)
-    active = [s.zeta * laplacian(phi) * item for item in slope]
-    return [RateLaw(phi, laplacian(potential) - divergence(active)), NoiseLaw(phi, sqrt(2 * s.D), conserved=True)]
-
-
 class ActiveScalarElement(Element):
-    """Active scalar element."""
+    """Site of Active Model B+, a conserved scalar field `phi` that phase separates with active currents.
+
+    The field follows `phi_t = laplacian(mu) - div(zeta laplacian(phi) grad phi) + div(sqrt(2 D) eta)`, with the
+    chemical potential `mu = -phi + phi^3 - kappa laplacian(phi) + lam |grad phi|^2`. The active terms `lam` and `zeta`
+    break the detailed balance of the Cahn-Hilliard equation, and a large `zeta` reverses Ostwald ripening.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the site is drawn, or `None` for `default_visual_`.
+
+        phi:
+            The initial field.
+
+        kappa:
+            The stiffness of the interfaces.
+
+        lam:
+            The active term of the chemical potential.
+
+        zeta:
+            The active current.
+
+        D:
+            The strength of the conserved noise.
+
+    Attributes:
+        default_visual_:
+            The visual of the element when it sets none.
+
+    Examples:
+        >>> from skcomplex.models.physics.active_matter import ActiveScalarElement
+        >>> ActiveScalarElement('site').zeta
+        4.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        phi: Annotated[object, StateSpec()] = 0.0,
-        kappa: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        lam: Annotated[object, ParameterSpec()] = 1.0,
-        zeta: Annotated[object, ParameterSpec()] = 4.0,
-        D: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        phi: Annotated[float, StateSpec()] = 0.0,
+        kappa: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        lam: Annotated[float, ParameterSpec()] = 1.0,
+        zeta: Annotated[float, ParameterSpec()] = 4.0,
+        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
     ) -> None:
         super().__init__(label, visual=visual)
         self.phi = phi
@@ -52,9 +79,23 @@ class ActiveScalarElement(Element):
         self.zeta = zeta
         self.D = D
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the active scalar element."""
-        return _active_model_b_laws(s)
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the conserved rate and the conserved noise of the field.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate and the noise of `phi`.
+        """
+        s = namespace
+        phi = s.phi
+        slope = gradient(phi)
+        potential = -phi + phi**3 - s.kappa * laplacian(phi) + s.lam * sum(item**2 for item in slope)
+        active = [s.zeta * laplacian(phi) * item for item in slope]
+        return [RateLaw(phi, laplacian(potential) - divergence(active)), NoiseLaw(phi, sqrt(2 * s.D), conserved=True)]
 
 
 @register_model(

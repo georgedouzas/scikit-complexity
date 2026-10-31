@@ -21,19 +21,58 @@ from ..._catalog import register_model
 
 
 class ChemotaxisElement(Element):
-    """Chemotaxis element."""
+    """Site of the Keller-Segel model, cells of density `rho` that climb the gradient of a chemical `c` they secrete.
+
+    The cells diffuse and drift up the chemical, `rho_t = D laplacian(rho) - chi div(rho grad c)`, and the chemical
+    diffuses, is secreted by the cells, and decays, `c_t = Dc laplacian(c) + rho - k c`. Above a critical mass the cells
+    aggregate and the density blows up in finite time.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the site is drawn, or `None` for `default_visual_`.
+
+        rho:
+            The initial density of cells.
+
+        c:
+            The initial concentration of the chemical.
+
+        D:
+            The diffusion coefficient of the cells.
+
+        chi:
+            The chemotactic sensitivity.
+
+        Dc:
+            The diffusion coefficient of the chemical.
+
+        k:
+            The decay rate of the chemical.
+
+    Attributes:
+        default_visual_:
+            The visual of the element when it sets none.
+
+    Examples:
+        >>> from skcomplex.models.physics.active_matter import ChemotaxisElement
+        >>> ChemotaxisElement('site').chi
+        5.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        rho: Annotated[object, StateSpec()] = 1.0,
-        c: Annotated[object, StateSpec()] = 1.0,
-        D: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        chi: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        Dc: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        k: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        rho: Annotated[float, StateSpec()] = 1.0,
+        c: Annotated[float, StateSpec()] = 1.0,
+        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        chi: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        Dc: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.rho = rho
@@ -43,8 +82,18 @@ class ChemotaxisElement(Element):
         self.Dc = Dc
         self.k = k
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the chemotaxis element."""
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the drift and diffusion of the cells and the balance of the chemical.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rates of `rho` and `c`.
+        """
+        s = namespace
         return [
             RateLaw(s.rho, s.D * laplacian(s.rho) - s.chi * divergence(s.rho * gradient(s.c))),
             RateLaw(s.c, s.Dc * laplacian(s.c) + s.rho - s.k * s.c),
