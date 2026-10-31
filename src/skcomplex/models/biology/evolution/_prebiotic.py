@@ -5,6 +5,7 @@
 
 import itertools
 from collections.abc import Sequence
+from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,18 +14,38 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.interactions import MapInteraction
 from ....core.laws.utils import total
 from ....core.system import System
 from ....errors import ValidationError
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._replicator import ReplicatorInteraction
 
 
 def _mean_fitness(master: SimpleNamespace) -> Expression:
     """Return the mean fitness `x0 + (1 - sigma) (1 - x0)` of a population around a master sequence."""
     return master.x + (1 - master.sigma) * (1 - master.x)
+
+
+def _replicate_master(s: SimpleNamespace) -> Expression:
+    """Return the next share of the master sequence, replicated without mutation, `x0 (1 - u) / <W>`."""
+    master = s.target
+    return master.x * (1 - master.u) / _mean_fitness(master)
+
+
+def _replicate_mutants(s: SimpleNamespace, *, first: bool, last: bool) -> Expression:
+    """Return the next share of a class of mutants, `(u W_{k-1} x_{k-1} + kept (1 - sigma) x_k) / <W>`.
+
+    The sources are the class one mutation closer to the master sequence and the master sequence. The fitness of the
+    source is 1 for the first class, whose source is the master sequence, and the last class keeps its own mutants.
+    """
+    source, master = s.sources
+    u, sigma = master.u, master.sigma
+    source_fitness = 1 if first else 1 - sigma
+    kept = 1 if last else 1 - u
+    gained = u * source_fitness * source.x + kept * (1 - sigma) * s.target.x
+    return gained / _mean_fitness(master)
 
 
 class GenotypeClassElement(Element):
@@ -61,7 +82,8 @@ class MasterSequenceElement(GenotypeClassElement):
     """Share of the population with the fittest genome, in a sharp-peak landscape where every other genome is less fit.
 
     The master sequence has fitness 1 and every other genome `1 - sigma`. A genome mutates at one locus with
-    probability `u` per generation.
+    probability `u` per generation. The master sequence holds the parameters of the landscape that the maps of every
+    class read.
 
     Args:
         label:
@@ -98,84 +120,28 @@ class MasterSequenceElement(GenotypeClassElement):
         self.u = u
         self.sigma = sigma
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the replication of the master sequence without mutation, `x0' = x0 (1 - u) / <W>`.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [UpdateLaw(s.x, s.x * (1 - s.u) / _mean_fitness(s))]
-
-
-class MutationInteraction(Interaction):
-    """Replication of a class of mutants, which gains the mutants of the class before it and loses its own.
-
-    With the mean fitness `<W>`, the share `k` steps from the master sequence follows
-    `x_k' = (u W_{k-1} x_{k-1} + (1 - u) (1 - sigma) x_k) / <W>`, where `W_0 = 1` and `W_k = 1 - sigma` otherwise.
-    The last class of a truncated chain keeps its own mutants.
+class MoleculeElement(Element):
+    """Self-replicating molecule of a prebiotic soup, with its concentration `x` and its own growth rate.
 
     Args:
         label:
-            The label of the interaction.
+            The label of the molecule or of the group of molecules.
 
-        target:
-            The path of the class.
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
-        source:
-            The path of the class one mutation closer to the master sequence.
+        x:
+            The initial concentration.
 
-        master:
-            The path of the master sequence.
-
-        last:
-            Whether the class is the last of the chain.
+        growth:
+            The rate of replication without catalysis.
 
     Examples:
-        >>> from skcomplex.models.biology.evolution import MutationInteraction
-        >>> MutationInteraction('mutation_k1', target='k1', source='master', master='master').last
-        False
+        >>> from skcomplex.models.biology.evolution import MoleculeElement
+        >>> MoleculeElement('molecule', growth=0.1).growth
+        0.1
     """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        source: Annotated[str, RoleSpec()],
-        master: Annotated[str, RoleSpec()],
-        last: bool = False,
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.source = source
-        self.master = master
-        self.last = last
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next share of the class.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        u, sigma = s.master.u, s.master.sigma
-        source_fitness = 1 if self.source == self.master else 1 - sigma
-        kept = 1 if self.last else 1 - u
-        gained = u * source_fitness * s.source.x + kept * (1 - sigma) * s.target.x
-        return [UpdateLaw(s.target.x, gained / _mean_fitness(s.master))]
-
-
-class MoleculeElement(Element):
-    """Molecule element."""
 
     def __init__(
         self,
@@ -190,18 +156,18 @@ class MoleculeElement(Element):
         self.growth = growth
 
 
-class CatalysisInteraction(Interaction):
+class CatalysisInteraction(ReplicatorInteraction):
     """Catalysed replication of the molecules of a group, with a common outflow that keeps the total at 1.
 
-    Molecule `i` replicates at the rate `lambda_i + omega sum_j T_ij x_j`, with the 0 or 1 topology `T` of the
-    catalytic links read as the weights of a total over the molecules, and the outflow `phi` is the total replication:
-    `dx_i/dt = x_i (lambda_i + omega sum_j T_ij x_j - phi)`.
+    Molecule `i` replicates at the rate `f_i = lambda_i + omega sum_j T_ij x_j`, with its own growth `lambda_i` and the
+    0 or 1 topology `T` of the catalytic links read as the weights of a total over the molecules. The outflow is the
+    total replication, so the concentrations follow the replicator equation `dx_i/dt = x_i (f_i - sum_j x_j f_j)`.
 
     Args:
         label:
             The label of the interaction.
 
-        molecules:
+        target:
             The path of the group of molecules.
 
         omega:
@@ -212,7 +178,7 @@ class CatalysisInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.models.biology.evolution import CatalysisInteraction
-        >>> CatalysisInteraction('catalysis', molecules='soup', topology=((0, 1), (1, 0))).topology
+        >>> CatalysisInteraction('catalysis', target='soup', topology=((0, 1), (1, 0))).topology
         ((0, 1), (1, 0))
     """
 
@@ -220,30 +186,34 @@ class CatalysisInteraction(Interaction):
         self,
         label: str,
         *,
-        molecules: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
         omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         topology: Sequence[Sequence[float]] = ((0.0, 1.0), (1.0, 0.0)),
     ) -> None:
-        super().__init__(label)
-        self.molecules = molecules
+        super().__init__(label, target=target)
         self.omega = omega
         self.topology = topology
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the catalysed replication and the common outflow.
+    def _check_fitness(self) -> None:
+        """Leave the fitness unchecked, since the catalysis derives it from its topology."""
+
+    def _get_fitness(self, namespace: SimpleNamespace) -> Expression:
+        """Return the catalysed growth `lambda_i + omega sum_j T_ij x_j` of a molecule.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the fitness can use, with the namespace of the target.
 
         Returns:
-            laws:
-                The laws of the component.
+            fitness:
+                The fitness of the molecule.
         """
-        molecule = s.molecules
-        rate = molecule.growth + s.omega * total(molecule.x, weights=np.asarray(self.topology, dtype=float))
-        replication = molecule.x * rate
-        return [RateLaw(molecule.x, replication - molecule.x * total(replication))]
+        molecule = namespace.target
+        fitness: Expression = molecule.growth + namespace.omega * total(
+            molecule.x,
+            weights=np.asarray(self.topology, dtype=float),
+        )
+        return fitness
 
 
 @register_model(
@@ -283,16 +253,18 @@ def eigen_quasispecies(classes: int = 12, *, u: float = 0.3, sigma: float = 0.5)
         MasterSequenceElement('master', x=1.0, u=u, sigma=sigma),
         *(GenotypeClassElement(label) for label in labels[1:]),
     ]
-    interactions = [
-        MutationInteraction(
+    selection = MapInteraction('selection', target='master', state='x', function=_replicate_master)
+    mutations = [
+        MapInteraction(
             f'mutation_{target}',
             target=target,
-            source=source,
-            master='master',
-            last=target == labels[-1],
+            state='x',
+            function=partial(_replicate_mutants, first=source == 'master', last=target == labels[-1]),
+            sources=(source, 'master'),
         )
         for source, target in itertools.pairwise(labels)
     ]
+    interactions = [selection, *mutations]
     return System(elements=elements, interactions=interactions)
 
 
@@ -360,7 +332,7 @@ def hypercycles(
     )
     catalysis = CatalysisInteraction(
         'catalysis',
-        molecules='soup',
+        target='soup',
         omega=omega,
         topology=tuple(tuple(float(value) for value in row) for row in links),
     )

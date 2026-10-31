@@ -4,31 +4,24 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, Expression, oo
+from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, LatticeElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, LocalRuleLaw, RateLaw
+from ....core.interactions import LocalRuleInteraction
 from ....core.laws.utils import total
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
-from ....specs import RoleSpec, StateSpec, VisualSpec
+from ....specs import StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._replicator import ReplicatorInteraction
 
 NEAREST = VonNeumannNeighborhood()
 STRATEGIES = 3
-
-
-def _replicator_rate(x: Expression, payoff: Array) -> Expression:
-    """Return the replicator rate `x_i ((A x)_i - x . A x)` of a strategy that reads the payoff matrix as weights."""
-    fitness = total(x, weights=payoff)
-    return x * (fitness - total(x * fitness))
 
 
 def _invade(strategy: Array, *around: Array, random: Array) -> Array:
@@ -40,7 +33,23 @@ def _invade(strategy: Array, *around: Array, random: Array) -> Array:
 
 
 class StrategyElement(Element):
-    """Strategy element."""
+    """Strategy of an evolutionary game, with the share `x` of the population that plays it.
+
+    Args:
+        label:
+            The label of the strategy or of the group of strategies.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial share.
+
+    Examples:
+        >>> from skcomplex.models.biology.evolution import StrategyElement
+        >>> StrategyElement('hawks', x=0.4).x
+        0.4
+    """
 
     def __init__(
         self,
@@ -53,58 +62,11 @@ class StrategyElement(Element):
         self.x = x
 
 
-class ReplicationInteraction(Interaction):
-    """Replicator equation of the strategies of a group, `dx_i/dt = x_i ((A x)_i - x . A x)`, with a payoff matrix `A`.
-
-    Every strategy is a member of the group, and its fitness `(A x)_i` is a total over the strategies weighted by its
-    row of the payoff matrix. The mean fitness `x . A x` is the total of the shares times their fitness.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        population:
-            The path of the group of strategies.
-
-        payoff:
-            The payoff matrix, one row per strategy.
-
-    Examples:
-        >>> from skcomplex.models.biology.evolution import ReplicationInteraction
-        >>> ReplicationInteraction('replication', population='players', payoff=((0, 1), (1, 0))).payoff
-        ((0, 1), (1, 0))
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        population: Annotated[str, RoleSpec()],
-        payoff: Sequence[Sequence[float]] = ((0.0, 0.0), (0.0, 0.0)),
-    ) -> None:
-        super().__init__(label)
-        self.population = population
-        self.payoff = payoff
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the replicator equation of the payoff matrix.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        payoff = np.asarray(self.payoff, dtype=float)
-        return [RateLaw(s.population.x, _replicator_rate(s.population.x, payoff))]
-
-
 class CyclicSpeciesElement(Element):
     """Site of a lattice of rock, paper, and scissors, 0, 1, and 2, where each strategy beats the one before it.
 
-    Sites update one at a time in random order, and a site adopts the strategy of a random neighbour that beats it.
+    The sites update one at a time in random order by a `LocalRuleInteraction`, and a site adopts the strategy of a
+    random neighbour that beats it.
 
     Args:
         label:
@@ -131,19 +93,6 @@ class CyclicSpeciesElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.strategy = strategy
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the stochastic invasion by a random neighbour.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [LocalRuleLaw(s.strategy, NEAREST, _invade, schedule='random-sequential', stochastic=True)]
 
 
 @register_model(
@@ -192,7 +141,12 @@ def replicator_dynamics(
     strategies = len(matrix)
     shares = [1 / strategies] * strategies if x is None else list(x)
     population = GroupElement('population', element=StrategyElement, size=strategies, values={'x': shares})
-    replication = ReplicationInteraction('replication', population='population', payoff=matrix)
+    weights = np.asarray(matrix, dtype=float)
+    replication = ReplicatorInteraction(
+        'replication',
+        target='population',
+        fitness=lambda s: total(s.target.x, weights=weights),
+    )
     return System(elements=[population], interactions=[replication])
 
 
@@ -236,6 +190,17 @@ def rock_paper_scissors(
                 element=CyclicSpeciesElement,
                 space=LatticeSpace(tuple(shape)),
                 values={'strategy': strategies},
+            ),
+        ],
+        interactions=[
+            LocalRuleInteraction(
+                'invasion',
+                target='lattice',
+                state='strategy',
+                rule=_invade,
+                neighborhood=NEAREST,
+                schedule='random-sequential',
+                stochastic=True,
             ),
         ],
     )
