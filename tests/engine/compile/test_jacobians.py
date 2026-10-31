@@ -8,9 +8,10 @@ import skfem
 from sage.all__sagemath_symbolics import sin, tanh
 
 from skcomplex.core.elements import Element, FieldElement, GroupElement
+from skcomplex.core.interactions import PairCouplingInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import count, laplacian, maximum, mean, minimum, total, variance, where
-from skcomplex.core.spaces import LatticeSpace, MeshSpace
+from skcomplex.core.spaces import ContinuousSpace, LatticeSpace, MeshSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import compile_system
@@ -19,9 +20,9 @@ from skcomplex.engine.solvers import IMEXEulerSolver
 from skcomplex.errors import ValidationError
 from skcomplex.models.biology.ecology import FisherKPPElement
 from skcomplex.models.chemistry.pattern_formation import gray_scott
+from skcomplex.models.physics.common.oscillators import SitedOscillatorElement
 from skcomplex.models.physics.fluids import kuramoto_sivashinsky
 from skcomplex.models.physics.heat import heat_diffusion, heat_l_shape
-from skcomplex.models.physics.synchronization import nonlocal_ring_chimera
 from skcomplex.specs import ParameterSpec, RunStateSpec, StateSpec, VisualSpec
 
 RNG = np.random.default_rng(1)
@@ -97,9 +98,25 @@ def test_jacobian_against_finite_differences(laws):
     assert pattern[np.abs(estimate) > 1e-9].all()
 
 
+def _pair_ring(size):
+    """Return phase oscillators on a periodic ring, coupled by the sine of their phase differences within two sites."""
+    values = {'theta': RNG.uniform(0, 2 * np.pi, size), 'x': np.arange(size, dtype=float).reshape(-1, 1)}
+    ring = GroupElement('ring', element=SitedOscillatorElement, size=size, values=values)
+    coupling = PairCouplingInteraction(
+        'coupling',
+        'ring',
+        'ring',
+        cutoff=2.5,
+        write='theta',
+        function=lambda s: sin(s.second.theta - s.first.theta),
+        period=float(size),
+    )
+    return System(elements=[ring], interactions=[coupling], space=ContinuousSpace(n_dim=1))
+
+
 def test_jacobian_of_pair_sums_is_not_derived():
     """Test that the exact Jacobian of a pair interaction raises an error that names the interaction."""
-    problem = compile_system(nonlocal_ring_chimera(10, R=2))
+    problem = compile_system(_pair_ring(10))
     with pytest.raises(ValidationError, match=r'coupling.*finite differences'):
         problem.jacobian.prepare(problem).run(RunStateSpec(0.0, problem.initial_state, problem.initial_parameters))
 
@@ -205,7 +222,7 @@ def test_pattern_agrees_with_split_solver(system):
 
 @pytest.mark.parametrize(
     ('system', 'block'),
-    [(nonlocal_ring_chimera(12, R=2), 12), (kuramoto_sivashinsky(16), 16)],
+    [(_pair_ring(12), 12), (kuramoto_sivashinsky(16), 16)],
     ids=['pairs', 'spectral'],
 )
 def test_run_time_couplings_are_dense(system, block):
