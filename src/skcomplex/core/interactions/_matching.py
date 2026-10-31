@@ -16,8 +16,8 @@ from ..laws.utils import transfer
 from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._base_matching_protocol import BaseMatchingProtocol
-from ._clearing_spec import ClearingSpec
 from ._interaction import Interaction
+from ._matching_round_spec import MatchingRoundSpec
 from ._offer import _Offer
 from ._random_search_protocol import RandomSearchProtocol
 
@@ -27,15 +27,16 @@ SIGNS = (-1, 1)
 class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     """Matching of the members of a group of requesters with those of a group of providers by a protocol.
 
-    Requesters state the highest price they accept in their `limit` state, the quantity they want in their `quantity`
-    state, and what they can spend in their `budget` state, and providers the lowest price they accept and the quantity
-    they offer. A name given as a pair names the state of the requesters first and of the providers second, and a
-    missing state counts as no limit, one unit, and no budget. Every match lowers the quantities of both sides and
-    moves every state of `transfers`: a negative sign moves `price * quantity` from the requester to the provider, and
-    a positive sign moves `quantity` from the provider to the requester, so the totals stay the same.
-    `on_match(match, model)` adds any other effect. The matching runs once per round of its phase and reports the
-    quantity-weighted `price`, the matched `volume`, and the `unmatched` quantity left, as the reporters
-    `<label>.price`, `<label>.volume`, and `<label>.unmatched`.
+    Requesters state the highest clearing value they accept in their `limit` state, the quantity they want in their
+    `quantity` state, and the most value they can give in their `budget` state, and providers the lowest clearing value
+    they accept and the quantity they offer. A name given as a pair names the state of the requesters first and of the
+    providers second, and a missing state counts as no limit, one unit, and no budget. The `price` of a match is its
+    clearing value per unit. Every match lowers the quantities of both sides and moves every state of `transfers`: a
+    negative sign moves `price * quantity` from the requester to the provider, and a positive sign moves `quantity`
+    from the provider to the requester, so the totals stay the same. `on_match(match, model)` adds any other effect.
+    The matching runs once per round of its phase and reports the quantity-weighted clearing value `price`, the matched
+    `volume`, and the `unmatched` quantity left, as the reporters `<label>.price`, `<label>.volume`, and
+    `<label>.unmatched`.
 
     Args:
         label:
@@ -48,21 +49,21 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
             The path of the group of providers.
 
         protocol:
-            The protocol that matches the members, such as `PriceTimePriorityProtocol()`, or `None` for
+            The protocol that matches the members, such as `ContinuousClearingProtocol()`, or `None` for
             `RandomSearchProtocol()`.
 
         limit:
-            The state with the limit price of both sides, or a pair of the requesters' and the providers' states.
+            The state with the limit of both sides, or a pair of the requesters' and the providers' states.
 
         quantity:
             The state with the quantity of both sides, or a pair of the requesters' and the providers' states.
 
         budget:
-            The state of a requester with what it can spend.
+            The state of a requester with the most value it can give.
 
         transfers:
-            The states every match moves, each with the sign `-1` for a payment of the requester or `1` for a
-            delivery to the requester.
+            The states every match moves, each with the sign `-1` for a move from the requester to the provider or
+            `1` for a move from the provider to the requester.
 
         phase:
             The phase the matching runs in, or `None` for the default phase.
@@ -75,12 +76,12 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
             A transfer has a sign other than `-1` or `1`, raised by `check`.
 
     Examples:
-        >>> from skcomplex.core.interactions import MatchingInteraction, PriceTimePriorityProtocol
+        >>> from skcomplex.core.interactions import MatchingInteraction, ContinuousClearingProtocol
         >>> matching = MatchingInteraction(
         ...     'exchange',
         ...     requesters='traders',
         ...     providers='traders',
-        ...     protocol=PriceTimePriorityProtocol(),
+        ...     protocol=ContinuousClearingProtocol(),
         ...     limit=('bid', 'ask'),
         ... )
         >>> matching.check().reports
@@ -223,7 +224,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         """
         requesters, providers = self._get_offers(model)
         protocol = RandomSearchProtocol().check().prepare() if self.protocol is None else self.protocol
-        matches = protocol.run(ClearingSpec(requesters, providers, model.rng, model.storage)).trades_
+        matches = protocol.run(MatchingRoundSpec(requesters, providers, model.rng, model.storage)).trades_
         for match in matches:
             self._settle(match, model)
         unmatched = sum(offer.quantity for offer in requesters + providers)

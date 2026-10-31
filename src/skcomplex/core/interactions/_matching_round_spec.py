@@ -1,4 +1,4 @@
-"""Define the clearing spec."""
+"""Define the spec of one round of a matching."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,8 +13,8 @@ from ._offer import _Offer
 
 
 @dataclass(frozen=True)
-class ClearingSpec(BaseSpec):
-    """Offers of one clearing of a matching, with the random generator and the storage that persists across clearings.
+class MatchingRoundSpec(BaseSpec):
+    """Offers of one round of a matching, with the random generator and the storage that persists across rounds.
 
     Args:
         requesters:
@@ -27,12 +27,12 @@ class ClearingSpec(BaseSpec):
             The random generator, such as `model.rng`.
 
         storage:
-            The storage of the matching that persists across clearings, such as `model.storage`.
+            The storage of the matching that persists across rounds, such as `model.storage`.
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.interactions import ClearingSpec
-        >>> ClearingSpec([], [], np.random.default_rng(0), {}).check().requesters
+        >>> from skcomplex.core.interactions import MatchingRoundSpec
+        >>> MatchingRoundSpec([], [], np.random.default_rng(0), {}).check().requesters
         []
     """
 

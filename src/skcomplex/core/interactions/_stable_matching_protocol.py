@@ -12,7 +12,7 @@ from matching.games import HospitalResident
 
 from ...specs import MatchSpec
 from ..types import Preference
-from ._base_matching_protocol import PRICINGS, BaseMatchingProtocol
+from ._base_matching_protocol import CLEARINGS, BaseMatchingProtocol
 from ._offer import _Offer
 
 
@@ -22,7 +22,7 @@ class StableMatchingProtocol(BaseMatchingProtocol):
     Requesters rank the providers whose limit they accept by `requester_preference(requester, provider)`, by default
     the lower limit, and providers rank the requesters by `provider_preference(provider, requester)`, by default the
     higher limit. The requester-optimal stable matching, from the hospital-resident solver of the `matching` library,
-    pairs every requester with at most one provider, and each pair matches one unit at the price of the pricing rule.
+    pairs every requester with at most one provider, and each pair matches one unit at the value of the clearing rule.
 
     Args:
         requester_preference:
@@ -33,16 +33,16 @@ class StableMatchingProtocol(BaseMatchingProtocol):
             The score of a requester for a provider, a function of their agent views, higher for preferred
             requesters, or `None` for the higher limit.
 
-        pricing:
-            The price of a match, `'provider'`, `'requester'`, or `'midpoint'`.
+        clearing:
+            The value of a match, `'provider'`, `'requester'`, or `'midpoint'`.
 
     Raises:
         ValidationError:
-            The pricing rule is unknown, raised by `check`.
+            The clearing rule is unknown, raised by `check`.
 
     Examples:
         >>> from skcomplex.core.interactions import StableMatchingProtocol
-        >>> StableMatchingProtocol(pricing='requester').check().pricing
+        >>> StableMatchingProtocol(clearing='requester').check().clearing
         'requester'
     """
 
@@ -50,15 +50,15 @@ class StableMatchingProtocol(BaseMatchingProtocol):
         self,
         requester_preference: Preference | None = None,
         provider_preference: Preference | None = None,
-        pricing: str = 'provider',
+        clearing: str = 'provider',
     ) -> None:
         self.requester_preference = requester_preference
         self.provider_preference = provider_preference
-        self.pricing = pricing
+        self.clearing = clearing
 
     def _check(self) -> None:
-        """Check the pricing rule."""
-        self._check_option(self.pricing, PRICINGS, 'pricing')
+        """Check the clearing rule."""
+        self._check_option(self.clearing, CLEARINGS, 'clearing')
 
     def _score_provider(self, requester: _Offer, provider: _Offer) -> float:
         """Return the score of a provider for a requester, higher for a preferred provider."""
@@ -146,11 +146,11 @@ class StableMatchingProtocol(BaseMatchingProtocol):
             provider = by_id[hospital.name]
             for resident in residents:
                 requester = by_id[resident.name]
-                price = self._get_price(requester, provider, self.pricing)
-                quantity = min(1.0, requester.get_affordable(price), provider.quantity)
+                value = self._get_value(requester, provider, self.clearing)
+                quantity = min(1.0, requester.get_affordable(value), provider.quantity)
                 if quantity > 0:
                     requester.quantity -= quantity
-                    requester.budget -= quantity * price
+                    requester.budget -= quantity * value
                     provider.quantity -= quantity
-                    trades.append(MatchSpec(requester.agent, provider.agent, quantity, price))
+                    trades.append(MatchSpec(requester.agent, provider.agent, quantity, value))
         return trades

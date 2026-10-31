@@ -17,8 +17,8 @@ class _Offer:
         self.quantity = quantity
         self.budget = budget
 
-    def get_affordable(self, price: float) -> float:
-        """Return the quantity the participant can still match at a price within its budget."""
-        if price <= 0:
+    def get_affordable(self, value: float) -> float:
+        """Return the quantity the participant can still match at a value within its budget."""
+        if value <= 0:
             return self.quantity
-        return max(0.0, min(self.quantity, self.budget / price))
+        return max(0.0, min(self.quantity, self.budget / value))

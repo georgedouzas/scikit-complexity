@@ -1,4 +1,4 @@
-"""Define partner switching, in which requesters sample providers and switch to a cheaper one with a probability."""
+"""Define partner switching, in which requesters sample providers and switch to a lower limit with a probability."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +14,7 @@ from ._offer import _Offer
 
 
 class PartnerSwitchProtocol(BaseMatchingProtocol):
-    """Partner choice that samples providers and switches to a cheaper one with some probability.
+    """Partner choice that samples providers and switches to one of a lower limit with some probability.
 
     The protocol follows chapter 2 of Caiani et al. (2016). Every requester, in random order, samples `sample`
     providers that still offer something. When the lowest limit among them is below the limit of its current partner,

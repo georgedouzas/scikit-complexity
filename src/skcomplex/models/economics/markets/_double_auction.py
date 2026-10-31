@@ -12,10 +12,10 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
 from ....core.interactions import (
+    BatchClearingProtocol,
+    ContinuousClearingProtocol,
     FeedbackInteraction,
     MatchingInteraction,
-    PriceTimePriorityProtocol,
-    UniformPriceProtocol,
 )
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
@@ -368,7 +368,7 @@ def double_auction(
         'auction',
         requesters='buyers',
         providers='sellers',
-        protocol=PriceTimePriorityProtocol() if protocol == 'order_book' else UniformPriceProtocol(),
+        protocol=ContinuousClearingProtocol() if protocol == 'order_book' else BatchClearingProtocol(),
         limit=('bid', 'ask'),
         quantity=('demand', 'supply'),
         phase='trade',

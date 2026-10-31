@@ -1,4 +1,4 @@
-"""Define price-time priority, a continuous matching of arriving offers with the best resting ones."""
+"""Define continuous clearing, which matches every arriving offer with the best resting offers of the other side."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,8 +15,8 @@ from ._offer import _Offer
 ARRIVALS = ('random', 'sequential')
 
 
-class PriceTimePriorityProtocol(BaseMatchingProtocol):
-    """Continuous matching with price-time priority, in which every arriving offer matches the best resting offers.
+class ContinuousClearingProtocol(BaseMatchingProtocol):
+    """Continuous clearing by limit and arrival, in which every arriving offer matches the best resting offers.
 
     Every participant submits one offer, in random order of arrival or in order of creation. An arriving offer matches
     the best offers of the other side, the oldest first among equal limits, at their limits, as long as the limits
@@ -32,8 +32,8 @@ class PriceTimePriorityProtocol(BaseMatchingProtocol):
             The order of arrival is unknown, raised by `check`.
 
     Examples:
-        >>> from skcomplex.core.interactions import PriceTimePriorityProtocol
-        >>> PriceTimePriorityProtocol().check().arrival
+        >>> from skcomplex.core.interactions import ContinuousClearingProtocol
+        >>> ContinuousClearingProtocol().check().arrival
         'random'
     """
 

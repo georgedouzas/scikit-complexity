@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import BaseMatchingProtocol, MatchingInteraction, PriceTimePriorityProtocol
+from ....core.interactions import BaseMatchingProtocol, ContinuousClearingProtocol, MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
@@ -248,7 +248,7 @@ class BookInteraction(MatchingInteraction[ModelView]):
             The path of the group of selling traders.
 
         protocol:
-            The protocol that matches the orders, such as `PriceTimePriorityProtocol()`, or `None` for
+            The protocol that matches the orders, such as `ContinuousClearingProtocol()`, or `None` for
             `RandomSearchProtocol()`.
 
         limit:
@@ -421,7 +421,7 @@ def order_book(
                 'book',
                 requesters='traders',
                 providers='traders',
-                protocol=PriceTimePriorityProtocol(),
+                protocol=ContinuousClearingProtocol(),
                 opening=fundamental,
             ),
         ],
