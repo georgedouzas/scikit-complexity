@@ -12,9 +12,11 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import LifeCycleInteraction, MovementInteraction, TransferInteraction
+from ....core.laws import BaseLaw, RuleLaw, Sink, Source
 from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
@@ -25,20 +27,69 @@ from ._wolf_view import WolfView
 GROWN_SHARE = 0.5
 
 
-def _wander(agent: SheepView | WolfView, model: ModelView) -> None:
-    """Move an animal to a random neighbouring cell and spend one unit of energy."""
-    cells = agent.neighbor_cells()
-    agent.move_to(cells[int(model.rng.integers(len(cells)))])
-    agent.energy -= 1
+def _get_gain(food: AgentViewProtocol, animal: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return the energy `gain` an animal draws from its food."""
+    return float(animal.gain) if isinstance(animal, SheepView | WolfView) else 0.0
 
 
-def _live(agent: SheepView | WolfView, model: ModelView, reproduction: float) -> None:
-    """Remove an animal without energy, or split its energy with an offspring at a reproduction rate."""
-    if agent.energy < 0:
-        agent.remove()
-    elif model.rng.random() < reproduction:
-        agent.energy /= 2
-        agent.create(energy=agent.energy)
+def _is_grown(patch: AgentViewProtocol, sheep: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return whether the grass of a patch is grown, so a sheep eats it."""
+    return isinstance(patch, GrassView) and bool(patch.grown)
+
+
+def _is_starved(animal: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return whether an animal has run out of energy, so it dies."""
+    return isinstance(animal, SheepView | WolfView) and animal.energy < 0
+
+
+def _get_reproduction(animal: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return the probability `reproduction` that an animal gives birth in a step."""
+    return float(animal.reproduction) if isinstance(animal, SheepView | WolfView) else 0.0
+
+
+def _get_animal(
+    group: str,
+    food: str,
+    removed: bool,
+) -> list[MovementInteraction | TransferInteraction | LifeCycleInteraction]:
+    """Return the member interactions of an animal: wander at a unit cost of energy, eat in its cell, and live."""
+    cost = TransferInteraction(
+        f'{group}_cost',
+        source=group,
+        target=group,
+        state='energy',
+        into=Sink(),
+        amount=1.0,
+        form='agent',
+    )
+    eating = TransferInteraction(
+        f'{group}_eating',
+        source=food,
+        target=group,
+        state=Source(),
+        into='energy',
+        amount=_get_gain,
+        legs=() if removed else (('grown', Sink(), 1.0),),
+        guard=None if removed else _is_grown,
+        pairing='cell',
+        form='agent',
+        schedule='member',
+        actor='target',
+        partners=1,
+        remove='source' if removed else None,
+    )
+    return [
+        MovementInteraction(f'{group}_walk', target=group, cost=cost, schedule='member'),
+        eating,
+        LifeCycleInteraction(
+            f'{group}_life',
+            target=group,
+            death=_is_starved,
+            birth=_get_reproduction,
+            split=('energy',),
+            schedule='member',
+        ),
+    ]
 
 
 class GrassElement(Element):
@@ -123,6 +174,10 @@ class GrassElement(Element):
 class SheepElement(Element):
     """Sheep that wanders, eats grown grass, reproduces, and dies without energy.
 
+    In its own activation, a sheep wanders to a neighbouring cell at a cost of one unit of energy, eats the grown grass
+    of its cell, and dies below zero energy or gives birth with probability `reproduction`, splitting its energy with
+    the lamb, by member interactions.
+
     Args:
         label:
             The label of the agent or group.
@@ -164,40 +219,13 @@ class SheepElement(Element):
         """Return the view of a sheep, `SheepView`."""
         return SheepView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the life rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.graze)]
-
-    def graze(self, agent: SheepView, model: ModelView) -> None:
-        """Wander, eat the grass of the new cell when it is grown, then reproduce or die.
-
-        Args:
-            agent:
-                The sheep.
-
-            model:
-                The model.
-        """
-        _wander(agent, model)
-        for patch in agent.agents_here('grass'):
-            if isinstance(patch, GrassView) and patch.grown:
-                patch.grown = 0.0
-                patch.countdown = patch.regrowth
-                agent.energy += agent.gain
-        _live(agent, model, agent.reproduction)
-
 
 class WolfElement(Element):
     """Wolf that wanders, eats a sheep of its cell, reproduces, and dies without energy.
+
+    In its own activation, a wolf wanders to a neighbouring cell at a cost of one unit of energy, eats and removes one
+    random sheep of its cell, and dies below zero energy or gives birth with probability `reproduction`, by member
+    interactions.
 
     Args:
         label:
@@ -239,36 +267,6 @@ class WolfElement(Element):
     def _get_view(cls) -> type[WolfView]:
         """Return the view of a wolf, `WolfView`."""
         return WolfView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the life rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.hunt)]
-
-    def hunt(self, agent: WolfView, model: ModelView) -> None:
-        """Wander, eat one sheep of the new cell when there is one, then reproduce or die.
-
-        Args:
-            agent:
-                The wolf.
-
-            model:
-                The model.
-        """
-        _wander(agent, model)
-        prey = agent.agents_here('sheep')
-        if prey:
-            prey[int(model.rng.integers(len(prey)))].remove()
-            agent.energy += agent.gain
-        _live(agent, model, agent.reproduction)
 
 
 @register_model(
@@ -334,5 +332,6 @@ def wolf_sheep(
             GroupElement('sheep', element=SheepElement, size=sheep, variable=True),
             GroupElement('wolves', element=WolfElement, size=wolves, variable=True),
         ],
+        interactions=[*_get_animal('sheep', 'grass', removed=False), *_get_animal('wolves', 'sheep', removed=True)],
         space=LatticeSpace((width, height), boundary='periodic'),
     )
