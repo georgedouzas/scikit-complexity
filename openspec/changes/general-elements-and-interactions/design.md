@@ -82,7 +82,7 @@ Coupling, over a structure:
 
 | Class | Operation | Binding |
 | --- | --- | --- |
-| `CouplingInteraction(nodes, read, write, function, reduce='sum', mode='edges', weights=None, include_self=False, lag=0.0, delay=0.0, form='rate', combine=None)` | member `i` gets a reduction over `j` of `function(ns)`, where `ns` reads `i`, `j`, and the edge. It works over the edges of a lattice or network, over the whole group, or over the next member of an ordered group. It adds to a rate (`form='rate'`) or sets the next value with `combine(x_i, reduction)` (`form='map'`) | `NeighborInteraction`; a Laplacian on fields |
+| `CouplingInteraction(target, read, write, function, reduce='sum', mode='edges', weights=None, include_self=False, lag=0.0, delay=0.0, form='rate', combine=None)` | member `i` gets a reduction over `j` of `function(ns)`, where `ns` reads `i`, `j`, and the edge. It works over the edges of a lattice or network, over the whole group, or over the next member of an ordered group. It adds to a rate (`form='rate'`) or sets the next value with `combine(x_i, reduction)` (`form='map'`) | `NeighborInteraction`; a Laplacian on fields |
 | `PairCouplingInteraction(first, second, cutoff, read, write, function=None, potential=None, divisor=None, period=None)` | every pair within a cutoff adds `function(ns)` or minus the gradient of `potential(ns, r)` to both members | `PairInteraction` |
 
 Events and discrete states:
@@ -103,7 +103,7 @@ Choice and learning:
 | Class | Operation |
 | --- | --- |
 | `ChoiceInteraction(target, state, options, utility, rule='logit', intensity=1.0, schedule='synchronous', activity=1.0)` | draws an option by the logit, Metropolis, Fermi, or best rule, symbolic or agent |
-| `ImitationInteraction(nodes, state, payoff, options, rate, rule)` | copies a neighbour's state at random, by majority, from the best, or by the Fermi rule |
+| `ImitationInteraction(target, state, payoff, options, rate, rule)` | copies a neighbour's state at random, by majority, from the best, or by the Fermi rule |
 | `ReinforcementInteraction(target, scores, payoff, rate)` | moves the score of every option towards its realized payoff |
 | `EvolutionInteraction(target, strategy, fitness, selection, replacement, crossover, mutation)` | selection by tournament, roulette, or rank, replacement of the generation, by Moran, or death-birth, crossover, and mutation over an alphabet, Gaussian, or a function |
 

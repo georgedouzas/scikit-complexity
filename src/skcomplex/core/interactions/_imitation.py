@@ -40,7 +40,7 @@ class ImitationInteraction(NeighborInteraction):
         label:
             The label of the interaction, unique among the parts of its system.
 
-        nodes:
+        target:
             The path of the group on the nodes or sites.
 
         state:
@@ -76,9 +76,9 @@ class ImitationInteraction(NeighborInteraction):
 
     Examples:
         >>> from skcomplex.core.interactions import ImitationInteraction
-        >>> ImitationInteraction('imitation', nodes='voters', rule='majority').check().options
+        >>> ImitationInteraction('imitation', target='voters', rule='majority').check().options
         (0.0, 1.0)
-        >>> ImitationInteraction('imitation', nodes='players', rule='fermi', form='probability').check().form
+        >>> ImitationInteraction('imitation', target='players', rule='fermi', form='probability').check().form
         'probability'
     """
 
@@ -86,7 +86,7 @@ class ImitationInteraction(NeighborInteraction):
         self,
         label: str,
         *,
-        nodes: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
         state: str = 'state',
         payoff: str = 'payoff',
         options: Sequence[float] = (0.0, 1.0),
@@ -98,7 +98,7 @@ class ImitationInteraction(NeighborInteraction):
         layer: str | None = None,
     ) -> None:
         super().__init__(label, layer=layer)
-        self.nodes = nodes
+        self.target = target
         self.state = state
         self.payoff = payoff
         self.options = options

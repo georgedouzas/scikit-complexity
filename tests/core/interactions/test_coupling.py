@@ -88,8 +88,8 @@ class LinkElement(Element):
 class WeightedCouplingInteraction(CouplingInteraction):
     """Coupling along the edges of a network, weighted by the state `w` of the group on its edges."""
 
-    def __init__(self, label: str, *, nodes: Annotated[str, RoleSpec()], links: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label, nodes=nodes, read='theta', write='theta', function=_sine, weights='w')
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], links: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label, target=target, read='theta', write='theta', function=_sine, weights='w')
         self.links = links
 
 
@@ -106,7 +106,7 @@ def _oscillators(space, theta, omega, **arguments):
         space=space,
         values={'theta': theta, 'omega': omega},
     )
-    coupling = CouplingInteraction('coupling', nodes='oscillators', read='theta', write='theta', **arguments)
+    coupling = CouplingInteraction('coupling', target='oscillators', read='theta', write='theta', **arguments)
     return System(elements=[oscillators], interactions=[coupling])
 
 
@@ -130,7 +130,7 @@ def _order(phases):
 def _group(theta, **arguments):
     """Return oscillators in a group without a space, coupled by the sine of the phase difference."""
     group = GroupElement('oscillators', element=OscillatorElement, size=len(theta), values={'theta': theta})
-    coupling = CouplingInteraction('coupling', nodes='oscillators', read='theta', write='theta', **arguments)
+    coupling = CouplingInteraction('coupling', target='oscillators', read='theta', write='theta', **arguments)
     return System(elements=[group], interactions=[coupling])
 
 
@@ -215,7 +215,7 @@ def test_coupling_weights_edges_by_a_state_of_the_edge_group(backend):
             LatticeElement('oscillators', element=OscillatorElement, space=space, values={'theta': theta}),
             GroupElement('links', element=LinkElement, space=space, on='edges', values={'w': weights}),
         ],
-        interactions=[WeightedCouplingInteraction('coupling', nodes='oscillators', links='links')],
+        interactions=[WeightedCouplingInteraction('coupling', target='oscillators', links='links')],
     )
     matrix = np.zeros((12, 12))
     sources, targets = space.check().prepare().edges_[None]
@@ -257,7 +257,7 @@ def test_coupling_map_form_combines_the_state_with_the_reduction():
     cells = LatticeElement('cells', element=CellElement, space=LatticeSpace(4), values={'u': u})
     coupling = CouplingInteraction(
         'coupling',
-        nodes='cells',
+        target='cells',
         read='u',
         write='u',
         reduce='mean',
@@ -287,7 +287,7 @@ def test_coupling_map_form_aligns_a_vicsek_flock_at_low_noise():
     noise = 0.1
     alignment = CouplingInteraction(
         'alignment',
-        nodes='flock',
+        target='flock',
         read='theta',
         write='theta',
         function=lambda s: vector(SR, [cos(s.other.theta), sin(s.other.theta)]),
@@ -334,4 +334,4 @@ def test_coupling_over_edges_needs_edges_for_its_rates():
 def test_check_rejects_unknown_variants_and_mismatched_structures(arguments, match):
     """Test that unknown variants, functions that cannot be called, and weights that do not suit the mode fail."""
     with pytest.raises(ValidationError, match=match):
-        CouplingInteraction('coupling', nodes='oscillators', **arguments).check()
+        CouplingInteraction('coupling', target='oscillators', **arguments).check()

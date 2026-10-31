@@ -54,7 +54,7 @@ class CouplingInteraction(NeighborInteraction):
         label:
             The label of the interaction, unique among the parts of its system.
 
-        nodes:
+        target:
             The path of the group of the members.
 
         read:
@@ -110,7 +110,7 @@ class CouplingInteraction(NeighborInteraction):
         >>> from skcomplex.core.interactions import CouplingInteraction
         >>> source, target = SimpleNamespace(theta=var('a')), SimpleNamespace(theta=var('b'))
         >>> sine = lambda s: sin(s.other.theta - s.member.theta)
-        >>> coupling = CouplingInteraction('coupling', nodes='oscillators', read='theta', write='theta', function=sine)
+        >>> coupling = CouplingInteraction('coupling', target='oscillators', read='theta', write='theta', function=sine)
         >>> [law.value for law in coupling.check().prepare().run(SimpleNamespace(source=source, target=target)).laws_]
         [sin(a - b), sin(-a + b)]
     """
@@ -119,7 +119,7 @@ class CouplingInteraction(NeighborInteraction):
         self,
         label: str,
         *,
-        nodes: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
         read: str = 'x',
         write: str = 'x',
         function: NamespaceFunction | None = None,
@@ -135,7 +135,7 @@ class CouplingInteraction(NeighborInteraction):
         layer: str | None = None,
     ) -> None:
         super().__init__(label, layer=layer)
-        self.nodes = nodes
+        self.target = target
         self.read = read
         self.write = write
         self.function = function

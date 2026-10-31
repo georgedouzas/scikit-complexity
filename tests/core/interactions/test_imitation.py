@@ -43,7 +43,7 @@ def _final(space, values, rule, until, seed=0, **arguments):
     discrete = arguments.get('form') == 'probability'
     system = System(
         elements=[LatticeElement('players', element=PlayerElement, space=space, values=values)],
-        interactions=[ImitationInteraction('imitation', nodes='players', rule=rule, **arguments)],
+        interactions=[ImitationInteraction('imitation', target='players', rule=rule, **arguments)],
         time=DiscreteTime() if discrete else ContinuousTime(),
     )
     simulation = Simulation(system, dt=1.0 if discrete else until, random_state=seed)
@@ -151,4 +151,4 @@ def test_best_in_discrete_time_climbs_to_the_local_payoff_maximum():
 def test_check_rejects_unknown_rules_and_equal_options(arguments, match):
     """Test that an unknown rule or options that are not distinct raise an error."""
     with pytest.raises(ValidationError, match=match):
-        ImitationInteraction('imitation', nodes='players', **arguments).check()
+        ImitationInteraction('imitation', target='players', **arguments).check()
