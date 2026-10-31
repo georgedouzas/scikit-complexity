@@ -56,8 +56,8 @@ class NoiseLaw(BaseLaw):
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import NoiseLaw
-        >>> price = var('price')
-        >>> NoiseLaw(price, 0.2 * price, process='market').check().prepare().run({'price': 10.0}).value_
+        >>> x = var('x')
+        >>> NoiseLaw(x, 0.2 * x, process='shared').check().prepare().run({'x': 10.0}).value_
         2.0
     """
 

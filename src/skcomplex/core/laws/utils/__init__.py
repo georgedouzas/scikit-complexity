@@ -1,4 +1,4 @@
-"""Define what laws are written with besides Sage: reductions, draws, delays, rule tables, and calls."""
+"""Define what laws are written with besides Sage: reductions, pointwise functions, draws, delays, and calls."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,14 +6,16 @@
 from ....specs._draw_spec import bernoulli, categorical, draw, draws_in, normal, uniform
 from ._agents import matches, random_pairing, transfer
 from ._conditions import both, either, mod, where
-from ._delays import delay_parts, distributed_delay
+from ._delays import delay1, delay3, delay_parts, distributed_delay, smooth
 from ._history import delayed, derivative, lag
 from ._lookups import lookup
 from ._moments import moment
 from ._operators import advection, divergence, gradient, inverse_laplacian, laplacian, partial, upwind
+from ._pointwise import clip, hill, logistic, sign
 from ._quantum import dagger, has_operator, local_operator, operator_product
 from ._reductions import (
     NEIGHBOR_REDUCTIONS,
+    circular_mean,
     count,
     maximum,
     mean,
@@ -33,8 +35,12 @@ __all__: list[str] = [
     'bernoulli',
     'both',
     'categorical',
+    'circular_mean',
+    'clip',
     'count',
     'dagger',
+    'delay1',
+    'delay3',
     'delay_parts',
     'delayed',
     'derivative',
@@ -45,10 +51,12 @@ __all__: list[str] = [
     'either',
     'gradient',
     'has_operator',
+    'hill',
     'inverse_laplacian',
     'lag',
     'laplacian',
     'local_operator',
+    'logistic',
     'lookup',
     'matches',
     'maximum',
@@ -68,6 +76,8 @@ __all__: list[str] = [
     'reductions_in',
     'series',
     'shift_member',
+    'sign',
+    'smooth',
     'step',
     'total',
     'transfer',

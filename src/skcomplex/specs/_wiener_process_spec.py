@@ -31,7 +31,7 @@ class WienerProcessSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import WienerProcessSpec
-        >>> WienerProcessSpec('market', dimension=2, covariance=((1.0, 0.5), (0.5, 1.0))).check().dimension
+        >>> WienerProcessSpec('shared', dimension=2, covariance=((1.0, 0.5), (0.5, 1.0))).check().dimension
         2
     """
 

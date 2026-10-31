@@ -15,7 +15,7 @@ from ._element import Element
 class CompartmentElement(Element):
     """Compartment, the amount of units in one named state, as a count or a fraction.
 
-    The label of the element names the compartment, such as `'S'`, `'E'`, or `'substrate'`. A compartment has no laws
+    The label of the element names the compartment, such as `'A'`, `'B'`, or `'source'`. A compartment has no laws
     of its own, and reactions and flows between compartments move its units.
 
     Args:
@@ -36,8 +36,8 @@ class CompartmentElement(Element):
         >>> from skcomplex.core.elements import CompartmentElement
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
-        >>> system = System(elements=[CompartmentElement('S', n=990), CompartmentElement('I', n=10)])
-        >>> Simulation(system, dt=1.0).check().prepare().run(until=2).trajectory_.values('S.n').tolist()
+        >>> system = System(elements=[CompartmentElement('A', n=990), CompartmentElement('B', n=10)])
+        >>> Simulation(system, dt=1.0).check().prepare().run(until=2).trajectory_.values('A.n').tolist()
         [990.0, 990.0, 990.0]
     """
 

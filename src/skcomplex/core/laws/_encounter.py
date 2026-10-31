@@ -1,4 +1,4 @@
-"""Define encounter laws, conservative encounters of active particles that move them to new activities."""
+"""Define encounter laws, bilinear transfers between the classes of a density that conserve its total."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,17 +13,16 @@ from ._base import BaseLaw
 
 
 class EncounterLaw(BaseLaw):
-    """Conservative encounter of active particles, which moves a candidate particle to a new activity.
+    """Bilinear transfer of a density between its classes at the rate of its product with a second density.
 
-    A candidate particle at activity `h` meets a field particle at activity `k` at the encounter rate `eta[h, k]`, and
-    ends at activity `i` with the transition probability `A[h, k, i]`. With candidate density `f` and field density
-    `g` on activity grids, the law adds Bellomo's gain and loss terms to the rate of the test density,
+    The amount of the candidate density `f` in class `h` meets the amount of the field density `g` in class `k` at the
+    rate `eta[h, k]`, and moves to class `i` with the probability `A[h, k, i]`. The law adds the gain and the loss
 
     `df_i/dt = sum_hk eta[h, k] A[h, k, i] f_h g_k - f_i sum_k eta[i, k] g_k`,
 
-    where the loss acts on the candidate and the gain on the test group, the candidate's own group by default. The
-    candidate, the field, and the test are states of groups on the sites of activity lattices, one member per
-    activity. A field role bound to a group whose states no law changes is an external action at the micro scale.
+    where the loss acts on the candidate and the gain on the test density, the candidate itself by default, so the
+    total over the classes is conserved. The candidate, the field, and the test are states of groups on the sites of
+    lattices of classes, one member per class. A field density that no law changes is a fixed external input.
 
     Args:
         candidate:
@@ -77,11 +76,11 @@ class EncounterLaw(BaseLaw):
         return (self.candidate,) if self.test is None or self.test is self.candidate else (self.candidate, self.test)
 
     def _get_requirements(self) -> RequirementSpec:
-        """Return what the law requires of a system: continuous time on activity lattices."""
+        """Return what the law requires of a system: continuous time on lattices of classes."""
         return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace,))
 
     def _check(self) -> None:
-        """Raise an error for a rate or transition table of the wrong dimensions, or whose activities disagree."""
+        """Raise an error for a rate or transition table of the wrong dimensions, or whose class counts disagree."""
         self._check_table('rate', (0, 2))
         self._check_table('transition', (3,))
         self._check_outcomes('rate', 'transition')

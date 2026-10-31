@@ -38,10 +38,10 @@ class CrossingLaw(BaseLaw):
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import CrossingLaw
-        >>> height, velocity = var('height'), var('velocity')
-        >>> law = CrossingLaw(height, {velocity: -0.8 * velocity}, direction=-1).check().prepare()
-        >>> law.run({'velocity': -2.0}).value_
-        {velocity: 1.6}
+        >>> y, z = var('y'), var('z')
+        >>> law = CrossingLaw(y, {z: -0.8 * z}, direction=-1).check().prepare()
+        >>> law.run({'z': -2.0}).value_
+        {z: 1.6}
     """
 
     def __init__(

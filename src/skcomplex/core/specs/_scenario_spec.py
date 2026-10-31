@@ -35,8 +35,8 @@ class ScenarioSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.core.specs import ScenarioSpec
-        >>> ScenarioSpec('quota', schedule=[(50.0, 'harvest.effort', 0.025)]).schedule
-        [(50.0, 'harvest.effort', 0.025)]
+        >>> ScenarioSpec('reduced', schedule=[(50.0, 'source.rate', 0.025)]).schedule
+        [(50.0, 'source.rate', 0.025)]
     """
 
     name: str = 'baseline'

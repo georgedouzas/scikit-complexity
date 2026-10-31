@@ -15,6 +15,7 @@ from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import (
     NEIGHBOR_REDUCTIONS,
+    circular_mean,
     count,
     maximum,
     mean,
@@ -843,3 +844,111 @@ def test_argmax_returns_the_strategy_of_the_neighbour_with_the_largest_payoff(sp
         for node in range(12)
     ]
     assert np.array_equal(_outputs(system, backend), expected)
+
+
+class KeyedElement(Element):
+    """Element with a value and a key."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        k: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.k = k
+
+
+def _keyed_drift(values, keys, reduction, backend):
+    """Return the rate of every member of a group of keyed members whose rate is a reduction over the group."""
+    system = System(
+        elements=[GroupElement('g', element=KeyedElement, size=len(values), values={'x': values, 'k': keys})],
+        interactions=[PairwiseInteraction('pairs', group='g', reduction=reduction)],
+    )
+    problem = compile_system(system, backend=backend)
+    return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'g.x')
+
+
+KEYED = {
+    'total': (lambda g: total(g.other.x, over=g, by='k'), np.sum),
+    'mean': (lambda g: mean(g.other.x, over=g, by='k'), np.mean),
+    'count': (lambda g: count(over=g, by='k'), np.size),
+    'circular_mean': (
+        lambda g: circular_mean(g.other.x, over=g, by='k'),
+        lambda shared: np.arctan2(np.sin(shared).sum(), np.cos(shared).sum()),
+    ),
+}
+
+
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
+@pytest.mark.parametrize('name', list(KEYED))
+def test_reductions_keyed_by_a_state_reduce_over_the_members_sharing_its_value(name, backend):
+    """Test that every reduction keyed by a state reduces over the members whose key equals the reading member's."""
+    rng = np.random.default_rng(5)
+    values, keys = rng.normal(size=9), rng.choice([0.0, 1.0, 2.0], 9)
+    reduction, function = KEYED[name]
+    expected = [function(values[keys == key]) for key in keys]
+    assert np.allclose(_keyed_drift(values, keys, reduction, backend), expected, atol=1e-12)
+
+
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
+def test_keyed_reduction_combines_its_key_with_a_condition(backend):
+    """Test that a keyed sum with a condition sums the members that share the key and meet the condition."""
+    values, keys = np.array([1.0, -2.0, 3.0, 4.0, -5.0]), np.array([0.0, 0.0, 0.0, 1.0, 1.0])
+    drift = _keyed_drift(values, keys, lambda g: total(g.other.x, over=g, where=g.other.x > 0, by='k'), backend)
+    assert drift.tolist() == [4.0, 4.0, 4.0, 4.0, 4.0]
+
+
+@pytest.mark.parametrize(
+    'call',
+    [lambda x: total(x, by='k'), lambda x: count(over=SimpleNamespace(k=x), by='k')],
+    ids=['no group', 'no other member'],
+)
+def test_keyed_reduction_needs_the_namespace_of_its_group(call):
+    """Test that a reduction keyed by a state without the namespace of a group and its other member raises an error."""
+    with pytest.raises(ValidationError, match='keyed by a state'):
+        call(var('x'))
+
+
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
+def test_circular_mean_is_the_direction_of_the_sum_of_unit_vectors(backend):
+    """Test that the circular mean of angles near the cut at pi stays near pi, unlike their arithmetic mean."""
+    values = np.array([3.0, -3.0, 3.1, -3.1, 2.9])
+    drift = _pairwise_drift(values, lambda g: circular_mean(g.other.x, over=g), backend)
+    expected = np.arctan2(np.sin(values).sum(), np.cos(values).sum())
+    assert np.allclose(drift, expected, atol=1e-12)
+    assert abs(expected) > 3.0
+
+
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
+def test_circular_mean_over_network_neighbours_matches_its_definition(backend):
+    """Test that the circular mean over the neighbours of a network node is the direction of their unit vectors."""
+    graph = nx.gnp_random_graph(12, 0.3, seed=1)
+    values = np.random.default_rng(0).uniform(-math.pi, math.pi, 12)
+    given = {'y': values, 'reduce': 'circular-mean'}
+    system = System(
+        elements=[GroupElement('g', element=ReducingElement, size=12, values=given)],
+        space=NetworkSpace(graph),
+    )
+    neighbours = [values[list(graph.neighbors(node))] for node in graph]
+    expected = [np.arctan2(np.sin(item).sum(), np.cos(item).sum()) for item in neighbours]
+    assert np.allclose(_outputs(system, backend), expected, atol=1e-12)
+
+
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
+@pytest.mark.parametrize(('function', 'expected'), [(minimum, np.minimum), (maximum, np.maximum)])
+def test_minimum_and_maximum_of_several_expressions_compare_member_by_member(function, expected, backend):
+    """Test that the minimum and maximum of several expressions match NumPy's member by member."""
+    values = np.random.default_rng(6).normal(size=8)
+    drift = _pairwise_drift(values, lambda g: function(g.x, 0.1 - g.x, 0.2), backend)
+    assert np.allclose(drift, expected(expected(values, 0.1 - values), 0.2), atol=1e-12)
+
+
+def test_minimum_of_several_expressions_takes_no_group():
+    """Test that the minimum of several expressions with a condition raises an error."""
+    x = var('x')
+    with pytest.raises(ValidationError, match='member by member'):
+        minimum(x, 2 * x, where=x > 0)

@@ -1,4 +1,4 @@
-"""Define densities, elements that hold the density of a population at one activity class."""
+"""Define densities, elements that hold the value of a density at one class."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,10 +13,10 @@ from ._element import Element
 
 
 class DensityElement(Element):
-    """Density of a population at one activity class, a member of a distribution over the classes.
+    """Value of a density at one class, a member of a distribution over the classes.
 
-    A distribution is a group of densities on the sites of a lattice of activity classes, one member per class, and
-    encounter, proliferation, and destruction laws change it. A density has no laws of its own.
+    A distribution is a group of densities on the sites of a lattice of classes, one member per class, and encounter,
+    proliferation, and destruction laws change it. A density has no laws of its own.
 
     Args:
         label:
@@ -36,7 +36,7 @@ class DensityElement(Element):
         >>> from skcomplex.core.elements import DensityElement, GroupElement
         >>> from skcomplex.core.spaces import LatticeSpace
         >>> classes = LatticeSpace(5, boundary='fixed')
-        >>> group = GroupElement('wealth', element=DensityElement, space=classes, on='sites', values={'f': 0.2})
+        >>> group = GroupElement('distribution', element=DensityElement, space=classes, on='sites', values={'f': 0.2})
         >>> group.check().prepare().size_
         5
     """
