@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import SR, Expression, exp, oo, vector
 from sage.sets.real_set import RealSet
 
 from ....core.elements import GroupElement, PointElement
-from ....core.interactions import BaseInteraction, Interaction, PairCouplingInteraction
+from ....core.interactions import BaseInteraction, Interaction, PairCouplingInteraction, RelaxationInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
@@ -21,7 +21,7 @@ from ....specs import ParameterSpec, RoleSpec
 from ..._catalog import register_model
 
 
-class MotivationInteraction(Interaction):
+class MotivationInteraction(RelaxationInteraction):
     """Driving force of the social force model, which relaxes a walker's velocity to its desired velocity.
 
     The force per unit mass is `(speed * direction - x_d1) / tau`, where the velocity `x_d1` is the first derivative of
@@ -58,24 +58,18 @@ class MotivationInteraction(Interaction):
         direction: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, state='x_d1')
         self.speed = speed
         self.direction = direction
         self.tau = tau
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the relaxation of the velocity to the desired velocity.
+    def _get_goal(self, namespace: SimpleNamespace) -> object:
+        """Return the desired velocity."""
+        return namespace.speed * namespace.direction
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.target.x, (s.speed * s.direction - s.target.x_d1) / s.tau)]
+    def _get_time(self, namespace: SimpleNamespace) -> object:
+        """Return the relaxation time."""
+        return namespace.tau
 
 
 class WallsInteraction(Interaction):

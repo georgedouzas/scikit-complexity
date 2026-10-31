@@ -1,7 +1,14 @@
 """Opinion dynamics: voting, coevolving networks, persuasion, bounded confidence, conventions, and diffusion."""
 
 from ._adopter_view import AdopterView
-from ._axelrod import CultureCensusInteraction, VillageElement, axelrod, cultural_traits, largest_region
+from ._axelrod import (
+    CulturalInfluenceInteraction,
+    VillageElement,
+    axelrod,
+    cultural_traits,
+    culture_observables,
+    largest_region,
+)
 from ._believer_view import BelieverView
 from ._bounded_confidence import (
     ConfidentElement,
@@ -27,7 +34,6 @@ from ._discussant_view import DiscussantView
 from ._influencee_view import InfluenceeView
 from ._kinetic_opinion import (
     OpinionEncountersInteraction,
-    OpinionLevelElement,
     kinetic_opinion,
     mean_opinion,
     opinion_grid,
@@ -42,11 +48,13 @@ from ._persuasion import (
     DiscussionsInteraction,
     InfluenceeElement,
     PersuaderElement,
+    PersuasionInteraction,
     SocialImpactInteraction,
     galam_majority,
     social_impact,
     sznajd,
 )
+from ._random_pairs import RandomPairsInteraction
 from ._standardization import ComplexAgentElement, StandardizationInteraction, standardized_agents
 from ._thinker_view import ThinkerView
 from ._variant_voter_view import VariantVoterView
@@ -75,7 +83,7 @@ __all__: list[str] = [
     'ComplexAgentView',
     'ConfidentElement',
     'ConversationsInteraction',
-    'CultureCensusInteraction',
+    'CulturalInfluenceInteraction',
     'DiscussantElement',
     'DiscussantView',
     'DiscussionsInteraction',
@@ -87,9 +95,10 @@ __all__: list[str] = [
     'NamerView',
     'NamingGamesInteraction',
     'OpinionEncountersInteraction',
-    'OpinionLevelElement',
     'PersuaderElement',
     'PersuaderView',
+    'PersuasionInteraction',
+    'RandomPairsInteraction',
     'SeparationInteraction',
     'SocialImpactInteraction',
     'StandardizationInteraction',
@@ -106,6 +115,7 @@ __all__: list[str] = [
     'coevolving_voter',
     'cognitive_consistency',
     'cultural_traits',
+    'culture_observables',
     'deffuant',
     'galam_majority',
     'hegselmann_krause',

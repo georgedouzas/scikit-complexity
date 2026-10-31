@@ -12,9 +12,9 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, EncounterLaw, RateLaw
+from ....core.elements import DensityElement, Element, GroupElement
+from ....core.interactions import EncounterInteraction, Interaction
+from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import moment
 from ....core.spaces import ContinuousTime, LatticeSpace
 from ....core.system import System
@@ -165,36 +165,6 @@ def security_density(s: SimpleNamespace, forces: int) -> Expression:
     return moment(s.f, 0, np.arange(forces, dtype=float))
 
 
-class CitizensElement(Element):
-    """Density of citizens at one criminality class, a member of a distribution over criminality.
-
-    Args:
-        label:
-            The label of the distribution.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
-        f:
-            The initial density.
-
-    Examples:
-        >>> from skcomplex.models.social.crowds import CitizensElement
-        >>> GroupElement('citizens', element=CitizensElement, size=5, values={'f': 0.2}).size
-        5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.f = f
-
-
 class SecurityAgentsElement(Element):
     """Density of security agents at one efficacy class, with the share of new recruits that join the class.
 
@@ -230,15 +200,18 @@ class SecurityAgentsElement(Element):
         self.share = share
 
 
-class CriminalContagionInteraction(Interaction):
+class CriminalContagionInteraction(EncounterInteraction):
     """Conservative encounters between citizens, in which crime attracts and honesty redeems.
 
     Args:
         label:
             The label of the interaction.
 
-        citizens:
-            The path of the distribution of citizens.
+        candidate:
+            The path of the distribution of citizens whose members move.
+
+        field:
+            The path of the distribution of citizens they meet, usually the same distribution.
 
         classes:
             The number of criminality classes.
@@ -254,7 +227,7 @@ class CriminalContagionInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.models.social.crowds import CriminalContagionInteraction
-        >>> CriminalContagionInteraction('contagion', citizens='citizens').attraction
+        >>> CriminalContagionInteraction('contagion', candidate='citizens', field='citizens').attraction
         0.3
     """
 
@@ -262,45 +235,39 @@ class CriminalContagionInteraction(Interaction):
         self,
         label: str,
         *,
-        citizens: Annotated[str, RoleSpec()],
+        candidate: Annotated[str, RoleSpec()],
+        field: Annotated[str, RoleSpec()],
         classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 5,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         attraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         redemption: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label)
-        self.citizens = citizens
+        super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.classes = classes
         self.eta = eta
         self.attraction = attraction
         self.redemption = redemption
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the encounter of the citizens with themselves.
+    def _get_rate(self, s: SimpleNamespace) -> object:
+        """Return the encounter rate."""
+        return s.eta
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        table = contagion_table(int(self.classes), s.attraction, s.redemption)
-        return [EncounterLaw(s.citizens.f, s.citizens.f, s.eta, table)]
+    def _get_kernel(self, s: SimpleNamespace) -> object:
+        """Return the table of the attraction of crime and the redemption of honesty."""
+        return contagion_table(int(self.classes), s.attraction, s.redemption)
 
 
-class DeterrenceInteraction(Interaction):
+class DeterrenceInteraction(EncounterInteraction):
     """Encounters of citizens with security forces, which move criminal citizens toward honesty.
 
     Args:
         label:
             The label of the interaction.
 
-        citizens:
+        candidate:
             The path of the distribution of citizens.
 
-        security:
+        field:
             The path of the distribution of the security forces over efficacy.
 
         classes:
@@ -314,7 +281,7 @@ class DeterrenceInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.models.social.crowds import DeterrenceInteraction
-        >>> DeterrenceInteraction('deterrence', citizens='citizens', security='security').deterrence
+        >>> DeterrenceInteraction('deterrence', candidate='citizens', field='security').deterrence
         2.0
     """
 
@@ -322,32 +289,24 @@ class DeterrenceInteraction(Interaction):
         self,
         label: str,
         *,
-        citizens: Annotated[str, RoleSpec()],
-        security: Annotated[str, RoleSpec()],
+        candidate: Annotated[str, RoleSpec()],
+        field: Annotated[str, RoleSpec()],
         classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 5,
         forces: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
         deterrence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
     ) -> None:
-        super().__init__(label)
-        self.citizens = citizens
-        self.security = security
+        super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.classes = classes
         self.forces = forces
         self.deterrence = deterrence
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the encounter of the citizens with the security forces.
+    def _get_rate(self, s: SimpleNamespace) -> object:
+        """Return the deterrence rate of every pair of a criminality class and an efficacy class."""
+        return deterrence_table(int(self.classes), int(self.forces))[0] * s.deterrence
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        pattern, table = deterrence_table(int(self.classes), int(self.forces))
-        return [EncounterLaw(s.citizens.f, s.security.f, pattern * s.deterrence, table)]
+    def _get_kernel(self, s: SimpleNamespace) -> object:
+        """Return the table that moves a deterred citizen one class down."""
+        return deterrence_table(int(self.classes), int(self.forces))[1]
 
 
 class RecruitmentInteraction(Interaction):
@@ -517,7 +476,7 @@ def criminality(
     citizens[0], citizens[-1] = 1.0 - criminals, criminals
     return System(
         elements=[
-            GroupElement('citizens', element=CitizensElement, size=classes, on='sites', values={'f': citizens}),
+            GroupElement('citizens', element=DensityElement, size=classes, on='sites', values={'f': citizens}),
             GroupElement(
                 'security',
                 element=SecurityAgentsElement,
@@ -530,15 +489,16 @@ def criminality(
         interactions=[
             CriminalContagionInteraction(
                 'contagion',
-                citizens='citizens',
+                candidate='citizens',
+                field='citizens',
                 classes=classes,
                 attraction=attraction,
                 redemption=redemption,
             ),
             DeterrenceInteraction(
                 'deterrence',
-                citizens='citizens',
-                security='security',
+                candidate='citizens',
+                field='security',
                 classes=classes,
                 forces=forces,
                 deterrence=deterrence,

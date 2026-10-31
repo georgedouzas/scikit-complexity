@@ -13,15 +13,15 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, LatticeElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw, UpdateLaw
+from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import neighbors, where
 from ....core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....engine.solvers import ModelView
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.types import AgentViewProtocol, ModelViewProtocol
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._discussant_view import DiscussantView
+from ._random_pairs import RandomPairsInteraction
 
 PAIR = 2
 
@@ -72,7 +72,7 @@ class DiscussantElement(Element):
         return DiscussantView
 
 
-class EncountersInteraction(Interaction):
+class EncountersInteraction(RandomPairsInteraction):
     """Random binary encounters of the Deffuant model, as many per step as there are agents.
 
     In every encounter two random agents whose opinions differ by less than the confidence bound move towards each
@@ -85,54 +85,30 @@ class EncountersInteraction(Interaction):
         target:
             The path of the group of discussants.
 
+        phase:
+            The phase of the step the encounters run in, or `None` for the default phase.
+
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import EncountersInteraction
         >>> EncountersInteraction('meetings', target='people').target
         'people'
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the encounter rule.
+    def act_on(self, members: list[AgentViewProtocol], model: ModelViewProtocol) -> None:
+        """Move the opinions of a pair towards each other when they differ by less than the confidence bound.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            members:
+                The two discussants of the encounter.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.meet)]
-
-    def meet(self, model: ModelView) -> None:
-        """Run one random encounter per agent.
-
-        Args:
             model:
-                The model.
+                The model view of the rule.
         """
-        agents = model.agents(self.target, DiscussantView)
-        if len(agents) < PAIR:
-            return
-        confidence, convergence = agents[0].confidence, agents[0].convergence
-        opinions = np.array([agent.opinion for agent in agents], dtype=float)
-        pairs = model.rng.integers(len(agents), size=(len(agents), 2))
-        for first, second in pairs:
-            difference = opinions[second] - opinions[first]
-            if first != second and abs(difference) < confidence:
-                opinions[first] += convergence * difference
-                opinions[second] -= convergence * difference
-        for agent, opinion in zip(agents, opinions, strict=True):
-            agent.opinion = float(opinion)
+        first, second = [member for member in members if isinstance(member, DiscussantView)]
+        difference = second.opinion - first.opinion
+        if abs(difference) < first.confidence:
+            first.opinion += first.convergence * difference
+            second.opinion -= first.convergence * difference
 
 
 @register_model(

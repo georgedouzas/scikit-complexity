@@ -8,9 +8,8 @@ from typing import Annotated
 
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, BoundaryLaw, RateLaw
-from ....core.laws.utils import derivative
+from ....core.laws.utils import clip, derivative
 from ....specs import ParameterSpec, RoleSpec
-from ._utils import _limited, _read
 
 
 class PIDInteraction(Interaction):
@@ -96,12 +95,12 @@ class PIDInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        measured = _read(s.plant, self.measure)
+        measured = getattr(s.plant, self.measure)
         error = s.setpoint - measured
         output = s.kp * error + s.ki * s.integrator.value
         if self.kd != 0:
             output -= s.kd * derivative(measured, 1)
         return [
             RateLaw(s.integrator.value, error),
-            BoundaryLaw(_read(s.plant, self.control), _limited(output, self.limits)),
+            BoundaryLaw(getattr(s.plant, self.control), clip(output, *(self.limits or (None, None)))),
         ]

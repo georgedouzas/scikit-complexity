@@ -140,7 +140,7 @@ def _per_car(system, interaction):
         for index in range(n_cars)
     ]
     settings = {
-        key: value for key, value in following.get_params().items() if key not in {'label', 'cars', 'road_length'}
+        key: value for key, value in following.get_params().items() if key not in {'label', 'target', 'road_length'}
     }
     interactions = [
         interaction(

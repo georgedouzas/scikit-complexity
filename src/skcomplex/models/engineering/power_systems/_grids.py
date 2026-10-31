@@ -19,7 +19,7 @@ from ..._catalog import register_model
 
 
 class GridNodeElement(Element):
-    """Grid node element."""
+    """Node of a power grid whose phase follows the swing equation with a power and a damping."""
 
     def __init__(
         self,
@@ -38,12 +38,12 @@ class GridNodeElement(Element):
         self.gamma = gamma
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the grid node element."""
+        """Return the swing equation of the phase."""
         return [RateLaw(s.phi, s.P - s.gamma * derivative(s.phi, 1))]
 
 
 class TransmissionLineInteraction(Interaction):
-    """Transmission line interaction."""
+    """Transmission line of a capacity that couples the phases of two nodes by the sine of their difference."""
 
     def __init__(
         self,
@@ -59,7 +59,7 @@ class TransmissionLineInteraction(Interaction):
         self.K = K
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the transmission line interaction."""
+        """Return the opposite power flows into the two ends of the line."""
         return [
             RateLaw(s.first.phi, s.K * sin(s.second.phi - s.first.phi)),
             RateLaw(s.second.phi, s.K * sin(s.first.phi - s.second.phi)),

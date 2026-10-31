@@ -4,7 +4,6 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -12,11 +11,12 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import MovementInteraction
 from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....engine.solvers import ModelView
-from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._resident_view import ResidentView
 
@@ -61,35 +61,51 @@ class ResidentElement(Element):
         """Return the class of the views of the agents, whose attributes are the states and parameters."""
         return ResidentView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the relocation rule.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class RelocationInteraction(MovementInteraction):
+    """Relocation of the Schelling model, where every resident with too few similar neighbours moves to an empty cell.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.relocate)]
+    Every step every resident, in random order, moves to a random empty cell when the share of its neighbours of its
+    own kind is below its threshold.
 
-    def relocate(self, agent: ResidentView, model: ModelView) -> None:
-        """Move to a random empty cell while the share of similar neighbours is below the threshold.
+    Args:
+        label:
+            The label of the interaction.
 
-        Args:
-            agent:
-                The resident.
+        target:
+            The path of the group of residents.
 
-            model:
-                The model.
-        """
+        probability:
+            The probability that an unhappy resident moves in a step.
+
+        phase:
+            The phase of the step the relocation runs in, or `None` for the default phase.
+
+    Examples:
+        >>> from skcomplex.models.social.segregation import RelocationInteraction
+        >>> RelocationInteraction('relocation', target='residents').target
+        'residents'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        phase: str | None = None,
+    ) -> None:
+        super().__init__(label, target=target, probability=probability, phase=phase)
+
+    def _get_destination(self, agent: AgentViewProtocol, model: ModelViewProtocol, occupied: set[object]) -> object:
+        """Return a random empty cell for a resident with too few similar neighbours, or `None` to stay."""
+        if not isinstance(agent, ResidentView) or not isinstance(model, ModelView):
+            return None
         neighbors = [item for item in agent.neighbors() if isinstance(item, ResidentView)]
         if not neighbors:
-            return
+            return None
         similar = sum(neighbor.kind == agent.kind for neighbor in neighbors) / len(neighbors)
-        if similar < agent.threshold:
-            agent.move_to(model.random_empty_cell())
+        return model.random_empty_cell() if similar < agent.threshold else None
 
 
 @register_model(
@@ -146,4 +162,8 @@ def schelling(
         size=size,
         values={'kind': kinds, 'threshold': threshold},
     )
-    return System(elements=[residents], space=LatticeSpace((width, height), boundary='fixed', capacity=1))
+    return System(
+        elements=[residents],
+        interactions=[RelocationInteraction('relocation', target='residents')],
+        space=LatticeSpace((width, height), boundary='fixed', capacity=1),
+    )

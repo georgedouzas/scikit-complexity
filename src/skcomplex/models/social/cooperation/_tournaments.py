@@ -4,7 +4,6 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -13,10 +12,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import GroupingInteraction
 from ....core.system import System
-from ....engine.solvers import ModelView
+from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
@@ -127,12 +125,12 @@ class StrategistElement(Element):
         return StrategistView
 
 
-class TournamentInteraction(Interaction):
+class TournamentInteraction(GroupingInteraction):
     """Tournament and selection of strategies of the iterated prisoner's dilemma.
 
-    Every step the agents stand in a random ring and play their two neighbours, and their fitness is their mean score
-    per round. Then every agent dies with probability `death` and is replaced by the offspring of an agent chosen with
-    probability proportional to its fitness.
+    Every step the agents stand in a random ring, and every agent forms a group with its two neighbours in the ring,
+    whom it plays. Its fitness is its mean score per round. Then every agent dies with probability `death` and is
+    replaced by the offspring of an agent chosen with probability proportional to its fitness.
 
     Args:
         label:
@@ -143,6 +141,9 @@ class TournamentInteraction(Interaction):
 
         rounds:
             The number of rounds of every game.
+
+        phase:
+            The phase of the step the tournament runs in, or `None` for the default phase.
 
     Examples:
         >>> from skcomplex.models.social.cooperation import TournamentInteraction
@@ -156,37 +157,21 @@ class TournamentInteraction(Interaction):
         *,
         target: Annotated[str, RoleSpec()],
         rounds: int = 6,
+        phase: str | None = None,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, groups='neighborhood', phase=phase)
         self.rounds = rounds
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the tournament rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.compete)]
-
-    def _melee(self, agents: list[StrategistView], rng: np.random.Generator) -> Array:
-        """Return the mean score per round of every agent after playing its two neighbours in a random ring."""
-        order = rng.permutation(len(agents))
-        totals = np.zeros(len(agents))
-        for position, first in enumerate(order):
-            second = order[(position + 1) % len(order)]
-            scores = play(agents[first].genome, agents[second].genome, self.rounds)
-            totals[first] += scores[0]
-            totals[second] += scores[1]
-        return totals / (2 * self.rounds)
+    def _get_groups(self, model: ModelViewProtocol) -> list[list[AgentViewProtocol]]:
+        """Return every agent of a random ring followed by its two neighbours in the ring."""
+        agents = [agent for agent in model.agents('target') if agent.alive]
+        if len(agents) < PAIR:
+            return []
+        ring = [agents[int(index)] for index in model.rng.permutation(len(agents))]
+        return [[agent, ring[position - 1], ring[(position + 1) % len(ring)]] for position, agent in enumerate(ring)]
 
     @staticmethod
-    def _offspring(parent: StrategistView, rng: np.random.Generator) -> Array:
+    def _get_offspring(parent: StrategistView, rng: np.random.Generator) -> Array:
         """Return the genome of a parent, with one gene flipped with the mutation probability."""
         genome = np.array(parent.genome, dtype=np.float64)
         if rng.random() < parent.mutation:
@@ -194,24 +179,36 @@ class TournamentInteraction(Interaction):
             genome[index] = 1.0 - genome[index]
         return genome
 
-    def compete(self, model: ModelView) -> None:
-        """Play the tournament, then replace the dead with offspring chosen by fitness.
-
-        Args:
-            model:
-                The model.
-        """
-        agents = model.agents(self.target, StrategistView)
+    def _replace(self, model: ModelViewProtocol) -> None:
+        """Replace every agent with the death probability by the offspring of a parent chosen by fitness."""
+        agents = [agent for agent in model.agents('target') if isinstance(agent, StrategistView)]
         if len(agents) < PAIR:
             return
-        fitness = self._melee(agents, model.rng)
+        fitness = np.array([agent.fitness for agent in agents])
         dead = np.flatnonzero(model.rng.random(len(agents)) < agents[0].death)
         parents = model.rng.choice(len(agents), size=len(dead), p=fitness / fitness.sum())
-        genomes = [self._offspring(agents[parent], model.rng) for parent in parents]
-        for agent, value in zip(agents, fitness, strict=True):
-            agent.fitness = float(value)
+        genomes = [self._get_offspring(agents[parent], model.rng) for parent in parents]
         for index, genome in zip(dead, genomes, strict=True):
             agents[index].genome = genome
+
+    def _act_on_groups(self, model: ModelViewProtocol) -> None:
+        """Play the tournament of every group, then replace the dead."""
+        super()._act_on_groups(model)
+        self._replace(model)
+
+    def act_on(self, members: list[AgentViewProtocol], model: ModelViewProtocol) -> None:
+        """Set the fitness of the first member to its mean score per round against the two others.
+
+        Args:
+            members:
+                The agent, followed by its two neighbours in the ring.
+
+            model:
+                The model view of the rule.
+        """
+        agent, *opponents = [member for member in members if isinstance(member, StrategistView)]
+        total = sum(play(agent.genome, opponent.genome, self.rounds)[0] for opponent in opponents)
+        agent.fitness = total / (PAIR * self.rounds)
 
 
 @register_model(

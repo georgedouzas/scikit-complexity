@@ -7,10 +7,11 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import exp, oo
+from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement
+from ....core.interactions import ConservationInteraction
 from ....core.laws import BaseLaw, FluxLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
@@ -23,7 +24,7 @@ KERNER_KONHAUSER_OFFSET = 3.72e-6
 
 
 class LighthillWhithamRichardsElement(Element):
-    """Lighthill whitham richards element."""
+    """Cell of a road with the traffic density `rho`, the free speed `vmax`, and the jam density `rho_max`."""
 
     def __init__(
         self,
@@ -39,13 +40,9 @@ class LighthillWhithamRichardsElement(Element):
         self.vmax = vmax
         self.rho_max = rho_max
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the lighthill whitham richards element."""
-        return [FluxLaw(s.rho, s.vmax * s.rho * (1 - s.rho / s.rho_max), riemann='godunov')]
-
 
 class PayneElement(Element):
-    """Payne element."""
+    """Cell of a road with the traffic density `rho` and the flow `q` of the Payne model."""
 
     def __init__(
         self,
@@ -66,7 +63,7 @@ class PayneElement(Element):
         self.tau = tau
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the payne element."""
+        """Return the conservation of the density and the flow, and the relaxation of the flow."""
         return [
             FluxLaw(s.rho, s.q),
             FluxLaw(s.q, s.q**2 / s.rho + s.vmax * s.rho / (2 * s.tau * s.rho_max)),
@@ -75,7 +72,7 @@ class PayneElement(Element):
 
 
 class KernerKonhauserElement(Element):
-    """Kerner konhauser element."""
+    """Cell of a road with the traffic density `rho` and the flow `q` of the Kerner-Konhäuser model."""
 
     def __init__(
         self,
@@ -100,7 +97,7 @@ class KernerKonhauserElement(Element):
         self.mu = mu
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the kerner konhauser element."""
+        """Return the conservation of the density and the flow, and the viscous relaxation of the flow."""
         return [
             FluxLaw(s.rho, s.q),
             FluxLaw(s.q, s.q**2 / s.rho + s.c0**2 * s.rho),
@@ -111,6 +108,12 @@ class KernerKonhauserElement(Element):
                 + s.mu * laplacian(s.q / s.rho),
             ),
         ]
+
+
+def _get_lighthill_whitham_richards_flux(s: SimpleNamespace) -> Expression:
+    """Return the Greenshields flux `vmax rho (1 - rho / rho_max)` of the density."""
+    road = s.target
+    return road.vmax * road.rho * (1 - road.rho / road.rho_max)
 
 
 def _density_bump(n: int, density: float, bump: float) -> np.ndarray:
@@ -180,7 +183,9 @@ def lighthill_whitham_richards(
         values=values,
         discretization='finite-volume',
     )
-    return System(elements=[road])
+    flux = _get_lighthill_whitham_richards_flux
+    density = ConservationInteraction('density', target='road', state='rho', flux=flux, riemann='godunov')
+    return System(elements=[road], interactions=[density])
 
 
 @register_model(

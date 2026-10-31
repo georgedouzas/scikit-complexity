@@ -3,22 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
-from ....engine.solvers import ModelView
-from ....specs import RoleSpec, StateSpec, VisualSpec
+from ....core.types import AgentViewProtocol, ModelViewProtocol
+from ....specs import StateSpec, VisualSpec
+from ....types import Array
 from ..._catalog import register_model
 from ._namer_view import NamerView
-
-PAIR = 2
+from ._random_pairs import RandomPairsInteraction
 
 
 class NamerElement(Element):
@@ -61,11 +58,12 @@ class NamerElement(Element):
         return NamerView
 
 
-class NamingGamesInteraction(Interaction):
+class NamingGamesInteraction(RandomPairsInteraction):
     """Pairwise games of the minimal naming game, as many per step as there are agents.
 
     A random speaker says a random word of its inventory to a random hearer. When the hearer knows it, both keep that
-    word alone, and otherwise the hearer adds it.
+    word alone, and otherwise the hearer adds it. A speaker with an empty inventory first invents a word that no agent
+    knows.
 
     Args:
         label:
@@ -74,63 +72,46 @@ class NamingGamesInteraction(Interaction):
         target:
             The path of the group of namers.
 
+        phase:
+            The phase of the step the games run in, or `None` for the default phase.
+
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import NamingGamesInteraction
         >>> NamingGamesInteraction('games', target='namers').target
         'namers'
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(label)
-        self.target = target
+    def _invent(self, words: Array, model: ModelViewProtocol) -> None:
+        """Mark in an inventory a new word, the first slot of the lexicon that no agent knows."""
+        known = np.zeros_like(words)
+        for agent in model.agents('target'):
+            if isinstance(agent, NamerView):
+                known += np.asarray(agent.words, dtype=np.float64)
+        words[int(np.flatnonzero(known == 0)[0])] = 1.0
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the game rule.
+    def act_on(self, members: list[AgentViewProtocol], model: ModelViewProtocol) -> None:
+        """Play one naming game between the first member, the speaker, and the second, the hearer.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            members:
+                The speaker and the hearer.
 
-        Returns:
-            laws:
-                The laws of the component.
+            model:
+                The model view of the rule.
         """
-        return [RuleLaw(self.play)]
-
-    @staticmethod
-    def _play(speaker: NamerView, hearer: NamerView, own: int, rng: np.random.Generator) -> None:
-        """Play one naming game between a speaker and a hearer, the speaker inventing a word when it knows none."""
+        speaker, hearer = [member for member in members if isinstance(member, NamerView)]
         spoken = np.array(speaker.words, dtype=np.float64)
         heard = np.array(hearer.words, dtype=np.float64)
         if not spoken.any():
-            spoken[own] = 1.0
+            self._invent(spoken, model)
         known = np.flatnonzero(spoken)
-        name = known[int(rng.integers(len(known)))]
+        name = known[int(model.rng.integers(len(known)))]
         if heard[name]:
             spoken[:] = heard[:] = 0.0
             spoken[name] = heard[name] = 1.0
         else:
             heard[name] = 1.0
         speaker.words, hearer.words = spoken, heard
-
-    def play(self, model: ModelView) -> None:
-        """Play one game per agent between random pairs.
-
-        Args:
-            model:
-                The model.
-        """
-        agents = model.agents(self.target, NamerView)
-        if len(agents) < PAIR:
-            return
-        for _ in range(len(agents)):
-            speaker, hearer = model.rng.choice(len(agents), size=2, replace=False)
-            self._play(agents[speaker], agents[hearer], int(speaker), model.rng)
 
 
 @register_model(
