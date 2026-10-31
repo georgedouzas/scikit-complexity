@@ -4,7 +4,7 @@
 # License: MIT
 
 import math
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
@@ -14,13 +14,13 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, MatchLaw, RuleLaw
-from ....core.laws.utils import matches, transfer
+from ....core.interactions import BaseMatchingProtocol, GreedyProtocol, MatchingInteraction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.laws.utils import transfer
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....engine.solvers import ModelView
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import MatchSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._barter_trader_view import BarterTraderView
 
@@ -36,45 +36,6 @@ def _log_spread(rates: object) -> float:
 def _utility(agent: object) -> float:
     """Return the Cobb-Douglas utility of the bundle of a trader."""
     return math.prod(float(getattr(agent, good)) for good in GOODS)
-
-
-def _best_neighbors(
-    left: Sequence[object],
-    right: Sequence[object],
-    rng: np.random.Generator,
-    capacity: int,
-) -> list[tuple[object, object]]:
-    """Return every trader, in random order, paired with the neighbour whose rate of substitution differs the most."""
-    pairs: list[tuple[object, object]] = []
-    for index in rng.permutation(len(left)):
-        trader = left[int(index)]
-        if not isinstance(trader, BarterTraderView):
-            continue
-        rate = math.log(trader.good2 / trader.good1)
-        gaps = [
-            (abs(math.log(other.good2 / other.good1) - rate), other)
-            for other in trader.neighbors()
-            if isinstance(other, BarterTraderView)
-        ]
-        if gaps:
-            pairs.append((trader, max(gaps, key=lambda item: item[0])[1]))
-    return pairs
-
-
-def _barter(first: BarterTraderView, second: BarterTraderView, units: int) -> int:
-    """Trade single units of the first good at the bundle price while both traders gain, and return the units."""
-    buyer, seller = (first, second) if first.good2 * second.good1 > second.good2 * first.good1 else (second, first)
-    price = (buyer.good2 + seller.good2) / (buyer.good1 + seller.good1)
-    traded = 0
-    while traded < units:
-        buyer_gains = (buyer.good1 + 1) * (buyer.good2 - price) > buyer.good1 * buyer.good2
-        seller_gains = (seller.good1 - 1) * (seller.good2 + price) > seller.good1 * seller.good2
-        if not (buyer_gains and seller_gains):
-            break
-        transfer(seller, buyer, 1.0, 'good1')
-        transfer(buyer, seller, price, 'good2')
-        traded += 1
-    return traded
 
 
 def _trade_network(topology: str, n_agents: int, n_groups: int, shortcuts: int, rng: np.random.Generator) -> nx.Graph:
@@ -127,6 +88,9 @@ class BarterTraderElement(Element):
         links:
             The number of trading partners the trader can search.
 
+        partners:
+            The number of partners that can match with the trader in a step, without limit.
+
     Examples:
         >>> from skcomplex.models.economics.markets import BarterTraderElement
         >>> GroupElement('traders', element=BarterTraderElement, size=4).size
@@ -142,12 +106,14 @@ class BarterTraderElement(Element):
         good2: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 10.0,
         mrs: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
         links: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        partners: Annotated[float, StateSpec()] = math.inf,
     ) -> None:
         super().__init__(label, visual=visual)
         self.good1 = good1
         self.good2 = good2
         self.mrs = mrs
         self.links = links
+        self.partners = partners
 
     @classmethod
     def _get_view(cls) -> type[BarterTraderView]:
@@ -167,6 +133,48 @@ class BarterTraderElement(Element):
         """
         return [RuleLaw(self.appraise)]
 
+    @staticmethod
+    def is_partner(trader: object, other: object) -> bool:
+        """Return whether another trader is a trading partner of a trader, a neighbour on the trade network.
+
+        Args:
+            trader:
+                The trader that searches.
+
+            other:
+                Another trader.
+
+        Returns:
+            partner:
+                Whether the other trader is in a node next to the trader's node.
+        """
+        if not isinstance(trader, BarterTraderView) or not isinstance(other, BarterTraderView):
+            return False
+        return other.id != trader.id and other.location in trader.neighbor_cells()
+
+    @staticmethod
+    def get_rate_gap(trader: object, other: object) -> float:
+        """Return the gap between the logarithms of the rates of substitution of a trader and a trading partner.
+
+        The gap is minus infinity for a trader that is not a partner, so a trader takes a partner whenever it has one.
+
+        Args:
+            trader:
+                The trader that searches.
+
+            other:
+                Another trader.
+
+        Returns:
+            gap:
+                The absolute difference of the logarithms of the two rates.
+        """
+        if not BarterTraderElement.is_partner(trader, other):
+            return -math.inf
+        if not isinstance(trader, BarterTraderView) or not isinstance(other, BarterTraderView):
+            return -math.inf
+        return abs(math.log(other.good2 / other.good1) - math.log(trader.good2 / trader.good1))
+
     def appraise(self, agent: BarterTraderView, model: ModelView) -> None:
         """Record the marginal rate of substitution of the bundle.
 
@@ -180,70 +188,132 @@ class BarterTraderElement(Element):
         agent.mrs = agent.good2 / agent.good1
 
 
-class BilateralBarterInteraction(Interaction):
-    """Barter in which every trader searches its neighbours and trades with the one whose rate differs the most.
+class BilateralBarterInteraction(MatchingInteraction[ModelView]):
+    """Barter in which every trader trades with the neighbour it matched, the one whose rate differs the most.
 
-    Each pair trades single units of the first good at the price `(g2 + g2') / (g1 + g1')` of their pooled bundles,
-    which lies between their rates, while the trade raises the utility of both. The reporters `trades` and
-    `searches` count the units traded and the neighbours searched in a step.
+    A greedy matching pairs every trader, in random order, with the neighbour whose marginal rate of substitution
+    differs the most in logarithm, and a neighbour takes any number of partners. The score of a trader that is not a
+    neighbour is minus infinity, and a trader without neighbours trades with no one. Each pair trades single units of
+    the first good at the price `(g2 + g2') / (g1 + g1')` of their pooled bundles, which lies between their rates, while
+    the trade raises the utility of both. Besides the reporters of a matching, the reporters `trades` and `searches`
+    count the units traded and the neighbours searched in a step.
 
     Args:
         label:
             The label of the interaction.
 
-        traders:
-            The path of the group of traders.
+        requesters:
+            The path of the group of traders that search for a partner.
+
+        providers:
+            The path of the group of traders that can be found, the same group.
+
+        protocol:
+            The protocol that pairs the traders, such as `GreedyProtocol(candidates='neighbors')`.
+
+        limit:
+            The state with the limit of both sides, missing for traders, which then accept any partner.
+
+        quantity:
+            The states of the partners a requester wants and a provider takes, one and without limit for traders.
+
+        budget:
+            The state of a requester with the most value it can give, missing for traders.
+
+        transfers:
+            The states every match moves, none for traders, whose trades move the goods.
+
+        phase:
+            The phase the barter runs in, or `None` for the default phase.
+
+        on_match:
+            A function of every match and the model view, run after the trade, or `None`.
 
         units:
             The most units one pair trades in a step.
 
     Examples:
         >>> from skcomplex.models.economics.markets import BilateralBarterInteraction
-        >>> BilateralBarterInteraction('barter', traders='traders').units
+        >>> BilateralBarterInteraction('barter', requesters='traders', providers='traders').units
         100
     """
 
-    reports: ClassVar[tuple[str, ...]] = ('trades', 'searches')
+    reports: ClassVar[tuple[str, ...]] = (*MatchingInteraction.reports, 'trades', 'searches')
 
     def __init__(
         self,
         label: str,
         *,
-        traders: Annotated[str, RoleSpec()],
+        requesters: Annotated[str, RoleSpec()],
+        providers: Annotated[str, RoleSpec()],
+        protocol: BaseMatchingProtocol | None = None,
+        limit: str | tuple[str, str] = 'limit',
+        quantity: str | tuple[str, str] = 'quantity',
+        budget: str = 'budget',
+        transfers: Sequence[tuple[str, int]] = (),
+        phase: str | None = None,
+        on_match: Callable[[MatchSpec, ModelView], None] | None = None,
         units: Annotated[int, ParameterSpec(domain=NN)] = 100,
     ) -> None:
-        super().__init__(label)
-        self.traders = traders
+        super().__init__(
+            label,
+            requesters=requesters,
+            providers=providers,
+            protocol=protocol,
+            limit=limit,
+            quantity=quantity,
+            budget=budget,
+            transfers=transfers,
+            phase=phase,
+            on_match=on_match,
+        )
         self.units = units
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the matching of every trader with its best neighbour and the rule that trades along the pairs.
+    @staticmethod
+    def _barter(first: BarterTraderView, second: BarterTraderView, units: int) -> int:
+        """Trade single units of the first good at the bundle price while both traders gain, and return the units."""
+        buyer, seller = (first, second) if first.good2 * second.good1 > second.good2 * first.good1 else (second, first)
+        price = (buyer.good2 + seller.good2) / (buyer.good1 + seller.good1)
+        traded = 0
+        while traded < units:
+            buyer_gains = (buyer.good1 + 1) * (buyer.good2 - price) > buyer.good1 * buyer.good2
+            seller_gains = (seller.good1 - 1) * (seller.good2 + price) > seller.good1 * seller.good2
+            if not (buyer_gains and seller_gains):
+                break
+            transfer(seller, buyer, 1.0, 'good1')
+            transfer(buyer, seller, price, 'good2')
+            traded += 1
+        return traded
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+    def _settle(self, match: MatchSpec, model: ModelView) -> None:
+        """Trade along a pair of partners, count the units traded, and settle the match."""
+        first, second = match.requester, match.provider
+        if not isinstance(first, BarterTraderView) or not isinstance(second, BarterTraderView):
+            super()._settle(match, model)
+            return
+        if BarterTraderElement.is_partner(first, second):
+            traded = self._barter(first, second, int(model.parameter('units')))
+            model.storage['trades'] = self._get_trades(model) + traded
+        super()._settle(match, model)
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [MatchLaw(self.traders, pairing=_best_neighbors, label='partners'), RuleLaw(self.trade)]
+    @staticmethod
+    def _get_trades(model: ModelView) -> float:
+        """Return the units traded so far in the step, kept in the storage of the barter."""
+        trades = model.storage.get('trades')
+        return float(trades) if isinstance(trades, int | float) else 0.0
 
-    def trade(self, model: ModelView) -> None:
-        """Trade along every pair of the step and report the units traded and the neighbours searched.
+    def match(self, model: ModelView) -> None:
+        """Pair and trade, and report the units traded and the neighbours searched besides the matching reporters.
 
         Args:
             model:
                 The model view of the interaction.
         """
-        units = int(model.parameter('units'))
-        traded = sum(
-            _barter(first, second, units)
-            for first, second in matches(model, 'partners')
-            if isinstance(first, BarterTraderView) and isinstance(second, BarterTraderView)
-        )
-        model.report('trades', float(traded))
-        model.report('searches', float(sum(trader.links for trader in model.agents(self.traders, BarterTraderView))))
+        model.storage['trades'] = 0.0
+        super().match(model)
+        model.report('trades', self._get_trades(model))
+        traders = model.agents('requesters', BarterTraderView)
+        model.report('searches', float(sum(trader.links for trader in traders)))
 
 
 @register_model(
@@ -332,7 +402,16 @@ def wilhite_trade_networks(
     )
     return System(
         elements=[traders],
-        interactions=[BilateralBarterInteraction('barter', traders='traders', units=units)],
+        interactions=[
+            BilateralBarterInteraction(
+                'barter',
+                requesters='traders',
+                providers='traders',
+                protocol=GreedyProtocol(score=BarterTraderElement.get_rate_gap),
+                quantity=('request', 'partners'),
+                units=units,
+            ),
+        ],
         space=NetworkSpace(graph),
         time=DiscreteTime(),
     )

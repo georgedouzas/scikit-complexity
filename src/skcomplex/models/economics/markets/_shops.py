@@ -3,22 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+import math
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, MatchLaw, RuleLaw
-from ....core.laws.utils import matches, transfer
+from ....core.interactions import GreedyProtocol, MatchingInteraction
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import ModelView
-from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import MatchSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._resident_view import ResidentView
 from ._store_view import StoreView
@@ -38,64 +37,6 @@ def _shops_observables(system: System) -> list[ObservableSpec]:
         ObservableSpec('mean_price', group='shops', variable='price', reduce='mean'),
         ObservableSpec('concentration', group='shops', variable='sales', reduce=_largest_share),
     ]
-
-
-def delivered_price_choice(
-    left: Sequence[object],
-    right: Sequence[object],
-    rng: np.random.Generator,
-    capacity: int,
-) -> list[tuple[object, object]]:
-    """Pairing of shoppers, in random order, with the shop of the lowest delivered price that has units left.
-
-    The delivered price is the shop's ask plus the shopper's travel cost per cell times the distance to the shop. A
-    shopper buys one unit when the ask is at most its bid, so every pair is a purchase of one unit. The
-    shoppers choose in turn, so the matching is stable when shops do not choose among shoppers.
-
-    Args:
-        left:
-            The shoppers.
-
-        right:
-            The shops.
-
-        rng:
-            The random generator.
-
-        capacity:
-            The largest number of purchases of every shopper, which the demand limits instead.
-
-    Returns:
-        purchases:
-            The pairs of a shopper with the shop it buys from.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.models.economics.markets import delivered_price_choice
-        >>> delivered_price_choice([], [], np.random.default_rng(0), 1)
-        []
-    """
-    shoppers = [agent for agent in left if isinstance(agent, ResidentView) and agent.demand > 0]
-    stores = [agent for agent in right if isinstance(agent, StoreView) and agent.supply > 0]
-    if not shoppers or not stores:
-        return []
-    here = np.array([agent.location for agent in shoppers], dtype=float)
-    there = np.array([agent.location for agent in stores], dtype=float)
-    distances = np.linalg.norm(here[:, None, :] - there[None, :, :], axis=-1)
-    asks = np.array([agent.ask for agent in stores], dtype=float)
-    travel = np.array([agent.travel for agent in shoppers], dtype=float)
-    delivered = asks[None, :] + travel[:, None] * distances
-    supply = np.array([agent.supply for agent in stores], dtype=float)
-    purchases: list[tuple[object, object]] = []
-    for index in rng.permutation(len(shoppers)):
-        shopper = shoppers[int(index)]
-        costs = np.where((supply >= 1) & (asks <= shopper.bid), delivered[index], np.inf)
-        best = int(np.argmin(costs))
-        if not np.isfinite(costs[best]):
-            continue
-        supply[best] -= 1
-        purchases.append((shopper, stores[best]))
-    return purchases
 
 
 class ResidentElement(Element):
@@ -183,6 +124,27 @@ class ResidentElement(Element):
         agent.demand = 1.0
         online = model.rng.random() < model.parameter('online')
         agent.travel = 0.0 if online else model.parameter('distance_cost')
+
+    @staticmethod
+    def get_preference(shopper: object, shop: object) -> float:
+        """Return the preference of a shopper for a shop, the opposite of the delivered price.
+
+        The delivered price is the shop's ask plus the shopper's travel cost per cell times the distance to the shop.
+
+        Args:
+            shopper:
+                The shopper.
+
+            shop:
+                The shop.
+
+        Returns:
+            preference:
+                The opposite of the delivered price, higher for a preferred shop.
+        """
+        if not isinstance(shopper, ResidentView) or not isinstance(shop, StoreView):
+            return -math.inf
+        return -(shop.ask + shopper.travel * shopper.distance_to(shop))
 
 
 class StoreElement(Element):
@@ -321,75 +283,20 @@ class StoreElement(Element):
         agent.profit = profit
         agent.price = max(unit_cost, agent.price * (1 + agent.direction * model.parameter('adjustment')))
 
-
-class ShoppingInteraction(Interaction):
-    """Market where shoppers buy from the shops they prefer, by price plus travel cost.
-
-    The matching law pairs every shopper with the shop of the lowest price plus travel cost that has units left, and
-    every pair trades one unit at the shop's price, paid as a transfer from shopper to shop.
-
-    Args:
-        label:
-            The label of the market.
-
-        shoppers:
-            The path of the group of shoppers.
-
-        shops:
-            The path of the group of shops.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets import ShoppingInteraction
-        >>> ShoppingInteraction('shopping', shoppers='shoppers', shops='shops').reports
-        ('volume',)
-    """
-
-    reports: ClassVar[tuple[str, ...]] = ('volume',)
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        shoppers: Annotated[str, RoleSpec()],
-        shops: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(label)
-        self.shoppers = shoppers
-        self.shops = shops
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the matching of shoppers with shops and the rule that settles the trades.
+    @staticmethod
+    def record_sale(match: MatchSpec, model: ModelView) -> None:
+        """Count the units of a purchase in the sales of the shop.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            match:
+                The purchase of a shopper, the requester, from a shop, the provider.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            MatchLaw('shoppers', 'shops', pairing=delivered_price_choice, label='purchases', phase='market'),
-            RuleLaw(self.buy, phase='market'),
-        ]
-
-    def buy(self, model: ModelView) -> None:
-        """Pay for every purchase and count the units sold.
-
-        Args:
             model:
                 The model view of the market.
         """
-        volume = 0.0
-        for shopper, store in matches(model, 'purchases'):
-            if not isinstance(shopper, ResidentView) or not isinstance(store, StoreView):
-                continue
-            transfer(shopper, store, store.ask, 'money')
-            shopper.demand -= 1.0
-            store.supply -= 1.0
-            store.sales += 1.0
-            volume += 1.0
-        model.report('volume', volume)
+        shop = match.provider
+        if isinstance(shop, StoreView):
+            shop.sales += match.quantity
 
 
 @register_model(
@@ -413,13 +320,13 @@ def shops(
 ) -> System:
     """Return shops on a grid that compete for the shoppers on every cell, in person or in a digital market.
 
-    Every step every shopper wants one unit and shops online with probability `online`, and in person otherwise, when
-    it pays a travel cost for the distance to the shop. The shoppers choose in random order the shops they prefer
-    by price plus travel cost, within the shops' capacities. Shops search for the price of the largest profit by trial
-    and error, pay a fixed cost every step, and close when their money runs out. Distance gives every shop a local
-    market, so many shops survive with high prices. In the digital market the cheapest shop takes every shopper, the
-    others undercut it, prices fall toward the unit cost, and most shops close (Hamill and Gilbert 2016 sec.
-    6.3-6.4).
+    Every step every shopper wants one unit and shops online with probability `online`, and in person otherwise, when it
+    pays a travel cost for the distance to the shop. The shoppers choose in random order the shops they prefer by price
+    plus travel cost, within the shops' capacities, a greedy matching that pays the shop's ask for a unit. Shops search
+    for the price of the largest profit by trial and error, pay a fixed cost every step, and close when their money runs
+    out. Distance gives every shop a local market, so many shops survive with high prices. In the digital market the
+    cheapest shop takes every shopper, the others undercut it, prices fall toward the unit cost, and most shops close
+    (Hamill and Gilbert 2016 sec. 6.3-6.4).
 
     Args:
         n_shops:
@@ -451,7 +358,8 @@ def shops(
 
     Returns:
         system:
-            The model, with the groups `shoppers` and `shops` and the market `shopping`.
+            The model, with the groups `shoppers` and `shops` and the market `shopping`, whose reporters are the
+            `shopping.price`, `shopping.volume`, and `shopping.unmatched` of the purchases.
 
     Examples:
         >>> from skcomplex.models.economics.markets import shops
@@ -480,9 +388,20 @@ def shops(
         variable=True,
         location=[cells[index] for index in places],
     )
+    shopping = MatchingInteraction[ModelView](
+        'shopping',
+        requesters='shoppers',
+        providers='shops',
+        protocol=GreedyProtocol(score=ResidentElement.get_preference),
+        limit=('bid', 'ask'),
+        quantity=('demand', 'supply'),
+        transfers=(('money', -1),),
+        phase='market',
+        on_match=StoreElement.record_sale,
+    )
     return System(
         elements=[shoppers, stores],
-        interactions=[ShoppingInteraction('shopping', shoppers='shoppers', shops='shops')],
+        interactions=[shopping],
         space=LatticeSpace((width, height), boundary='fixed', neighborhood='moore'),
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('market'), PhaseSpec('accounts')])),
     )

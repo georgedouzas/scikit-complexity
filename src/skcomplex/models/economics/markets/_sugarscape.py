@@ -8,10 +8,10 @@ from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import numpy as np
-import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
+from ....analysis import DistributionAnalysis
 from ....core.elements import Element, GroupElement
 from ....core.interactions import FeedbackInteraction
 from ....core.laws import BaseLaw, RuleLaw
@@ -242,30 +242,7 @@ class ForagerElement(Element):
             agent.remove()
 
 
-def gini(values: npt.ArrayLike) -> float:
-    """Return the Gini coefficient of nonnegative values, zero for equal values and near one for one holder.
-
-    Args:
-        values:
-            The values, such as the wealth of every agent.
-
-    Returns:
-        gini:
-            The Gini coefficient, zero without values.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets._sugarscape import gini
-        >>> gini([1.0, 1.0]), gini([0.0, 0.0, 0.0, 3.0])
-        (0.0, 0.75)
-    """
-    array = np.sort(np.asarray(values, dtype=float))
-    if not len(array) or not array.sum():
-        return 0.0
-    ranks = np.arange(1, len(array) + 1)
-    return float(np.sum((2 * ranks - len(array) - 1) * array) / (len(array) * array.sum()))
-
-
-class CensusInteraction(FeedbackInteraction[ModelView]):
+class ForagerCensusInteraction(FeedbackInteraction[ModelView]):
     """Census that reports the population of foragers and the Gini coefficient of their wealth.
 
     Args:
@@ -282,8 +259,8 @@ class CensusInteraction(FeedbackInteraction[ModelView]):
             The path of the group of foragers.
 
     Examples:
-        >>> from skcomplex.models.economics.markets import CensusInteraction
-        >>> CensusInteraction('census', foragers='foragers').reports
+        >>> from skcomplex.models.economics.markets import ForagerCensusInteraction
+        >>> ForagerCensusInteraction('census', foragers='foragers').reports
         ('population', 'gini')
     """
 
@@ -309,7 +286,7 @@ class CensusInteraction(FeedbackInteraction[ModelView]):
         """
         wealth = [forager.sugar for forager in model.agents('foragers', ForagerView)]
         model.report('population', len(wealth))
-        model.report('gini', gini(wealth))
+        model.report('gini', DistributionAnalysis('gini').check().prepare(np.asarray(wealth, dtype=float)).run().gini_)
 
 
 @register_model(
@@ -400,7 +377,7 @@ def sugarscape(
     )
     return System(
         elements=[patches, foragers],
-        interactions=[CensusInteraction('census', foragers='foragers', phase='growth')],
+        interactions=[ForagerCensusInteraction('census', foragers='foragers', phase='growth')],
         space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'),
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('foraging'), PhaseSpec('growth')])),
     )

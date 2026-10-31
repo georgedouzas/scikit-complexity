@@ -11,33 +11,25 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import ChoiceInteraction, FeedbackInteraction
+from ....core.interactions import ChoiceInteraction, FeedbackInteraction, ReinforcementInteraction
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.forecasting import heuristics
-from ._fitness_spec import _FitnessSpec
+from ._heuristic_trader_view import HeuristicTraderView
 from ._market_state_spec import _MarketStateSpec
-from ._speculator_view import SpeculatorView
 
 PREDICTORS = ('fundamentalist', 'trend')
 PRICING = 'pricing'
 
 
-def _get_last_fitness(agent: SpeculatorView, model: ModelView, option: float) -> float:
-    """Return the last realised fitness of a heuristic, read once per step into the storage of the choice."""
-    cached = model.storage.get('fitness')
-    if not isinstance(cached, _FitnessSpec) or cached.time != model.time:
-        values = [model.history(f'{PRICING}.fitness_{name}', 1) for name in PREDICTORS]
-        cached = _FitnessSpec(model.time, tuple(float(value[-1]) if len(value) else 0.0 for value in values))
-        model.storage['fitness'] = cached
-    return cached.fitness[int(option)]
-
-
-class SpeculatorElement(Element):
+class HeuristicTraderElement(Element):
     """Trader who holds the index of the forecasting heuristic in use, 0 for the fundamentalist and 1 for the trend.
+
+    The trader scores every heuristic by its last realised fitness, `fundamentalist_fitness` and `trend_fitness`, which
+    a reinforcement of rate 1 sets every step and a logit choice reads.
 
     Args:
         label:
@@ -49,9 +41,15 @@ class SpeculatorElement(Element):
         predictor:
             The index of the heuristic in use.
 
+        fundamentalist_fitness:
+            The last realised fitness of the fundamentalist heuristic.
+
+        trend_fitness:
+            The last realised fitness of the trend heuristic.
+
     Examples:
-        >>> from skcomplex.models.economics.markets import SpeculatorElement
-        >>> GroupElement('traders', element=SpeculatorElement, size=10, values={'predictor': 1.0}).size
+        >>> from skcomplex.models.economics.markets import HeuristicTraderElement
+        >>> GroupElement('traders', element=HeuristicTraderElement, size=10, values={'predictor': 1.0}).size
         10
     """
 
@@ -61,14 +59,59 @@ class SpeculatorElement(Element):
         visual: VisualSpec | None = None,
         *,
         predictor: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        fundamentalist_fitness: Annotated[float, StateSpec()] = 0.0,
+        trend_fitness: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.predictor = predictor
+        self.fundamentalist_fitness = fundamentalist_fitness
+        self.trend_fitness = trend_fitness
 
     @classmethod
-    def _get_view(cls) -> type[SpeculatorView]:
+    def _get_view(cls) -> type[HeuristicTraderView]:
         """Return the view of a speculator, with its heuristic."""
-        return SpeculatorView
+        return HeuristicTraderView
+
+    @staticmethod
+    def get_fitness(agent: HeuristicTraderView, model: ModelView, option: float) -> float:
+        """Return the score of a heuristic of a trader, its last realised fitness.
+
+        Args:
+            agent:
+                The trader.
+
+            model:
+                The model view of the choice.
+
+            option:
+                The index of the heuristic.
+
+        Returns:
+            fitness:
+                The last realised fitness of the heuristic.
+        """
+        return float(getattr(agent, f'{PREDICTORS[int(option)]}_fitness'))
+
+    @staticmethod
+    def get_realised_fitness(agent: HeuristicTraderView, model: ModelView, index: int) -> float:
+        """Return the fitness of a heuristic that the market maker reported last, zero before the first report.
+
+        Args:
+            agent:
+                The trader.
+
+            model:
+                The model view of the reinforcement.
+
+            index:
+                The index of the heuristic.
+
+        Returns:
+            fitness:
+                The last reported fitness of the heuristic.
+        """
+        reported = model.history(f'{PRICING}.fitness_{PREDICTORS[index]}', 1)
+        return float(reported[-1]) if len(reported) else 0.0
 
 
 class HeuristicPricingInteraction(FeedbackInteraction[ModelView]):
@@ -157,7 +200,7 @@ class HeuristicPricingInteraction(FeedbackInteraction[ModelView]):
         forecasts = np.array(
             [heuristics.fundamental(history), heuristics.fundamental(history, fundamental=0.0, reversion=strength)],
         )
-        traders = model.agents('traders', SpeculatorView)
+        traders = model.agents('traders', HeuristicTraderView)
         share = float(np.mean([trader.predictor for trader in traders])) if traders else 0.0
         price = float(forecasts @ [1 - share, share] + model.rng.normal(0.0, model.parameter('noise'))) / rate
         previous = state.forecasts
@@ -193,11 +236,11 @@ def brock_hommes(
 ) -> System:
     """Return Brock and Hommes' asset market with traders switching between fundamentalists and trend chasers.
 
-    Every step the traders choose a heuristic by a logit choice of intensity `beta` on its last realised fitness, and
-    the market maker clears the deviation of the price from the fundamental at `R x_t = sum_h n_h f_h`. The
-    fundamental steady state is stable while the share of trend chasers there, `1 / (1 + exp(-beta C))`, is below
-    `R / g`, and beyond the critical intensity `beta* = ln(R / (g - R)) / C` the price fluctuates persistently around
-    the fundamental.
+    Every step the traders score every heuristic by its last realised fitness and choose a heuristic by a logit choice
+    of intensity `beta` on its last realised fitness, and the market maker clears the deviation of the price from the
+    fundamental at `R x_t = sum_h n_h f_h`. The fundamental steady state is stable while the share of trend chasers
+    there, `1 / (1 + exp(-beta C))`, is below `R / g`, and beyond the critical intensity `beta* = ln(R / (g - R)) / C`
+    the price fluctuates persistently around the fundamental.
 
     Args:
         n_traders:
@@ -226,22 +269,31 @@ def brock_hommes(
 
     Returns:
         system:
-            The model, with the group `traders`, their choice `choice`, and the institution `pricing`, whose reporters
-            are the deviation of the price `pricing.deviation`, the share of trend chasers `pricing.trend_share`, and
-            the fitnesses `pricing.fitness_fundamentalist` and `pricing.fitness_trend`.
+            The model, with the group `traders`, their scores `learning` and choice `choice`, and the institution
+            `pricing`, whose reporters are the deviation of the price `pricing.deviation`, the share of trend chasers
+            `pricing.trend_share`, and the fitnesses `pricing.fitness_fundamentalist` and `pricing.fitness_trend`.
 
     Examples:
         >>> from skcomplex.models.economics.markets import brock_hommes
         >>> brock_hommes(100).elements[0].check().prepare().size_
         100
     """
-    traders = GroupElement('traders', element=SpeculatorElement, size=n_traders)
+    traders = GroupElement('traders', element=HeuristicTraderElement, size=n_traders)
+    learning = ReinforcementInteraction(
+        'learning',
+        target='traders',
+        scores=tuple(f'{name}_fitness' for name in PREDICTORS),
+        payoff=HeuristicTraderElement.get_realised_fitness,
+        rate=1.0,
+        form='agent',
+        phase='learning',
+    )
     choice = ChoiceInteraction(
         'choice',
         target='traders',
         state='predictor',
         options=(0, 1),
-        utility=_get_last_fitness,
+        utility=HeuristicTraderElement.get_fitness,
         intensity=intensity,
         form='agent',
         phase='choice',
@@ -259,6 +311,8 @@ def brock_hommes(
     )
     return System(
         elements=[traders],
-        interactions=[choice, pricing],
-        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('choice'), PhaseSpec('pricing')])),
+        interactions=[learning, choice, pricing],
+        time=DiscreteTime(
+            schedule=PhasesScheduleSpec([PhaseSpec('learning'), PhaseSpec('choice'), PhaseSpec('pricing')]),
+        ),
     )

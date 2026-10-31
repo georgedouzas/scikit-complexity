@@ -12,14 +12,14 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
+from ....core.interactions import Interaction, MovementInteraction
 from ....core.laws import BaseLaw, MatchLaw, RuleLaw
 from ....core.laws.utils import matches
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....core.types import Pairing
-from ....engine.solvers import AgentView, ModelView
-from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....engine.solvers import ModelView
+from ....specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
 from ._exchange import cobb_douglas, neighbor_pairing, trade_goods
@@ -43,7 +43,7 @@ def _goods_observables(system: System) -> list[ObservableSpec]:
 
 
 class GoodsTraderElement(Element):
-    """Trader who holds goods, values them with Cobb-Douglas weights, and wanders to a random neighbouring cell.
+    """Trader who holds goods and values them with Cobb-Douglas weights.
 
     Args:
         label:
@@ -70,9 +70,6 @@ class GoodsTraderElement(Element):
         salt_weight:
             The Cobb-Douglas weight of salt, zero when salt is not traded.
 
-        mobility:
-            The probability that the trader moves in a step.
-
     Examples:
         >>> from skcomplex.models.economics.markets import GoodsTraderElement
         >>> GroupElement('traders', element=GoodsTraderElement, size=4, values={'sugar': 5.0}).size
@@ -90,7 +87,6 @@ class GoodsTraderElement(Element):
         sugar_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         spice_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         salt_weight: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        mobility: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
         super().__init__(label, visual=visual)
         self.sugar = sugar
@@ -99,35 +95,6 @@ class GoodsTraderElement(Element):
         self.sugar_weight = sugar_weight
         self.spice_weight = spice_weight
         self.salt_weight = salt_weight
-        self.mobility = mobility
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the wandering rule of the phase of moves.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.wander, phase='move')]
-
-    def wander(self, agent: AgentView, model: ModelView) -> None:
-        """Move to a random neighbouring cell with the probability of the mobility.
-
-        Args:
-            agent:
-                The trader.
-
-            model:
-                The model.
-        """
-        if model.rng.random() >= model.parameter('mobility'):
-            return
-        cells = agent.neighbor_cells()
-        agent.move_to(cells[int(model.rng.integers(len(cells)))])
 
 
 class ExchangeInteraction(Interaction):
@@ -270,8 +237,8 @@ def goods_traders(
 
     Returns:
         system:
-            The model, with the group `traders` and the exchange `exchange`, whose reporters are `exchange.price`,
-            `exchange.dispersion`, and `exchange.volume`.
+            The model, with the group `traders`, their random walk `wander`, and the exchange `exchange`, whose
+            reporters are `exchange.price`, `exchange.dispersion`, and `exchange.volume`.
 
     Raises:
         ValueError:
@@ -296,13 +263,14 @@ def goods_traders(
         'traders',
         element=GoodsTraderElement,
         size=n_traders,
-        values={'mobility': mobility, **values},
+        values=values,
         variable=True,
         location=locations,
     )
     return System(
         elements=[traders],
         interactions=[
+            MovementInteraction('wander', target='traders', probability=mobility, phase='move'),
             ExchangeInteraction(
                 'exchange',
                 traders='traders',

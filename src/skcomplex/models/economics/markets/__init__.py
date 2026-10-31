@@ -2,7 +2,7 @@
 
 from ._barter import BartererElement, barter, contract_curve
 from ._barter_networks import BarterTraderElement, BilateralBarterInteraction, wilhite_trade_networks
-from ._brock_hommes import HeuristicPricingInteraction, SpeculatorElement, brock_hommes
+from ._brock_hommes import HeuristicPricingInteraction, HeuristicTraderElement, brock_hommes
 from ._cobweb import CobwebInteraction, MarketElement, cobweb
 from ._commodities import CommodityMarketElement, commodity_cycle
 from ._double_auction import (
@@ -28,8 +28,8 @@ from ._perishables import (
 from ._prices import QuadraticSupplyMarketElement, riccati_prices
 from ._produce import ShopperElement, StallElement, produce_market
 from ._queues import CarElement, CarWashOperationInteraction, TillElement, WasherElement, car_wash
-from ._shops import ResidentElement, ShoppingInteraction, StoreElement, delivered_price_choice, shops
-from ._sugarscape import CensusInteraction, ForagerElement, SugarPatchElement, sugarscape
+from ._shops import ResidentElement, StoreElement, shops
+from ._sugarscape import ForagerCensusInteraction, ForagerElement, SugarPatchElement, sugarscape
 from ._supply_chains import (
     BreweryInteraction,
     EchelonElement,
@@ -47,7 +47,6 @@ __all__: list[str] = [
     'CarDealershipElement',
     'CarElement',
     'CarWashOperationInteraction',
-    'CensusInteraction',
     'CobwebInteraction',
     'CommodityMarketElement',
     'ConsumerElement',
@@ -57,9 +56,11 @@ __all__: list[str] = [
     'EchelonElement',
     'EmployerElement',
     'ExchangeInteraction',
+    'ForagerCensusInteraction',
     'ForagerElement',
     'GoodsTraderElement',
     'HeuristicPricingInteraction',
+    'HeuristicTraderElement',
     'JobseekerElement',
     'MarketElement',
     'PerishableTradeInteraction',
@@ -70,8 +71,6 @@ __all__: list[str] = [
     'SearchCountInteraction',
     'ShopElement',
     'ShopperElement',
-    'ShoppingInteraction',
-    'SpeculatorElement',
     'StallElement',
     'StoreElement',
     'SugarPatchElement',
@@ -90,7 +89,6 @@ __all__: list[str] = [
     'commodity_cycle',
     'contract_curve',
     'cournot_duopoly',
-    'delivered_price_choice',
     'double_auction',
     'fair_food',
     'goods_traders',
