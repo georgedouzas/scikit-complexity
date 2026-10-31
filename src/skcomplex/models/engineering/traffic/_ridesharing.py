@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction, MatchingInteraction
+from ....core.interactions import Interaction, MapInteraction, MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.laws.utils import transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
@@ -148,31 +148,6 @@ class RiderElement(Element):
     def _get_view(cls) -> type[RiderView]:
         """Return the view of the riders, which types their states."""
         return RiderView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the waiting rule of the phase of driving.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.wait, phase='drive')]
-
-    def wait(self, agent: RiderView, model: ModelView) -> None:
-        """Wait one more step.
-
-        Args:
-            agent:
-                The rider.
-
-            model:
-                The model.
-        """
-        agent.waited += 1
 
 
 class CabElement(Element):
@@ -457,6 +432,15 @@ def ridesharing(
         elements=[riders, cabs],
         interactions=[
             ArrivalInteraction('arrival', riders='riders', demand=demand, width=width, height=height),
+            MapInteraction(
+                'waiting',
+                target='riders',
+                state='waited',
+                function=lambda agent, model: 1.0,
+                mode='increment',
+                form='agent',
+                phase='drive',
+            ),
             MatchingInteraction(
                 'dispatch',
                 requesters='riders',
