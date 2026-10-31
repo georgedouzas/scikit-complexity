@@ -67,6 +67,12 @@ binding instead of the mechanisms falling back to plain interactions:
   `CouplingInteraction` rests on it for any function, not only separable ones.
 - A reduction returns the state of the neighbour at which an expression is largest, which `'best'` imitation reads.
 
+### Mechanisms serve agent groups and symbolic groups
+A mechanism that agent models use lowers to a `RuleLaw` when its role binds an agent group, and to its symbolic laws
+otherwise. In the agent form, the functions it takes, such as a utility, are callables of the agent and the model view,
+so they can read the model's history and the agent's neighbours. One class serves both, and the bound group decides
+the lowering.
+
 ### Variants are named arguments, checked in `_check`
 A variant that changes the form of the laws is a string argument checked against a module constant of the allowed
 names, such as `step='levy'`, `form='gompertz'`, `rule='fermi'`, or `mode='jump'`. A variant that carries its own
