@@ -2,8 +2,8 @@
 
 from ._arbitrage import ArbitrageDensityElement, arbitrage_traders
 from ._assets import AssetElement, GeometricBrownianMotionInteraction, geometric_brownian_motion
-from ._contagion import BankElement, DebtRankCascadeInteraction, debtrank
-from ._correlated_assets import CorrelatedGeometricBrownianMotionInteraction, correlated_geometric_brownian_motion
+from ._contagion import DebtRankCascadeInteraction, InterbankElement, debtrank
+from ._correlated_assets import correlated_geometric_brownian_motion
 from ._growth_processes import (
     GibratFirmElement,
     KestenFirmElement,
@@ -13,21 +13,19 @@ from ._growth_processes import (
     multiplicative_process,
 )
 from ._order_book import BookInteraction, StockTraderElement, order_book
-from ._wealth import MeanFieldSaverElement, SaverElement, bouchaud_mezard_wealth
+from ._wealth import NetworkSaverElement, bouchaud_mezard_wealth
 
 __all__: list[str] = [
     'ArbitrageDensityElement',
     'AssetElement',
-    'BankElement',
     'BookInteraction',
-    'CorrelatedGeometricBrownianMotionInteraction',
     'DebtRankCascadeInteraction',
     'GeometricBrownianMotionInteraction',
     'GibratFirmElement',
+    'InterbankElement',
     'KestenFirmElement',
-    'MeanFieldSaverElement',
+    'NetworkSaverElement',
     'ReflectingFloorInteraction',
-    'SaverElement',
     'StockTraderElement',
     'arbitrage_traders',
     'bouchaud_mezard_wealth',

@@ -6,7 +6,7 @@
 from ....engine.solvers import AgentView
 
 
-class BankView(AgentView):
+class InterbankView(AgentView):
     """Bank as the cascade sees it: its distress `h`, its `status`, and its economic `value`."""
 
     h: float

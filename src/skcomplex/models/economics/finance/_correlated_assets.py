@@ -3,82 +3,11 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
-from types import SimpleNamespace
-from typing import Annotated
-
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
-
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.system import System
 from ....engine.solvers import EulerMaruyamaSolver
-from ....specs import ParameterSpec, RoleSpec, WienerProcessSpec
+from ....specs import WienerProcessSpec
 from ..._catalog import register_model
-from ._assets import AssetElement
-
-
-class CorrelatedGeometricBrownianMotionInteraction(Interaction):
-    """Geometric Brownian motion `dS = mu * S * dt + sigma * S * dW_k` driven by process `k` of a `WienerProcessSpec`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the asset.
-
-        market:
-            The Wiener processes, one of which drives the price.
-
-        mu:
-            The drift.
-
-        sigma:
-            The volatility.
-
-        index:
-            The process of the `WienerProcessSpec`.
-
-    Examples:
-        >>> from skcomplex.specs import WienerProcessSpec
-        >>> from skcomplex.models.economics.finance import CorrelatedGeometricBrownianMotionInteraction
-        >>> market = WienerProcessSpec('market', dimension=2)
-        >>> CorrelatedGeometricBrownianMotionInteraction('gbm', target='stock', market=market, index=1).index
-        1
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        market: Annotated[WienerProcessSpec, RoleSpec(noise=True)],
-        mu: Annotated[float, ParameterSpec()] = 0.05,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        index: int = 0,
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.market = market
-        self.mu = mu
-        self.sigma = sigma
-        self.index = index
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the drift `mu * S` and the noise amplitude `sigma * S` on process `index` of the market.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        price = s.target.price
-        return [RateLaw(price, s.mu * price), NoiseLaw(price, s.sigma * price, process=s.market.dW[self.index])]
+from ._assets import AssetElement, GeometricBrownianMotionInteraction
 
 
 @register_model(
@@ -118,7 +47,7 @@ def correlated_geometric_brownian_motion(
 
     Examples:
         >>> from skcomplex.models.economics.finance import correlated_geometric_brownian_motion
-        >>> correlated_geometric_brownian_motion(rho=0.5).interactions[1].market.covariance
+        >>> correlated_geometric_brownian_motion(rho=0.5).interactions[1].process.covariance
         [[1.0, 0.5], [0.5, 1.0]]
     """
     labels = ('first', 'second')
@@ -126,10 +55,10 @@ def correlated_geometric_brownian_motion(
     return System(
         elements=[AssetElement(label, price=price) for label, price in zip(labels, prices, strict=True)],
         interactions=[
-            CorrelatedGeometricBrownianMotionInteraction(
+            GeometricBrownianMotionInteraction(
                 f'{label}_motion',
                 target=label,
-                market=market,
+                process=market,
                 index=index,
                 mu=drift,
                 sigma=volatility,

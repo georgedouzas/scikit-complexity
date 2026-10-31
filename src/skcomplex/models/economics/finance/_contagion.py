@@ -19,7 +19,7 @@ from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
-from ._bank_view import BankView
+from ._interbank_view import InterbankView
 
 UNDISTRESSED = 0
 DISTRESSED = 1
@@ -46,12 +46,12 @@ def _economic_values(liabilities: Array) -> Array:
     return lent / lent.sum()
 
 
-def _value_at_risk(agent: BankView) -> float:
+def _value_at_risk(agent: InterbankView) -> float:
     """Return the distress of a bank weighted by its economic value."""
     return float(agent.h * agent.value)
 
 
-class BankElement(Element):
+class InterbankElement(Element):
     """Bank of the DebtRank cascade, with its level of distress, its state, and its economic value.
 
     Args:
@@ -71,8 +71,8 @@ class BankElement(Element):
             The economic value, the bank's share of all interbank lending.
 
     Examples:
-        >>> from skcomplex.models.economics.finance import BankElement
-        >>> GroupElement('banks', element=BankElement, size=3, values={'h': [1.0, 0.0, 0.0]}).size
+        >>> from skcomplex.models.economics.finance import InterbankElement
+        >>> GroupElement('banks', element=InterbankElement, size=3, values={'h': [1.0, 0.0, 0.0]}).size
         3
     """
 
@@ -91,9 +91,9 @@ class BankElement(Element):
         self.value = value
 
     @classmethod
-    def _get_view(cls) -> type[BankView]:
+    def _get_view(cls) -> type[InterbankView]:
         """Return the view of the agents of the element."""
-        return BankView
+        return InterbankView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return no laws, since the cascade updates every bank at once.
@@ -162,7 +162,7 @@ class DebtRankCascadeInteraction(Interaction):
             model:
                 The model.
         """
-        banks = sorted(model.agents('banks', BankView), key=lambda bank: bank.id)
+        banks = sorted(model.agents('banks', InterbankView), key=lambda bank: bank.id)
         h = np.array([bank.h for bank in banks])
         status = np.array([bank.status for bank in banks])
         distressed = status == DISTRESSED
@@ -237,7 +237,7 @@ def debtrank(
     status = np.where(h > 0, DISTRESSED, UNDISTRESSED).astype(float)
     banks = GroupElement(
         'banks',
-        element=BankElement,
+        element=InterbankElement,
         size=size,
         values={'h': h, 'status': status, 'value': _economic_values(matrix)},
     )

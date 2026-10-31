@@ -10,10 +10,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.interactions import RateInteraction
 from ....core.system import System
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
 from ..._catalog import register_model
 
 
@@ -47,8 +46,11 @@ class AssetElement(Element):
         self.price = price
 
 
-class GeometricBrownianMotionInteraction(Interaction):
-    """Geometric Brownian motion, `dS = mu * S * dt + sigma * S * dW`.
+class GeometricBrownianMotionInteraction(RateInteraction):
+    """Geometric Brownian motion, `dS = mu * S * dt + sigma * S * dW`, of the price of an asset.
+
+    The Wiener process `dW` is independent by default, or process `index` of a `WienerProcessSpec` that correlates it
+    with the motions of other assets.
 
     Args:
         label:
@@ -63,10 +65,20 @@ class GeometricBrownianMotionInteraction(Interaction):
         sigma:
             The volatility.
 
+        process:
+            The Wiener processes, one of which drives the price, or `None` for an independent process.
+
+        index:
+            The process of `process` that drives the price, or `None` without processes.
+
     Examples:
         >>> from skcomplex.models.economics.finance import GeometricBrownianMotionInteraction
+        >>> from skcomplex.specs import WienerProcessSpec
         >>> GeometricBrownianMotionInteraction('gbm', target='stock', sigma=0.3).sigma
         0.3
+        >>> market = WienerProcessSpec('market', dimension=2)
+        >>> GeometricBrownianMotionInteraction('gbm', target='stock', process=market, index=1).check().index
+        1
     """
 
     def __init__(
@@ -76,24 +88,38 @@ class GeometricBrownianMotionInteraction(Interaction):
         target: Annotated[str, RoleSpec()],
         mu: Annotated[float, ParameterSpec()] = 0.05,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        process: Annotated[WienerProcessSpec | None, RoleSpec(noise=True)] = None,
+        index: int | None = None,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, state='price', process=process, index=index)
         self.mu = mu
         self.sigma = sigma
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the drift `mu * S` and the noise amplitude `sigma * S`.
+    def _get_rate(self, namespace: SimpleNamespace) -> object:
+        """Return the drift `mu * S`.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the rate can use.
 
         Returns:
-            laws:
-                The laws of the component.
+            rate:
+                The drift.
         """
-        return [RateLaw(s.target.price, s.mu * s.target.price), NoiseLaw(s.target.price, s.sigma * s.target.price)]
+        return namespace.mu * namespace.target.price
+
+    def _get_noise(self, namespace: SimpleNamespace) -> object:
+        """Return the noise amplitude `sigma * S`.
+
+        Args:
+            namespace:
+                The namespace of the symbols the noise can use.
+
+        Returns:
+            noise:
+                The noise amplitude.
+        """
+        return namespace.sigma * namespace.target.price
 
 
 @register_model(
