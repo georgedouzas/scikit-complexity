@@ -122,10 +122,15 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _bound_processes(interaction: BaseInteraction, scope: str) -> list[WienerProcessSpec]:
-        """Return the Wiener processes that the noise roles of an interaction bind, after checking every role."""
+        """Return the Wiener processes that the noise roles of an interaction bind, after checking every role.
+
+        A noise role bound to `None` binds no processes, so an interaction may leave an optional noise role unbound.
+        """
         processes = []
         for name, declaration in declarations_of(type(interaction), VariableKind.ROLE).items():
             value = getattr(interaction, name)
+            if declaration.noise and value is None:
+                continue
             if declaration.noise != isinstance(value, WienerProcessSpec):
                 expected = 'a WienerProcessSpec' if declaration.noise else 'an element or group path'
                 error_msg = (

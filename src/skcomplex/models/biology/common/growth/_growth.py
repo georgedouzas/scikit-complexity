@@ -3,25 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, log, oo
 from sage.sets.real_set import RealSet
 
-from ...errors import ValidationError
-from ...specs import ParameterSpec, RoleSpec
-from ..base import BasePart
-from ..laws import RateLaw
-from ..laws.utils import delayed
-from ._interaction import Interaction
+from .....core.interactions import RateInteraction
+from .....core.laws.utils import delayed
+from .....errors import ValidationError
+from .....specs import ParameterSpec, RoleSpec
 
 FORMS = ('exponential', 'logistic', 'gompertz', 'power', 'bertalanffy')
 LIMITED_FORMS = ('logistic', 'gompertz')
 
 
-class GrowthInteraction(Interaction):
+class GrowthInteraction(RateInteraction):
     """Growth or decay of a population `n` of a target by a growth law, with a proportional harvest.
 
     The rate of `n` is the growth of the form minus the harvest `h n`:
@@ -70,7 +67,7 @@ class GrowthInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.core.elements import CompartmentElement
-        >>> from skcomplex.core.interactions import GrowthInteraction
+        >>> from skcomplex.models.biology.common.growth import GrowthInteraction
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> system = System(
@@ -95,15 +92,13 @@ class GrowthInteraction(Interaction):
         form: str = 'exponential',
         state: str = 'n',
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, state=state)
         self.r = r
         self.K = K
         self.p = p
         self.h = h
         self.tau = tau
         self.form = form
-        self.state = state
 
     def _get_limited(self, namespace: SimpleNamespace) -> Expression:
         """Return the population the limiting factor reads, delayed by `tau` when the delay is above 0."""
@@ -125,12 +120,9 @@ class GrowthInteraction(Interaction):
         return s.r * n
 
     def _check_form(self) -> None:
-        """Raise an error for an unknown form or a state that is not a name."""
+        """Raise an error for an unknown form."""
         if self.form not in FORMS:
             error_msg = f'Growth {self.label!r} has the form {self.form!r}. Use one of {", ".join(FORMS)}.'
-            raise ValidationError(error_msg)
-        if not isinstance(self.state, str) or not self.state.isidentifier():
-            error_msg = f'Growth {self.label!r} reads the state {self.state!r}, which is not a name of a state.'
             raise ValidationError(error_msg)
 
     def _check_settings(self) -> None:
@@ -159,16 +151,16 @@ class GrowthInteraction(Interaction):
         self._check_form()
         self._check_settings()
 
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the rate of the population, the growth of the form minus the harvest.
 
         Args:
             namespace:
-                The namespace of the symbols the laws can use, with the namespace of the target.
+                The namespace of the symbols the rate can use, with the namespace of the target.
 
         Returns:
-            laws:
-                The rate law of the population.
+            rate:
+                The rate of the population.
         """
         n = getattr(namespace.target, self.state)
-        return [RateLaw(n, self._get_growth(namespace) - namespace.h * n)]
+        return self._get_growth(namespace) - namespace.h * n

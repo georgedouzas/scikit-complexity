@@ -10,7 +10,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement, ParticleElement
-from skcomplex.core.interactions import ConstantForceInteraction, Interaction, PairPotentialInteraction
+from skcomplex.core.interactions import Interaction, PairPotentialInteraction
 from skcomplex.core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import mod
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
@@ -28,7 +28,7 @@ from skcomplex.models.biology.ecology import (
 from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
 from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
-from skcomplex.models.physics.common.particles import HarmonicPotentialInteraction
+from skcomplex.models.physics.common.particles import ConstantForceInteraction, HarmonicPotentialInteraction
 from skcomplex.models.physics.statistical_mechanics import ParticleSiteElement, ZeroRangeHopInteraction
 from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.types import FormKind

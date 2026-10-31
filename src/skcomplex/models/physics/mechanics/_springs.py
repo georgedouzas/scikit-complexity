@@ -10,13 +10,13 @@ from sage.all__sagemath_symbolics import cos, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import ParticleElement
-from ....core.interactions import DampingInteraction, Interaction
+from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec
 from ..._catalog import register_model
-from ..common.particles import HarmonicPotentialInteraction, SpringInteraction
+from ..common.particles import DampingInteraction, HarmonicPotentialInteraction, SpringInteraction
 
 
 class HarmonicForceInteraction(Interaction):

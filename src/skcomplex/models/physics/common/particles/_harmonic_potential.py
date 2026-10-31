@@ -10,11 +10,11 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from .....core.interactions import PotentialInteraction
 from .....specs import ParameterSpec, RoleSpec
+from ._potential_energy import PotentialEnergyInteraction
 
 
-class HarmonicPotentialInteraction(PotentialInteraction):
+class HarmonicPotentialInteraction(PotentialEnergyInteraction):
     """Harmonic potential that pulls a particle towards a center.
 
     The energy is `k * |x - center|**2 / 2`.
@@ -32,13 +32,13 @@ class HarmonicPotentialInteraction(PotentialInteraction):
         center:
             The center. A number applies to every component.
 
-        position:
+        states:
             The name of the vector state that holds the position of the particle.
 
         velocity:
             The name of the vector state that holds the velocity of the particle.
 
-        mass:
+        divisor:
             The name of the state or parameter that holds the mass of the particle.
 
     Examples:
@@ -54,16 +54,15 @@ class HarmonicPotentialInteraction(PotentialInteraction):
         target: Annotated[str, RoleSpec()],
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         center: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
-        position: str = 'x',
+        states: str = 'x',
         velocity: str = 'v',
-        mass: str = 'm',
+        divisor: str = 'm',
     ) -> None:
-        super().__init__(label, position=position, velocity=velocity, mass=mass)
-        self.target = target
+        super().__init__(label, target=target, states=states, velocity=velocity, divisor=divisor)
         self.k = k
         self.center = center
 
-    def _get_energy(self, s: SimpleNamespace) -> Expression:
+    def _get_potential(self, s: SimpleNamespace) -> Expression:
         """Return `k * |x - center|**2 / 2`.
 
         Args:
@@ -74,5 +73,5 @@ class HarmonicPotentialInteraction(PotentialInteraction):
             energy:
                 The potential energy as a symbolic expression.
         """
-        displacement = getattr(s.target, self.position) - s.center
+        displacement = getattr(s.target, self._get_names()[0]) - s.center
         return s.k * displacement.dot_product(displacement) / 2

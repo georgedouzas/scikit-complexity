@@ -387,6 +387,7 @@ name = "Models of chemistry use only the shared code of their own field"
 type = "forbidden"
 source_modules = ["skcomplex.models.chemistry"]
 forbidden_modules = [
+    "skcomplex.models.biology.common",
     "skcomplex.models.economics.common",
     "skcomplex.models.physics.common",
 ]
@@ -396,6 +397,7 @@ name = "Models of computer_science use only the shared code of their own field"
 type = "forbidden"
 source_modules = ["skcomplex.models.computer_science"]
 forbidden_modules = [
+    "skcomplex.models.biology.common",
     "skcomplex.models.economics.common",
     "skcomplex.models.physics.common",
 ]
@@ -405,6 +407,7 @@ name = "Models of earth use only the shared code of their own field"
 type = "forbidden"
 source_modules = ["skcomplex.models.earth"]
 forbidden_modules = [
+    "skcomplex.models.biology.common",
     "skcomplex.models.economics.common",
     "skcomplex.models.physics.common",
 ]
@@ -414,6 +417,7 @@ name = "Models of economics use only the shared code of their own field"
 type = "forbidden"
 source_modules = ["skcomplex.models.economics"]
 forbidden_modules = [
+    "skcomplex.models.biology.common",
     "skcomplex.models.physics.common",
 ]
 
@@ -422,6 +426,7 @@ name = "Models of engineering use only the shared code of their own field"
 type = "forbidden"
 source_modules = ["skcomplex.models.engineering"]
 forbidden_modules = [
+    "skcomplex.models.biology.common",
     "skcomplex.models.economics.common",
     "skcomplex.models.physics.common",
 ]
@@ -431,6 +436,7 @@ name = "Models of mathematics use only the shared code of their own field"
 type = "forbidden"
 source_modules = ["skcomplex.models.mathematics"]
 forbidden_modules = [
+    "skcomplex.models.biology.common",
     "skcomplex.models.economics.common",
     "skcomplex.models.physics.common",
 ]
@@ -440,6 +446,7 @@ name = "Models of physics use only the shared code of their own field"
 type = "forbidden"
 source_modules = ["skcomplex.models.physics"]
 forbidden_modules = [
+    "skcomplex.models.biology.common",
     "skcomplex.models.economics.common",
 ]
 
@@ -448,6 +455,7 @@ name = "Models of social use only the shared code of their own field"
 type = "forbidden"
 source_modules = ["skcomplex.models.social"]
 forbidden_modules = [
+    "skcomplex.models.biology.common",
     "skcomplex.models.economics.common",
     "skcomplex.models.physics.common",
 ]

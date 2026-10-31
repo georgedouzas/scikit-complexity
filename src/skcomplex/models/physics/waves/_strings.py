@@ -13,7 +13,6 @@ from sage.all__sagemath_symbolics import SR, Expression, oo, sin, vector
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement, ParticleElement
-from ....core.interactions import PotentialInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import laplacian
 from ....core.spaces import ContinuousSpace, LatticeSpace
@@ -21,7 +20,7 @@ from ....core.system import System
 from ....engine.solvers import VelocityVerletSolver
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.particles import SpringInteraction
+from ..common.particles import PotentialEnergyInteraction, SpringInteraction
 
 
 class WaveStringElement(Element):
@@ -52,7 +51,7 @@ def _pluck(positions: np.ndarray, length: float, height: float, at: float) -> np
     return np.where(positions <= peak, height * positions / peak, height * (length - positions) / (length - peak))
 
 
-class DrivenAnchorInteraction(PotentialInteraction):
+class DrivenAnchorInteraction(PotentialEnergyInteraction):
     """Spring that ties a particle to an anchor point, which oscillates transversally as `amplitude sin(omega t)`.
 
     The energy is `k |x - center - (0, amplitude sin(omega t))|² / 2`, and a zero amplitude gives a fixed anchor.
@@ -92,14 +91,13 @@ class DrivenAnchorInteraction(PotentialInteraction):
         amplitude: Annotated[float, ParameterSpec()] = 0.0,
         omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target)
         self.k = k
         self.center = center
         self.amplitude = amplitude
         self.omega = omega
 
-    def _get_energy(self, s: SimpleNamespace) -> Expression:
+    def _get_potential(self, s: SimpleNamespace) -> Expression:
         """Return `k |x - center - (0, amplitude sin(omega t))|² / 2`.
 
         Args:

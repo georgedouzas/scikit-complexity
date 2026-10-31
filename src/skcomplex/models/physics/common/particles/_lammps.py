@@ -5,10 +5,12 @@
 
 from collections.abc import Callable
 
-from .....core.interactions import BaseInteraction, ConstantForceInteraction, DampingInteraction
+from .....core.interactions import BaseInteraction
 from .....engine.types import PairArguments
 from .....specs import LammpsFixSpec
 from .....types import Array
+from ._constant_force import ConstantForceInteraction
+from ._damping import DampingInteraction
 from ._langevin_thermostat import LangevinThermostatInteraction
 from ._lennard_jones import LennardJonesInteraction
 

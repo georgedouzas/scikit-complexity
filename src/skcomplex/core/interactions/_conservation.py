@@ -1,0 +1,143 @@
+"""Define conservation laws, which change a conserved state of a field by the divergence of a flux and a source."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Callable
+from types import SimpleNamespace
+from typing import Annotated
+
+from ...errors import ValidationError
+from ...specs import RoleSpec
+from ..base import BasePart
+from ..laws import FluxLaw, RateLaw
+from ._interaction import Interaction
+
+LIMITERS = ('minmod', 'van-leer', None)
+RIEMANN_SOLVERS = ('rusanov', 'godunov')
+
+
+class ConservationInteraction(Interaction):
+    """Conservation law `du/dt + divergence(flux(ns)) = source(ns)` of a state `u` of a field.
+
+    The flux is one expression for a field of one dimension, or one expression per dimension, of the states of the
+    field, and the interaction lowers it to a finite-volume flux law with a slope limiter and a numerical flux. Without
+    a source the total of the state on a periodic field stays constant. A flux or a source function takes the namespace
+    of the interaction, with the namespace `target` of the field, the time `t`, and the symbols of the parameters a
+    subclass declares.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the field whose state is conserved.
+
+        state:
+            The name of the conserved state of the field.
+
+        flux:
+            A function of the namespace that returns the flux, or one flux per dimension.
+
+        source:
+            A function of the namespace that returns the source, or `None` for none.
+
+        limiter:
+            The slope limiter of the reconstruction, `'minmod'`, `'van-leer'`, or `None` for first order.
+
+        riemann:
+            The numerical flux, `'rusanov'` or `'godunov'`, the exact solver for one state.
+
+    Raises:
+        ValidationError:
+            The state is not a name, a function is not callable, or the limiter or the numerical flux is unknown.
+
+    Examples:
+        >>> from typing import Annotated
+        >>> import numpy as np
+        >>> from skcomplex.core.elements import Element, FieldElement
+        >>> from skcomplex.core.interactions import ConservationInteraction
+        >>> from skcomplex.core.spaces import LatticeSpace
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.engine.runtime import Simulation
+        >>> from skcomplex.specs import StateSpec
+        >>> class CellElement(Element):
+        ...     def __init__(self, label, u: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
+        ...         self.u = u
+        >>> space = LatticeSpace((50,), spacing=0.1, boundary='periodic')
+        >>> values = {'u': 1.0 + np.sin(2 * np.pi * np.arange(50) / 50)}
+        >>> volumes = 'finite-volume'
+        >>> field = FieldElement('wave', element=CellElement, space=space, values=values, discretization=volumes)
+        >>> burgers = ConservationInteraction('burgers', target='wave', state='u', flux=lambda s: s.target.u**2 / 2)
+        >>> system = System(elements=[field], interactions=[burgers])
+        >>> trajectory = Simulation(system, dt=0.01).check().prepare().run(until=0.5).trajectory_
+        >>> round(float(trajectory.values('wave.u')[-1].sum()), 6)
+        50.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        state: str = 'u',
+        flux: Callable[[SimpleNamespace], object] | None = None,
+        source: Callable[[SimpleNamespace], object] | None = None,
+        limiter: str | None = 'minmod',
+        riemann: str = 'rusanov',
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.state = state
+        self.flux = flux
+        self.source = source
+        self.limiter = limiter
+        self.riemann = riemann
+
+    def _check(self) -> None:
+        """Raise an error for a state that is not a name, a function that is not callable, or an unknown scheme.
+
+        Raises:
+            ValidationError:
+                The type declares states, the state is not a name, a function is not callable, or the limiter or the
+                numerical flux is unknown.
+        """
+        super()._check()
+        if not isinstance(self.state, str) or not self.state.isidentifier():
+            error_msg = f'{type(self).__name__} {self.label!r} conserves the state {self.state!r}, which is no name.'
+            raise ValidationError(error_msg)
+        for name in ('flux', 'source'):
+            value = getattr(self, name)
+            if value is not None and not callable(value):
+                error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace.'
+                raise ValidationError(error_msg)
+        if self.limiter not in LIMITERS:
+            error_msg = f'Unknown limiter {self.limiter!r} of {self.label!r}. Use minmod, van-leer, or None.'
+            raise ValidationError(error_msg)
+        if self.riemann not in RIEMANN_SOLVERS:
+            error_msg = f'Unknown numerical flux {self.riemann!r} of {self.label!r}. Use rusanov or godunov.'
+            raise ValidationError(error_msg)
+
+    def _get_transport_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+        """Return the laws of the divergence of the flux, the hook a subclass overrides to lower its own flux."""
+        if self.flux is None:
+            return []
+        state = getattr(namespace.target, self.state)
+        return [FluxLaw(state, self.flux(namespace), limiter=self.limiter, riemann=self.riemann)]
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+        """Return the laws of the divergence of the flux and the rate of the source.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use, with the namespace of the field.
+
+        Returns:
+            laws:
+                The flux law, and the rate law of the source when there is one.
+        """
+        laws = self._get_transport_laws(namespace)
+        if self.source is not None:
+            laws.append(RateLaw(getattr(namespace.target, self.state), self.source(namespace)))
+        return laws

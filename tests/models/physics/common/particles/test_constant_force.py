@@ -1,12 +1,12 @@
-"""Test the `_constant_force` module of `skcomplex.core.interactions`."""
+"""Test the `_constant_force` module of `skcomplex.models.physics.common.particles`."""
 
 import numpy as np
 
 from skcomplex.core.elements import ParticleElement
-from skcomplex.core.interactions import ConstantForceInteraction
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.physics.common.particles import ConstantForceInteraction
 
 
 def test_particle_constant_acceleration():

@@ -1,4 +1,4 @@
-"""Define the Langevin thermostat, an Ornstein-Uhlenbeck process on the velocities of particles."""
+"""Define the Langevin thermostat, a relaxation of the velocities of particles to rest under thermal noise."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,20 +6,20 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, oo, sqrt
+from sage.all__sagemath_symbolics import oo, sqrt
 from sage.sets.real_set import RealSet
 
-from .....core.interactions import OrnsteinUhlenbeckInteraction
+from .....core.interactions import RelaxationInteraction
 from .....specs import ParameterSpec, RoleSpec
 
 
-class LangevinThermostatInteraction(OrnsteinUhlenbeckInteraction):
+class LangevinThermostatInteraction(RelaxationInteraction):
     """Langevin thermostat, which adds a drag `-gamma * v` and a random force that hold particles at a temperature.
 
     Every velocity component follows `dv = -gamma * v / m * dt + sqrt(2 * gamma * temperature) / m * dW`, with the
-    temperature in energy units, an Ornstein-Uhlenbeck process of the velocity with the rate `gamma / m`, a zero mean,
-    and additive noise. A system with a thermostat is stochastic, and its velocities relax to the Maxwell-Boltzmann
-    distribution at that temperature.
+    temperature in energy units, a relaxation of the velocity towards rest over the time `m / gamma` with additive
+    noise. A system with a thermostat is stochastic, and its velocities relax to the Maxwell-Boltzmann distribution at
+    that temperature.
 
     Args:
         label:
@@ -61,16 +61,28 @@ class LangevinThermostatInteraction(OrnsteinUhlenbeckInteraction):
         self.gamma = gamma
         self.mass = mass
 
-    def _get_coefficients(self, namespace: SimpleNamespace) -> tuple[Expression, Expression, Expression]:
-        """Return the rate `gamma / m`, a zero mean, and the amplitude `sqrt(2 * gamma * temperature) / m`.
+    def _get_time(self, namespace: SimpleNamespace) -> object:
+        """Return the relaxation time `m / gamma` of the velocity.
 
         Args:
             namespace:
-                The namespace of the symbols the coefficients can use.
+                The namespace of the symbols the time can use.
 
         Returns:
-            coefficients:
-                The rate, the mean, and the noise amplitude as symbolic expressions.
+            time:
+                The relaxation time.
         """
-        mass = getattr(namespace.target, self.mass)
-        return namespace.gamma / mass, 0, sqrt(2 * namespace.gamma * namespace.temperature) / mass
+        return getattr(namespace.target, self.mass) / namespace.gamma
+
+    def _get_noise(self, namespace: SimpleNamespace) -> object:
+        """Return the amplitude `sqrt(2 * gamma * temperature) / m` of the noise of the velocity.
+
+        Args:
+            namespace:
+                The namespace of the symbols the amplitude can use.
+
+        Returns:
+            amplitude:
+                The noise amplitude.
+        """
+        return sqrt(2 * namespace.gamma * namespace.temperature) / getattr(namespace.target, self.mass)
