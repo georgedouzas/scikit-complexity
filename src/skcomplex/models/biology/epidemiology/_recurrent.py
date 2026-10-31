@@ -10,11 +10,10 @@ from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, UpdateLaw
+from ....core.interactions import MapInteraction
 from ....core.laws.utils import lag, where
 from ....core.system import System
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 MAX_RECOVERY = 12
@@ -24,6 +23,17 @@ def _infected_or_immune(center: SimpleNamespace) -> Expression:
     """Return the fraction of a center infected now or in the last `recovery` steps, who cannot be infected."""
     past = sum(where(step <= center.recovery, lag(center.x, step), 0) for step in range(1, MAX_RECOVERY + 1))
     return center.x + past
+
+
+def _get_next_infected(s: SimpleNamespace) -> Expression:
+    """Return `a (x + e y) s`, the next infected fraction of a center visited by the infected of another one.
+
+    The center is the target, `y` and `e` are the infected fraction of the other center and the fraction of them who
+    visit, and `s = 1 - x - x(t - 1) - ... - x(t - recovery)` is the susceptible fraction of the center.
+    """
+    home, away = s.target, s.sources[0]
+    infected: Expression = home.a * (home.x + away.e * away.x) * (1 - _infected_or_immune(home))
+    return infected
 
 
 class EpidemicCenterElement(Element):
@@ -47,6 +57,9 @@ class EpidemicCenterElement(Element):
         recovery:
             The number of steps a recovered individual stays immune, at most 12.
 
+        e:
+            The fraction of the infected of the center who visit another center.
+
     Examples:
         >>> from skcomplex.models.biology.epidemiology import EpidemicCenterElement
         >>> EpidemicCenterElement('city', x=0.01).recovery
@@ -64,65 +77,13 @@ class EpidemicCenterElement(Element):
         ] = 0.0,
         a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.2,
         recovery: Annotated[int, ParameterSpec(domain=NN)] = 6,
+        e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
         self.a = a
         self.recovery = recovery
-
-
-class VisitsInteraction(Interaction):
-    """Infection of a center by its own infected and by a fraction of the infected of another center who visit it.
-
-    The next infected fraction is `x' = a (x + e y) s`, where `y` is the infected fraction of the other center and
-    `s = 1 - x - x(t - 1) - ... - x(t - recovery)` the susceptible fraction.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        home:
-            The path of the center the infections happen in.
-
-        away:
-            The path of the center whose infected visit.
-
-        e:
-            The fraction of the infected of the other center who visit.
-
-    Examples:
-        >>> from skcomplex.models.biology.epidemiology import VisitsInteraction
-        >>> VisitsInteraction('visits', home='first', away='second', e=0.01).e
-        0.01
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        home: Annotated[str, RoleSpec()],
-        away: Annotated[str, RoleSpec()],
-        e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-    ) -> None:
-        super().__init__(label)
-        self.home = home
-        self.away = away
         self.e = e
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next infected fraction of the home center.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        home = s.home
-        susceptible = 1 - _infected_or_immune(home)
-        return [UpdateLaw(home.x, home.a * (home.x + s.e * s.away.x) * susceptible)]
 
 
 @register_model(
@@ -172,11 +133,17 @@ def delayed_sirs(
     """
     return System(
         elements=[
-            EpidemicCenterElement('first', x=first, a=a, recovery=recovery),
-            EpidemicCenterElement('second', x=second, a=a, recovery=recovery),
+            EpidemicCenterElement('first', x=first, a=a, recovery=recovery, e=e),
+            EpidemicCenterElement('second', x=second, a=a, recovery=recovery, e=e),
         ],
         interactions=[
-            VisitsInteraction('visits_first', home='first', away='second', e=e),
-            VisitsInteraction('visits_second', home='second', away='first', e=e),
+            MapInteraction('visits_first', target='first', state='x', function=_get_next_infected, sources=('second',)),
+            MapInteraction(
+                'visits_second',
+                target='second',
+                state='x',
+                function=_get_next_infected,
+                sources=('first',),
+            ),
         ],
     )
