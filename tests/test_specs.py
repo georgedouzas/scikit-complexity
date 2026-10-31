@@ -435,8 +435,12 @@ def test_monte_carlo_specs_check_their_kinds():
     spin = var('spin')
     assert EnergySpec(-spin, VonNeumannNeighborhood()).check().expression == -spin
     assert MoveSpec(spin, 'rotate', width=0.5).check().width == 0.5
+    assert MoveSpec(spin, 'gaussian', width=0.5).check().kind == 'gaussian'
+    assert MoveSpec(spin, 'function', function=lambda values, random: values).check().kind == 'function'
     with pytest.raises(ValidationError, match='Unknown move'):
         MoveSpec(spin, 'swap').check()
+    with pytest.raises(ValidationError, match='callable function'):
+        MoveSpec(spin, 'function').check()
     with pytest.raises(ValidationError, match='Unknown sampler'):
         SamplerSpec('wolff').check()
     with pytest.raises(ValidationError, match='Unknown Monte Carlo schedule'):

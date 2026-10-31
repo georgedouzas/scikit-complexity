@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import oo, var
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import CompartmentElement, Element
-from skcomplex.core.interactions import ReactionInteraction
+from skcomplex.core.interactions import JumpInteraction, ReactionInteraction
 from skcomplex.core.laws import JumpLaw, NoiseLaw, RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -21,7 +21,7 @@ SEEDS = range(4)
 
 
 class ConcentrationElement(Element):
-    """Concentration `x` of a species."""
+    """Concentrations `x` and `y` of two species."""
 
     def __init__(
         self,
@@ -29,9 +29,11 @@ class ConcentrationElement(Element):
         visual: VisualSpec | None = None,
         *,
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
+        self.y = y
 
 
 def _epidemic(mode):
@@ -43,8 +45,14 @@ def _epidemic(mode):
             CompartmentElement('R'),
         ],
         interactions=[
-            ReactionInteraction('infection', reactants=['S', 'I'], products=['I', 'I'], k=2.5e-6, mode=mode),
-            ReactionInteraction('recovery', reactants=['I'], products=['R'], k=0.1, mode=mode),
+            ReactionInteraction(
+                'infection',
+                reactants={('S', 'n'): 1, ('I', 'n'): 1},
+                products={('I', 'n'): 2},
+                k=2.5e-6,
+                mode=mode,
+            ),
+            ReactionInteraction('recovery', reactants={('I', 'n'): 1}, products={('R', 'n'): 1}, k=0.1, mode=mode),
         ],
     )
 
@@ -54,6 +62,11 @@ def _states(mode, random_state=None):
     simulation = Simulation(_epidemic(mode), dt=1.0, random_state=random_state).check().prepare()
     trajectory = simulation.run(until=40).trajectory_
     return np.column_stack([trajectory.values(f'{name}.n') for name in ('S', 'I', 'R')])
+
+
+def test_reaction_is_a_jump():
+    """Test that a reaction is a jump whose clock is its propensity."""
+    assert issubclass(ReactionInteraction, JumpInteraction)
 
 
 def test_reaction_jump_means_agree_with_the_rate_solution():
@@ -81,20 +94,48 @@ def test_reaction_langevin_conserves_the_units():
 def test_reaction_runs_into_the_laws_of_its_mode(mode, kinds):
     """Test that a reaction runs into rate laws, one jump law, or rate and noise laws, by its mode."""
     a, b, k = var('a b k')
-    namespace = SimpleNamespace(reactants=(SimpleNamespace(n=a),), products=(SimpleNamespace(n=b),), k=k)
-    reaction = ReactionInteraction('conversion', reactants=['A'], products=['B'], mode=mode).check().prepare()
-    assert [type(law) for law in reaction.run(namespace).laws_] == kinds
+    namespace = SimpleNamespace(
+        reactants=(SimpleNamespace(n=a),),
+        products=(SimpleNamespace(n=b),),
+        modifiers=(),
+        k=k,
+    )
+    reaction = ReactionInteraction('conversion', reactants={('A', 'n'): 1}, products={('B', 'n'): 1}, mode=mode)
+    assert [type(law) for law in reaction.check().prepare().run(namespace).laws_] == kinds
 
 
-def test_reaction_moves_the_net_change_of_a_catalysed_reaction():
-    """Test that a reactant that is also a product, a catalyst, is not changed by the reaction."""
+def test_reaction_reads_modifiers_without_changing_them():
+    """Test that a modifier enters the mass-action propensity, and the reaction does not change it."""
     system = System(
         elements=[CompartmentElement('E', n=1.0), CompartmentElement('S', n=1.0), CompartmentElement('P')],
-        interactions=[ReactionInteraction('catalysis', reactants=['E', 'S'], products=['E', 'P'], k=1.0)],
+        interactions=[
+            ReactionInteraction(
+                'catalysis',
+                reactants={('S', 'n'): 1},
+                products={('P', 'n'): 1},
+                modifiers={('E', 'n'): 1},
+                k=1.0,
+            ),
+        ],
     )
     trajectory = Simulation(system, dt=0.5).check().prepare().run(until=2).trajectory_
     assert trajectory.values('E.n').tolist() == [1.0] * 5
     np.testing.assert_allclose(trajectory.values('S.n'), np.exp(-np.asarray(trajectory.times)), rtol=1e-4)
+
+
+def test_reaction_moves_states_of_one_element_with_real_coefficients():
+    """Test that `2 x -> 1.5 y` on two states of one element moves the units by its real stoichiometry."""
+    system = System(
+        elements=[ConcentrationElement('cell', x=1.0)],
+        interactions=[
+            ReactionInteraction('dimerization', reactants={('cell', 'x'): 2}, products={('cell', 'y'): 1.5}, k=0.5),
+        ],
+    )
+    trajectory = Simulation(system, dt=0.5).check().prepare().run(until=4).trajectory_
+    x, y = trajectory.values('cell.x'), trajectory.values('cell.y')
+    times = np.asarray(trajectory.times)
+    np.testing.assert_allclose(x, 1 / (1 + times), rtol=1e-4)
+    np.testing.assert_allclose(y, 0.75 * (1 - x), rtol=1e-4)
 
 
 def test_reaction_sources_and_sinks_reach_their_balance():
@@ -102,8 +143,8 @@ def test_reaction_sources_and_sinks_reach_their_balance():
     system = System(
         elements=[ConcentrationElement('X')],
         interactions=[
-            ReactionInteraction('synthesis', products=['X'], k=2.0, state='x'),
-            ReactionInteraction('degradation', reactants=['X'], k=0.5, state='x'),
+            ReactionInteraction('synthesis', products={('X', 'x'): 1}, k=2.0),
+            ReactionInteraction('degradation', reactants={('X', 'x'): 1}, k=0.5),
         ],
     )
     trajectory = Simulation(system, dt=1.0).check().prepare().run(until=40).trajectory_
@@ -117,8 +158,8 @@ def test_reaction_takes_a_propensity_function():
         interactions=[
             ReactionInteraction(
                 'saturation',
-                reactants=['A'],
-                products=['B'],
+                reactants={('A', 'n'): 1},
+                products={('B', 'n'): 1},
                 k=1.0,
                 propensity=lambda s: s.k * s.reactants[0].n / (1 + s.reactants[0].n),
             ),
@@ -132,12 +173,14 @@ def test_reaction_takes_a_propensity_function():
 @pytest.mark.parametrize(
     ('arguments', 'message'),
     [
-        ({'reactants': ['A'], 'mode': 'ode'}, 'has the mode'),
+        ({'reactants': {('A', 'n'): 1}, 'mode': 'ode'}, 'has the mode'),
         ({}, 'neither reactants nor products'),
-        ({'reactants': ['A'], 'state': 'not a name'}, 'not a name of a state'),
+        ({'reactants': ['A']}, 'Map pairs of a path and a state name'),
+        ({'reactants': {('A', 'not a name'): 1}}, 'Map pairs of a path and a state name'),
+        ({'reactants': {('A', 'n'): -1}}, 'positive coefficients'),
     ],
 )
 def test_reaction_rejects_invalid_arguments(arguments, message):
-    """Test that a reaction rejects an unknown mode, no reactants and products, and a state that is not a name."""
+    """Test that a reaction rejects an unknown mode, no species, and entries or coefficients it cannot take."""
     with pytest.raises(ValidationError, match=message):
         ReactionInteraction('reaction', **arguments).check()

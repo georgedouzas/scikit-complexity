@@ -278,8 +278,10 @@ class SpecsPass(BasePass):
         """Return the blocks and member indices of the entries of a variadic role, in the given order.
 
         An entry is an element path or a group member reference, alone or paired with the name of a state, and the
-        entries may be the keys of a mapping.
+        entries may be the keys of a mapping. A role bound to `None` has no entries.
         """
+        if entries is None:
+            return []
         labels = bound_labels(entries)
         if not isinstance(entries, list | tuple | Mapping) or len(labels) != len(entries):
             error_msg = (

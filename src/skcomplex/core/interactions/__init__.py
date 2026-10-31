@@ -11,14 +11,20 @@ from ._choice import ChoiceInteraction
 from ._clearing_spec import ClearingSpec
 from ._constant_force import ConstantForceInteraction
 from ._coupling import CouplingInteraction
+from ._crossing import CrossingInteraction
 from ._damping import DampingInteraction
+from ._encounter import EncounterInteraction
 from ._evolution import EvolutionInteraction
 from ._feedback import FeedbackInteraction
 from ._foraging import ForagingInteraction
 from ._growth import GrowthInteraction
 from ._hyperedge import HyperedgeInteraction
 from ._imitation import ImitationInteraction
+from ._impulse import ImpulseInteraction
 from ._interaction import Interaction
+from ._jump import JumpInteraction
+from ._local_rule import LocalRuleInteraction
+from ._map import MapInteraction
 from ._matching import MatchingInteraction
 from ._neighbor import NeighborInteraction
 from ._ornstein_uhlenbeck import OrnsteinUhlenbeckInteraction
@@ -34,8 +40,10 @@ from ._random_search_protocol import RandomSearchProtocol
 from ._random_walk import RandomWalkInteraction
 from ._reaction import ReactionInteraction
 from ._regrowth import RegrowthInteraction
+from ._sampling import SamplingInteraction
 from ._spreading import SpreadingInteraction
 from ._stable_matching_protocol import StableMatchingProtocol
+from ._transition import TransitionInteraction
 from ._uniform_price_protocol import UniformPriceProtocol
 
 __all__: list[str] = [
@@ -47,14 +55,20 @@ __all__: list[str] = [
     'ClearingSpec',
     'ConstantForceInteraction',
     'CouplingInteraction',
+    'CrossingInteraction',
     'DampingInteraction',
+    'EncounterInteraction',
     'EvolutionInteraction',
     'FeedbackInteraction',
     'ForagingInteraction',
     'GrowthInteraction',
     'HyperedgeInteraction',
     'ImitationInteraction',
+    'ImpulseInteraction',
     'Interaction',
+    'JumpInteraction',
+    'LocalRuleInteraction',
+    'MapInteraction',
     'MatchingInteraction',
     'NeighborInteraction',
     'OrnsteinUhlenbeckInteraction',
@@ -70,7 +84,9 @@ __all__: list[str] = [
     'RandomWalkInteraction',
     'ReactionInteraction',
     'RegrowthInteraction',
+    'SamplingInteraction',
     'SpreadingInteraction',
     'StableMatchingProtocol',
+    'TransitionInteraction',
     'UniformPriceProtocol',
 ]
