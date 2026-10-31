@@ -4,28 +4,22 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR, Expression, vector
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, UpdateLaw
-from ....core.laws.utils import categorical, where
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....errors import ValidationError
 from ....specs import StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._random_affine_map import SIERPINSKI_MAPS, RandomAffineMapInteraction
 from .types import AffineMap
 
-AFFINE_COEFFICIENTS = 6
-
-
-PRESETS: dict[str, tuple[tuple[tuple[float, ...], ...], tuple[float, ...]]] = {
+PRESETS: dict[str, tuple[tuple[AffineMap, ...], tuple[float, ...]]] = {
     'sierpinski': (
-        ((0.5, 0.0, 0.0, 0.5, 0.0, 0.0), (0.5, 0.0, 0.0, 0.5, 0.5, 0.0), (0.5, 0.0, 0.0, 0.5, 0.25, 0.5)),
+        SIERPINSKI_MAPS,
         (1.0, 1.0, 1.0),
     ),
     'barnsley': (
@@ -41,10 +35,7 @@ PRESETS: dict[str, tuple[tuple[tuple[float, ...], ...], tuple[float, ...]]] = {
 
 
 class ChaosPointElement(Element):
-    """Point of the plane moved at every step by one affine map of an iterated function system, drawn at random.
-
-    Map `k` takes `(x, y)` to `(a x + b y + e, c x + d y + f)` for its coefficients `(a, b, c, d, e, f)`, and is drawn
-    with a probability proportional to its weight.
+    """Point of the plane whose position a random affine map moves at every step.
 
     Args:
         label:
@@ -56,16 +47,10 @@ class ChaosPointElement(Element):
         p:
             The initial position.
 
-        maps:
-            The coefficients `(a, b, c, d, e, f)` of every affine map.
-
-        weights:
-            The weight of every map.
-
     Examples:
         >>> from skcomplex.models.mathematics.fractals import ChaosPointElement
-        >>> len(ChaosPointElement('point').maps)
-        3
+        >>> ChaosPointElement('point', p=(0.5, 0.5)).p
+        (0.5, 0.5)
     """
 
     def __init__(
@@ -74,35 +59,9 @@ class ChaosPointElement(Element):
         visual: VisualSpec | None = VisualSpec('points', {'position': 'p', 'radius': 0.004, 'states': ()}),
         *,
         p: Annotated[object, StateSpec(vector=True)] = 0.0,
-        maps: Sequence[AffineMap] = PRESETS['sierpinski'][0],
-        weights: Sequence[float] = PRESETS['sierpinski'][1],
     ) -> None:
         super().__init__(label, visual=visual)
         self.p = p
-        self.maps = maps
-        self.weights = weights
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the move by the drawn map.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        chosen = categorical('map', list(self.weights))
-        x, y = s.p[0], s.p[1]
-        images: list[tuple[Expression, Expression]] = [
-            (a * x + b * y + e, c * x + d * y + f) for a, b, c, d, e, f in self.maps
-        ]
-        new_x, new_y = SR(images[-1][0]), SR(images[-1][1])
-        for index in range(len(images) - 2, -1, -1):
-            new_x = where(chosen == index, images[index][0], new_x)
-            new_y = where(chosen == index, images[index][1], new_y)
-        return [UpdateLaw(s.p, vector(SR, [new_x, new_y]))]
 
 
 def _system_of(
@@ -112,20 +71,15 @@ def _system_of(
     random_state: int | np.random.Generator | None,
 ) -> System:
     """Return a group of points started uniformly in the unit square, which iterate an iterated function system."""
-    if len(maps) != len(weights) or any(len(item) != AFFINE_COEFFICIENTS for item in maps):
-        error_msg = (
-            f'The chaos game takes one weight per map and six coefficients per map, but got {len(maps)} maps and '
-            f'{len(weights)} weights.'
-        )
-        raise ValidationError(error_msg)
     starts = np.random.default_rng(random_state).random((n_points, 2))
-    points = GroupElement(
-        'points',
-        element=ChaosPointElement,
-        size=n_points,
-        values={'p': starts, 'maps': tuple(map(tuple, maps)), 'weights': tuple(weights)},
+    points = GroupElement('points', element=ChaosPointElement, size=n_points, values={'p': starts})
+    game = RandomAffineMapInteraction(
+        'game',
+        target='points',
+        maps=tuple(map(tuple, maps)),
+        weights=tuple(weights),
     )
-    return System(elements=[points], space=ContinuousSpace(n_dim=2))
+    return System(elements=[points], interactions=[game], space=ContinuousSpace(n_dim=2))
 
 
 @register_model(
@@ -172,11 +126,11 @@ def chaos_game(
 
     Raises:
         ValidationError:
-            The preset is unknown, or the maps and weights do not match.
+            The preset is unknown.
 
     Examples:
         >>> from skcomplex.models.mathematics.fractals import chaos_game
-        >>> len(chaos_game('barnsley', n_points=10).elements[0].values['maps'])
+        >>> len(chaos_game('barnsley', n_points=10).interactions[0].maps)
         4
     """
     if maps is None and preset not in PRESETS:

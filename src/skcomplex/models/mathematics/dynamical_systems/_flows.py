@@ -14,42 +14,42 @@ from ....core.laws.utils import derivative
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-
-
-class LorenzElement(Element):
-    """Lorenz element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 1.0,
-        y: Annotated[object, StateSpec()] = 1.0,
-        z: Annotated[object, StateSpec()] = 1.0,
-        sigma: Annotated[object, ParameterSpec()] = 10.0,
-        rho: Annotated[object, ParameterSpec()] = 28.0,
-        beta: Annotated[object, ParameterSpec()] = 8 / 3,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.z = z
-        self.sigma = sigma
-        self.rho = rho
-        self.beta = beta
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the lorenz element."""
-        return [
-            RateLaw(s.x, s.sigma * (s.y - s.x)),
-            RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
-            RateLaw(s.z, s.x * s.y - s.beta * s.z),
-        ]
+from ..common.flows import LorenzElement
 
 
 class RosslerElement(Element):
-    """Rossler element."""
+    """Rössler flow `x' = -y - z`, `y' = x + a y`, `z' = b + z (x - c)`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        z:
+            The initial third coordinate.
+
+        a:
+            The feedback of the second coordinate on itself.
+
+        b:
+            The constant drive of the third coordinate.
+
+        c:
+            The threshold of the third coordinate's growth.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import RosslerElement
+        >>> RosslerElement('rossler', c=4.0).c
+        4.0
+    """
 
     def __init__(
         self,
@@ -72,7 +72,16 @@ class RosslerElement(Element):
         self.c = c
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the rossler element."""
+        """Return the rates of the three coordinates.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [
             RateLaw(s.x, -s.y - s.z),
             RateLaw(s.y, s.x + s.a * s.y),
@@ -177,7 +186,32 @@ def rossler(
 
 
 class JerkElement(Element):
-    """Jerk element."""
+    """Sprott's jerk flow `x''' = -A x'' - x' + |x| - 1` of a state of order 3.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial position.
+
+        x_d2:
+            The initial second derivative.
+
+        x_d1:
+            The initial first derivative.
+
+        A:
+            The damping of the second derivative.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import JerkElement
+        >>> JerkElement('jerk', A=0.5).A
+        0.5
+    """
 
     def __init__(
         self,
@@ -196,7 +230,16 @@ class JerkElement(Element):
         self.A = A
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the jerk element."""
+        """Return the third derivative of the position.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [RateLaw(s.x, -s.A * derivative(s.x, 2) - derivative(s.x, 1) + abs_symbolic(s.x) - 1)]
 
 
@@ -241,7 +284,29 @@ def sprott_jerk(
 
 
 class BlowUpElement(Element):
-    """Blow up element."""
+    """Hyperbolic growth `x' = a x^p`, which diverges in finite time for `p > 1`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value.
+
+        a:
+            The growth coefficient.
+
+        p:
+            The growth exponent.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import BlowUpElement
+        >>> BlowUpElement('growth', p=3.0).p
+        3.0
+    """
 
     def __init__(
         self,
@@ -258,7 +323,16 @@ class BlowUpElement(Element):
         self.p = p
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the blow up element."""
+        """Return the rate of the value.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [RateLaw(s.x, s.a * s.x**s.p)]
 
 

@@ -10,8 +10,14 @@ from ._fractional import (
     relaxation_type,
     van_der_pol_type,
 )
+from ._oscillator import OscillatorElement
+from ._relaxation import RelaxationElement
+from ._van_der_pol import VanDerPolElement
 
 __all__: list[str] = [
+    'OscillatorElement',
+    'RelaxationElement',
+    'VanDerPolElement',
     'fractional_lorenz',
     'fractional_oscillator',
     'fractional_relaxation',

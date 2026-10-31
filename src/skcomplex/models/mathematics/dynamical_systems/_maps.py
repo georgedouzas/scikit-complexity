@@ -20,7 +20,26 @@ GOLDEN_MEAN = (math.sqrt(5) - 1) / 2
 
 
 class LogisticMapElement(Element):
-    """Logistic map element."""
+    """Logistic map `x -> r x (1 - x)`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value, between 0 and 1.
+
+        r:
+            The growth rate, between 0 and 4.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import LogisticMapElement
+        >>> LogisticMapElement('map', r=3.2).r
+        3.2
+    """
 
     def __init__(
         self,
@@ -35,12 +54,46 @@ class LogisticMapElement(Element):
         self.r = r
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the logistic map element."""
+        """Return the next value.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [UpdateLaw(s.x, s.r * s.x * (1 - s.x))]
 
 
 class HenonMapElement(Element):
-    """Henon map element."""
+    """Hénon map `x' = 1 - a x^2 + y`, `y' = b x`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        a:
+            The nonlinearity.
+
+        b:
+            The contraction.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import HenonMapElement
+        >>> HenonMapElement('map', a=1.2).a
+        1.2
+    """
 
     def __init__(
         self,
@@ -59,7 +112,16 @@ class HenonMapElement(Element):
         self.b = b
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the henon map element."""
+        """Return the next coordinates.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [UpdateLaw(s.x, 1 - s.a * s.x**2 + s.y), UpdateLaw(s.y, s.b * s.x)]
 
 
@@ -126,7 +188,29 @@ def henon_map(x: float = 0.0, y: float = 0.0, *, a: float = 1.4, b: float = 0.3)
 
 
 class StandardMapElement(Element):
-    """Standard map element."""
+    """Chirikov standard map `p' = p + K sin(theta)`, `theta' = theta + p' (mod 2 pi)`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        theta:
+            The initial angle.
+
+        p:
+            The initial momentum.
+
+        K:
+            The kick strength.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import StandardMapElement
+        >>> StandardMapElement('map', K=0.5).K
+        0.5
+    """
 
     def __init__(
         self,
@@ -143,7 +227,16 @@ class StandardMapElement(Element):
         self.K = K
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the standard map element."""
+        """Return the next momentum and angle, the angle computed from the next momentum.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [
             UpdateLaw(s.p, s.p + s.K * sin(s.theta)),
             UpdateLaw(s.theta, mod(s.theta + s.p + s.K * sin(s.theta), 2 * pi)),
@@ -151,7 +244,29 @@ class StandardMapElement(Element):
 
 
 class CircleMapElement(Element):
-    """Circle map element."""
+    """Sine circle map `theta' = theta + Omega - K / (2 pi) sin(2 pi theta) (mod 1)`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        theta:
+            The initial angle, as a fraction of a turn.
+
+        Omega:
+            The bare rotation per step.
+
+        K:
+            The nonlinearity.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import CircleMapElement
+        >>> CircleMapElement('map', K=1.0).K
+        1.0
+    """
 
     def __init__(
         self,
@@ -168,12 +283,40 @@ class CircleMapElement(Element):
         self.K = K
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the circle map element."""
+        """Return the next angle.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [UpdateLaw(s.theta, mod(s.theta + s.Omega - s.K / (2 * pi) * sin(2 * pi * s.theta), 1))]
 
 
 class TentMapElement(Element):
-    """Tent map element."""
+    """Tent map `x' = mu min(x, 1 - x)`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value, between 0 and 1.
+
+        mu:
+            The slope, between 0 and 2.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import TentMapElement
+        >>> TentMapElement('map', mu=1.5).mu
+        1.5
+    """
 
     def __init__(
         self,
@@ -188,12 +331,49 @@ class TentMapElement(Element):
         self.mu = mu
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the tent map element."""
+        """Return the next value.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [UpdateLaw(s.x, s.mu * where(s.x < 1 / 2, s.x, 1 - s.x))]
 
 
 class BakerMapElement(Element):
-    """Baker map element."""
+    """Generalized baker map, which stretches the unit square along `x` and stacks the two pieces in `y`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial stretched coordinate.
+
+        y:
+            The initial squeezed coordinate.
+
+        alpha:
+            The position of the cut.
+
+        lambda_a:
+            The height of the bottom band.
+
+        lambda_b:
+            The height of the top band.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import BakerMapElement
+        >>> BakerMapElement('map', alpha=0.4).alpha
+        0.4
+    """
 
     def __init__(
         self,
@@ -214,7 +394,16 @@ class BakerMapElement(Element):
         self.lambda_b = lambda_b
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the baker map element."""
+        """Return the next coordinates.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [
             UpdateLaw(s.x, where(s.x < s.alpha, s.x / s.alpha, (s.x - s.alpha) / (1 - s.alpha))),
             UpdateLaw(s.y, where(s.x < s.alpha, s.lambda_a * s.y, 1 - s.lambda_b + s.lambda_b * s.y)),
@@ -222,7 +411,35 @@ class BakerMapElement(Element):
 
 
 class TowelMapElement(Element):
-    """Towel map element."""
+    """Rössler's towel map, a three-dimensional map with two positive Lyapunov exponents.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        z:
+            The initial third coordinate.
+
+        a:
+            The growth rate of the first logistic coordinate.
+
+        b:
+            The growth rate of the third logistic coordinate.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import TowelMapElement
+        >>> TowelMapElement('map', a=3.7).a
+        3.7
+    """
 
     def __init__(
         self,
@@ -243,7 +460,16 @@ class TowelMapElement(Element):
         self.b = b
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the towel map element."""
+        """Return the next coordinates.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [
             UpdateLaw(s.x, s.a * s.x * (1 - s.x) - 0.05 * (s.y + 0.35) * (1 - 2 * s.z)),
             UpdateLaw(s.y, 0.1 * ((s.y + 0.35) * (1 - 2 * s.z) - 1) * (1 - 1.9 * s.x)),
@@ -252,7 +478,26 @@ class TowelMapElement(Element):
 
 
 class IntermittencyMapElement(Element):
-    """Intermittency map element."""
+    """Pomeau-Manneville map `x' = x + x^z (mod 1)`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value, between 0 and 1.
+
+        z:
+            The exponent of the tangency at 0, above 1.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import IntermittencyMapElement
+        >>> IntermittencyMapElement('map', z=1.5).z
+        1.5
+    """
 
     def __init__(
         self,
@@ -267,12 +512,40 @@ class IntermittencyMapElement(Element):
         self.z = z
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the intermittency map element."""
+        """Return the next value.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [UpdateLaw(s.x, mod(s.x + s.x**s.z, 1))]
 
 
 class NewtonMapElement(Element):
-    """Newton map element."""
+    """Newton's method for `z^3 = 1` in the complex plane, `z' = (2 z^3 + 1) / (3 z^2)`, in real coordinates.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial real part.
+
+        y:
+            The initial imaginary part.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import NewtonMapElement
+        >>> NewtonMapElement('map', x=1.5).x
+        1.5
+    """
 
     def __init__(
         self,
@@ -287,7 +560,16 @@ class NewtonMapElement(Element):
         self.y = y
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the newton map element."""
+        """Return the next real and imaginary parts.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [
             UpdateLaw(s.x, 2 * s.x / 3 + (s.x**2 - s.y**2) / (3 * (s.x**2 + s.y**2) ** 2)),
             UpdateLaw(s.y, 2 * s.y / 3 - 2 * s.x * s.y / (3 * (s.x**2 + s.y**2) ** 2)),
@@ -295,7 +577,26 @@ class NewtonMapElement(Element):
 
 
 class CatMapElement(Element):
-    """Cat map element."""
+    """Arnold's cat map `(x, y) -> (2 x + y, x + y) (mod 1)` of the unit torus.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate, between 0 and 1.
+
+        y:
+            The initial second coordinate, between 0 and 1.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import CatMapElement
+        >>> CatMapElement('map', x=0.5).x
+        0.5
+    """
 
     def __init__(
         self,
@@ -310,7 +611,16 @@ class CatMapElement(Element):
         self.y = y
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the cat map element."""
+        """Return the next coordinates.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [UpdateLaw(s.x, mod(2 * s.x + s.y, 1)), UpdateLaw(s.y, mod(s.x + s.y, 1))]
 
 

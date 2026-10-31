@@ -15,7 +15,32 @@ from ..._catalog import register_model
 
 
 class SlowManifoldElement(Element):
-    """Slow manifold element."""
+    """Quadratic flow `x1' = mu x1`, `x2' = lam (x2 - x1^2)` with the slow manifold `x2 = x1^2`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x1:
+            The initial slow coordinate.
+
+        x2:
+            The initial fast coordinate.
+
+        mu:
+            The slow eigenvalue.
+
+        lam:
+            The fast eigenvalue.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import SlowManifoldElement
+        >>> SlowManifoldElement('flow', lam=-2.0).lam
+        -2.0
+    """
 
     def __init__(
         self,
@@ -34,7 +59,16 @@ class SlowManifoldElement(Element):
         self.lam = lam
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the slow manifold element."""
+        """Return the rates of the slow and the fast coordinate.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [RateLaw(s.x1, s.mu * s.x1), RateLaw(s.x2, s.lam * (s.x2 - s.x1**2))]
 
 

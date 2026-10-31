@@ -15,7 +15,26 @@ from ..._catalog import register_model
 
 
 class SaddleNodeElement(Element):
-    """Saddle node element."""
+    """Normal form `x' = mu - x^2` of the saddle-node bifurcation.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value.
+
+        mu:
+            The bifurcation parameter.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import SaddleNodeElement
+        >>> SaddleNodeElement('form', mu=-1.0).mu
+        -1.0
+    """
 
     def __init__(
         self,
@@ -30,12 +49,49 @@ class SaddleNodeElement(Element):
         self.mu = mu
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the saddle node element."""
+        """Return the rate of the value.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [RateLaw(s.x, s.mu - s.x**2)]
 
 
 class HopfElement(Element):
-    """Hopf element."""
+    """Normal form of the Hopf bifurcation in Cartesian coordinates, with the radial law `r' = mu r + a r^3`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial real part.
+
+        y:
+            The initial imaginary part.
+
+        mu:
+            The bifurcation parameter.
+
+        omega:
+            The angular frequency.
+
+        a:
+            The cubic coefficient, negative for the supercritical bifurcation.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import HopfElement
+        >>> HopfElement('form', mu=0.5).mu
+        0.5
+    """
 
     def __init__(
         self,
@@ -56,7 +112,16 @@ class HopfElement(Element):
         self.a = a
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the hopf element."""
+        """Return the rates of the real and the imaginary part.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [
             RateLaw(s.x, s.mu * s.x - s.omega * s.y + s.a * s.x * (s.x**2 + s.y**2)),
             RateLaw(s.y, s.omega * s.x + s.mu * s.y + s.a * s.y * (s.x**2 + s.y**2)),
@@ -64,7 +129,35 @@ class HopfElement(Element):
 
 
 class TakensBogdanovElement(Element):
-    """Takens bogdanov element."""
+    """Normal form `x' = y`, `y' = beta1 + beta2 x + x^2 + sign x y` of the Takens-Bogdanov bifurcation.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        beta1:
+            The first unfolding parameter.
+
+        beta2:
+            The second unfolding parameter.
+
+        sign:
+            The sign of the term `x y`, 1 or -1.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import TakensBogdanovElement
+        >>> TakensBogdanovElement('form', beta1=0.0).beta1
+        0.0
+    """
 
     def __init__(
         self,
@@ -85,12 +178,43 @@ class TakensBogdanovElement(Element):
         self.sign = sign
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the takens bogdanov element."""
+        """Return the rates of the two coordinates.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [RateLaw(s.x, s.y), RateLaw(s.y, s.beta1 + s.beta2 * s.x + s.x**2 + s.sign * s.x * s.y)]
 
 
 class CuspElement(Element):
-    """Cusp element."""
+    """Normal form `x' = beta1 + beta2 x - x^3` of the cusp bifurcation.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value.
+
+        beta1:
+            The first unfolding parameter, the asymmetry.
+
+        beta2:
+            The second unfolding parameter, the splitting.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import CuspElement
+        >>> CuspElement('form', beta2=2.0).beta2
+        2.0
+    """
 
     def __init__(
         self,
@@ -107,7 +231,16 @@ class CuspElement(Element):
         self.beta2 = beta2
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the cusp element."""
+        """Return the rate of the value.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [RateLaw(s.x, s.beta1 + s.beta2 * s.x - s.x**3)]
 
 
