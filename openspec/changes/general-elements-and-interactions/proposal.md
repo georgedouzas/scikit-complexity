@@ -21,68 +21,43 @@ wherever another field needs them.
 
 ## What Changes
 
-- **General mechanisms in the core.** The core gains concrete, configurable elements and interactions, named by their
-  mathematics, never by a field:
-
-  | Mechanism | Core class |
-  | --- | --- |
-  | random walk on cells, nodes, or continuous space, with neighbour, Gaussian, or Lévy steps | `RandomWalkInteraction` |
-  | mass-action reaction or compartment flow, as rates, jumps, or Langevin noise | `ReactionInteraction` |
-  | spreading of a state to neighbours, with recovery and loss of immunity | `SpreadingInteraction` |
-  | coupling of a state to others through a function, with lag, delay, or mean field | `CouplingInteraction` |
-  | threshold crossing with reset or redistribution | `ThresholdInteraction` |
-  | choice among options by the logit (heat-bath), Metropolis, or Fermi rule | `ChoiceInteraction` |
-  | imitation of a neighbour's discrete state, at random, by majority, or of the best | `ImitationInteraction` |
-  | foraging of a resource with an energy budget, and regrowth of the resource | `ForagingInteraction`, `RegrowthInteraction` |
-  | Ornstein-Uhlenbeck and geometric Brownian noise | `OrnsteinUhlenbeckInteraction` |
-  | growth and decay, exponential, logistic, Gompertz, power, or von Bertalanffy, with harvest and delay | `GrowthInteraction` |
-  | alignment of headings or velocities within a radius | `AlignmentInteraction` |
-  | evolution of strategies by selection, crossover, and mutation | `EvolutionInteraction` |
-  | pair forces from a user-given potential of the distance | `PairForceInteraction` |
-  | linear damping and a constant force | `DampingInteraction`, `ConstantForceInteraction` |
-  | densities over activity classes, for encounter laws | `DensityElement` |
-  | compartments whose states are counts or fractions | `CompartmentElement` |
-
-- **BREAKING: matching moves to the core with neutral roles.** `MarketInteraction` becomes `MatchingInteraction`, whose
-  roles are `requesters` and `providers` and whose states are `limit`, `quantity`, and `budget`, and the protocols
-  are named for their mechanism:
-  - `RandomSearchProtocol`
-  - `PartnerSwitchProtocol`
-  - `QueueProtocol`
-  - `PriceAdjustmentProtocol`
-  - `PriceTimePriorityProtocol`
-  - `UniformPriceProtocol`
-  - `StableMatchingProtocol`
-
-  The economics models bind them to bids, asks, money, and goods.
-- **BREAKING: feedback and learning move to the core.** `InstitutionInteraction` becomes `FeedbackInteraction`, an
-  actor that reads observables and sets parameters once per round. `logit_choice` and `evolve` become
-  `ChoiceInteraction` and `EvolutionInteraction`. The forecasting heuristics of economics stay in economics.
-- **Potentials take state names.** `PotentialInteraction` and `PairPotentialInteraction` read the position, velocity,
-  and mass from states the user names, defaulting to `x`, `v`, and `m`.
-- **Physics realizations are built on the core.** Lennard-Jones, soft spheres, springs, gravity, the harmonic
-  potential, and the Langevin thermostat stay in `physics/common/particles` as realizations built on
-  `PairForceInteraction`, `PotentialInteraction`, and `OrnsteinUhlenbeckInteraction`, with their LAMMPS translations.
-- **Group mechanisms run over hyperedges.** Galam discussion groups, public-goods groups, the Kolkata restaurants, and
-  the minority game become `HyperedgeInteraction` subclasses over networks with hyperedges, so the primitive has
-  model users.
-- **Every implementing model is rewritten.** Every model class whose mechanism the core now provides uses the core
-  class and keeps only what is its own, so the models become examples of the core. That is about 200 classes,
-  listed in `inventory.md`.
-- **Duplicates are removed.**
-  - One `StuartLandauElement` in `physics/common` replaces the two physics copies. Named equations stay realizations
-    of their fields, so mathematics and earth keep their own Hopf, Van der Pol, and logistic-map classes.
-  - One FitzHugh-Nagumo element in a new `biology/common/excitable` family replaces the physiology and neuroscience
-    copies.
-  - The meadow and commons models share the core foraging and regrowth.
-  - `GrowthInteraction` replaces both `ExponentialGrowthInteraction` classes.
+- **General operations in the core.** The core gains one class per mathematical operation, configured by the states it
+  binds and by functions the user passes, and named by the operation, never by a quantity of a field. design.md lists
+  them with their signatures:
+  - continuous time: `RateInteraction`, `RelaxationInteraction`, `GradientInteraction`, `EulerLagrangeInteraction`,
+    `ConservationInteraction`, `DiffusionInteraction`;
+  - discrete time: `MapInteraction`, `LocalRuleInteraction`, `CascadeInteraction`;
+  - coupling: `CouplingInteraction` over edges, groups, and ordered neighbours, and `PairCouplingInteraction` over pairs
+    within a cutoff, with a function or a pair potential;
+  - events and discrete states: `JumpInteraction`, `ReactionInteraction`, `TransitionInteraction`,
+    `SpreadingInteraction`, `EncounterInteraction`, `CrossingInteraction`, `ImpulseInteraction`, `SamplingInteraction`;
+  - choice and learning: `ChoiceInteraction`, `ImitationInteraction`, `ReinforcementInteraction`,
+    `EvolutionInteraction`;
+  - agents, groups, and exchange: `MovementInteraction`, `TransferInteraction`, `LifeCycleInteraction`,
+    `GroupingInteraction`, `MatchingInteraction` with eight protocols, `FeedbackInteraction`, `TopologyInteraction`;
+  - elements: `CompartmentElement`, `DensityElement`, and `PointElement`, which replaces `ParticleElement`.
+- **No quantities in the core.** A force is a rate on a state of order 2, and its mass is a divisor. **BREAKING:**
+  `PotentialInteraction`, `PairPotentialInteraction`, `ParticleElement`, and `StateSpec.velocity_of` leave the core, and
+  the mechanisms first added by this change that named field quantities move to the fields as subclasses of the
+  general classes: forces, damping, the Ornstein-Uhlenbeck process, growth forms, foraging, regrowth, alignment, and
+  named oscillators.
+- **Laws and utilities.** `RelaxationLaw` becomes `CascadeLaw`, and the laws with field wording lose it. The law
+  namespace gains `hill`, `logistic`, `pulse_train`, `clip`, `minimum`, `maximum`, `sign`, the stock-and-flow delays,
+  keyed reductions, and a circular mean.
+- **BREAKING: matching, feedback, and evolution move to the core** with neutral names: `MarketInteraction` becomes
+  `MatchingInteraction`, `InstitutionInteraction` becomes `FeedbackInteraction`, and `evolve` becomes
+  `EvolutionInteraction`. The protocols are named by their algorithm.
+- **Every model is rebuilt on the general classes.** Every model class uses the general classes and keeps only what is
+  its own, so the models become examples of the core. A realization that several packages of one field share moves to
+  the field's `common` package. The six audits in `inventory/` list every class.
+- **Group mechanisms run as agent groupings** until `add-higher-order-interactions` compiles laws per hyperedge.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `general-mechanisms`: the field-neutral elements and interactions the core provides for mechanisms that models
-  across fields share, each configurable by states, parameters, functions, and named mathematical variants.
+- `general-mechanisms`: the general elements and interactions the core provides, one per mathematical operation,
+  each configured by states, functions, and named variants, which together cover every model.
 
 ### Modified Capabilities
 
@@ -97,19 +72,11 @@ wherever another field needs them.
 
 ## Impact
 
-- **Code:**
-  - `skcomplex.core.elements` and `skcomplex.core.interactions` gain about 20 classes.
-  - `skcomplex.models.economics.common` loses `markets` and `institutions`, and keeps only the forecasting heuristics
-    in `learning`.
-  - `skcomplex.models.physics.common.particles` is rebuilt on the core.
-  - About 200 model classes across all nine fields are rewritten.
-- **API:** breaking for imports of `MarketInteraction`, the market protocols, `InstitutionInteraction`,
-  `logit_choice`, `evolve`, the two physics `StuartLandauElement`, `ExponentialGrowthInteraction`, and the
-  duplicated meadow/commons classes. Model factories keep their names and parameters, and their trajectories stay the
-  same within the tolerance of their tests.
-- **Specs:** the field-term test of the core keeps guarding every new name.
-- **Overlap with pending changes:**
-  - `add-higher-order-interactions` extends laws over hyperedges, and this change adds the first model users of
-    `HyperedgeInteraction`. Whichever lands second rebases on the other.
-  - `add-learning-dynamics` adds gradient learning, which is distinct from the selection-based
-    `EvolutionInteraction`.
+- **Code:** `skcomplex.core.elements`, `skcomplex.core.interactions`, and `skcomplex.core.laws` are rebuilt as above.
+  The engine reads the divisor, the order-2 states, and the agent form. LAMMPS accepts elements by their states.
+  Every model package is rewritten, and each field gains `common` families for its shared realizations.
+- **API:** breaking for the moved and removed names above. Model factories keep their names and parameters, and their
+  trajectories stay within the tolerance of their tests.
+- **Overlap with pending changes:** `add-higher-order-interactions` compiles laws per hyperedge, after which the group
+  mechanisms can move from agent groupings to hyperedges. `add-learning-dynamics` adds gradient learning, which is
+  distinct from `EvolutionInteraction` and `ReinforcementInteraction`.

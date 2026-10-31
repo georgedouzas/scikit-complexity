@@ -1,71 +1,43 @@
 # Tasks
 
-## 1. Core mechanisms
+## 1. Done before the redesign
 
 - [x] 1.1 Work on `development`, cutting one worktree branch per parallel agent from it, and verify `git status` is clean before the first merge.
-- [x] 1.2 Add `CompartmentElement` and `DensityElement` to `skcomplex.core.elements`, one module each, with docstrings and doctests; verify tests in `tests/core/elements/` for declared compartments and a density used by an `EncounterLaw` pass.
-- [x] 1.3 Add `ReactionInteraction` with the modes `'rate'`, `'jump'`, and `'langevin'`; verify a test that runs `S + I -> 2 I` and `I -> R` in rate and jump mode with 100,000 units, the jump means within 2 percent of the rate solution, and `S + I + R` constant.
-- [x] 1.4 Add `GrowthInteraction` with the forms `'exponential'`, `'logistic'`, `'gompertz'`, `'power'`, and `'bertalanffy'`, and the capacity, exponent, harvest, and delay; verify tests of each form against its closed solution and of the logistic inflection at half the capacity.
-- [x] 1.5 Add `RandomWalkInteraction` with the steps `'neighbor'`, `'gaussian'`, and `'levy'`, a step probability, a rate, and a cost; verify the mean squared displacement `4 D t` within 5 percent for 10,000 Gaussian walkers, and neighbour steps on a lattice and a network.
-- [ ] 1.17 Extend the edge kernel of `NeighborInteraction` with per-member laws of either end, the degrees of the source and the target, `delayed` reads of both ends, and `RelaxationLaw`, `DriveLaw`, and `LocalRuleLaw`; verify each on a network and a lattice, including recovery compiled once per member and an avalanche recorded as an event on a network.
-- [ ] 1.18 Let a reduction read the reading member apart from the reduced one; verify that the mean of `sin(other.x - x)` over a group of three gives `[0.584, 0, -0.584]` for phases `[0, 1, 2]`-style inputs against a direct NumPy evaluation.
-- [ ] 1.19 Add a reduction that returns the state of the neighbour at which an expression is largest; verify it against a direct evaluation on a ring and a network.
-- [ ] 1.6 Add `SpreadingInteraction` over neighbours, with recovery and loss of immunity; verify the contact process dies out below and survives above its critical rate on a square lattice.
-- [ ] 1.7 Add `CouplingInteraction` with a coupling function, lag, delay, and mean field; verify Kuramoto order above 0.8 for 500 oscillators above the critical strength on a complete graph, and the delayed and lagged variants against their reference tests.
-- [ ] 1.8 Add `ThresholdInteraction` with reset and redistribution, recording cascades as events; verify sandpile avalanche sizes follow a power law over two decades on a 50 by 50 lattice.
-- [x] 1.9 Add `ChoiceInteraction` with the rules `'logit'`, `'metropolis'`, and `'fermi'`, where logit is the heat-bath rule; verify logit fully connected spins approach `m = tanh(2 m)`, and logit probabilities against `exp(beta u) / sum`.
-- [ ] 1.10 Add `ImitationInteraction` with the rules `'random'`, `'majority'`, and `'best'`; verify voter consensus on a ring of 50, with the winning probability equal to the initial fraction over 200 runs.
-- [x] 1.11 Add `ForagingInteraction` and `RegrowthInteraction`; verify energy gain, metabolism, splitting reproduction, death at zero energy, and regrowth by delay and towards a capacity in unit tests.
-- [x] 1.12 Add `OrnsteinUhlenbeckInteraction`, additive and multiplicative; verify the stationary variance `sigma**2 / (2 theta)` within 5 percent, and the log-normal mean of the geometric case.
-- [x] 1.13 Add `AlignmentInteraction`, polar and nematic, with noise and repulsion and attraction zones; verify Vicsek polar order above 0.9 at low noise.
-- [x] 1.14 Add `EvolutionInteraction` with tournament and roulette selection, crossover, and mutation over an alphabet or Gaussian, as private methods that replace `evolve`; verify the mean fitness rises on the count of ones over 50 generations and two runs with one seed agree.
-- [x] 1.15 Keep named equations out of the core: no `StuartLandauElement`, `VanDerPolElement`, or `LogisticMapElement` in `skcomplex.core`; verify `skcomplex.core.elements.__all__` names none of them.
-- [ ] 1.16 Export every new class from its package, and verify the field-term test and `tests/test_types.py` pass with every new name.
+- [x] 1.2 Extend the edge kernel of `NeighborInteraction` with per-member laws of either end, the degrees of both ends, `delayed` reads of both ends, and cascade, drive, and local-rule laws; verify each on a network and a lattice.
+- [x] 1.3 Let a reduction read the reading member apart from the reduced one; verify the mean of `sin(other.x - x)` against NumPy.
+- [x] 1.4 Add a reduction that returns the state of the neighbour at which an expression is largest; verify it on a ring and a network.
+- [x] 1.5 Guard the public names of the core with the field-term test; verify it rejects a name with a field term.
+- [x] 1.6 Move matching and feedback to the core as `MatchingInteraction`, seven protocols, and `FeedbackInteraction`, and port their users; verify the nine ported models give identical trajectories.
+- [x] 1.7 Find whether hyperedge laws compile per hyperedge; verify by a run, and record in design.md that they do not.
 
-## 2. Forces and potentials
+## 2. Core rebuild
 
-- [x] 2.1 Give `PotentialInteraction` and `PairPotentialInteraction` the `position`, `velocity`, and `mass` state names, defaulting to `x`, `v`, and `m`; verify a pair potential on states `r` and `u` and the existing potential tests.
-- [x] 2.2 Add `PairForceInteraction`, which takes an energy function of the distance and a cutoff, `DampingInteraction`, and `ConstantForceInteraction` moved from physics; verify forces against the gradient of the energy and damping against exponential decay.
-- [x] 2.3 Rebuild `physics/common/particles` on the core: Lennard-Jones, soft spheres, springs, gravity, and the harmonic potential on `PairForceInteraction` or `PotentialInteraction`, the thermostat on `OrnsteinUhlenbeckInteraction`, with their LAMMPS translations; verify the Lennard-Jones minimum at `2 ** (1 / 6)`, the thermostat's equilibrium temperature within 5 percent, and the LAMMPS agreement tests.
+Each task adds its classes, one per private module, exported from their package, with tests mirroring the source and a runnable doctest, and removes the classes design.md moves out of the core together with their tests, moving each to the physics, biology, or economics family the inventory names.
 
-## 3. Matching, feedback, and learning in the core
+- [ ] 2.1 Continuous time: add `RateInteraction`, `RelaxationInteraction`, `GradientInteraction`, `EulerLagrangeInteraction`, `ConservationInteraction`, and `DiffusionInteraction`, with `divisor` and noise options (process, convention, fractional); remove `PotentialInteraction`, `OrnsteinUhlenbeckInteraction`, `ConstantForceInteraction`, `DampingInteraction`, and `GrowthInteraction` from the core; verify the scenarios of the rates, relaxation, gradients, Lagrangians, conservation, and the force-as-rate scenario.
+- [ ] 2.2 Coupling and points: generalize `CouplingInteraction` (read and write states, function of both members and the edge, weights, `include_self`, ordered next member, map form with `combine`), add `PairCouplingInteraction` replacing `PairPotentialInteraction` and `PairForceInteraction`, remove `AlignmentInteraction`, replace `ParticleElement` by `PointElement` and remove `StateSpec.velocity_of`, let LAMMPS accept elements by their states and read the divisor, and rebuild `physics/common/particles` on them; verify the Kuramoto, Vicsek, Lennard-Jones, thermostat, and LAMMPS agreement tests.
+- [ ] 2.3 Events and discrete states: add `MapInteraction`, `LocalRuleInteraction`, `JumpInteraction`, `TransitionInteraction`, `EncounterInteraction`, `CrossingInteraction`, `ImpulseInteraction`, and `SamplingInteraction`; rename `ThresholdInteraction` to `CascadeInteraction` and `RelaxationLaw` to `CascadeLaw`; make `ReactionInteraction` a `JumpInteraction` with species as role and state, real stoichiometry, and modifiers, and `SpreadingInteraction` a `TransitionInteraction`; verify the map, sandpile, reaction, epidemic-threshold, integrate-and-fire, and Ising scenarios.
+- [ ] 2.4 Choice and learning: give `ChoiceInteraction` the agent form, the `'best'` rule, a schedule, and an activity probability; give `ImitationInteraction` the Fermi rule and discrete time; add `ReinforcementInteraction`; give `EvolutionInteraction` rank selection, Moran and death-birth replacement, and function mutation; port the users of `logit_choice` and rename `economics/common/learning` to `forecasting` with only the forecasting heuristics; verify the Glauber, voter, choice-reading-history, and evolution scenarios.
+- [ ] 2.5 Agents, groups, and exchange: add `MovementInteraction` absorbing `RandomWalkInteraction`, `TransferInteraction` with its symbolic and agent forms, `LifeCycleInteraction`, `GroupingInteraction`, and `TopologyInteraction`; remove `ForagingInteraction` and `RegrowthInteraction`; rename the protocols to `IterativeClearingProtocol`, `ContinuousClearingProtocol`, and `BatchClearingProtocol`, `ClearingSpec` to `MatchingRoundSpec`, and add `GreedyProtocol`; verify the walker-diffusion, matching, Galam-grouping, and transfer-conservation scenarios.
+- [ ] 2.6 Laws, utilities, and elements: add `hill`, `logistic`, `pulse_train` with a count, `clip`, `minimum`, `maximum`, `sign`, `delay1`, `delay3`, `smooth`, keyed reductions, and a circular mean to the law namespace; remove the field wording of `DriveLaw`, `FluxLaw`, `EncounterLaw`, `DestructionLaw`, and `ProliferationLaw`; give `CompartmentElement` the name of its state; verify each utility against NumPy and the field-term test.
 
-- [x] 3.1 Move the market protocols to the core as `BaseMatchingProtocol` and the seven protocols named in the proposal, `Order` to the private `_Offer`, and `Trade` to `MatchSpec`; verify the moved protocol tests, including price-time priority and stable matching, under the new names.
-- [x] 3.2 Add `MatchingInteraction` with the `requesters` and `providers` roles, the `limit`, `quantity`, and `budget` state names, and `transfers`; port the double auction, labour, order book, and credit models and the ride-sharing dispatch to it; verify their tests pass, and the ride-sharing test with `StableMatchingProtocol`.
-- [x] 3.3 Move `InstitutionInteraction` to the core as `FeedbackInteraction` and port its seven users; verify their tests and a feedback test that changes a parameter only at rounds where an observable exceeds a target.
-- [ ] 3.4 Rename `economics/common/learning` to `economics/common/forecasting`, keep only the forecasting heuristics, and port the users of `logit_choice` and `evolve` to `ChoiceInteraction` and `EvolutionInteraction`; verify their tests, and that `markets` and `institutions` no longer exist in `economics/common`.
+## 3. Model rewrites
 
-## 4. Model rewrites
+Each task rebuilds every class of its inventory file on the general classes: pure classes become a general class or a thin subclass, composite classes bind general classes for their part, shared realizations move to `<field>/common/<family>`, and duplicates within the field merge. Each verifies the tests and doctests of every touched package, with stochastic models whose tolerance fails compared over 20 seeds against their previous trajectories, and that no class of the field reimplements a general class.
 
-Each task rewrites the classes of one cluster in `inventory.md` to the core class: pure classes bind it and keep only what is their own, composite classes bind it for their part, and state holders become the core element. Each verifies the tests and doctests of every touched model package, with stochastic models whose tolerance fails compared over 20 seeds against their previous trajectories.
+- [ ] 3.1 Rewrite biology collective behaviour, ecology, epidemiology, and evolution (`inventory/biology_1.md`).
+- [ ] 3.2 Rewrite biology neuroscience, oncology, physiology, and systems biology (`inventory/biology_2.md`).
+- [ ] 3.3 Rewrite physics (`inventory/physics.md`), including `common/oscillators`, `common/active`, and `common/fields`.
+- [ ] 3.4 Rewrite economics (`inventory/economics.md`).
+- [ ] 3.5 Rewrite social and engineering (`inventory/social_engineering.md`), with the group mechanisms on `GroupingInteraction`.
+- [ ] 3.6 Rewrite mathematics, computer science, chemistry, and earth (`inventory/math_cs_chem_earth.md`).
 
-- [ ] 4.1 Rewrite cluster 1, random walks, including the four copied `_wander` helpers; verify the touched packages' tests, and that `grep -r "def _wander" src/skcomplex/models` finds nothing.
-- [ ] 4.2 Rewrite cluster 2, reactions and compartment flows, and its state holders; verify the touched packages' tests.
-- [ ] 4.3 Rewrite cluster 3, spreading; verify the touched packages' tests.
-- [ ] 4.4 Rewrite cluster 4, coupling; verify the touched packages' tests.
-- [ ] 4.5 Rewrite cluster 5, thresholds and cascades; verify the touched packages' tests.
-- [ ] 4.6 Rewrite cluster 6, choice by a rule; verify the touched packages' tests.
-- [ ] 4.7 Rewrite cluster 7, foraging and regrowth, including the meadow and commons duplicates; verify the touched packages' tests, and that neither `_meadow.py` nor `_commons.py` defines a grazing or pasture class.
-- [ ] 4.8 Rewrite cluster 8, evolution; verify the touched packages' tests.
-- [ ] 4.9 Rewrite cluster 9, Ornstein-Uhlenbeck and geometric noise; verify the touched packages' tests.
-- [ ] 4.10 Rewrite cluster 10, imitation; verify the touched packages' tests.
-- [ ] 4.11 Rewrite cluster 11, pair forces and external potentials, in biology, social, and physics; verify the touched packages' tests.
-- [ ] 4.12 Rewrite cluster 12, class densities, to `DensityElement`; verify the touched packages' tests.
-- [ ] 4.13 Rewrite cluster 13, growth and decay, and its state holders, replacing both `ExponentialGrowthInteraction` classes; verify the touched packages' tests.
-- [ ] 4.14 Rewrite cluster 14, alignment; verify the touched packages' tests.
-- [ ] 4.15 Merge the duplicated equations of section D within each field: one `StuartLandauElement` in `physics/common`, one Van der Pol and one logistic map per field where a field has two, and FitzHugh-Nagumo in `biology/common/excitable`; verify the touched packages' tests, and that no field defines one equation twice.
+## 4. Docs and integration
 
-## 5. Group mechanisms on hyperedges
-
-- [x] 5.1 Check whether a run can change a network's hyperedges through the model view, as reshuffled groups need, and record the answer in design.md; verify with a test that redraws the hyperedges of a small network between rounds, or report the gap.
-- [ ] 5.2 Port the Galam discussions, public-goods groups, Kolkata restaurants, minority game, and El Farol bar of section H to `HyperedgeInteraction` subclasses; verify their tests, including the Galam majority rule, and keep any model that needs reshuffling on `RuleLaw` only if 5.1 reported the gap.
-
-## 6. Specs, docs, and integration
-
-- [ ] 6.1 Update the user guide's sections on elements, interactions, matching, institutions, learning, and particles to the core classes, with one example per mechanism; verify `pytest docs/overview` passes.
-- [ ] 6.2 Update the model inventory and the examples that import moved names; verify `grep` finds no import of `MarketInteraction`, `InstitutionInteraction`, `logit_choice`, `evolve`, or `HopfElement` in `src`, `tests`, or `docs`.
-- [ ] 6.3 Run the checks session (ruff, black, lint-imports, mypy, bandit, interrogate, pydoclint, deptry) and the full suite with doctests, and verify only the known timing test fails.
-- [ ] 6.4 Merge every agent branch into `development` as it reports and delete its worktree, and verify `git worktree list` and `git branch` list none of them.
+- [ ] 4.1 Update the user guide's sections on elements, interactions, and laws to the general classes, with one example per class, and the constitution's extension points; verify `pytest docs/overview` passes.
+- [ ] 4.2 Update the model inventory and the examples that import moved names; verify `grep` finds no removed name in `src`, `tests`, or `docs`.
+- [ ] 4.3 Run the checks session and the full suite with doctests, and verify only the known timing test fails.
+- [ ] 4.4 Merge every agent branch into `development` as it reports and delete its worktree, and verify `git worktree list` and `git branch` list none of them.
 
 ## Workflow follow-up
 

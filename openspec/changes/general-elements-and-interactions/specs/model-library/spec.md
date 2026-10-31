@@ -6,19 +6,19 @@
 The library SHALL hold every specific realization of a core primitive or a general analysis in its own private module
 of the model package that uses it, next to the model definitions, exported from that package. A realization that
 several packages of one field share SHALL live in `skcomplex.models.<field>.common`, grouped in family packages such as
-`particles`, `quantum`, `excitable`, or `learning`, with no loose modules beside the families, and only that field's
-packages import it. A mechanism that packages of more than one field need SHALL live in the core as a general
-mechanism, and no package SHALL define its own copy of it. A field whose packages share no code SHALL have no `common`
+`particles`, `oscillators`, `excitable`, or `forecasting`, with no loose modules beside the families, and only that
+field's packages import it. A realization SHALL be a subclass of a general core class, even a pure renaming, and no field
+SHALL define the same realization twice. A field whose packages share no code SHALL have no `common`
 package. A model class whose mechanism the core provides SHALL use the core class and keep only what is its own.
 
 #### Scenario: Order book from the library
 - **WHEN** the finance models build their order book, and an engineering model pairs riders with cars
 - **THEN** both use the core `MatchingInteraction`, the order book binds it to bids, asks, money, and goods with
-  `PriceTimePriorityProtocol`, and the earlier of two same-price sell orders trades first
+  `ContinuousClearingProtocol`, and the earlier of two same-limit sell orders trades first
 
 #### Scenario: Potential from the library
 - **WHEN** a user imports the Lennard-Jones potential from `skcomplex.models.physics.common.particles`
-- **THEN** it is a realization built on the core `PairForceInteraction`, and the existing LAMMPS agreement tests pass
+- **THEN** it is a realization built on the core `PairCouplingInteraction`, and the existing LAMMPS agreement tests pass
   with it
 
 #### Scenario: Realization of one package
@@ -27,11 +27,12 @@ package. A model class whose mechanism the core provides SHALL use the core clas
 
 #### Scenario: No copy across fields
 - **WHEN** the ecology meadow and the economics commons models are built
-- **THEN** neither defines a foraging or regrowth class of its own
+- **THEN** both build foraging and regrowth from the core `TransferInteraction`, `LifeCycleInteraction`, and
+  `MapInteraction`
 
 ### Requirement: Pair potentials for particle groups
 The physics module SHALL provide Lennard-Jones and soft-sphere pair interactions with a cutoff, built on the core
-`PairForceInteraction`, which run on the native solvers and on the LAMMPS backend.
+`PairCouplingInteraction` on positions of order 2, which run on the native solvers and on the LAMMPS backend.
 
 #### Scenario: Lennard-Jones minimum
 - **WHEN** two members interact through a Lennard-Jones potential with `sigma = 1`
@@ -39,7 +40,7 @@ The physics module SHALL provide Lennard-Jones and soft-sphere pair interactions
 
 ### Requirement: Langevin thermostat
 The physics module SHALL provide a Langevin thermostat that adds drag and random forces to a particle group, built on
-the core `OrnsteinUhlenbeckInteraction` acting on the velocity, which runs on the native SDE solvers and on the LAMMPS
+the core `RelaxationInteraction` acting on the first derivative of the position, which runs on the native SDE solvers and on the LAMMPS
 backend.
 
 #### Scenario: Equilibrium temperature

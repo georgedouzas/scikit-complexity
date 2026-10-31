@@ -2,174 +2,178 @@
 
 ## Context
 
-See proposal.md for the motivation. The current state that shapes the approach:
-- `skcomplex.core.elements` holds `Element` and the containers `GroupElement`, `FieldElement`, `LatticeElement`, and
-  `ParticleElement`. `skcomplex.core.interactions` holds the bindings `Interaction`, `PairInteraction`,
-  `NeighborInteraction`, and `HyperedgeInteraction`, and the mechanics bases `PotentialInteraction` and
-  `PairPotentialInteraction`, which hard-code the states `x`, `v`, and `m`.
-- A part declares its states, parameters, and roles with `Annotated[..., StateSpec() | ParameterSpec() | RoleSpec()]`
-  in `__init__`, which only stores its arguments, and returns its laws from `_get_laws(namespace)`. Every part
-  implements `_check`, `_prepare`, and `_run`, itself or through its family base, and `run` sets `laws_`.
-- The shared code to move is:
-  - `models/economics/common/markets`: `MarketInteraction`, `BaseMarketProtocol`, seven protocols, `ClearingSpec`,
-    `Order` (a mutable dataclass), and `Trade`.
-  - `models/economics/common/institutions`: `InstitutionInteraction`.
-  - `models/economics/common/learning`: `logit_choice`, `logit_probabilities`, `evolve`, and the forecasting
-    heuristics.
-  - `models/physics/common/particles`: the force and potential classes and their LAMMPS translations.
-- The import contracts forbid a model package from importing another package, except its field's `common`, and
-  forbid the core from importing models. `tests/test_types.py` and the field-term test guard the core's names.
+See proposal.md for the motivation. Six audits, in `inventory/`, map every element and interaction class of
+`skcomplex.models`, about 510 elements and 180 interactions, to the operations they perform. They show three facts:
+- Almost no model uses a core interaction other than the binding bases. The models write the same operations inline
+  across fields, and several fields write them twice.
+- The first set of mechanisms of this change named field quantities and field models: forces, damping, foraging,
+  regrowth, alignment, growth forms, named oscillators, and price-named protocols. A user of another field cannot reuse
+  them without reading them as physics, ecology, or economics.
+- The engine already has the general mechanisms the operations need: states of any order, rate, noise, jump, update,
+  equation, crossing, transition, local-rule, sample, flux, cascade, encounter, transfer, and rule laws, neighbour and
+  pair bindings, reductions, delays, and agent rules.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Each shared mechanism exists once, in the core, under a mathematical name. Every model that implements it uses it.
-- Every model factory keeps its name, parameters, and trajectories within the tolerance of its tests.
+- The core gives one general class per mathematical operation, configured by the states it binds and by functions the
+  user passes. Together the classes cover every current model.
+- A field case is a thin subclass of a general class, even a pure renaming. It lives with its one model, or in the
+  `common` package of its field when several packages of the field use it. These subclasses double as examples of how a
+  user builds a part.
+- Every model class is rebuilt on the general classes and keeps only what is its own.
 
 **Non-Goals:**
 - New models, or changes to what a model computes.
-- Mechanisms that only one field uses. They stay in that field, in its `common` package when several of its packages
-  share them.
-- Gradient learning, which `add-learning-dynamics` covers, and k-body tensors, which `add-higher-order-interactions`
-  covers.
+- Laws per hyperedge, which `add-higher-order-interactions` adds. Group mechanisms run here as agent groupings.
+- Gradient learning, which `add-learning-dynamics` adds.
 
 ## Decisions
 
-### Mechanisms are interactions; elements only hold states
-A mechanism changes states, so it is an interaction that binds the groups it acts on by roles and takes the names of
-the states it reads and writes as constructor arguments. Each is a subclass of the binding it needs:
-- `Interaction`: reaction, growth, Ornstein-Uhlenbeck, damping, constant force, choice, evolution, feedback,
-  matching.
-- `NeighborInteraction`: spreading, imitation, network coupling, threshold, on the extended edge kernel below.
-- `PairInteraction`: pair force, alignment within a radius.
-- `HyperedgeInteraction`: group mechanisms.
+### A core class names an operation, never a quantity
+A core class names what it does mathematically: a rate, a gradient, a map, a coupling, a jump, a transition, a choice,
+a movement, a transfer, a grouping. It never names what a state means. There is no force, position, velocity, mass,
+price, infection, energy, or harvest in a core name or argument. A force is a rate on a state of order 2, whose laws give
+its second derivative. Its velocity is the first derivative of that state. Its mass is a divisor.
 
-Elements are added only where several fields declare the same states: `DensityElement`
-and `CompartmentElement`. A model that needs other states keeps its own element and binds the core interactions to it.
+Alternative considered: one core class per recurring mechanism, such as `ConstantForceInteraction` or
+`ForagingInteraction`. Rejected, because each is a special case of a more general operation and binds the core to a
+field.
 
-Alternative considered: mechanisms as elements with built-in laws, such as a `WalkerElement`. Rejected, because a
-model then cannot combine two mechanisms on one element without multiple inheritance.
+### Arguments: roles, state names, functions, divisor, variants
+- Roles bind groups: `target` is the role whose states the laws change, `sources` are roles they only read.
+- State arguments name the states read and written, so one class serves any meaning.
+- Functions are callables of the namespace that return symbolic expressions. In the agent form they are callables of
+  the agent and the model view.
+- `divisor` divides what a rate, gradient, or pair coupling adds to the highest derivative, such as a mass, a friction,
+  or a capacitance. It is a named argument, not part of the user's function, so backends such as LAMMPS can read it.
+- A variant is a string argument checked in `_check` against a module constant, or a configurable class when it carries
+  its own algorithm, such as a matching protocol.
 
-### Neighbour interactions take what the mechanisms need
-Spreading, imitation, network coupling, and thresholds stay `NeighborInteraction` subclasses, so the engine extends the
-binding instead of the mechanisms falling back to plain interactions:
-- Per-member laws: an edge kernel takes laws of the members at either end that do not depend on the edge, such as
-  recovery and loss of immunity, compiled once per member rather than once per edge.
-- Degree: the edge namespace offers the degree of the source and the target, so a rate can be proportional to the
-  fraction of neighbours.
-- Delays: `delayed` reads the past state of the source or the target of an edge.
-- Relaxation: an edge kernel takes `RelaxationLaw`, `DriveLaw`, and `LocalRuleLaw`, so cascades run over the edges of a
-  network and are recorded as events, as on lattices.
+### Two lowerings, chosen by the bound group
+A class whose operation agent models use lowers to an agent `RuleLaw` when its role binds an agent group, and to its
+symbolic laws otherwise. Its functions then take the agent and the model view, so they can read the model's history
+and storage and the agent's neighbours and cell.
 
-### Reductions name the reading member, and reduce to an argmax
-- A reduction over a group can read the member that reads it, apart from the member being reduced, so
-  `mean(f(other.x, x), over=...)` evaluates any coupling function `f` against the reading member. The mean field of
-  `CouplingInteraction` rests on it for any function, not only separable ones.
-- A reduction returns the state of the neighbour at which an expression is largest, which `'best'` imitation reads.
+### The catalog of general interactions
 
-### Mechanisms serve agent groups and symbolic groups
-A mechanism that agent models use lowers to a `RuleLaw` when its role binds an agent group, and to its symbolic laws
-otherwise. In the agent form, the functions it takes, such as a utility, are callables of the agent and the model view,
-so they can read the model's history and the agent's neighbours. One class serves both, and the bound group decides
-the lowering.
+Continuous time:
 
-### Variants are named arguments, checked in `_check`
-A variant that changes the form of the laws is a string argument checked against a module constant of the allowed
-names, such as `step='levy'`, `form='gompertz'`, `rule='fermi'`, or `mode='jump'`. A variant that carries its own
-settings and algorithm is a configurable class, such as the matching protocols, which keep their `BaseConfig` contract
-and `trades_` result. Every name is mathematical.
+| Class | Operation | Lowers to |
+| --- | --- | --- |
+| `RateInteraction(target, state, rate, sources=(), noise=None, divisor=None)` | adds `rate(ns)`, and `noise(ns) dW`, to the highest derivative of a state of any order | `RateLaw`, `NoiseLaw`, `FractionalNoiseLaw` |
+| `RelaxationInteraction(RateInteraction)(target, state, goal, time, noise=None)` | relaxes a state towards a goal expression, `(goal - x) / time`, with optional noise (Ornstein-Uhlenbeck) | `RateLaw`, `NoiseLaw` |
+| `GradientInteraction(target, states, potential, sources=(), divisor=None, variational=False, conserved=False)` | moves states down the gradient of a potential: gradient flow on order 1, Newtonian on order 2, variational and conserved on fields | `RateLaw` |
+| `EulerLagrangeInteraction(target, states, lagrangian, dissipation=None, forcing=None)` | equations of motion of a Lagrangian, with Rayleigh dissipation and generalized forcing | `EquationLaw` |
+| `ConservationInteraction(target, state, flux, source=None)` | a conserved state of a field with a flux and a source | `FluxLaw` |
+| `DiffusionInteraction(ConservationInteraction)(target, state, coefficient)` | flux minus a coefficient times the gradient | Laplacian of the field |
 
-Alternative considered: one subclass per variant, such as `LogisticGrowthInteraction`. Rejected, because it
-multiplies classes and brings field-shaped names back.
+Discrete time:
 
-### Functions are user arguments
-Where a mechanism is defined by a function, the user passes it as a callable of the namespace, the same way
-`CouplingInteraction(function=...)`, `PairForceInteraction(energy=...)`, and `ChoiceInteraction(utility=...)` work.
-The neutral default is the identity difference for coupling, and no default for energies and utilities.
+| Class | Operation | Lowers to |
+| --- | --- | --- |
+| `MapInteraction(target, state, map, sources=(), form='replace', schedule='synchronous')` | `x(t+1) = f(ns)`, or `x + f(ns)` in the `'increment'` form, updated synchronously, sequentially, or in random order | `UpdateLaw` |
+| `LocalRuleInteraction(target, state, rule, neighborhood)` | cellular automata from a rule table, a totalistic rule, or a function of the ordered neighbourhood | `LocalRuleLaw` |
+| `CascadeInteraction(target, state, threshold, mode, drive=None, neighborhood=None)` | drives, then relaxes every member at or above a threshold by reset, redistribution, or a random share, recording cascades as events | `CascadeLaw`, `DriveLaw`, `LocalRuleLaw` |
 
-### Matching keeps its algorithm and changes its words
-`MarketInteraction` becomes `MatchingInteraction(label, *, requesters, providers, protocol=None, limit='limit',
-quantity='quantity', budget='budget', transfers=(), phase=None, on_match=None)`. The bid and ask become one `limit`
-state per side, read by name. `money` and `goods` become `transfers`, a sequence of `(state, sign)` per side that a
-match moves by price times quantity or by quantity.
+Coupling, over a structure:
 
-The protocols keep their algorithms under the names in the proposal. `Order` becomes `_Offer`, a private record of
-the matching module: a clearing lowers its quantity and budget, so it cannot be a frozen spec. `Trade` becomes
-`MatchSpec`, and `ClearingSpec` stays. The economics models pass
-`limit='bid'` and `limit='ask'`, and `transfers=(('money', ...), ('goods', ...))`.
+| Class | Operation | Binding |
+| --- | --- | --- |
+| `CouplingInteraction(nodes, read, write, function, reduce='sum', mode='edges', weights=None, include_self=False, lag=0.0, delay=0.0, form='rate', combine=None)` | member `i` gets a reduction over `j` of `function(ns)`, where `ns` reads `i`, `j`, and the edge. It works over the edges of a lattice or network, over the whole group, or over the next member of an ordered group. It adds to a rate (`form='rate'`) or sets the next value with `combine(x_i, reduction)` (`form='map'`) | `NeighborInteraction`; a Laplacian on fields |
+| `PairCouplingInteraction(first, second, cutoff, read, write, function=None, potential=None, divisor=None, period=None)` | every pair within a cutoff adds `function(ns)` or minus the gradient of `potential(ns, r)` to both members | `PairInteraction` |
 
-### Learning splits by generality
-- `logit_choice` and `logit_probabilities` become the `'logit'` rule of `ChoiceInteraction`.
-- `evolve` becomes `EvolutionInteraction`.
-- The forecasting heuristics (adaptive, trend, anchoring, fundamental) are a field realization and stay in
-  `economics/common/learning`, renamed `forecasting`.
+Events and discrete states:
 
-Module functions become private methods of the interaction that uses them, by the project's helpers-as-methods rule.
+| Class | Operation | Lowers to |
+| --- | --- | --- |
+| `JumpInteraction(target, changes, rate=None, probability=None, waiting=None, reset=None)` | stochastic events that change states by signed amounts, at a rate, with a probability per step, or after drawn waiting times | `JumpLaw` |
+| `ReactionInteraction(JumpInteraction)(reactants, products, k, propensity=None, modifiers=(), mode='rate')` | mass action between species given as role and state, with real stoichiometry and modifiers that the propensity reads but the reaction does not consume, as rates, jumps, or Langevin noise | `RateLaw`, `JumpLaw`, `NoiseLaw` |
+| `TransitionInteraction(target, state, source, destination, rate=None, probability=None, condition=None, matrix=None, given=None, after=None)` | a discrete state moves between values at a rate, with a probability per step (combined over neighbours as `1 - prod(1 - p)`), when a condition holds, by a transition matrix, or by an emission matrix given another state, after a residence time | `JumpLaw`, `UpdateLaw`, `TransitionLaw`, `EmissionLaw` |
+| `SpreadingInteraction(TransitionInteraction)` | the active value of a state spreads along edges, with recovery and return | edge and member laws |
+| `EncounterInteraction(candidate, field, kernel, outcome)` | bilinear encounters over a density on activity classes, conservative, destructive, or proliferative | `EncounterLaw`, `DestructionLaw`, `ProliferationLaw` |
+| `CrossingInteraction(target, guard, reset=None, direction=0, terminal=False)` | an event when a guard crosses zero, which resets states or ends the run | `CrossingLaw` |
+| `ImpulseInteraction(target, times, reset)` | resets states at given or periodic times | `CrossingLaw` on time |
+| `SamplingInteraction(target, states, energy, move, temperature)` | Monte Carlo sweeps by moves accepted from the change of an energy | `SampleLaw` |
 
-### Physics particles are built on the core
-- `ConstantForceInteraction` moves to the core.
-- `LinearDragInteraction` becomes the core `DampingInteraction`.
-- `HarmonicPotentialInteraction`, `SpringInteraction`, `GravityInteraction`, `LennardJonesInteraction`, and
-  `SoftSphereInteraction` stay in `physics/common/particles` as subclasses of `PotentialInteraction` or
-  `PairForceInteraction` with their energy, and keep their LAMMPS translations.
-- `LangevinThermostatInteraction` becomes a subclass of `OrnsteinUhlenbeckInteraction` on the velocity. Its rate is
-  the friction and its noise is fixed by the temperature.
-- Biology's `MorsePotentialInteraction` and social's repulsion classes become `PairForceInteraction` with their
-  energies.
+Choice and learning:
 
-### Potentials take state names
-`PotentialInteraction(label, *, position='x', velocity='v', mass='m')` and the same arguments on
-`PairPotentialInteraction` and `PairForceInteraction`. The symbolic gradient is taken with respect to the named
-position, and its effect goes to the named velocity divided by the named mass.
+| Class | Operation |
+| --- | --- |
+| `ChoiceInteraction(target, state, options, utility, rule='logit', intensity=1.0, schedule='synchronous', activity=1.0)` | draws an option by the logit, Metropolis, Fermi, or best rule, symbolic or agent |
+| `ImitationInteraction(nodes, state, payoff, options, rate, rule)` | copies a neighbour's state at random, by majority, from the best, or by the Fermi rule |
+| `ReinforcementInteraction(target, scores, payoff, rate)` | moves the score of every option towards its realized payoff |
+| `EvolutionInteraction(target, strategy, fitness, selection, replacement, crossover, mutation)` | selection by tournament, roulette, or rank, replacement of the generation, by Moran, or death-birth, crossover, and mutation over an alphabet, Gaussian, or a function |
 
-### Group mechanisms on hyperedges
-The Galam groups, public-goods groups, Kolkata restaurants, and minority-game groups are built as hyperedges of a
-`NetworkSpace(hyperedges=...)`, redrawn each round where the model reshuffles groups. Each becomes a
-`HyperedgeInteraction` subclass whose laws read the members of one hyperedge. Where reshuffling needs a new hyperedge
-set every round, the model updates the space's hyperedges through the model view, and the change verifies that
-compilation supports it. If it does not, that model keeps its `RuleLaw` and the gap is reported, rather than adding a
-mechanism to the space in this change.
+Agents, groups, and exchange:
 
-### Duplicates resolve by reach
-- A named equation, such as Stuart-Landau, Van der Pol, or the logistic map, is a realization, not a core primitive.
-  Each field keeps its own class, since a field never imports another field's package.
-- An equation that one field uses twice goes to that field's `common` package, or stays next to its one user. The
-  physics Stuart-Landau copies become one in `physics/common`. FitzHugh-Nagumo moves to
-  `biology/common/excitable`.
-- The meadow and commons models keep their elements and use the core foraging and regrowth.
-- Both `ExponentialGrowthInteraction` classes become `GrowthInteraction(form='exponential')`.
+| Class | Operation |
+| --- | --- |
+| `MovementInteraction(target, step, probability=1.0, rate=None, condition=None, accept=None, exclusive=False)` | moves agents by neighbour, Gaussian, Lévy, best-cell, or a user step |
+| `TransferInteraction(source, target, amount, pairing, legs=(), guard=None)` | moves amounts of states between members, cells, or a source and a sink, as a rate or as agent rules |
+| `LifeCycleInteraction(target, birth, death, offspring=1, placement='here', inherit=(), mutate=None)` | births by splitting or by condition, and deaths by condition |
+| `GroupingInteraction(target, groups, act, size=2, capacity=None)` | draws pairs, a random partition, neighbourhoods, or groups by a chosen state each step, then acts on every group |
+| `MatchingInteraction(requesters, providers, protocol, limit, quantity, budget, transfers, on_match)` | pairs requesters with providers by a protocol, then transfers |
+| `FeedbackInteraction(rule)` | reads observables once per round and sets parameters |
+| `TopologyInteraction(target, action, rate=None, probability=None, condition=None, toward=None)` | adds or removes nodes and edges, and rewires, preferentially towards a weight |
 
-### Rewriting models
-Each model class in `inventory.md`, the appendix of this design, is rewritten to bind the core class. Its own element keeps only the
-states, parameters, and laws the core class does not give. A class that becomes empty is deleted, and its factory
-builds the core class directly. Classes listed as "composite" keep their element and bind the core interaction for
-the part of their laws it covers, and classes listed as "excluded" stay as they are. Trajectory tests and doctests are the acceptance check: every factory's existing tests
-pass unchanged, except imports of moved names.
+The matching protocols are `RandomSearchProtocol`, `PartnerSwitchProtocol`, `QueueProtocol`,
+`IterativeClearingProtocol`, `ContinuousClearingProtocol`, `BatchClearingProtocol`, `StableMatchingProtocol`, and
+`GreedyProtocol`, with `MatchingRoundSpec` for one round.
+
+### Elements, laws, and utilities
+- Elements: `Element`, `GroupElement`, `FieldElement`, `LatticeElement`, `CompartmentElement` with the name of its
+  state, `DensityElement`, and `PointElement`, which replaces `ParticleElement`: a member with a vector state of order 2
+  in a continuous space. LAMMPS accepts an element by its declared states, and reads the velocity as the first
+  derivative of the position.
+- Laws: `RelaxationLaw` becomes `CascadeLaw`, so relaxation means relaxation towards a goal. `DriveLaw`, `FluxLaw`,
+  `EncounterLaw`, `DestructionLaw`, and `ProliferationLaw` keep their names and lose their field wording.
+  `StateSpec.velocity_of` is removed.
+- Utilities of the law namespace: `hill`, `logistic`, `pulse_train` with a count, `clip`, `minimum`, `maximum`, `sign`,
+  the stock-and-flow delays `delay1`, `delay3`, and `smooth`, reductions keyed by a state (`by=`), and a circular mean.
+
+### What leaves the core
+- `PotentialInteraction` and `PairPotentialInteraction` become `GradientInteraction` and `PairCouplingInteraction`.
+- `PairForceInteraction`, `ConstantForceInteraction`, `DampingInteraction`, and `OrnsteinUhlenbeckInteraction` become
+  physics subclasses of `PairCouplingInteraction`, `RateInteraction`, and `RelaxationInteraction`.
+- `GrowthInteraction` becomes growth subclasses of `RateInteraction` in the fields that use them.
+- `ForagingInteraction` and `RegrowthInteraction` become compositions of `TransferInteraction`, `LifeCycleInteraction`,
+  and `MapInteraction` in the fields that use them.
+- `AlignmentInteraction` becomes a `CouplingInteraction` in the map form in physics.
+- `RandomWalkInteraction` becomes the steps of `MovementInteraction`.
+- `ThresholdInteraction` becomes `CascadeInteraction`.
+
+### What stays in the models
+A mechanism that one field alone uses keeps its own laws on the general laws, with no core class: quantum generators
+and dissipators, rewriting systems, references from one agent to another, queues and set-valued states, barter swaps,
+and algebraic feedback of control loops. A field-shared realization goes to `<field>/common/<family>`, as the
+inventory lists, such as `physics/common/oscillators`, `biology/common/pharmacokinetics`, and
+`economics/common/forecasting`.
+
+### Hyperedges
+The engine compiles the laws of a `HyperedgeInteraction` once per member and ignores the hyperedges. Laws run once per
+hyperedge belong to `add-higher-order-interactions`. Until it lands, the group mechanisms of Galam, public goods,
+Kolkata, and the minority game run as agent groupings with `GroupingInteraction`.
 
 ## Risks / Trade-offs
 
-- **[Risk] Rewritten models change their numbers.** Stochastic models draw in a different order once the core class
-  draws. → Seeds stay, and tests that compare exact draws are rerun before and after. A model whose test tolerance
-  fails is compared statistically against its previous trajectory over 20 seeds, and only a statistically equal
-  model is accepted.
-- **[Risk] Generalised classes grow many arguments.** → Each class takes at most one variant argument and the state
-  names. A model that needs more subclasses the core class instead of the core class gaining a flag.
-- **[Risk] Field-term creep.** → The field-term test runs on every new name, and review rejects names like
-  `Infection`, `Market`, `Price`, `Predator`, or `Neuron` in the core.
-- **[Risk] Overlap with pending changes.** → `add-higher-order-interactions` and this change touch hyperedges. The one
-  that lands second rebases on the other.
-- **[Trade-off] Matching speaks of limits and quantities, not bids and asks.** Economics models gain a few binding
-  arguments. In exchange, engineering's dispatch and the social models use the same protocols.
+- **[Risk] Rewritten models change their numbers.** Stochastic models draw in a different order once a general class
+  draws. → Seeds stay. A model whose test tolerance fails is compared over 20 seeds against its previous trajectory,
+  and only a statistically equal model is accepted.
+- **[Risk] General classes grow many arguments.** → Each argument has a default that gives the plain operation. A
+  model that needs more subclasses the class and overrides one private hook.
+- **[Risk] Field-term creep.** → The field-term test runs on every public name of the core.
+- **[Risk] LAMMPS loses its class lookup.** → LAMMPS reads the declared states and the `divisor`, and the physics
+  subclasses keep their pair styles and fixes.
+- **[Trade-off] Field users bind state names.** A physics model writes `state='x'` and `divisor='m'` where a force
+  class took them for granted. In exchange, every field uses the same classes.
 
 ## Migration Plan
 
-Work happens on `development`. Parallel agents each work on a worktree branch cut from `development`, which merges back as
-soon as the agent reports and its tests pass. Moved public names are not kept as aliases: imports change in the same commit as the move. Rollback is reverting the merges.
+Work happens on `development`. The core is rebuilt first by parallel agents with disjoint modules, then the models
+are rewritten by field, each agent on a worktree branch cut from `development` that merges back as soon as it reports
+and its tests pass. Moved public names keep no aliases. Rollback is reverting the merges.
 
 ## Open Questions
 
-- Whether compilation supports changing a network's hyperedges during a run, which the reshuffled group mechanisms
-  need. Answered by task 5.1: the engine validates that a hyperedge interaction binds members of a network with
-  hyperedges, but compiles its laws as those of a plain interaction, once per member, and ignores the hyperedges. Laws
-  run once per hyperedge are the scope of the pending `add-higher-order-interactions` change, so the group mechanisms
-  of section H are blocked by it, whether or not their groups are reshuffled.
+- None. The hyperedge gap is answered above.

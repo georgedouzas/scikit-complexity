@@ -4,9 +4,10 @@
 
 ### Requirement: The core is application agnostic
 Every public name and module of `skcomplex.core` SHALL be a mathematical, modelling, or engineering term. The core SHALL
-hold each primitive in its general form, and a mechanism that models of more than one field share SHALL be a core
-class whose standard variants are named by their mathematics, such as the logit or Fermi rule of a choice, the Lévy
-step of a walk, the Gompertz form of growth, or the stable matching of a matching protocol. Every specific realization
+hold each primitive in its general form, one class per mathematical operation, configured by the states it binds and by
+functions, whose standard variants are named by their mathematics, such as the logit or Fermi rule of a choice, the
+Lévy step of a movement, or the stable matching of a matching protocol. No core name or argument SHALL name a quantity
+of a field. Every specific realization
 SHALL live in `skcomplex.models`, and the core SHALL import nothing from `skcomplex.models`. A specific realization is
 a variant named by a field or a person's model rather than by its mathematics, such as a named potential like
 Lennard-Jones, an order book, a rule code, a quantum species, a forecasting heuristic, a tiling, or a distribution
