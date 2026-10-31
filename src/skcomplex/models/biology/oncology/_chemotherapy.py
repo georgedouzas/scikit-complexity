@@ -6,27 +6,17 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, exp, oo
+from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import delayed, where
+from ....core.laws.utils import clip, delayed, hill
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
-
-
-def _excess(U: Expression, threshold: Expression) -> Expression:
-    """Return the drug concentration above its threshold, `(U - Uth) F(U - Uth)`, with `F` the Heaviside step."""
-    return where(U - threshold >= 0, U - threshold, 0)
-
-
-def _saturating(n: Expression, bd: Expression) -> Expression:
-    """Return the Michaelis-Menten fraction `n / (bd + n)` of a population."""
-    return n / (bd + n)
 
 
 class TumourImmuneChemotherapyElement(Element):
@@ -380,7 +370,7 @@ class MultidrugResistanceElement(Element):
             laws:
                 The laws of the component.
         """
-        kill1, kill2, kill3 = (a * _excess(U, s.Uth) for a, U in ((s.a1, s.U1), (s.a2, s.U2), (s.a3, s.U3)))
+        kill1, kill2, kill3 = (a * clip(U - s.Uth, 0) for a, U in ((s.a1, s.U1), (s.a2, s.U2), (s.a3, s.U3)))
         m1, m2, m3, r = s.m1, s.m2, s.m3, s.r
         return [
             RateLaw(s.S, r * (1 - m1 - m2 - m3) * s.S - (kill1 + kill2 + kill3) * s.S),
@@ -666,7 +656,7 @@ class RestingHuntingChemotherapyElement(Element):
                 The laws of the component.
         """
         E, Q, A, U = s.E, s.Q, s.A, s.U
-        fE, fQ, fA = _saturating(E, s.bd), _saturating(Q, s.bd), _saturating(A, s.bd)
+        fE, fQ, fA = hill(E, s.bd), hill(Q, s.bd), hill(A, s.bd)
         recruitment = s.m1 * E * delayed(Q, s.tau)
         return [
             RateLaw(E, recruitment - s.d1 * E - s.c1 * A * E - s.a * fE * U),
@@ -883,7 +873,7 @@ class MetastasisChemotherapyElement(Element):
                 The laws of the component.
         """
         Np, Ap, Up, Ns, As, Us = s.Np, s.Ap, s.Up, s.Ns, s.As, s.Us
-        fNp, fAp, fNs, fAs = (_saturating(n, s.bc) for n in (Np, Ap, Ns, As))
+        fNp, fAp, fNs, fAs = (hill(n, s.bc) for n in (Np, Ap, Ns, As))
         arrival = s.epsilon * s.delta * delayed(Ap, s.tau)
         return [
             RateLaw(Np, s.r1 * Np * (1 - s.b1 * Np) - s.c1 * Np * Ap - s.a1 * fNp * Up),

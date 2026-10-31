@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, CrossingLaw, RateLaw
-from ....core.laws.utils import pulse_train
+from ....core.laws.utils import hill, pulse_train
 from ....core.system import System
 from ....engine.solvers import ScipyODESolver
 from ....errors import ValidationError
@@ -37,11 +37,6 @@ PATIENT_FACTORS = {
         'cells': (11.02, 0.976, 0.0),
     },
 }
-
-
-def _hill(x: Expression, half: Expression, n: Expression) -> Expression:
-    """Return the Hill function `x^n / (x^n + half^n)`."""
-    return x**n / (x**n + half**n)
 
 
 def _prostate_volume(s: SimpleNamespace) -> Expression:
@@ -528,9 +523,9 @@ class CellQuotaProstateElement(Element):
             laws:
                 The laws of the component.
         """
-        to_independent = s.mx1 * (1 - _hill(s.Q1, s.m501, s.n)) * s.AD
-        to_dependent = s.mx2 * _hill(s.Q2, s.m502, s.n) * s.AI
-        produced = s.r1 * s.AD * _hill(s.Q1, s.rho1, s.theta) + s.r2 * s.AI * _hill(s.Q2, s.rho2, s.theta)
+        to_independent = s.mx1 * (1 - hill(s.Q1, s.m501, s.n)) * s.AD
+        to_dependent = s.mx2 * hill(s.Q2, s.m502, s.n) * s.AI
+        produced = s.r1 * s.AD * hill(s.Q1, s.rho1, s.theta) + s.r2 * s.AI * hill(s.Q2, s.rho2, s.theta)
         androgen = s.U0 - (s.U0 - s.Umin) * pulse_train(s.t, self.period, self.width)
         return [
             RateLaw(s.AD, s.rm * (1 - s.q1 / s.Q1) * s.AD - s.d1 * s.AD - to_independent + to_dependent),

@@ -85,9 +85,6 @@ from ._hormone_therapy import (
     tamoxifen_cell_cycle,
 )
 from ._immune_competition import (
-    CellsElement,
-    ImmuneCompetitionInteraction,
-    TumourGrowthInteraction,
     activity_grid,
     cell_density,
     immune_competition,
@@ -136,7 +133,6 @@ __all__: list[str] = [
     'BoneMarrowBloodElement',
     'CellCycleElement',
     'CellQuotaProstateElement',
-    'CellsElement',
     'CheckpointTumourElement',
     'ChemoimmunotherapyTumourElement',
     'ChemovirotherapyTumourElement',
@@ -150,7 +146,6 @@ __all__: list[str] = [
     'GliomaBrainElement',
     'GompertzGrowthInteraction',
     'Her2TumourElement',
-    'ImmuneCompetitionInteraction',
     'IntermittentSuppressionElement',
     'IrradiatedTumourElement',
     'KirschnerPanettaTumourElement',
@@ -177,7 +172,6 @@ __all__: list[str] = [
     'TissueElement',
     'TumourCellElement',
     'TumourElement',
-    'TumourGrowthInteraction',
     'TumourImmuneChemotherapyElement',
     'VaccinatedTumourElement',
     'VascularSupportInteraction',
