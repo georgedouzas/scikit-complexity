@@ -1,4 +1,4 @@
-"""Test the `_propulsion_step` module of `skcomplex.models.physics.common.active`."""
+"""Test the `_propulsion_step` module of `skcomplex.models.physics.active_matter`."""
 
 import math
 from typing import Annotated
@@ -10,7 +10,7 @@ from skcomplex.core.elements import Element
 from skcomplex.core.spaces import ContinuousSpace, DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.physics.common.active import PropulsionStepInteraction
+from skcomplex.models.physics.active_matter import PropulsionStepInteraction
 from skcomplex.specs import StateSpec
 
 

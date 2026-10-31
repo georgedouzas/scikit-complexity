@@ -5,6 +5,7 @@ from ._counting import BernoulliTrialElement, PoissonCounterElement, bernoulli_p
 from ._intermittency import IntermittentVariableElement, on_off_intermittency
 from ._queues import QueueElement, birth_death_queue
 from ._reducing import FragmentElement, ReducingBallElement, fragmentation, sample_space_reducing
+from ._reducing_jump import ReducingJumpInteraction
 from ._sources import HiddenMarkovSourceElement, MarkovSourceElement, hidden_markov_source, markov_source
 from ._urns import PolyaUrnElement, polya_urn
 from ._walks import (
@@ -35,6 +36,7 @@ __all__: list[str] = [
     'QueueElement',
     'RandomWalkerElement',
     'ReducingBallElement',
+    'ReducingJumpInteraction',
     'WeakeningParticleElement',
     'ageing_random_walk',
     'bernoulli_process',

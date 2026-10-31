@@ -22,9 +22,9 @@ from ....engine.solvers import EulerMaruyamaSolver, RK4Solver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
-from ..common.active import SelfPropulsionInteraction
 from ..common.particles import SoftSphereInteraction
 from ._particles import ActiveParticleElement
+from ._self_propulsion import SelfPropulsionInteraction
 
 
 class PhoreticAttractionInteraction(PairCouplingInteraction):

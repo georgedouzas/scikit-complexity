@@ -20,7 +20,7 @@ from ....engine.solvers import EulerMaruyamaSolver, ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
-from ..common.active import SelfPropulsionInteraction
+from ._self_propulsion import SelfPropulsionInteraction
 from ._tumbler_view import TumblerView
 
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.2})

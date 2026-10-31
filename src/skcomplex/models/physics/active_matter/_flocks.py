@@ -19,7 +19,7 @@ from ....core.spaces import ContinuousSpace, DiscreteTime, RadiusNeighborhood
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.active import PropulsionStepInteraction
+from ._propulsion_step import PropulsionStepInteraction
 
 HEADINGS = VisualSpec(
     'points',

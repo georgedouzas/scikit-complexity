@@ -11,8 +11,8 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import CouplingInteraction
-from ....core.laws import BaseLaw, CrossingLaw, RateLaw
+from ....core.interactions import CouplingInteraction, CrossingInteraction
+from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import maximum, where
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -72,10 +72,10 @@ class WinfreeMeanFieldInteraction(CouplingInteraction):
 
 
 class IntegrateAndFireOscillatorElement(Element):
-    """Integrate-and-fire oscillator that charges as `x' = S - gamma x` and fires at 1, kicking the others up.
+    """Integrate-and-fire oscillator that charges as `x' = S - gamma x`, and sends pulses of strength `epsilon`.
 
-    Firing is an event whose guard is the group maximum of the charges. It resets the most charged oscillators to 0 and
-    lifts every other one by `epsilon`, and an oscillator lifted to 1 fires at the same instant and resets to 0.
+    The oscillator charges towards `S / gamma`. Its firing at 1 is a crossing of the group it belongs to, which resets
+    the most charged oscillators to 0 and lifts every other one by `epsilon`.
 
     Args:
         label:
@@ -123,7 +123,7 @@ class IntegrateAndFireOscillatorElement(Element):
         self.epsilon = epsilon
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the charging of the oscillator and the firing of the most charged ones, which kick the others up.
+        """Return the charging of the oscillator.
 
         Args:
             namespace:
@@ -131,15 +131,10 @@ class IntegrateAndFireOscillatorElement(Element):
 
         Returns:
             laws:
-                The rate of the charge and the firing event.
+                The rate of the charge.
         """
         s = namespace
-        largest = maximum(s.x)
-        kicked = where(s.x + s.epsilon >= 1, 0, s.x + s.epsilon)
-        return [
-            RateLaw(s.x, s.S - s.gamma * s.x),
-            CrossingLaw(largest - 1, {s.x: where(s.x >= largest, 0, kicked)}, direction=1, label='fire'),
-        ]
+        return [RateLaw(s.x, s.S - s.gamma * s.x)]
 
 
 @register_model(
@@ -247,4 +242,17 @@ def mirollo_strogatz(
         size=n_oscillators,
         values={'x': charges, 'S': S, 'gamma': gamma, 'epsilon': epsilon},
     )
-    return System(elements=[oscillators])
+    fire = CrossingInteraction(
+        'fire',
+        target='oscillators',
+        guard=lambda s: maximum(s.target.x) - 1,
+        reset={
+            'x': lambda s: where(
+                s.target.x >= maximum(s.target.x),
+                0,
+                where(s.target.x + s.target.epsilon >= 1, 0, s.target.x + s.target.epsilon),
+            ),
+        },
+        direction=1,
+    )
+    return System(elements=[oscillators], interactions=[fire])

@@ -1,4 +1,4 @@
-"""Test the `_van_der_pol` module of `skcomplex.models.physics.common.oscillators`."""
+"""Test the `_van_der_pol` module of `skcomplex.models.physics.nonlinear_oscillators`."""
 
 import numpy as np
 import pytest
@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.models.physics.common.oscillators import VanDerPolElement
+from skcomplex.models.physics.nonlinear_oscillators import VanDerPolElement
 
 
 def _run(**parameters):

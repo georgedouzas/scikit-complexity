@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -11,7 +10,7 @@ from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, LocalRuleLaw
+from ....core.interactions import LocalRuleInteraction
 from ....core.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -19,11 +18,30 @@ from ....types import Array
 from ..._catalog import register_model
 
 
+def _accelerate(velocity: Array, *ahead: Array, slowdown: Array | float, random: Array) -> Array:
+    """Return the velocities after the cars accelerate, brake to the gap ahead, and slow down at random."""
+    vmax = len(ahead)
+    gap = np.full(velocity.shape, float(vmax))
+    for distance in range(vmax, 0, -1):
+        gap = np.where(ahead[distance - 1] >= 0, distance - 1, gap)
+    following = np.minimum(np.minimum(velocity + 1, vmax), gap)
+    following = np.where(random < slowdown, np.maximum(following - 1, 0), following)
+    return np.where(velocity >= 0, following, -1.0)
+
+
+def _move(*behind: Array) -> Array:
+    """Return the velocities after every car moves forward by its velocity."""
+    following = np.full(behind[0].shape, -1.0)
+    for distance, velocity in enumerate(behind):
+        following = np.where(velocity == distance, velocity, following)
+    return following
+
+
 class RoadElement(Element):
     """Cell of the Nagel-Schreckenberg road: the velocity of the car on it, or -1 when it is empty.
 
-    Every step, cars accelerate by one up to `vmax`, brake to the gap ahead, slow down by one with probability
-    `slowdown`, and move forward by their velocity.
+    The local rules of the road make cars accelerate by one up to the largest velocity, brake to the gap ahead, slow
+    down by one with probability `slowdown`, and move forward by their velocity, every step.
 
     Args:
         label:
@@ -38,13 +56,10 @@ class RoadElement(Element):
         slowdown:
             The probability of random braking.
 
-        vmax:
-            The largest velocity.
-
     Examples:
         >>> from skcomplex.models.engineering.traffic import RoadElement
-        >>> RoadElement('cell').vmax
-        5
+        >>> RoadElement('cell').slowdown
+        0.3
     """
 
     def __init__(
@@ -54,43 +69,10 @@ class RoadElement(Element):
         *,
         velocity: Annotated[float, StateSpec(domain=ZZ)] = -1,
         slowdown: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        vmax: int = 5,
     ) -> None:
         super().__init__(label, visual=visual)
         self.velocity = velocity
         self.slowdown = slowdown
-        self.vmax = vmax
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the velocity update and the movement of cars.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        vmax = self.vmax
-
-        def accelerate(velocity: Array, *ahead: Array, slowdown: Array | float, random: Array) -> Array:
-            gap = np.full(velocity.shape, float(vmax))
-            for distance in range(vmax, 0, -1):
-                gap = np.where(ahead[distance - 1] >= 0, distance - 1, gap)
-            following = np.minimum(np.minimum(velocity + 1, vmax), gap)
-            following = np.where(random < slowdown, np.maximum(following - 1, 0), following)
-            return np.where(velocity >= 0, following, -1.0)
-
-        def move(*behind: Array) -> Array:
-            following = np.full(behind[0].shape, -1.0)
-            for distance, velocity in enumerate(behind):
-                following = np.where(velocity == distance, velocity, following)
-            return following
-
-        ahead = LatticeNeighborhood(tuple((distance,) for distance in range(vmax + 1)))
-        behind = LatticeNeighborhood(tuple((-distance,) for distance in range(vmax + 1)))
-        return [LocalRuleLaw(s.velocity, ahead, accelerate, stochastic=True), LocalRuleLaw(s.velocity, behind, move)]
 
 
 @register_model(
@@ -141,6 +123,21 @@ def nagel_schreckenberg(
         'road',
         element=RoadElement,
         space=LatticeSpace(length),
-        values={'velocity': velocity, 'slowdown': slowdown, 'vmax': vmax},
+        values={'velocity': velocity, 'slowdown': slowdown},
     )
-    return System(elements=[road])
+    ahead = LatticeNeighborhood(tuple((distance,) for distance in range(vmax + 1)))
+    behind = LatticeNeighborhood(tuple((-distance,) for distance in range(vmax + 1)))
+    return System(
+        elements=[road],
+        interactions=[
+            LocalRuleInteraction(
+                'acceleration',
+                target='road',
+                state='velocity',
+                rule=_accelerate,
+                neighborhood=ahead,
+                stochastic=True,
+            ),
+            LocalRuleInteraction('movement', target='road', state='velocity', rule=_move, neighborhood=behind),
+        ],
+    )

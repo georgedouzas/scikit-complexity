@@ -12,4 +12,3 @@ class AdopterView(AgentView):
     adopted: float
     threshold: float
     reach: float
-    shifting: float

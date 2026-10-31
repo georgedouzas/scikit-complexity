@@ -18,13 +18,14 @@ from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._fragment_view import FragmentView
 from ._reducing_ball_view import ReducingBallView
+from ._reducing_jump import ReducingJumpInteraction
 
 
 class ReducingBallElement(Element):
-    """Ball that jumps to a random lower state, and restarts from the top state after it reaches state 1.
+    """Ball of the sample-space-reducing process, whose state the reducing jump moves to a random lower state.
 
-    With probability `lam` the ball jumps uniformly to a state below its own, and otherwise uniformly to any state, so
-    the states are visited with probabilities proportional to `i^(-lam)`.
+    With probability `lam` the jump takes the ball uniformly to a state below its own, and otherwise uniformly to any
+    state, and the ball restarts from the top state after it reaches state 1.
 
     Args:
         label:
@@ -67,37 +68,6 @@ class ReducingBallElement(Element):
     def _get_view(cls) -> type[ReducingBallView]:
         """Return the view of the agents, which types their states and parameters."""
         return ReducingBallView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the jump rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.jump)]
-
-    def jump(self, agent: ReducingBallView, model: ModelView) -> None:
-        """Jump to a lower state, to any state, or back to the top state.
-
-        Args:
-            agent:
-                The ball.
-
-            model:
-                The model.
-        """
-        top = round(agent.n_states)
-        if agent.level <= 1:
-            agent.level = float(top)
-        elif model.rng.random() < agent.lam:
-            agent.level = float(model.rng.integers(1, round(agent.level)))
-        else:
-            agent.level = float(model.rng.integers(1, top + 1))
 
 
 class FragmentElement(Element):
@@ -209,6 +179,7 @@ def sample_space_reducing(n_balls: int = 20, *, n_states: int = 10, lam: float =
                 variable=True,
             ),
         ],
+        interactions=[ReducingJumpInteraction('jump', target='balls')],
     )
 
 

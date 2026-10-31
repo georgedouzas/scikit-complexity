@@ -3,20 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, CrossingLaw, RateLaw
-from ....core.laws.utils import where
+from ....core.laws import BaseLaw, RateLaw
 from ....core.system import System
 from ....errors import ValidationError
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.mechanics import ReflectionInteraction
 
 SHAPES = ('sinai', 'mushroom')
 
@@ -31,8 +32,8 @@ def _sinai_walls(size: float, radius: float, **_: float) -> list[np.ndarray]:
 class SinaiBilliardElement(Element):
     """Free particle in a square table of half side `size` with a central disc of radius `radius`, the Sinai billiard.
 
-    The particle flies straight and reflects specularly off the four walls and the disc, which makes its motion
-    ergodic and chaotic.
+    The particle flies straight, and its specular reflections off the four walls and the disc make its motion ergodic
+    and chaotic.
 
     Args:
         label:
@@ -92,14 +93,8 @@ class SinaiBilliardElement(Element):
         self.size = size
         self.radius = radius
 
-    def _reflect(self, namespace: SimpleNamespace) -> dict[Expression, Expression]:
-        """Return the velocity after a specular reflection off the disc, whose normal is the position."""
-        s = namespace
-        projection = (s.vx * s.x + s.vy * s.y) / (s.x**2 + s.y**2)
-        return {s.vx: s.vx - 2 * projection * s.x, s.vy: s.vy - 2 * projection * s.y}
-
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the free flight and the reflections off the walls and the disc.
+        """Return the free flight `x' = vx`, `y' = vy` of the particle.
 
         Args:
             namespace:
@@ -107,24 +102,16 @@ class SinaiBilliardElement(Element):
 
         Returns:
             laws:
-                The rates of the position and the reflection events.
+                The rates of the position.
         """
         s = namespace
-        return [
-            RateLaw(s.x, s.vx),
-            RateLaw(s.y, s.vy),
-            CrossingLaw(s.x - s.size, {s.vx: -s.vx}, direction=1, label='right wall'),
-            CrossingLaw(s.x + s.size, {s.vx: -s.vx}, direction=-1, label='left wall'),
-            CrossingLaw(s.y - s.size, {s.vy: -s.vy}, direction=1, label='top wall'),
-            CrossingLaw(s.y + s.size, {s.vy: -s.vy}, direction=-1, label='bottom wall'),
-            CrossingLaw(s.x**2 + s.y**2 - s.radius**2, self._reflect(s), direction=-1, label='disc'),
-        ]
+        return [RateLaw(s.x, s.vx), RateLaw(s.y, s.vy)]
 
 
 class MushroomBilliardElement(Element):
     """Free particle in a mushroom table: a half disc cap of radius `radius` on a stem of half width `width`.
 
-    The particle flies straight and reflects specularly off the cap, the floor of the cap beside the stem, the walls of
+    The particle flies straight, and reflects specularly off the cap, the floor of the cap beside the stem, the walls of
     the stem, and its floor at depth `height`. Its phase space mixes regular orbits that stay in the cap with chaotic
     orbits that enter the stem.
 
@@ -189,7 +176,7 @@ class MushroomBilliardElement(Element):
         self.height = height
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the free flight and the reflections off the parts of the lines of the table that are walls.
+        """Return the free flight `x' = vx`, `y' = vy` of the particle.
 
         Args:
             namespace:
@@ -197,24 +184,28 @@ class MushroomBilliardElement(Element):
 
         Returns:
             laws:
-                The rates of the position and the reflection events.
+                The rates of the position.
         """
         s = namespace
-        projection = (s.vx * s.x + s.vy * s.y) / (s.x**2 + s.y**2)
-        in_cap, in_stem = s.y > 0, s.y < 0
-        cap = {
-            s.vx: where(in_cap, s.vx - 2 * projection * s.x, s.vx),
-            s.vy: where(in_cap, s.vy - 2 * projection * s.y, s.vy),
-        }
-        return [
-            RateLaw(s.x, s.vx),
-            RateLaw(s.y, s.vy),
-            CrossingLaw(s.x**2 + s.y**2 - s.radius**2, cap, direction=1, label='cap'),
-            CrossingLaw(s.y, {s.vy: where(abs(s.x) > s.width, -s.vy, s.vy)}, direction=-1, label='cap floor'),
-            CrossingLaw(s.x - s.width, {s.vx: where(in_stem, -s.vx, s.vx)}, direction=1, label='right stem wall'),
-            CrossingLaw(s.x + s.width, {s.vx: where(in_stem, -s.vx, s.vx)}, direction=-1, label='left stem wall'),
-            CrossingLaw(s.y + s.height, {s.vy: -s.vy}, direction=-1, label='stem floor'),
-        ]
+        return [RateLaw(s.x, s.vx), RateLaw(s.y, s.vy)]
+
+
+def _wall(
+    label: str,
+    guard: Callable[[SimpleNamespace], object],
+    direction: int,
+    region: Callable[[SimpleNamespace], object] | None = None,
+) -> ReflectionInteraction:
+    """Return the specular reflection of the particle off a wall of the table."""
+    return ReflectionInteraction(
+        label,
+        target='particle',
+        guard=guard,
+        positions=('x', 'y'),
+        velocities=('vx', 'vy'),
+        direction=direction,
+        region=region,
+    )
 
 
 @register_model(
@@ -289,7 +280,14 @@ def billiards(
     """
     if shape == 'sinai':
         table = SinaiBilliardElement('particle', x=x, y=y, vx=vx, vy=vy, size=size, radius=disc_radius)
-        return System(elements=[table])
+        walls = [
+            _wall('right_wall', lambda s: s.target.x - s.target.size, 1),
+            _wall('left_wall', lambda s: s.target.x + s.target.size, -1),
+            _wall('top_wall', lambda s: s.target.y - s.target.size, 1),
+            _wall('bottom_wall', lambda s: s.target.y + s.target.size, -1),
+            _wall('disc', lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2, -1),
+        ]
+        return System(elements=[table], interactions=walls)
     if shape == 'mushroom':
         table = MushroomBilliardElement(
             'particle',
@@ -301,6 +299,13 @@ def billiards(
             width=width,
             height=height,
         )
-        return System(elements=[table])
+        walls = [
+            _wall('cap', lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2, 1, lambda s: s.target.y > 0),
+            _wall('cap_floor', lambda s: s.target.y, -1, lambda s: abs(s.target.x) > s.target.width),
+            _wall('right_stem_wall', lambda s: s.target.x - s.target.width, 1, lambda s: s.target.y < 0),
+            _wall('left_stem_wall', lambda s: s.target.x + s.target.width, -1, lambda s: s.target.y < 0),
+            _wall('stem_floor', lambda s: s.target.y + s.target.height, -1),
+        ]
+        return System(elements=[table], interactions=walls)
     error_msg = f'Unknown billiard shape {shape!r}. Use one of {", ".join(SHAPES)}.'
     raise ValidationError(error_msg)

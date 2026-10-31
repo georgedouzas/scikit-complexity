@@ -10,8 +10,8 @@ from sage.all__sagemath_symbolics import SR, cos, oo, sin, vector
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from .....core.interactions import RateInteraction
-from .....specs import ParameterSpec, RoleSpec
+from ....core.interactions import RateInteraction
+from ....specs import ParameterSpec, RoleSpec
 
 
 class SelfPropulsionInteraction(RateInteraction):
@@ -38,7 +38,7 @@ class SelfPropulsionInteraction(RateInteraction):
     Examples:
         >>> from types import SimpleNamespace
         >>> from sage.all__sagemath_symbolics import var, vector
-        >>> from skcomplex.models.physics.common.active import SelfPropulsionInteraction
+        >>> from skcomplex.models.physics.active_matter import SelfPropulsionInteraction
         >>> propulsion = SelfPropulsionInteraction('propulsion', target='swimmers').check().prepare()
         >>> target = SimpleNamespace(x=vector([var('x1'), var('x2')]), theta=var('theta'))
         >>> [law.value for law in propulsion.run(SimpleNamespace(target=target, speed=var('v'))).laws_]
