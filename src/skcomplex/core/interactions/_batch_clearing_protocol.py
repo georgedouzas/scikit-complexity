@@ -1,4 +1,4 @@
-"""Define the uniform price matching, which collects every offer and matches the largest quantity at one price."""
+"""Define batch clearing, which collects every offer and matches the largest quantity at one clearing value."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,17 +13,17 @@ from ._base_matching_protocol import BaseMatchingProtocol
 from ._offer import _Offer
 
 
-class UniformPriceProtocol(BaseMatchingProtocol):
-    """Uniform price matching: collect every offer, then match the largest quantity at one price.
+class BatchClearingProtocol(BaseMatchingProtocol):
+    """Batch clearing that collects every offer, then matches the largest quantity at one clearing value.
 
     Requesters are sorted by decreasing and providers by increasing limit, and they are paired while the requester's
-    limit covers the provider's. The price is the midpoint of the last paired limits, and every paired requester and
+    limit covers the provider's. The value is the midpoint of the last paired limits, and every paired requester and
     provider matches at it.
 
     Examples:
-        >>> from skcomplex.core.interactions import UniformPriceProtocol
-        >>> UniformPriceProtocol().check()
-        UniformPriceProtocol()
+        >>> from skcomplex.core.interactions import BatchClearingProtocol
+        >>> BatchClearingProtocol().check()
+        BatchClearingProtocol()
     """
 
     @staticmethod
@@ -32,7 +32,7 @@ class UniformPriceProtocol(BaseMatchingProtocol):
         return offer.quantity if not math.isfinite(offer.budget) else offer.get_affordable(offer.limit)
 
     def _pair(self, requesters: list[_Offer], providers: list[_Offer]) -> tuple[list[tuple[_Offer, _Offer]], float]:
-        """Return the pairs of crossing offers in order of their limits and the price of the last pair."""
+        """Return the pairs of crossing offers in order of their limits and the value of the last pair."""
         ranked_requesters = sorted(requesters, key=lambda offer: (-offer.limit, offer.agent.id))
         ranked_providers = sorted(providers, key=lambda offer: (offer.limit, offer.agent.id))
         left = {id(offer): self._get_requested(offer) for offer in ranked_requesters}
@@ -60,7 +60,7 @@ class UniformPriceProtocol(BaseMatchingProtocol):
         rng: np.random.Generator,
         storage: MutableMapping[str, object],
     ) -> list[MatchSpec]:
-        """Return the matches at the uniform price.
+        """Return the matches at the uniform value.
 
         Args:
             requesters:

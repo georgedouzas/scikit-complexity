@@ -3367,16 +3367,26 @@ agents learn from their past.
   phase `'default'`, which runs first unless the system lists it, so systems without phases keep one random activation
   per step.
 - `MatchingInteraction(label, requesters=..., providers=..., protocol=...)`, from `skcomplex.core.interactions`,
-  matches two groups. Requesters state the highest price they accept in their `limit` state, the quantity they want
-  in `quantity`, and what they can spend in `budget`, and providers their lowest price and the quantity they offer. A
-  name given as a pair, such as `limit=('bid', 'ask')`, names the state of the requesters and of the providers. The
-  protocols are `RandomSearchProtocol`, the default, `PartnerSwitchProtocol` (partner choice with switching),
-  `QueueProtocol`, `PriceAdjustmentProtocol` (tâtonnement), `PriceTimePriorityProtocol`, `UniformPriceProtocol`, and
-  `StableMatchingProtocol` (stable matching by the `matching` library). A protocol is a configurable object:
-  `protocol.check().prepare().run(ClearingSpec(requesters, providers, rng, storage))` sets its `trades_`, a list of
-  `MatchSpec`. Every match lowers the quantities of both sides and moves the states of `transfers`, `('money', -1)`
-  paid by the requester and `('goods', 1)` delivered to it. The matching reports `<label>.price`, `<label>.volume`,
-  and `<label>.unmatched`.
+  matches two groups. Requesters state the highest clearing value they accept in their `limit` state, the quantity they
+  want in `quantity`, and the most value they can give in `budget`, and providers their lowest clearing value and the
+  quantity they offer. A name given as a pair, such as `limit=('bid', 'ask')`, names the state of the requesters and of
+  the providers. The protocols are `RandomSearchProtocol`, the default, `PartnerSwitchProtocol` (partner choice with
+  switching), `QueueProtocol`, `IterativeClearingProtocol` (a clearing value adjusted until requests and offers
+  balance), `ContinuousClearingProtocol` (arriving offers match resting ones by limit and arrival),
+  `BatchClearingProtocol` (one clearing value for all offers), `StableMatchingProtocol` (stable matching by the
+  `matching` library), and `GreedyProtocol(score, candidates, capacity)` (requesters in random order take the feasible
+  provider of the highest score among all, neighbouring, or near providers). A protocol is a configurable object:
+  `protocol.check().prepare().run(MatchingRoundSpec(requesters, providers, rng, storage))` sets its `trades_`, a list of
+  `MatchSpec`, whose `price` is the clearing value per unit. Every match lowers the quantities of both sides and moves
+  the states of `transfers`, `('money', -1)` from the requester to the provider and `('goods', 1)` back. The matching
+  reports `<label>.price`, `<label>.volume`, and `<label>.unmatched`.
+- Agent operations of `skcomplex.core.interactions` run as agent rules: `MovementInteraction` moves agents by
+  neighbour, Gaussian, Lévy, best-cell, or user steps, with a condition, an acceptance, exclusion, and a cost.
+  `TransferInteraction` moves amounts of states between members, the agents of one cell, a `Source()`, and a `Sink()`,
+  as transfer laws with `form='symbolic'` or between paired agents with `form='agent'`. `LifeCycleInteraction` creates
+  offspring by probability or rate, with inherited, split, and mutated states, and removes agents.
+  `GroupingInteraction` draws pairs, partitions, neighbourhoods, or groups by a state every step and acts on each.
+  `TopologyInteraction` adds and removes nodes and edges of a network and rewires edges towards a weight.
 - A `FeedbackInteraction`, from `skcomplex.core.interactions`, acts once per round of its phase with its method `act`.
   It reads `model.observable(name)`, reporters through `model.history(name, window)`, and agents, and it sets
   parameters of any element or interaction with `model.set_parameter(name, value)`. Rules see the change at once, and
@@ -3397,7 +3407,7 @@ from typing import Annotated, ClassVar
 import numpy as np
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.interactions import FeedbackInteraction, MatchingInteraction, UniformPriceProtocol
+from skcomplex.core.interactions import FeedbackInteraction, MatchingInteraction, BatchClearingProtocol
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
@@ -3461,7 +3471,7 @@ auction = System(
             'auction',
             requesters='buyers',
             providers='sellers',
-            protocol=UniformPriceProtocol(),
+            protocol=BatchClearingProtocol(),
             limit=('bid', 'ask'),
             quantity=('demand', 'supply'),
             budget='money',

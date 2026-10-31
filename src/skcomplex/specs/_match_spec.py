@@ -10,7 +10,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class MatchSpec(BaseSpec):
-    """Match of a requester with a provider, of a quantity at a price per unit.
+    """Match of a requester with a provider, of a quantity at a clearing value per unit.
 
     Args:
         requester:
@@ -23,7 +23,7 @@ class MatchSpec(BaseSpec):
             The matched quantity.
 
         price:
-            The price per unit.
+            The clearing value per unit.
 
     Examples:
         >>> from skcomplex.specs import MatchSpec

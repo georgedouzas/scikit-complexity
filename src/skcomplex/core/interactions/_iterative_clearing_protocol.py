@@ -1,4 +1,4 @@
-"""Define price adjustment, a tâtonnement to the price that balances the requested and provided quantities."""
+"""Define iterative clearing, which adjusts a clearing value until the requested and provided quantities balance."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,17 +13,18 @@ from ._base_matching_protocol import BaseMatchingProtocol
 from ._offer import _Offer
 
 
-class PriceAdjustmentProtocol(BaseMatchingProtocol):
-    """Tâtonnement to the price that balances the requested and provided quantities, then matches at that price.
+class IterativeClearingProtocol(BaseMatchingProtocol):
+    """Iterative clearing that adjusts a clearing value until the requested and provided quantities balance.
 
-    Starting from the last clearing price, or the median of the limits, the price moves by
+    Starting from the last clearing value, or the median of the limits, the value moves by
     `p <- p (1 + adjustment (D - S) / (D + S))` until the relative excess of requests falls below `tolerance`, where
     `D` is the quantity requested by requesters whose limit is at least `p` and `S` the quantity of providers whose
-    limit is at most `p`. The long side is rationed in random order (Hamill and Gilbert 2016 ch. 5).
+    limit is at most `p`. The protocol then matches at that value, and the long side is rationed in random order
+    (Hamill and Gilbert 2016 ch. 5).
 
     Args:
         adjustment:
-            The speed of the price adjustment.
+            The speed of the value adjustment.
 
         iterations:
             The largest number of adjustments per clearing.
@@ -32,8 +33,8 @@ class PriceAdjustmentProtocol(BaseMatchingProtocol):
             The relative excess of requests at which the adjustment stops.
 
     Examples:
-        >>> from skcomplex.core.interactions import PriceAdjustmentProtocol
-        >>> PriceAdjustmentProtocol(adjustment=0.05).check().iterations
+        >>> from skcomplex.core.interactions import IterativeClearingProtocol
+        >>> IterativeClearingProtocol(adjustment=0.05).check().iterations
         500
     """
 
@@ -48,33 +49,33 @@ class PriceAdjustmentProtocol(BaseMatchingProtocol):
         self.tolerance = tolerance
 
     def _adjust(self, requesters: list[_Offer], providers: list[_Offer], start: float) -> float:
-        """Return the price the tâtonnement reaches from a start."""
-        price = start
+        """Return the value the tâtonnement reaches from a start."""
+        value = start
         for _ in range(self.iterations):
-            requested = sum(requester.get_affordable(price) for requester in requesters if requester.limit >= price)
-            provided = sum(provider.quantity for provider in providers if provider.limit <= price)
+            requested = sum(requester.get_affordable(value) for requester in requesters if requester.limit >= value)
+            provided = sum(provider.quantity for provider in providers if provider.limit <= value)
             total = requested + provided
             if not total or abs(requested - provided) / total < self.tolerance:
                 break
-            price *= 1 + self.adjustment * (requested - provided) / total
-        return price
+            value *= 1 + self.adjustment * (requested - provided) / total
+        return value
 
     def _clear_at(
         self,
         requesters: list[_Offer],
         providers: list[_Offer],
-        price: float,
+        value: float,
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
-        """Return the matches at one price between the willing requesters and providers in random order."""
+        """Return the matches at one value between the willing requesters and providers in random order."""
         trades: list[MatchSpec] = []
-        willing_requesters = self._order([item for item in requesters if item.limit >= price], 'random', rng)
-        willing_providers = self._order([item for item in providers if item.limit <= price], 'random', rng)
+        willing_requesters = self._order([item for item in requesters if item.limit >= value], 'random', rng)
+        willing_providers = self._order([item for item in providers if item.limit <= value], 'random', rng)
         pairs = iter(willing_providers)
         provider = next(pairs, None)
         for requester in willing_requesters:
-            while provider is not None and requester.get_affordable(price) > 0:
-                self._book(trades, requester, provider, price)
+            while provider is not None and requester.get_affordable(value) > 0:
+                self._book(trades, requester, provider, value)
                 if provider.quantity <= 0:
                     provider = next(pairs, None)
         return trades
@@ -86,7 +87,7 @@ class PriceAdjustmentProtocol(BaseMatchingProtocol):
         rng: np.random.Generator,
         storage: MutableMapping[str, object],
     ) -> list[MatchSpec]:
-        """Return the matches at the price of the tâtonnement.
+        """Return the matches at the value of the tâtonnement.
 
         Args:
             requesters:
@@ -108,8 +109,8 @@ class PriceAdjustmentProtocol(BaseMatchingProtocol):
         limits = [offer.limit for offer in requesters + providers if offer.limit > 0]
         if not limits:
             return []
-        last = storage.get('price')
+        last = storage.get('value')
         start = last if isinstance(last, float) and math.isfinite(last) and last > 0 else float(np.median(limits))
-        price = self._adjust(requesters, providers, start)
-        storage['price'] = price
-        return self._clear_at(requesters, providers, price, rng)
+        value = self._adjust(requesters, providers, start)
+        storage['value'] = value
+        return self._clear_at(requesters, providers, value, rng)

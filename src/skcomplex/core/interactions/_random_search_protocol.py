@@ -8,7 +8,7 @@ from collections.abc import MutableMapping
 import numpy as np
 
 from ...specs import MatchSpec
-from ._base_matching_protocol import PRICINGS, BaseMatchingProtocol
+from ._base_matching_protocol import CLEARINGS, BaseMatchingProtocol
 from ._offer import _Offer
 
 
@@ -23,12 +23,12 @@ class RandomSearchProtocol(BaseMatchingProtocol):
         tries:
             The number of providers every requester meets.
 
-        pricing:
-            The price of a match, `'midpoint'`, `'requester'`, or `'provider'`.
+        clearing:
+            The value of a match, `'midpoint'`, `'requester'`, or `'provider'`.
 
     Raises:
         ValidationError:
-            The pricing rule is unknown, raised by `check`.
+            The clearing rule is unknown, raised by `check`.
 
     Examples:
         >>> from skcomplex.core.interactions import RandomSearchProtocol
@@ -39,14 +39,14 @@ class RandomSearchProtocol(BaseMatchingProtocol):
     def __init__(
         self,
         tries: int = 1,
-        pricing: str = 'midpoint',
+        clearing: str = 'midpoint',
     ) -> None:
         self.tries = tries
-        self.pricing = pricing
+        self.clearing = clearing
 
     def _check(self) -> None:
-        """Check the pricing rule."""
-        self._check_option(self.pricing, PRICINGS, 'pricing')
+        """Check the clearing rule."""
+        self._check_option(self.clearing, CLEARINGS, 'clearing')
 
     def _match(
         self,
@@ -83,5 +83,5 @@ class RandomSearchProtocol(BaseMatchingProtocol):
                     break
                 provider = available[int(rng.integers(len(available)))]
                 if provider.limit <= requester.limit:
-                    self._book(trades, requester, provider, self._get_price(requester, provider, self.pricing))
+                    self._book(trades, requester, provider, self._get_value(requester, provider, self.clearing))
         return trades

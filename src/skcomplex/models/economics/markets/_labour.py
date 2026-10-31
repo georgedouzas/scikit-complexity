@@ -402,7 +402,7 @@ def labour_market(
         'labour',
         requesters='firms',
         providers='workers',
-        protocol=StableMatchingProtocol(pricing='requester'),
+        protocol=StableMatchingProtocol(clearing='requester'),
         limit=('bid', 'ask'),
         quantity=('demand', 'supply'),
         phase='matching',

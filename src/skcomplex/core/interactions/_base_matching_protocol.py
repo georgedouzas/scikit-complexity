@@ -11,17 +11,17 @@ import numpy as np
 from ...base import BaseConfig
 from ...errors import ValidationError
 from ...specs import MatchSpec
-from ._clearing_spec import ClearingSpec
+from ._matching_round_spec import MatchingRoundSpec
 from ._offer import _Offer
 
-PRICINGS = ('midpoint', 'requester', 'provider')
+CLEARINGS = ('midpoint', 'requester', 'provider')
 ORDERS = ('random', 'limit', 'sequential')
 
 
-class BaseMatchingProtocol(BaseConfig[None, ClearingSpec]):
+class BaseMatchingProtocol(BaseConfig[None, MatchingRoundSpec]):
     """Base class of matching protocols, which match requesters with providers and set the matches.
 
-    A protocol is checked once and run on the offers of every clearing, `protocol.run(ClearingSpec(requesters,
+    A protocol is checked once and run on the offers of every clearing, `protocol.run(MatchingRoundSpec(requesters,
     providers, rng, storage))`, and sets the attribute `trades_`, whose quantities respect the quantities and budgets
     of the offers. A child validates its options in `_check` and matches the offers in `_match`, which is called only
     when both sides have offers.
@@ -32,11 +32,11 @@ class BaseMatchingProtocol(BaseConfig[None, ClearingSpec]):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.interactions import BaseMatchingProtocol, ClearingSpec
+        >>> from skcomplex.core.interactions import BaseMatchingProtocol, MatchingRoundSpec
         >>> class NoMatchingProtocol(BaseMatchingProtocol):
         ...     def _match(self, requesters, providers, rng, storage):
         ...         return []
-        >>> NoMatchingProtocol().check().prepare().run(ClearingSpec([], [], np.random.default_rng(0), {})).trades_
+        >>> NoMatchingProtocol().check().prepare().run(MatchingRoundSpec([], [], np.random.default_rng(0), {})).trades_
         []
     """
 
@@ -50,22 +50,22 @@ class BaseMatchingProtocol(BaseConfig[None, ClearingSpec]):
             raise ValidationError(error_msg)
 
     @staticmethod
-    def _book(trades: list[MatchSpec], requester: _Offer, provider: _Offer, price: float) -> None:
-        """Record a match of the largest quantity both sides can match at a price and lower both offers."""
-        quantity = min(requester.get_affordable(price), provider.quantity)
+    def _book(trades: list[MatchSpec], requester: _Offer, provider: _Offer, value: float) -> None:
+        """Record a match of the largest quantity both sides can match at a value and lower both offers."""
+        quantity = min(requester.get_affordable(value), provider.quantity)
         if quantity <= 0:
             return
         requester.quantity -= quantity
-        requester.budget -= quantity * price
+        requester.budget -= quantity * value
         provider.quantity -= quantity
-        trades.append(MatchSpec(requester.agent, provider.agent, quantity, price))
+        trades.append(MatchSpec(requester.agent, provider.agent, quantity, value))
 
     @staticmethod
-    def _get_price(requester: _Offer, provider: _Offer, pricing: str) -> float:
-        """Return the price of a match under a pricing rule."""
-        if pricing == 'requester':
+    def _get_value(requester: _Offer, provider: _Offer, clearing: str) -> float:
+        """Return the value of a match under a clearing rule."""
+        if clearing == 'requester':
             return requester.limit
-        if pricing == 'provider':
+        if clearing == 'provider':
             return provider.limit
         return (requester.limit + provider.limit) / 2
 
@@ -84,7 +84,7 @@ class BaseMatchingProtocol(BaseConfig[None, ClearingSpec]):
     def _prepare(self, context: None) -> None:
         """Derive nothing from the context, since a protocol prepares nothing."""
 
-    def _run(self, inputs: ClearingSpec | None) -> None:
+    def _run(self, inputs: MatchingRoundSpec | None) -> None:
         """Set the matches of the offers of one clearing, none when a side has no offers.
 
         Args:
@@ -96,7 +96,7 @@ class BaseMatchingProtocol(BaseConfig[None, ClearingSpec]):
                 No offers were given.
         """
         if inputs is None:
-            error_msg = 'A matching protocol runs on the offers of a clearing. Pass a `ClearingSpec`.'
+            error_msg = 'A matching protocol runs on the offers of a clearing. Pass a `MatchingRoundSpec`.'
             raise ValidationError(error_msg)
         self.trades_ = []
         if inputs.requesters and inputs.providers:

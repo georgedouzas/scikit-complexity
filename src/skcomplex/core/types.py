@@ -105,6 +105,9 @@ class AgentViewProtocol(Protocol):
     def neighbor_cells(self) -> list[object]:
         """Return the coordinates of the cells or nodes around the agent's cell or node."""
 
+    def distance_to(self, other: AgentViewProtocol | object) -> float:
+        """Return the distance to another agent or a location, the number of hops on a network."""
+
     def move_to(self, location: object) -> None:
         """Move the agent to a cell, a node, or a position."""
 
