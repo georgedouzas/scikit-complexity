@@ -13,13 +13,19 @@ from sage.all__sagemath_symbolics import Expression, I, atan2, cos, exp, oo, pi,
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
+from ....core.interactions import BaseInteraction
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import neighbors, uniform, where
 from ....core.spaces import ContinuousSpace, DiscreteTime, RadiusNeighborhood
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+<<<<<<< HEAD
 from ._propulsion_step import PropulsionStepInteraction
+=======
+from ..common.active import PropulsionStepInteraction
+from ._heading_alignment import HeadingAlignmentInteraction
+>>>>>>> worktree-agent-af6e33624f32b6f02
 
 HEADINGS = VisualSpec(
     'points',
@@ -67,8 +73,9 @@ def _orders(group: str) -> list[ObservableSpec]:
 class VicsekParticleElement(Element):
     """Particle of a Vicsek flock, whose heading becomes the mean heading of its neighbours plus noise every step.
 
-    The new heading is the circular mean of the headings within the unit distance, itself included, plus a uniform
-    angle in `[-eta pi, eta pi]`. A propulsion step moves the particle along its heading.
+    `HeadingAlignmentInteraction` sets the new heading to the circular mean of the headings within the unit distance,
+    itself included, plus a uniform angle in `[-eta pi, eta pi]`. A propulsion step moves the particle along its
+    heading.
 
     Args:
         label:
@@ -109,21 +116,6 @@ class VicsekParticleElement(Element):
         self.x = x
         self.theta = theta
         self.eta = eta
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the alignment of the heading with the mean heading of the neighbours, plus noise.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use, with the neighbour `namespace.other`.
-
-        Returns:
-            laws:
-                The update of the heading.
-        """
-        s = namespace
-        turn = neighbors(s.other.theta, over=RadiusNeighborhood(1.0, center=True), reduce='circular-mean')
-        return [UpdateLaw(s.theta, turn + uniform('noise', -s.eta * math.pi, s.eta * math.pi))]
 
 
 class CohesiveParticleElement(Element):
@@ -238,9 +230,9 @@ class CohesiveParticleElement(Element):
 class NematicParticleElement(Element):
     """Polar particle with nematic alignment, which aligns with the axis of every neighbour on its nearer side.
 
-    The new heading is the circular mean of the headings within the unit distance, itself included, each flipped to
-    the side nearer the particle's own heading, plus a uniform angle in `[-eta pi, eta pi]`. A propulsion step moves
-    the particle along its heading.
+    `HeadingAlignmentInteraction` with `nematic=True` sets the new heading to the circular mean of the headings within
+    the unit distance, itself included, each flipped to the side nearer the particle's own heading, plus a uniform
+    angle in `[-eta pi, eta pi]`. A propulsion step moves the particle along its heading.
 
     Args:
         label:
@@ -282,25 +274,17 @@ class NematicParticleElement(Element):
         self.theta = theta
         self.eta = eta
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the alignment of the heading with the axes of the neighbours, plus noise.
 
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use, with the neighbour `namespace.other`.
-
-        Returns:
-            laws:
-                The update of the heading.
-        """
-        s = namespace
-        side = where(cos(s.other.theta - s.theta) >= 0, 1, -1)
-        within = RadiusNeighborhood(1.0, center=True)
-        turn = neighbors(s.other.theta, over=within, reduce='circular-mean', weight=side)
-        return [UpdateLaw(s.theta, turn + uniform('noise', -s.eta * math.pi, s.eta * math.pi))]
-
-
-def _flock(element: type[Element], n_particles: int, size: float, seed: int, v0: float, **values: float) -> System:
+def _flock(
+    element: type[Element],
+    n_particles: int,
+    size: float,
+    seed: int,
+    *,
+    v0: float,
+    alignment: BaseInteraction | None = None,
+    **values: float,
+) -> System:
     """Return flockers of a type at uniform positions and headings in a periodic box that step `v0` every step."""
     rng = np.random.default_rng(seed)
     initial: dict[str, object] = {
@@ -311,7 +295,10 @@ def _flock(element: type[Element], n_particles: int, size: float, seed: int, v0:
     flock = GroupElement('flock', element=element, size=n_particles, values=initial, visual=HEADINGS)
     return System(
         elements=[flock],
-        interactions=[PropulsionStepInteraction('propulsion', target='flock', speed=v0)],
+        interactions=[
+            PropulsionStepInteraction('propulsion', target='flock', speed=v0),
+            *([] if alignment is None else [alignment]),
+        ],
         space=ContinuousSpace(extent=(size, size), boundary='periodic'),
         time=DiscreteTime(),
     )
@@ -366,7 +353,8 @@ def vicsek(
         >>> vicsek(10).elements[0].size
         10
     """
-    return _flock(VicsekParticleElement, n_particles, size, seed, v0=v0, eta=eta)
+    alignment = HeadingAlignmentInteraction('alignment', target='flock')
+    return _flock(VicsekParticleElement, n_particles, size, seed, v0=v0, alignment=alignment, eta=eta)
 
 
 @register_model(
@@ -479,4 +467,5 @@ def ginelli_nematics(
         >>> ginelli_nematics(10).elements[0].values['eta']
         0.08
     """
-    return _flock(NematicParticleElement, n_particles, size, seed, v0=v0, eta=eta)
+    alignment = HeadingAlignmentInteraction('alignment', target='flock', nematic=True)
+    return _flock(NematicParticleElement, n_particles, size, seed, v0=v0, alignment=alignment, eta=eta)

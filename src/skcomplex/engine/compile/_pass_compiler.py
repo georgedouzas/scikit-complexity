@@ -616,7 +616,11 @@ class PassCompiler(BaseCompiler):
             else:
                 continue
             roles = declarations_of(type(interaction), VariableKind.ROLE)
-            bound = [by_path.get(f'{node.scope}{getattr(interaction, name, "")}') for name in roles]
+            bound = [
+                by_path.get(f'{node.scope}{getattr(interaction, name)}')
+                for name in roles
+                if getattr(interaction, name, None) is not None
+            ]
             members = [item for item in bound if item is not None and getattr(item.component, 'on', None) != 'edges']
             target = next(iter(members), None)
             space = target.space if target is not None else node.space

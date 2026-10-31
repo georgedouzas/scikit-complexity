@@ -4,8 +4,9 @@
 # License: MIT
 
 
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, cast
 
 from sage.all__sagemath_symbolics import SR, oo, sqrt
 from sage.sets.real_set import RealSet
@@ -25,7 +26,8 @@ class PairCouplingInteraction(PairInteraction):
     it and `namespace.second` the other member. With `potential`, a function `potential(namespace, r)` of the distance
     `r` between the values of the vector state `position` of the pair, the value is minus the gradient of the potential
     with respect to the member's own `position`. A `divisor` names a state or parameter of the members that divides
-    the value.
+    the value. With several states `write`, the function returns one value per state, in their order, so one pair
+    couples several states jointly.
 
     Args:
         label:
@@ -44,10 +46,12 @@ class PairCouplingInteraction(PairInteraction):
             The name of the vector state whose distances select the pairs, and which the potential is a function of.
 
         write:
-            The name of the state whose rate the coupling adds to.
+            The name of the state whose rate the coupling adds to, or a sequence of names, one per value of the
+            function.
 
         function:
-            The value a member adds, a callable of the namespace of the pair, or `None` when the potential is given.
+            The value a member adds, or a sequence of values, one per state `write`, a callable of the namespace of the
+            pair, or `None` when the potential is given.
 
         potential:
             The pair potential, a callable of the namespace of the pair and the distance, or `None` when the function
@@ -61,7 +65,8 @@ class PairCouplingInteraction(PairInteraction):
 
     Raises:
         ValidationError:
-            Not exactly one of the function and the potential is a callable, raised by `check`.
+            Not exactly one of the function and the potential is a callable, or the potential has several states to
+            write, raised by `check`.
 
     Examples:
         >>> from types import SimpleNamespace
@@ -82,7 +87,7 @@ class PairCouplingInteraction(PairInteraction):
         cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         position: str = 'x',
         *,
-        write: str = 'x',
+        write: str | Sequence[str] = 'x',
         function: NamespaceFunction | None = None,
         potential: PairPotential | None = None,
         divisor: str | None = None,
@@ -100,7 +105,8 @@ class PairCouplingInteraction(PairInteraction):
 
         Raises:
             ValidationError:
-                The function and the potential are both given or both missing, or the given one is not callable.
+                The function and the potential are both given or both missing, the given one is not callable, or the
+                potential has several states to write.
         """
         super()._check()
         given = [item for item in (self.function, self.potential) if item is not None]
@@ -109,6 +115,9 @@ class PairCouplingInteraction(PairInteraction):
                 f'{type(self).__name__} {self.label!r} has the function {self.function!r} and the potential '
                 f'{self.potential!r}. Give exactly one of them as a callable.'
             )
+            raise ValidationError(error_msg)
+        if self.potential is not None and not isinstance(self.write, str):
+            error_msg = f'{type(self).__name__} {self.label!r} writes {self.write!r}, but a potential writes one state.'
             raise ValidationError(error_msg)
 
     def _get_gradient_value(self, namespace: SimpleNamespace) -> Target:
@@ -120,12 +129,21 @@ class PairCouplingInteraction(PairInteraction):
         slope = SR(self.potential(namespace, distance)).diff(distance).subs({distance: r})
         return -slope * separation / r
 
-    def _get_value(self, namespace: SimpleNamespace) -> Target:
-        """Return the value the first member of a pair adds to the rate of its state."""
-        value = self._get_gradient_value(namespace) if self.function is None else self.function(namespace)
+    def _get_values(self, namespace: SimpleNamespace) -> list[Target]:
+        """Return the values the first member of a pair adds to the rates of its states, in the order of `write`."""
+        if self.function is None:
+            values = [self._get_gradient_value(namespace)]
+        elif isinstance(self.write, str):
+            values = [self.function(namespace)]
+        else:
+            values = list(cast(Sequence[Target], self.function(namespace)))
         if self.divisor is None:
-            return value
-        return value / getattr(namespace.first, self.divisor)
+            return values
+        return [value / getattr(namespace.first, self.divisor) for value in values]
+
+    def _get_names(self) -> list[str]:
+        """Return the names of the states the coupling writes."""
+        return [self.write] if isinstance(self.write, str) else list(self.write)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rate of the written state of both members of a pair.
@@ -136,10 +154,12 @@ class PairCouplingInteraction(PairInteraction):
 
         Returns:
             laws:
-                The rate laws of the written state of the two members.
+                The rate laws of the written states of the two members.
         """
         swapped = SimpleNamespace(**{**vars(namespace), 'first': namespace.second, 'second': namespace.first})
-        return [
-            RateLaw(getattr(namespace.first, self.write), self._get_value(namespace)),
-            RateLaw(getattr(namespace.second, self.write), self._get_value(swapped)),
-        ]
+        names = self._get_names()
+        laws: list[BaseLaw] = []
+        for member, pair in ((namespace.first, namespace), (namespace.second, swapped)):
+            values = self._get_values(pair)
+            laws += [RateLaw(getattr(member, name), value) for name, value in zip(names, values, strict=True)]
+        return laws

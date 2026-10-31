@@ -4,22 +4,20 @@
 # License: MIT
 
 import math
-from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, LatticeElement
-from ....core.laws import BaseLaw, UpdateLaw
-from ....core.laws.utils import neighbors
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.oscillators import KuramotoCouplingInteraction, PhaseOscillatorElement
+from ._logistic_coupling import LogisticCouplingInteraction
 from ._utils import _order_parameter
 
 NETWORKS = ('watts_strogatz', 'erdos_renyi', 'barabasi_albert')
@@ -60,10 +58,10 @@ class LinkElement(Element):
 
 
 class LogisticNodeElement(Element):
-    """Logistic map on a node of a network, `x_i(t + 1) = (1 - epsilon) f(x_i) + epsilon mean_j f(x_j)`.
+    """Logistic map on a node of a network, with its value, growth rate, and weight of the neighbours.
 
-    The map `f(x) = r x (1 - x)` of the node mixes with the mean of the maps of its neighbours `j` on the network. A
-    node with no neighbours keeps `(1 - epsilon) f(x_i)`.
+    `LogisticCouplingInteraction` iterates `x_i(t + 1) = (1 - epsilon) f(x_i) + epsilon mean_j f(x_j)`, where the map
+    `f(x) = r x (1 - x)` of the node mixes with the mean of the maps of its neighbours `j` on the network.
 
     Args:
         label:
@@ -104,25 +102,6 @@ class LogisticNodeElement(Element):
         self.x = x
         self.r = r
         self.epsilon = epsilon
-
-    def _logistic(self, r: Expression, x: Expression) -> Expression:
-        """Return the logistic map `r x (1 - x)`."""
-        return r * x * (1 - x)
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the update of the value to the mix of its map and the mean map of the neighbours.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use, with the neighbour `namespace.other`.
-
-        Returns:
-            laws:
-                The update of the value.
-        """
-        s = namespace
-        own, others = self._logistic(s.r, s.x), neighbors(self._logistic(s.r, s.other.x), reduce='mean')
-        return [UpdateLaw(s.x, (1 - s.epsilon) * own + s.epsilon * others)]
 
 
 class EdgeCouplingInteraction(KuramotoCouplingInteraction):
@@ -323,4 +302,5 @@ def coupled_map_lattices_on_networks(
         values={'x': rng.uniform(0.0, 1.0, n_nodes), 'r': r, 'epsilon': epsilon},
         visual=VisualSpec('sites', {'states': ['x'], 'low': 0.0, 'high': 1.0}),
     )
-    return System(elements=[maps], time=DiscreteTime())
+    coupling = LogisticCouplingInteraction('coupling', target='maps')
+    return System(elements=[maps], interactions=[coupling], time=DiscreteTime())

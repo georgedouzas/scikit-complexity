@@ -90,8 +90,8 @@ Coupling, over a structure:
 
 | Class | Operation | Binding |
 | --- | --- | --- |
-| `CouplingInteraction(target, read, write, function, reduce='sum', mode='edges', weights=None, include_self=False, lag=0.0, delay=0.0, form='rate', combine=None)` | member `i` gets a reduction over `j` of `function(ns)`, where `ns` reads `i`, `j`, and the edge. It works over the edges of a lattice or network, over the whole group, or over the next member of an ordered group. It adds to a rate (`form='rate'`) or sets the next value with `combine(x_i, reduction)` (`form='map'`) | `NeighborInteraction`; a Laplacian on fields |
-| `PairCouplingInteraction(first, second, cutoff, read, write, function=None, potential=None, divisor=None, period=None)` | every pair within a cutoff adds `function(ns)` or minus the gradient of `potential(ns, r)` to both members | `PairInteraction` |
+| `CouplingInteraction(target, source=None, read, write, function, reduce='sum', mode='edges', weights=None, include_self=False, lag=0.0, delay=0.0, form='rate', combine=None)` | member `i` gets a reduction over `j` of `function(ns)`, where `ns` reads `i`, `j`, the edge, the parameters, and the time. It works over the edges of a lattice or network, over the whole group or every member of a separate `source` group, or over the next member of an ordered group. The reductions are sum, mean, max, min, normalized mean, and circular mean; the weights are an edge state, a matrix, or a callable of `ns` (indicators, member states). It adds to a rate (`form='rate'`) or sets the next value with `combine(ns, reduction)`, `ns` reading the member, the parameters, and the time (`form='map'`) | `NeighborInteraction`; a Laplacian on fields |
+| `PairCouplingInteraction(first, second, cutoff, read, write, function=None, potential=None, divisor=None, period=None)` | every pair within a cutoff adds `function(ns)` or minus the gradient of `potential(ns, r)` to both members; with several states `write` the function returns one value per state, so a pair couples them jointly | `PairInteraction` |
 
 Events and discrete states:
 
@@ -146,6 +146,23 @@ exists.
 - Utilities of the law namespace: `hill`, `logistic`, `pulse_train` with a count, `clip`, `minimum`, `maximum`, `sign`,
   the stock-and-flow delays `delay1`, `delay3`, and `smooth`, sums, means, and counts keyed by a state (`by=`), and a
   circular mean.
+
+### Coupling extensions
+- A second group of nodes: `NeighborInteraction` may bind a second group of nodes instead of an edge group. The laws run
+  once per member of the first group and their reductions over the members of the second, with no edges. Roles may be
+  declared `RoleSpec(optional=True)` and bound to `None`; `CouplingInteraction.source` is such a role, used in the mode
+  `'group'` only (two populations of the Kuramoto-Sakaguchi chimera).
+- The extremes over the own group need `include_self` or a source group, since a pairwise maximum cannot leave the
+  member out; the coupling to the next member reduces by sum or mean only.
+- `combine` takes `(namespace, reduction)`, so a map reads the member's parameters, the interaction's parameters, and
+  the time (coupled logistic maps, Vicsek noise `eta` read from the member).
+- Field realizations built on these: `ConfidenceCouplingInteraction` (social, Hegselmann-Krause),
+  `LogisticCouplingInteraction` and `SwarmalatorCouplingInteraction` (physics synchronization),
+  `HeadingAlignmentInteraction` (physics active matter, Vicsek and Ginelli nematics), and the chimera on
+  `KuramotoCouplingInteraction(source=...)`; `MeanFieldCouplingInteraction` is removed.
+- Still open: coupling a list of separate elements (an element set) and a single hub element as the target, the
+  Laplacian lowering of a coupling on fields, coupling two separate elements, and weighted group coupling whose term
+  reads the member under a matrix (pairwise reductions take no matrix weights).
 
 ### What leaves the core
 - `PotentialInteraction` and `PairPotentialInteraction` become `GradientInteraction` and `PairCouplingInteraction`.

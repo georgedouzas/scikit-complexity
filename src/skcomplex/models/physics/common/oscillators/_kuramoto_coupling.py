@@ -21,10 +21,10 @@ class KuramotoCouplingInteraction(CouplingInteraction):
     """Kuramoto coupling `theta_i' += K sum_j sin(theta_j - theta_i - alpha)` of the phases of a group.
 
     The sum, or the mean, runs over the members `j` that the mode selects: the neighbours along the edges of a lattice
-    or network, or within a neighbourhood such as `RadiusNeighborhood(r)`, every other member of the group, or the next
-    member. With `include_self` it also runs over `j = i`, whose term `-K sin(alpha)` slows every phase. Over the whole
-    group without weights or delay, the coupling reads the group sums of `sin theta` and `cos theta` once, so it costs
-    time linear in the size of the group.
+    or network, or within a neighbourhood such as `RadiusNeighborhood(r)`, every other member of the group, every member
+    of a separate source group, or the next member. With `include_self` it also runs over `j = i`, whose term
+    `-K sin(alpha)` slows every phase. Over the whole group without weights or delay, the coupling reads the group sums
+    of `sin theta` and `cos theta` once, so it costs time linear in the size of the group.
 
     Args:
         label:
@@ -32,6 +32,9 @@ class KuramotoCouplingInteraction(CouplingInteraction):
 
         target:
             The path of the group of oscillators.
+
+        source:
+            The path of the group of oscillators the target couples to in the mode `'group'`, or `None` for the target.
 
         K:
             The coupling strength of one pair.
@@ -85,6 +88,7 @@ class KuramotoCouplingInteraction(CouplingInteraction):
         label: str,
         *,
         target: Annotated[str, RoleSpec()],
+        source: Annotated[str | None, RoleSpec(optional=True)] = None,
         K: Annotated[float, ParameterSpec()] = 1.0,
         alpha: Annotated[float, ParameterSpec()] = 0.0,
         state: str = 'theta',
@@ -99,6 +103,7 @@ class KuramotoCouplingInteraction(CouplingInteraction):
         super().__init__(
             label,
             target=target,
+            source=source,
             read=state,
             write=state,
             function=self._sine,
@@ -128,8 +133,8 @@ class KuramotoCouplingInteraction(CouplingInteraction):
         phases = getattr(source, self.state)
         sines, cosines = total(sin(phases), over=source), total(cos(phases), over=source)
         reduction = namespace.K * (sines * cos(shifted) - cosines * sin(shifted))
-        if not self.include_self:
+        if self._excludes_self():
             reduction = reduction + namespace.K * sin(namespace.alpha)
         if self.reduce == 'mean':
-            reduction = reduction / (count(over=source) - (0 if self.include_self else 1))
+            reduction = reduction / (count(over=source) - (1 if self._excludes_self() else 0))
         return reduction

@@ -21,6 +21,7 @@ from ._flocks import (
     gregoire_chate,
     vicsek,
 )
+from ._heading_alignment import HeadingAlignmentInteraction
 from ._model_b import ActiveScalarElement, active_model_b
 from ._nonreciprocal import NonreciprocalMoverElement, nonreciprocal_vicsek
 from ._particles import (
@@ -48,6 +49,7 @@ __all__: list[str] = [
     'DepotParticleElement',
     'FlockerElement',
     'FlockerView',
+    'HeadingAlignmentInteraction',
     'NematicParticleElement',
     'NonreciprocalMoverElement',
     'OrnsteinUhlenbeckParticleElement',
