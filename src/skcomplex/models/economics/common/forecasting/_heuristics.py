@@ -1,4 +1,4 @@
-"""Learning blocks of agent rules: forecasting heuristics and logit choice."""
+"""Define the forecasting heuristics of agent rules, functions of the past values of a series."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -7,10 +7,6 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 
 import numpy as np
-import numpy.typing as npt
-from scipy.special import softmax
-
-from .....types import Array
 
 # The values a trend or an anchor reads, the last two.
 TREND_LENGTH = 2
@@ -49,60 +45,7 @@ heuristics.__doc__ = """Forecasting heuristics of Anufriev and Hommes, functions
 - `fundamental(history, fundamental, reversion)` gives `F + v (x(t) - F)`.
 
 Examples:
-    >>> from skcomplex.models.economics.common.learning import heuristics
+    >>> from skcomplex.models.economics.common.forecasting import heuristics
     >>> heuristics.trend([1.0, 2.0], strength=0.5)
     2.5
 """
-
-
-def logit_probabilities(utilities: npt.ArrayLike, intensity: float) -> Array:
-    """Return the logit choice probabilities `exp(beta U_h) / sum_k exp(beta U_k)`.
-
-    Args:
-        utilities:
-            The utility of every option, such as past performance of every strategy.
-
-        intensity:
-            The intensity of choice `beta`, zero for uniform choice and infinite for the best option.
-
-    Returns:
-        probabilities:
-            One probability per option.
-
-    Examples:
-        >>> from skcomplex.models.economics.common.learning import logit_probabilities
-        >>> logit_probabilities([0.0, 0.0], 1.0).tolist()
-        [0.5, 0.5]
-    """
-    values = np.asarray(utilities, dtype=float)
-    if np.isinf(intensity):
-        best = values == values.max()
-        return best / best.sum()
-    return np.asarray(softmax(intensity * values), dtype=float)
-
-
-def logit_choice(utilities: npt.ArrayLike, intensity: float, rng: np.random.Generator) -> int:
-    """Return the index of an option drawn with the logit probabilities of its utility.
-
-    Args:
-        utilities:
-            The utility of every option.
-
-        intensity:
-            The intensity of choice.
-
-        rng:
-            The random generator, such as `model.rng`.
-
-    Returns:
-        index:
-            The chosen option.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.models.economics.common.learning import logit_choice
-        >>> logit_choice([0.0, 100.0], 10.0, np.random.default_rng(0))
-        1
-    """
-    probabilities = logit_probabilities(utilities, intensity)
-    return int(rng.choice(len(probabilities), p=probabilities))

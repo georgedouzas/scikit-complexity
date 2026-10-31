@@ -3,8 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
-from types import SimpleNamespace
+import math
 from typing import Annotated
 
 import numpy as np
@@ -13,18 +12,32 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import ChoiceInteraction
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import ModelView
-from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.learning import logit_choice
 from ._consumer_view import ConsumerView
 
 
+def _get_utility(agent: ConsumerView, model: ModelView, option: float) -> float:
+    """Return the utility of fair food, option 1, or regular food, option 0, `-inf` for fair food over the budget."""
+    if option == 0:
+        return 0.0
+    if agent.budget < 1 + agent.premium:
+        return -math.inf
+    neighbors = [neighbor for neighbor in agent.neighbors() if isinstance(neighbor, ConsumerView)]
+    share = sum(neighbor.fair for neighbor in neighbors) / len(neighbors) if neighbors else 0.0
+    return float(
+        agent.ethics_weight * agent.ethics
+        - agent.price_weight * agent.premium / agent.budget
+        + agent.social_weight * share,
+    )
+
+
 class ConsumerElement(Element):
-    """Consumer who buys fair-trade or regular food by a logit choice on the utility of each option.
+    """Consumer who buys fair-trade or regular food, with an ethical concern, a budget, and the weights of its utility.
 
     The utility of fair food is `ethics_weight * ethics - price_weight * premium / budget + social_weight * share`,
     where `share` is the share of neighbours who bought fair food in the last step, and the utility of regular food is
@@ -58,9 +71,6 @@ class ConsumerElement(Element):
         social_weight:
             The weight of the share of neighbours who buy fair food.
 
-        intensity:
-            The intensity of the logit choice.
-
     Examples:
         >>> from skcomplex.models.economics.markets import ConsumerElement
         >>> GroupElement('consumers', element=ConsumerElement, size=4, values={'ethics': 0.5}).size
@@ -79,7 +89,6 @@ class ConsumerElement(Element):
         ethics_weight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
         price_weight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
         social_weight: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        intensity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.fair = fair
@@ -89,47 +98,11 @@ class ConsumerElement(Element):
         self.ethics_weight = ethics_weight
         self.price_weight = price_weight
         self.social_weight = social_weight
-        self.intensity = intensity
 
     @classmethod
     def _get_view(cls) -> type[ConsumerView]:
         """Return the view of a consumer, with its states and the parameters of its utility."""
         return ConsumerView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the shopping rule in the phase of shopping.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.shop, phase='shopping')]
-
-    def shop(self, agent: ConsumerView, model: ModelView) -> None:
-        """Buy fair or regular food with logit probabilities of their utilities.
-
-        Args:
-            agent:
-                The consumer.
-
-            model:
-                The model.
-        """
-        if agent.budget < 1 + agent.premium:
-            agent.fair = 0.0
-            return
-        neighbors = [neighbor for neighbor in agent.neighbors() if isinstance(neighbor, ConsumerView)]
-        share = sum(neighbor.fair for neighbor in neighbors) / len(neighbors) if neighbors else 0.0
-        utility = (
-            agent.ethics_weight * agent.ethics
-            - agent.price_weight * agent.premium / agent.budget
-            + agent.social_weight * share
-        )
-        agent.fair = float(logit_choice([0.0, utility], agent.intensity, model.rng))
 
 
 @register_model(
@@ -191,7 +164,8 @@ def fair_food(
 
     Returns:
         system:
-            The model, with the group `consumers` and the share of fair food `fair_share`.
+            The model, with the group `consumers`, their logit choice `shopping`, and the share of fair food
+            `fair_share`.
 
     Examples:
         >>> from skcomplex.models.economics.markets import fair_food
@@ -211,12 +185,21 @@ def fair_food(
             'ethics_weight': ethics_weight,
             'price_weight': price_weight,
             'social_weight': social_weight,
-            'intensity': intensity,
         },
         location=[(x, y) for x in range(width) for y in range(height)],
     )
+    choice = ChoiceInteraction(
+        'shopping',
+        target='consumers',
+        state='fair',
+        options=(0, 1),
+        utility=_get_utility,
+        intensity=intensity,
+        form='agent',
+    )
     return System(
         elements=[consumers],
+        interactions=[choice],
         space=LatticeSpace((width, height), boundary='periodic', capacity=1),
-        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('shopping', activation='simultaneous')])),
+        time=DiscreteTime(),
     )

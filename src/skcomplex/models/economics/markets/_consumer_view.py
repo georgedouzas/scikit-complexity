@@ -9,8 +9,8 @@ from ....engine.solvers import AgentView
 class ConsumerView(AgentView):
     """Consumer as the shopping rule sees it: its choice `fair`, `ethics`, and `budget`, and its parameters.
 
-    The parameters are the `premium` of fair food, the weights `ethics_weight`, `price_weight`, and `social_weight`
-    of the utility, and the `intensity` of the logit choice.
+    The parameters are the `premium` of fair food and the weights `ethics_weight`, `price_weight`, and `social_weight`
+    of the utility.
     """
 
     fair: float
@@ -20,4 +20,3 @@ class ConsumerView(AgentView):
     ethics_weight: float
     price_weight: float
     social_weight: float
-    intensity: float

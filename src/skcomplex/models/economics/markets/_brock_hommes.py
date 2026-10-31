@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable
-from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import numpy as np
@@ -12,26 +11,33 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import FeedbackInteraction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import ChoiceInteraction, FeedbackInteraction
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.learning import heuristics, logit_choice
+from ..common.forecasting import heuristics
 from ._fitness_spec import _FitnessSpec
 from ._market_state_spec import _MarketStateSpec
 from ._speculator_view import SpeculatorView
 
 PREDICTORS = ('fundamentalist', 'trend')
+PRICING = 'pricing'
+
+
+def _get_last_fitness(agent: SpeculatorView, model: ModelView, option: float) -> float:
+    """Return the last realised fitness of a heuristic, read once per step into the storage of the choice."""
+    cached = model.storage.get('fitness')
+    if not isinstance(cached, _FitnessSpec) or cached.time != model.time:
+        values = [model.history(f'{PRICING}.fitness_{name}', 1) for name in PREDICTORS]
+        cached = _FitnessSpec(model.time, tuple(float(value[-1]) if len(value) else 0.0 for value in values))
+        model.storage['fitness'] = cached
+    return cached.fitness[int(option)]
 
 
 class SpeculatorElement(Element):
-    """Trader who chooses a forecasting heuristic by a logit choice on the last realised fitness of every heuristic.
-
-    The heuristic is 0 for the fundamentalist and 1 for the trend chaser, and the fitnesses are the reporters of the
-    pricing institution, zero before its first report. The class attribute `pricing` names that institution.
+    """Trader who holds the index of the forecasting heuristic in use, 0 for the fundamentalist and 1 for the trend.
 
     Args:
         label:
@@ -43,16 +49,11 @@ class SpeculatorElement(Element):
         predictor:
             The index of the heuristic in use.
 
-        intensity:
-            The intensity of choice `beta`.
-
     Examples:
         >>> from skcomplex.models.economics.markets import SpeculatorElement
-        >>> GroupElement('traders', element=SpeculatorElement, size=10, values={'intensity': 2.0}).size
+        >>> GroupElement('traders', element=SpeculatorElement, size=10, values={'predictor': 1.0}).size
         10
     """
-
-    pricing: ClassVar[str] = 'pricing'
 
     def __init__(
         self,
@@ -60,50 +61,14 @@ class SpeculatorElement(Element):
         visual: VisualSpec | None = None,
         *,
         predictor: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        intensity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.predictor = predictor
-        self.intensity = intensity
 
     @classmethod
     def _get_view(cls) -> type[SpeculatorView]:
-        """Return the view of a speculator, with its heuristic and intensity of choice."""
+        """Return the view of a speculator, with its heuristic."""
         return SpeculatorView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the choice of heuristic in the phase of choice.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.choose, phase='choice')]
-
-    def choose(self, agent: SpeculatorView, model: ModelView) -> None:
-        """Choose a heuristic with logit probabilities of the last realised fitnesses.
-
-        Args:
-            agent:
-                The trader.
-
-            model:
-                The model.
-        """
-        agent.predictor = float(logit_choice(self._fitness(model), agent.intensity, model.rng))
-
-    def _fitness(self, model: ModelView) -> list[float]:
-        """Return the last fitness of every heuristic, read once per step into the storage of the traders."""
-        cached = model.storage.get('fitness')
-        if not isinstance(cached, _FitnessSpec) or cached.time != model.time:
-            values = [model.history(f'{self.pricing}.fitness_{name}', 1) for name in PREDICTORS]
-            cached = _FitnessSpec(model.time, tuple(float(value[-1]) if len(value) else 0.0 for value in values))
-            model.storage['fitness'] = cached
-        return list(cached.fitness)
 
 
 class HeuristicPricingInteraction(FeedbackInteraction[ModelView]):
@@ -261,18 +226,28 @@ def brock_hommes(
 
     Returns:
         system:
-            The model, with the group `traders` and the institution `pricing`, whose reporters are the deviation of the
-            price `pricing.deviation`, the share of trend chasers `pricing.trend_share`, and the fitnesses
-            `pricing.fitness_fundamentalist` and `pricing.fitness_trend`.
+            The model, with the group `traders`, their choice `choice`, and the institution `pricing`, whose reporters
+            are the deviation of the price `pricing.deviation`, the share of trend chasers `pricing.trend_share`, and
+            the fitnesses `pricing.fitness_fundamentalist` and `pricing.fitness_trend`.
 
     Examples:
         >>> from skcomplex.models.economics.markets import brock_hommes
         >>> brock_hommes(100).elements[0].check().prepare().size_
         100
     """
-    traders = GroupElement('traders', element=SpeculatorElement, size=n_traders, values={'intensity': intensity})
+    traders = GroupElement('traders', element=SpeculatorElement, size=n_traders)
+    choice = ChoiceInteraction(
+        'choice',
+        target='traders',
+        state='predictor',
+        options=(0, 1),
+        utility=_get_last_fitness,
+        intensity=intensity,
+        form='agent',
+        phase='choice',
+    )
     pricing = HeuristicPricingInteraction(
-        'pricing',
+        PRICING,
         traders='traders',
         phase='pricing',
         rate=rate,
@@ -284,6 +259,6 @@ def brock_hommes(
     )
     return System(
         elements=[traders],
-        interactions=[pricing],
+        interactions=[choice, pricing],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('choice'), PhaseSpec('pricing')])),
     )

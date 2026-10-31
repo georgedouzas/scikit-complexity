@@ -33,6 +33,7 @@ from ._random_search_protocol import RandomSearchProtocol
 from ._random_walk import RandomWalkInteraction
 from ._reaction import ReactionInteraction
 from ._regrowth import RegrowthInteraction
+from ._reinforcement import ReinforcementInteraction
 from ._spreading import SpreadingInteraction
 from ._stable_matching_protocol import StableMatchingProtocol
 from ._threshold import ThresholdInteraction
@@ -69,6 +70,7 @@ __all__: list[str] = [
     'RandomWalkInteraction',
     'ReactionInteraction',
     'RegrowthInteraction',
+    'ReinforcementInteraction',
     'SpreadingInteraction',
     'StableMatchingProtocol',
     'ThresholdInteraction',
