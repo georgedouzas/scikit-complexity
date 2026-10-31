@@ -225,6 +225,8 @@ def barter(
     )
     return System(
         elements=[barterers],
-        interactions=[ExchangeInteraction('exchange', traders='barterers', goods=GOODS, quantity=quantity)],
+        interactions=[
+            ExchangeInteraction('exchange', source='barterers', target='barterers', goods=GOODS, quantity=quantity),
+        ],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('trade')])),
     )

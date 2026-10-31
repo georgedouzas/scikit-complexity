@@ -10,7 +10,8 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, Sink, Source, TransferLaw
+from ....core.interactions import TransferInteraction
+from ....core.laws import Sink, Source
 from ....core.laws.utils import distributed_delay, maximum, minimum, step
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -39,17 +40,15 @@ def _orders(s: SimpleNamespace) -> Expression:
     return maximum(gap_orders, 0)
 
 
-def _dealer_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the laws of the car dealership."""
-    return [
-        TransferLaw(
-            Source('factory'),
-            s.inventory,
-            distributed_delay(_orders(s), order=3, time=s.delivery_delay),
-            label='deliveries',
-        ),
-        TransferLaw(s.inventory, Sink('customers'), _sales(s), label='sales'),
-    ]
+def _dealer(s: SimpleNamespace) -> SimpleNamespace:
+    """Return the symbols of the dealership a transfer moves cars of, with the time."""
+    return SimpleNamespace(t=s.t, **vars(s.source))
+
+
+def _deliveries(s: SimpleNamespace) -> Expression:
+    """Return the deliveries of the dealership, its orders through a third-order delay."""
+    dealer = _dealer(s)
+    return distributed_delay(_orders(dealer), order=3, time=dealer.delivery_delay)
 
 
 class CarDealershipElement(Element):
@@ -57,7 +56,8 @@ class CarDealershipElement(Element):
 
     Sales are the demand, stepping up at `step_time`, limited by the inventory. The dealer perceives sales through a
     first-order smoothing, desires `coverage` days of perceived sales, and orders the perceived sales plus the gap to
-    the desired inventory over the response delay, never negative. Orders arrive through a third-order delay.
+    the desired inventory over the response delay, never negative. Orders arrive through a third-order delay. The
+    dealership holds the inventory and the parameters, and a transfer within it of the model moves the cars.
 
     Args:
         label:
@@ -119,19 +119,6 @@ class CarDealershipElement(Element):
         self.perception_delay = perception_delay
         self.response_delay = response_delay
         self.delivery_delay = delivery_delay
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the deliveries and the sales of the dealership.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return _dealer_laws(s)
 
 
 @register_model(
@@ -212,4 +199,14 @@ def car_dealer(
         response_delay=response_delay,
         delivery_delay=delivery_delay,
     )
-    return System(elements=[dealer])
+    cars = TransferInteraction(
+        'cars',
+        source='dealer',
+        target='dealer',
+        state=Source('factory'),
+        into='inventory',
+        amount=_deliveries,
+        flow='deliveries',
+        legs=[('inventory', Sink('customers'), lambda s: _sales(_dealer(s)), 'sales')],
+    )
+    return System(elements=[dealer], interactions=[cars])

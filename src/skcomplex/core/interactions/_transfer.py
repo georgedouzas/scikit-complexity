@@ -17,11 +17,12 @@ from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
 
 FORMS = ('symbolic', 'agent')
-PAIRINGS = ('members', 'random', 'pairs', 'neighbors', 'cell')
-LEG_LENGTH = 3
+PAIRINGS = ('members', 'random', 'pairs', 'neighbors', 'neighbor-pairs', 'cell')
+LEG_LENGTHS = (3, 4)
 
 type Amount = float | Callable[..., object]
-type Leg = tuple[str | Source, str | Sink | None, Amount]
+type Leg = tuple[str | Source, str | Sink | None, Amount] | tuple[str | Source, str | Sink | None, Amount, str]
+type NamedLeg = tuple[str | Source, str | Sink | None, Amount, str]
 
 
 class TransferInteraction(Interaction):
@@ -29,8 +30,14 @@ class TransferInteraction(Interaction):
 
     A leg moves an amount out of a state of the source member, or out of `Source()`, into a state of the target member,
     or into `Sink()`. The transfer has a first leg, `state` into `into` by `amount`, and any further `legs`, each
-    `(state, into, amount)`. The amounts of all legs are read before any of them moves, so a leg sees the states as
-    they were before the transfer. A guard skips the transfer where it does not hold.
+    `(state, into, amount)` or `(state, into, amount, flow)`. The amounts of all legs are read before any of them
+    moves, so a leg sees the states as they were before the transfer. A guard skips the transfer where it does not
+    hold.
+
+    The symbolic form reports the amount of every leg as a flow. A leg named by its `flow` is reported under that
+    name: under the element or group, as `<path>.<flow>`, when the source and the target are one element or group,
+    since the flow then moves a quantity within it like a flow of its own, and under the interaction, as
+    `<label>.<flow>`, otherwise. A leg without a name is reported under the interaction as `<label>.flow_<index>`.
 
     The form chooses how the transfer lowers:
 
@@ -40,8 +47,10 @@ class TransferInteraction(Interaction):
     - `'agent'` lowers to an agent rule, whose amounts and guard are numbers or functions of the source agent, the
       target agent, and the model view. The pairing `'members'` pairs member `i` of both groups, `'random'` pairs every
       source member with a random target member, `'pairs'` draws disjoint random pairs, `'neighbors'` pairs every
-      source member with the target members in the cells or nodes around it, and `'cell'` pairs the source and target
-      members that stand in one cell or node. The pairs act in random order.
+      source member with the target members in the cells or nodes around it, `'neighbor-pairs'` draws disjoint random
+      pairs of neighbours, every source member in random order taking a random unpaired target member around it, and
+      `'cell'` pairs the source and target members that stand in one cell or node. The pairs act in random order. With
+      a `fallback` group, the members of that group are the targets of a step in which no target member lives.
 
     Args:
         label:
@@ -63,12 +72,20 @@ class TransferInteraction(Interaction):
         amount:
             The amount of the first leg, a number or a function.
 
+        flow:
+            The name the symbolic form reports the first leg under, or the empty string for `flow_0`.
+
         pairing:
-            How members are paired, one of `'members'`, `'random'`, `'pairs'`, `'neighbors'`, or `'cell'`, the agent
-            form alone taking the others than `'members'`.
+            How members are paired, one of `'members'`, `'random'`, `'pairs'`, `'neighbors'`, `'neighbor-pairs'`, or
+            `'cell'`, the agent form alone taking the others than `'members'`.
 
         legs:
-            Further legs, each a tuple of a state or `Source()`, a state, `Sink()`, or `None`, and an amount.
+            Further legs, each a tuple of a state or `Source()`, a state, `Sink()`, or `None`, an amount, and
+            optionally the name of its flow.
+
+        fallback:
+            The path of the group whose members the agent form pairs with instead of the target members in a step in
+            which no target member lives, or `None` for no fallback.
 
         guard:
             A function that returns whether a pair transfers, a condition of the namespace or a boolean of the agents,
@@ -86,8 +103,8 @@ class TransferInteraction(Interaction):
 
     Raises:
         ValidationError:
-            The form or the pairing is unknown, a leg is malformed, or the symbolic form has an agent pairing, or the
-            agent form a rate, raised by `check`.
+            The form or the pairing is unknown, a leg is malformed, two legs share a flow name, or the symbolic form has
+            an agent pairing or a fallback, or the agent form a rate or a flow name, raised by `check`.
 
     Examples:
         >>> from skcomplex.core.elements import Element
@@ -118,8 +135,10 @@ class TransferInteraction(Interaction):
         state: str | Source,
         into: str | Sink | None = None,
         amount: Amount,
+        flow: str = '',
         pairing: str = 'members',
         legs: Sequence[Leg] = (),
+        fallback: Annotated[str | None, RoleSpec()] = None,
         guard: Callable[..., object] | None = None,
         rate: Amount | None = None,
         form: str = 'symbolic',
@@ -131,22 +150,25 @@ class TransferInteraction(Interaction):
         self.state = state
         self.into = into
         self.amount = amount
+        self.flow = flow
         self.pairing = pairing
         self.legs = legs
+        self.fallback = fallback
         self.guard = guard
         self.rate = rate
         self.form = form
         self.phase = phase
 
-    def _get_legs(self) -> list[Leg]:
-        """Return every leg with the state it adds to resolved."""
-        legs: list[Leg] = []
-        for state, into, amount in ((self.state, self.into, self.amount), *self.legs):
-            legs.append((state, state if into is None and isinstance(state, str) else into, amount))
+    def _get_legs(self) -> list[NamedLeg]:
+        """Return every leg with the state it adds to resolved and the name of its flow, empty when it has none."""
+        legs: list[NamedLeg] = []
+        for state, into, amount, *flow in ((self.state, self.into, self.amount, self.flow), *self.legs):
+            name = flow[0] if flow else ''
+            legs.append((state, state if into is None and isinstance(state, str) else into, amount, name))
         return legs
 
-    def _check_leg(self, state: object, into: object, amount: object) -> None:
-        """Raise an error for a leg whose ends are not state names or the environment, or whose amount is not usable."""
+    def _check_leg(self, state: object, into: object, amount: object, flow: object) -> None:
+        """Raise an error for a leg with ends that are no states or environment, or an unusable amount or flow name."""
         if not isinstance(state, str | Source) or not isinstance(into, str | Sink):
             error_msg = (
                 f'A leg of {self.label!r} moves {state!r} into {into!r}. Give a state name or `Source()` it leaves, '
@@ -159,14 +181,27 @@ class TransferInteraction(Interaction):
         if not callable(amount) and not isinstance(amount, int | float):
             error_msg = f'The amount {amount!r} of {self.label!r} is neither a number nor a function.'
             raise ValidationError(error_msg)
+        if not isinstance(flow, str):
+            error_msg = f'A leg of {self.label!r} names its flow {flow!r}. Give a string, or the empty string.'
+            raise ValidationError(error_msg)
+
+    def _check_flows(self) -> None:
+        """Raise an error for flow names that two legs share, or that the agent form, which reports no flows, takes."""
+        names = [leg[3] for leg in self._get_legs() if leg[3]]
+        if len(set(names)) < len(names):
+            error_msg = f'Two legs of {self.label!r} share a flow name among {names!r}. Give every flow its own name.'
+            raise ValidationError(error_msg)
+        if names and self.form == 'agent':
+            error_msg = f'The agent form of {self.label!r} reports no flows, but it names {names!r}. Remove the names.'
+            raise ValidationError(error_msg)
 
     def _check(self) -> None:
         """Raise an error for an unknown form or pairing, a malformed leg, or an option the form does not take.
 
         Raises:
             ValidationError:
-                The form or the pairing is unknown, a leg is malformed, the symbolic form has an agent pairing, or
-                the agent form has a rate.
+                The form or the pairing is unknown, a leg is malformed, two legs share a flow name, the symbolic form
+                has an agent pairing or a fallback, or the agent form has a rate or a flow name.
         """
         super()._check()
         if self.form not in FORMS:
@@ -178,12 +213,16 @@ class TransferInteraction(Interaction):
         if self.pairing not in PAIRINGS:
             error_msg = f'Unknown pairing {self.pairing!r} of {self.label!r}. Use one of {", ".join(PAIRINGS)}.'
             raise ValidationError(error_msg)
+        if self.form == 'symbolic' and self.fallback is not None:
+            error_msg = f'The symbolic form of {self.label!r} pairs members. Use `form="agent"` for a fallback group.'
+            raise ValidationError(error_msg)
         for leg in self.legs:
-            if not isinstance(leg, tuple) or len(leg) != LEG_LENGTH:
-                error_msg = f'A leg of {self.label!r} is {leg!r}. Give a tuple `(state, into, amount)`.'
+            if not isinstance(leg, tuple) or len(leg) not in LEG_LENGTHS:
+                error_msg = f'A leg of {self.label!r} is {leg!r}. Give a tuple `(state, into, amount[, flow])`.'
                 raise ValidationError(error_msg)
-        for state, into, amount in self._get_legs():
-            self._check_leg(state, into, amount)
+        for state, into, amount, flow in self._get_legs():
+            self._check_leg(state, into, amount, flow)
+        self._check_flows()
         if self.rate is not None and self.form == 'agent':
             error_msg = f'{self.label!r} has a rate, which only the symbolic form takes. Give `rate=None`.'
             raise ValidationError(error_msg)
@@ -191,25 +230,28 @@ class TransferInteraction(Interaction):
             error_msg = f'The guard of {self.label!r} is {self.guard!r}. Give a function, or None.'
             raise ValidationError(error_msg)
 
-    def _get_law(self, namespace: SimpleNamespace, leg: Leg) -> TransferLaw:
-        """Return the transfer law of one leg between the members of a namespace."""
-        state, into, amount = leg
+    def _get_law(self, namespace: SimpleNamespace, leg: NamedLeg) -> TransferLaw:
+        """Return the transfer law of one leg between the members of a namespace, reported under its flow name."""
+        state, into, amount, flow = leg
+        owner = self.source if flow and self.source == self.target else ''
         held = state if isinstance(state, Source) else getattr(namespace.source, state)
         sink = into if isinstance(into, Sink) else getattr(namespace.target, str(into))
         value = amount(namespace) if callable(amount) else amount
         if self.rate is None:
             if self.guard is not None:
                 value = where(self.guard(namespace), value, 0)
-            return TransferLaw(held, sink, value)
+            return TransferLaw(held, sink, value, label=flow, owner=owner)
         rate = self.rate(namespace) if callable(self.rate) else self.rate
         if self.guard is not None:
             rate = where(self.guard(namespace), rate, 0)
-        return TransferLaw(held, sink, value, rate)
+        return TransferLaw(held, sink, value, rate, label=flow, owner=owner)
 
     def _get_pairs(self, model: ModelViewProtocol) -> list[tuple[AgentViewProtocol, AgentViewProtocol]]:
         """Return the pairs of source and target agents of one step in random order."""
         sources = model.agents('source')
         targets = sources if self.source == self.target else model.agents('target')
+        if self.fallback is not None and not any(target.alive for target in targets):
+            targets = model.agents('fallback')
         pairs: list[tuple[AgentViewProtocol, AgentViewProtocol]] = []
         if self.pairing == 'members':
             pairs = list(zip(sources, targets, strict=False))
@@ -217,6 +259,8 @@ class TransferInteraction(Interaction):
             pairs = self._get_random_pairs(sources, targets, model)
         elif self.pairing == 'pairs':
             pairs = self._get_disjoint_pairs(sources, targets, model)
+        elif self.pairing == 'neighbor-pairs':
+            pairs = self._get_neighbor_pairs(sources, targets, model)
         else:
             pairs = self._get_located_pairs(sources, targets)
         return [pairs[int(index)] for index in model.rng.permutation(len(pairs))]
@@ -248,15 +292,47 @@ class TransferInteraction(Interaction):
         second = [targets[int(index)] for index in model.rng.permutation(len(targets))]
         return list(zip(first, second, strict=False))
 
+    @staticmethod
+    def _locate(targets: Sequence[AgentViewProtocol]) -> dict[object, list[AgentViewProtocol]]:
+        """Return the target agents by the key of the cell or node they stand in."""
+        located: dict[object, list[AgentViewProtocol]] = {}
+        for target in targets:
+            located.setdefault(target.location_key, []).append(target)
+        return located
+
+    def _get_neighbor_pairs(
+        self,
+        sources: Sequence[AgentViewProtocol],
+        targets: Sequence[AgentViewProtocol],
+        model: ModelViewProtocol,
+    ) -> list[tuple[AgentViewProtocol, AgentViewProtocol]]:
+        """Return disjoint random pairs of neighbours, every source agent in random order taking a free one nearby."""
+        located = self._locate(targets)
+        paired: set[int] = set()
+        pairs: list[tuple[AgentViewProtocol, AgentViewProtocol]] = []
+        for index in model.rng.permutation(len(sources)):
+            source = sources[int(index)]
+            if source.id in paired or not source.alive:
+                continue
+            free = [
+                target
+                for key in source.neighbor_cells()
+                for target in located.get(key, [])
+                if target.id != source.id and target.id not in paired and target.alive
+            ]
+            if free:
+                target = free[int(model.rng.integers(len(free)))]
+                pairs.append((source, target))
+                paired.update((source.id, target.id))
+        return pairs
+
     def _get_located_pairs(
         self,
         sources: Sequence[AgentViewProtocol],
         targets: Sequence[AgentViewProtocol],
     ) -> list[tuple[AgentViewProtocol, AgentViewProtocol]]:
         """Return the pairs of agents in one cell, or of every source agent with the target agents around it."""
-        located: dict[object, list[AgentViewProtocol]] = {}
-        for target in targets:
-            located.setdefault(target.location_key, []).append(target)
+        located = self._locate(targets)
         pairs: list[tuple[AgentViewProtocol, AgentViewProtocol]] = []
         for source in sources:
             keys = [source.location_key] if self.pairing == 'cell' else source.neighbor_cells()
@@ -318,8 +394,8 @@ class TransferInteraction(Interaction):
         if self.guard is not None and not self.guard(source, target, model):
             return
         legs = self._get_legs()
-        amounts = [self._evaluate(amount, source, target, model) for _, _, amount in legs]
-        for (state, into, _), amount in zip(legs, amounts, strict=True):
+        amounts = [self._evaluate(amount, source, target, model) for _, _, amount, _ in legs]
+        for (state, into, _, _), amount in zip(legs, amounts, strict=True):
             if isinstance(state, str):
                 setattr(source, state, getattr(source, state) - amount)
             if isinstance(into, str):
