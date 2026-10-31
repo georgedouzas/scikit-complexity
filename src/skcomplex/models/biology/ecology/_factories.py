@@ -3,15 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import BaseInteraction
-from ....core.laws import BaseLaw, UpdateLaw
+from ....core.interactions import BaseInteraction, MapInteraction
 from ....core.laws.utils import lag
 from ....core.system import System
 from ....specs import StateSpec, VisualSpec
@@ -253,7 +251,26 @@ def lotka_volterra(
 
 
 class RabbitsElement(Element):
-    """Rabbits element."""
+    """Pairs of rabbits of this month and of last month, the two age classes of Fibonacci's recurrence.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        pairs:
+            The number of pairs this month, a state that keeps its value one month earlier.
+
+        pairs_lag1:
+            The number of pairs last month.
+
+    Examples:
+        >>> from skcomplex.models.biology.ecology import RabbitsElement
+        >>> RabbitsElement('rabbits', pairs=3.0).pairs
+        3.0
+    """
 
     def __init__(
         self,
@@ -266,10 +283,6 @@ class RabbitsElement(Element):
         super().__init__(label, visual=visual)
         self.pairs = pairs
         self.pairs_lag1 = pairs_lag1
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the rabbits element."""
-        return [UpdateLaw(s.pairs, s.pairs + lag(s.pairs, 1))]
 
 
 @register_model(
@@ -299,4 +312,10 @@ def fibonacci_rabbits(pairs: float = 1.0, previous: float = 0.0) -> System:
         >>> fibonacci_rabbits().elements[0].pairs
         1.0
     """
-    return System(elements=[RabbitsElement('rabbits', pairs=pairs, pairs_lag1=previous)])
+    breeding = MapInteraction(
+        'breeding',
+        target='rabbits',
+        state='pairs',
+        function=lambda s: s.target.pairs + lag(s.target.pairs, 1),
+    )
+    return System(elements=[RabbitsElement('rabbits', pairs=pairs, pairs_lag1=previous)], interactions=[breeding])

@@ -4,28 +4,22 @@
 # License: MIT
 
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, JumpLaw, RateLaw, UpdateLaw
-from ....core.laws.utils import where
+from ....core.interactions import Interaction, JumpInteraction, RateInteraction
+from ....core.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.laws.utils import clip
 from ....core.system import System
 from ....engine.solvers import ScipyODESolver
 from ....specs import ParameterSpec, RoleSpec
 from ..._catalog import register_model
 from ..common.populations import ExponentialGrowthInteraction, MortalityInteraction, PopulationElement
 from ._populations import PredationInteraction
-
-
-def _change(target: Expression, rate: Expression, step: int, *, stochastic: bool) -> BaseLaw:
-    """Return the law that changes a population at a rate, by single individuals in stochastic mode."""
-    if stochastic:
-        return JumpLaw(rate, {target: step})
-    return RateLaw(target, step * rate)
 
 
 class RosenzweigMacArthurInteraction(Interaction):
@@ -99,7 +93,7 @@ class RosenzweigMacArthurInteraction(Interaction):
                 The laws of the component.
         """
         x, y = s.prey.n, s.predators.n
-        crowding = where(s.phi + s.rate * s.t < s.phi_end, s.phi + s.rate * s.t, s.phi_end)
+        crowding = clip(s.phi + s.rate * s.t, high=s.phi_end)
         feeding = x * y / (1 + s.eta * x)
         return [RateLaw(x, (x * (1 - crowding * x) - feeding) / s.kappa), RateLaw(y, feeding - y)]
 
@@ -237,6 +231,19 @@ class PredatorPreyEventsInteraction(Interaction):
         self.m = m
         self.stochastic = stochastic
 
+    def _get_change(self, member: SimpleNamespace, step: int, propensity: Expression) -> Sequence[BaseLaw]:
+        """Return the laws that change the population of a member by a step at a propensity.
+
+        In stochastic mode the change is a jump of one individual, and otherwise a rate of the step times the
+        propensity.
+        """
+        change: Interaction = (
+            JumpInteraction(self.label, target='member', changes={'n': step}, rate=lambda _: propensity)
+            if self.stochastic
+            else RateInteraction(self.label, target='member', state='n', rate=lambda _: step * propensity)
+        )
+        return change.check().prepare().run(SimpleNamespace(target=member)).laws_
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the five channels of births and deaths.
 
@@ -248,15 +255,15 @@ class PredatorPreyEventsInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        x, y = s.prey.n, s.predators.n
+        prey, predators = s.prey, s.predators
+        x, y = prey.n, predators.n
         kills = s.a * x * y / (1 + s.a * s.h * x)
-        stochastic = self.stochastic
         return [
-            _change(x, s.r * x, 1, stochastic=stochastic),
-            _change(x, s.r * x**2 / s.K, -1, stochastic=stochastic),
-            _change(x, kills, -1, stochastic=stochastic),
-            _change(y, s.e * kills, 1, stochastic=stochastic),
-            _change(y, s.m * y, -1, stochastic=stochastic),
+            *self._get_change(prey, 1, s.r * x),
+            *self._get_change(prey, -1, s.r * x**2 / s.K),
+            *self._get_change(prey, -1, kills),
+            *self._get_change(predators, 1, s.e * kills),
+            *self._get_change(predators, -1, s.m * y),
         ]
 
 
