@@ -3385,9 +3385,9 @@ agents learn from their past.
   a run.
 - Learning blocks: `agent.lags(state, window)`, a method of the agent view a rule receives, returns the past values of a
   state declared with lags, `StateSpec(lags=m)`. In `skcomplex.models.economics.common.learning`, `heuristics` has
-  adaptive, trend-following, anchoring, and fundamentalist forecasts, `logit_choice` picks a strategy by past
-  performance, and `evolve` breeds the next generation of strategies with the model's random stream. `imitate`, in
-  `skcomplex.models.social.cooperation`, copies the best neighbour.
+  adaptive, trend-following, anchoring, and fundamentalist forecasts, and `logit_choice` picks a strategy by past
+  performance. `EvolutionInteraction`, in `skcomplex.core.interactions`, breeds the next generation of strategies with
+  the model's random stream. `imitate`, in `skcomplex.models.social.cooperation`, copies the best neighbour.
 
 ```python
 from typing import Annotated, ClassVar

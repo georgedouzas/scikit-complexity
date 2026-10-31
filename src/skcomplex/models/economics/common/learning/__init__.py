@@ -1,9 +1,8 @@
-"""Learning realizations shared by the economics packages: forecasting heuristics, logit choice, and evolution."""
+"""Learning realizations shared by the economics packages: forecasting heuristics and logit choice."""
 
-from ._learning import evolve, heuristics, logit_choice, logit_probabilities
+from ._learning import heuristics, logit_choice, logit_probabilities
 
 __all__: list[str] = [
-    'evolve',
     'heuristics',
     'logit_choice',
     'logit_probabilities',
