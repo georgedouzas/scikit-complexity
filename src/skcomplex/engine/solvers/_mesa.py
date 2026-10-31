@@ -194,6 +194,23 @@ class ModelView:
             return views
         return [item for item in views if isinstance(item, view)]
 
+    def groups(self, name: str) -> list[str]:
+        """Return the paths of the groups a role of the owner binds, or of a group by relative or absolute path.
+
+        Args:
+            name:
+                A role of the owner, the path of a group relative to the owner's system, or the path of a group.
+
+        Returns:
+            paths:
+                The paths of the groups.
+
+        Raises:
+            SimulationError:
+                No role or group has that name.
+        """
+        return self._paths(name)
+
     def count(self, name: str) -> int:
         """Return the number of agents of a group bound to a role of the owner, or of a group by path.
 

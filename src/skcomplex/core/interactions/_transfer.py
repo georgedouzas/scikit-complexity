@@ -360,15 +360,16 @@ class TransferInteraction(Interaction):
         """Return the partners of an actor by the pairing, or the number of them drawn at random."""
         if self.pairing == 'members':
             return [agent]
-        others = [
-            other for other in model.agents('source' if self.actor == 'target' else 'target') if other is not agent
-        ]
+        role = 'source' if self.actor == 'target' else 'target'
         if self.pairing == 'cell':
-            others = [other for other in others if other.location_key == agent.location_key]
-        elif self.pairing == 'neighbors':
+            groups = set(model.groups(role))
+            others = [other for other in agent.agents_here() if other.group in groups]
+        else:
+            others = [other for other in model.agents(role) if other is not agent]
+        if self.pairing == 'neighbors':
             cells = set(agent.neighbor_cells())
             others = [other for other in others if other.location_key in cells]
-        elif others:
+        elif self.pairing == 'random' and others:
             others = [others[int(model.rng.integers(len(others)))]]
         if self.partners is None or len(others) <= self.partners:
             return others

@@ -183,3 +183,25 @@ stock-and-flow delays `delay1`, `delay3`, and `smooth`, reductions keyed by a st
 #### Scenario: Hill function
 - **WHEN** a rate reads `hill(x, K, n)` at `x = K`
 - **THEN** it evaluates to one half
+
+### Requirement: Agent interactions run member by member
+An agent rule of an interaction SHALL be able to name the role whose members run it, so every member runs it in its own
+activation after the rules of its element and the member rules of the interactions listed before it. Movement,
+transfer, life cycle, transition, and map SHALL take the schedule `'member'` for this, transitions SHALL also take the
+sequential and random-sequential schedules in the agent form, and transitions SHALL let a member act on the members of
+its cell. Transfers SHALL let an actor draw partners of its cell, remove the eaten member, and move amounts into the site
+of a field at its cell, and the best step of a movement SHALL look along the directions of a lattice up to a vision.
+
+#### Scenario: Walker infects the cell it reaches
+- **WHEN** a walker's movement, a cell transition from sick to healthy walkers, and a death transition after a residence
+  run under the schedule `'member'`
+- **THEN** a walker infected earlier in a step walks on and infects the cell it reaches in the same step, as one rule of
+  the walker did
+
+#### Scenario: Wolf eats a sheep of its cell
+- **WHEN** a transfer from sheep to wolves pairs every wolf with one random sheep of its cell and removes it
+- **THEN** every wolf with a sheep in its cell gains its energy and the sheep is gone
+
+#### Scenario: Forager in sight of sugar
+- **WHEN** a best step with a vision of 3 scores the cells by their sugar
+- **THEN** the agent moves to the richest cell up to 3 cells along an axis, the nearest among ties

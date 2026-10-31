@@ -65,6 +65,15 @@ compose. Two laws with the same source, or a law that declares neither, stay an 
 updates the members one after the other, in increasing order of that expression, each reading the values set before
 it, which gives the sequential and random-order schedules of maps.
 
+### Agent interactions member by member
+An agent rule of an interaction can name the role whose `members` run it (`RuleLaw(function, members='target')`). The
+Mesa solver then runs it in the activation of every member of that role, after the rules of the member's element and
+the member rules of the interactions listed before it, with the model view of the interaction, so it keeps its roles
+and parameters. The agent forms take the schedule `'member'` for it, so one member's movement, transfers, transitions,
+and life cycle run together as one per-agent rule, composed by the order of the system's interactions, instead of a
+composite class that would have to hold the views of its parts. A field bound to a role is named `<role>.<state>` in
+`model.field` and `model.deposit`, and `model.groups(role)` gives the paths a role binds.
+
 ### The catalog of general interactions
 
 Continuous time:
@@ -82,7 +91,7 @@ Discrete time:
 
 | Class | Operation | Lowers to |
 | --- | --- | --- |
-| `MapInteraction(target, state, function, sources=(), mode='replace', schedule='synchronous', form='symbolic', phase=None)` | `x(t+1) = f(ns)`, or `x + f(ns)` in the `'increment'` mode, updated synchronously, sequentially, or in random order (`'random-sequential'`) | `UpdateLaw` with an `order`, or an agent `RuleLaw` |
+| `MapInteraction(target, state, function, sources=(), mode='replace', schedule='synchronous', form='symbolic', phase=None)` | `x(t+1) = f(ns)`, or `x + f(ns)` in the `'increment'` mode, updated synchronously, sequentially, in random order (`'random-sequential'`), or in every member's activation (`'member'`, agent form) | `UpdateLaw` with an `order`, or an agent `RuleLaw` |
 | `LocalRuleInteraction(target, state, rule, neighborhood)` | cellular automata from a rule table, a totalistic rule, or a function of the ordered neighbourhood | `LocalRuleLaw` |
 | `CascadeInteraction(target, state, threshold, mode, drive=None, neighborhood=None)` | drives, then relaxes every member at or above a threshold by reset, redistribution, or a random share, recording cascades as events | `CascadeLaw`, `DriveLaw`, `LocalRuleLaw` |
 
@@ -99,7 +108,7 @@ Events and discrete states:
 | --- | --- | --- |
 | `JumpInteraction(target, changes, rate=None, probability=None, waiting=None, reset=None)` | stochastic events that change states by signed amounts, at a rate, with a probability per step, or after drawn waiting times | `JumpLaw` |
 | `ReactionInteraction(JumpInteraction)(reactants, products, k, propensity=None, modifiers=(), mode='rate')` | mass action between species given as role and state, with real stoichiometry and modifiers that the propensity reads but the reaction does not consume, as rates, jumps, or Langevin noise | `RateLaw`, `JumpLaw`, `NoiseLaw` |
-| `TransitionInteraction(target, state, source, destination, rate=None, probability=None, condition=None, matrix=None, emission=None, observed=None, over='member', neighborhood=None, after=None, form='symbolic', phase=None)` | a discrete state moves between values at a rate, with a probability per step (combined over neighbours as `1 - prod(1 - p)`), when a condition holds, by a transition matrix, or by an emission matrix given another state, after a residence time (`residence(x)`) | `JumpLaw`, `UpdateLaw` with a `source`, `TransitionLaw`, `EmissionLaw`, or an agent `RuleLaw` |
+| `TransitionInteraction(target, state, source, destination, rate=None, probability=None, condition=None, matrix=None, emission=None, observed=None, over='member', neighborhood=None, after=None, schedule='synchronous', form='symbolic', phase=None)` | a discrete state moves between values at a rate, with a probability per step (combined over neighbours as `1 - prod(1 - p)`), when a condition holds, by a transition matrix, or by an emission matrix given another state, after a residence time (`residence(x)`); in the agent form members act on the members of their cell (`over='cell'`, `f(agent, other, model)`), under the synchronous, sequential, random-sequential, or member schedule | `JumpLaw`, `UpdateLaw` with a `source`, `TransitionLaw`, `EmissionLaw`, or an agent `RuleLaw` |
 | `SpreadingInteraction(TransitionInteraction)` | the active value of a state spreads along edges, with recovery and return | edge and member laws |
 | `EncounterInteraction(candidate, field, kernel, outcome)` | bilinear encounters over a density on activity classes, conservative, destructive, or proliferative | `EncounterLaw`, `DestructionLaw`, `ProliferationLaw` |
 | `CrossingInteraction(target, guard, reset=None, direction=0, terminal=False)` | an event when a guard crosses zero, which resets states or ends the run, once per member of a group whose guard reads the members | `CrossingLaw` |
@@ -119,9 +128,9 @@ Agents, groups, and exchange:
 
 | Class | Operation |
 | --- | --- |
-| `MovementInteraction(target, step, probability=1.0, rate=None, condition=None, accept=None, exclusive=False)` | moves agents by neighbour, Gaussian, Lévy, best-cell, or a user step |
-| `TransferInteraction(source, target, amount, pairing, legs=(), guard=None)` | moves amounts of states between members, cells, or a source and a sink, as a rate or as agent rules |
-| `LifeCycleInteraction(target, birth, death, offspring=1, placement='here', inherit=(), mutate=None)` | births by splitting or by condition, and deaths by condition |
+| `MovementInteraction(target, step, probability=1.0, rate=None, condition=None, accept=None, exclusive=False, score=None, cost=None, vision=None, schedule='random-sequential')` | moves agents by neighbour, Gaussian, Lévy, best-cell (along the axes up to a `vision`, nearest and first among ties), or a user step |
+| `TransferInteraction(source, target, amount, pairing, legs=(), guard=None, schedule='random-sequential', actor='source', partners=None, remove=None)` | moves amounts of states between members, cells, or a source and a sink, as a rate or as agent rules; actors draw `partners` of their cell, `remove` eats a member whole, and `pairing='site'` moves amounts into the field site under an agent |
+| `LifeCycleInteraction(target, birth, death, offspring=1, placement='here', inherit=(), mutate=None, schedule='random-sequential')` | births by splitting or by condition, and deaths by condition |
 | `GroupingInteraction(target, groups, act, size=2, capacity=None)` | draws pairs, a random partition, neighbourhoods, or groups by a chosen state each step, then acts on every group |
 | `MatchingInteraction(requesters, providers, rule, limit, quantity, budget, transfers, on_match)` | pairs requesters with providers by the algorithm its rule spec names, then transfers |
 | `FeedbackInteraction(rule)` | reads observables once per round and sets parameters |

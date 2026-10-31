@@ -13,12 +13,17 @@ from sage.sets.real_set import RealSet
 
 from ....analysis import DistributionAnalysis
 from ....core.elements import Element, GroupElement
-from ....core.interactions import FeedbackInteraction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import (
+    FeedbackInteraction,
+    LifeCycleInteraction,
+    MovementInteraction,
+    TransferInteraction,
+)
+from ....core.laws import BaseLaw, RuleLaw, Sink
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
-from ....errors import SpaceError
+from ....core.types import AgentViewProtocol, ModelViewProtocol
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
@@ -57,6 +62,89 @@ def landscape(width: int, height: int) -> Array:
     scale = min(width, height) / 50
     distance = np.min([np.hypot(x - px * width, y - py * height) for px, py in PEAKS], axis=0)
     return np.sum([distance < bound * scale for bound in BOUNDS], axis=0).astype(float)
+
+
+def _cell_of(location: object) -> tuple[int, int]:
+    """Return the cell of a location on the lattice."""
+    x, y = (int(item) for item in np.asarray(location, dtype=float))
+    return x, y
+
+
+def _get_patches(model: ModelViewProtocol) -> Mapping[tuple[int, int], SugarPatchView]:
+    """Return the patches by cell, built once per run in the storage of the movement."""
+    cached = model.storage.get('patches')
+    if not isinstance(cached, _PatchMapSpec):
+        patches = {
+            _cell_of(patch.location): patch for patch in model.agents('patches') if isinstance(patch, SugarPatchView)
+        }
+        cached = _PatchMapSpec(patches)
+        model.storage['patches'] = cached
+    return cached.patches
+
+
+def _get_sugar(agent: AgentViewProtocol, cell: object, model: ModelViewProtocol) -> float:
+    """Return the sugar of the patch of a cell, the score a forager maximizes."""
+    return float(_get_patches(model)[_cell_of(cell)].sugar)
+
+
+def _get_vision(agent: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return the number of cells a forager sees along every direction."""
+    return float(agent.vision) if isinstance(agent, ForagerView) else 0.0
+
+
+def _get_harvest(patch: AgentViewProtocol, forager: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return the whole sugar of the patch of a forager."""
+    return float(patch.sugar) if isinstance(patch, SugarPatchView) else 0.0
+
+
+def _get_metabolism(forager: AgentViewProtocol, other: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return the sugar a forager burns in a step."""
+    return float(forager.metabolism) if isinstance(forager, ForagerView) else 0.0
+
+
+def _is_starved(forager: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return whether the wealth of a forager has fallen below zero."""
+    return isinstance(forager, ForagerView) and forager.sugar < 0
+
+
+def _get_foraging() -> list[MovementInteraction | TransferInteraction | LifeCycleInteraction]:
+    """Return the member interactions of a forager: move to the best cell in sight, harvest, burn, and starve."""
+    return [
+        MovementInteraction(
+            'search',
+            target='foragers',
+            step='best',
+            score=_get_sugar,
+            vision=_get_vision,
+            exclusive=True,
+            schedule='member',
+            phase='foraging',
+        ),
+        TransferInteraction(
+            'harvest',
+            source='patches',
+            target='foragers',
+            state='sugar',
+            amount=_get_harvest,
+            pairing='cell',
+            form='agent',
+            actor='target',
+            schedule='member',
+            phase='foraging',
+        ),
+        TransferInteraction(
+            'metabolism',
+            source='foragers',
+            target='foragers',
+            state='sugar',
+            into=Sink(),
+            amount=_get_metabolism,
+            form='agent',
+            schedule='member',
+            phase='foraging',
+        ),
+        LifeCycleInteraction('starvation', target='foragers', death=_is_starved, schedule='member', phase='foraging'),
+    ]
 
 
 class SugarPatchElement(Element):
@@ -132,9 +220,10 @@ class SugarPatchElement(Element):
 class ForagerElement(Element):
     """Agent that moves to the richest free cell in sight, harvests its sugar, burns its metabolism, and may starve.
 
-    A forager sees `vision` cells along each of the four lattice directions and moves to the free cell with the most
-    sugar, the nearest among equals, or stays when no cell in sight beats its own. It dies when its wealth falls
-    below zero. The class attribute `patches` names the path of the group of patches.
+    In its own activation, a forager sees `vision` cells along each of the four lattice directions and moves to the
+    free cell with the most sugar, the nearest among equals, or stays when no cell in sight beats its own, by a
+    `MovementInteraction` of the best step with a vision. Transfers then harvest the sugar of its cell and burn its
+    metabolism, and a `LifeCycleInteraction` removes it when its wealth falls below zero.
 
     Args:
         label:
@@ -172,74 +261,10 @@ class ForagerElement(Element):
         self.vision = vision
         self.metabolism = metabolism
 
-    patches: ClassVar[str] = 'patches'
-
     @classmethod
     def _get_view(cls) -> type[ForagerView]:
         """Return the view of a forager, with its sugar, vision, and metabolism."""
         return ForagerView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the foraging rule in the phase of foraging.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.forage, phase='foraging')]
-
-    @staticmethod
-    def _cell_of(agent: AgentView) -> tuple[int, int]:
-        """Return the cell of an agent on the lattice."""
-        location = agent.location
-        if not isinstance(location, tuple):
-            error_msg = f'Agent {agent.id} of {agent.group} lives on no lattice cell.'
-            raise SpaceError(error_msg)
-        x, y = location
-        return int(x), int(y)
-
-    def _patch_map(self, model: ModelView) -> Mapping[tuple[int, int], SugarPatchView]:
-        """Return the patches by cell, built once per run in the storage of the foragers."""
-        cached = model.storage.get('patches')
-        if not isinstance(cached, _PatchMapSpec):
-            patches = {self._cell_of(patch): patch for patch in model.agents(self.patches, SugarPatchView)}
-            cached = _PatchMapSpec(patches)
-            model.storage['patches'] = cached
-        return cached.patches
-
-    def forage(self, agent: ForagerView, model: ModelView) -> None:
-        """Move to the best free cell in sight, harvest it, and starve when the wealth falls below zero.
-
-        Args:
-            agent:
-                The forager.
-
-            model:
-                The model.
-        """
-        patches = self._patch_map(model)
-        x, y = self._cell_of(agent)
-        best, best_sugar, best_distance = (x, y), patches[x, y].sugar, 0
-        for dx, dy in DIRECTIONS:
-            for distance in range(1, int(agent.vision) + 1):
-                cell = (x + distance * dx, y + distance * dy)
-                patch = patches.get(cell)
-                if patch is None:
-                    break
-                better = patch.sugar > best_sugar or (patch.sugar == best_sugar and distance < best_distance)
-                if better and not patch.agents_here(agent.group):
-                    best, best_sugar, best_distance = cell, patch.sugar, distance
-        if best != (x, y):
-            agent.move_to(best)
-        patch = patches[best]
-        agent.sugar += patch.sugar - agent.metabolism
-        patch.sugar = 0.0
-        if agent.sugar < 0:
-            agent.remove()
 
 
 class ForagerCensusInteraction(FeedbackInteraction[ModelView]):
@@ -377,7 +402,7 @@ def sugarscape(
     )
     return System(
         elements=[patches, foragers],
-        interactions=[ForagerCensusInteraction('census', foragers='foragers', phase='growth')],
+        interactions=[*_get_foraging(), ForagerCensusInteraction('census', foragers='foragers', phase='growth')],
         space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'),
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('foraging'), PhaseSpec('growth')])),
     )

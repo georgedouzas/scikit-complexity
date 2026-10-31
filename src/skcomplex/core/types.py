@@ -175,6 +175,9 @@ class ModelViewProtocol(Protocol):
     def torus(self) -> bool:
         """Whether the agent space wraps around at its edges."""
 
+    def groups(self, name: str) -> list[str]:
+        """Return the paths of the groups a role of the owner binds, or of a group by path."""
+
     def parameter(self, name: str) -> float:
         """Return the current value of a parameter of the owner."""
 

@@ -5,9 +5,9 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.elements import Element, FieldElement, GroupElement
 from skcomplex.core.interactions import TransferInteraction
-from skcomplex.core.laws import Sink, Source
+from skcomplex.core.laws import RateLaw, Sink, Source
 from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
@@ -275,3 +275,45 @@ def test_transfer_actors_take_one_partner_of_their_cell_and_remove_it():
     assert len(trajectory.agents('prey', 1).values['level']) == 2
     assert len(trajectory.agents('prey', 2).values['level']) == 1
     assert trajectory.agents('hunters', 2).values['level'].tolist() == [10.0, 0.0]
+
+
+class LevelElement(Element):
+    """Field element whose level stays as it is."""
+
+    def __init__(
+        self, label: str, visual: VisualSpec | None = None, *, u: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+
+    def _get_laws(self, s):
+        """Return the still rate of the level."""
+        return [RateLaw(s.u, 0 * s.u)]
+
+
+@pytest.mark.parametrize('schedule', ['random-sequential', 'member'])
+def test_transfer_site_deposits_from_the_agents_into_the_field_at_their_cells(schedule):
+    """Test that every source agent moves its amount into the site of the target field at its cell."""
+    markers = GroupElement('markers', element=StockElement, size=2, values={'level': 10.0}, location=[(1, 2), (0, 0)])
+    marking = TransferInteraction(
+        'marking',
+        source='walkers/markers',
+        target='ground/level',
+        state='level',
+        into='u',
+        amount=1.0,
+        pairing='site',
+        form='agent',
+        schedule=schedule,
+    )
+    system = System(
+        systems=[
+            System('walkers', elements=[markers], space=LatticeSpace((4, 3))),
+            System('ground', elements=[FieldElement('level', element=LevelElement, space=LatticeSpace((4, 3)))]),
+        ],
+        interactions=[marking],
+    )
+    trajectory = Simulation(system, dt=1).check().prepare().run(until=3).trajectory_
+    level = trajectory.lattice('ground/level.u')[-1]
+    assert (level[1, 2], level[0, 0], level.sum()) == (3.0, 3.0, 6.0)
+    assert trajectory.agents('walkers/markers', 3).values['level'].tolist() == [7.0, 7.0]

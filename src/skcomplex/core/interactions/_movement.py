@@ -39,7 +39,8 @@ class MovementInteraction(Interaction):
     - `'best'` moves an agent to the cell or node next to its own with the highest `score(agent, cell, model)`, ties
       broken at random. With a `vision`, a number or a function of the agent and the model view, it looks instead
       along every direction of the neighbourhood of a lattice up to that many cells, and at the cell of the agent, and
-      moves to the cell of the highest score, the nearest of them among ties.
+      moves to the cell of the highest score, the nearest of them among ties, and the first of those in the order of
+      the axes, the positive direction first.
     - A function `step(agent, model)` returns the destination, or `None` to stay.
 
     An agent for which `condition(agent, model)` holds attempts one step every step of time, or a Poisson number of
@@ -213,14 +214,14 @@ class MovementInteraction(Interaction):
         model: ModelViewProtocol,
         distances: list[int] | None = None,
     ) -> object:
-        """Return the cell of the highest score, the nearest among ties, drawn at random among equally near ones."""
+        """Return the cell of the highest score, drawn at random among ties, or the nearest and first one in sight."""
         if self.score is None or not cells:
             return None
         scores = np.asarray([self.score(agent, cell, model) for cell in cells], dtype=float)
         best = np.flatnonzero(scores == scores.max())
         if distances is not None:
             near = np.asarray([distances[int(index)] for index in best])
-            best = best[near == near.min()]
+            return cells[int(best[near == near.min()][0])]
         return cells[int(best[int(model.rng.integers(len(best)))])]
 
     @staticmethod
@@ -245,8 +246,11 @@ class MovementInteraction(Interaction):
         sizes = [int(item) for item in model.dimensions or ()]
         cells: list[object] = [agent.location_key]
         distances = [0]
-        for neighbor in agent.neighbor_cells():
-            shift = self._shift(here, tuple(int(item) for item in np.atleast_1d(np.asarray(neighbor))), model)
+        shifts = [
+            self._shift(here, tuple(int(item) for item in np.atleast_1d(np.asarray(neighbor))), model)
+            for neighbor in agent.neighbor_cells()
+        ]
+        for shift in sorted(shifts, key=lambda step: tuple((item == 0, -item) for item in step)):
             for distance in range(1, reach + 1):
                 point = [a + distance * d for a, d in zip(here, shift, strict=True)]
                 if model.torus:
