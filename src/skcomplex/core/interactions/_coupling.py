@@ -112,7 +112,7 @@ class CouplingInteraction(NeighborInteraction):
         >>> sine = lambda s: sin(s.other.theta - s.member.theta)
         >>> coupling = CouplingInteraction('coupling', nodes='oscillators', read='theta', write='theta', function=sine)
         >>> [law.value for law in coupling.check().prepare().run(SimpleNamespace(source=source, target=target)).laws_]
-        [-sin(-a + b), sin(-a + b)]
+        [sin(a - b), sin(-a + b)]
     """
 
     def __init__(

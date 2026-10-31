@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import arcsinh, exp, oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import GroupElement
-from skcomplex.core.interactions import ConstantForceInteraction, DampingInteraction, PairCouplingInteraction
+from skcomplex.core.interactions import PairCouplingInteraction
 from skcomplex.core.laws.utils import where
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
@@ -26,6 +26,8 @@ from skcomplex.models.biology.ecology import (
 )
 from skcomplex.models.physics.common.particles import (
     LAMMPS_FIXES,
+    ConstantForceInteraction,
+    DampingInteraction,
     HarmonicPotentialInteraction,
     LangevinThermostatInteraction,
     LennardJonesInteraction,
@@ -248,9 +250,9 @@ def test_lammps_walls_confine_atoms_on_their_own():
 @pytest.mark.parametrize(
     'interaction',
     [
-        HarmonicPotentialInteraction('trap', velocity='x_d1', target='gas', k=2.0, center=[6.0, 6.0]),
-        ConstantForceInteraction('push', velocity='x_d1', target='gas', F=[0.5, -0.2]),
-        DampingInteraction('air', velocity='x_d1', target='gas', gamma=0.3),
+        HarmonicPotentialInteraction('trap', target='gas', k=2.0, center=[6.0, 6.0]),
+        ConstantForceInteraction('push', target='gas', F=[0.5, -0.2]),
+        DampingInteraction('air', target='gas', gamma=0.3),
     ],
     ids=['external', 'addforce', 'viscous'],
 )
@@ -269,7 +271,7 @@ def test_lammps_thermostat_temperature_changes_live():
         elements=gas.elements,
         interactions=[
             *gas.interactions,
-            LangevinThermostatInteraction('bath', state='x_d1', target='gas', temperature=1.0, gamma=2.0),
+            LangevinThermostatInteraction('bath', target='gas', temperature=1.0, gamma=2.0),
         ],
         space=gas.space,
     )

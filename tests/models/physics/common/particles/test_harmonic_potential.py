@@ -13,7 +13,7 @@ def test_harmonic_potential_oscillates_about_its_center():
     """Test that a particle in a harmonic trap oscillates about the center at the angular frequency `sqrt(k / m)`."""
     system = System(
         elements=[MassPointElement('ball', x=[2.0], m=2.0)],
-        interactions=[HarmonicPotentialInteraction('trap', velocity='x_d1', target='ball', k=8.0, center=1.0)],
+        interactions=[HarmonicPotentialInteraction('trap', target='ball', k=8.0, center=1.0)],
         space=ContinuousSpace(n_dim=1),
     )
     trajectory = (

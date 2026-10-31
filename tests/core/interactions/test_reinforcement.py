@@ -1,0 +1,117 @@
+"""Test the `_reinforcement` module of `skcomplex.core.interactions`."""
+
+from typing import Annotated
+
+import numpy as np
+import pytest
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import ChoiceInteraction, ReinforcementInteraction
+from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation, Trajectory
+from skcomplex.engine.solvers import AgentView, ModelView
+from skcomplex.errors import ValidationError
+from skcomplex.specs import StateSpec, VisualSpec
+
+
+class LearnerView(AgentView):
+    """View of a learner, with its choice, the scores of its two options, and its value of option 1."""
+
+    choice: float
+    first: float
+    second: float
+    value: float
+
+
+class LearnerElement(Element):
+    """Member with a choice, the scores of two options, and a value of option 1."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        choice: Annotated[float, StateSpec()] = 0.0,
+        first: Annotated[float, StateSpec()] = 0.0,
+        second: Annotated[float, StateSpec()] = 0.0,
+        value: Annotated[float, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.choice = choice
+        self.first = first
+        self.second = second
+        self.value = value
+
+    @classmethod
+    def _get_view(cls) -> type[LearnerView]:
+        """Return the view of a learner, which types its states."""
+        return LearnerView
+
+
+def _run(interactions: list, values: dict, size: int, until: int) -> Trajectory:
+    """Return the trajectory of a group of learners bound to interactions."""
+    group = GroupElement('learners', element=LearnerElement, size=size, values=values)
+    system = System(elements=[group], interactions=interactions, time=DiscreteTime())
+    return Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
+
+
+def _agent_payoff(agent: LearnerView, model: ModelView, index: int) -> float:
+    """Return the value of option 1 for option 1 and one for option 0."""
+    return agent.value if index == 1 else 1.0
+
+
+def test_reinforcement_interaction_moves_scores_as_a_weighted_mean_of_payoffs():
+    """Test that scores follow `s <- s + a (P - s)` towards constant payoffs."""
+    reinforcement = ReinforcementInteraction(
+        'reinforcement',
+        target='learners',
+        scores=('first', 'second'),
+        payoff=lambda s, index: s.target.value * index,
+        rate=0.25,
+    )
+    trajectory = _run([reinforcement], {'value': np.array([2.0, 4.0])}, 2, 5)
+    expected = 1 - 0.75 ** np.arange(6)
+    assert np.allclose(trajectory.values('learners.first'), 0.0)
+    assert np.allclose(trajectory.values('learners.second'), np.outer(expected, [2.0, 4.0]))
+
+
+def test_reinforcement_interaction_agent_scores_steer_a_best_choice():
+    """Test that agents choosing the option of best score learn to take the option of larger payoff."""
+    reinforcement = ReinforcementInteraction(
+        'reinforcement',
+        target='learners',
+        scores=('first', 'second'),
+        payoff=_agent_payoff,
+        rate=0.5,
+        form='agent',
+    )
+    choice = ChoiceInteraction(
+        'choice',
+        target='learners',
+        state='choice',
+        options=(0, 1),
+        utility=lambda agent, model, option: agent.second if option == 1 else agent.first,
+        rule='best',
+        form='agent',
+    )
+    trajectory = _run([reinforcement, choice], {'value': np.array([0.5, 3.0])}, 2, 4)
+    frame = trajectory.agents('learners', 4).values
+    assert frame['choice'].tolist() == [0.0, 1.0]
+    assert frame['second'].tolist() == pytest.approx([0.5 * (1 - 0.5**4), 3.0 * (1 - 0.5**4)])
+
+
+@pytest.mark.parametrize(
+    ('arguments', 'message'),
+    [
+        ({'form': 'table'}, 'Unknown form'),
+        ({'scores': 'first'}, 'sequence of state names'),
+        ({'scores': ()}, 'sequence of state names'),
+        ({'payoff': 1.0}, 'must be callable'),
+    ],
+)
+def test_check_rejects_invalid_arguments(arguments, message):
+    """Test that an unknown form, missing scores, or a payoff that is not callable is rejected."""
+    values = {'target': 'learners', 'scores': ('first', 'second'), 'payoff': lambda s, k: k, **arguments}
+    with pytest.raises(ValidationError, match=message):
+        ReinforcementInteraction('reinforcement', **values).check()

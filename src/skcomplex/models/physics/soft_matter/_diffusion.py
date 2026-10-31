@@ -386,7 +386,7 @@ def brownian_motion(
         values={'x': np.zeros((n_particles, n_dim)), 'x_d1': velocities, 'm': m},
         visual=POINTS,
     )
-    bath = LangevinThermostatInteraction('bath', state='x_d1', target='beads', temperature=kT, gamma=gamma)
+    bath = LangevinThermostatInteraction('bath', target='beads', temperature=kT, gamma=gamma)
     return System(elements=[beads], interactions=[bath], space=space)
 
 

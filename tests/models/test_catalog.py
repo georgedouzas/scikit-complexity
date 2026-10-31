@@ -209,9 +209,9 @@ def test_jacobian_pattern_holds_finite_differences(entry):
 @pytest.mark.slow
 def test_default_runs_of_a_stochastic_model_repeat():
     """Test that default catalog runs repeat, for random initial conditions and for stochastic dynamics."""
-    gas = run('ideal_gas').trajectory_.values('gas.v')
-    np.testing.assert_array_equal(gas, run('ideal_gas').trajectory_.values('gas.v'))
-    assert not np.array_equal(gas, run('ideal_gas', random_state=None).trajectory_.values('gas.v'))
+    gas = run('ideal_gas').trajectory_.values('gas.x_d1')
+    np.testing.assert_array_equal(gas, run('ideal_gas').trajectory_.values('gas.x_d1'))
+    assert not np.array_equal(gas, run('ideal_gas', random_state=None).trajectory_.values('gas.x_d1'))
     counts = run('poisson_process').trajectory_.values('counters.count')
     np.testing.assert_array_equal(counts, run('poisson_process').trajectory_.values('counters.count'))
     fresh = run('poisson_process', settings={'random_state': None}).trajectory_.values('counters.count')

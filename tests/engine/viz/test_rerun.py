@@ -11,7 +11,6 @@ import rerun as rr
 from sage.all__sagemath_symbolics import CC, I
 
 from skcomplex.core.elements import Element, FieldElement, GroupElement
-from skcomplex.core.interactions import ConstantForceInteraction
 from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
@@ -30,7 +29,7 @@ from skcomplex.engine.viz import (
 from skcomplex.models import create, describe
 from skcomplex.models.biology.ecology import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.models.computer_science.automata import game_of_life
-from skcomplex.models.physics.common.particles import MassPointElement
+from skcomplex.models.physics.common.particles import ConstantForceInteraction, MassPointElement
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.models.social.opinion_dynamics import voter_model
 from skcomplex.models.social.segregation import schelling
@@ -100,7 +99,7 @@ def test_points_visual_logs_positions(n_dim, archetype):
     """Test that positions are logged as points of their dimension."""
     system = System(
         elements=[MassPointElement('ball')],
-        interactions=[ConstantForceInteraction('push', velocity='x_d1', target='ball', F=1.0)],
+        interactions=[ConstantForceInteraction('push', target='ball', F=1.0)],
         space=ContinuousSpace(n_dim=n_dim),
     )
     simulation = Simulation(system).check().prepare().run(until=0.0)

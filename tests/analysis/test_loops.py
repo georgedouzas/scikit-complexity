@@ -67,7 +67,7 @@ def test_repressilator_closes_one_balancing_loop_of_three_repressions():
 def test_states_of_second_order_link_through_their_velocity():
     """Test that the position and velocity of an oscillator close one balancing loop with the gain `-k / m`."""
     analysis = _loops(harmonic_oscillator())
-    assert _found(analysis) == {('mass.v[0]', 'mass.x[0]'): 'balancing'}
+    assert _found(analysis) == {('mass.x[0]', 'mass.x_d1[0]'): 'balancing'}
     assert analysis.gains_ == pytest.approx([-1.0])
 
 

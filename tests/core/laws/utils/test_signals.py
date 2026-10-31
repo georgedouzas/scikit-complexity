@@ -4,13 +4,15 @@ from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.laws.utils import series
+from skcomplex.core.laws.utils import pulse_train, series
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
+from skcomplex.errors import ValidationError
 from skcomplex.specs import StateSpec, VisualSpec
 
 
@@ -56,3 +58,20 @@ def test_series_interpolates_long_linear_data(backend):
     rates = [problem.drift(time, problem.initial_state, problem.initial_parameters)[0] for time in probes]
     np.testing.assert_allclose(rates, np.interp(probes, times, values), rtol=0, atol=1e-12)
     assert problem.breakpoints.between(-1.0, 1000.0) == list(times)
+
+
+@pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
+def test_pulse_train_with_a_count_stops_after_its_last_pulse(backend):
+    """Test that a pulse train of three pulses matches the pulses of NumPy and is 0 after the third."""
+    problem = compile_system(_driven_by(lambda t: pulse_train(t, 4, 1, 2.0, start=1, count=3)), backend=backend)
+    probes = np.linspace(0.0, 20.0, 401)
+    rates = [problem.drift(time, problem.initial_state, problem.initial_parameters)[0] for time in probes]
+    expected = np.where((probes >= 1) & (probes < 13) & (np.mod(probes - 1, 4) < 1), 2.0, 0.0)
+    np.testing.assert_allclose(rates, expected, rtol=0, atol=1e-12)
+
+
+@pytest.mark.parametrize('count', [0, 1.5, True])
+def test_pulse_train_rejects_a_count_that_is_not_a_positive_integer(count):
+    """Test that a pulse train with a count that is not a positive integer raises an error."""
+    with pytest.raises(ValidationError, match='positive integer'):
+        pulse_train(var('t'), 4, 1, count=count)

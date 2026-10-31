@@ -458,7 +458,7 @@ def test_velocity_verlet_conserves_energy(backend, numba_backend):
     """Test that velocity Verlet keeps the energy of an oscillator within 1e-3 over 1000 time units."""
     system = System(
         elements=[GroupElement('p', element=MassPointElement, size=1, values={'x': [[1.0]], 'x_d1': [[0.0]]})],
-        interactions=[HarmonicPotentialInteraction('trap', velocity='x_d1', target='p')],
+        interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
     simulation = (

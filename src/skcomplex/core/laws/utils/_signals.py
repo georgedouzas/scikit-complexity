@@ -8,6 +8,7 @@ from collections.abc import Sequence
 
 from sage.all__sagemath_symbolics import SR, Expression
 
+from ....errors import ValidationError
 from ._conditions import both, mod, where
 
 
@@ -114,7 +115,15 @@ def pulse(t: Expression, start: float, width: float, height: float = 1.0) -> Exp
     return where(both(t >= start, t < start + width), height, 0)
 
 
-def pulse_train(t: Expression, period: float, width: float, height: float = 1.0, start: float = 0.0) -> Expression:
+def pulse_train(
+    t: Expression,
+    period: float,
+    width: float,
+    height: float = 1.0,
+    start: float = 0.0,
+    *,
+    count: int | None = None,
+) -> Expression:
     """Return a periodic train of rectangular pulses, each of a width, starting at `start`.
 
     Args:
@@ -133,9 +142,16 @@ def pulse_train(t: Expression, period: float, width: float, height: float = 1.0,
         start:
             The time of the first pulse.
 
+        count:
+            The number of pulses, or `None` for a train that never ends.
+
     Returns:
         input:
             The symbolic input.
+
+    Raises:
+        ValidationError:
+            The count is not a positive integer.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -143,8 +159,15 @@ def pulse_train(t: Expression, period: float, width: float, height: float = 1.0,
         >>> t = var('t')
         >>> [float(pulse_train(t, 10, 1).subs({t: time})) for time in (0.5, 5, 20.5)]
         [1.0, 0.0, 1.0]
+        >>> [float(pulse_train(t, 10, 1, count=2).subs({t: time})) for time in (10.5, 20.5)]
+        [1.0, 0.0]
     """
-    return where(both(t >= start, mod(t - start, period) < width), height, 0)
+    if count is None:
+        return where(both(t >= start, mod(t - start, period) < width), height, 0)
+    if isinstance(count, bool) or not isinstance(count, int) or count < 1:
+        error_msg = f'A pulse train takes a positive integer count of pulses or None, but got {count!r}.'
+        raise ValidationError(error_msg)
+    return where(both(t >= start, t < start + count * period, mod(t - start, period) < width), height, 0)
 
 
 def series(t: Expression, times: Sequence[float], values: Sequence[float], kind: str = 'linear') -> Expression:

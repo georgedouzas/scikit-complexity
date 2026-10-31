@@ -1,4 +1,4 @@
-"""Define flux laws, the physical fluxes of the conserved states of finite-volume fields."""
+"""Define flux laws, the fluxes of the conserved states of finite-volume fields."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +15,7 @@ RIEMANN_SOLVERS = ('rusanov', 'godunov')
 
 
 class FluxLaw(BaseLaw):
-    """Physical flux of a conserved state of a finite-volume field, `du/dt + divergence(flux) = 0`.
+    """Flux of a conserved state of a finite-volume field, `du/dt + divergence(flux) = 0`.
 
     The flux is a symbolic expression of the field's states for one dimension, or one expression per dimension. The
     states of a field with fluxes form a system of conservation laws, whose wave speeds come from the eigenvalues of

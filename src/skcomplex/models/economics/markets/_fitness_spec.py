@@ -10,7 +10,7 @@ from ....specs import BaseSpec
 
 @dataclass(frozen=True)
 class _FitnessSpec(BaseSpec):
-    """Fitness of every heuristic at one time, which the traders read once per step and keep in the storage.
+    """Fitness of every heuristic at one time, which the traders' choice reads once per step and keeps.
 
     Args:
         time:

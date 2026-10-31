@@ -149,7 +149,7 @@ def two_body_orbit(
             MassPointElement('star', m=mass),
             MassPointElement('planet', x=[radius, 0.0], x_d1=[0.0, speed], m=1e-6),
         ],
-        interactions=[GravityInteraction('gravity', velocity='x_d1', first='star', second='planet', G=G)],
+        interactions=[GravityInteraction('gravity', first='star', second='planet', G=G)],
         space=ContinuousSpace(n_dim=2),
     )
 
@@ -216,7 +216,6 @@ def n_body(
     attractions = [
         GravityInteraction(
             f'gravity_{first}_{second}',
-            velocity='x_d1',
             first=f'body_{first}',
             second=f'body_{second}',
             G=G,

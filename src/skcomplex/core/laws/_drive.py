@@ -14,7 +14,7 @@ from ._base import BaseLaw
 
 
 class DriveLaw(BaseLaw):
-    """Change of a whole lattice state at once, such as dropping a grain on a random site.
+    """Change of a whole lattice state at once by a function of its array, such as adding 1 at a random site.
 
     The function receives the state as an array of the lattice shape, keyword arguments for the parameters of the
     element that it names, and `random`, the random generator of the simulation, and returns the new array.

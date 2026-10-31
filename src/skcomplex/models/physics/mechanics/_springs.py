@@ -9,13 +9,13 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import cos, oo
 from sage.sets.real_set import RealSet
 
-from ....core.interactions import DampingInteraction, Interaction
+from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec
 from ..._catalog import register_model
-from ..common.particles import HarmonicPotentialInteraction, MassPointElement, SpringInteraction
+from ..common.particles import DampingInteraction, HarmonicPotentialInteraction, MassPointElement, SpringInteraction
 
 
 class HarmonicForceInteraction(Interaction):
@@ -128,11 +128,11 @@ def two_mass_spring_damper(
     return System(
         elements=[MassPointElement('first', x=x1, x_d1=0.0, m=m1), MassPointElement('second', x=x2, x_d1=0.0, m=m2)],
         interactions=[
-            HarmonicPotentialInteraction('left_spring', velocity='x_d1', target='first', k=k1, center=rest1),
-            HarmonicPotentialInteraction('right_spring', velocity='x_d1', target='second', k=k2, center=rest2),
-            SpringInteraction('middle_spring', velocity='x_d1', first='first', second='second', k=k, length=l2),
-            DampingInteraction('first_damper', velocity='x_d1', target='first', gamma=b1),
-            DampingInteraction('second_damper', velocity='x_d1', target='second', gamma=b2),
+            HarmonicPotentialInteraction('left_spring', target='first', k=k1, center=rest1),
+            HarmonicPotentialInteraction('right_spring', target='second', k=k2, center=rest2),
+            SpringInteraction('middle_spring', first='first', second='second', k=k, length=l2),
+            DampingInteraction('first_damper', target='first', gamma=b1),
+            DampingInteraction('second_damper', target='second', gamma=b2),
             HarmonicForceInteraction('first_force', target='first', F=F1, omega=omega1),
             HarmonicForceInteraction('second_force', target='second', F=F2, omega=omega2),
         ],

@@ -22,7 +22,7 @@ from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
-from ..common.learning import heuristics
+from ..common.forecasting import heuristics
 from ._patron_view import PatronView
 from ._pool_spec import _PoolSpec
 

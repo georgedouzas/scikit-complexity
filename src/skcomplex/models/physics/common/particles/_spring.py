@@ -9,14 +9,14 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from .....core.interactions import PotentialInteraction
 from .....specs import ParameterSpec, RoleSpec
+from ._potential_energy import PotentialEnergyInteraction
 
 
-class SpringInteraction(PotentialInteraction):
+class SpringInteraction(PotentialEnergyInteraction):
     """Spring between two particles.
 
-    The energy is `k * (|x_first - x_second| - length)**2 / 2`.
+    The energy is `k * (|x_first - x_second| - length)**2 / 2`, and its gradient moves both particles.
 
     Args:
         label:
@@ -34,13 +34,10 @@ class SpringInteraction(PotentialInteraction):
         length:
             The rest length.
 
-        position:
+        states:
             The name of the vector state that holds the positions of the particles.
 
-        velocity:
-            The name of the vector state that holds the velocities of the particles.
-
-        mass:
+        divisor:
             The name of the state or parameter that holds the masses of the particles.
 
     Examples:
@@ -57,17 +54,16 @@ class SpringInteraction(PotentialInteraction):
         second: Annotated[str, RoleSpec()],
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         length: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        position: str = 'x',
-        velocity: str = 'v',
-        mass: str = 'm',
+        states: str = 'x',
+        divisor: str = 'm',
     ) -> None:
-        super().__init__(label, position=position, velocity=velocity, mass=mass)
+        super().__init__(label, target=first, states=states, divisor=divisor)
         self.first = first
         self.second = second
         self.k = k
         self.length = length
 
-    def _get_energy(self, s: SimpleNamespace) -> Expression:
+    def _get_potential(self, s: SimpleNamespace) -> Expression:
         """Return `k * (|x_first - x_second| - length)**2 / 2`.
 
         Args:
@@ -78,5 +74,5 @@ class SpringInteraction(PotentialInteraction):
             energy:
                 The potential energy as a symbolic expression.
         """
-        gap = getattr(s.first, self.position) - getattr(s.second, self.position)
+        gap = getattr(s.first, self._get_names()[0]) - getattr(s.second, self._get_names()[0])
         return s.k * (sqrt(gap.dot_product(gap)) - s.length) ** 2 / 2

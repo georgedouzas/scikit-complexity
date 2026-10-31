@@ -13,7 +13,7 @@ def test_spring_conserves_energy():
     """Test that two particles joined by a spring keep their total energy."""
     system = System(
         elements=[MassPointElement('a', x=[0.0, 0.0], x_d1=[0.0, 1.0]), MassPointElement('b', x=[2.0, 0.0], m=2.0)],
-        interactions=[SpringInteraction('spring', velocity='x_d1', first='a', second='b', k=3.0, length=1.0)],
+        interactions=[SpringInteraction('spring', first='a', second='b', k=3.0, length=1.0)],
         space=ContinuousSpace(n_dim=2),
     )
     trajectory = (

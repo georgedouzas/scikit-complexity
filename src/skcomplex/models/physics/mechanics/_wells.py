@@ -9,15 +9,14 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.interactions import PotentialInteraction
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec
 from ..._catalog import register_model
-from ..common.particles import MassPointElement
+from ..common.particles import MassPointElement, PotentialEnergyInteraction
 
 
-class ExponentialWellInteraction(PotentialInteraction):
+class ExponentialWellInteraction(PotentialEnergyInteraction):
     """Potential `k x² e^-x` on a particle in one dimension, a well at `x = 0` behind a barrier at `x = 2`.
 
     Args:
@@ -43,11 +42,10 @@ class ExponentialWellInteraction(PotentialInteraction):
         target: Annotated[str, RoleSpec()],
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
     ) -> None:
-        super().__init__(label, velocity='x_d1')
-        self.target = target
+        super().__init__(label, target=target)
         self.k = k
 
-    def _get_energy(self, s: SimpleNamespace) -> Expression:
+    def _get_potential(self, s: SimpleNamespace) -> Expression:
         """Return `k x² e^-x`.
 
         Args:

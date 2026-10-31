@@ -85,3 +85,86 @@ def distributed_delay(value: object, time: object, order: int = 1, *, conserved:
         error_msg = f'The delay time of {name} must be positive, but got {time}.'
         raise ValueError(error_msg)
     return function(name, nargs=2, eval_func=_eval_delay)(value, time)
+
+
+def delay1(value: object, time: object) -> Expression:
+    """Return the outflow of a first-order material delay of an inflow, one hidden stock emptied at `stock / time`.
+
+    Args:
+        value:
+            The symbolic inflow.
+
+        time:
+            The mean delay time, a positive number or an expression of parameters.
+
+    Returns:
+        output:
+            The symbolic outflow.
+
+    Raises:
+        ValueError:
+            The delay time is a number that is not positive.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.laws.utils import delay1
+        >>> delay1(var('inflow'), 4)
+        material_delay1(inflow, 4)
+    """
+    return distributed_delay(value, time, 1)
+
+
+def delay3(value: object, time: object) -> Expression:
+    """Return the outflow of a third-order material delay, three hidden stocks in series each with a third of the time.
+
+    The response to a pulse is the Erlang distribution of order 3 with the mean `time`.
+
+    Args:
+        value:
+            The symbolic inflow.
+
+        time:
+            The mean delay time, a positive number or an expression of parameters.
+
+    Returns:
+        output:
+            The symbolic outflow.
+
+    Raises:
+        ValueError:
+            The delay time is a number that is not positive.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.laws.utils import delay3
+        >>> delay3(var('inflow'), 6)
+        material_delay3(inflow, 6)
+    """
+    return distributed_delay(value, time, 3)
+
+
+def smooth(value: object, time: object) -> Expression:
+    """Return the first-order exponential smoothing of a value, a hidden stock that adjusts at `gap / time`.
+
+    Args:
+        value:
+            The symbolic value.
+
+        time:
+            The smoothing time, a positive number or an expression of parameters.
+
+    Returns:
+        output:
+            The symbolic smoothed value, which starts at the value.
+
+    Raises:
+        ValueError:
+            The smoothing time is a number that is not positive.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.laws.utils import smooth
+        >>> smooth(var('signal'), 2)
+        smoothing_delay1(signal, 2)
+    """
+    return distributed_delay(value, time, 1, conserved=False)

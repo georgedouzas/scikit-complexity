@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import GroupElement
-from skcomplex.core.interactions import MatchingInteraction, UniformPriceProtocol
+from skcomplex.core.interactions import BatchClearingProtocol, MatchingInteraction
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
@@ -49,7 +49,7 @@ def _auction(size, rng):
         'auction',
         requesters='buyers',
         providers='sellers',
-        protocol=UniformPriceProtocol(),
+        protocol=BatchClearingProtocol(),
         budget='money',
         transfers=(('money', -1), ('goods', 1)),
         phase='clear',
@@ -89,7 +89,7 @@ def test_match_reads_the_states_named_by_a_pair():
                 'matching',
                 requesters='requesters',
                 providers='providers',
-                protocol=UniformPriceProtocol(),
+                protocol=BatchClearingProtocol(),
                 limit=('value', 'limit'),
             ),
         ],

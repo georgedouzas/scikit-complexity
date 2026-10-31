@@ -9,7 +9,6 @@ import pytest
 
 from skcomplex.analysis import LoopAnalysis
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.interactions import ConstantForceInteraction
 from skcomplex.core.laws import RateLaw, RuleLaw
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
@@ -26,7 +25,7 @@ from skcomplex.models.biology.ecology import (
 from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
 from skcomplex.models.economics.finance import geometric_brownian_motion
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
-from skcomplex.models.physics.common.particles import MassPointElement
+from skcomplex.models.physics.common.particles import ConstantForceInteraction, MassPointElement
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -37,7 +36,7 @@ def _pushed_gas(n=500):
     """Return a group pushed by a constant force, whose velocity change depends on the mass."""
     return System(
         elements=[GroupElement('gas', element=MassPointElement, size=n)],
-        interactions=[ConstantForceInteraction('push', velocity='x_d1', target='gas', F=[1.0, 0.0])],
+        interactions=[ConstantForceInteraction('push', target='gas', F=[1.0, 0.0])],
         space=ContinuousSpace(n_dim=2),
     )
 

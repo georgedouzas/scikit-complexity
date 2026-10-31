@@ -21,7 +21,7 @@ def test_langevin_thermostat_reaches_its_temperature(solver, dt):
         elements=gas.elements,
         interactions=[
             *gas.interactions,
-            LangevinThermostatInteraction('bath', state='x_d1', target='gas', temperature=2.0, gamma=1.0),
+            LangevinThermostatInteraction('bath', target='gas', temperature=2.0, gamma=1.0),
         ],
         space=gas.space,
     )

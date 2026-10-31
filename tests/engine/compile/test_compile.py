@@ -10,7 +10,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
-from skcomplex.core.interactions import ConstantForceInteraction, Interaction, PairCouplingInteraction
+from skcomplex.core.interactions import Interaction, PairCouplingInteraction
 from skcomplex.core.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import mod
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
@@ -28,7 +28,11 @@ from skcomplex.models.biology.ecology import (
 from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
 from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
-from skcomplex.models.physics.common.particles import HarmonicPotentialInteraction, MassPointElement
+from skcomplex.models.physics.common.particles import (
+    ConstantForceInteraction,
+    HarmonicPotentialInteraction,
+    MassPointElement,
+)
 from skcomplex.models.physics.statistical_mechanics import ParticleSiteElement, ZeroRangeHopInteraction
 from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.types import FormKind
@@ -405,8 +409,8 @@ def test_compile_system_rates_add_up():
     system = System(
         elements=[MassPointElement('p', x=1.0, m=2.0)],
         interactions=[
-            ConstantForceInteraction('push', velocity='x_d1', target='p', F=4.0),
-            HarmonicPotentialInteraction('trap', velocity='x_d1', target='p', k=6.0),
+            ConstantForceInteraction('push', target='p', F=4.0),
+            HarmonicPotentialInteraction('trap', target='p', k=6.0),
         ],
         space=ContinuousSpace(n_dim=1),
     )
@@ -418,7 +422,7 @@ def test_compile_system_keeps_oscillator_equations():
     """Test that the velocity equation of an oscillator is `-k * (x - center) / m`."""
     system = System(
         elements=[MassPointElement('p')],
-        interactions=[HarmonicPotentialInteraction('trap', velocity='x_d1', target='p')],
+        interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
     problem = compile_system(system)

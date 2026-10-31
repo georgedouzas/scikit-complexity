@@ -1535,7 +1535,7 @@ visuals are parts of the engine, beside those of every other kind.
 | kinetics | `EncounterLaw`, `moment` | the encounter passes, `KineticSolver` |
 | fractional | `StateSpec(order=...)` in `(0, 1)`, `FractionalNoiseLaw` | the fractional passes, `FractionalABMSolver`, `GrunwaldLetnikovSolver`, `FractionalEulerMaruyamaSolver` |
 | topology | `TopologyRequestSpec` | the topology passes |
-| particles | `PointElement`, `PotentialInteraction`, `PairCouplingInteraction` | `VelocityVerletSolver`, `LammpsSolver` |
+| particles | `PointElement`, `GradientInteraction`, `PairCouplingInteraction` | `VelocityVerletSolver`, `LammpsSolver` |
 | control | `ParameterSpec(adaptive=True, bounds=...)` | `PontryaginSolver`, `CollocationSolver` |
 
 Every compiler derives from `BaseCompiler`: `check()` validates its settings, `prepare(system)` validates the system and
@@ -3177,7 +3177,7 @@ atoms = System(
     elements=[GroupElement('atoms', element=MassPointElement, size=100, values={'x': grid})],
     interactions=[
         LennardJonesInteraction('lj', first='atoms', second='atoms', cutoff=2.5, divisor='m'),
-        LangevinThermostatInteraction('bath', target='atoms', temperature=0.5, gamma=1.0, state='x_d1'),
+        LangevinThermostatInteraction('bath', target='atoms', temperature=0.5, gamma=1.0),
     ],
     space=ContinuousSpace(n_dim=2),
 )
@@ -3350,16 +3350,26 @@ agents learn from their past.
   phase `'default'`, which runs first unless the system lists it, so systems without phases keep one random activation
   per step.
 - `MatchingInteraction(label, requesters=..., providers=..., protocol=...)`, from `skcomplex.core.interactions`,
-  matches two groups. Requesters state the highest price they accept in their `limit` state, the quantity they want
-  in `quantity`, and what they can spend in `budget`, and providers their lowest price and the quantity they offer. A
-  name given as a pair, such as `limit=('bid', 'ask')`, names the state of the requesters and of the providers. The
-  protocols are `RandomSearchProtocol`, the default, `PartnerSwitchProtocol` (partner choice with switching),
-  `QueueProtocol`, `PriceAdjustmentProtocol` (tâtonnement), `PriceTimePriorityProtocol`, `UniformPriceProtocol`, and
-  `StableMatchingProtocol` (stable matching by the `matching` library). A protocol is a configurable object:
-  `protocol.check().prepare().run(ClearingSpec(requesters, providers, rng, storage))` sets its `trades_`, a list of
-  `MatchSpec`. Every match lowers the quantities of both sides and moves the states of `transfers`, `('money', -1)`
-  paid by the requester and `('goods', 1)` delivered to it. The matching reports `<label>.price`, `<label>.volume`,
-  and `<label>.unmatched`.
+  matches two groups. Requesters state the highest clearing value they accept in their `limit` state, the quantity they
+  want in `quantity`, and the most value they can give in `budget`, and providers their lowest clearing value and the
+  quantity they offer. A name given as a pair, such as `limit=('bid', 'ask')`, names the state of the requesters and of
+  the providers. The protocols are `RandomSearchProtocol`, the default, `PartnerSwitchProtocol` (partner choice with
+  switching), `QueueProtocol`, `IterativeClearingProtocol` (a clearing value adjusted until requests and offers
+  balance), `ContinuousClearingProtocol` (arriving offers match resting ones by limit and arrival),
+  `BatchClearingProtocol` (one clearing value for all offers), `StableMatchingProtocol` (stable matching by the
+  `matching` library), and `GreedyProtocol(score, candidates, capacity)` (requesters in random order take the feasible
+  provider of the highest score among all, neighbouring, or near providers). A protocol is a configurable object:
+  `protocol.check().prepare().run(MatchingRoundSpec(requesters, providers, rng, storage))` sets its `trades_`, a list of
+  `MatchSpec`, whose `price` is the clearing value per unit. Every match lowers the quantities of both sides and moves
+  the states of `transfers`, `('money', -1)` from the requester to the provider and `('goods', 1)` back. The matching
+  reports `<label>.price`, `<label>.volume`, and `<label>.unmatched`.
+- Agent operations of `skcomplex.core.interactions` run as agent rules: `MovementInteraction` moves agents by
+  neighbour, Gaussian, Lévy, best-cell, or user steps, with a condition, an acceptance, exclusion, and a cost.
+  `TransferInteraction` moves amounts of states between members, the agents of one cell, a `Source()`, and a `Sink()`,
+  as transfer laws with `form='symbolic'` or between paired agents with `form='agent'`. `LifeCycleInteraction` creates
+  offspring by probability or rate, with inherited, split, and mutated states, and removes agents.
+  `GroupingInteraction` draws pairs, partitions, neighbourhoods, or groups by a state every step and acts on each.
+  `TopologyInteraction` adds and removes nodes and edges of a network and rewires edges towards a weight.
 - A `FeedbackInteraction`, from `skcomplex.core.interactions`, acts once per round of its phase with its method `act`.
   It reads `model.observable(name)`, reporters through `model.history(name, window)`, and agents, and it sets
   parameters of any element or interaction with `model.set_parameter(name, value)`. Rules see the change at once, and
@@ -3369,10 +3379,13 @@ agents learn from their past.
   `model.report(name, value)`. `model.storage` keeps private values of an element or an interaction across the steps of
   a run.
 - Learning blocks: `agent.lags(state, window)`, a method of the agent view a rule receives, returns the past values of a
-  state declared with lags, `StateSpec(lags=m)`. In `skcomplex.models.economics.common.learning`, `heuristics` has
-  adaptive, trend-following, anchoring, and fundamentalist forecasts, and `logit_choice` picks a strategy by past
-  performance. `EvolutionInteraction`, in `skcomplex.core.interactions`, breeds the next generation of strategies with
-  the model's random stream. `imitate`, in `skcomplex.models.social.cooperation`, copies the best neighbour.
+  state declared with lags, `StateSpec(lags=m)`. In `skcomplex.models.economics.common.forecasting`, `heuristics` has
+  adaptive, trend-following, anchoring, and fundamentalist forecasts. In `skcomplex.core.interactions`,
+  `ChoiceInteraction(form='agent')` draws an option by the logit, Metropolis, Fermi, or best rule from a utility
+  `utility(agent, model, option)` that can read `model.history` and `model.storage`, `ReinforcementInteraction` moves
+  the scores of options towards their realized payoffs, and `EvolutionInteraction` replaces strategies by selection,
+  crossover, and mutation with the model's random stream. `imitate`, in `skcomplex.models.social.cooperation`, copies
+  the best neighbour.
 
 ```python
 from typing import Annotated, ClassVar
@@ -3380,7 +3393,7 @@ from typing import Annotated, ClassVar
 import numpy as np
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.interactions import FeedbackInteraction, MatchingInteraction, UniformPriceProtocol
+from skcomplex.core.interactions import FeedbackInteraction, MatchingInteraction, BatchClearingProtocol
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
@@ -3444,7 +3457,7 @@ auction = System(
             'auction',
             requesters='buyers',
             providers='sellers',
-            protocol=UniformPriceProtocol(),
+            protocol=BatchClearingProtocol(),
             limit=('bid', 'ask'),
             quantity=('demand', 'supply'),
             budget='money',
@@ -3765,7 +3778,7 @@ from skcomplex.engine.viz import RerunObserver
 
 molecule = System(
     elements=[MassPointElement('a', x=[0.0, 0.0, 0.0]), MassPointElement('b', x=[1.5, 0.0, 0.0], x_d1=[0.0, 0.5, 0.0])],
-    interactions=[SpringInteraction('bond', velocity='x_d1', first='a', second='b', k=4.0, length=1.0)],
+    interactions=[SpringInteraction('bond', first='a', second='b', k=4.0, length=1.0)],
     space=ContinuousSpace(n_dim=3),
 )
 path = Path(tempfile.mkdtemp()) / 'molecule.rrd'
@@ -3903,10 +3916,10 @@ from skcomplex.models.physics.common.particles import HarmonicPotentialInteracti
 
 oscillator = System(
     elements=[MassPointElement('p', x=1.0)],
-    interactions=[HarmonicPotentialInteraction('trap', velocity='x_d1', target='p', k=4.0)],
+    interactions=[HarmonicPotentialInteraction('trap', target='p', k=4.0)],
     space=ContinuousSpace(n_dim=1),
 )
-print(SymbolicAnalysis().check().prepare(oscillator).run().equations_['p.x_d1[0]'])
+print(SymbolicAnalysis().check().prepare(oscillator).run().equations_['p.x[0]'])
 print(SymbolicAnalysis('solve', use_initial_state=True).check().prepare(oscillator).run().solutions_['p.x[0]'])
 ```
 

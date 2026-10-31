@@ -1,0 +1,160 @@
+"""Define the pointwise functions of laws, written with Sage arithmetic and `where` so every backend lowers them."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from sage.all__sagemath_symbolics import SR, Expression, exp
+
+from ._conditions import where
+
+
+def _smallest(values: tuple[object, ...]) -> Expression:
+    """Return the smallest of several expressions, member by member, as nested choices.
+
+    Args:
+        values:
+            The expressions, at least one.
+
+    Returns:
+        smallest:
+            The symbolic smallest value.
+    """
+    result = SR(values[0])
+    for value in values[1:]:
+        result = where(SR(value) < result, value, result)
+    return result
+
+
+def _largest(values: tuple[object, ...]) -> Expression:
+    """Return the largest of several expressions, member by member, as nested choices.
+
+    Args:
+        values:
+            The expressions, at least one.
+
+    Returns:
+        largest:
+            The symbolic largest value.
+    """
+    result = SR(values[0])
+    for value in values[1:]:
+        result = where(SR(value) > result, value, result)
+    return result
+
+
+def hill(x: object, half: object, n: object = 1) -> Expression:
+    """Return the Hill function `x^n / (half^n + x^n)`, which rises from 0 to 1 and is one half at `x = half`.
+
+    The order `n = 1` gives the saturating function `x / (half + x)`, and `1 - hill(x, half, n)` is the decreasing
+    Hill function.
+
+    Args:
+        x:
+            The expression the function reads, nonnegative.
+
+        half:
+            The value of `x` where the function is one half.
+
+        n:
+            The Hill coefficient, the steepness of the rise.
+
+    Returns:
+        value:
+            The symbolic value.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.laws.utils import hill
+        >>> x = var('x')
+        >>> hill(x, 2, 3)
+        x^3/(x^3 + 8)
+        >>> float(hill(x, 2, 3).subs(x=2))
+        0.5
+    """
+    return SR(x) ** n / (SR(half) ** n + SR(x) ** n)
+
+
+def logistic(x: object, center: object = 0, width: object = 1) -> Expression:
+    """Return the logistic sigmoid `1 / (1 + exp(-(x - center) / width))`, which rises from 0 to 1 through `center`.
+
+    Args:
+        x:
+            The expression the function reads.
+
+        center:
+            The value of `x` where the function is one half.
+
+        width:
+            The scale of the rise, the inverse of its gain, negative for a falling sigmoid.
+
+    Returns:
+        value:
+            The symbolic value.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.laws.utils import logistic
+        >>> x = var('x')
+        >>> logistic(x, 1, 2)
+        1/(e^(-1/2*x + 1/2) + 1)
+        >>> float(logistic(x, 1, 2).subs(x=1))
+        0.5
+    """
+    return 1 / (1 + exp(-(SR(x) - center) / width))
+
+
+def clip(x: object, low: object = None, high: object = None) -> Expression:
+    """Return an expression limited to an interval, `low` below it, `high` above it, and the expression inside.
+
+    Args:
+        x:
+            The expression to limit.
+
+        low:
+            The lower bound, or `None` for none.
+
+        high:
+            The upper bound, or `None` for none.
+
+    Returns:
+        value:
+            The symbolic limited value.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.laws.utils import clip
+        >>> x = var('x')
+        >>> clip(x, 0, 1)
+        where(x < 0, 0, where(x > 1, 1, x))
+        >>> [clip(x, 0, 1).subs(x=value) for value in (-2, 0.5, 3)]
+        [0, 0.5, 1]
+    """
+    value = SR(x)
+    if high is not None:
+        value = where(SR(x) > high, high, value)
+    if low is not None:
+        value = where(SR(x) < low, low, value)
+    return value
+
+
+def sign(x: object) -> Expression:
+    """Return the sign of an expression, 1 above 0, -1 below 0, and 0 at 0.
+
+    Args:
+        x:
+            The expression.
+
+    Returns:
+        value:
+            The symbolic sign.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.laws.utils import sign
+        >>> x = var('x')
+        >>> sign(x)
+        where(x > 0, 1, where(x < 0, -1, 0))
+        >>> [sign(x).subs(x=value) for value in (-2, 0, 3)]
+        [-1, 0, 1]
+    """
+    return where(SR(x) > 0, 1, where(SR(x) < 0, -1, 0))

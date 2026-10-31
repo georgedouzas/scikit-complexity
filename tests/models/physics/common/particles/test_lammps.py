@@ -4,12 +4,17 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import GroupElement
-from skcomplex.core.interactions import ConstantForceInteraction, DampingInteraction
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import LammpsSolver, VelocityVerletSolver
-from skcomplex.models.physics.common.particles import LAMMPS_FIXES, LAMMPS_PAIRS, MassPointElement
+from skcomplex.models.physics.common.particles import (
+    LAMMPS_FIXES,
+    LAMMPS_PAIRS,
+    ConstantForceInteraction,
+    DampingInteraction,
+    MassPointElement,
+)
 
 
 def test_lammps_fixes_match_the_native_force_and_damping():
@@ -17,8 +22,8 @@ def test_lammps_fixes_match_the_native_force_and_damping():
     system = System(
         elements=[GroupElement('gas', element=MassPointElement, size=2, values={'x': [[0.0, 0.0], [5.0, 0.0]]})],
         interactions=[
-            ConstantForceInteraction('push', velocity='x_d1', target='gas', F=[0.5, -0.2]),
-            DampingInteraction('air', velocity='x_d1', target='gas', gamma=0.3),
+            ConstantForceInteraction('push', target='gas', F=[0.5, -0.2]),
+            DampingInteraction('air', target='gas', gamma=0.3),
         ],
         space=ContinuousSpace(n_dim=2),
     )

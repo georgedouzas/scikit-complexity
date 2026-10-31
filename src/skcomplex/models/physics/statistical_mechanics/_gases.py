@@ -140,7 +140,7 @@ def lennard_jones_fluid(
     ]
     if temperature is not None:
         interactions.append(
-            LangevinThermostatInteraction('thermostat', state='x_d1', target='fluid', temperature=temperature),
+            LangevinThermostatInteraction('thermostat', target='fluid', temperature=temperature),
         )
     return System(
         elements=[

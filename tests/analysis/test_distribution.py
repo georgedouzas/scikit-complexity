@@ -118,7 +118,7 @@ def test_moments_of_absolute_samples_and_of_agent_speeds():
     assert gaussian.kurtosis_[0] == pytest.approx(0, abs=0.05)
     trajectory = run('ideal_gas', n_dim=3, random_state=0, settings={'until': 1.0}).trajectory_
     speeds = _distribution('moments', trajectory)
-    velocities = np.asarray(trajectory.values('gas.v'), dtype=float)
+    velocities = np.asarray(trajectory.values('gas.x_d1'), dtype=float)
     assert speeds.mean_.shape == (len(trajectory.times),)
     np.testing.assert_allclose(speeds.mean_, np.linalg.norm(velocities, axis=-1).mean(axis=1))
     np.testing.assert_allclose(_distribution('moments', trajectory, group='gas').mean_, speeds.mean_)

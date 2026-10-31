@@ -14,7 +14,7 @@ from types import SimpleNamespace
 
 import numpy as np
 import scipy.sparse
-from sage.all__sagemath_symbolics import SR, Expression, function, var, vector
+from sage.all__sagemath_symbolics import SR, Expression, arctan2, cos, function, sin, var, vector
 from sage.modules.free_module_element import FreeModuleElement
 from sage.symbolic.function import Function
 
@@ -22,6 +22,8 @@ from ....errors import ValidationError
 from ....specs import LayerSpec, NeighborReductionSpec, ReductionSpec
 from ...spaces import AdjacencyNeighborhood, BaseNeighborhood, LatticeNeighborhood, MemoryNeighborhood
 from ...spaces._lattice import BOUNDARIES
+from ._conditions import both
+from ._pointwise import _largest, _smallest
 
 KINDS = {'total': 'sum', 'mean': 'mean', 'maximum': 'max', 'minimum': 'min', 'variance': 'var', 'count': 'count'}
 NEIGHBOR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean', 'argmax')
@@ -101,7 +103,7 @@ def _over_symbol(over: object) -> Expression:
     if isinstance(over, Expression) and over.is_symbol():
         return over
     error_msg = (
-        'A reduction takes the group to reduce over as a namespace such as `namespace.neurons`, or as one of its '
+        'A reduction takes the group to reduce over as a namespace such as `namespace.members`, or as one of its '
         f'symbols, not {over!r}.'
     )
     raise ValidationError(error_msg)
@@ -128,23 +130,53 @@ def _weights_symbol(weights: object) -> Expression:
     return var(name)
 
 
-def _reduce(name: str, expression: object, over: object, where: object, weights: object) -> Expression:
+def _keyed(over: object, where: object, by: str | None) -> object:
+    """Return the condition of a reduction, with the members that share the reading member's value of a state."""
+    if by is None:
+        return where
+    reduced = getattr(getattr(over, 'other', None), by, None) if isinstance(over, SimpleNamespace) else None
+    if not isinstance(by, str) or reduced is None:
+        error_msg = (
+            'A reduction keyed by a state takes the name of a state of its group as `by` and the namespace of the '
+            f'group as `over`, such as `over=namespace.members, by=\'cell\'`, not by={by!r} over={over!r}.'
+        )
+        raise ValidationError(error_msg)
+    shared = SR(reduced) == SR(getattr(over, by))
+    return shared if where is None else both(where, shared)
+
+
+def _reduce(
+    name: str,
+    expression: object,
+    over: object,
+    where: object,
+    weights: object,
+    *,
+    by: str | None = None,
+) -> Expression:
     """Return the unevaluated call of a reduction, with placeholders for the absent condition, weights, and group."""
+    where = _keyed(over, where, by)
     condition = SR(1) if where is None else SR(where)
     return REDUCTIONS[name](SR(expression), condition, _weights_symbol(weights), _over_symbol(over))
 
 
-def total(expression: object, over: object = None, where: object = None, weights: object = None) -> Expression:
+def total(
+    expression: object,
+    over: object = None,
+    where: object = None,
+    weights: object = None,
+    by: str | None = None,
+) -> Expression:
     """Return the sum of an expression over the members of a group, `sum_j a_j`, or `sum_j W_ij a_j` with weights.
 
     Inside the reduction, the symbols of a member stand for the reduced member, and outside it for the reading member.
 
     Args:
         expression:
-            The expression of one member, such as `namespace.x` or `cos(namespace.neurons.theta)`.
+            The expression of one member, such as `namespace.x` or `cos(namespace.members.theta)`.
 
         over:
-            The namespace of the group to reduce over, such as `namespace.neurons`, or `None` for the group the
+            The namespace of the group to reduce over, such as `namespace.members`, or `None` for the group the
             expression reads.
 
         where:
@@ -155,13 +187,17 @@ def total(expression: object, over: object = None, where: object = None, weights
             per reduced member, a vector with one weight per reduced member that every reading member shares, or
             `None`.
 
+        by:
+            The name of a state of the group, so every member reduces over the members that share its value of the
+            state, or `None` for all members. It needs the namespace of the group as `over`.
+
     Returns:
         reduction:
             The unevaluated reduction, which every backend lowers.
 
     Raises:
         ValidationError:
-            The group is not a namespace or a symbol, or the weights are not a matrix.
+            The group is not a namespace or a symbol, the weights are not a matrix, or a key has no group namespace.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import tanh, var
@@ -172,10 +208,16 @@ def total(expression: object, over: object = None, where: object = None, weights
         >>> total(x, where=x > 0.5)
         total(x, where=x > 0.5)
     """
-    return _reduce('total', expression, over, where, weights)
+    return _reduce('total', expression, over, where, weights, by=by)
 
 
-def mean(expression: object, over: object = None, where: object = None, weights: object = None) -> Expression:
+def mean(
+    expression: object,
+    over: object = None,
+    where: object = None,
+    weights: object = None,
+    by: str | None = None,
+) -> Expression:
     """Return the mean of an expression over the selected members of a group, the total divided by their count.
 
     Args:
@@ -191,13 +233,17 @@ def mean(expression: object, over: object = None, where: object = None, weights:
         weights:
             A constant matrix with one row per reading member and one column per reduced member, or `None`.
 
+        by:
+            The name of a state of the group, so every member reduces over the members that share its value of the
+            state, or `None` for all members. It needs the namespace of the group as `over`.
+
     Returns:
         reduction:
             The unevaluated reduction, 0 when no member is selected.
 
     Raises:
         ValidationError:
-            The group is not a namespace or a symbol, or the weights are not a matrix.
+            The group is not a namespace or a symbol, the weights are not a matrix, or a key has no group namespace.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import cos, var
@@ -205,15 +251,18 @@ def mean(expression: object, over: object = None, where: object = None, weights:
         >>> mean(cos(var('theta')))
         mean(cos(theta))
     """
-    return _reduce('mean', expression, over, where, weights)
+    return _reduce('mean', expression, over, where, weights, by=by)
 
 
-def maximum(expression: object, over: object = None, where: object = None) -> Expression:
-    """Return the largest value of an expression over the selected members of a group.
+def maximum(*expressions: object, over: object = None, where: object = None) -> Expression:
+    """Return the largest value of an expression over the selected members of a group, or the largest of expressions.
+
+    With one expression it reduces over the members of a group, as `max` over an array. With several it compares
+    them member by member, as `max` over its arguments, with no group or condition.
 
     Args:
-        expression:
-            The expression of one member.
+        *expressions:
+            The expression of one member, or several expressions to compare member by member.
 
         over:
             The namespace of the group to reduce over, or `None` for the group the expression reads.
@@ -222,28 +271,45 @@ def maximum(expression: object, over: object = None, where: object = None) -> Ex
             A condition on the reduced member that selects the members, or `None` for all members.
 
     Returns:
-        reduction:
-            The unevaluated reduction, 0 when no member is selected.
+        value:
+            The unevaluated reduction, 0 when no member is selected, or the largest of the expressions.
 
     Raises:
         ValidationError:
-            The group is not a namespace or a symbol.
+            No expression is given, several expressions come with a group or a condition, or the group is not a
+            namespace or a symbol.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws.utils import maximum
-        >>> maximum(var('x'))
+        >>> x, y = var('x y')
+        >>> maximum(x)
         maximum(x)
+        >>> maximum(x, y)
+        where(y > x, y, x)
+        >>> maximum(x, y).subs(x=1, y=2)
+        2
     """
-    return _reduce('maximum', expression, over, where, None)
+    if len(expressions) == 1:
+        return _reduce('maximum', expressions[0], over, where, None)
+    if not expressions or over is not None or where is not None:
+        error_msg = (
+            'maximum takes one expression to reduce over a group, or several expressions to compare member by member '
+            f'without a group or a condition, but got {len(expressions)} expressions.'
+        )
+        raise ValidationError(error_msg)
+    return _largest(expressions)
 
 
-def minimum(expression: object, over: object = None, where: object = None) -> Expression:
-    """Return the smallest value of an expression over the selected members of a group.
+def minimum(*expressions: object, over: object = None, where: object = None) -> Expression:
+    """Return the smallest value of an expression over the selected members of a group, or the smallest of expressions.
+
+    With one expression it reduces over the members of a group, as `min` over an array. With several it compares
+    them member by member, as `min` over its arguments, with no group or condition.
 
     Args:
-        expression:
-            The expression of one member.
+        *expressions:
+            The expression of one member, or several expressions to compare member by member.
 
         over:
             The namespace of the group to reduce over, or `None` for the group the expression reads.
@@ -252,20 +318,34 @@ def minimum(expression: object, over: object = None, where: object = None) -> Ex
             A condition on the reduced member that selects the members, or `None` for all members.
 
     Returns:
-        reduction:
-            The unevaluated reduction, 0 when no member is selected.
+        value:
+            The unevaluated reduction, 0 when no member is selected, or the smallest of the expressions.
 
     Raises:
         ValidationError:
-            The group is not a namespace or a symbol.
+            No expression is given, several expressions come with a group or a condition, or the group is not a
+            namespace or a symbol.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws.utils import minimum
-        >>> minimum(var('x'))
+        >>> x, y = var('x y')
+        >>> minimum(x)
         minimum(x)
+        >>> minimum(x, y)
+        where(y < x, y, x)
+        >>> minimum(x, y).subs(x=1, y=2)
+        1
     """
-    return _reduce('minimum', expression, over, where, None)
+    if len(expressions) == 1:
+        return _reduce('minimum', expressions[0], over, where, None)
+    if not expressions or over is not None or where is not None:
+        error_msg = (
+            'minimum takes one expression to reduce over a group, or several expressions to compare member by member '
+            f'without a group or a condition, but got {len(expressions)} expressions.'
+        )
+        raise ValidationError(error_msg)
+    return _smallest(expressions)
 
 
 def variance(expression: object, over: object = None, where: object = None) -> Expression:
@@ -298,7 +378,7 @@ def variance(expression: object, over: object = None, where: object = None) -> E
     return _reduce('variance', expression, over, where, None)
 
 
-def count(over: object = None, where: object = None) -> Expression:
+def count(over: object = None, where: object = None, by: str | None = None) -> Expression:
     """Return the number of members of a group that a condition selects, or of all members.
 
     Args:
@@ -309,13 +389,17 @@ def count(over: object = None, where: object = None) -> Expression:
         where:
             A condition on the counted member, or `None` for all members.
 
+        by:
+            The name of a state of the group, so every member reduces over the members that share its value of the
+            state, or `None` for all members. It needs the namespace of the group as `over`.
+
     Returns:
         reduction:
             The unevaluated count.
 
     Raises:
         ValidationError:
-            The group is not a namespace or a symbol.
+            The group is not a namespace or a symbol, or a key has no group namespace.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -323,8 +407,59 @@ def count(over: object = None, where: object = None) -> Expression:
         >>> x = var('x')
         >>> count(where=x > 0.5)
         count(where=x > 0.5)
+        >>> from types import SimpleNamespace
+        >>> members = SimpleNamespace(cell=var('cell'), other=SimpleNamespace(cell=var('cell_other')))
+        >>> count(over=members, by='cell')
+        count(over=cell, where=cell_other == cell)
     """
-    return _reduce('count', 1, over, where, None)
+    return _reduce('count', 1, over, where, None, by=by)
+
+
+def circular_mean(
+    angle: object,
+    over: object = None,
+    where: object = None,
+    weights: object = None,
+    by: str | None = None,
+) -> Expression:
+    """Return the circular mean of an angle over the members of a group, `arctan2(sum_j sin a_j, sum_j cos a_j)`.
+
+    The mean is the direction of the sum of the unit vectors at the angles, 0 when no member is selected.
+
+    Args:
+        angle:
+            The angle of one member, in radians.
+
+        over:
+            The namespace of the group to reduce over, or `None` for the group the angle reads.
+
+        where:
+            A condition on the reduced member that selects the members, or `None` for all members.
+
+        weights:
+            A constant matrix with one row per reading member and one column per reduced member, or `None`.
+
+        by:
+            The name of a state of the group, so every member reduces over the members that share its value of the
+            state, or `None` for all members. It needs the namespace of the group as `over`.
+
+    Returns:
+        reduction:
+            The symbolic circular mean, in `[-pi, pi]`.
+
+    Raises:
+        ValidationError:
+            The group is not a namespace or a symbol, the weights are not a matrix, or a key has no group namespace.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.laws.utils import circular_mean
+        >>> circular_mean(var('theta'))
+        arctan2(total(sin(theta)), total(cos(theta)))
+    """
+    sines = total(sin(SR(angle)), over, where, weights, by)
+    cosines = total(cos(SR(angle)), over, where, weights, by)
+    return arctan2(sines, cosines)
 
 
 def _neighborhood_symbol(over: object) -> Expression:
@@ -360,8 +495,10 @@ def neighbors(
     The reductions with the weight `w_j` of every neighbour `j` of the value `f_j` are `'sum'`, `sum_j w_j f_j`,
     `'mean'`, the sum divided by the number of neighbours, `'count'`, `sum_j w_j [f_j != 0]`, `'max'` and `'min'`, the
     largest and smallest `w_j f_j`, `'normalized-mean'`, `sum_j w_j f_j / sum_j w_j`, and `'argmax'`, the value `f_j` of
-    the neighbour whose weight `w_j` is largest, the first of them in neighbour order. On a lattice neighbourhood,
-    `reduce='each'` gives the values of a lattice state at every offset, in neighbourhood order, without reducing them.
+    the neighbour whose weight `w_j` is largest, the first of them in neighbour order. The circular mean of an angle,
+    `'circular-mean'`, is `arctan2(sum_j w_j sin f_j, sum_j w_j cos f_j)`, 0 over no neighbours. On a lattice
+    neighbourhood, `reduce='each'` gives the values of a lattice state at every offset, in neighbourhood order, without
+    reducing them.
 
     Args:
         expression:
@@ -372,8 +509,8 @@ def neighbors(
             The neighbourhood, or `None` for the neighbours of the network or lattice the group lives on.
 
         reduce:
-            `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, or `'argmax'`, or `'each'` for the
-            values at every offset of a lattice neighbourhood or a memory.
+            `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, `'argmax'`, or `'circular-mean'`, or
+            `'each'` for the values at every offset of a lattice neighbourhood or a memory.
 
         weight:
             The weight of one neighbour, an expression of the same symbols, or `None` for 1. The `'argmax'` reduction
@@ -409,9 +546,13 @@ def neighbors(
             error_msg = f"The reduction 'each' reads a lattice or a memory neighbourhood, not {over!r}."
             raise ValidationError(error_msg)
         return vector(SR, [NEIGHBOR(expression, index) for index in range(size)])
+    if reduce == 'circular-mean':
+        sines = neighbors(sin(SR(expression)), over, 'sum', weight)
+        return arctan2(sines, neighbors(cos(SR(expression)), over, 'sum', weight))
     if reduce not in NEIGHBOR_REDUCTIONS:
         error_msg = (
-            f'Unknown neighbourhood reduction {reduce!r}. Use one of {", ".join((*NEIGHBOR_REDUCTIONS, "each"))}.'
+            'Unknown neighbourhood reduction '
+            f'{reduce!r}. Use one of {", ".join((*NEIGHBOR_REDUCTIONS, "circular-mean", "each"))}.'
         )
         raise ValidationError(error_msg)
     over_symbol = _neighborhood_symbol(over)

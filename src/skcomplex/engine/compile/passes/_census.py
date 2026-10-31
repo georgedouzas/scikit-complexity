@@ -48,6 +48,8 @@ from ._layout import LayoutPass
 from ._noise import NoisePass
 from ._specs import SpecsPass
 
+EDGE_REQUESTS = ('remove-edge', 'rewire')
+
 
 class CensusPass(BasePass):
     """Pass that takes the census of the laws of the system, keeping going past failing components."""
@@ -316,7 +318,10 @@ class CensusPass(BasePass):
             end:
                 `'source'`, `'target'`, or `None`.
         """
-        if not all(isinstance(item, Expression | FreeModuleElement) for item in law._get_targets()):
+        request = TopologyKernel._request_of(law)
+        if request is not None and request.kind in EDGE_REQUESTS:
+            return None
+        if request is None and not all(isinstance(item, Expression | FreeModuleElement) for item in law._get_targets()):
             return None
         expressions = CensusPass._expressions_of(law)
         references = edges.references
@@ -330,6 +335,8 @@ class CensusPass(BasePass):
             for item in outside
             if (reference := references.get(item)) is not None and reference.source in sides
         }
+        if not ends and request is not None:
+            return 'source'
         return next(iter(ends)) if len(ends) == 1 else None
 
     @staticmethod

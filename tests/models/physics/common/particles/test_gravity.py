@@ -16,7 +16,7 @@ def test_gravity_keeps_circular_orbit():
             MassPointElement('sun', m=1000.0),
             MassPointElement('planet', x=[10.0, 0.0], x_d1=[0.0, 10.0], m=1e-6),
         ],
-        interactions=[GravityInteraction('gravity', velocity='x_d1', first='sun', second='planet', G=1.0)],
+        interactions=[GravityInteraction('gravity', first='sun', second='planet', G=1.0)],
         space=ContinuousSpace(n_dim=2),
     )
     trajectory = (

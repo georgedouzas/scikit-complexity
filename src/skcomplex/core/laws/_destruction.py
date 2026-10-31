@@ -1,4 +1,4 @@
-"""Define destruction laws, encounters of active particles that remove the candidate particle."""
+"""Define destruction laws, bilinear losses of a density at the rate of its product with a second density."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,10 +13,10 @@ from ._base import BaseLaw
 
 
 class DestructionLaw(BaseLaw):
-    """Destructive encounter, which removes the candidate particle.
+    """Bilinear loss of a density, removed in every class at the rate of its product with a second density.
 
-    A candidate particle at activity `h` that meets a field particle at activity `k` is removed at the rate
-    `mu[h, k]`, so the law adds `-f_h sum_k mu[h, k] g_k` to the rate of the candidate density at `h`.
+    The amount of the candidate density `f` in class `h` that meets the amount of the field density `g` in class `k`
+    is removed at the rate `mu[h, k]`, so the law adds `-f_h sum_k mu[h, k] g_k` to the rate of the candidate at `h`.
 
     Args:
         candidate:
@@ -46,11 +46,11 @@ class DestructionLaw(BaseLaw):
         self.rate = rate
 
     def _get_targets(self) -> tuple[object, ...]:
-        """Return the candidate density, which loses the removed particles."""
+        """Return the candidate density, which loses the removed amount."""
         return (self.candidate,)
 
     def _get_requirements(self) -> RequirementSpec:
-        """Return what the law requires of a system: continuous time on activity lattices."""
+        """Return what the law requires of a system: continuous time on lattices of classes."""
         return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace,))
 
     def _check(self) -> None:

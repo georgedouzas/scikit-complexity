@@ -7,7 +7,6 @@ from ....engine.solvers import AgentView
 
 
 class SpeculatorView(AgentView):
-    """Speculator as the rules see it: its heuristic `predictor` and its intensity of choice `intensity`."""
+    """Speculator as the rules see it: its heuristic `predictor`."""
 
     predictor: float
-    intensity: float

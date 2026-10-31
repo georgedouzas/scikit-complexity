@@ -167,7 +167,7 @@ class BaseLaw(BasePart[str, object]):
             return
         error_msg = (
             f'The {rate_name} of {type(self).__name__} has the shape {rate.shape}, but its {name} have '
-            f'{np.shape(outcomes)[:2]} candidate and field activities.'
+            f'{np.shape(outcomes)[:2]} candidate and field classes.'
         )
         raise ValidationError(error_msg)
 
