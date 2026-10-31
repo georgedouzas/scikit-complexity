@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import arcsinh, exp, oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import GroupElement, ParticleElement
-from skcomplex.core.interactions import PairPotentialInteraction
+from skcomplex.core.interactions import ConstantForceInteraction, DampingInteraction, PairPotentialInteraction
 from skcomplex.core.laws.utils import where
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
@@ -26,11 +26,9 @@ from skcomplex.models.biology.ecology import (
 )
 from skcomplex.models.physics.common.particles import (
     LAMMPS_FIXES,
-    ConstantForceInteraction,
     HarmonicPotentialInteraction,
     LangevinThermostatInteraction,
     LennardJonesInteraction,
-    LinearDragInteraction,
 )
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.specs import ParameterSpec, StepSpec
@@ -237,7 +235,7 @@ def test_lammps_walls_confine_atoms_on_their_own():
     [
         HarmonicPotentialInteraction('trap', target='gas', k=2.0, center=[6.0, 6.0]),
         ConstantForceInteraction('push', target='gas', F=[0.5, -0.2]),
-        LinearDragInteraction('air', target='gas', gamma=0.3),
+        DampingInteraction('air', target='gas', gamma=0.3),
     ],
     ids=['external', 'addforce', 'viscous'],
 )

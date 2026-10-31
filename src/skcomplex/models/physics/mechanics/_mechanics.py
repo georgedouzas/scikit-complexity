@@ -11,14 +11,14 @@ from sage.all__sagemath_symbolics import cos, oo, pi, sin
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, ParticleElement
-from ....core.interactions import BaseInteraction, Interaction
+from ....core.interactions import BaseInteraction, ConstantForceInteraction, DampingInteraction, Interaction
 from ....core.laws import BaseLaw, CrossingLaw, EquationLaw, RateLaw
 from ....core.laws.utils import derivative
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.particles import ConstantForceInteraction, HarmonicPotentialInteraction, LinearDragInteraction
+from ..common.particles import HarmonicPotentialInteraction
 
 GRAVITY = 9.81
 WALL_POINTS = 200
@@ -70,7 +70,7 @@ def projectile(speed: float = 10.0, angle: float = 45.0, *, mass: float = 1.0, d
     velocity = [round(float(speed * np.cos(radians)), 12), round(float(speed * np.sin(radians)), 12)]
     interactions: list[BaseInteraction] = [ConstantForceInteraction('gravity', target='ball', F=[0.0, -GRAVITY * mass])]
     if drag:
-        interactions.append(LinearDragInteraction('drag', target='ball', gamma=drag))
+        interactions.append(DampingInteraction('drag', target='ball', gamma=drag))
     return System(
         elements=[ParticleElement('ball', x=[0.0, 0.0], v=velocity, m=mass)],
         interactions=interactions,
@@ -121,7 +121,7 @@ def harmonic_oscillator(
     """
     interactions: list[BaseInteraction] = [HarmonicPotentialInteraction('spring', target='mass', k=k)]
     if damping:
-        interactions.append(LinearDragInteraction('damping', target='mass', gamma=damping))
+        interactions.append(DampingInteraction('damping', target='mass', gamma=damping))
     return System(
         elements=[ParticleElement('mass', x=x, v=v, m=mass)],
         interactions=interactions,

@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import SR, cos, diff, function, sin, sqrt
 
 from skcomplex.analysis import SymbolicAnalysis
 from skcomplex.core.elements import Element, ParticleElement
-from skcomplex.core.interactions import Interaction
+from skcomplex.core.interactions import ConstantForceInteraction, Interaction
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import derivative, lag
 from skcomplex.core.spaces import ContinuousSpace
@@ -21,7 +21,7 @@ from skcomplex.models.biology.ecology import LogisticGrowthInteraction, Populati
 from skcomplex.models.biology.epidemiology import CompartmentElement, RecoveryInteraction
 from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
-from skcomplex.models.physics.common.particles import ConstantForceInteraction, HarmonicPotentialInteraction
+from skcomplex.models.physics.common.particles import HarmonicPotentialInteraction
 from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 from ..conftest import CallableGrowthInteraction
