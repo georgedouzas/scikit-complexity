@@ -1,10 +1,9 @@
-"""Automata models: elementary rules, life, and turmites."""
+"""Automata models: elementary rules, life, and turmites, as local rules on cells."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -13,114 +12,14 @@ from sage.all__sagemath_symbolics import ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, LocalRuleLaw
+from ....core.interactions import LocalRuleInteraction
 from ....core.spaces import BoxNeighborhood, LatticeSpace, MooreNeighborhood, VonNeumannNeighborhood
 from ....core.system import System
 from ....specs import StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram, life
-
-
-class ElementaryCellElement(Element):
-    """Cell of a one-dimensional automaton that follows an elementary rule by its Wolfram number.
-
-    Args:
-        label:
-            The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        alive:
-            The initial value, 0 or 1.
-
-        rule:
-            The Wolfram number of the rule.
-
-    Examples:
-        >>> from skcomplex.models.computer_science.automata import ElementaryCellElement
-        >>> ElementaryCellElement('cell', rule=110).rule
-        110
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        rule: int = 30,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.alive = alive
-        self.rule = rule
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the elementary rule on the left, centre, and right cells.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [LocalRuleLaw(s.alive, BoxNeighborhood(), Wolfram(self.rule))]
-
-
-class LifeCellElement(Element):
-    """Cell of a life-like automaton, born and surviving by its number of live Moore neighbours.
-
-    Args:
-        label:
-            The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        alive:
-            The initial value, 0 or 1.
-
-        born:
-            The numbers of live neighbours that bring a dead cell to life.
-
-        survive:
-            The numbers of live neighbours that keep a live cell alive.
-
-    Examples:
-        >>> from skcomplex.models.computer_science.automata import LifeCellElement
-        >>> LifeCellElement('cell').survive
-        (2, 3)
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        born: tuple[int, ...] = (3,),
-        survive: tuple[int, ...] = (2, 3),
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.alive = alive
-        self.born = born
-        self.survive = survive
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the outer totalistic rule of the cell.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [LocalRuleLaw(s.alive, MooreNeighborhood(), life(self.born, self.survive))]
 
 
 def _ant_rule(*values: Array) -> tuple[Array, Array]:
@@ -138,7 +37,8 @@ def _ant_rule(*values: Array) -> tuple[Array, Array]:
 class AntCellElement(Element):
     """Cell of Langton's ant: a color, and the heading of the ant on it or -1.
 
-    The ant turns right on a white cell and left on a black one, flips the cell's color, and moves one cell forward.
+    The local rule of `langtons_ant` turns the ant right on a white cell and left on a black one, flips the cell's
+    color, and moves the ant one cell forward.
 
     Args:
         label:
@@ -170,21 +70,6 @@ class AntCellElement(Element):
         super().__init__(label, visual=visual)
         self.color = color
         self.ant = ant
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that moves the ant and flips colors.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            LocalRuleLaw((s.color, s.ant), VonNeumannNeighborhood(center=True), _ant_rule, reads=(s.color, s.ant)),
-        ]
 
 
 def _random_cells(shape: Sequence[int], density: float, random_state: int | np.random.Generator | None) -> Array:
@@ -225,11 +110,15 @@ def elementary_automaton(rule: int = 30, *, size: int = 101, initial: Sequence[f
         values[size // 2] = 1.0
     return System(
         elements=[
-            LatticeElement(
-                'cells',
-                element=ElementaryCellElement,
-                space=LatticeSpace(size),
-                values={'alive': values, 'rule': rule},
+            LatticeElement('cells', element=BinaryCellElement, space=LatticeSpace(size), values={'alive': values}),
+        ],
+        interactions=[
+            LocalRuleInteraction(
+                'rule',
+                target='cells',
+                state='alive',
+                rule=Wolfram(rule),
+                neighborhood=BoxNeighborhood(),
             ),
         ],
     )
@@ -283,12 +172,14 @@ def game_of_life(
     values = _random_cells(shape, density, random_state) if initial is None else np.asarray(initial, dtype=float)
     space = LatticeSpace(tuple(shape))
     return System(
-        elements=[
-            LatticeElement(
-                'cells',
-                element=LifeCellElement,
-                space=space,
-                values={'alive': values, 'born': tuple(born), 'survive': tuple(survive)},
+        elements=[LatticeElement('cells', element=BinaryCellElement, space=space, values={'alive': values})],
+        interactions=[
+            LocalRuleInteraction(
+                'rule',
+                target='cells',
+                state='alive',
+                rule=life(born, survive),
+                neighborhood=MooreNeighborhood(),
             ),
         ],
     )
@@ -324,5 +215,15 @@ def langtons_ant(shape: Sequence[int] = (80, 80), *, heading: int = 0) -> System
     return System(
         elements=[
             LatticeElement('cells', element=AntCellElement, space=LatticeSpace(tuple(shape)), values={'ant': ant}),
+        ],
+        interactions=[
+            LocalRuleInteraction(
+                'ant',
+                target='cells',
+                state=('color', 'ant'),
+                rule=_ant_rule,
+                neighborhood=VonNeumannNeighborhood(center=True),
+                reads=('color', 'ant'),
+            ),
         ],
     )

@@ -4,21 +4,20 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import ZZ, oo
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, LocalRuleLaw
+from ....core.interactions import LocalRuleInteraction
 from ....core.spaces import BoxNeighborhood, CayleySpace, GeneratorNeighborhood, LatticeSpace, MemoryNeighborhood
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, TotalisticSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._binary_cell import BinaryCellElement
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
 
 GENERATOR_MEMORY = MemoryNeighborhood(('1', 'a', 'a^-1'))
@@ -49,118 +48,13 @@ def _mean_observables(system: System) -> list[ObservableSpec]:
     return [ObservableSpec('mean', group='cells', variable='value')]
 
 
-class MajorityCellElement(Element):
-    """Cell of an automaton on a group that takes the value held by the majority of its memory set.
-
-    The memory set starts with the identity, the cell itself. Cells on the boundary of a ball count only their
-    neighbours inside it, and a cell keeps its value on a tie.
-
-    Args:
-        label:
-            The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        alive:
-            The initial value, 0 or 1.
-
-        memory:
-            The memory set, of odd size, usually the identity and the generators.
-
-    Examples:
-        >>> from skcomplex.models.computer_science.automata import MajorityCellElement
-        >>> MajorityCellElement('cell').memory.elements
-        ('1', 'a', 'a^-1')
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        memory: MemoryNeighborhood = GENERATOR_MEMORY,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.alive = alive
-        self.memory = memory
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the majority rule on the memory set.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [LocalRuleLaw(s.alive, self.memory, _majority)]
-
-
-class ParityCellElement(Element):
-    """Cell of an automaton on a group that takes the sum modulo 2 of its memory set, a linear rule over `GF(2)`.
-
-    Args:
-        label:
-            The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        alive:
-            The initial value, 0 or 1.
-
-        memory:
-            The memory set.
-
-    Examples:
-        >>> from skcomplex.models.computer_science.automata import ParityCellElement
-        >>> len(ParityCellElement('cell').memory.elements)
-        3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-        memory: MemoryNeighborhood = LAMPLIGHTER_MEMORY,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.alive = alive
-        self.memory = memory
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the parity rule on the memory set.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            LocalRuleLaw(
-                s.alive,
-                self.memory,
-                TotalisticSpec({total: total % 2 for total in range(len(self.memory.elements) + 1)}),
-            ),
-        ]
-
-
 def _laplacian(left: Array, center: Array, right: Array, *, modulus: float) -> Array:
     """Return the discrete Laplacian `x(g - 1) + x(g + 1) - 2 x(g)` modulo the field size."""
     return (left + right - 2 * center) % modulus
 
 
 class LaplacianCellElement(Element):
-    """Cell of the discrete Laplacian on the cyclic group of a ring over the field of a prime number of elements.
+    """Cell of an automaton over the field of a prime number of elements, such as the discrete Laplacian on a ring.
 
     Args:
         label:
@@ -193,73 +87,12 @@ class LaplacianCellElement(Element):
         self.value = value
         self.modulus = modulus
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the linear rule of the Laplacian.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [LocalRuleLaw(s.value, BoxNeighborhood(), _laplacian)]
-
 
 def _golden_move(left: Array, center: Array, right: Array, *, random: Array) -> Array:
     """Return the cell flipped with probability one half, unless a 1 would sit next to another 1."""
     flipped = np.where(random < FLIP_PROBABILITY, 1.0 - center, center)
     blocked = (flipped == 1) & ((left == 1) | (right == 1))
     return np.where(blocked, center, flipped)
-
-
-class GoldenMeanCellElement(Element):
-    """Cell of a Markov chain on the golden mean shift, the configurations of a ring without two adjacent ones.
-
-    Every step visits the cells in a random order, and each proposes to flip, which it does unless a one would sit
-    next to another one, so the configuration stays admissible.
-
-    Args:
-        label:
-            The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        alive:
-            The initial value, 0 or 1.
-
-    Examples:
-        >>> from skcomplex.models.computer_science.automata import GoldenMeanCellElement
-        >>> GoldenMeanCellElement('cell').alive
-        0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.alive = alive
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the constrained flip of the cell.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            LocalRuleLaw(s.alive, BoxNeighborhood(), _golden_move, schedule='random-sequential', stochastic=True),
-        ]
 
 
 def _majority_system(
@@ -271,13 +104,9 @@ def _majority_system(
     """Return the majority automaton on a group space from random cells."""
     cells = _random_cells(space.check().prepare().size_, density, random_state)
     return System(
-        elements=[
-            LatticeElement(
-                'cells',
-                element=MajorityCellElement,
-                space=space,
-                values={'alive': cells, 'memory': memory},
-            ),
+        elements=[LatticeElement('cells', element=BinaryCellElement, space=space, values={'alive': cells})],
+        interactions=[
+            LocalRuleInteraction('majority', target='cells', state='alive', rule=_majority, neighborhood=memory),
         ],
     )
 
@@ -372,14 +201,11 @@ def lamplighter_automaton(
     """
     space = CayleySpace(lamplighter(), ball=radius)
     cells = _random_cells(space.check().prepare().size_, density, random_state)
+    parity = TotalisticSpec({total: total % 2 for total in range(len(LAMPLIGHTER_MEMORY.elements) + 1)})
     return System(
-        elements=[
-            LatticeElement(
-                'cells',
-                element=ParityCellElement,
-                space=space,
-                values={'alive': cells, 'memory': LAMPLIGHTER_MEMORY},
-            ),
+        elements=[LatticeElement('cells', element=BinaryCellElement, space=space, values={'alive': cells})],
+        interactions=[
+            LocalRuleInteraction('parity', target='cells', state='alive', rule=parity, neighborhood=LAMPLIGHTER_MEMORY),
         ],
     )
 
@@ -528,6 +354,15 @@ def linear_ring_automaton(
                 values={'value': values, 'modulus': modulus},
             ),
         ],
+        interactions=[
+            LocalRuleInteraction(
+                'laplacian',
+                target='cells',
+                state='value',
+                rule=_laplacian,
+                neighborhood=BoxNeighborhood(),
+            ),
+        ],
     )
 
 
@@ -558,7 +393,19 @@ def subshifts(size: int = 200) -> System:
         >>> subshifts(10).elements[0].check().prepare().size_
         10
     """
-    return System(elements=[LatticeElement('cells', element=GoldenMeanCellElement, space=LatticeSpace(size))])
+    flips = LocalRuleInteraction(
+        'flips',
+        target='cells',
+        state='alive',
+        rule=_golden_move,
+        neighborhood=BoxNeighborhood(),
+        schedule='random-sequential',
+        stochastic=True,
+    )
+    return System(
+        elements=[LatticeElement('cells', element=BinaryCellElement, space=LatticeSpace(size))],
+        interactions=[flips],
+    )
 
 
 @register_model(

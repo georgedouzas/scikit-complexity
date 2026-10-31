@@ -3,26 +3,32 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import itertools
 import re
-from collections.abc import Sequence
-from types import SimpleNamespace
+from collections.abc import Callable, Sequence
 from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, LocalRuleLaw
-from ....core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace, VonNeumannNeighborhood
+from ....core.interactions import LocalRuleInteraction
+from ....core.spaces import (
+    BoxNeighborhood,
+    LatticeNeighborhood,
+    LatticeSpace,
+    MooreNeighborhood,
+    VonNeumannNeighborhood,
+)
 from ....core.system import System
 from ....errors import ParameterError
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
-from ._automata import LifeCellElement
+from ._binary_cell import BinaryCellElement
+from ._codes import Wolfram, life
 
 LIFE_RULE = re.compile(r'^B(?P<born>[0-8]*)/S(?P<survive>[0-8]*)$')
 PREDECESSORS = LatticeNeighborhood(((-1,), (0,)))
@@ -37,8 +43,30 @@ def _parse_life_rule(rule: str) -> tuple[tuple[int, ...], tuple[int, ...]]:
     return tuple(int(digit) for digit in match['born']), tuple(int(digit) for digit in match['survive'])
 
 
-class NoisyElementaryCellElement(Element):
-    """Cell of a one-dimensional automaton that follows an elementary rule, with each output flipped with a probability.
+def _noisy_rule(number: int) -> Callable[..., Array]:
+    """Return the elementary rule of a Wolfram number whose output a uniform draw below the noise flips."""
+    mapping = Wolfram(number).table().mapping
+    outputs = np.array([mapping[(left, center, right)] for left, center, right in itertools.product((0, 1), repeat=3)])
+
+    def noisy(left: Array, center: Array, right: Array, *, noise: Array | float, random: Array) -> Array:
+        output = outputs[(4 * left + 2 * center + right).astype(int)]
+        return np.where(random < noise, 1 - output, output).astype(float)
+
+    return noisy
+
+
+def _diffuse(level: Array, *around: Array, r: Array | float) -> Array:
+    """Return the content after the exchange of a share of the difference with every neighbour."""
+    return level + r * (sum(around) - len(around) * level)
+
+
+def _add(left: Array, center: Array) -> Array:
+    """Return the sum of a cell and its left neighbour."""
+    return left + center
+
+
+class NoisyElementaryCellElement(BinaryCellElement):
+    """Binary cell that holds the probability that the output of its local rule is flipped.
 
     Args:
         label:
@@ -53,13 +81,10 @@ class NoisyElementaryCellElement(Element):
         noise:
             The probability that the output of the rule is flipped.
 
-        rule:
-            The Wolfram number of the rule.
-
     Examples:
         >>> from skcomplex.models.computer_science.automata import NoisyElementaryCellElement
-        >>> NoisyElementaryCellElement('cell', rule=184).rule
-        184
+        >>> NoisyElementaryCellElement('cell', noise=0.1).noise
+        0.1
     """
 
     def __init__(
@@ -67,37 +92,15 @@ class NoisyElementaryCellElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+        alive: float = 0,
         noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        rule: int = 18,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.alive = alive
+        super().__init__(label, visual=visual, alive=alive)
         self.noise = noise
-        self.rule = rule
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the elementary rule followed by a random flip.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        number = self.rule
-
-        def noisy(left: Array, center: Array, right: Array, *, noise: Array | float, random: Array) -> Array:
-            output = (number >> (4 * left + 2 * center + right).astype(int)) & 1
-            return np.where(random < noise, 1 - output, output).astype(float)
-
-        return [LocalRuleLaw(s.alive, BoxNeighborhood(), noisy, stochastic=True)]
 
 
 class DiffusionCellElement(Element):
-    """Cell of a lattice that exchanges a share of its content with each of its von Neumann neighbours.
+    """Cell of a lattice with a content and the share of the difference it exchanges with each neighbour in a step.
 
     Args:
         label:
@@ -130,26 +133,9 @@ class DiffusionCellElement(Element):
         self.level = level
         self.r = r
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the discrete diffusion rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-
-        def diffuse(level: Array, *around: Array, r: Array | float) -> Array:
-            return level + r * (sum(around) - len(around) * level)
-
-        return [LocalRuleLaw(s.level, VonNeumannNeighborhood(center=True), diffuse)]
-
 
 class PascalCellElement(Element):
-    """Cell over the nonnegative integers whose next value is the sum of its own and its left neighbour's values.
+    """Cell of an automaton over the nonnegative integers.
 
     Args:
         label:
@@ -176,19 +162,6 @@ class PascalCellElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.value = value
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the additive rule over the integers.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [LocalRuleLaw(s.value, PREDECESSORS, lambda left, center: left + center)]
 
 
 def _random_cells(shape: Sequence[int], density: float, random_state: int | np.random.Generator | None) -> Array:
@@ -241,19 +214,21 @@ def highlife(
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import highlife
-        >>> highlife((10, 10), rule='B2/S').elements[0].values['born']
-        (2,)
+        >>> sorted(highlife((10, 10), rule='B2/S').interactions[0].rule.rule)
+        [(0, 2)]
     """
     born, survive = _parse_life_rule(rule)
     values = _random_cells(shape, density, random_state) if initial is None else np.asarray(initial, dtype=float)
     space = LatticeSpace(tuple(shape))
     return System(
-        elements=[
-            LatticeElement(
-                'cells',
-                element=LifeCellElement,
-                space=space,
-                values={'alive': values, 'born': born, 'survive': survive},
+        elements=[LatticeElement('cells', element=BinaryCellElement, space=space, values={'alive': values})],
+        interactions=[
+            LocalRuleInteraction(
+                'rule',
+                target='cells',
+                state='alive',
+                rule=life(born, survive),
+                neighborhood=MooreNeighborhood(),
             ),
         ],
     )
@@ -308,7 +283,17 @@ def noisy_automata(
                 'cells',
                 element=NoisyElementaryCellElement,
                 space=space,
-                values={'alive': values, 'noise': noise, 'rule': rule},
+                values={'alive': values, 'noise': noise},
+            ),
+        ],
+        interactions=[
+            LocalRuleInteraction(
+                'rule',
+                target='cells',
+                state='alive',
+                rule=_noisy_rule(rule),
+                neighborhood=BoxNeighborhood(),
+                stochastic=True,
             ),
         ],
     )
@@ -356,6 +341,15 @@ def diffusion_automaton(shape: Sequence[int] = (50, 50), *, r: float = 0.1, widt
                 values={'level': level, 'r': r},
             ),
         ],
+        interactions=[
+            LocalRuleInteraction(
+                'diffusion',
+                target='cells',
+                state='level',
+                rule=_diffuse,
+                neighborhood=VonNeumannNeighborhood(center=True),
+            ),
+        ],
     )
 
 
@@ -389,5 +383,8 @@ def unbounded_alphabet_automaton(size: int = 101) -> System:
     return System(
         elements=[
             LatticeElement('cells', element=PascalCellElement, space=LatticeSpace(size), values={'value': value}),
+        ],
+        interactions=[
+            LocalRuleInteraction('addition', target='cells', state='value', rule=_add, neighborhood=PREDECESSORS),
         ],
     )
