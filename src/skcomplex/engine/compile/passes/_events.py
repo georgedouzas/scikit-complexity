@@ -23,6 +23,7 @@ from ._layout import LayoutPass
 
 RELATIONS = (operator.lt, operator.le, operator.gt, operator.ge)
 _SWITCHES = frozenset({'sign', 'sgn', 'heaviside', 'unit_step'})
+DELAYED_READS = frozenset({ReadKind.SINGLE, ReadKind.MEMBER, ReadKind.OTHER, ReadKind.FIRST, ReadKind.SECOND})
 
 
 class DelaysPass(BasePass):
@@ -103,11 +104,13 @@ class DelaysPass(BasePass):
             arguments = call.operands()
             item, tau = arguments[0], arguments[1]
             reference = spec.references.get(item)
-            read = {ReadKind.SINGLE, ReadKind.MEMBER}
-            if reference is None or not reference.is_state or reference.source not in read:
-                error_msg = f'{spec.owner} delays {item}, which is not a state of an element or a group member.'
+            if reference is None or not reference.is_state or reference.source not in DELAYED_READS:
+                error_msg = (
+                    f'{spec.owner} delays {item}, which is not a state of an element, a group member, or an end of an '
+                    'edge.'
+                )
                 raise ValidationError(error_msg)
-            key = (spec.owner, spec.set_index, reference.entry.name, reference.column, str(tau))
+            key = (spec.owner, spec.set_index, reference.entry.name, reference.column, str(tau), reference.source)
             if key in placeholders:
                 placeholder = placeholders[key]
                 hidden = next(delay.entry for delay in delays if delay.symbol is placeholder)
@@ -116,7 +119,7 @@ class DelaysPass(BasePass):
                 continue
             declarations = Compilation._required(compilation.layout, 'layout')
             entry = reference.entry
-            members = entry.members if reference.source is ReadKind.MEMBER else None
+            members = entry.members if reference.source is not ReadKind.SINGLE else None
             indices = (
                 entry.start + np.arange(members) * entry.columns + reference.column
                 if members is not None

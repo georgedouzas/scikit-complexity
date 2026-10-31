@@ -54,7 +54,7 @@ class NeighborhoodKernel(BaseKernel):
             The placeholder symbol that kernels read instead of the reduction.
 
         kind:
-            One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, and `'normalized-mean'`.
+            One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, and `'argmax'`.
 
         argument:
             The value of one neighbour, with nested reductions replaced by their placeholders.
@@ -170,7 +170,7 @@ class NeighborhoodKernel(BaseKernel):
 
         Args:
             kind:
-                One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, and `'normalized-mean'`.
+                One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, and `'argmax'`.
 
             readers:
                 The member of every pair, in increasing order.
@@ -199,8 +199,17 @@ class NeighborhoodKernel(BaseKernel):
             >>> values = np.array([1.0, 3.0, 5.0])
             >>> NeighborhoodKernel._reduce_pairs('mean', readers, np.ones(3), values, counts).tolist()
             [2.0, 0.0, 5.0]
+            >>> NeighborhoodKernel._reduce_pairs('argmax', readers, np.array([0.5, 2.0, 1.0]), values, counts).tolist()
+            [3.0, 0.0, 5.0]
         """
         size = counts.size
+        if kind == 'argmax':
+            values = np.zeros(size)
+            order = np.lexsort((-weight, readers))
+            starts = np.cumsum(counts) - counts
+            present = counts > 0
+            values[present] = argument[order[starts[present]]]
+            return values
         if kind in {'max', 'min'}:
             values = np.full(size, -np.inf if kind == 'max' else np.inf)
             (np.maximum if kind == 'max' else np.minimum).at(values, readers, weight * argument)

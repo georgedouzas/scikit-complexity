@@ -158,8 +158,9 @@ class LawKernel(BaseKernel):
         others = sorted(str(item) for item in used if self.references[item].source is ReadKind.OTHER)
         if others:
             error_msg = (
-                f'A law of {self.owner} reads the neighbour symbols {", ".join(others)} outside a neighbourhood '
-                'reduction. Read `s.other` inside `neighbors`, which reduces over the neighbours of every member.'
+                f'A law of {self.owner} reads the neighbour symbols {", ".join(others)} outside a reduction. Read '
+                '`s.other` inside `neighbors`, which reduces over the neighbours of every member, or inside a '
+                'reduction over the group.'
             )
             raise ValidationError(error_msg)
 

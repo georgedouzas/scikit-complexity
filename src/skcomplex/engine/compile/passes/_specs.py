@@ -5,6 +5,7 @@
 
 import re
 from collections.abc import Sequence
+from dataclasses import replace
 from types import SimpleNamespace
 
 import numpy as np
@@ -15,11 +16,12 @@ from ....core.interactions import BaseInteraction, NeighborInteraction, PairInte
 from ....core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ....core.specs import NodeSpec
 from ....errors import LabelError, RoleError, ValidationError
-from ....specs import WienerProcessSpec
+from ....specs import EntrySpec, WienerProcessSpec
 from ....types import VariableKind
 from ..._utils import declarations_of, domain_of, symbol, vector
 from ...problems import (
     BlockSpec,
+    DeclarationsSpec,
     KernelSpec,
     ObservedSpec,
     ProblemSpec,
@@ -35,6 +37,9 @@ from .._base import BasePass
 from .._compilation import Compilation
 from .._observables import ObservableEvaluator
 from .._observer import Observer
+from ._layout import LayoutPass
+
+END_SUFFIXES = ('__source', '__target')
 
 
 class SpecsPass(BasePass):
@@ -58,9 +63,11 @@ class SpecsPass(BasePass):
         nodes = Compilation._required(compilation.nodes, 'nodes')
         live = ObservableEvaluator._lowerable_observables(compilation.system, nodes)
         observer = Observer(declarations, live).check().prepare()
-        compilation.specs = [
-            (spec, block) for block in blocks for spec in self._specs_of(block, elements, declarations.time, observer)
-        ]
+        compilation.specs = []
+        for block in blocks:
+            specs, declarations = self._specs_of(block, elements, declarations, observer)
+            compilation.specs += [(spec, block) for spec in specs]
+        compilation.layout = declarations
 
     @staticmethod
     def _namespace(
@@ -422,8 +429,155 @@ class SpecsPass(BasePass):
         return EdgeSearch(sources, targets).check().prepare()
 
     @staticmethod
-    def _edge_spec(block: BlockSpec, elements: dict[str, BlockSpec], time: Expression) -> KernelSpec:
-        """Return the kernel spec of an interaction over neighbours, evaluated once per edge of its layer."""
+    def _degrees(nodes: BlockSpec, search: EdgeSearch) -> np.ndarray | None:
+        """Return the number of fixed edges of a layer at every node, both ways on a directed graph, or `None`.
+
+        A layer whose edges change has no fixed degrees.
+        """
+        if search.source is not None:
+            return None
+        size = nodes.rows
+        return (np.bincount(search.sources, minlength=size) + np.bincount(search.targets, minlength=size)).astype(float)
+
+    @staticmethod
+    def _with_degree(
+        namespace: SimpleNamespace,
+        references: dict[Expression, ReferenceSpec],
+        name: str,
+        reference: ReferenceSpec,
+    ) -> SimpleNamespace:
+        """Return the namespace of an end of an edge with `degree`, unless the members declare a variable so named."""
+        if 'degree' in vars(namespace):
+            return namespace
+        item = symbol(name, RR)
+        references[item] = reference
+        return SimpleNamespace(**vars(namespace), degree=item)
+
+    @staticmethod
+    def _declare_degrees(
+        node: NodeSpec,
+        nodes: BlockSpec,
+        search: EdgeSearch,
+        declarations: DeclarationsSpec,
+    ) -> tuple[DeclarationsSpec, dict[str, ReferenceSpec]]:
+        """Return the declarations with a hidden parameter of the degree of every node, and its references by end.
+
+        Args:
+            node:
+                The interaction over neighbours.
+
+            nodes:
+                The block of the group on the nodes.
+
+            search:
+                The edges of the interaction.
+
+            declarations:
+                The declarations to extend.
+
+        Returns:
+            degrees:
+                The declarations, and the reference of the degree of the source under `'source'` and of the target
+                under `'target'`, none for a layer whose edges change. The degree of a node is the number of edges of
+                the layer at it, both ways on a directed graph.
+        """
+        degrees = SpecsPass._degrees(nodes, search)
+        if degrees is None:
+            return declarations, {}
+        entry = EntrySpec(f'{node.path}._degree', declarations.ends[False], (nodes.rows,), RR, nodes.rows)
+        declarations = LayoutPass._with_entry(declarations, entry, degrees, is_state=False)
+        references = {
+            end: ReferenceSpec(entry, False, 0, source)
+            for end, source in zip(_EDGE_NAMES[:2], (ReadKind.FIRST, ReadKind.SECOND), strict=True)
+        }
+        return declarations, references
+
+    @staticmethod
+    def _end_spec(edge: KernelSpec, nodes: BlockSpec) -> KernelSpec:
+        """Return the spec of the laws of an interaction over neighbours that read one end of an edge.
+
+        The spec reads the laws in the namespace of an edge, and evaluates them once per member of the group on the
+        nodes. Every symbol of an end of an edge has a symbol of the member, and one of the other member, which the
+        reductions of the laws read.
+
+        Args:
+            edge:
+                The spec of the edges.
+
+            nodes:
+                The block of the group on the nodes.
+
+        Returns:
+            spec:
+                The spec of the laws of the members.
+        """
+        references = {
+            item: reference for item, reference in edge.references.items() if reference.source is ReadKind.SINGLE
+        }
+        for item, reference in edge.references.items():
+            if reference.source not in {ReadKind.FIRST, ReadKind.SECOND}:
+                continue
+            member, other = SpecsPass._end_symbols(item)
+            references[member] = replace(reference, source=ReadKind.MEMBER)
+            references[other] = replace(reference, source=ReadKind.OTHER)
+        return KernelSpec(
+            edge.owner,
+            edge.namespace,
+            references,
+            nodes.rows,
+            roles=edge.roles,
+            group=nodes.node.path,
+            groups={nodes.node.path: nodes.rows},
+            edges=edge,
+        )
+
+    @staticmethod
+    def _end_symbols(item: Expression) -> tuple[Expression, Expression]:
+        """Return the symbols of the member and of the other member that a symbol of an end of an edge stands for.
+
+        Args:
+            item:
+                A symbol of the source or the target of an edge.
+
+        Returns:
+            symbols:
+                The symbol of the member, and the symbol of the other member.
+
+        Examples:
+            >>> from sage.all__sagemath_symbolics import var
+            >>> from skcomplex.engine.compile.passes._specs import SpecsPass
+            >>> SpecsPass._end_symbols(var('x_cells__source'))
+            (x_cells, x_cells__other)
+        """
+        name = str(item).removesuffix(END_SUFFIXES[0]).removesuffix(END_SUFFIXES[1])
+        return symbol(name, domain_of(item)), symbol(f'{name}__other', domain_of(item))
+
+    @staticmethod
+    def _edge_specs(
+        block: BlockSpec,
+        elements: dict[str, BlockSpec],
+        declarations: DeclarationsSpec,
+    ) -> tuple[list[KernelSpec], DeclarationsSpec]:
+        """Return the specs of an interaction over neighbours, once per edge of its layer and once per node member.
+
+        Args:
+            block:
+                The block of the interaction.
+
+            elements:
+                The blocks of the elements and groups by path.
+
+            declarations:
+                The declarations, which the degrees of the ends extend.
+
+        Returns:
+            specs:
+                The spec of the edges and the spec of the laws of one end, with the extended declarations.
+
+        Raises:
+            LabelError:
+                The interaction declares a parameter named like an end or the member of an edge.
+        """
         node = block.node
         nodes, edges = SpecsPass._edge_roles(node, elements)
         search = SpecsPass._edge_search(node, nodes, edges, elements)
@@ -435,11 +589,16 @@ class SpecsPass(BasePass):
                 'its laws read as the ends and the member of an edge. Rename them.'
             )
             raise LabelError(error_msg)
-        source, source_references = SpecsPass._namespace(nodes, ReadKind.FIRST, alias='__source')
-        target, target_references = SpecsPass._namespace(nodes, ReadKind.SECOND, alias='__target')
-        references.update(source_references)
-        references.update(target_references)
-        namespaces: dict[str, SimpleNamespace] = {'source': source, 'target': target}
+        declarations, degrees = SpecsPass._declare_degrees(node, nodes, search, declarations)
+        namespaces: dict[str, SimpleNamespace] = {}
+        base = re.sub(r'[^0-9A-Za-z]', '_', node.path)
+        for end, source, suffix in zip(_EDGE_NAMES[:2], (ReadKind.FIRST, ReadKind.SECOND), END_SUFFIXES, strict=True):
+            namespace, end_references = SpecsPass._namespace(nodes, source, alias=suffix)
+            references.update(end_references)
+            if end in degrees:
+                name = f'degree_{base}{suffix}'
+                namespace = SpecsPass._with_degree(namespace, references, name, degrees[end])
+            namespaces[end] = namespace
         paths: dict[str, str | tuple[str, ...]] = {'source': nodes.node.path, 'target': nodes.node.path}
         groups: dict[str, int] = {}
         if edges is not None:
@@ -453,9 +612,9 @@ class SpecsPass(BasePass):
             activity = symbol(f'active_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_edges', RR)
             references[activity] = ReferenceSpec(changing.entries[_ACTIVE], False, 0, ReadKind.MEMBER)
             paths['edge'] = changing.node.path
-        namespace = SimpleNamespace(t=time, **vars(parameters), **namespaces)
+        namespace = SimpleNamespace(t=declarations.time, **vars(parameters), **namespaces)
         group = edges.node.path if edges is not None else None
-        return KernelSpec(
+        spec = KernelSpec(
             node.path,
             namespace,
             references,
@@ -465,6 +624,7 @@ class SpecsPass(BasePass):
             group=group,
             groups=groups,
         )
+        return [spec, SpecsPass._end_spec(spec, nodes)], declarations
 
     @staticmethod
     def _member_spec(block: BlockSpec, time: Expression) -> KernelSpec:
@@ -611,9 +771,9 @@ class SpecsPass(BasePass):
     def _specs_of(
         block: BlockSpec,
         elements: dict[str, BlockSpec],
-        time: Expression,
+        declarations: DeclarationsSpec,
         observer: Observer,
-    ) -> list[KernelSpec]:
+    ) -> tuple[list[KernelSpec], DeclarationsSpec]:
         """Return the kernel specs of a component: its intrinsic laws, its edges, its pairs, or its roles.
 
         Args:
@@ -623,20 +783,21 @@ class SpecsPass(BasePass):
             elements:
                 The blocks of the elements and groups by path.
 
-            time:
-                The time symbol.
+            declarations:
+                The declarations, with the time symbol, which the hidden parameters of the specs extend.
 
             observer:
                 The prepared observer of the observables that roles may bind to.
 
         Returns:
             specs:
-                The kernel specs.
+                The kernel specs, with the extended declarations.
         """
+        time = declarations.time
         if not block.node.interaction:
-            return [SpecsPass._member_spec(block, time)]
+            return [SpecsPass._member_spec(block, time)], declarations
         if isinstance(block.node.component, NeighborInteraction):
-            return [SpecsPass._edge_spec(block, elements, time)]
+            return SpecsPass._edge_specs(block, elements, declarations)
         if isinstance(block.node.component, PairInteraction):
-            return [SpecsPass._pair_spec(block, elements, time)]
-        return SpecsPass._interaction_specs(block, elements, time, observer)
+            return [SpecsPass._pair_spec(block, elements, time)], declarations
+        return SpecsPass._interaction_specs(block, elements, time, observer), declarations

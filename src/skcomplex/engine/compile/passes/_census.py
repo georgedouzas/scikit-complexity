@@ -5,7 +5,7 @@
 
 from collections.abc import Mapping
 
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.base import BasePart
@@ -27,16 +27,18 @@ from ....core.laws import (
     TransferLaw,
     UpdateLaw,
 )
+from ....core.laws.utils import neighborhoods_in, reductions_in
 from ....core.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ....core.system import System
 from ....errors import SkcomplexError, ValidationError
-from ....specs import EntrySpec
+from ....specs import CallSpec, EntrySpec
 from ....types import ElementKind, ProcessKey, VariableKind
-from ..._utils import components_of, declarations_of, symbol, symbols_of
+from ..._utils import components_of, declarations_of, symbol, symbols_of, vector
 from ...problems import BlockSpec, DeclarationsSpec, KernelSpec
 from ...problems._edge_search import EdgeSearch
 from ...problems._pair_search import PairSearch
 from ...problems._topology_kernel import TopologyKernel
+from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 from .._observables import ObservableEvaluator
@@ -137,7 +139,8 @@ class CensusPass(BasePass):
     ) -> list[CensusRecordSpec]:
         """Return the census records of the laws of one component."""
         records = []
-        for spec in SpecsPass._specs_of(block, elements, declarations.time, observer):
+        specs, _ = SpecsPass._specs_of(block, elements, declarations, observer)
+        for spec in specs:
             component = CensusPass._component_of(block.node)
             for law in CensusPass._declared_laws(spec, component):
                 items = [item for target in law._get_targets() for item in components_of(target)]
@@ -276,6 +279,122 @@ class CensusPass(BasePass):
         return spec._target_references(target)[0].entry.name.rpartition('.')[0]
 
     @staticmethod
+    def _expressions_of(law: BaseLaw) -> list[Expression]:
+        """Return the symbolic components of the targets and the values of a law, and of the laws it holds."""
+        found: list[Expression] = []
+        for value in (*law._get_targets(), *law._get_values()):
+            if isinstance(value, BaseLaw):
+                found += CensusPass._expressions_of(value)
+            elif isinstance(value, Expression | FreeModuleElement):
+                found += [SR(item) for item in components_of(value)]
+        return found
+
+    @staticmethod
+    def _outside_reductions(expression: Expression) -> Expression:
+        """Return an expression with every reduction and neighbourhood reduction replaced by one placeholder symbol."""
+        calls = [item.call for item in reductions_in(expression)] + [item.call for item in neighborhoods_in(expression)]
+        if not calls:
+            return expression
+        placeholder = symbol('_reduction')
+        return SR(expression).subs(dict.fromkeys(calls, placeholder))
+
+    @staticmethod
+    def _end_of(edges: KernelSpec, law: BaseLaw) -> str | None:
+        """Return the end of an edge whose member alone a law reads, or `None` for a law of the edge.
+
+        A law of one end reads no member of the edge group and, outside its reductions, the symbols of one end only,
+        and targets states of that end. Inside its reductions, the other end stands for the other members.
+
+        Args:
+            edges:
+                The spec of the edges.
+
+            law:
+                The law.
+
+        Returns:
+            end:
+                `'source'`, `'target'`, or `None`.
+        """
+        if not all(isinstance(item, Expression | FreeModuleElement) for item in law._get_targets()):
+            return None
+        expressions = CensusPass._expressions_of(law)
+        references = edges.references
+        reads = [references.get(item) for item in symbols_of(expressions)]
+        if any(reference is not None and reference.source is ReadKind.MEMBER for reference in reads):
+            return None
+        sides = {ReadKind.FIRST: 'source', ReadKind.SECOND: 'target'}
+        outside = symbols_of(CensusPass._outside_reductions(item) for item in expressions)
+        ends = {
+            sides[reference.source]
+            for item in outside
+            if (reference := references.get(item)) is not None and reference.source in sides
+        }
+        return next(iter(ends)) if len(ends) == 1 else None
+
+    @staticmethod
+    def _substituted_items(
+        value: Mapping[object, object] | list[object] | tuple[object, ...] | CallSpec,
+        mapping: Mapping[Expression, Expression],
+    ) -> object:
+        """Return a mapping, a sequence, or a call of a law with the symbols of its items replaced."""
+        if isinstance(value, Mapping):
+            return {
+                CensusPass._substituted(key, mapping): CensusPass._substituted(item, mapping)
+                for key, item in value.items()
+            }
+        if isinstance(value, CallSpec):
+            return CallSpec(value.function, tuple(CensusPass._substituted(item, mapping) for item in value.arguments))
+        return type(value)(CensusPass._substituted(item, mapping) for item in value)
+
+    @staticmethod
+    def _substituted(value: object, mapping: Mapping[Expression, Expression]) -> object:
+        """Return a value of a law with symbols replaced, through vectors, mappings, sequences, calls, and laws."""
+        if isinstance(value, BaseLaw):
+            parameters = value.get_params(deep=False)
+            return BasePass._replaced(
+                value,
+                **{name: CensusPass._substituted(item, mapping) for name, item in parameters.items()},
+            )
+        if isinstance(value, FreeModuleElement):
+            return vector(SR(item).subs(mapping) for item in value)
+        if isinstance(value, Expression):
+            return value.subs(mapping)
+        if isinstance(value, Mapping | list | tuple | CallSpec):
+            return CensusPass._substituted_items(value, mapping)
+        return value
+
+    @staticmethod
+    def _end_law(edges: KernelSpec, law: BaseLaw, end: str) -> BaseLaw:
+        """Return a law of one end of an edge written for the member, with the other end standing for other members.
+
+        Args:
+            edges:
+                The spec of the edges.
+
+            law:
+                The law, which reads one end outside its reductions.
+
+            end:
+                `'source'` or `'target'`.
+
+        Returns:
+            law:
+                The checked law in the symbols of the member and of the other member.
+        """
+        own = ReadKind.FIRST if end == 'source' else ReadKind.SECOND
+        mapping = {}
+        for item, reference in edges.references.items():
+            if reference.source in {ReadKind.FIRST, ReadKind.SECOND}:
+                member, other = SpecsPass._end_symbols(item)
+                mapping[item] = member if reference.source is own else other
+        substituted = CensusPass._substituted(law, mapping)
+        if not isinstance(substituted, BaseLaw):
+            error_msg = f'The law {law!r} of {edges.owner} is not a law once written for the member.'
+            raise TypeError(error_msg)
+        return substituted.check()
+
+    @staticmethod
     def _declared_laws(spec: KernelSpec, component: BasePart) -> list[BaseLaw]:
         """Return the laws a component returns for its namespace, after checking their classes against its binding.
 
@@ -305,11 +424,21 @@ class CensusPass(BasePass):
                 f'Pair interaction {spec.owner} returns laws other than Rate, which pair interactions do not take.'
             )
             raise ValidationError(error_msg)
+        if isinstance(spec.pairs, EdgeSearch):
+            declared = [law for law in declared if CensusPass._end_of(spec, law) is None]
+        if spec.edges is not None:
+            edges = spec.edges
+            declared = [
+                CensusPass._end_law(edges, law, end)
+                for law in declared
+                if (end := CensusPass._end_of(edges, law)) is not None
+            ]
         edge_kinds = (RateLaw, NoiseLaw, JumpLaw, UpdateLaw, BoundaryLaw)
         if isinstance(spec.pairs, EdgeSearch) and not all(isinstance(law, edge_kinds) for law in declared):
             error_msg = (
                 f'Interaction {spec.owner} over neighbours returns laws other than Rate, Noise, Jump, Update, or '
-                'Boundary laws, which its edges do not take.'
+                'Boundary laws for its edges. Its edges take these laws, and the laws that read one end of an edge '
+                'run once per member.'
             )
             raise ValidationError(error_msg)
         checked = []

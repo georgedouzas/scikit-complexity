@@ -32,6 +32,7 @@ from ..._utils import declarations_of, symbol, symbols_of, vector
 from ...problems import DeclarationsSpec, KernelSpec, ReferenceSpec
 from ...problems._neighborhood_kernel import NeighborhoodKernel
 from ...problems._reduction_kernel import ReductionKernel
+from ...problems._static_search import StaticSearch
 from ...types import ReadKind
 from .._base import BaseLowering, BasePass
 from .._compilation import Compilation
@@ -39,6 +40,8 @@ from .._complex import _modulus_form
 from .._observables import _HeldElement
 from ._mask_requests import MaskRequestsPass
 from ._specs import SpecsPass
+
+PAIRWISE_KINDS = ('sum', 'mean', 'count', 'max', 'min')
 
 
 class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
@@ -165,10 +168,10 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         if item in self.by_symbol_ or item in self.local_:
             return self.readers_[item]
         reference = self._reference_of(item, spec)
-        if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE}:
+        if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.OTHER}:
             return None
         owner = reference.entry.name.rpartition('.')[0]
-        return owner if reference.source is ReadKind.MEMBER and owner in self.declarations_.blocks else None
+        return owner if owner in self.declarations_.blocks else None
 
     def _group(self, reduction: ReductionSpec, spec: KernelSpec, symbols: set[Expression]) -> str | None:
         """Return the one group a reduction reduces over, after checking that it reads no second group."""
@@ -221,14 +224,14 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
                 raise ValidationError(error_msg)
             return ReadSpec(False, (local.entry.start + np.arange(local.entry.size)).astype(np.intp), local.entry)
         reference = self._reference_of(item, spec)
-        if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE}:
+        if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE, ReadKind.OTHER}:
             error_msg = (
                 f'A reduction of {spec.owner} reads {item}, which is not a state or parameter of an element, a group '
                 'member, or another reduction. Reductions read the namespace `s` of the law.'
             )
             raise ValidationError(error_msg)
         entry = reference.entry
-        if reference.source is ReadKind.MEMBER and entry.members is not None:
+        if reference.source in {ReadKind.MEMBER, ReadKind.OTHER} and entry.members is not None:
             indices = entry.start + np.arange(entry.rows) * entry.columns + reference.column
             return ReadSpec(reference.is_state, indices.astype(np.intp), entry, reference.column, entry.columns)
         return ReadSpec(reference.is_state, entry.start + reference.column, entry, reference.column)
@@ -381,11 +384,153 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         imaginary = self._compiled(replace(reduction, argument=argument.imag_part()), spec)
         return real + I * imaginary
 
+    def _reduced_group(self, reduction: ReductionSpec, spec: KernelSpec, others: set[Expression]) -> str:
+        """Return the one group whose members the symbols of `other` in a reduction stand for."""
+        groups = {self._owner_of(item, spec) for item in others}
+        if reduction.over is not None:
+            groups.add(self._group_of(reduction.over, spec) or self._owner_of(reduction.over, spec))
+        if len(groups) != 1 or None in groups:
+            names = ' and '.join(sorted(group or 'no group' for group in groups))
+            error_msg = (
+                f'The reduction {reduction.call} of {spec.owner} reads the other members of {names}. A reduction reads '
+                'the other members of the one group it reduces over.'
+            )
+            raise RoleError(error_msg)
+        return str(next(iter(groups)))
+
+    def _owner_of(self, item: Expression, spec: KernelSpec) -> str | None:
+        """Return the path of the element or group a symbol of a spec reads, or `None` for an unknown symbol."""
+        reference = self._reference_of(item, spec)
+        return None if reference is None else reference.entry.name.rpartition('.')[0]
+
+    def _reads_reader(self, item: Expression, spec: KernelSpec) -> bool:
+        """Check whether a symbol of a reduction holds one value per member of a group, the reading member."""
+        if item in self.local_ or item in self.by_symbol_:
+            return self.readers_[item] is not None
+        reference = self._reference_of(item, spec)
+        return reference is not None and reference.source is ReadKind.MEMBER
+
+    def _pairwise_read(self, item: Expression, spec: KernelSpec, readers: str | None) -> PairReadSpec:
+        """Return how a reduction that reads `other` reads one symbol: shared, of the reader, or of the other member."""
+        if item in self.local_ or (item in self.by_symbol_ and self.readers_[item] is not None):
+            return PairReadSpec(self._read(item, spec, readers, 0), 'reader')
+        if item in self.by_symbol_:
+            return PairReadSpec(self._read(item, spec, None, 1), 'shared')
+        reference = self._reference_of(item, spec)
+        if reference is not None and reference.source is ReadKind.SINGLE:
+            return PairReadSpec(
+                ReadSpec(reference.is_state, reference.index, reference.entry, reference.column),
+                'shared',
+            )
+        owner = self._owner_of(item, spec)
+        sides = {ReadKind.OTHER: 'other', ReadKind.MEMBER: 'reader'}
+        side = sides.get(reference.source) if reference is not None else None
+        if reference is None or side is None or (side == 'reader' and owner != readers):
+            error_msg = (
+                f'A reduction of {spec.owner} reads {item}, which is not a state or parameter of an element, of the '
+                f'reading member of {readers or "no group"}, or of the other member. Reductions read the namespaces '
+                '`s` and `s.other` of the law.'
+            )
+            raise ValidationError(error_msg)
+        entry = reference.entry
+        indices = (entry.start + np.arange(entry.rows) * entry.columns + reference.column).astype(np.intp)
+        return PairReadSpec(ReadSpec(reference.is_state, indices, entry, reference.column, entry.columns), side)
+
+    def _pairwise_form(
+        self,
+        reduction: ReductionSpec,
+        spec: KernelSpec,
+        argument: Expression,
+        condition: Expression | None,
+    ) -> tuple[str, Expression, Expression]:
+        """Return the kind, the argument, and the weight of every pair of a reduction that reads `other`."""
+        if reduction.weights is not None or reduction.kind not in PAIRWISE_KINDS:
+            error_msg = (
+                f'The reduction {reduction.call} of {spec.owner} reads `other`, which the reductions '
+                f'{", ".join(PAIRWISE_KINDS)} read without weights. Write it as one of them.'
+            )
+            raise ValidationError(error_msg)
+        selected = SR(1) if condition is None else SR(condition)
+        if reduction.kind == 'count':
+            return 'sum', selected, SR(1)
+        if reduction.kind == 'mean' and condition is not None:
+            return 'normalized-mean', argument, selected
+        if reduction.kind in {'max', 'min'} and condition is not None:
+            error_msg = (
+                f'The reduction {reduction.call} of {spec.owner} reads `other` and selects members, which the largest '
+                'and smallest values of pairs do not. Select the members inside the argument instead.'
+            )
+            raise ValidationError(error_msg)
+        return reduction.kind, argument, selected
+
+    def _pairwise(
+        self,
+        reduction: ReductionSpec,
+        spec: KernelSpec,
+        argument: Expression,
+        condition: Expression | None,
+        others: set[Expression],
+    ) -> Expression:
+        """Return the placeholder of a reduction that reads `other`, one value per reading member over every member.
+
+        The symbols of `other` stand for the reduced member and the other symbols of the reading group for the reading
+        member, so the reduction runs over every pair of a reading member and a member of the reduced group.
+        """
+        group = self._reduced_group(reduction, spec, others)
+        if group in self.declarations_.capacity:
+            error_msg = (
+                f'The reduction {reduction.call} of {spec.owner} reads `other` over the variable group {group}, whose '
+                'members come and go. Reduce over a group of fixed members.'
+            )
+            raise ValidationError(error_msg)
+        kind, argument, weight = self._pairwise_form(reduction, spec, argument, condition)
+        symbols = symbols_of([argument, weight]) - {self.declarations_.time}
+        readers = spec.group
+        rows = self.declarations_.blocks[readers].rows if readers is not None else 1
+        size = self.declarations_.blocks[group].rows
+        key = ('pairwise', kind, str(argument), str(weight), group, readers)
+        if key not in self.neighbourhoods_:
+            indptr = (np.arange(rows + 1) * size).astype(np.intp)
+            search = StaticSearch(indptr, np.tile(np.arange(size, dtype=np.intp), rows)).check().prepare()
+            reads = {item: self._pairwise_read(item, spec, readers) for item in sorted(symbols, key=str)}
+            index = len(self.neighbourhoods_)
+            shape, members = ((rows,), rows) if readers is not None else ((), None)
+            entry = EntrySpec(f'__neighbours_{index}', self.extent_, shape, RR, members)
+            compiled = (
+                NeighborhoodKernel(
+                    symbol(f'_neighbours_{index}'),
+                    kind,
+                    argument,
+                    weight,
+                    entry,
+                    group=readers or group,
+                    search=search,
+                    reads=reads,
+                    time=self.declarations_.time,
+                )
+                .check()
+                .prepare()
+            )
+            self.neighbourhoods_[key] = compiled
+            self.sequence_.append(compiled)
+            self.local_[compiled.symbol] = compiled
+            self.readers_[compiled.symbol] = readers
+        compiled = self.neighbourhoods_[key]
+        self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, 0, ReadKind.REDUCED))
+        return compiled.symbol
+
     def _compiled(self, reduction: ReductionSpec, spec: KernelSpec) -> Expression:
         """Return the placeholder of a reduction of a real expression, compiling it the first time it is found."""
         argument = SR(self._lower(reduction.argument, spec))
         condition = None if reduction.condition is None else SR(self._lower(reduction.condition, spec))
         symbols = symbols_of([argument, *([condition] if condition is not None else [])]) - {self.declarations_.time}
+        others = {
+            item
+            for item in symbols
+            if (reference := self._reference_of(item, spec)) is not None and reference.source is ReadKind.OTHER
+        }
+        if any(self._reads_reader(item, spec) for item in symbols - others) and others:
+            return self._pairwise(reduction, spec, argument, condition, others)
         group = self._group(reduction, spec, symbols)
         activity = MaskRequestsPass._activity_symbol(spec, group) if group in self.declarations_.capacity else None
         if activity is not None:
