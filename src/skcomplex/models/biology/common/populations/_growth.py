@@ -67,7 +67,7 @@ class GrowthInteraction(RateInteraction):
 
     Examples:
         >>> from skcomplex.core.elements import CompartmentElement
-        >>> from skcomplex.models.biology.common.growth import GrowthInteraction
+        >>> from skcomplex.models.biology.common.populations import GrowthInteraction
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> system = System(
@@ -105,18 +105,28 @@ class GrowthInteraction(RateInteraction):
         population = getattr(namespace.target, self.state)
         return delayed(population, namespace.tau) if self.tau else population
 
+    def _get_capacity(self, namespace: SimpleNamespace) -> Expression:
+        """Return the capacity `K`, the hook a subclass overrides for a capacity that varies."""
+        capacity: Expression = namespace.K
+        return capacity
+
+    def _get_crowding(self, namespace: SimpleNamespace) -> Expression:
+        """Return the crowding `(n / K) ** p` of the logistic form, which a subclass overrides to fix the exponent."""
+        crowding: Expression = (self._get_limited(namespace) / self._get_capacity(namespace)) ** namespace.p
+        return crowding
+
     def _get_growth(self, namespace: SimpleNamespace) -> Expression:
         """Return the growth of the population by the form."""
         s = namespace
         n = getattr(s.target, self.state)
         if self.form == 'logistic':
-            return s.r * n * (1 - (self._get_limited(s) / s.K) ** s.p)
+            return s.r * n * (1 - self._get_crowding(s))
         if self.form == 'gompertz':
-            return s.r * n * log(s.K / self._get_limited(s))
+            return s.r * n * log(self._get_capacity(s) / self._get_limited(s))
         if self.form == 'power':
             return s.r * n**s.p
         if self.form == 'bertalanffy':
-            return s.r * n**s.p * (1 - (n / s.K) ** (1 - s.p))
+            return s.r * n**s.p * (1 - (n / self._get_capacity(s)) ** (1 - s.p))
         return s.r * n
 
     def _check_form(self) -> None:

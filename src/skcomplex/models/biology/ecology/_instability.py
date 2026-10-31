@@ -10,25 +10,35 @@ from sage.all__sagemath_symbolics import Expression, exp, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, UpdateLaw
-from ....core.laws.utils import bernoulli, normal, where
+from ....core.interactions import MapInteraction
+from ....core.laws.utils import bernoulli, clip, normal, where
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
-def _nonnegative(value: Expression) -> Expression:
-    """Return a population size, cut at 0 from below."""
-    return where(value > 0, value, 0)
+def _get_resident(namespace: SimpleNamespace) -> Expression:
+    """Return the next resident population, damped towards its mean by the invader, with noise, cut at 0."""
+    s = namespace.target
+    resident = (s.x - s.eta * (s.x - s.mean)) * exp(-s.alpha * s.y) + sqrt(s.x) * s.sigma * normal('chi_x')
+    return clip(resident, low=0)
+
+
+def _get_invader(namespace: SimpleNamespace) -> Expression:
+    """Return the next invading population, grown with noise or fed by a mutation of the resident, cut at 0."""
+    s = namespace.target
+    grown = s.y * (1 + s.beta) + sqrt(s.y) * s.sigma * normal('chi_y')
+    return clip(where(bernoulli('mutation', s.p) > 0, s.y + s.nu * s.x, grown), low=0)
 
 
 class UnstablePopulationsElement(Element):
     """Resident population `x` and invading population `y`, after equations (13.3) and (13.4) of Jensen.
 
-    At every step `x ← [x - eta (x - X)] exp(-alpha y) + √x sigma chi`, an Ornstein-Uhlenbeck step damped by the
-    invader. With probability `p` a mutation from `x` adds `nu x` to `y`, and otherwise
-    `y ← y (1 + beta) + √y sigma chi'`. The noises `chi` and `chi'` are independent standard normal values, scaled by
-    the square root of the population sizes as in birth and death processes, and both sizes are cut at 0.
+    The maps of `intrinsic_instability` step both sizes. At every step `x ← [x - eta (x - X)] exp(-alpha y) + √x sigma
+    chi`, an Ornstein-Uhlenbeck step damped by the invader. With probability `p` a mutation from `x` adds `nu x` to `y`,
+    and otherwise `y ← y (1 + beta) + √y sigma chi'`. The noises `chi` and `chi'` are independent standard normal
+    values, scaled by the square root of the population sizes as in birth and death processes, and both sizes are cut
+    at 0.
 
     Args:
         label:
@@ -96,22 +106,6 @@ class UnstablePopulationsElement(Element):
         self.p = p
         self.sigma = sigma
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the steps of the two populations.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        resident = (s.x - s.eta * (s.x - s.mean)) * exp(-s.alpha * s.y) + sqrt(s.x) * s.sigma * normal('chi_x')
-        grown = s.y * (1 + s.beta) + sqrt(s.y) * s.sigma * normal('chi_y')
-        invader = where(bernoulli('mutation', s.p) > 0, s.y + s.nu * s.x, grown)
-        return [UpdateLaw(s.x, _nonnegative(resident)), UpdateLaw(s.y, _nonnegative(invader))]
-
 
 @register_model(
     field='biology/ecology',
@@ -177,4 +171,10 @@ def intrinsic_instability(
         p=p,
         sigma=sigma,
     )
-    return System(elements=[populations])
+    return System(
+        elements=[populations],
+        interactions=[
+            MapInteraction('resident', target='populations', state='x', function=_get_resident),
+            MapInteraction('invader', target='populations', state='y', function=_get_invader),
+        ],
+    )

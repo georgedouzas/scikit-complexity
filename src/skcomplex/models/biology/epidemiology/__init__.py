@@ -1,12 +1,10 @@
 """Epidemiology: compartmental, network, metapopulation, and agent-based models of infection and recovery."""
 
+from ....core.elements import CompartmentElement
 from ._adaptive import (
     ActiveHostElement,
     CarrierElement,
-    ContactElement,
-    ExpiryInteraction,
     HostElement,
-    RewiringInteraction,
     activity_driven_epidemics,
     adaptive_sis,
     quenched_mean_field_sis,
@@ -19,32 +17,28 @@ from ._agents import (
     network_sir,
     random_walker_epidemics,
 )
-from ._compartments import CompartmentElement, ImmunityLossInteraction, InfectionInteraction, RecoveryInteraction
+from ._compartments import ImmunityLossInteraction, InfectionInteraction, RecoveryInteraction
 from ._factories import sir, sirs, sis
 from ._networks import DegreeClassElement, SubpopulationElement, heterogeneous_mean_field_sis, metapopulation
 from ._outbreaks import ImmunizingDegreeClassElement, heterogeneous_mean_field_sir
-from ._recurrent import EpidemicCenterElement, VisitsInteraction, delayed_sirs
+from ._recurrent import EpidemicCenterElement, delayed_sirs
 from ._vaccination import VaccinatedPopulationElement, sir_vaccination
 
 __all__: list[str] = [
     'ActiveHostElement',
     'CarrierElement',
     'CompartmentElement',
-    'ContactElement',
     'DegreeClassElement',
     'EpidemicCenterElement',
-    'ExpiryInteraction',
     'HostElement',
     'ImmunityLossInteraction',
     'ImmunizingDegreeClassElement',
     'InfectionInteraction',
     'PersonElement',
     'RecoveryInteraction',
-    'RewiringInteraction',
     'SubpopulationElement',
     'TravellerElement',
     'VaccinatedPopulationElement',
-    'VisitsInteraction',
     'WalkerElement',
     'activity_driven_epidemics',
     'adaptive_sis',

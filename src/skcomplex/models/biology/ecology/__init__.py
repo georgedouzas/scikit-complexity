@@ -1,5 +1,11 @@
 """Ecology: population growth, predation, competition, food webs, succession, grazing, and neutral communities."""
 
+from ..common.populations import (
+    ExponentialGrowthInteraction,
+    LogisticGrowthInteraction,
+    MortalityInteraction,
+    PopulationElement,
+)
 from ._agent_predation import PredatorElement, PreyElement, agent_based_lotka_volterra
 from ._cell_quota import QuotaPhytoplanktonElement, droop_cell_quota
 from ._clustering import HabitatPatchElement, HoppingInteraction, neutral_clustering
@@ -18,15 +24,7 @@ from ._instability import UnstablePopulationsElement, intrinsic_instability
 from ._meadow import CowElement, GrazingInteraction, HerdingInteraction, PastureElement, meadow_capacity
 from ._microbial_communities import GeneralizedLotkaVolterraInteraction, MicrobeElement, generalized_lotka_volterra
 from ._neutral import NeutralSpeciesElement, neutral_macroecology
-from ._populations import (
-    DelayedLogisticGrowthInteraction,
-    ExponentialGrowthInteraction,
-    LogisticGrowthInteraction,
-    MortalityInteraction,
-    PopulationElement,
-    PredationInteraction,
-    SeasonalLogisticGrowthInteraction,
-)
+from ._populations import PredationInteraction, SeasonalLogisticGrowthInteraction
 from ._predation import (
     ParasitismInteraction,
     PredatorPreyEventsInteraction,
@@ -36,13 +34,7 @@ from ._predation import (
     rosenzweig_macarthur,
     stochastic_predator_prey,
 )
-from ._sequential import (
-    AbundanceElement,
-    InfluenceDrawInteraction,
-    InfluenceElement,
-    LinearGrowthInteraction,
-    sequentially_linear_ecosystem,
-)
+from ._sequential import AbundanceElement, LinearGrowthInteraction, sequentially_linear_ecosystem
 from ._speciation import NeutralReplacementInteraction, OrganismElement, neutral_biodiversity
 from ._stigmergy import (
     EmotionMarksElement,
@@ -59,7 +51,6 @@ __all__: list[str] = [
     'AbundanceElement',
     'CompetitionInteraction',
     'CowElement',
-    'DelayedLogisticGrowthInteraction',
     'EmotionMarksElement',
     'ExponentialGrowthInteraction',
     'FisherKPPElement',
@@ -70,8 +61,6 @@ __all__: list[str] = [
     'HabitatPatchElement',
     'HerdingInteraction',
     'HoppingInteraction',
-    'InfluenceDrawInteraction',
-    'InfluenceElement',
     'LinearGrowthInteraction',
     'LogisticGrowthInteraction',
     'MicrobeElement',

@@ -10,23 +10,18 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, JumpLaw, RateLaw
+from ....core.elements import CompartmentElement
+from ....core.interactions import Interaction, ReactionInteraction
+from ....core.laws import BaseLaw
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
-
-def _transfer(source: Expression, destination: Expression, rate: Expression, *, stochastic: bool) -> list[BaseLaw]:
-    """Return the laws that move individuals from one state to another at a rate."""
-    if stochastic:
-        return [JumpLaw(rate, {source: -1, destination: 1})]
-    return [RateLaw(source, -rate), RateLaw(destination, rate)]
+MODES = {False: 'rate', True: 'jump'}
 
 
-class BranchElement(Element):
-    """Branch of a path that ants can take, holding the pheromone marks left by the ants that took it.
+class BranchElement(CompartmentElement):
+    """Branch of a path that ants can take, holding the number `n` of pheromone marks left by the ants that took it.
 
     Args:
         label:
@@ -37,12 +32,6 @@ class BranchElement(Element):
 
         n:
             The initial number of marks.
-
-        evaporation:
-            The rate at which each mark evaporates.
-
-        stochastic:
-            Whether marks evaporate one at a time at random.
 
     Examples:
         >>> from skcomplex.models.biology.collective_behaviour import BranchElement
@@ -56,35 +45,17 @@ class BranchElement(Element):
         visual: VisualSpec | None = None,
         *,
         n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        evaporation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        stochastic: bool = True,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.n = n
-        self.evaporation = evaporation
-        self.stochastic = stochastic
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the evaporation of the marks.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        if self.stochastic:
-            return [JumpLaw(s.evaporation * s.n, {s.n: -1})]
-        return [RateLaw(s.n, -s.evaporation * s.n)]
+        super().__init__(label, visual=visual, n=n)
 
 
 class TrailChoiceInteraction(Interaction):
     """Choice of a branch by arriving ants, with Deneubourg's probability `(k + n)^h / ((k + n)^h + (k + n')^h)`.
 
     Ants arrive at the fork at rate `flux`, and each takes the chosen branch with a probability that grows with its
-    marks `n` against the marks `n'` of the other branch, and marks it. In stochastic mode every ant is a random event.
+    marks `n` against the marks `n'` of the other branch, and marks it. Its laws are those of a `ReactionInteraction`
+    that produces one mark on the chosen branch at that propensity and reads the other branch as a modifier, a rate
+    equation, or in stochastic mode a random event per ant.
 
     Args:
         label:
@@ -109,9 +80,14 @@ class TrailChoiceInteraction(Interaction):
             Whether ants are random events.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import TrailChoiceInteraction
-        >>> TrailChoiceInteraction('left', chosen='left', other='right').h
-        2.0
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.engine.runtime import Simulation
+        >>> from skcomplex.models.biology.collective_behaviour import BranchElement, TrailChoiceInteraction
+        >>> choice = TrailChoiceInteraction('choice', chosen='left', other='right', stochastic=False)
+        >>> system = System(elements=[BranchElement('left'), BranchElement('right')], interactions=[choice])
+        >>> trajectory = Simulation(system, dt=0.1).check().prepare().run(until=2.0).trajectory_
+        >>> round(float(trajectory.values('left.n')[-1]), 3)
+        1.025
     """
 
     def __init__(
@@ -133,26 +109,38 @@ class TrailChoiceInteraction(Interaction):
         self.h = h
         self.stochastic = stochastic
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the marking of the chosen branch at the rate of ants that choose it.
+    def _get_propensity(self, namespace: SimpleNamespace) -> Expression:
+        """Return the rate of ants that choose the branch, `flux` times Deneubourg's probability."""
+        s = namespace
+        attraction = (s.k + s.chosen.n) ** s.h
+        propensity: Expression = s.flux * attraction / (attraction + (s.k + s.other.n) ** s.h)
+        return propensity
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the laws of the reaction that marks the chosen branch at the rate of ants that choose it.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the laws can use, with the chosen and the other branch.
 
         Returns:
             laws:
-                The laws of the component.
+                The rate law, or the jump law, of the marking.
         """
-        attraction = (s.k + s.chosen.n) ** s.h
-        rate = s.flux * attraction / (attraction + (s.k + s.other.n) ** s.h)
-        if self.stochastic:
-            return [JumpLaw(rate, {s.chosen.n: 1})]
-        return [RateLaw(s.chosen.n, rate)]
+        propensity = self._get_propensity(namespace)
+        reaction = ReactionInteraction(
+            self.label,
+            products={(self.chosen, 'n'): 1},
+            propensity=lambda _: propensity,
+            modifiers={(self.other, 'n'): 1},
+            mode=MODES[self.stochastic],
+        )
+        species = SimpleNamespace(reactants=(), products=(namespace.chosen,), modifiers=(namespace.other,), k=0)
+        return list(reaction.check().prepare().run(species).laws_)
 
 
-class RatsElement(Element):
-    """Rats in one behavioural state, calm or nervous, counted.
+class RatsElement(CompartmentElement):
+    """Rats in one behavioural state, calm or nervous, counted by the state `n`.
 
     Args:
         label:
@@ -177,15 +165,16 @@ class RatsElement(Element):
         *,
         n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.n = n
+        super().__init__(label, visual=visual, n=n)
 
 
 class NervousnessInteraction(Interaction):
     """Calm rats that become nervous on their own or by meeting nervous rats, and nervous rats that calm down.
 
     A calm rat turns nervous at rate `spontaneous + contagion * nervous / N` and a nervous one calms down at rate
-    `calming`, where `N` is the total number of rats. In stochastic mode every change is a random event.
+    `calming`, where `N` is the total number of rats. Its laws are those of two `ReactionInteraction`s, calm to nervous
+    at the alarm propensity and nervous to calm by mass action, as rate equations, or in stochastic mode as random
+    events of single rats.
 
     Args:
         label:
@@ -210,9 +199,15 @@ class NervousnessInteraction(Interaction):
             Whether changes are random events.
 
     Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import NervousnessInteraction
-        >>> NervousnessInteraction('panic', calm='calm', nervous='nervous').calming
-        1.0
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.engine.runtime import Simulation
+        >>> from skcomplex.models.biology.collective_behaviour import NervousnessInteraction, RatsElement
+        >>> panic = NervousnessInteraction('panic', calm='calm', nervous='nervous', stochastic=False)
+        >>> rats = [RatsElement('calm', n=90.0), RatsElement('nervous', n=10.0)]
+        >>> system = System(elements=rats, interactions=[panic])
+        >>> trajectory = Simulation(system, dt=0.1).check().prepare().run(until=5.0).trajectory_
+        >>> round(float(trajectory.values('calm.n')[-1] + trajectory.values('nervous.n')[-1]), 6)
+        100.0
     """
 
     def __init__(
@@ -234,24 +229,46 @@ class NervousnessInteraction(Interaction):
         self.calming = calming
         self.stochastic = stochastic
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the transitions between calm and nervous.
+    def _get_alarm(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the laws of the reaction calm to nervous at the alarm propensity."""
+        s = namespace
+        calm, nervous = s.calm.n, s.nervous.n
+        alarm = (s.spontaneous + s.contagion * nervous / (calm + nervous)) * calm
+        reaction = ReactionInteraction(
+            f'{self.label}_alarm',
+            reactants={(self.calm, 'n'): 1},
+            products={(self.nervous, 'n'): 1},
+            propensity=lambda _: alarm,
+            modifiers={(self.nervous, 'n'): 1},
+            mode=MODES[self.stochastic],
+        )
+        species = SimpleNamespace(reactants=(s.calm,), products=(s.nervous,), modifiers=(s.nervous,), k=0)
+        return list(reaction.check().prepare().run(species).laws_)
+
+    def _get_calming(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the laws of the reaction nervous to calm at the rate constant `calming`."""
+        s = namespace
+        reaction = ReactionInteraction(
+            f'{self.label}_calming',
+            reactants={(self.nervous, 'n'): 1},
+            products={(self.calm, 'n'): 1},
+            mode=MODES[self.stochastic],
+        )
+        species = SimpleNamespace(reactants=(s.nervous,), products=(s.calm,), modifiers=(), k=s.calming)
+        return list(reaction.check().prepare().run(species).laws_)
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the laws of the alarm and the calming reactions.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the laws can use, with the calm and the nervous rats.
 
         Returns:
             laws:
-                The laws of the component.
+                The rate laws, or the jump laws, of both reactions.
         """
-        calm, nervous = s.calm.n, s.nervous.n
-        alarm = (s.spontaneous + s.contagion * nervous / (calm + nervous)) * calm
-        stochastic = self.stochastic
-        return [
-            *_transfer(calm, nervous, alarm, stochastic=stochastic),
-            *_transfer(nervous, calm, s.calming * nervous, stochastic=stochastic),
-        ]
+        return [*self._get_alarm(namespace), *self._get_calming(namespace)]
 
 
 @register_model(
@@ -298,7 +315,16 @@ def binary_ant_decision(
         >>> [branch.label for branch in binary_ant_decision().elements]
         ['left', 'right']
     """
-    branches = [BranchElement(label, evaporation=evaporation, stochastic=stochastic) for label in ('left', 'right')]
+    branches = [BranchElement(label) for label in ('left', 'right')]
+    evaporations = [
+        ReactionInteraction(
+            f'evaporation_{label}',
+            reactants={(label, 'n'): 1},
+            k=evaporation,
+            mode=MODES[stochastic],
+        )
+        for label in ('left', 'right')
+    ]
     choices = [
         TrailChoiceInteraction(
             f'choice_{chosen}',
@@ -311,7 +337,7 @@ def binary_ant_decision(
         )
         for chosen, other in (('left', 'right'), ('right', 'left'))
     ]
-    return System(elements=branches, interactions=choices)
+    return System(elements=branches, interactions=[*evaporations, *choices])
 
 
 @register_model(

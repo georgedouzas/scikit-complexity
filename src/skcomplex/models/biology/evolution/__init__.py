@@ -12,18 +12,10 @@ from ._finite_populations import (
     nk_landscape,
     tangled_nature,
 )
-from ._games import (
-    CyclicSpeciesElement,
-    ReplicationInteraction,
-    StrategyElement,
-    replicator_dynamics,
-    rock_paper_scissors,
-)
+from ._games import CyclicSpeciesElement, StrategyElement, replicator_dynamics, rock_paper_scissors
 from ._networks import (
     CatalyticLinkElement,
     ChemicalElement,
-    CouplingDriftInteraction,
-    CouplingElement,
     DependencyFieldInteraction,
     TaxonElement,
     jain_krishna,
@@ -34,10 +26,10 @@ from ._prebiotic import (
     GenotypeClassElement,
     MasterSequenceElement,
     MoleculeElement,
-    MutationInteraction,
     eigen_quasispecies,
     hypercycles,
 )
+from ._replicator import ReplicatorInteraction
 from ._substitutions import LocusElement, SubstitutionInteraction, origin_fixation_walk
 
 __all__: list[str] = [
@@ -46,8 +38,6 @@ __all__: list[str] = [
     'CatalyticLinkElement',
     'ChemicalElement',
     'ClimberElement',
-    'CouplingDriftInteraction',
-    'CouplingElement',
     'CyclicSpeciesElement',
     'DependencyFieldInteraction',
     'GenotypeClassElement',
@@ -56,8 +46,7 @@ __all__: list[str] = [
     'MasterSequenceElement',
     'MoleculeElement',
     'MoranStepInteraction',
-    'MutationInteraction',
-    'ReplicationInteraction',
+    'ReplicatorInteraction',
     'SpeciesElement',
     'StrategyElement',
     'SubstitutionInteraction',

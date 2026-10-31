@@ -1,62 +1,26 @@
-"""Epidemiology models: compartmental models of infection and recovery."""
+"""Epidemiology models: transfers between the compartments of an epidemic, as mass-action reactions."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, JumpLaw, RateLaw
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.interactions import Interaction, ReactionInteraction
+from ....core.laws import BaseLaw
+from ....specs import ParameterSpec, RoleSpec
 
-
-def _transfer(source: Expression, destination: Expression, rate: Expression, *, stochastic: bool) -> list[BaseLaw]:
-    """Return the laws that move individuals from one compartment to another at a rate."""
-    if stochastic:
-        return [JumpLaw(rate, {source: -1, destination: 1})]
-    return [RateLaw(source, -rate), RateLaw(destination, rate)]
-
-
-class CompartmentElement(Element):
-    """Group of individuals in one epidemiological state, such as susceptible, infected, or recovered.
-
-    Args:
-        label:
-            The label of the compartment.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        n:
-            The initial number of individuals.
-
-    Examples:
-        >>> from skcomplex.models.biology.epidemiology import CompartmentElement
-        >>> CompartmentElement('S', n=990).n
-        990
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.n = n
+MODES = {False: 'rate', True: 'jump'}
 
 
 class InfectionInteraction(Interaction):
-    """Mass-action infection, which moves `beta * S * I` individuals per unit time from susceptible to infected.
+    """Mass-action infection, the reaction `S + I -> 2 I` at the rate `beta S I` from susceptible to infected.
 
-    In stochastic mode each infection is a random event that moves one individual.
+    Its laws are those of a `ReactionInteraction` between the states `n` of the two compartments, a rate equation, or
+    in stochastic mode a random event that moves one individual.
 
     Args:
         label:
@@ -75,9 +39,17 @@ class InfectionInteraction(Interaction):
             Whether infections are random events.
 
     Examples:
+        >>> from skcomplex.core.elements import CompartmentElement
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.biology.epidemiology import InfectionInteraction
-        >>> InfectionInteraction('infection', susceptible='S', infected='I', beta=0.001).beta
-        0.001
+        >>> system = System(
+        ...     elements=[CompartmentElement('S', n=99.0), CompartmentElement('I', n=1.0)],
+        ...     interactions=[InfectionInteraction('infection', susceptible='S', infected='I', beta=0.01)],
+        ... )
+        >>> trajectory = Simulation(system, dt=0.1).check().prepare().run(until=5.0).trajectory_
+        >>> round(float(trajectory.values('S.n')[-1] + trajectory.values('I.n')[-1]), 6)
+        100.0
     """
 
     def __init__(
@@ -95,25 +67,37 @@ class InfectionInteraction(Interaction):
         self.beta = beta
         self.stochastic = stochastic
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the transfer of `beta * S * I` from susceptible to infected.
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the laws of the reaction `S + I -> 2 I` at the rate constant `beta`.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the laws can use, with the susceptible and infected compartments.
 
         Returns:
             laws:
-                The laws of the component.
+                The rate laws, or the jump law, of the reaction.
         """
-        rate = s.beta * s.susceptible.n * s.infected.n
-        return _transfer(s.susceptible.n, s.infected.n, rate, stochastic=self.stochastic)
+        reaction = ReactionInteraction(
+            self.label,
+            reactants={(self.susceptible, 'n'): 1, (self.infected, 'n'): 1},
+            products={(self.infected, 'n'): 2},
+            mode=MODES[self.stochastic],
+        )
+        species = SimpleNamespace(
+            reactants=(namespace.susceptible, namespace.infected),
+            products=(namespace.infected,),
+            modifiers=(),
+            k=namespace.beta,
+        )
+        return list(reaction.check().prepare().run(species).laws_)
 
 
 class RecoveryInteraction(Interaction):
-    """Recovery, which moves `gamma * I` individuals per unit time from infected to recovered.
+    """Recovery, the reaction `I -> R` at the rate `gamma I` from infected to recovered.
 
-    In stochastic mode each recovery is a random event that moves one individual.
+    Its laws are those of a `ReactionInteraction` between the states `n` of the two compartments, a rate equation, or
+    in stochastic mode a random event that moves one individual.
 
     Args:
         label:
@@ -132,9 +116,17 @@ class RecoveryInteraction(Interaction):
             Whether recoveries are random events.
 
     Examples:
+        >>> from skcomplex.core.elements import CompartmentElement
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.biology.epidemiology import RecoveryInteraction
-        >>> RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1).gamma
-        0.1
+        >>> system = System(
+        ...     elements=[CompartmentElement('I', n=10.0), CompartmentElement('R')],
+        ...     interactions=[RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.5)],
+        ... )
+        >>> trajectory = Simulation(system, dt=0.01).check().prepare().run(until=2.0).trajectory_
+        >>> round(float(trajectory.values('I.n')[-1]), 3)
+        3.679
     """
 
     def __init__(
@@ -152,24 +144,37 @@ class RecoveryInteraction(Interaction):
         self.gamma = gamma
         self.stochastic = stochastic
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the transfer of `gamma * I` from infected to recovered.
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the laws of the reaction `I -> R` at the rate constant `gamma`.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the laws can use, with the infected and recovered compartments.
 
         Returns:
             laws:
-                The laws of the component.
+                The rate laws, or the jump law, of the reaction.
         """
-        return _transfer(s.infected.n, s.recovered.n, s.gamma * s.infected.n, stochastic=self.stochastic)
+        reaction = ReactionInteraction(
+            self.label,
+            reactants={(self.infected, 'n'): 1},
+            products={(self.recovered, 'n'): 1},
+            mode=MODES[self.stochastic],
+        )
+        species = SimpleNamespace(
+            reactants=(namespace.infected,),
+            products=(namespace.recovered,),
+            modifiers=(),
+            k=namespace.gamma,
+        )
+        return list(reaction.check().prepare().run(species).laws_)
 
 
 class ImmunityLossInteraction(Interaction):
-    """Loss of immunity, which moves `xi * R` individuals per unit time from recovered back to susceptible.
+    """Loss of immunity, the reaction `R -> S` at the rate `xi R` from recovered back to susceptible.
 
-    In stochastic mode each loss is a random event that moves one individual.
+    Its laws are those of a `ReactionInteraction` between the states `n` of the two compartments, a rate equation, or
+    in stochastic mode a random event that moves one individual.
 
     Args:
         label:
@@ -189,7 +194,7 @@ class ImmunityLossInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import ImmunityLossInteraction
-        >>> ImmunityLossInteraction('waning', recovered='R', susceptible='S', xi=0.05).xi
+        >>> ImmunityLossInteraction('waning', recovered='R', susceptible='S', xi=0.05).check().xi
         0.05
     """
 
@@ -208,15 +213,27 @@ class ImmunityLossInteraction(Interaction):
         self.xi = xi
         self.stochastic = stochastic
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the transfer of `xi * R` from recovered to susceptible.
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the laws of the reaction `R -> S` at the rate constant `xi`.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the laws can use, with the recovered and susceptible compartments.
 
         Returns:
             laws:
-                The laws of the component.
+                The rate laws, or the jump law, of the reaction.
         """
-        return _transfer(s.recovered.n, s.susceptible.n, s.xi * s.recovered.n, stochastic=self.stochastic)
+        reaction = ReactionInteraction(
+            self.label,
+            reactants={(self.recovered, 'n'): 1},
+            products={(self.susceptible, 'n'): 1},
+            mode=MODES[self.stochastic],
+        )
+        species = SimpleNamespace(
+            reactants=(namespace.recovered,),
+            products=(namespace.susceptible,),
+            modifiers=(),
+            k=namespace.xi,
+        )
+        return list(reaction.check().prepare().run(species).laws_)

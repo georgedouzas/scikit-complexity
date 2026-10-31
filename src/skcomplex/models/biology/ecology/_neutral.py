@@ -3,25 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, JumpLaw
+from ....core.elements import CompartmentElement, GroupElement
+from ....core.interactions import JumpInteraction
 from ....core.laws.utils import where
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
-class NeutralSpeciesElement(Element):
-    """Species whose individuals are born and die at rates that do not depend on the species, of neutral theory.
+class NeutralSpeciesElement(CompartmentElement):
+    """Species of neutral theory, a compartment of `n` individuals with birth and death rates shared by every species.
 
-    Births occur at the rate `b0 + b1 n`, with immigration or speciation `b0`, and deaths at the rate `d0 + d1 n`,
-    with emigration or extinction `d0` while the species has members.
+    The births of `neutral_macroecology` occur at the rate `b0 + b1 n`, with immigration or speciation `b0`, and its
+    deaths at the rate `d0 + d1 n`, with emigration or extinction `d0` while the species has members.
 
     Args:
         label:
@@ -46,6 +45,7 @@ class NeutralSpeciesElement(Element):
             The per capita death rate.
 
     Examples:
+        >>> from skcomplex.core.elements import GroupElement
         >>> from skcomplex.models.biology.ecology import NeutralSpeciesElement
         >>> GroupElement('trees', element=NeutralSpeciesElement, size=50).size
         50
@@ -62,28 +62,11 @@ class NeutralSpeciesElement(Element):
         d0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.n = n
+        super().__init__(label, visual=visual, n=n)
         self.b0 = b0
         self.b1 = b1
         self.d0 = d0
         self.d1 = d1
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the birth and death events.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            JumpLaw(s.b0 + s.b1 * s.n, {s.n: 1}),
-            JumpLaw(where(s.n > 0, s.d0, 0) + s.d1 * s.n, {s.n: -1}),
-        ]
 
 
 @register_model(
@@ -142,6 +125,20 @@ def neutral_macroecology(
                 element=NeutralSpeciesElement,
                 size=species,
                 values={'n': n, 'b0': b0, 'b1': b1, 'd0': d0, 'd1': d1},
+            ),
+        ],
+        interactions=[
+            JumpInteraction(
+                'birth',
+                target='species',
+                changes={'n': 1},
+                rate=lambda s: s.target.b0 + s.target.b1 * s.target.n,
+            ),
+            JumpInteraction(
+                'death',
+                target='species',
+                changes={'n': -1},
+                rate=lambda s: where(s.target.n > 0, s.target.d0, 0) + s.target.d1 * s.target.n,
             ),
         ],
     )

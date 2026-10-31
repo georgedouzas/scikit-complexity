@@ -3,9 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from ....core.elements import CompartmentElement
 from ....core.system import System
 from ..._catalog import register_model
-from ._compartments import CompartmentElement, ImmunityLossInteraction, InfectionInteraction, RecoveryInteraction
+from ._compartments import ImmunityLossInteraction, InfectionInteraction, RecoveryInteraction
 
 
 @register_model(

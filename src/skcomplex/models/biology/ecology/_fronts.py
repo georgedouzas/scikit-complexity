@@ -1,4 +1,4 @@
-"""Ecology models: population growth, predation, and invasion fronts."""
+"""Ecology models: invasion fronts of a population that grows logistically and diffuses."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +20,29 @@ from ..._catalog import register_model
 
 
 class FisherKPPElement(Element):
-    """Fisher k p p element."""
+    """Site of a line whose density `u` diffuses and grows logistically, `du/dt = D laplacian(u) + r u (1 - u)`.
+
+    Args:
+        label:
+            The label of the site.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        u:
+            The initial density, as a fraction of the carrying capacity.
+
+        D:
+            The diffusion coefficient.
+
+        r:
+            The growth rate.
+
+    Examples:
+        >>> from skcomplex.models.biology.ecology import FisherKPPElement
+        >>> FisherKPPElement('site', u=0.5).u
+        0.5
+    """
 
     def __init__(
         self,
@@ -37,7 +59,16 @@ class FisherKPPElement(Element):
         self.r = r
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the fisher k p p element."""
+        """Return the diffusion and the logistic growth of the density.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate law of the density.
+        """
         return [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u))]
 
 

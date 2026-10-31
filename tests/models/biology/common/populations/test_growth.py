@@ -1,4 +1,4 @@
-"""Test the `_growth` module of `skcomplex.models.biology.common.growth`."""
+"""Test the `_growth` module of `skcomplex.models.biology.common.populations`."""
 
 from typing import Annotated
 
@@ -11,7 +11,7 @@ from skcomplex.core.elements import CompartmentElement, Element
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
-from skcomplex.models.biology.common.growth import GrowthInteraction
+from skcomplex.models.biology.common.populations import GrowthInteraction
 from skcomplex.specs import StateSpec, VisualSpec
 
 N0 = 2.0

@@ -10,9 +10,8 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import where
+from ....core.interactions import RateInteraction
+from ....core.laws.utils import clip
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
@@ -64,7 +63,7 @@ class StandElement(Element):
         self.mature = mature
 
 
-class PioneerGrowthInteraction(Interaction):
+class PioneerGrowthInteraction(RateInteraction):
     """Michaelis-Menten regrowth of pioneer trees, whose input from seeds the other groups suppress.
 
     Alone, the volume follows `V(t) = V_mat t / (K_M + t)` after a clear cut, which is
@@ -110,32 +109,32 @@ class PioneerGrowthInteraction(Interaction):
         w_intermediate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.32,
         w_climax: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.68,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, state='volume')
         self.intermediate = intermediate
         self.climax = climax
         self.half_time = half_time
         self.w_intermediate = w_intermediate
         self.w_climax = w_climax
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the regrowth with the suppressed input from seeds.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the rate can use, with the stands.
 
         Returns:
-            laws:
-                The laws of the component.
+            rate:
+                The rate of the volume of the pioneers.
         """
+        s = namespace
         volume, mature = s.target.volume, s.target.mature
-        free = 1 - _crowding(s.intermediate, s.climax, s.w_intermediate, s.w_climax)
-        suppression = where(free > 0, free, 0)
-        return [RateLaw(volume, (volume * (volume / mature - 2) + suppression * mature) / s.half_time)]
+        suppression = clip(1 - _crowding(s.intermediate, s.climax, s.w_intermediate, s.w_climax), low=0)
+        rate: Expression = (volume * (volume / mature - 2) + suppression * mature) / s.half_time
+        return rate
 
 
-class SuccessionalGrowthInteraction(Interaction):
+class SuccessionalGrowthInteraction(RateInteraction):
     """Logistic growth of intermediate or climax trees, crowded by their own group and another, with seedling input.
 
     The rate is `dV/dt = a + g V (1 - w_1 V_1 / V_mat,1 - w_2 V_2 / V_mat,2)`, with weights normalized to sum to one.
@@ -184,8 +183,7 @@ class SuccessionalGrowthInteraction(Interaction):
         w_second: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         seedlings: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, state='volume')
         self.first = first
         self.second = second
         self.g = g
@@ -193,20 +191,21 @@ class SuccessionalGrowthInteraction(Interaction):
         self.w_second = w_second
         self.seedlings = seedlings
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the crowded logistic growth with the seedling input.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the rate can use, with the stands.
 
         Returns:
-            laws:
-                The laws of the component.
+            rate:
+                The rate of the volume of the target.
         """
-        volume = s.target.volume
+        s = namespace
         crowding = _crowding(s.first, s.second, s.w_first, s.w_second)
-        return [RateLaw(volume, s.seedlings + s.g * volume * (1 - crowding))]
+        rate: Expression = s.seedlings + s.g * s.target.volume * (1 - crowding)
+        return rate
 
 
 @register_model(

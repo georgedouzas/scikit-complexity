@@ -11,8 +11,8 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, LatticeElement
-from ....core.interactions import Interaction
+from ....core.elements import CompartmentElement, LatticeElement
+from ....core.interactions import BaseInteraction, Interaction, JumpInteraction
 from ....core.laws import BaseLaw, JumpLaw
 from ....core.spaces import LatticeSpace
 from ....core.system import System
@@ -32,11 +32,11 @@ def _neighbor_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
     return pairs
 
 
-class HabitatPatchElement(Element):
-    """Patch of space whose organisms divide and die at the same rate, so their number makes a symmetric random walk.
+class HabitatPatchElement(CompartmentElement):
+    """Patch of space, a compartment of `n` organisms that divide and die at the same rate `alpha`.
 
-    Every organism divides at the rate `alpha` and dies at the rate `alpha`, and an empty patch stays empty without
-    arrivals from its neighbours.
+    The divisions and deaths are jumps of `neutral_clustering`, so the number of organisms is a symmetric random walk,
+    and an empty patch stays empty without arrivals from its neighbours.
 
     Args:
         label:
@@ -65,22 +65,8 @@ class HabitatPatchElement(Element):
         n: Annotated[float, StateSpec(domain=NN)] = 10.0,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.n = n
+        super().__init__(label, visual=visual, n=n)
         self.alpha = alpha
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the divisions and deaths of the organisms of the patch.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [JumpLaw(s.alpha * s.n, {s.n: 1}), JumpLaw(s.alpha * s.n, {s.n: -1})]
 
 
 class HoppingInteraction(Interaction):
@@ -191,7 +177,10 @@ def neutral_clustering(
         values={'n': np.full(lattice, float(n)), 'alpha': alpha},
     )
     members = [f'patches[{index}]' for index in range(int(np.prod(lattice)))]
-    interactions = []
+    interactions: list[BaseInteraction] = [
+        JumpInteraction('division', target='patches', changes={'n': 1}, rate=lambda s: s.target.alpha * s.target.n),
+        JumpInteraction('death', target='patches', changes={'n': -1}, rate=lambda s: s.target.alpha * s.target.n),
+    ]
     if beta:
         interactions.append(HoppingInteraction('hopping', patches=members, links=_neighbor_pairs(lattice), beta=beta))
     return System(

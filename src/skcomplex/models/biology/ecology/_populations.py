@@ -1,4 +1,4 @@
-"""Ecology models: population growth, predation, and invasion fronts."""
+"""Ecology models: logistic growth under a seasonal capacity, and Lotka-Volterra predation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,140 +6,16 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import oo, pi, sin
+from sage.all__sagemath_symbolics import Expression, oo, pi, sin
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import delayed
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, RoleSpec
+from ..common.populations import LogisticGrowthInteraction
 
 
-class PopulationElement(Element):
-    """Population of one species.
-
-    Args:
-        label:
-            The label of the population.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        n:
-            The initial size.
-
-    Examples:
-        >>> from skcomplex.models.biology.ecology import PopulationElement
-        >>> PopulationElement('rabbits', n=40).n
-        40
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.n = n
-
-
-class ExponentialGrowthInteraction(Interaction):
-    """Growth at a constant per capita rate, `dn/dt = r * n`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the population.
-
-        r:
-            The per capita growth rate.
-
-    Examples:
-        >>> from skcomplex.models.biology.ecology import ExponentialGrowthInteraction
-        >>> ExponentialGrowthInteraction('growth', target='rabbits', r=0.5).r
-        0.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.r = r
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate `r * n`.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.target.n, s.r * s.target.n)]
-
-
-class LogisticGrowthInteraction(Interaction):
-    """Growth limited by a carrying capacity, `dn/dt = r * n * (1 - n / K)`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the population.
-
-        r:
-            The per capita growth rate at low density.
-
-        K:
-            The carrying capacity.
-
-    Examples:
-        >>> from skcomplex.models.biology.ecology import LogisticGrowthInteraction
-        >>> LogisticGrowthInteraction('growth', target='rabbits', K=200).K
-        200
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.r = r
-        self.K = K
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate `r * n * (1 - n / K)`.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.target.n, s.r * s.target.n * (1 - s.target.n / s.K))]
-
-
-class SeasonalLogisticGrowthInteraction(Interaction):
+class SeasonalLogisticGrowthInteraction(LogisticGrowthInteraction):
     """Logistic growth under a carrying capacity that varies periodically, `K(t) = K (1 + amplitude sin(2 pi t / T))`.
 
     Args:
@@ -177,127 +53,24 @@ class SeasonalLogisticGrowthInteraction(Interaction):
         amplitude: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         period: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.r = r
-        self.K = K
+        super().__init__(label, target=target, r=r, K=K)
         self.amplitude = amplitude
         self.period = period
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate `r * n * (1 - n / K(t))`.
+    def _get_capacity(self, namespace: SimpleNamespace) -> Expression:
+        """Return the capacity `K (1 + amplitude sin(2 pi t / T))` at the time of the namespace.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the rate can use.
 
         Returns:
-            laws:
-                The laws of the component.
+            capacity:
+                The carrying capacity at the time `t`.
         """
-        capacity = s.K * (1 + s.amplitude * sin(2 * pi * s.t / s.period))
-        return [RateLaw(s.target.n, s.r * s.target.n * (1 - s.target.n / capacity))]
-
-
-class DelayedLogisticGrowthInteraction(Interaction):
-    """Growth limited by the population a delay ago, `dn/dt = r * n * (1 - n(t - tau) / K)`, of Hutchinson.
-
-    The delay stands for maturation or resource regeneration. The equilibrium `K` loses stability to oscillations when
-    `r * tau` exceeds π/2.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the population.
-
-        r:
-            The per capita growth rate at low density.
-
-        K:
-            The carrying capacity.
-
-        tau:
-            The delay of the density feedback.
-
-    Examples:
-        >>> from skcomplex.models.biology.ecology import DelayedLogisticGrowthInteraction
-        >>> DelayedLogisticGrowthInteraction('growth', target='rabbits', tau=2.0).tau
-        2.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        r: Annotated[float, ParameterSpec()] = 1.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.r = r
-        self.K = K
-        self.tau = tau
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate `r * n * (1 - n(t - tau) / K)`.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.target.n, s.r * s.target.n * (1 - delayed(s.target.n, s.tau) / s.K))]
-
-
-class MortalityInteraction(Interaction):
-    """Death at a constant per capita rate, `dn/dt = -d * n`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the population.
-
-        d:
-            The per capita death rate.
-
-    Examples:
-        >>> from skcomplex.models.biology.ecology import MortalityInteraction
-        >>> MortalityInteraction('death', target='foxes', d=0.4).d
-        0.4
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.d = d
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate `-d * n`.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.target.n, -s.d * s.target.n)]
+        s = namespace
+        capacity: Expression = s.K * (1 + s.amplitude * sin(2 * pi * s.t / s.period))
+        return capacity
 
 
 class PredationInteraction(Interaction):

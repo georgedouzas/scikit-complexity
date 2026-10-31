@@ -13,12 +13,13 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement, GroupElement
-from ....core.laws import BaseLaw, RateLaw, RuleLaw
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.solvers import AgentView, ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.stigmergy import EvaporationInteraction
 from ._forager_view import ForagerView
 from ._plant_view import PlantView
 
@@ -26,12 +27,44 @@ MARKS = 'ground/marks'
 PLANTS = 'plants'
 PREY = 'prey'
 PREDATORS = 'predators'
+EMOTIONS = ('prey_happiness', 'prey_fear', 'predator_happiness', 'predator_anger')
 PREY_TRAITS: dict[str, float] = {'maturity': 3.0, 'reproduction': 0.5, 'starvation': 10.0}
 PREDATOR_TRAITS: dict[str, float] = {'maturity': 20.0, 'reproduction': 0.1, 'starvation': 8.0}
 
 
 class EmotionMarksElement(Element):
-    """Emotion marks element."""
+    """Marks of one cell, the happiness and fear of prey and the happiness and anger of predators.
+
+    Animals with emotions leave their feelings in the cell they stand on, and the marks evaporate at the rate `decay`,
+    which the model adds as an evaporation of every mark.
+
+    Args:
+        label:
+            The label of the element or the lattice field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        prey_happiness:
+            The initial happiness left by prey.
+
+        prey_fear:
+            The initial fear left by prey.
+
+        predator_happiness:
+            The initial happiness left by predators.
+
+        predator_anger:
+            The initial anger left by predators.
+
+        decay:
+            The rate at which every mark evaporates.
+
+    Examples:
+        >>> from skcomplex.models.biology.ecology import EmotionMarksElement
+        >>> EmotionMarksElement('marks').decay
+        0.2
+    """
 
     def __init__(
         self,
@@ -50,15 +83,6 @@ class EmotionMarksElement(Element):
         self.predator_happiness = predator_happiness
         self.predator_anger = predator_anger
         self.decay = decay
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the emotion marks element."""
-        return [
-            RateLaw(s.prey_happiness, -s.decay * s.prey_happiness),
-            RateLaw(s.prey_fear, -s.decay * s.prey_fear),
-            RateLaw(s.predator_happiness, -s.decay * s.predator_happiness),
-            RateLaw(s.predator_anger, -s.decay * s.predator_anger),
-        ]
 
 
 def _kind(agent: AgentView) -> str:
@@ -589,4 +613,8 @@ def stigmergic_predator_prey(
         space=LatticeSpace((width, height)),
         values={'decay': decay},
     )
-    return System(systems=[life, System('ground', elements=[marks])])
+    evaporations = [
+        EvaporationInteraction(f'evaporation_{mark}', target='marks', state=mark, evaporation='decay')
+        for mark in EMOTIONS
+    ]
+    return System(systems=[life, System('ground', elements=[marks], interactions=evaporations)])

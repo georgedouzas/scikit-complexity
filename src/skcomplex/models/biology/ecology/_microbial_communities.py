@@ -8,12 +8,11 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import RateInteraction
 from ....core.laws.utils import total
 from ....core.system import System
 from ....errors import ValidationError
@@ -59,25 +58,30 @@ class MicrobeElement(Element):
         self.b = b
 
 
-class GeneralizedLotkaVolterraInteraction(Interaction):
+class GeneralizedLotkaVolterraInteraction(RateInteraction):
     """Growth of the species of a group, `dx_i/dt = x_i (b_i + sum_j a_ij x_j)`, with an interaction matrix `a`.
 
-    The sum over the species is a total over the group weighted by row `i` of the matrix. The diagonal entries are the
-    interactions of a species with itself, negative for self-limitation.
+    The rate of a species is its intrinsic growth rate `b`, a parameter of the species, plus the total over the group
+    weighted by row `i` of the matrix, times its abundance. The diagonal entries are the interactions of a species with
+    itself, negative for self-limitation.
 
     Args:
         label:
             The label of the interaction.
 
-        community:
+        target:
             The path of the group of species.
 
-        a:
+        weights:
             The interaction matrix, where `a_ij` is the effect of species `j` on the growth of species `i`.
+
+        state:
+            The name of the state that holds the abundance of a species.
 
     Examples:
         >>> from skcomplex.models.biology.ecology import GeneralizedLotkaVolterraInteraction
-        >>> GeneralizedLotkaVolterraInteraction('glv', community='species', a=((-1.0, 0.5), (0.5, -1.0))).a
+        >>> matrix = ((-1.0, 0.5), (0.5, -1.0))
+        >>> GeneralizedLotkaVolterraInteraction('glv', target='species', weights=matrix).check().weights
         ((-1.0, 0.5), (0.5, -1.0))
     """
 
@@ -85,26 +89,28 @@ class GeneralizedLotkaVolterraInteraction(Interaction):
         self,
         label: str,
         *,
-        community: Annotated[str, RoleSpec()],
-        a: Sequence[Sequence[float]] = ((-1.0,),),
+        target: Annotated[str, RoleSpec()],
+        weights: Sequence[Sequence[float]] = ((-1.0,),),
+        state: str = 'x',
     ) -> None:
-        super().__init__(label)
-        self.community = community
-        self.a = a
+        super().__init__(label, target=target, state=state)
+        self.weights = weights
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the generalized Lotka-Volterra growth of every species.
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
+        """Return the rate `x_i (b_i + sum_j a_ij x_j)` of a species.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the rate can use, with the namespace of the group.
 
         Returns:
-            laws:
-                The laws of the component.
+            rate:
+                The rate of the abundance.
         """
-        x = s.community.x
-        return [RateLaw(x, x * (s.community.b + total(x, weights=np.asarray(self.a, dtype=float))))]
+        species = namespace.target
+        x = getattr(species, self.state)
+        rate: Expression = x * (species.b + total(x, weights=np.asarray(self.weights, dtype=float)))
+        return rate
 
 
 @register_model(
@@ -164,5 +170,5 @@ def generalized_lotka_volterra(
     matrix = tuple(tuple(float(value) for value in row) for row in a)
     return System(
         elements=[species],
-        interactions=[GeneralizedLotkaVolterraInteraction('glv', community='species', a=matrix)],
+        interactions=[GeneralizedLotkaVolterraInteraction('glv', target='species', weights=matrix)],
     )

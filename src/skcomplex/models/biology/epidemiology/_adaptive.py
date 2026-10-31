@@ -13,12 +13,12 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, LatticeElement
-from ....core.interactions import NeighborInteraction
-from ....core.laws import BaseLaw, JumpLaw, RateLaw, UpdateLaw
+from ....core.interactions import SpreadingInteraction, TopologyInteraction
+from ....core.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import bernoulli, neighbors, where
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 HIDDEN = VisualSpec('sites', {'states': []})
@@ -78,8 +78,7 @@ class CarrierElement(Element):
 class HostElement(Element):
     """Node of a network that is susceptible at `i = 0` or infected at `i = 1`, in continuous time.
 
-    An infected node recovers at rate `gamma`, and a susceptible node is infected at rate `beta` by every infected
-    neighbour.
+    A `SpreadingInteraction` infects and recovers it, and a `TopologyInteraction` rewires its edges at its rate `w`.
 
     Args:
         label:
@@ -91,15 +90,12 @@ class HostElement(Element):
         i:
             Whether the node is infected.
 
-        beta:
-            The infection rate per edge to an infected neighbour.
-
-        gamma:
-            The recovery rate.
+        w:
+            The rate at which the node, while susceptible, rewires an edge to an infected neighbour.
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import HostElement
-        >>> HostElement('node').gamma
+        >>> HostElement('node').w
         1.0
     """
 
@@ -109,114 +105,19 @@ class HostElement(Element):
         visual: VisualSpec | None = None,
         *,
         i: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        w: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.i = i
-        self.beta = beta
-        self.gamma = gamma
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the infection by the infected neighbours and the recovery.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            JumpLaw(s.beta * (1 - s.i) * neighbors(s.other.i), {s.i: 1}),
-            JumpLaw(s.gamma * s.i, {s.i: -1}),
-        ]
-
-
-class ContactElement(Element):
-    """Edge of a network between two hosts, which carries no state of its own.
-
-    Args:
-        label:
-            The label of the edge or of the group of edges.
-
-    Examples:
-        >>> from skcomplex.models.biology.epidemiology import ContactElement
-        >>> ContactElement('edge').label
-        'edge'
-    """
-
-
-class RewiringInteraction(NeighborInteraction):
-    """Susceptible end of an edge to an infected node that moves the edge to another susceptible node at rate `w`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        hosts:
-            The path of the group of hosts on the nodes.
-
-        contacts:
-            The path of the variable group on the edges.
-
-        w:
-            The rewiring rate of an edge between a susceptible and an infected node.
-
-    Examples:
-        >>> from skcomplex.models.biology.epidemiology import RewiringInteraction
-        >>> RewiringInteraction('rewiring', hosts='hosts', contacts='contacts', w=2.0).w
-        2.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        hosts: Annotated[str, RoleSpec()],
-        contacts: Annotated[str, RoleSpec()],
-        w: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.hosts = hosts
-        self.contacts = contacts
         self.w = w
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rewiring of the edge from either orientation of a susceptible and an infected end.
-
-        Args:
-            s:
-                The namespace of the edge, with `s.source`, `s.target`, and `s.edge`.
-
-        Returns:
-            laws:
-                The jumps that rewire the edge.
-        """
-
-        def susceptible(node: SimpleNamespace) -> object:
-            """Return the weight of a candidate new end, 1 for a susceptible node and 0 otherwise."""
-            return 1 - node.i
-
-        return [
-            JumpLaw(
-                s.w * (1 - s.source.i) * s.target.i,
-                {TopologyRequestSpec('rewire', keep='source', toward=susceptible): 1},
-            ),
-            JumpLaw(
-                s.w * s.source.i * (1 - s.target.i),
-                {TopologyRequestSpec('rewire', keep='target', toward=susceptible): 1},
-            ),
-        ]
 
 
 class ActiveHostElement(Element):
     """Node of an activity-driven network, susceptible at `i = 0` or infected at `i = 1`, in discrete time.
 
-    At every step the node fires with probability `a`, its activity, and joins `m` other nodes by new edges. An
-    infected node recovers with probability `mu`, and a susceptible node is infected with probability `lam` by every
-    infected neighbour along the edges of the previous step.
+    An infected node recovers with probability `mu`, and a susceptible node is infected with probability `lam` by every
+    infected neighbour along the edges of the previous step. A `TopologyInteraction` joins the node to other nodes with
+    the probability `a`, its activity.
 
     Args:
         label:
@@ -237,13 +138,10 @@ class ActiveHostElement(Element):
         mu:
             The probability of recovery at a step.
 
-        m:
-            The number of edges an active node creates.
-
     Examples:
         >>> from skcomplex.models.biology.epidemiology import ActiveHostElement
-        >>> ActiveHostElement('node').m
-        2
+        >>> ActiveHostElement('node').mu
+        0.1
     """
 
     def __init__(
@@ -255,17 +153,15 @@ class ActiveHostElement(Element):
         a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        m: int = 2,
     ) -> None:
         super().__init__(label, visual=visual)
         self.i = i
         self.a = a
         self.lam = lam
         self.mu = mu
-        self.m = m
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the infection along the edges, the recovery, and the edges created when the node fires.
+        """Return the infection along the edges and the recovery, one update of the state in a step.
 
         Args:
             s:
@@ -273,59 +169,41 @@ class ActiveHostElement(Element):
 
         Returns:
             laws:
-                The laws of the component.
+                The update of the state.
         """
         escape = (1 - s.lam) ** neighbors(s.other.i)
         infected = bernoulli('infection', 1 - escape)
         recovered = bernoulli('recovery', s.mu)
-        return [
-            UpdateLaw(s.i, where(s.i > 1 / 2, 1 - recovered, infected)),
-            UpdateLaw(TopologyRequestSpec('add-edge', edges=self.m), s.a),
-        ]
+        return [UpdateLaw(s.i, where(s.i > 1 / 2, 1 - recovered, infected))]
 
 
-class ExpiryInteraction(NeighborInteraction):
-    """Removal of every edge of an activity-driven network one step after it is created.
+def _get_susceptible(node: SimpleNamespace) -> object:
+    """Return the weight of a candidate new end of an edge, 1 for a susceptible node and 0 otherwise."""
+    return 1 - node.i
 
-    Args:
-        label:
-            The label of the interaction.
 
-        hosts:
-            The path of the group of hosts on the nodes.
+def _get_activity(node: SimpleNamespace) -> object:
+    """Return the probability that a node fires at a step, its activity."""
+    return node.source.a
 
-        contacts:
-            The path of the variable group on the edges.
 
-    Examples:
-        >>> from skcomplex.models.biology.epidemiology import ExpiryInteraction
-        >>> ExpiryInteraction('expiry', hosts='hosts', contacts='contacts').hosts
-        'hosts'
-    """
+def _get_rewiring(keep: str) -> TopologyInteraction:
+    """Return the rewiring of the edges whose end `keep` is susceptible and whose other end is infected."""
+    other = 'target' if keep == 'source' else 'source'
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        hosts: Annotated[str, RoleSpec()],
-        contacts: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(label)
-        self.hosts = hosts
-        self.contacts = contacts
+    def rate(edge: SimpleNamespace) -> object:
+        """Return the rate at which the susceptible end rewires the edge away from the infected end."""
+        kept, left = getattr(edge, keep), getattr(edge, other)
+        return kept.w * (1 - kept.i) * left.i
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the removal of the edge at the next step.
-
-        Args:
-            s:
-                The namespace of the edge, with `s.source`, `s.target`, and `s.edge`.
-
-        Returns:
-            laws:
-                The update that removes the edge.
-        """
-        return [UpdateLaw(TopologyRequestSpec('remove-edge'), 1)]
+    return TopologyInteraction(
+        f'rewiring_{keep}',
+        target='hosts',
+        action='rewire',
+        rate=rate,
+        toward=_get_susceptible,
+        keep=keep,
+    )
 
 
 def _initial_stream(seed: int | None) -> np.random.Generator:
@@ -456,21 +334,24 @@ def adaptive_sis(
         on='sites',
         variable=True,
         capacity=n,
-        values={'i': initial, 'beta': beta, 'gamma': gamma},
+        values={'i': initial, 'w': w},
         visual=VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1}),
     )
     edges = space.graph.number_of_edges()
     contacts = GroupElement(
         'contacts',
-        element=ContactElement,
+        element=Element,
         space=space,
         on='edges',
         variable=True,
         capacity=edges,
         visual=HIDDEN,
     )
-    rewiring = RewiringInteraction('rewiring', hosts='hosts', contacts='contacts', w=w)
-    return System(elements=[hosts, contacts], interactions=[rewiring])
+    spreading = SpreadingInteraction('spreading', target='hosts', state='i', beta=beta, gamma=gamma)
+    return System(
+        elements=[hosts, contacts],
+        interactions=[spreading, _get_rewiring('source'), _get_rewiring('target')],
+    )
 
 
 @register_model(
@@ -543,12 +424,12 @@ def activity_driven_epidemics(
         on='sites',
         variable=True,
         capacity=n,
-        values={'i': initial, 'a': activities, 'm': m, 'lam': lam, 'mu': mu},
+        values={'i': initial, 'a': activities, 'lam': lam, 'mu': mu},
         visual=VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1}),
     )
     contacts = GroupElement(
         'contacts',
-        element=ContactElement,
+        element=Element,
         space=space,
         on='edges',
         variable=True,
@@ -557,6 +438,9 @@ def activity_driven_epidemics(
     )
     return System(
         elements=[hosts, contacts],
-        interactions=[ExpiryInteraction('expiry', hosts='hosts', contacts='contacts')],
+        interactions=[
+            TopologyInteraction('firing', target='hosts', action='add-edge', probability=_get_activity, edges=m),
+            TopologyInteraction('expiry', target='hosts', action='remove-edge'),
+        ],
         time=DiscreteTime(),
     )

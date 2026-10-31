@@ -13,10 +13,12 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
+from ....core.interactions import MovementInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace, NetworkSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....core.types import AgentViewProtocol, ModelViewProtocol
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._person_view import PersonView
@@ -27,11 +29,22 @@ SUSCEPTIBLE, EXPOSED, INFECTED, RECOVERED, DEAD = 0.0, 1.0, 2.0, 3.0, 4.0
 HEALTHY, SICK, DECEASED = 0.0, 1.0, 2.0
 
 
-def _wander(agent: AgentView, model: ModelView, probability: float) -> None:
-    """Move an agent to a random neighbouring cell or node with a probability."""
-    cells = agent.neighbor_cells()
-    if cells and model.rng.random() < probability:
-        agent.move_to(cells[int(model.rng.integers(len(cells)))])
+def _is_living_person(agent: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return whether an agent is a living person, so it walks."""
+    return isinstance(agent, PersonView) and agent.health != DEAD
+
+
+def _get_person_step(agent: AgentViewProtocol, destination: object, model: ModelViewProtocol) -> float:
+    """Return the probability that a person walks, `lockdown_d` during the lockdown and `d` otherwise."""
+    if not isinstance(agent, PersonView) or not isinstance(model, ModelView):
+        return 0.0
+    locked = agent.lockdown_start <= model.time < agent.lockdown_start + agent.lockdown_length
+    return float(agent.lockdown_d if locked else agent.d)
+
+
+def _get_traveller_step(agent: AgentViewProtocol, destination: object, model: ModelViewProtocol) -> float:
+    """Return the probability `m` that a traveller moves to a neighbouring node."""
+    return float(agent.m) if isinstance(agent, TravellerView) else 0.0
 
 
 def _initial_health(size: int, sick: int, rng: np.random.Generator, value: float) -> np.ndarray:
@@ -44,11 +57,11 @@ def _initial_health(size: int, sick: int, rng: np.random.Generator, value: float
 class PersonElement(Element):
     """Person of the agent-based SIR model, with incubation, mortality, waning immunity, and lockdown.
 
-    A person walks to a neighbouring cell with probability `d`, or `lockdown_d` during the lockdown, which lasts
-    `lockdown_length` steps from `lockdown_start`. An infectious person infects, with probability `beta`, every
-    susceptible person in its cell, who incubates the disease for `incubation` steps. An infectious person recovers
-    with probability `gamma` or dies with probability `mu`, and a recovered person loses immunity with probability
-    `alpha`. Health is 0 susceptible, 1 exposed, 2 infected, 3 recovered, or 4 dead.
+    A `MovementInteraction` walks a living person to a neighbouring cell with probability `d`, or `lockdown_d` during
+    the lockdown, which lasts `lockdown_length` steps from `lockdown_start`. An infectious person infects, with
+    probability `beta`, every susceptible person in its cell, who incubates the disease for `incubation` steps. An
+    infectious person recovers with probability `gamma` or dies with probability `mu`, and a recovered person loses
+    immunity with probability `alpha`. Health is 0 susceptible, 1 exposed, 2 infected, 3 recovered, or 4 dead.
 
     Args:
         label:
@@ -169,7 +182,7 @@ class PersonElement(Element):
         return [RuleLaw(self.live)]
 
     def live(self, agent: PersonView, model: ModelView) -> None:
-        """Walk, infect the cell when infectious, and advance the disease.
+        """Infect the cell when infectious, and advance the disease.
 
         Args:
             agent:
@@ -178,10 +191,6 @@ class PersonElement(Element):
             model:
                 The model.
         """
-        if agent.health == DEAD:
-            return
-        locked = agent.lockdown_start <= model.time < agent.lockdown_start + agent.lockdown_length
-        _wander(agent, model, agent.lockdown_d if locked else agent.d)
         if agent.health == INFECTED:
             self._infect(agent, model)
         self._progress(agent, model)
@@ -245,6 +254,12 @@ class WalkerElement(Element):
         """Return the view of a walker, `WalkerView`."""
         return WalkerView
 
+    def _step(self, agent: WalkerView, model: ModelView) -> None:
+        """Move a walker to a random neighbouring cell or node with the probability `travel`."""
+        cells = agent.neighbor_cells()
+        if cells and model.rng.random() < agent.travel:
+            agent.move_to(cells[int(model.rng.integers(len(cells)))])
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the life rule.
 
@@ -261,6 +276,9 @@ class WalkerElement(Element):
     def walk(self, agent: WalkerView, model: ModelView) -> None:
         """Walk, and when sick, infect the walkers of the cell and age towards death.
 
+        The walk stays in the rule of the walker, before its infections, since a walker infected earlier in the same
+        step walks on and infects the cell it reaches, which spreads the epidemic several cells in one step.
+
         Args:
             agent:
                 The walker.
@@ -270,7 +288,7 @@ class WalkerElement(Element):
         """
         if agent.health == DECEASED:
             return
-        _wander(agent, model, agent.travel)
+        self._step(agent, model)
         if agent.health != SICK:
             return
         for other in agent.agents_here(agent.group):
@@ -286,8 +304,8 @@ class TravellerElement(Element):
     """Resident of a city at a network node, who infects fellow residents and travels to neighbouring cities.
 
     An infected traveller infects every susceptible traveller of its node with probability `tau`, recovers after
-    `days` steps, and moves to a random neighbouring node with probability `m`. Health is 0 susceptible, 2 infected,
-    or 3 recovered.
+    `days` steps, and a `MovementInteraction` moves it to a random neighbouring node with probability `m`. Health is 0
+    susceptible, 2 infected, or 3 recovered.
 
     Args:
         label:
@@ -354,7 +372,7 @@ class TravellerElement(Element):
         return [RuleLaw(self.live)]
 
     def live(self, agent: TravellerView, model: ModelView) -> None:
-        """Infect and recover when infected, then travel.
+        """Infect and recover when infected.
 
         Args:
             agent:
@@ -371,7 +389,6 @@ class TravellerElement(Element):
             agent.clock += 1
             if agent.clock > agent.days:
                 agent.health = RECOVERED
-        _wander(agent, model, agent.m)
 
 
 @register_model(
@@ -476,7 +493,9 @@ def agent_based_sir(
         },
         location=[tuple(int(item) for item in cell) for cell in cells],
     )
-    return System(elements=[group], space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'))
+    walk = MovementInteraction('walk', target='people', condition=_is_living_person, accept=_get_person_step)
+    space = LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann')
+    return System(elements=[group], interactions=[walk], space=space)
 
 
 @register_model(
@@ -621,4 +640,5 @@ def network_sir(
         values={'health': _initial_health(size, 1, rng, INFECTED), 'tau': tau, 'days': days, 'm': m},
         location=[node for node in nodes for _ in range(residents)],
     )
-    return System(elements=[group], space=NetworkSpace(graph))
+    travel = MovementInteraction('travel', target='travellers', accept=_get_traveller_step)
+    return System(elements=[group], interactions=[travel], space=NetworkSpace(graph))
