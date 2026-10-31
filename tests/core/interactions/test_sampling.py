@@ -87,6 +87,43 @@ def test_function_moves_propose_the_values_it_returns():
     assert abs(final.mean()) > 0.9
 
 
+def _magnetization(move, temperature, seed):
+    """Return the mean absolute magnetization of the Ising model over sweeps after equilibration."""
+    sampling = SamplingInteraction(
+        'ising',
+        target='sites',
+        state='s',
+        energy=_ising,
+        temperature=temperature,
+        move=move,
+    )
+    sites = LatticeElement('sites', element=SiteElement, space=LatticeSpace((SIDE, SIDE)), values={'s': _spins(seed)})
+    system = System(elements=[sites], interactions=[sampling], time=DiscreteTime())
+    states = Simulation(system, random_state=seed).check().prepare().run(until=300).trajectory_.states
+    return float(np.abs(states[100:].mean(axis=1)).mean())
+
+
+@pytest.mark.parametrize('temperature', [2.0, 3.0])
+def test_cluster_moves_sample_the_magnetization_of_metropolis_moves(temperature):
+    """Test that Wolff cluster moves of the Ising model give the magnetization that Metropolis moves give."""
+    cluster = np.mean([_magnetization('cluster', temperature, seed) for seed in range(2)])
+    metropolis = np.mean([_magnetization('flip', temperature, seed) for seed in range(2)])
+    assert cluster == pytest.approx(metropolis, abs=0.04)
+
+
+def test_cluster_moves_reject_an_energy_that_the_flip_changes():
+    """Test that cluster moves of an energy with an external field raise an error."""
+    sampling = SamplingInteraction(
+        'ising',
+        target='sites',
+        state='s',
+        energy=lambda n: _ising(n) - 0.5 * n.target.s,
+        move='cluster',
+    )
+    with pytest.raises(ValidationError, match='changes when every value flips'):
+        _final(sampling, 1, _spins())
+
+
 @pytest.mark.parametrize(
     ('arguments', 'match'),
     [

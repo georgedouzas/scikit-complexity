@@ -48,11 +48,8 @@ class OwnersPass(BasePass):
             MaskRequestsPass._masked_value(law._get_targets()[0], 1 - mask),
         )
         if isinstance(value, FreeModuleElement) and isinstance(kept, FreeModuleElement):
-            return UpdateLaw(
-                law._get_targets()[0],
-                vector(a + b for a, b in zip(value, kept, strict=True)),
-            )
-        return UpdateLaw(law._get_targets()[0], SR(value) + SR(kept))
+            return BasePass._replaced(law, value=vector(a + b for a, b in zip(value, kept, strict=True)))
+        return BasePass._replaced(law, value=SR(value) + SR(kept))
 
     @staticmethod
     def _masked(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> list[BaseLaw]:

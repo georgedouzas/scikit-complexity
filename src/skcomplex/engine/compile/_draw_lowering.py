@@ -22,7 +22,7 @@ from ..problems import ExpressionPrinter, KernelSpec, ReferenceSpec
 from ..problems._draw_kernel import DrawKernel
 from ..problems._request_spec import _RequestSpec
 from ..types import ReadKind
-from ._base import BaseLowering
+from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 
 _NORMAL_KINDS = frozenset({'normal'})
@@ -104,7 +104,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         for law in laws:
             if not isinstance(law, UpdateLaw) or not self._is_symbolic(law.value):
                 continue
-            for draw in draws_in(law.value):
+            for draw in draws_in([*components_of(law.value), *([] if law.order is None else [law.order])]):
                 known = declared.setdefault(draw.name, draw)
                 if (known.kind, known.distribution, known.parameters, known.arguments) != (
                     draw.kind,
@@ -156,7 +156,8 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
                 continue
             values = [self._lowered(SR(item), slots) for item in components_of(law.value)]
             value = vector(values) if isinstance(law.value, FreeModuleElement) else values[0]
-            lowered.append(UpdateLaw(law._get_targets()[0], value))
+            order = None if law.order is None else self._lowered(SR(law.order), slots)
+            lowered.append(BasePass._replaced(law, value=value, order=order))
         return lowered
 
     def _allocate(self) -> None:

@@ -57,6 +57,14 @@ history and storage and the agent's neighbours and cell. The form is an argument
 empty namespaces and cannot tell an agent group from a symbolic one, and a rule found at probe time would turn a
 symbolic group into agents.
 
+### Several discrete-time updates of one state
+A state takes one `UpdateLaw`, unless each of its update laws declares how it combines: an `increment` gives the state
+plus a change, and a law with a `source` moves only a state that holds that value. Such laws combine in one step as
+`x + sum_k (f_k - x)`, all read from the start of the step, so increments add and moves from distinct source values
+compose. Two laws with the same source, or a law that declares neither, stay an error. An `UpdateLaw` with an `order`
+updates the members one after the other, in increasing order of that expression, each reading the values set before
+it, which gives the sequential and random-order schedules of maps.
+
 ### The catalog of general interactions
 
 Continuous time:
@@ -74,7 +82,7 @@ Discrete time:
 
 | Class | Operation | Lowers to |
 | --- | --- | --- |
-| `MapInteraction(target, state, map, sources=(), form='replace', schedule='synchronous')` | `x(t+1) = f(ns)`, or `x + f(ns)` in the `'increment'` form, updated synchronously, sequentially, or in random order | `UpdateLaw` |
+| `MapInteraction(target, state, function, sources=(), mode='replace', schedule='synchronous', form='symbolic', phase=None)` | `x(t+1) = f(ns)`, or `x + f(ns)` in the `'increment'` mode, updated synchronously, sequentially, or in random order (`'random-sequential'`) | `UpdateLaw` with an `order`, or an agent `RuleLaw` |
 | `LocalRuleInteraction(target, state, rule, neighborhood)` | cellular automata from a rule table, a totalistic rule, or a function of the ordered neighbourhood | `LocalRuleLaw` |
 | `CascadeInteraction(target, state, threshold, mode, drive=None, neighborhood=None)` | drives, then relaxes every member at or above a threshold by reset, redistribution, or a random share, recording cascades as events | `CascadeLaw`, `DriveLaw`, `LocalRuleLaw` |
 
@@ -91,12 +99,12 @@ Events and discrete states:
 | --- | --- | --- |
 | `JumpInteraction(target, changes, rate=None, probability=None, waiting=None, reset=None)` | stochastic events that change states by signed amounts, at a rate, with a probability per step, or after drawn waiting times | `JumpLaw` |
 | `ReactionInteraction(JumpInteraction)(reactants, products, k, propensity=None, modifiers=(), mode='rate')` | mass action between species given as role and state, with real stoichiometry and modifiers that the propensity reads but the reaction does not consume, as rates, jumps, or Langevin noise | `RateLaw`, `JumpLaw`, `NoiseLaw` |
-| `TransitionInteraction(target, state, source, destination, rate=None, probability=None, condition=None, matrix=None, given=None, after=None)` | a discrete state moves between values at a rate, with a probability per step (combined over neighbours as `1 - prod(1 - p)`), when a condition holds, by a transition matrix, or by an emission matrix given another state, after a residence time | `JumpLaw`, `UpdateLaw`, `TransitionLaw`, `EmissionLaw` |
+| `TransitionInteraction(target, state, source, destination, rate=None, probability=None, condition=None, matrix=None, emission=None, observed=None, over='member', neighborhood=None, after=None, form='symbolic', phase=None)` | a discrete state moves between values at a rate, with a probability per step (combined over neighbours as `1 - prod(1 - p)`), when a condition holds, by a transition matrix, or by an emission matrix given another state, after a residence time (`residence(x)`) | `JumpLaw`, `UpdateLaw` with a `source`, `TransitionLaw`, `EmissionLaw`, or an agent `RuleLaw` |
 | `SpreadingInteraction(TransitionInteraction)` | the active value of a state spreads along edges, with recovery and return | edge and member laws |
 | `EncounterInteraction(candidate, field, kernel, outcome)` | bilinear encounters over a density on activity classes, conservative, destructive, or proliferative | `EncounterLaw`, `DestructionLaw`, `ProliferationLaw` |
-| `CrossingInteraction(target, guard, reset=None, direction=0, terminal=False)` | an event when a guard crosses zero, which resets states or ends the run | `CrossingLaw` |
+| `CrossingInteraction(target, guard, reset=None, direction=0, terminal=False)` | an event when a guard crosses zero, which resets states or ends the run, once per member of a group whose guard reads the members | `CrossingLaw` |
 | `ImpulseInteraction(target, times, reset)` | resets states at given or periodic times | `CrossingLaw` on time |
-| `SamplingInteraction(target, states, energy, move, temperature)` | Monte Carlo sweeps by moves accepted from the change of an energy | `SampleLaw` |
+| `SamplingInteraction(target, states, energy, move, temperature)` | Monte Carlo sweeps by moves accepted from the change of an energy, or Wolff cluster flips (`move='cluster'`) | `SampleLaw` |
 
 Choice and learning:
 

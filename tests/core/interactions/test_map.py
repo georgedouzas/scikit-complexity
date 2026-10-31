@@ -7,12 +7,13 @@ import pytest
 
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import MapInteraction
-from skcomplex.core.laws.utils import normal
+from skcomplex.core.laws.utils import mean, normal, sign
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 RATE = 3.2
 
@@ -38,6 +39,13 @@ def _values(elements, interactions, until, path='value.x'):
     return simulation.run(until=until).trajectory_.values(path)
 
 
+def _agent_values(group, interaction, until):
+    """Return the values of the agents of a group at the last step."""
+    system = System(elements=[group], interactions=[interaction], time=DiscreteTime())
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
+    return trajectory.agents(group.label, until).values['x']
+
+
 def test_logistic_map_settles_on_the_closed_form_two_cycle():
     """Test that the logistic map at `r = 3.2` settles on its closed-form 2-cycle."""
     logistic = MapInteraction('map', target='value', state='x', function=lambda s: RATE * s.target.x * (1 - s.target.x))
@@ -48,10 +56,10 @@ def test_logistic_map_settles_on_the_closed_form_two_cycle():
     assert values[-1] != pytest.approx(values[-2])
 
 
-def test_increment_form_adds_the_function_to_every_member():
-    """Test that the increment form adds the function to the state of every member of a group."""
+def test_increment_mode_adds_the_function_to_every_member():
+    """Test that the increment mode adds the function to the state of every member of a group."""
     group = GroupElement('value', element=ValueElement, size=3, values={'x': [0.0, 1.0, 2.0]})
-    increment = MapInteraction('step', target='value', state='x', function=lambda s: 0.5, form='increment')
+    increment = MapInteraction('step', target='value', state='x', function=lambda s: 0.5, mode='increment')
     values = _values([group], [increment], 4)
     np.testing.assert_allclose(values[-1], [2.0, 3.0, 4.0])
 
@@ -66,16 +74,126 @@ def test_map_reads_its_sources():
 def test_map_draws_one_value_per_member():
     """Test that a map with a draw gives every member of a group its own value."""
     group = GroupElement('value', element=ValueElement, size=200, values={'x': 0.0})
-    noise = MapInteraction('noise', target='value', state='x', function=lambda s: normal('kick'), form='increment')
+    noise = MapInteraction('noise', target='value', state='x', function=lambda s: normal('kick'), mode='increment')
     values = _values([group], [noise], 100)
     assert values[-1].var() == pytest.approx(100.0, rel=0.25)
 
 
+def test_increment_maps_of_one_state_add():
+    """Test that two increment maps of one state add their increments in every step."""
+    group = GroupElement('value', element=ValueElement, size=2, values={'x': [0.0, 1.0]})
+    first = MapInteraction('first', target='value', state='x', function=lambda s: 1.0, mode='increment')
+    second = MapInteraction('second', target='value', state='x', function=lambda s: 2.0, mode='increment')
+    assert _values([group], [first, second], 2)[-1].tolist() == [6.0, 7.0]
+
+
+def _hopfield_field(s):
+    """Return the Hebbian field of two stored patterns `a` and `b` on a neuron."""
+    neuron = s.target
+    return neuron.a * mean(neuron.a * neuron.x) + neuron.b * mean(neuron.b * neuron.x)
+
+
+def _hopfield(schedule, backend, start, patterns, until):
+    """Return the states of a Hopfield network of two patterns under a schedule."""
+    group = GroupElement(
+        'neurons',
+        element=NeuronElement,
+        size=start.size,
+        values={'x': start, 'a': patterns[0], 'b': patterns[1]},
+    )
+    network = MapInteraction(
+        'hopfield',
+        target='neurons',
+        state='x',
+        function=lambda s: sign(_hopfield_field(s)),
+        schedule=schedule,
+    )
+    system = System(elements=[group], interactions=[network], time=DiscreteTime())
+    simulation = Simulation(system, random_state=0, backend=backend).check().prepare()
+    return simulation.run(until=until).trajectory_.values('neurons.x')
+
+
+class NeuronElement(Element):
+    """Neuron of a Hopfield network with a state `x` and two stored patterns `a` and `b`."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 1.0,
+        a: Annotated[float, ParameterSpec()] = 1.0,
+        b: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.a = a
+        self.b = b
+
+
+@pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()])
+def test_sequential_hopfield_map_matches_the_asynchronous_update(backend):
+    """Test that a sequential Hopfield map updates the neurons one after the other, each reading those before it."""
+    rng = np.random.default_rng(3)
+    patterns = rng.choice([-1.0, 1.0], (2, 40))
+    start = rng.choice([-1.0, 1.0], 40)
+    weights = patterns.T @ patterns / start.size
+    expected = [start.copy()]
+    for _ in range(4):
+        state = expected[-1].copy()
+        for index in range(state.size):
+            state[index] = np.sign(weights[index] @ state)
+        expected.append(state)
+    sequential = _hopfield('sequential', backend, start, patterns, 4)
+    synchronous = _hopfield('synchronous', backend, start, patterns, 4)
+    np.testing.assert_array_equal(sequential, expected)
+    np.testing.assert_array_equal(synchronous[1], np.sign(weights @ start))
+    assert np.any(sequential[1] != synchronous[1])
+
+
+def test_random_sequential_hopfield_map_reaches_a_stored_pattern():
+    """Test that a random-sequential Hopfield map from a corrupted pattern recovers the pattern."""
+    rng = np.random.default_rng(4)
+    patterns = rng.choice([-1.0, 1.0], (2, 60))
+    start = patterns[0].copy()
+    start[rng.choice(60, 12, replace=False)] *= -1
+    values = _hopfield('random-sequential', NumpyBackend(), start, patterns, 3)
+    np.testing.assert_array_equal(values[-1], patterns[0])
+
+
+@pytest.mark.parametrize(
+    ('schedule', 'expected'),
+    [('synchronous', [4.0, 4.0, 4.0]), ('sequential', [4.0, 7.0, 13.0]), ('random-sequential', [4.0, 7.0, 13.0])],
+)
+def test_agent_map_updates_agents_by_the_schedule(schedule, expected):
+    """Test that agents under a schedule read the values of the start of the step, or those set before them."""
+
+    def following(agent, model):
+        """Return one plus the sum of the values of the agents."""
+        return 1.0 + sum(member.x for member in model.agents('target'))
+
+    group = GroupElement('value', element=ValueElement, size=3, values={'x': 1.0})
+    agents = MapInteraction('map', target='value', state='x', function=following, schedule=schedule, form='agent')
+    assert sorted(_agent_values(group, agents, 1).tolist()) == expected
+
+
+def test_agent_map_in_the_increment_mode_adds_the_value():
+    """Test that an agent map in the increment mode adds the value of the function to the state."""
+    group = GroupElement('value', element=ValueElement, size=2, values={'x': [0.0, 1.0]})
+    agents = MapInteraction('map', target='value', state='x', function=lambda a, m: 0.5, mode='increment', form='agent')
+    assert _agent_values(group, agents, 2).tolist() == [1.0, 2.0]
+
+
 @pytest.mark.parametrize(
     ('arguments', 'match'),
-    [({'form': 'assign', 'function': lambda s: 0.0}, 'form of map'), ({'function': 1.0}, 'callable')],
+    [
+        ({'mode': 'assign', 'function': lambda s: 0.0}, 'mode of map'),
+        ({'schedule': 'parallel', 'function': lambda s: 0.0}, 'schedule of map'),
+        ({'form': 'mesa', 'function': lambda s: 0.0}, 'form of map'),
+        ({'function': 1.0}, 'callable'),
+    ],
 )
-def test_check_rejects_unknown_forms_and_functions(arguments, match):
-    """Test that an unknown form or a function that is not callable raise errors."""
+def test_check_rejects_unknown_variants_and_functions(arguments, match):
+    """Test that an unknown mode, schedule, or form, or a function that is not callable raise errors."""
     with pytest.raises(ValidationError, match=match):
         MapInteraction('map', target='value', state='x', **arguments).check()

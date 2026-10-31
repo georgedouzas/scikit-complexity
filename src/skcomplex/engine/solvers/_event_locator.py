@@ -30,7 +30,33 @@ class EventLocator:
         self.problem = problem
         self.records: list[BaseRecordSpec] = []
         self.stopped_at: float | None = None
-        self._last: dict[str, float] = {}
+        self._last: dict[tuple[str, int | None], float] = {}
+        self._slots = [
+            (index, member)
+            for index, event in enumerate(problem.events)
+            for member in (range(event.members) if event.members else (None,))
+        ]
+        self._slot_of = {slot: position for position, slot in enumerate(self._slots)}
+
+    @staticmethod
+    def _member_event(event: EventKernel, member: int) -> EventKernel:
+        """Return the event of one member of a group, whose guard and reset are those of the member."""
+        reset = event.reset
+
+        def guard(t: float, x: Array, p: Array) -> float:
+            return float(np.asarray(event.guard(t, x, p))[member])
+
+        def apply(t: float, x: Array, p: Array) -> Array:
+            return x.copy() if reset is None else reset(t, x, p, member)
+
+        return EventKernel(event.label, guard, apply, event.direction, event.terminal).check().prepare()
+
+    @staticmethod
+    def _crossed(direction: int, g0: Array, g1: Array) -> Array:
+        """Return whether guards cross zero in their direction between two values, one per member."""
+        upwards = (g0 < 0) & (g1 >= 0)
+        downwards = (g0 > 0) & (g1 <= 0)
+        return np.asarray((direction >= 0) & upwards | (direction <= 0) & downwards)
 
     def crossing(
         self,
@@ -44,6 +70,8 @@ class EventLocator:
         include_hidden: bool = True,
     ) -> tuple[float, int] | None:
         """Return the earliest event crossing in a step, with its time and the index of its event.
+
+        An event of the members of a group crosses once per member, and each member has its own index.
 
         Args:
             t0:
@@ -76,18 +104,18 @@ class EventLocator:
         for index, event in enumerate(self.problem.events):
             if event.hidden and not include_hidden:
                 continue
-            g0, g1 = event.guard(t0, x0, p), event.guard(t1, x1, p)
-            crossed = (
-                (event.direction >= 0 and g0 < 0 < g1)
-                or (event.direction <= 0 and g0 > 0 > g1)
-                or (event.direction >= 0 and g0 < 0 == g1)
-                or (event.direction <= 0 and g0 > 0 == g1)
-            )
-            if not crossed:
-                continue
-            time = t1 if g1 == 0 else self._past_root(event, g0, t0, t1, p=p, interpolant=interpolant)
-            if earliest is None or time < earliest[0]:
-                earliest = (time, index)
+            g0 = np.atleast_1d(np.asarray(event.guard(t0, x0, p), dtype=float))
+            g1 = np.atleast_1d(np.asarray(event.guard(t1, x1, p), dtype=float))
+            for member in np.flatnonzero(self._crossed(event.direction, g0, g1)):
+                slot = int(member) if event.members else None
+                single = event if slot is None else self._member_event(event, slot)
+                time = (
+                    t1
+                    if g1[member] == 0
+                    else self._past_root(single, float(g0[member]), t0, t1, p=p, interpolant=interpolant)
+                )
+                if earliest is None or time < earliest[0]:
+                    earliest = (time, self._slot_of[(index, slot)])
         return earliest
 
     @staticmethod
@@ -103,7 +131,7 @@ class EventLocator:
         """Return the root of a guard in a step, moved just past it so the guard has already changed sign there."""
 
         def guard(s: float) -> float:
-            return event.guard(s, interpolant(s), p)
+            return float(event.guard(s, interpolant(s), p))
 
         time = brentq(guard, t0, t1, xtol=1e-13, rtol=1e-12)
         nudge = 1e-15 * max(1.0, abs(time))
@@ -119,7 +147,7 @@ class EventLocator:
                 The time of the crossing.
 
             index:
-                The index of the event.
+                The index of the event, as the crossing returns it.
 
             state:
                 The state at the crossing.
@@ -135,19 +163,21 @@ class EventLocator:
             SolverError:
                 The event fires again within the minimum separation, which signals chattering.
         """
-        event = self.problem.events[index]
+        position, member = self._slots[index]
+        event = self.problem.events[position]
         if event.hidden:
             return state.copy()
-        last = self._last.get(event.label)
+        last = self._last.get((event.label, member))
         if last is not None and time - last < SEPARATION * max(1.0, abs(time)):
             error_msg = (
                 f'Event {event.label} fired again at t = {time} right after its previous firing, which signals '
                 'chattering. Change the reset so that the guard leaves zero, or end the run with a terminal event.'
             )
             raise SolverError(error_msg)
-        self._last[event.label] = time
-        after = event.run(RunStateSpec(time, state, p)).values_
-        self.records.append(EventRecordSpec(event.label, time, state.copy(), after.copy()))
+        self._last[(event.label, member)] = time
+        single = event if member is None else self._member_event(event, member)
+        after = single.run(RunStateSpec(time, state, p)).values_
+        self.records.append(EventRecordSpec(event.label, time, state.copy(), after.copy(), member))
         if event.terminal:
             self.stopped_at = time
         return after

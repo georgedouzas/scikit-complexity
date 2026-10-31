@@ -3,22 +3,27 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 import re
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, SupportsFloat
 
+import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp, log
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
-from ..laws import BaseLaw, EmissionLaw, JumpLaw, TransitionLaw, UpdateLaw
-from ..laws.utils import neighbors, uniform, where
+from ..base import BasePart
+from ..laws import EmissionLaw, JumpLaw, RuleLaw, TransitionLaw, UpdateLaw
+from ..laws.utils import both, neighbors, residence, uniform, where
 from ..spaces import BaseNeighborhood
+from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
 
-FORMS = ('rate', 'probability', 'condition', 'matrix')
+KINDS = ('rate', 'probability', 'condition', 'matrix')
 OVERS = ('member', 'neighbors')
+FORMS = ('symbolic', 'agent')
 
 
 class TransitionInteraction(Interaction):
@@ -28,10 +33,16 @@ class TransitionInteraction(Interaction):
     `probability` in every step of discrete time, or in the step in which a `condition` holds. With `over='neighbors'`
     the rate and the probability are those of one neighbour, written with `namespace.target.other` for the neighbour:
     the rates of the neighbours add up, and their probabilities combine as `1 - prod(1 - p)`, the probability that at
-    least one of them moves the member. With a `matrix` instead, the state takes the values `0` to `n - 1` and steps by
+    least one of them moves the member. With a matrix instead, the state takes the values `0` to `n - 1` and steps by
     the rows of a transition matrix in discrete time, the row of its current value. An `emission` matrix then draws the
     `observed` state of the target from the row that the next value of the state selects, as a hidden Markov source.
-    Every function reads `namespace.target`, the states and parameters of the target, and the time `namespace.t`.
+    With a residence time `after`, a member moves by a probability or a condition only once it has held the source
+    value for `after` steps, at the earliest at the end of the step that completes them.
+
+    In the `'symbolic'` form, every function reads `namespace.target`, the states and parameters of the target, and the
+    time `namespace.t`. In the `'agent'` form, the target is an agent group and every function takes the agent and
+    the model view, `f(agent, model)`, and returns a number, a truth value, or the rows of a matrix. Every agent decides
+    from the states at the start of the step, and a rate `r` moves an agent with probability `1 - exp(-r)` in a step.
 
     Args:
         label:
@@ -50,21 +61,20 @@ class TransitionInteraction(Interaction):
             The value the state moves to.
 
         rate:
-            The function `rate(namespace)` of the rate of the move, or `None`.
+            The function of the rate of the move, or `None`.
 
         probability:
-            The function `probability(namespace)` of the probability of the move in a step, or `None`.
+            The function of the probability of the move in a step, or `None`.
 
         condition:
-            The function `condition(namespace)` of the condition under which the state moves in a step, or `None`.
+            The function of the condition under which the state moves in a step, or `None`.
 
         matrix:
-            The function `matrix(namespace)` of the transition matrix, one row and one column per value of the state,
-            or `None`.
+            The function of the transition matrix, one row and one column per value of the state, or `None`.
 
         emission:
-            With a matrix, the function `emission(namespace)` of the emission matrix, one row per value of the state
-            and one column per value of the observed state, or `None`.
+            With a matrix, the function of the emission matrix, one row per value of the state and one column per value
+            of the observed state, or `None`.
 
         observed:
             The name of the state of the target that the emission matrix draws, or `None`.
@@ -75,10 +85,20 @@ class TransitionInteraction(Interaction):
         neighborhood:
             The neighbourhood of `over='neighbors'`, or `None` for the neighbours of the network or the lattice.
 
+        after:
+            The number of steps a member holds the source value before it can move, or `None`.
+
+        form:
+            `'symbolic'` for laws of the states of the target, or `'agent'` for a rule over an agent group.
+
+        phase:
+            The phase of the step the agent form runs in, or `None` for the default phase.
+
     Raises:
         ValidationError:
-            The transition has not exactly one form, the source and the destination are equal, an emission has no
-            matrix or no observed state, `over` is unknown or goes with a condition or a matrix, or a function is not
+            The transition has not exactly one kind, the source and the destination are equal, an emission has no
+            matrix or no observed state, `over` is unknown or goes with a condition, a matrix, or the agent form, the
+            residence time is negative or goes with a rate or a matrix, the form is unknown, or a function is not
             callable.
 
     Examples:
@@ -88,6 +108,12 @@ class TransitionInteraction(Interaction):
         ... )
         >>> recovery.check().over
         'member'
+        >>> agents = TransitionInteraction(
+        ...     'recovery', target='hosts', state='state', source=1, destination=2, probability=lambda a, m: 0.1,
+        ...     after=3, form='agent'
+        ... )
+        >>> type(agents.check().prepare().run(SimpleNamespace()).laws_[0]).__name__
+        'RuleLaw'
     """
 
     def __init__(
@@ -98,14 +124,17 @@ class TransitionInteraction(Interaction):
         state: str = 'state',
         source: float = 0.0,
         destination: float = 1.0,
-        rate: Callable[[SimpleNamespace], object] | None = None,
-        probability: Callable[[SimpleNamespace], object] | None = None,
-        condition: Callable[[SimpleNamespace], object] | None = None,
-        matrix: Callable[[SimpleNamespace], Sequence[Sequence[object]]] | None = None,
-        emission: Callable[[SimpleNamespace], Sequence[Sequence[object]]] | None = None,
+        rate: Callable[..., SupportsFloat] | None = None,
+        probability: Callable[..., SupportsFloat] | None = None,
+        condition: Callable[..., object] | None = None,
+        matrix: Callable[..., Sequence[Sequence[object]]] | None = None,
+        emission: Callable[..., Sequence[Sequence[object]]] | None = None,
         observed: str | None = None,
         over: str = 'member',
         neighborhood: BaseNeighborhood | None = None,
+        after: float | None = None,
+        form: str = 'symbolic',
+        phase: str | None = None,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -120,13 +149,16 @@ class TransitionInteraction(Interaction):
         self.observed = observed
         self.over = over
         self.neighborhood = neighborhood
+        self.after = after
+        self.form = form
+        self.phase = phase
 
-    def _check_form(self) -> None:
-        """Raise an error for a transition without exactly one callable form, or with arguments its form ignores."""
-        forms = [form for form in FORMS if getattr(self, form) is not None]
-        if len(forms) != 1 or not callable(getattr(self, forms[0])):
+    def _check_kind(self) -> str:
+        """Raise an error for a transition without exactly one callable kind, or with an emission it cannot take."""
+        kinds = [kind for kind in KINDS if getattr(self, kind) is not None]
+        if len(kinds) != 1 or not callable(getattr(self, kinds[0])):
             error_msg = (
-                f'The transition {self.label!r} has the forms {forms}. Give exactly one of {", ".join(FORMS)}, as a '
+                f'The transition {self.label!r} has the forms {kinds}. Give exactly one of {", ".join(KINDS)}, as a '
                 'function of the namespace.'
             )
             raise ValidationError(error_msg)
@@ -137,14 +169,31 @@ class TransitionInteraction(Interaction):
                 'Give both with a matrix, or neither.'
             )
             raise ValidationError(error_msg)
+        return kinds[0]
+
+    def _check_form(self) -> None:
+        """Raise an error for a transition without exactly one callable kind, or with arguments its kind ignores."""
+        kind = self._check_kind()
         if self.over not in OVERS:
             error_msg = f'The transition {self.label!r} runs over {self.over!r}. Use one of {", ".join(OVERS)}.'
             raise ValidationError(error_msg)
-        if self.over == 'neighbors' and forms[0] not in {'rate', 'probability'}:
-            error_msg = f'The transition {self.label!r} runs over neighbours, which only a rate or a probability does.'
+        if self.form not in FORMS:
+            error_msg = f'The form of transition {self.label!r} is {self.form!r}. Use one of {", ".join(FORMS)}.'
+            raise ValidationError(error_msg)
+        if self.over == 'neighbors' and (kind not in {'rate', 'probability'} or self.form == 'agent'):
+            error_msg = (
+                f'The transition {self.label!r} runs over neighbours, which only a rate or a probability of the '
+                'symbolic form does. In the agent form, read the neighbours of the agent in the function.'
+            )
             raise ValidationError(error_msg)
         if self.matrix is None and self.source == self.destination:
             error_msg = f'The transition {self.label!r} moves from {self.source} to itself. Give distinct values.'
+            raise ValidationError(error_msg)
+        if self.after is not None and (kind not in {'probability', 'condition'} or not self.after >= 0):
+            error_msg = (
+                f'The transition {self.label!r} has the residence time {self.after!r}. Give a number of steps at least '
+                '0 with a probability or a condition.'
+            )
             raise ValidationError(error_msg)
 
     def _check_transition(self) -> None:
@@ -152,13 +201,14 @@ class TransitionInteraction(Interaction):
         self._check_form()
 
     def _check(self) -> None:
-        """Raise an error for a transition without exactly one form, or with arguments its form ignores.
+        """Raise an error for a transition without exactly one kind, or with arguments its kind ignores.
 
         Raises:
             ValidationError:
-                The transition has not exactly one form, the source and the destination are equal, an emission has
-                no matrix or no observed state, `over` is unknown or goes with a condition or a matrix, or a function
-                is not callable.
+                The transition has not exactly one kind, the source and the destination are equal, an emission has
+                no matrix or no observed state, `over` is unknown or goes with a condition, a matrix, or the agent
+                form, the residence time is negative or goes with a rate or a matrix, the form is unknown, or a
+                function is not callable.
         """
         super()._check()
         self._check_transition()
@@ -173,7 +223,7 @@ class TransitionInteraction(Interaction):
 
     def _get_step(self, value: Expression, source: float, destination: float, moves: Expression) -> UpdateLaw:
         """Return the update of the state that moves a member from the source value where a condition holds."""
-        return UpdateLaw(value, where(value == source, where(moves, destination, source), value))
+        return UpdateLaw(value, where(value == source, where(moves, destination, source), value), source=source)
 
     def _combine_rates(self, rate: Expression) -> Expression:
         """Return the rate of the member, or the sum of the rates of its neighbours."""
@@ -189,9 +239,9 @@ class TransitionInteraction(Interaction):
         """Return the uniform draw of the transition in a step."""
         return uniform(re.sub(r'\W', '_', f'transition_{self.label}'))
 
-    def _get_chain(self, namespace: SimpleNamespace, value: Expression) -> list[BaseLaw]:
+    def _get_chain(self, namespace: SimpleNamespace, value: Expression) -> list[BasePart]:
         """Return the transition law of the state by its matrix, with the emission law of the observed state."""
-        laws: list[BaseLaw] = []
+        laws: list[BasePart] = []
         if self.matrix is not None:
             laws.append(TransitionLaw(value, self.matrix(namespace), label=self.label))
         if self.emission is not None and self.observed is not None:
@@ -199,8 +249,57 @@ class TransitionInteraction(Interaction):
             laws.append(EmissionLaw(observed, value, self.emission(namespace), label=self.label))
         return laws
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the jump, the update, or the transition or emission law of the state.
+    def _get_held(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> int:
+        """Return the number of whole steps an agent has held its value, counted in the storage of the model."""
+        value = float(getattr(agent, self.state))
+        record = model.storage.get(f'{self.label}.{agent.id}')
+        held = record[1] + 1 if isinstance(record, tuple) and record[0] == value else 0
+        model.storage[f'{self.label}.{agent.id}'] = (value, held)
+        return held
+
+    def _draw_row(self, row: Sequence[object], model: ModelViewProtocol) -> float:
+        """Return a value drawn by the probabilities of a row of a matrix."""
+        weights = np.asarray(row, dtype=float)
+        return float(model.rng.choice(weights.size, p=weights / weights.sum()))
+
+    def _moves_agent(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+        """Return whether an agent that holds the source value moves in this step."""
+        if self.condition is not None:
+            return bool(self.condition(agent, model))
+        if self.rate is not None:
+            probability = 1.0 - math.exp(-float(self.rate(agent, model)))
+        else:
+            probability = float(self.probability(agent, model)) if self.probability is not None else 0.0
+        return bool(model.rng.random() < probability)
+
+    def _get_next(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> float | None:
+        """Return the next value of the state of an agent, or `None` when it keeps its value."""
+        value = float(getattr(agent, self.state))
+        if self.matrix is not None:
+            return self._draw_row(self.matrix(agent, model)[int(value)], model)
+        held = self._get_held(agent, model) if self.after is not None else 0
+        if value != self.source or (self.after is not None and held + 1 < self.after):
+            return None
+        return float(self.destination) if self._moves_agent(agent, model) else None
+
+    def move(self, model: ModelViewProtocol) -> None:
+        """Move the state of every agent of the target that moves in this step, all from the states at its start.
+
+        Args:
+            model:
+                The model view of the interaction.
+        """
+        agents = list(model.agents('target'))
+        moved = [(agent, self._get_next(agent, model)) for agent in agents]
+        for agent, value in moved:
+            if value is None:
+                continue
+            setattr(agent, self.state, value)
+            if self.emission is not None and self.observed is not None:
+                setattr(agent, self.observed, self._draw_row(self.emission(agent, model)[int(value)], model))
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
+        """Return the jump, the update, the transition or emission law of the state, or the rule of the agent form.
 
         Args:
             namespace:
@@ -208,8 +307,10 @@ class TransitionInteraction(Interaction):
 
         Returns:
             laws:
-                The law of the move.
+                The law of the move, or the rule that moves the agents.
         """
+        if self.form == 'agent':
+            return [RuleLaw(self.move, phase=self.phase)]
         value = getattr(namespace.target, self.state)
         if self.matrix is not None:
             return self._get_chain(namespace, value)
@@ -221,4 +322,6 @@ class TransitionInteraction(Interaction):
             moves = self._get_draw() < probability
         else:
             moves = SR(self.condition(namespace)) if self.condition is not None else SR(0)
+        if self.after is not None:
+            moves = both(residence(value) + 1 >= self.after, moves)
         return [self._get_step(value, self.source, self.destination, moves)]

@@ -465,6 +465,15 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         ]
         return lines
 
+    @staticmethod
+    def _written(output: OutputSpec, index: str, value: str, mode: str) -> str:
+        """Return the line that adds or assigns the value of an output, or adds the change of a combined output."""
+        if mode == 'add':
+            return f'{INDENT * 2}out[{index}] += {value}'
+        if output.combined:
+            return f'{INDENT * 2}out[{index}] += ({value}) - x[{index}]'
+        return f'{INDENT * 2}out[{index}] = {value}'
+
     def _member_kernel(self, kernel: LawKernel, name: str, mode: str, parallel: bool) -> None:
         """Add the source of a kernel evaluated once per member, for adding, assigning, or concatenating outputs."""
         member_entry = next(
@@ -513,8 +522,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             else:
                 target = self._target_of(output)
                 member = '_m_' if target.source is ReadKind.MEMBER else None
-                operator = '+=' if mode == 'add' else '='
-                lines.append(f'{INDENT * 2}out[{self._index(target, member)}] {operator} {value}')
+                lines.append(NumbaPrinter._written(output, self._index(target, member), value, mode))
         for index in sums:
             target = self._target_of(kernel.outputs[index])
             lines.append(f'{INDENT}out[{self._index(target, None)}] += _sum{index}_')
@@ -590,8 +598,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             else:
                 target = output.target
                 assert target is not None
-                operator = '+=' if mode == 'add' else '='
-                lines.append(f'{INDENT * 2}out[{self._index(target, members[target.source])}] {operator} {value}')
+                lines.append(NumbaPrinter._written(output, self._index(target, members[target.source]), value, mode))
         for index in sums:
             target = self._target_of(kernel.outputs[index])
             lines.append(f'{INDENT}out[{self._index(target, None)}] += _sum{index}_')

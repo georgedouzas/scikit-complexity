@@ -292,6 +292,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
                 value: Expression = target
                 index = len(host)
                 host.append(UpdateLaw(target, target))
+                found: BaseLaw = host[index]
             else:
                 host_spec = next(spec for spec, laws in specs if laws is host)
                 found = host[index]
@@ -302,7 +303,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             for spec, _, increment in items:
                 self._merge_references(host_spec, spec, increment)
                 value += increment
-            host[index] = UpdateLaw(target, value)
+            host[index] = BasePass._replaced(found, value=value)
 
     def _accumulate(
         self,

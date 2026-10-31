@@ -11,6 +11,7 @@ from skcomplex.core.interactions import TransitionInteraction
 from skcomplex.core.laws.utils import neighbors, where
 from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
 from skcomplex.specs import StateSpec, VisualSpec
@@ -34,11 +35,18 @@ class HolderElement(Element):
         self.o = o
 
 
-def _values(element, interactions, until, *, time=None, state='s', dt=1.0):
+def _values(element, interactions, until, *, time=None, state='s', dt=1.0, backend=None):
     """Return the values of a state of the members at every unit of time."""
     system = System(elements=[element], interactions=interactions, time=time)
-    simulation = Simulation(system, dt=dt, random_state=0).check().prepare()
+    simulation = Simulation(system, dt=dt, random_state=0, backend=backend).check().prepare()
     return simulation.run(until=until).trajectory_.values(f'members.{state}')
+
+
+def _agent_values(element, interactions, until, state='s'):
+    """Return the values of a state of the agents at the last step."""
+    system = System(elements=[element], interactions=interactions, time=DiscreteTime())
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
+    return trajectory.agents('members', until).values[state]
 
 
 def _group(initial=1.0, size=MEMBERS):
@@ -124,6 +132,110 @@ def test_transition_matrix_reaches_the_stationary_distribution():
     assert values[-1].mean() == pytest.approx(0.25, abs=0.02)
 
 
+def _sir(infected, after=None, form='symbolic'):
+    """Return the infection and the recovery of a discrete SIR, which both move the state of the members."""
+    probability = (lambda a, m: infected) if form == 'agent' else (lambda s: infected)
+    recovery = (lambda a, m: 0.1) if form == 'agent' else (lambda s: 0.1)
+    return [
+        TransitionInteraction(
+            'infection',
+            target='members',
+            state='s',
+            source=0,
+            destination=1,
+            probability=probability,
+            form=form,
+        ),
+        TransitionInteraction(
+            'recovery',
+            target='members',
+            state='s',
+            source=1,
+            destination=2,
+            probability=recovery,
+            after=after,
+            form=form,
+        ),
+    ]
+
+
+def _sir_shares(steps, infected=0.2, recovered=0.1, *, in_turn=False):
+    """Return the expected shares of susceptible, infected, and recovered members of the discrete SIR.
+
+    In turn, the recovery reads the infections of the same step, as agent rules that run one after the other do.
+    """
+    susceptible, sick = 1.0, 0.0
+    for _ in range(steps):
+        newly = susceptible * infected
+        susceptible = susceptible - newly
+        sick = (sick + newly) * (1 - recovered) if in_turn else sick * (1 - recovered) + newly
+    return np.asarray([susceptible, sick, 1 - susceptible - sick])
+
+
+@pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()])
+def test_two_transitions_of_one_state_run_a_discrete_sir(backend):
+    """Test that an infection and a recovery of one state compose in every step into the shares of a discrete SIR."""
+    values = _values(_group(0.0), _sir(0.2), 8, time=DiscreteTime(), backend=backend)
+    shares = np.asarray([(values[-1] == value).mean() for value in (0, 1, 2)])
+    np.testing.assert_allclose(shares, _sir_shares(8), atol=0.025)
+
+
+def test_transition_after_a_residence_time_moves_no_member_earlier():
+    """Test that members move from the source value only once they have held it for the residence time."""
+    recovery = TransitionInteraction(
+        'recovery',
+        target='members',
+        state='s',
+        source=1,
+        destination=2,
+        probability=lambda s: 0.5,
+        after=3,
+    )
+    values = _values(_group(1.0), [recovery], 6, time=DiscreteTime())
+    assert np.all(values[:3] == 1)
+    assert (values[3] == 2).mean() == pytest.approx(0.5, abs=0.03)
+    assert (values[4] == 2).mean() == pytest.approx(0.75, abs=0.03)
+
+
+def test_agent_transitions_run_a_discrete_sir():
+    """Test that agent transitions of one state, which run one after the other, run the shares of a discrete SIR."""
+    values = _agent_values(_group(0.0, size=2000), _sir(0.2, form='agent'), 8)
+    shares = np.asarray([(values == value).mean() for value in (0, 1, 2)])
+    np.testing.assert_allclose(shares, _sir_shares(8, in_turn=True), atol=0.035)
+
+
+def test_agent_transition_after_a_residence_time_moves_no_agent_earlier():
+    """Test that agents move from the source value only once they have held it for the residence time."""
+    recovery = TransitionInteraction(
+        'recovery',
+        target='members',
+        state='s',
+        source=1,
+        destination=2,
+        condition=lambda a, m: True,
+        after=2,
+        form='agent',
+    )
+    group = _group(1.0, size=3)
+    assert _agent_values(group, [recovery], 1).tolist() == [1.0, 1.0, 1.0]
+    assert _agent_values(group, [recovery], 2).tolist() == [2.0, 2.0, 2.0]
+
+
+def test_agent_transition_matrix_draws_rows_and_emissions():
+    """Test that agents step by the rows of a matrix and draw their observed state from the emission matrix."""
+    source = TransitionInteraction(
+        'source',
+        target='members',
+        state='s',
+        matrix=lambda a, m: [[0.0, 1.0], [0.0, 1.0]],
+        emission=lambda a, m: [[1.0, 0.0], [0.2, 0.8]],
+        observed='o',
+        form='agent',
+    )
+    values = _agent_values(_group(0.0, size=2000), [source], 1, state='o')
+    assert values.mean() == pytest.approx(0.8, abs=0.03)
+
+
 def test_emission_matrix_draws_an_observation_given_the_moved_state():
     """Test that an emission matrix draws the observed state from the row the next value of the state selects."""
     source = TransitionInteraction(
@@ -149,6 +261,10 @@ def test_emission_matrix_draws_an_observation_given_the_moved_state():
         ({'rate': lambda s: 1.0, 'over': 'edges'}, 'Use one of'),
         ({'condition': lambda s: True, 'over': 'neighbors'}, 'only a rate or a probability'),
         ({'rate': lambda s: 1.0, 'source': 1, 'destination': 1}, 'distinct values'),
+        ({'rate': lambda s: 1.0, 'after': 2}, 'residence time'),
+        ({'probability': lambda s: 0.5, 'after': -1}, 'residence time'),
+        ({'probability': lambda s: 0.5, 'form': 'mesa'}, 'form of transition'),
+        ({'probability': lambda a, m: 0.5, 'over': 'neighbors', 'form': 'agent'}, 'symbolic form'),
     ],
 )
 def test_check_rejects_forms_it_cannot_take(arguments, match):

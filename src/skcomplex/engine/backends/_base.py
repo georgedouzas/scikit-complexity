@@ -129,6 +129,9 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
     def _assigning_function(kernels: list[LawKernel]) -> VectorFunction:
         """Return the function that sets the outputs of kernels on a copy of the state vector.
 
+        An output that combines with an earlier output of its target adds its change from the state to the value set
+        before it.
+
         Args:
             kernels:
                 The kernels.
@@ -139,12 +142,15 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         """
 
         def evaluate(t: float, x: Array, p: Array) -> Array:
-            """Set every kernel's outputs on a copy of the state."""
+            """Set every kernel's outputs on a copy of the state, adding the changes of combined outputs."""
             output = x.copy()
             for kernel in kernels:
                 _, values = BaseBackend._outputs_of(kernel, RunStateSpec(t, x, p))
                 for item, value in zip(kernel.outputs, values, strict=True):
-                    BaseBackend._assign_into(output, item.target, value)
+                    if item.combined:
+                        BaseBackend._assign_change_into(output, x, item.target, value)
+                    else:
+                        BaseBackend._assign_into(output, item.target, value)
             return output
 
         return evaluate
@@ -234,3 +240,32 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
             output[target.index] = values[0]
             return
         output[target.members] = values
+
+    @staticmethod
+    def _assign_change_into(output: Array, x: Array, target: ReferenceSpec | None, values: Array) -> None:
+        """Add the change of one output from the state to the target component of a flat vector.
+
+        Args:
+            output:
+                The flat vector to write to.
+
+            x:
+                The state the output changes.
+
+            target:
+                The target component, read per member or as a single element.
+
+            values:
+                One value per evaluation index.
+
+        Raises:
+            ValidationError:
+                The output has no target.
+        """
+        if target is None:
+            error_msg = 'An output assigned into a vector needs a target component.'
+            raise ValidationError(error_msg)
+        if target.source is not ReadKind.MEMBER:
+            output[target.index] += values[0] - x[target.index]
+            return
+        output[target.members] += values - x[target.members]

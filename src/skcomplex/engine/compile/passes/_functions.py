@@ -12,14 +12,23 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....errors import BackendWarning
+from ....errors import BackendWarning, ValidationError
 from ....specs import EntrySpec, LayoutSpec, LoweredFunctionsSpec, RunStateSpec
-from ....types import Array, FormKind, VectorFunction
+from ....types import Array, FormKind, Indices, VectorFunction
+from ..._utils import symbols_of
 from ...backends import BaseBackend, NumpyBackend
-from ...problems import DeclarationsSpec, OutputSpec, ProblemSpec
+from ...problems import (
+    DeclarationsSpec,
+    ExpressionPrinter,
+    KernelSpec,
+    LoweredKernelsSpec,
+    OutputSpec,
+    ProblemSpec,
+)
 from ...problems._draw_kernel import DrawKernel
 from ...problems._law_kernel import LawKernel
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
+from ...problems._sweep_spec import _SweepSpec
 from ...types import ReadKind
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
@@ -55,7 +64,7 @@ class FunctionsPass(BasePass):
         declarations: DeclarationsSpec,
         form: FormKind,
     ) -> tuple[dict[str, Expression], dict[str, Expression]]:
-        """Return the symbolic equations and their symbols, leaving out components with callables or group sums."""
+        """Return the symbolic equations and their symbols, without callables, group sums, or combined updates."""
         contributions: dict[tuple[str, int], list[Expression]] = defaultdict(list)
         excluded: set[tuple[str, int]] = set()
         for kernel in kernels:
@@ -63,7 +72,7 @@ class FunctionsPass(BasePass):
                 if item.target is None:
                     continue
                 key = (item.target.entry.name, item.target.column)
-                if item.expression is None or FunctionsPass._sums_over_members(kernel, item):
+                if item.expression is None or item.combined or FunctionsPass._sums_over_members(kernel, item):
                     excluded.add(key)
                     continue
                 contributions[key].append(item.expression)
@@ -151,10 +160,13 @@ class FunctionsPass(BasePass):
         complete = replace(lowered, form=form, size=size, reductions=reductions, draws=draws)
         lowering = backend.prepare().run(complete).functions_
         update: Callable[..., Array] | None = lowering.update
-        if draws is not None and lowering.update is not None:
-            update = FunctionsPass._stochastic_update(lowering.update, draws)
+        sweeps = FunctionsPass._sweeps_of(lowered, declarations.time)
+        if sweeps and update is not None:
+            update = FunctionsPass._ordered_update(update, sweeps)
+        if draws is not None and update is not None:
+            update = FunctionsPass._stochastic_update(update, draws)
         accelerated = lowering.accelerated
-        if draws is not None and draws.sampled and accelerated is not None:
+        if ((draws is not None and draws.sampled) or sweeps) and accelerated is not None:
             accelerated = replace(accelerated, iterate=None)
         main = {
             FormKind.ODE: kernels[RateLaw],
@@ -201,6 +213,89 @@ class FunctionsPass(BasePass):
                 Whether the form is stepwise.
         """
         return form in STEPWISE_FORMS.values()
+
+    @staticmethod
+    def _key_function(spec: KernelSpec, order: object, time: Expression) -> Callable[[float, Array, Array], Array]:
+        """Return the function of the order of the members of an update law at a state."""
+        expression = SR(order)
+        arguments = sorted(symbols_of([expression]) - {time}, key=str)
+        unknown = [item for item in arguments if item not in spec.references]
+        if unknown:
+            error_msg = (
+                f'The order of an update law of {spec.owner} reads {", ".join(map(str, unknown))}, which the namespace '
+                'does not hold. Order the members by their states, parameters, and draws.'
+            )
+            raise ValidationError(error_msg)
+        references = [spec.references[item] for item in arguments]
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run([expression]).code_
+        if not callable(function):
+            error_msg = f'The printer returns no function of the order of an update law of {spec.owner}.'
+            raise TypeError(error_msg)
+        rows = spec.rows
+
+        def key(t: float, x: Array, q: Array) -> Array:
+            values = function(t, *(reference.column_of(x, q) for reference in references))
+            if not isinstance(values, list):
+                error_msg = f'The function of the order of an update law of {spec.owner} returns no list of values.'
+                raise TypeError(error_msg)
+            return np.broadcast_to(np.asarray(values[0], dtype=float), (rows,))
+
+        return key
+
+    @staticmethod
+    def _sweeps_of(lowered: LoweredKernelsSpec, time: Expression) -> list[_SweepSpec]:
+        """Return the update laws whose members update one after the other, with the indices each member sets."""
+        found: dict[int, tuple[KernelSpec, UpdateLaw, list[Indices]]] = {}
+        for kernel in lowered.kernels.get(UpdateLaw, []):
+            for item in kernel.outputs:
+                spec, law = lowered.laws[id(item)]
+                if not isinstance(law, UpdateLaw) or law.order is None or item.target is None:
+                    continue
+                if not isinstance(spec, KernelSpec):
+                    error_msg = f'The update law {law.label!r} has no kernel spec to order its members by.'
+                    raise TypeError(error_msg)
+                target = item.target
+                indices: Indices = (
+                    target.flat_indices
+                    if target.source is ReadKind.MEMBER
+                    else np.asarray([target.index], dtype=np.intp)
+                )
+                found.setdefault(id(law), (spec, law, []))[2].append(indices)
+        return [
+            _SweepSpec(np.stack(columns, axis=1), FunctionsPass._key_function(spec, law.order, time))
+            for spec, law, columns in found.values()
+        ]
+
+    @staticmethod
+    def _ordered_update(update: Callable[..., Array], sweeps: list[_SweepSpec]) -> Callable[..., Array]:
+        """Return an update whose ordered laws set their members one after the other, each reading those before it.
+
+        Every other law updates at once from the state at the start of the step.
+
+        Args:
+            update:
+                The update `F(t, x, q)` of every update law at once.
+
+            sweeps:
+                The ordered update laws, with the indices every member sets and the function of their order.
+
+        Returns:
+            update:
+                The update `F(t, x, q)`.
+        """
+        written = np.concatenate([sweep.indices.ravel() for sweep in sweeps])
+
+        def ordered(t: float, x: Array, q: Array) -> Array:
+            swept = x.copy()
+            for sweep in sweeps:
+                for row in np.argsort(sweep.key(t, swept, q), kind='stable'):
+                    indices = sweep.indices[row]
+                    swept[indices] = update(t, swept, q)[indices]
+            following = update(t, x, q)
+            following[written] = swept[written]
+            return following
+
+        return ordered
 
     @staticmethod
     def _stochastic_update(update: Callable[..., Array], draws: DrawKernel) -> Callable[..., Array]:

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
 
-MOVES = ('flip', 'random-value', 'rotate', 'gaussian', 'function')
+MOVES = ('flip', 'random-value', 'rotate', 'gaussian', 'function', 'cluster')
 
 
 @dataclass(frozen=True)
@@ -23,8 +23,9 @@ class MoveSpec(BaseSpec):
         kind:
             `'flip'` for the negative value, the spin flip of Ising models, `'random-value'` for a value drawn from
             `values`, as in Potts models, `'rotate'` for the value plus a uniform number in `[-width, width]`, as in
-            XY models, `'gaussian'` for the value plus a normal number of standard deviation `width`, or `'function'`
-            for the values `function` proposes.
+            XY models, `'gaussian'` for the value plus a normal number of standard deviation `width`, `'function'`
+            for the values `function` proposes, or `'cluster'` for the flip of a cluster grown by the Wolff bonds of the
+            energy.
 
         values:
             The values a random-value move draws from.

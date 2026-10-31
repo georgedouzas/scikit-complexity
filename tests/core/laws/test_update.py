@@ -4,15 +4,16 @@ from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import var
+from sage.all__sagemath_symbolics import SR, var
 
-from skcomplex.core.elements import Element
+from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw, UpdateLaw
-from skcomplex.core.laws.utils import lag, where
+from skcomplex.core.laws.utils import lag, total, where
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import ValidationError
 from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 
 
@@ -169,3 +170,101 @@ def test_adaptive_parameters_compile_with_their_bounds():
     assert problem.form.name == 'ODE'
     assert set(problem.adaptive_parameters) == {'pump.u'}
     assert problem.adaptive_parameters['pump.u'].bounds == (0.0, 1.0)
+
+
+class CounterElement(Element):
+    """Member with a value `x`."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+
+
+class LawsInteraction(Interaction):
+    """Interaction whose laws a function of the namespace gives."""
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], laws: object) -> None:
+        super().__init__(label)
+        self.target = target
+        self.laws = laws
+
+    def _get_laws(self, s):
+        """Return the laws the function gives."""
+        return self.laws(s)
+
+
+def _counters(laws, initial, until=1):
+    """Return the values of the members of a group under the laws of one interaction."""
+    group = GroupElement('counters', element=CounterElement, size=len(initial), values={'x': initial})
+    system = System(elements=[group], interactions=[LawsInteraction('laws', target='counters', laws=laws)])
+    return Simulation(system).check().prepare().run(until=until).trajectory_.values('counters.x')
+
+
+def _increments(s):
+    """Return two increments of the value."""
+    return [
+        UpdateLaw(s.target.x, s.target.x + 1, increment=True),
+        UpdateLaw(s.target.x, s.target.x + 2, increment=True),
+    ]
+
+
+def _moves(s):
+    """Return the moves of the value from 0 to 1 and from 1 to 2."""
+    return [
+        UpdateLaw(s.target.x, where(s.target.x == 0, 1, s.target.x), source=0),
+        UpdateLaw(s.target.x, where(s.target.x == 1, 2, s.target.x), source=1),
+    ]
+
+
+def test_update_increments_of_one_state_add():
+    """Test that two increment laws of one state add their changes in every step."""
+    assert _counters(_increments, [0.0, 10.0], until=2)[-1].tolist() == [6.0, 16.0]
+
+
+def test_update_moves_from_distinct_sources_compose():
+    """Test that moves of one state from distinct source values all apply from the values at the start of the step."""
+    assert _counters(_moves, [0.0, 1.0, 2.0])[-1].tolist() == [1.0, 2.0, 2.0]
+
+
+@pytest.mark.parametrize('sources', [(0, 0), (None, 1), (None, None)])
+def test_update_laws_that_may_conflict_raise_error(sources):
+    """Test that two update laws of one state with the same source, or one without a source, raise an error."""
+
+    def laws(s):
+        """Return one move per source."""
+        return [UpdateLaw(s.target.x, s.target.x + 1, source=source) for source in sources]
+
+    with pytest.raises(ValidationError, match='second time'):
+        _counters(laws, [0.0])
+
+
+@pytest.mark.parametrize(
+    ('order', 'initial', 'expected'),
+    [
+        (None, [1.0, 1.0, 1.0], [3.0, 3.0, 3.0]),
+        (SR(0), [1.0, 1.0, 1.0], [3.0, 5.0, 9.0]),
+        ('descending', [1.0, 2.0, 3.0], [16.0, 9.0, 6.0]),
+    ],
+)
+def test_update_order_reads_the_values_set_before(order, initial, expected):
+    """Test that ordered members read the values the members before them set, and unordered ones the step start."""
+
+    def laws(s):
+        """Return the update of every member to the total of the group."""
+        key = -s.target.x if order == 'descending' else order
+        return [UpdateLaw(s.target.x, total(s.target.x), order=key)]
+
+    assert _counters(laws, initial)[-1].tolist() == expected
+
+
+def test_update_check_rejects_an_increment_with_a_source():
+    """Test that an increment law with a source raises an error."""
+    x = var('x')
+    with pytest.raises(ValidationError, match='no source'):
+        UpdateLaw(x, x + 1, increment=True, source=0).check()

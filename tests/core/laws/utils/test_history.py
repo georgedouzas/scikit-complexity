@@ -6,10 +6,10 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import abs_symbolic, cos, sin
 
-from skcomplex.core.elements import Element
+from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import EquationLaw, RateLaw, UpdateLaw
-from skcomplex.core.laws.utils import derivative, lag
+from skcomplex.core.laws.utils import derivative, lag, residence, where
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
@@ -156,3 +156,57 @@ def test_derivative_at_order_is_rejected_in_rates():
         ).check().prepare().run(
             until=1,
         )
+
+
+class ToggleElement(Element):
+    """Value that switches between 0 and 1 once it has held its value for a given number of steps."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        held: Annotated[object, ParameterSpec()] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.held = held
+
+    def _get_laws(self, s):
+        """Return the switch of the value after it has held it for `held` steps."""
+        return [UpdateLaw(s.x, where(residence(s.x) >= s.held, 1 - s.x, s.x))]
+
+
+def test_residence_counts_the_steps_a_state_holds_its_value():
+    """Test that the residence is 0 in the step a state takes a value and grows by 1 every step it keeps it."""
+    group = GroupElement('toggles', element=ToggleElement, size=2, values={'held': [2.0, 1.0]})
+    trajectory = Simulation(System(elements=[group])).check().prepare().run(until=6).trajectory_
+    np.testing.assert_array_equal(
+        trajectory.values('toggles.x').T,
+        [[0, 0, 0, 1, 1, 1, 0], [0, 0, 1, 1, 0, 0, 1]],
+    )
+
+
+def test_residence_outside_update_laws_is_rejected():
+    """Test that a law other than an update law cannot read the residence of a state."""
+
+    class ResidenceRateInteraction(Interaction):
+        """Rate that reads a residence."""
+
+        def __init__(
+            self,
+            label: str,
+            *,
+            target: Annotated[object, RoleSpec()],
+        ) -> None:
+            super().__init__(label)
+            self.target = target
+
+        def _get_laws(self, s):
+            """Return a rate that reads the residence of the position."""
+            return [RateLaw(s.target.x, residence(s.target.x))]
+
+    system = System(elements=[MassElement('mass')], interactions=[ResidenceRateInteraction('bad', target='mass')])
+    with pytest.raises(ValidationError, match='only update laws'):
+        Simulation(system).check().prepare().run(until=1)

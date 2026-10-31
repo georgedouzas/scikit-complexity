@@ -5,7 +5,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.elements import Element
+from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import ImpulseInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
@@ -61,6 +61,15 @@ def test_periodic_impulses_without_a_count_fire_until_the_end():
     """Test that periodic impulses without a count fire at every period after the initial time."""
     trajectory = _run(_dose(period=1.5), 7.0)
     assert [event.time for event in trajectory.events] == pytest.approx([1.5, 3.0, 4.5, 6.0], abs=1e-6)
+
+
+def test_impulses_on_a_group_set_every_member_from_its_own_state():
+    """Test that impulses on a group set the state of every member from that member's own state."""
+    bodies = GroupElement('bodies', element=DecayElement, size=3, values={'c': [0.0, 1.0, 2.0]})
+    dose = ImpulseInteraction('dose', target='bodies', reset={'c': lambda s: s.target.c + 1.0}, times=(1.0,))
+    trajectory = Simulation(System(elements=[bodies], interactions=[dose]), dt=0.25).check().prepare().run(until=2.0)
+    expected = (np.array([0.0, 1.0, 2.0]) * np.exp(-1.0) + 1.0) * np.exp(-1.0)
+    np.testing.assert_allclose(trajectory.trajectory_.values('bodies.c')[-1], expected, rtol=1e-3)
 
 
 @pytest.mark.parametrize(

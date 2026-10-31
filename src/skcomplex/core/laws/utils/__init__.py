@@ -7,7 +7,7 @@ from ....specs._draw_spec import bernoulli, categorical, draw, draws_in, normal,
 from ._agents import matches, random_pairing, transfer
 from ._conditions import both, either, mod, where
 from ._delays import delay1, delay3, delay_parts, distributed_delay, smooth
-from ._history import delayed, derivative, lag
+from ._history import delayed, derivative, lag, residence
 from ._lookups import lookup
 from ._moments import moment
 from ._operators import advection, divergence, gradient, inverse_laplacian, laplacian, partial, upwind
@@ -74,6 +74,7 @@ __all__: list[str] = [
     'ramp',
     'random_pairing',
     'reductions_in',
+    'residence',
     'series',
     'shift_member',
     'sign',

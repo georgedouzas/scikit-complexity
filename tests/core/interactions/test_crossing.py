@@ -5,7 +5,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.elements import Element
+from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import CrossingInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
@@ -57,6 +57,27 @@ def test_integrate_and_fire_fires_with_the_closed_form_period():
     np.testing.assert_allclose(np.diff(times), period, rtol=1e-3)
     assert all(event.label == 'fire' for event in trajectory.events)
     assert trajectory.values('cell.v').max() <= 1.0 + 1e-6
+
+
+def test_integrate_and_fire_group_fires_every_member_with_its_own_period():
+    """Test that every member of a group of leaky integrators fires with its own period and resets alone."""
+    drives = np.array([1.5, 2.0, 3.0])
+    cells = GroupElement('cells', element=LeakyElement, size=3, values={'drive': drives})
+    fire = CrossingInteraction(
+        'fire',
+        target='cells',
+        guard=lambda s: s.target.v - 1.0,
+        reset={'v': lambda s: 0.0},
+        direction=1,
+    )
+    trajectory = Simulation(System(elements=[cells], interactions=[fire]), dt=0.05).check().prepare().run(until=8.0)
+    events = trajectory.trajectory_.events
+    for member, drive in enumerate(drives):
+        times = [event.time for event in events if event.member == member]
+        np.testing.assert_allclose(np.diff(times), np.log(drive / (drive - 1.0)), rtol=1e-3)
+    for event in events:
+        changed = np.flatnonzero(event.before != event.after)
+        assert changed.tolist() == [event.member]
 
 
 def test_terminal_crossing_ends_the_run():
