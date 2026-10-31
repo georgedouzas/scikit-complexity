@@ -35,6 +35,7 @@ from ._reaction import ReactionInteraction
 from ._reinforcement import ReinforcementInteraction
 from ._relaxation import RelaxationInteraction
 from ._sampling import SamplingInteraction
+from ._sign_adjustment import SignAdjustmentInteraction
 from ._spreading import SpreadingInteraction
 from ._topology import TopologyInteraction
 from ._transfer import TransferInteraction
@@ -73,6 +74,7 @@ __all__: list[str] = [
     'ReinforcementInteraction',
     'RelaxationInteraction',
     'SamplingInteraction',
+    'SignAdjustmentInteraction',
     'SpreadingInteraction',
     'TopologyInteraction',
     'TransferInteraction',

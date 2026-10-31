@@ -288,6 +288,39 @@ def test_transfer_moves_every_leg_between_two_agents():
     assert (source.level, target.level, source.clock, target.clock) == (2.0, 2.0, 1.0, 1.0)
 
 
+class ClientElement(StockElement):
+    """Holder of a level with a reference to a holder of the group `holders`."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        level: Annotated[float, StateSpec()] = 0.0,
+        holder: Annotated[float, StateSpec(reference='holders')] = -1.0,
+    ) -> None:
+        super().__init__(label, visual=visual, level=level)
+        self.holder = holder
+
+
+def test_transfer_leg_end_moves_the_state_of_a_referenced_member():
+    """Test that a leg end `holder.level` moves the level of the member the reference state names."""
+    clients = GroupElement('clients', element=ClientElement, size=3, values={'level': 1.0, 'holder': [0, 1, 1]})
+    holders = GroupElement('holders', element=StockElement, size=2)
+    deposit = TransferInteraction(
+        'deposit',
+        source='clients',
+        target='clients',
+        state='level',
+        into='holder.level',
+        amount=1.0,
+        form='agent',
+    )
+    trajectory = _run(System(elements=[clients, holders], interactions=[deposit]), 1)
+    assert _levels(trajectory, 1, 'clients') == [0.0, 0.0, 0.0]
+    assert _levels(trajectory, 1, 'holders') == [1.0, 2.0]
+
+
 def test_transfer_symbolic_flows_run_in_discrete_time():
     """Test that a symbolic transfer in discrete time moves its amount every step."""
     flow = TransferInteraction('flow', source='upper', target='lower', state='level', amount=1.0)
@@ -316,6 +349,7 @@ def test_transfer_symbolic_flows_run_in_discrete_time():
         {'flow': 'out', 'legs': (('capacity', 'capacity', 1.0, 'out'),)},
         {'flow': 'out', 'form': 'agent'},
         {'fallback': 'c'},
+        {'into': 'holder.level'},
     ],
 )
 def test_check_rejects_invalid_arguments(arguments):

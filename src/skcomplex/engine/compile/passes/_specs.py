@@ -255,18 +255,14 @@ class SpecsPass(BasePass):
         entry: object,
         elements: dict[str, BlockSpec],
     ) -> tuple[BlockSpec, int | None]:
-        """Return the block of one entry of a variadic role, with the member index of a member reference."""
+        """Return the block of one entry of a variadic role, with the member index of a member reference.
+
+        An entry that names a whole group binds its agents, which agent rules read by the role, with no member index.
+        """
         member = SpecsPass._resolve_member(node, role, entry, elements) if isinstance(entry, str) else None
         if member is not None:
             return member
-        block = SpecsPass._resolve_path(node, role, entry, elements)
-        if block.node.members is not None:
-            error_msg = (
-                f'Interaction {node.path} binds the group {block.node.path} as an entry of its variadic role {role!r}. '
-                f'Bind single elements or members of the group, such as {entry}[0].'
-            )
-            raise RoleError(error_msg)
-        return block, None
+        return SpecsPass._resolve_path(node, role, entry, elements), None
 
     @staticmethod
     def _resolve_entries(
@@ -299,7 +295,13 @@ class SpecsPass(BasePass):
         block: BlockSpec,
         index: int | None,
     ) -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
-        """Return the namespace of an entry of a variadic role, an element or one member of a group."""
+        """Return the namespace of an entry of a variadic role, an element or one member of a group.
+
+        A whole group, whose agents rules read by the role, gives an empty namespace, since symbolic laws read single
+        elements or members.
+        """
+        if index is None and block.node.members is not None:
+            return SimpleNamespace(), {}
         if index is None:
             return SpecsPass._namespace(block, ReadKind.SINGLE)
         return SpecsPass._member_namespace(block, index)

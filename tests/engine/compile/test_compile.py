@@ -526,15 +526,20 @@ def test_compile_variadic_member_reference_reads_one_member(backend):
     ('inputs', 'match'),
     [
         (['a', 'nodes[12]'], r"sum .*'nodes\[12\]'.*'inputs'.*10 members"),
-        (['a', 'nodes'], 'binds the group nodes'),
         (['a', 'missing'], "'missing'"),
         ('a', 'Bind a list'),
     ],
 )
 def test_compile_variadic_role_with_wrong_entry_raises_error(inputs, match):
-    """Test that a variadic entry naming a missing member, a group, or no element raises a role error."""
+    """Test that a variadic entry naming a missing member or no element raises a role error."""
     with pytest.raises(RoleError, match=match):
         compile_system(_summed(inputs))
+
+
+def test_compile_variadic_group_entry_gives_symbolic_laws_no_states():
+    """Test that a variadic entry naming a whole group, which binds its agents, gives symbolic laws no states."""
+    with pytest.raises(AttributeError, match="no attribute 'x'"):
+        compile_system(_summed(['a', 'nodes']))
 
 
 def test_compile_plain_role_binds_one_group_member():

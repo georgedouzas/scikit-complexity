@@ -215,6 +215,30 @@ of neighbours, and SHALL pair with a fallback group in a step in which no target
 - **WHEN** a transfer pays a random member of a group that has no living member and names a `fallback` group
 - **THEN** a random member of the fallback group receives the amount
 
+### Requirement: Reference states
+A state declared `StateSpec(reference=group)` SHALL hold the id of a member of another agent group, given initially as
+its position among the group's initial members, and agent rules SHALL read that member with `agent.referenced(state)`.
+A leg end `'<reference>.<state>'` of an agent transfer SHALL move the state of the referenced member, and a variadic
+role entry naming a whole group SHALL bind its agents.
+
+#### Scenario: Payment mirrored at the banks
+- **WHEN** a customer whose reference state `bank` names a bank pays another customer with the legs `bank.deposits`
+  and `bank.reserves`
+- **THEN** the deposits and reserves move from the payer's bank to the payee's bank by the same amount
+
+### Requirement: Source sets and sign steps
+`TransitionInteraction` SHALL move a state from a set of source values or from the values a condition on the value
+accepts. `SignAdjustmentInteraction` SHALL step a state of discrete time by the sign of a signal, multiplicatively or
+additively, within bounds, in both forms.
+
+#### Scenario: Separation from any employer
+- **WHEN** a transition moves the employer of a worker to `-1` from the source `lambda value: value >= 0`
+- **THEN** every employed worker loses its job at the probability, whichever firm employs it
+
+#### Scenario: Price search by trial and error
+- **WHEN** a shop's price steps by `SignAdjustmentInteraction(signal=direction, step=adjustment, lower=unit_cost)`
+- **THEN** the price moves by the relative step in the direction, never below the unit cost
+
 ### Requirement: Agent and symbolic lowering
 A general class whose operation agent models use SHALL lower to agent rules in its agent form, with functions of the
 agent and the model view, and to symbolic laws in its symbolic form, chosen by a `form` argument.

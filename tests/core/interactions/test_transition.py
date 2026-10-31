@@ -125,6 +125,40 @@ def test_transition_on_a_condition_spreads_a_threshold_cascade():
     assert values.sum(axis=1).tolist() == [1, 3, 5, 7]
 
 
+@pytest.mark.parametrize('source', [(1, 2), lambda value: value >= 1])
+def test_transition_moves_from_every_source_value(source):
+    """Test that a set of source values or a condition on the value moves every member that holds one of them."""
+    initial = np.array([0.0, 1.0, 2.0, 3.0])
+    move = TransitionInteraction(
+        'reset',
+        target='members',
+        state='s',
+        source=source,
+        destination=0,
+        condition=lambda s: 1,
+    )
+    values = _values(_ring(initial), [move], 1, time=DiscreteTime())
+    expected = [0, 0, 0, 3] if isinstance(source, tuple) else [0, 0, 0, 0]
+    assert values[-1].tolist() == expected
+
+
+@pytest.mark.parametrize('source', [(1, 2), lambda value: value >= 1])
+def test_agent_transition_moves_from_every_source_value(source):
+    """Test that the agent form moves every agent that holds one of a set of source values or meets a condition."""
+    group = GroupElement('members', element=HolderElement, size=4, values={'s': [0, 1, 2, 3]})
+    move = TransitionInteraction(
+        'reset',
+        target='members',
+        state='s',
+        source=source,
+        destination=0,
+        probability=lambda a, m: 1.0,
+        form='agent',
+    )
+    expected = [0, 0, 0, 3] if isinstance(source, tuple) else [0, 0, 0, 0]
+    assert _agent_values(group, [move], 1).tolist() == expected
+
+
 def test_transition_matrix_reaches_the_stationary_distribution():
     """Test that a two-state Markov chain reaches the stationary distribution of its transition matrix."""
     chain = TransitionInteraction('chain', target='members', state='s', matrix=lambda s: [[0.9, 0.1], [0.3, 0.7]])

@@ -77,6 +77,9 @@ class VariableSpec(BaseSpec):
 
         bounds:
             The lower and upper bound of an adaptive parameter, or `None`.
+
+        reference:
+            The path of the agent group a member of which a state names by its id, or `None`.
     """
 
     kind: VariableKind
@@ -98,6 +101,7 @@ class VariableSpec(BaseSpec):
     position: bool = False
     adaptive: bool = False
     bounds: tuple[float, float] | None = None
+    reference: str | None = None
 
     @property
     def is_fractional(self) -> bool:

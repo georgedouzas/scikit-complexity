@@ -54,6 +54,12 @@ class StateSpec(BaseSpec):
             Whether a vector state is the position of its element in a continuous space, on which the boundary of the
             space acts.
 
+        reference:
+            The path of the agent group, relative to the element's system, a member of which the state names by its
+            id, or `None`. A negative value names no member. The initial values of the group give the position of the
+            member among the initial members of the referenced group, which the agent stepper turns into its id, and
+            rules read the member with `agent.referenced(state)`.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
@@ -61,6 +67,8 @@ class StateSpec(BaseSpec):
         >>> spec = StateSpec(domain=RealSet.closed_open(0, oo)).check()
         >>> 2.5 in spec.domain, -1 in spec.domain
         (True, False)
+        >>> StateSpec(reference='banks').check().reference
+        'banks'
     """
 
     domain: object = RR
@@ -72,14 +80,19 @@ class StateSpec(BaseSpec):
     quantity: str | None = None
     history: object = None
     position: bool = False
+    reference: str | None = None
 
     def _check(self) -> None:
-        """Raise an error for an order that is not positive, negative lags, both, or too many initial values.
+        """Raise an error for an invalid order, lags, or initial values, or a reference of a state that is not scalar.
 
         Raises:
             ValidationError:
-                The order or the lags are invalid, or there are more initial values than derivatives or lags.
+                The order or the lags are invalid, there are more initial values than derivatives or lags, or a state
+                naming a member of a group is not a scalar of order 1 without lags.
         """
+        if self.reference is not None and (self.vector or self.order != 1 or self.lags):
+            error_msg = f'The state naming a member of {self.reference!r} is not a scalar of order 1 without lags.'
+            raise ValidationError(error_msg)
         integral = float(self.order).is_integer()
         if not (math.isfinite(self.order) and self.order > 0 and (integral or self.order < 1)):
             error_msg = f'The order {self.order!r} is neither an integer of at least 1 nor a real number in (0, 1).'

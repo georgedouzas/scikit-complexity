@@ -37,6 +37,7 @@ _AGENT_VIEW_NAMES = frozenset(
         'displacement_to',
         'distance_to',
         'lags',
+        'referenced',
     },
 )
 
