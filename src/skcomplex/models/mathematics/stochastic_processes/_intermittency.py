@@ -3,14 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.interactions import RateInteraction
 from ....core.system import System
 from ....engine.solvers import HeunSolver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -18,28 +17,43 @@ from ..._catalog import register_model
 
 
 class IntermittentVariableElement(Element):
-    """Intermittent variable element."""
+    """Positive variable driven across the bifurcation at `epsilon = 0` by multiplicative noise of intensity `D`.
+
+    Args:
+        label:
+            The label of the variable or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value.
+
+        epsilon:
+            The control parameter, the distance from the bifurcation.
+
+        D:
+            The noise intensity.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.stochastic_processes import IntermittentVariableElement
+        >>> IntermittentVariableElement('variable', D=0.2).D
+        0.2
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        epsilon: Annotated[object, ParameterSpec()] = 0.0,
-        D: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        x: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+        epsilon: Annotated[float, ParameterSpec()] = 0.0,
+        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
         self.epsilon = epsilon
         self.D = D
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the intermittent variable element."""
-        return [
-            RateLaw(s.x, s.epsilon * s.x - s.x**3),
-            NoiseLaw(s.x, sqrt(2 * s.D) * s.x, convention='stratonovich'),
-        ]
 
 
 @register_model(
@@ -90,4 +104,12 @@ def on_off_intermittency(
         size=n_realizations,
         values={'x': x, 'epsilon': epsilon, 'D': D},
     )
-    return System(elements=[variables])
+    drift = RateInteraction(
+        'drift',
+        target='variables',
+        state='x',
+        rate=lambda s: s.target.epsilon * s.target.x - s.target.x**3,
+        noise=lambda s: sqrt(2 * s.target.D) * s.target.x,
+        convention='stratonovich',
+    )
+    return System(elements=[variables], interactions=[drift])

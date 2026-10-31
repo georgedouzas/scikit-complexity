@@ -12,7 +12,8 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, JumpLaw, RuleLaw
+from ....core.interactions import JumpInteraction
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -21,23 +22,38 @@ from ._bernoulli_trial_view import BernoulliTrialView
 
 
 class PoissonCounterElement(Element):
-    """Poisson counter element."""
+    """Counter of the events of a Poisson process, with the rate of events it is counted at.
+
+    Args:
+        label:
+            The label of the counter or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        count:
+            The initial number of events.
+
+        rate:
+            The rate of events, which the jump of the counter reads.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.stochastic_processes import PoissonCounterElement
+        >>> PoissonCounterElement('counter', rate=2.0).rate
+        2.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        count: Annotated[object, StateSpec(domain=NN)] = 0.0,
-        rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        count: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.count = count
         self.rate = rate
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the poisson counter element."""
-        return [JumpLaw(s.rate, {s.count: 1})]
 
 
 class BernoulliTrialElement(Element):
@@ -165,6 +181,6 @@ def poisson_process(n_processes: int = 20, *, rate: float = 1.0) -> System:
         >>> poisson_process(5).elements[0].check().prepare().size_
         5
     """
-    return System(
-        elements=[GroupElement('counters', element=PoissonCounterElement, size=n_processes, values={'rate': rate})],
-    )
+    counters = GroupElement('counters', element=PoissonCounterElement, size=n_processes, values={'rate': rate})
+    events = JumpInteraction('events', target='counters', changes={'count': 1}, rate=lambda s: s.target.rate)
+    return System(elements=[counters], interactions=[events])
