@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from ._alignment import AlignmentInteraction
 from ._base import BaseInteraction
 from ._foraging import ForagingInteraction
 from ._hyperedge import HyperedgeInteraction
@@ -11,10 +12,11 @@ from ._neighbor import NeighborInteraction
 from ._pair import PairInteraction
 from ._pair_potential import PairPotentialInteraction
 from ._potential import PotentialInteraction
-from ._regrowth import RegrowthInteraction
 from ._random_walk import RandomWalkInteraction
+from ._regrowth import RegrowthInteraction
 
 __all__: list[str] = [
+    'AlignmentInteraction',
     'BaseInteraction',
     'ForagingInteraction',
     'HyperedgeInteraction',

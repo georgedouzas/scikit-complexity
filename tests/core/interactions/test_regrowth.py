@@ -31,10 +31,9 @@ class ResourceElement(Element):
         self.clock = clock
 
 
-def _regrow(until: int, values: dict[str, object], **arguments: object) -> Trajectory:
+def _regrow(until: int, values: dict[str, object], regrowth: RegrowthInteraction) -> Trajectory:
     """Return the trajectory of two cells whose resource regrows."""
     cells = GroupElement('cells', element=ResourceElement, size=2, values=values)
-    regrowth = RegrowthInteraction('regrowth', resources='cells', **arguments)
     system = System(elements=[cells], interactions=[regrowth])
     return Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
 
@@ -47,7 +46,7 @@ def _resources(trajectory: Trajectory, frame: int) -> list[float]:
 def test_regrow_restores_the_capacity_after_the_delay():
     """Test that a resource below its capacity is restored when its clock ends, and the clock restarts."""
     values = {'resource': [0.0, 1.0], 'clock': [3.0, 3.0]}
-    trajectory = _regrow(3, values, form='delay', delay=5.0)
+    trajectory = _regrow(3, values, RegrowthInteraction('regrowth', resources='cells', form='delay', delay=5.0))
     assert _resources(trajectory, 2) == [0.0, 1.0]
     assert _resources(trajectory, 3) == [1.0, 1.0]
     assert trajectory.agents('cells', 3).values['clock'].tolist() == [5.0, 3.0]
@@ -56,7 +55,7 @@ def test_regrow_restores_the_capacity_after_the_delay():
 def test_regrow_adds_the_rate_up_to_the_capacity():
     """Test that linear regrowth adds the rate every step and stops at the capacity of every cell."""
     values = {'resource': [0.0, 0.0], 'capacity': [1.0, 4.0]}
-    trajectory = _regrow(3, values, form='linear', rate=1.5)
+    trajectory = _regrow(3, values, RegrowthInteraction('regrowth', resources='cells', form='linear', rate=1.5))
     assert _resources(trajectory, 1) == [1.0, 1.5]
     assert _resources(trajectory, 3) == [1.0, 4.0]
 
@@ -64,7 +63,7 @@ def test_regrow_adds_the_rate_up_to_the_capacity():
 def test_regrow_grows_logistically_towards_the_capacity():
     """Test that logistic regrowth follows `r' = r + rate r (1 - r / K)` and approaches the capacity."""
     values = {'resource': [0.1, 0.0], 'capacity': [2.0, 2.0]}
-    trajectory = _regrow(60, values, form='logistic', rate=0.5)
+    trajectory = _regrow(60, values, RegrowthInteraction('regrowth', resources='cells', form='logistic', rate=0.5))
     expected = 0.1
     for _ in range(5):
         expected += 0.5 * expected * (1 - expected / 2.0)

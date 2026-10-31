@@ -34,10 +34,9 @@ def _run(system: System, until: int) -> Trajectory:
     return Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
 
 
-def _lattice_walk(until: int, **arguments: object) -> Trajectory:
+def _lattice_walk(until: int, walk: RandomWalkInteraction) -> Trajectory:
     """Return the trajectory of four walkers that start at the middle of a 9 by 9 lattice."""
     walkers = GroupElement('walkers', element=BudgetElement, size=4, location=[(4, 4)] * 4)
-    walk = RandomWalkInteraction('walk', walkers='walkers', **arguments)
     space = LatticeSpace((9, 9), neighborhood='von_neumann')
     return _run(System(elements=[walkers], interactions=[walk], space=space), until)
 
@@ -67,7 +66,7 @@ def test_walk_levy_steps_are_at_least_the_scale():
 
 def test_walk_neighbor_steps_move_to_adjacent_cells():
     """Test that neighbour steps on a lattice move every walker to one of the four adjacent cells."""
-    trajectory = _lattice_walk(5)
+    trajectory = _lattice_walk(5, RandomWalkInteraction('walk', walkers='walkers'))
     locations = np.asarray([trajectory.agents('walkers', frame).locations for frame in range(6)], dtype=int)
     steps = np.abs(np.diff(locations, axis=0)).sum(axis=-1)
     assert np.all(steps == 1)
@@ -85,13 +84,16 @@ def test_walk_neighbor_steps_follow_the_edges_of_a_network():
 
 def test_walk_charges_the_cost_of_every_step_to_the_budget():
     """Test that every step subtracts the cost from the named budget state."""
-    trajectory = _lattice_walk(3, cost=1.5, budget='level')
+    trajectory = _lattice_walk(3, RandomWalkInteraction('walk', walkers='walkers', cost=1.5, budget='level'))
     assert trajectory.agents('walkers', 3).values['level'].tolist() == [5.5] * 4
 
 
 def test_walk_without_probability_keeps_walkers_in_place():
     """Test that walkers whose step probability is zero never move."""
-    trajectory = _lattice_walk(5, probability=0.0, cost=1.0, budget='level')
+    trajectory = _lattice_walk(
+        5,
+        RandomWalkInteraction('walk', walkers='walkers', probability=0.0, cost=1.0, budget='level'),
+    )
     assert np.all(np.asarray(trajectory.agents('walkers', 5).locations) == 4)
     assert trajectory.agents('walkers', 5).values['level'].tolist() == [10.0] * 4
 
