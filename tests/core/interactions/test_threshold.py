@@ -77,7 +77,12 @@ def test_sandpile_avalanches_follow_a_power_law_over_two_decades():
 def test_redistribution_keeps_the_grains_inside_a_periodic_lattice():
     """Test that a firing site on a periodic ring gives its threshold to its neighbours and the total is kept."""
     simulation = _run(
-        LatticeSpace(5), [0.0, 1.0, 3.0, 1.0, 0.0], 2, 1, share=1, over=VonNeumannNeighborhood(n_dim=1, center=True),
+        LatticeSpace(5),
+        [0.0, 1.0, 3.0, 1.0, 0.0],
+        2,
+        1,
+        share=1,
+        over=VonNeumannNeighborhood(n_dim=1, center=True),
     )
     assert simulation.state_.tolist() == [1.0] * 5
     (event,) = simulation.trajectory_.events

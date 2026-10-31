@@ -72,7 +72,8 @@ def _drift(system, backend):
     """Return the rates of the phases at the initial state."""
     problem = compile_system(system, backend=backend)
     return problem.states.read(
-        problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'oscillators.theta',
+        problem.drift(0.0, problem.initial_state, problem.initial_parameters),
+        'oscillators.theta',
     )
 
 
