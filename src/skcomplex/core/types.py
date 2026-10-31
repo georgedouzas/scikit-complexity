@@ -45,7 +45,7 @@ type MatchingRule = (
 )
 type NamespaceFunction = Callable[[SimpleNamespace], Target]
 type PairPotential = Callable[[SimpleNamespace, Expression], Expression]
-type Combination = Callable[[Target, Target], Target]
+type Combination = Callable[[SimpleNamespace, Target], Target]
 
 
 @runtime_checkable

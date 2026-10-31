@@ -4,7 +4,6 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
@@ -13,13 +12,12 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, LatticeElement
-from ....core.laws import BaseLaw, UpdateLaw
-from ....core.laws.utils import neighbors, where
-from ....core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
+from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._confidence_coupling import ConfidenceCouplingInteraction
 from ._discussant_view import DiscussantView
 from ._random_pairs import RandomPairsInteraction
 
@@ -161,10 +159,10 @@ def deffuant(
 
 
 class ConfidentElement(Element):
-    """Agent of the Hegselmann-Krause model, who moves to the mean opinion of the neighbours within its confidence.
+    """Agent of the Hegselmann-Krause model, with an opinion and the confidence within which it trusts neighbours.
 
-    Every step all agents update at once to the mean opinion of the neighbours, themselves included, whose opinions
-    differ from theirs by less than `confidence`.
+    `ConfidenceCouplingInteraction` moves every agent each step to the mean opinion of the neighbours, itself
+    included, whose opinions differ from its own by less than `confidence`.
 
     Args:
         label:
@@ -196,26 +194,6 @@ class ConfidentElement(Element):
         super().__init__(label, visual=visual)
         self.opinion = opinion
         self.confidence = confidence
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the move to the mean opinion of the confident neighbours.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        close = where(abs(s.other.opinion - s.opinion) < s.confidence, 1, 0)
-        mean = neighbors(
-            s.other.opinion,
-            over=AdjacencyNeighborhood(center=True),
-            reduce='normalized-mean',
-            weight=close,
-        )
-        return [UpdateLaw(s.opinion, mean)]
 
 
 @register_model(
@@ -271,4 +249,5 @@ def hegselmann_krause(
         space=space,
         values={'opinion': opinions, 'confidence': confidence},
     )
-    return System(elements=[people], time=DiscreteTime())
+    coupling = ConfidenceCouplingInteraction('compromise', target='people')
+    return System(elements=[people], interactions=[coupling], time=DiscreteTime())

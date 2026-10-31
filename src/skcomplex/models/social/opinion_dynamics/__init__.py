@@ -28,6 +28,7 @@ from ._coevolution import (
 )
 from ._cognition import ConversationsInteraction, ThinkerElement, cognitive_consistency, settle
 from ._complex_agent_view import ComplexAgentView
+from ._confidence_coupling import ConfidenceCouplingInteraction
 from ._conventions import NamerElement, NamingGamesInteraction, naming_game
 from ._diffusion import AdopterElement, AdoptionInteraction, BelieverElement, influentials, threshold_adoption
 from ._discussant_view import DiscussantView
@@ -81,6 +82,7 @@ __all__: list[str] = [
     'CoevolvingVoterElement',
     'ComplexAgentElement',
     'ComplexAgentView',
+    'ConfidenceCouplingInteraction',
     'ConfidentElement',
     'ConversationsInteraction',
     'CulturalInfluenceInteraction',

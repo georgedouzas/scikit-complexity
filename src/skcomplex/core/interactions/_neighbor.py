@@ -30,6 +30,11 @@ class NeighborInteraction(BaseInteraction):
     the target. Cascade, drive, and local rule laws are laws of the members, and a cascade records its cascades
     as events.
 
+    Instead of a group on the edges, a second role may bind a second group of nodes. The laws then run once per member
+    of the group of the first role, which `namespace.target` reads, and their reductions run over the members of the
+    second group, which `namespace.source` reads, without edges. A role declared `RoleSpec(optional=True)` and bound to
+    `None` binds nothing.
+
     Args:
         label:
             The label of the interaction, unique among the parts of its system.

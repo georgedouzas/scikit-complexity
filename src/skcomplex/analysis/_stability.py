@@ -424,7 +424,7 @@ class StabilityAnalysis(BaseAnalysis):
         bound = []
         for interaction in system.interactions:
             roles = declarations_of(type(interaction), VariableKind.ROLE)
-            if not roles or any(getattr(interaction, name) != field.label for name in roles):
+            if not roles or any(getattr(interaction, name) not in {field.label, None} for name in roles):
                 error_msg = f'The interaction {interaction.label} binds a part other than the field {field.label}.'
                 raise AnalysisError(error_msg)
             bound.append(interaction)

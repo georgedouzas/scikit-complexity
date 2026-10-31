@@ -67,10 +67,12 @@ threshold until all are below it, recording cascades as events.
 - **THEN** the avalanche sizes follow a power law over two decades
 
 ### Requirement: Coupling over structures
-`CouplingInteraction` SHALL give every member a reduction over its neighbours, its group, or the next member of an
-ordered group, of a function that reads both members and the edge, with weights, lag, and delay, and SHALL add it to a
-rate or combine it into the next value. `PairCouplingInteraction` SHALL do the same for every pair within a cutoff, from
-a function or from minus the gradient of a pair potential.
+`CouplingInteraction` SHALL give every member a reduction over its neighbours, its group, every member of a separate
+source group, or the next member of an ordered group, of a function that reads both members, the edge, the parameters,
+and the time, by sum, mean, maximum, minimum, normalized mean, or circular mean, with weights given as an edge state, a
+matrix, or a function of both members, lag, and delay, and SHALL add it to a rate or combine it, with a function that
+reads the member, the parameters, and the time, into the next value. `PairCouplingInteraction` SHALL do the same for
+every pair within a cutoff, from a function of one or several states or from minus the gradient of a pair potential.
 
 #### Scenario: Kuramoto synchronization
 - **WHEN** 500 phase oscillators with sine coupling above the critical strength run on a complete graph
@@ -79,6 +81,19 @@ a function or from minus the gradient of a pair potential.
 #### Scenario: Vicsek alignment
 - **WHEN** members align their headings within a radius by the map form at low noise
 - **THEN** the polar order parameter exceeds 0.9
+
+#### Scenario: Coupling to a separate population
+- **WHEN** a group of oscillators couples by the mean sine of the phase differences to every member of a second group
+- **THEN** every rate equals the direct mean over the second group, and the second group does not move
+
+#### Scenario: Bounded confidence
+- **WHEN** members take the normalized mean of the states within a distance, themselves included, weighted by an
+  indicator of that distance
+- **THEN** every next value equals the direct mean of the members within the distance
+
+#### Scenario: Map reading parameters and time
+- **WHEN** the map form combines the member's state, a parameter, and the time with the mean of its neighbours
+- **THEN** every next value equals the direct evaluation of the combination
 
 ### Requirement: Jumps, reactions, and transitions
 `JumpInteraction` SHALL change states by signed amounts at a rate, with a probability per step, or after drawn waiting

@@ -12,21 +12,22 @@ from sage.all__sagemath_symbolics import cos, oo, sin, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.elements import GroupElement
-from ....core.interactions import PairInteraction
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import PairCouplingInteraction
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
+from ....core.types import Target
 from ....engine.solvers import RK4Solver
 from ....specs import ParameterSpec, RoleSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.oscillators import SitedOscillatorElement
 
 
-class SwarmalatorCouplingInteraction(PairInteraction):
+class SwarmalatorCouplingInteraction(PairCouplingInteraction):
     """Coupling of two swarmalators through their separation `r` and their phase difference `dtheta`.
 
     Each swarmalator moves toward the other at the speed `(A + J cos(dtheta)) / N`, away from it at `B / (N |r|)`, and
-    turns its phase toward the other's at the rate `K sin(dtheta) / (N |r|)`, as in O'Keeffe, Ceron, and Petersen.
+    turns its phase toward the other's at the rate `K sin(dtheta) / (N |r|)`, as in O'Keeffe, Ceron, and Petersen. It
+    is a pair coupling of the positions and the phases jointly.
 
     Args:
         label:
@@ -83,36 +84,29 @@ class SwarmalatorCouplingInteraction(PairInteraction):
         period: float | None = None,
         n_units: int = 1,
     ) -> None:
-        super().__init__(label, first, second, cutoff=cutoff, position=position)
+        super().__init__(
+            label,
+            first,
+            second,
+            cutoff=cutoff,
+            position=position,
+            write=(position, 'theta'),
+            function=self._get_terms,
+            period=period,
+        )
         self.A = A
         self.B = B
         self.J = J
         self.K = K
-        self.period = period
         self.n_units = n_units
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the opposite moves and the opposite phase turns of the two members of a pair.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        separation = s.second.x - s.first.x
+    def _get_terms(self, s: SimpleNamespace) -> tuple[Target, Target]:
+        """Return the move and the phase turn of the first member of a pair toward the second."""
+        separation = getattr(s.second, self.position) - getattr(s.first, self.position)
         r = sqrt(separation.dot_product(separation))
         difference = s.second.theta - s.first.theta
         move = ((s.A + s.J * cos(difference)) / r - s.B / r**2) * separation / self.n_units
-        turn = s.K * sin(difference) / (self.n_units * r)
-        return [
-            RateLaw(s.first.x, move),
-            RateLaw(s.second.x, -move),
-            RateLaw(s.first.theta, turn),
-            RateLaw(s.second.theta, -turn),
-        ]
+        return move, s.K * sin(difference) / (self.n_units * r)
 
 
 @register_model(
