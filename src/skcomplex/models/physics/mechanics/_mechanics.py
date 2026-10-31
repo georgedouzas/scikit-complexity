@@ -11,14 +11,14 @@ from sage.all__sagemath_symbolics import cos, oo, pi, sin
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, ParticleElement
-from ....core.interactions import BaseInteraction, ConstantForceInteraction, DampingInteraction, Interaction
+from ....core.interactions import BaseInteraction, Interaction
 from ....core.laws import BaseLaw, CrossingLaw, EquationLaw, RateLaw
 from ....core.laws.utils import derivative
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.particles import HarmonicPotentialInteraction
+from ..common.particles import ConstantForceInteraction, DampingInteraction, HarmonicPotentialInteraction
 
 GRAVITY = 9.81
 WALL_POINTS = 200

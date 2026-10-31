@@ -9,14 +9,14 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from .....core.interactions import PotentialInteraction
 from .....specs import ParameterSpec, RoleSpec
+from ._potential_energy import PotentialEnergyInteraction
 
 
-class GravityInteraction(PotentialInteraction):
+class GravityInteraction(PotentialEnergyInteraction):
     """Newtonian gravity between two particles.
 
-    The energy is `-G * m_first * m_second / |x_first - x_second|`.
+    The energy is `-G * m_first * m_second / |x_first - x_second|`, and its gradient moves both particles.
 
     Args:
         label:
@@ -31,13 +31,13 @@ class GravityInteraction(PotentialInteraction):
         G:
             The gravitational constant.
 
-        position:
+        states:
             The name of the vector state that holds the positions of the particles.
 
         velocity:
             The name of the vector state that holds the velocities of the particles.
 
-        mass:
+        divisor:
             The name of the state or parameter that holds the masses of the particles.
 
     Examples:
@@ -53,16 +53,16 @@ class GravityInteraction(PotentialInteraction):
         first: Annotated[str, RoleSpec()],
         second: Annotated[str, RoleSpec()],
         G: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        position: str = 'x',
+        states: str = 'x',
         velocity: str = 'v',
-        mass: str = 'm',
+        divisor: str = 'm',
     ) -> None:
-        super().__init__(label, position=position, velocity=velocity, mass=mass)
+        super().__init__(label, target=first, states=states, velocity=velocity, divisor=divisor)
         self.first = first
         self.second = second
         self.G = G
 
-    def _get_energy(self, s: SimpleNamespace) -> Expression:
+    def _get_potential(self, s: SimpleNamespace) -> Expression:
         """Return `-G * m_first * m_second / |x_first - x_second|`.
 
         Args:
@@ -73,6 +73,6 @@ class GravityInteraction(PotentialInteraction):
             energy:
                 The potential energy as a symbolic expression.
         """
-        gap = getattr(s.first, self.position) - getattr(s.second, self.position)
-        masses = getattr(s.first, self.mass) * getattr(s.second, self.mass)
+        gap = getattr(s.first, self._get_names()[0]) - getattr(s.second, self._get_names()[0])
+        masses = getattr(s.first, str(self.divisor)) * getattr(s.second, str(self.divisor))
         return -s.G * masses / sqrt(gap.dot_product(gap))

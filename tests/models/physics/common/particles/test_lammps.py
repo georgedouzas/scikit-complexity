@@ -4,12 +4,16 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import GroupElement, ParticleElement
-from skcomplex.core.interactions import ConstantForceInteraction, DampingInteraction
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import LammpsSolver, VelocityVerletSolver
-from skcomplex.models.physics.common.particles import LAMMPS_FIXES, LAMMPS_PAIRS
+from skcomplex.models.physics.common.particles import (
+    LAMMPS_FIXES,
+    LAMMPS_PAIRS,
+    ConstantForceInteraction,
+    DampingInteraction,
+)
 
 
 def test_lammps_fixes_match_the_native_force_and_damping():

@@ -1,14 +1,14 @@
-"""Test the `_damping` module of `skcomplex.core.interactions`."""
+"""Test the `_damping` module of `skcomplex.models.physics.common.particles`."""
 
 import numpy as np
 import pytest
 
 from skcomplex.core.elements import ParticleElement
-from skcomplex.core.interactions import DampingInteraction
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
+from skcomplex.models.physics.common.particles import DampingInteraction
 
 
 def test_linear_drag_slows_particle():

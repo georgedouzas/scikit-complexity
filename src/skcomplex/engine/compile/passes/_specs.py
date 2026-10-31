@@ -681,7 +681,11 @@ class SpecsPass(BasePass):
         """Return the kernel specs of an interaction, one per element of its element sets, or else one."""
         node = block.node
         declared = declarations_of(node.component, VariableKind.ROLE)
-        labels = {role: getattr(node.component, role) for role in declared}
+        labels = {
+            role: getattr(node.component, role)
+            for role, declaration in declared.items()
+            if not (declaration.noise and getattr(node.component, role) is None)
+        }
         variadic = {
             role: SpecsPass._resolve_entries(node, role, labels[role], elements)
             for role, declaration in declared.items()

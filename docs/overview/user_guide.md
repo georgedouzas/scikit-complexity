@@ -1535,7 +1535,7 @@ visuals are parts of the engine, beside those of every other kind.
 | kinetics | `EncounterLaw`, `moment` | the encounter passes, `KineticSolver` |
 | fractional | `StateSpec(order=...)` in `(0, 1)`, `FractionalNoiseLaw` | the fractional passes, `FractionalABMSolver`, `GrunwaldLetnikovSolver`, `FractionalEulerMaruyamaSolver` |
 | topology | `TopologyRequestSpec` | the topology passes |
-| particles | `ParticleElement`, `PotentialInteraction`, `PairPotentialInteraction` | `VelocityVerletSolver`, `LammpsSolver` |
+| particles | `ParticleElement`, `GradientInteraction`, `PairPotentialInteraction` | `VelocityVerletSolver`, `LammpsSolver` |
 | control | `ParameterSpec(adaptive=True, bounds=...)` | `PontryaginSolver`, `CollocationSolver` |
 
 Every compiler derives from `BaseCompiler`: `check()` validates its settings, `prepare(system)` validates the system and

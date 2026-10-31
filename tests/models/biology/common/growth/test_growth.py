@@ -1,4 +1,4 @@
-"""Test the `_growth` module of `skcomplex.core.interactions`."""
+"""Test the `_growth` module of `skcomplex.models.biology.common.growth`."""
 
 from typing import Annotated
 
@@ -8,10 +8,10 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import CompartmentElement, Element
-from skcomplex.core.interactions import GrowthInteraction
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
+from skcomplex.models.biology.common.growth import GrowthInteraction
 from skcomplex.specs import StateSpec, VisualSpec
 
 N0 = 2.0

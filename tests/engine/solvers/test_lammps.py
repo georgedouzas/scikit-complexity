@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import arcsinh, exp, oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import GroupElement, ParticleElement
-from skcomplex.core.interactions import ConstantForceInteraction, DampingInteraction, PairPotentialInteraction
+from skcomplex.core.interactions import PairPotentialInteraction
 from skcomplex.core.laws.utils import where
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
@@ -26,6 +26,8 @@ from skcomplex.models.biology.ecology import (
 )
 from skcomplex.models.physics.common.particles import (
     LAMMPS_FIXES,
+    ConstantForceInteraction,
+    DampingInteraction,
     HarmonicPotentialInteraction,
     LangevinThermostatInteraction,
     LennardJonesInteraction,
