@@ -26,6 +26,7 @@ _AGENT_VIEW_NAMES = frozenset(
         'group',
         'group_label',
         'location',
+        'location_key',
         'alive',
         'neighbor_cells',
         'neighbors',

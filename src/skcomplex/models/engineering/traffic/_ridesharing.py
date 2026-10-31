@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction, MatchingInteraction, StableMatchingProtocol
+from ....core.interactions import Interaction, MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.laws.utils import transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
@@ -25,6 +25,7 @@ from ....specs import (
     PhaseSpec,
     PhasesScheduleSpec,
     RoleSpec,
+    StableMatchingSpec,
     StateSpec,
     VisualSpec,
 )
@@ -460,7 +461,7 @@ def ridesharing(
                 'dispatch',
                 requesters='riders',
                 providers='cabs',
-                protocol=StableMatchingProtocol(requester_preference=_nearness, provider_preference=_patience),
+                rule=StableMatchingSpec(requester_preference=_nearness, provider_preference=_patience),
                 quantity='seats',
                 phase='dispatch',
                 on_match=_dispatch,

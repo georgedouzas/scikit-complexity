@@ -1,11 +1,11 @@
-"""Define the types of the core: the targets of laws, the pairings and preferences of matches, and the protocols."""
+"""Define the types of the core: the targets of laws, the pairings and rules of matches, and the protocols."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from __future__ import annotations
 
-from collections.abc import Callable, MutableMapping, Sequence
+from collections.abc import Callable, Hashable, MutableMapping, Sequence
 from types import SimpleNamespace
 from typing import Protocol, runtime_checkable
 
@@ -16,6 +16,16 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.rings.polynomial.laurent_polynomial import LaurentPolynomial
 from sage.structure.element import Matrix
 
+from ..specs import (
+    BatchClearingSpec,
+    ContinuousClearingSpec,
+    GreedyMatchingSpec,
+    IterativeClearingSpec,
+    PartnerSwitchSpec,
+    QueueSpec,
+    RandomSearchSpec,
+    StableMatchingSpec,
+)
 from ..types import Indices, IntArray
 from .spaces import BaseSpace, LatticeNeighborhood, MemoryNeighborhood
 
@@ -23,7 +33,16 @@ type Target = Expression | FreeModuleElement
 type Process = str | tuple[str, ...] | Expression | FreeModuleElement | None
 type Pairing = Callable[[Sequence[object], Sequence[object], np.random.Generator, int], list[tuple[object, object]]]
 type Reach = LatticeNeighborhood | MemoryNeighborhood
-type Preference = Callable[[object, object], float]
+type MatchingRule = (
+    RandomSearchSpec
+    | PartnerSwitchSpec
+    | QueueSpec
+    | IterativeClearingSpec
+    | ContinuousClearingSpec
+    | BatchClearingSpec
+    | StableMatchingSpec
+    | GreedyMatchingSpec
+)
 type NamespaceFunction = Callable[[SimpleNamespace], Target]
 type PairPotential = Callable[[SimpleNamespace, Expression], Expression]
 type Combination = Callable[[Target, Target], Target]
@@ -103,11 +122,15 @@ class AgentViewProtocol(Protocol):
         """Grid coordinates, network node, or position of the agent."""
 
     @property
+    def location_key(self) -> Hashable:
+        """Location of the agent as a key, equal to the coordinates `neighbor_cells` gives for its cell or node."""
+
+    @property
     def alive(self) -> bool:
         """Whether the agent has not been removed."""
 
     def neighbor_cells(self) -> list[object]:
-        """Return the coordinates of the cells or nodes around the agent's cell or node."""
+        """Return the coordinates of the cells or nodes around the agent's cell or node, hashable as location keys."""
 
     def distance_to(self, other: AgentViewProtocol | object) -> float:
         """Return the distance to another agent or a location, the number of hops on a network."""

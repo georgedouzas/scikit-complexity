@@ -4,8 +4,10 @@ import enum
 import importlib
 import inspect
 import pkgutil
+import typing
 
 import skcomplex
+from skcomplex.types import Preference
 
 
 def test_no_module_outside_the_types_defines_a_kind_or_a_protocol():
@@ -26,3 +28,8 @@ def test_no_module_outside_the_types_defines_a_kind_or_a_protocol():
             ):
                 defined.append(f'{module.__name__}.{value.__qualname__}')
     assert defined == []
+
+
+def test_preferences_score_two_agents():
+    """Test that a preference is a function of two agents that returns a score."""
+    assert typing.get_args(Preference.__value__)[-1] is float

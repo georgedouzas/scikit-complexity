@@ -13,17 +13,20 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import BaseMatchingProtocol, ContinuousClearingProtocol, MatchingInteraction
+from ....core.interactions import MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
+from ....core.types import MatchingRule
 from ....engine.solvers import ModelView
 from ....specs import (
+    ContinuousClearingSpec,
     MatchSpec,
     ObservableSpec,
     ParameterSpec,
     PhaseSpec,
     PhasesScheduleSpec,
+    RandomSearchSpec,
     RoleSpec,
     StateSpec,
     VisualSpec,
@@ -249,9 +252,8 @@ class BookInteraction(MatchingInteraction[ModelView]):
         providers:
             The path of the group of selling traders.
 
-        protocol:
-            The protocol that matches the orders, such as `ContinuousClearingProtocol()`, or `None` for
-            `RandomSearchProtocol()`.
+        rule:
+            The spec of the algorithm that matches the orders, such as `ContinuousClearingSpec()`.
 
         limit:
             The states with the limit prices of the buyers and of the sellers.
@@ -288,7 +290,7 @@ class BookInteraction(MatchingInteraction[ModelView]):
         *,
         requesters: Annotated[str, RoleSpec()],
         providers: Annotated[str, RoleSpec()],
-        protocol: BaseMatchingProtocol | None = None,
+        rule: MatchingRule = RandomSearchSpec(),
         limit: str | tuple[str, str] = ('bid', 'ask'),
         quantity: str | tuple[str, str] = ('demand', 'supply'),
         budget: str = 'money',
@@ -301,7 +303,7 @@ class BookInteraction(MatchingInteraction[ModelView]):
             label,
             requesters=requesters,
             providers=providers,
-            protocol=protocol,
+            rule=rule,
             limit=limit,
             quantity=quantity,
             budget=budget,
@@ -423,7 +425,7 @@ def order_book(
                 'book',
                 requesters='traders',
                 providers='traders',
-                protocol=ContinuousClearingProtocol(),
+                rule=ContinuousClearingSpec(),
                 opening=fundamental,
             ),
         ],

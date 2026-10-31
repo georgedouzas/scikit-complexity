@@ -12,7 +12,6 @@ from ...specs import RoleSpec
 from ..laws import BaseLaw, RuleLaw
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
-from ._utils import get_location_key
 
 PLACEMENTS = ('here', 'neighbor')
 
@@ -175,9 +174,9 @@ class LifeCycleInteraction(Interaction):
         """Return the locations of the new agents of a parent, fewer when free neighbouring cells run out."""
         if self.placement == 'here':
             return [agent.location] * count
-        free = [cell for cell in agent.neighbor_cells() if get_location_key(cell) not in occupied]
+        free = [cell for cell in agent.neighbor_cells() if cell not in occupied]
         chosen = [free[int(index)] for index in model.rng.permutation(len(free))[:count]]
-        occupied.update(get_location_key(cell) for cell in chosen)
+        occupied.update(chosen)
         return chosen
 
     def _bear(self, agent: AgentViewProtocol, places: list[object], model: ModelViewProtocol) -> None:
@@ -195,13 +194,13 @@ class LifeCycleInteraction(Interaction):
     def _live(self, model: ModelViewProtocol) -> None:
         """Remove the agents that die and create the offspring of those that give birth, in random order."""
         agents = model.agents('target')
-        occupied = {get_location_key(agent.location) for agent in agents} if self.placement == 'neighbor' else set()
+        occupied = {agent.location_key for agent in agents} if self.placement == 'neighbor' else set()
         for index in model.rng.permutation(len(agents)):
             agent = agents[int(index)]
             if not agent.alive:
                 continue
             if self._happens(self.death, agent, model):
-                occupied.discard(get_location_key(agent.location))
+                occupied.discard(agent.location_key)
                 agent.remove()
                 continue
             count = self._count_births(agent, model)

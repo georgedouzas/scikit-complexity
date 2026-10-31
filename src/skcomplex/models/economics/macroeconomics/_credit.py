@@ -12,12 +12,21 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import MatchingInteraction, PartnerSwitchProtocol
+from ....core.interactions import MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
-from ....specs import MatchSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....specs import (
+    MatchSpec,
+    ObservableSpec,
+    ParameterSpec,
+    PartnerSwitchSpec,
+    PhaseSpec,
+    PhasesScheduleSpec,
+    StateSpec,
+    VisualSpec,
+)
 from ..._catalog import register_model
 from ._firm_view import FirmView
 from ._lender_view import LenderView
@@ -317,9 +326,8 @@ class CreditMarketInteraction(MatchingInteraction[ModelView]):
         providers:
             The path of the group of banks.
 
-        protocol:
-            The protocol that matches firms with banks, such as `PartnerSwitchProtocol()`, or `None` for
-            `RandomSearchProtocol()`.
+        rule:
+            The spec of the algorithm that matches firms with banks, such as `PartnerSwitchSpec()`.
 
         limit:
             The state with the rate of both sides, or a pair of the firms' and the banks' states.
@@ -483,7 +491,7 @@ def credit_networks(
         'credit',
         requesters='firms',
         providers='banks',
-        protocol=PartnerSwitchProtocol(sample=sample, intensity=intensity),
+        rule=PartnerSwitchSpec(sample=sample, intensity=intensity),
         limit=('bid', 'ask'),
         quantity=('demand', 'supply'),
         phase='credit',

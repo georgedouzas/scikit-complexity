@@ -28,19 +28,27 @@ from skcomplex.experiments import Experiment
 from skcomplex.models.economics.resources import harvesting
 from skcomplex.specs import (
     BaseSpec,
+    BatchClearingSpec,
+    ContinuousClearingSpec,
     EnergySpec,
+    GreedyMatchingSpec,
     HilbertSpec,
+    IterativeClearingSpec,
     LayerSpec,
     MatchSpec,
     MoveSpec,
     ObservableSpec,
     ParameterSpec,
+    PartnerSwitchSpec,
     PhaseSpec,
     PhasesScheduleSpec,
+    QueueSpec,
+    RandomSearchSpec,
     RequirementSpec,
     RoleSpec,
     SamplerSpec,
     ScheduleSpec,
+    StableMatchingSpec,
     StateSpec,
     TopologyRequestSpec,
     VisualSpec,
@@ -721,3 +729,48 @@ def test_match_spec_is_a_frozen_spec():
     assert (match.requester, match.provider, match.quantity * match.price) == ('requester', 'provider', 10.0)
     with pytest.raises(dataclasses.FrozenInstanceError):
         match.price = 1.0
+
+
+@pytest.mark.parametrize(
+    ('spec', 'name', 'value'),
+    [
+        (RandomSearchSpec(tries=3), 'tries', 3),
+        (PartnerSwitchSpec(sample=2), 'sample', 2),
+        (QueueSpec(order='limit'), 'order', 'limit'),
+        (IterativeClearingSpec(iterations=10), 'iterations', 10),
+        (ContinuousClearingSpec(arrival='sequential'), 'arrival', 'sequential'),
+        (StableMatchingSpec(clearing='requester'), 'clearing', 'requester'),
+        (GreedyMatchingSpec(candidates=2.0), 'candidates', 2.0),
+    ],
+)
+def test_matching_rule_specs_hold_their_settings(spec, name, value):
+    """Test that a matching rule is a frozen spec that keeps the setting it was given."""
+    checked = spec.check()
+    assert getattr(checked, name) == value
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        setattr(checked, name, value)
+
+
+def test_batch_clearing_spec_has_no_settings():
+    """Test that batch clearing is a spec without settings."""
+    assert dataclasses.fields(BatchClearingSpec().check()) == ()
+
+
+@pytest.mark.parametrize(
+    ('spec', 'message'),
+    [
+        (RandomSearchSpec(clearing='bid'), 'midpoint'),
+        (QueueSpec(order='bid'), 'order'),
+        (ContinuousClearingSpec(arrival='bid'), 'arrival'),
+        (StableMatchingSpec(clearing='bid'), 'clearing'),
+        (GreedyMatchingSpec(candidates='friends'), 'candidates'),
+        (GreedyMatchingSpec(candidates=0.0), 'positive'),
+        (GreedyMatchingSpec(candidates=True), 'positive'),
+        (GreedyMatchingSpec(clearing='bid'), 'clearing'),
+        (GreedyMatchingSpec(score=2), 'score'),
+    ],
+)
+def test_matching_rule_specs_reject_invalid_settings(spec, message):
+    """Test that an unknown option, a distance that is not positive, and a bad score raise an error naming them."""
+    with pytest.raises(ValidationError, match=message):
+        spec.check()

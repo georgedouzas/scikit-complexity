@@ -5,7 +5,7 @@
 
 import math
 from collections import deque
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from typing import overload
 
 import mesa
@@ -448,6 +448,21 @@ class AgentView:
     def location(self) -> object:
         """Grid coordinates, network node, or position of the agent."""
         return MesaSolver._location_of(self._agent)
+
+    @property
+    def location_key(self) -> Hashable:
+        """Location of the agent as a key: a tuple of integers for a cell, a tuple of floats for a position, or a node.
+
+        The key equals the coordinates `neighbor_cells` gives for the agent's cell or node, so rules compare the cells
+        around an agent with the places of other agents.
+        """
+        location = self.location
+        if isinstance(location, tuple | list | np.ndarray):
+            values = np.asarray(location)
+            if np.issubdtype(values.dtype, np.integer) or np.all(values == np.round(values)):
+                return tuple(int(item) for item in values.ravel())
+            return tuple(float(item) for item in values.ravel())
+        return location if isinstance(location, Hashable) else repr(location)
 
     @property
     def alive(self) -> bool:

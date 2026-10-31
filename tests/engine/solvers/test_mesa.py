@@ -508,6 +508,22 @@ def test_displacement_across_torus_seam():
     assert first.distance_to((97.0, 0.5)) == 2.0
 
 
+def test_location_key_matches_the_cells_around_an_agent():
+    """Test that the key of a grid location equals the neighbouring cell another agent stands on."""
+    first, second = _views(LatticeSpace((5, 5), neighborhood='moore', boundary='fixed'), [(1, 1), (2, 2)])
+    assert first.location_key == (1, 1)
+    assert second.location_key in first.neighbor_cells()
+
+
+def test_location_key_is_hashable_in_every_space():
+    """Test that the key of a position is a tuple of floats and the key of a network node is the node."""
+    first, _ = _views(ContinuousSpace(extent=(10.0, 10.0)), [(1.5, 2.0), (3.0, 4.0)])
+    assert first.location_key == (1.5, 2.0)
+    assert {first.location_key}
+    node, _ = _views(NetworkSpace(nx.path_graph(5)), [0, 3])
+    assert node.location_key == 0
+
+
 def test_network_distance_counts_hops():
     """Test that the distance on a network counts hops and that a displacement raises a space error."""
     first, second = _views(NetworkSpace(nx.path_graph(5)), [0, 3])

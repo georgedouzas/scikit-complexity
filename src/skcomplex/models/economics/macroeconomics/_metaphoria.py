@@ -14,13 +14,14 @@ from sage.sets.real_set import RealSet
 
 from ....analysis import DistributionAnalysis
 from ....core.elements import Element, GroupElement
-from ....core.interactions import BaseInteraction, GreedyProtocol, Interaction, MatchingInteraction
+from ....core.interactions import BaseInteraction, Interaction, MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.laws.utils import transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import AgentView, ModelView
 from ....specs import (
+    GreedyMatchingSpec,
     MatchSpec,
     ObservableSpec,
     ParameterSpec,
@@ -737,16 +738,16 @@ class LabourMarketInteraction(MatchingInteraction[ModelView]):
 
     A greedy matching of the people, who request a job, with the firms, which provide their vacancies: a person whose
     `hireable` limit admits a job takes the firm of the highest wage within its sight that still has a vacancy, and
-    moves to it. Build it with `GreedyProtocol(score=LabourMarketInteraction.score, candidates=sight)`.
+    moves to it. Build it with `GreedyMatchingSpec(score=LabourMarketInteraction.score, candidates=sight)`.
 
     Examples:
-        >>> from skcomplex.core.interactions import GreedyProtocol
+        >>> from skcomplex.specs import GreedyMatchingSpec
         >>> from skcomplex.models.economics.macroeconomics import LabourMarketInteraction
         >>> LabourMarketInteraction(
         ...     'jobs',
         ...     requesters='people',
         ...     providers='businesses',
-        ...     protocol=GreedyProtocol(score=LabourMarketInteraction.score, candidates=5.0),
+        ...     rule=GreedyMatchingSpec(score=LabourMarketInteraction.score, candidates=5.0),
         ...     limit=('hireable', 'limit'),
         ...     quantity=('quantity', 'vacancies'),
         ...     on_match=LabourMarketInteraction.hire,
@@ -795,15 +796,15 @@ class FoodMarketInteraction(MatchingInteraction[ModelView]):
 
     A greedy matching of the people, who request their `shortfall` of food for `reserve` steps within the budget of
     their money, with the firms, which provide their stock at their price. Every purchase moves the money to the firm,
-    which books it as revenue, and the food to the buyer. Build it with `GreedyProtocol(candidates=sight)`, whose
+    which books it as revenue, and the food to the buyer. Build it with `GreedyMatchingSpec(candidates=sight)`, whose
     default score prefers the lowest price. Besides the reporters of a matching, the reporter `gdp` sums the value of
     the sales of a step.
 
     Examples:
-        >>> from skcomplex.core.interactions import GreedyProtocol
+        >>> from skcomplex.specs import GreedyMatchingSpec
         >>> from skcomplex.models.economics.macroeconomics import FoodMarketInteraction
         >>> FoodMarketInteraction(
-        ...     'shops', requesters='people', providers='businesses', protocol=GreedyProtocol(candidates=5.0)
+        ...     'shops', requesters='people', providers='businesses', rule=GreedyMatchingSpec(candidates=5.0)
         ... ).reports[-1]
         'gdp'
     """
@@ -1052,7 +1053,7 @@ def metaphoria(
         'jobs',
         requesters='people',
         providers='businesses',
-        protocol=GreedyProtocol(score=LabourMarketInteraction.score, candidates=SIGHT),
+        rule=GreedyMatchingSpec(score=LabourMarketInteraction.score, candidates=SIGHT),
         limit=('hireable', 'limit'),
         quantity=('quantity', 'vacancies'),
         phase='hiring',
@@ -1062,7 +1063,7 @@ def metaphoria(
         'shops',
         requesters='people',
         providers='businesses',
-        protocol=GreedyProtocol(candidates=SIGHT),
+        rule=GreedyMatchingSpec(candidates=SIGHT),
         limit=('limit', 'price'),
         quantity=('shortfall', 'stock'),
         budget='money',

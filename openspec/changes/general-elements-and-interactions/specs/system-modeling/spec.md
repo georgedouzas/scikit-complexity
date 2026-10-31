@@ -6,7 +6,7 @@
 Every public name and module of `skcomplex.core` SHALL be a mathematical, modelling, or engineering term. The core SHALL
 hold each primitive in its general form, one class per mathematical operation, configured by the states it binds and by
 functions, whose standard variants are named by their mathematics, such as the logit or Fermi rule of a choice, the
-Lévy step of a movement, or the stable matching of a matching protocol. No core name or argument SHALL name a quantity
+Lévy step of a movement, or the stable matching of a matching rule. No core name or argument SHALL name a quantity
 of a field. Every specific realization
 SHALL live in `skcomplex.models`, and the core SHALL import nothing from `skcomplex.models`. A specific realization is
 a variant named by a field or a person's model rather than by its mathematics, such as a named potential like
@@ -24,5 +24,6 @@ beyond the default.
 
 #### Scenario: Mathematical variants in the core
 - **WHEN** a user builds a `ChoiceInteraction` with the `'fermi'` rule and a `MatchingInteraction` with
-  `StableMatchingProtocol`
-- **THEN** both come from `skcomplex.core.interactions`, and no model defines either variant again
+  `StableMatchingSpec`
+- **THEN** both interactions come from `skcomplex.core.interactions`, the rule spec from `skcomplex.specs`, and no model
+  defines either variant again

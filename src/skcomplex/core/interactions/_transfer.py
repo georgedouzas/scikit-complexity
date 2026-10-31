@@ -15,7 +15,6 @@ from ..laws import BaseLaw, RuleLaw, Sink, Source, TransferLaw
 from ..laws.utils import where
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
-from ._utils import get_location_key
 
 FORMS = ('symbolic', 'agent')
 PAIRINGS = ('members', 'random', 'pairs', 'neighbors', 'cell')
@@ -257,13 +256,10 @@ class TransferInteraction(Interaction):
         """Return the pairs of agents in one cell, or of every source agent with the target agents around it."""
         located: dict[object, list[AgentViewProtocol]] = {}
         for target in targets:
-            located.setdefault(get_location_key(target.location), []).append(target)
+            located.setdefault(target.location_key, []).append(target)
         pairs: list[tuple[AgentViewProtocol, AgentViewProtocol]] = []
         for source in sources:
-            if self.pairing == 'cell':
-                keys = [get_location_key(source.location)]
-            else:
-                keys = [get_location_key(cell) for cell in source.neighbor_cells()]
+            keys = [source.location_key] if self.pairing == 'cell' else source.neighbor_cells()
             pairs.extend((source, target) for key in keys for target in located.get(key, []) if target is not source)
         return pairs
 

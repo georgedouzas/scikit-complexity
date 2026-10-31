@@ -14,7 +14,7 @@ package. A model class whose mechanism the core provides SHALL use the core clas
 #### Scenario: Order book from the library
 - **WHEN** the finance models build their order book, and an engineering model pairs riders with cars
 - **THEN** both use the core `MatchingInteraction`, the order book binds it to bids, asks, money, and goods with
-  `ContinuousClearingProtocol`, and the earlier of two same-limit sell orders trades first
+  `ContinuousClearingSpec`, and the earlier of two same-limit sell orders trades first
 
 #### Scenario: Potential from the library
 - **WHEN** a user imports the Lennard-Jones potential from `skcomplex.models.physics.common.particles`

@@ -126,7 +126,7 @@ strategies by selection, replacement, crossover, and mutation, drawing from the 
 ### Requirement: Agents, groups, and exchange
 `MovementInteraction` SHALL move agents by a step. `TransferInteraction` SHALL move amounts of states between members,
 cells, sources, and sinks. `LifeCycleInteraction` SHALL create and remove members. `GroupingInteraction` SHALL draw pairs
-or groups every step and act on each. `MatchingInteraction` SHALL pair requesters with providers by a protocol.
+or groups every step and act on each. `MatchingInteraction` SHALL pair requesters with providers by the algorithm its rule spec names.
 `FeedbackInteraction` SHALL set parameters from observables once per round. `TopologyInteraction` SHALL add, remove, and
 rewire nodes and edges.
 
@@ -135,7 +135,7 @@ rewire nodes and edges.
 - **THEN** their mean squared displacement after time `t` is `4 D t` within 5 percent
 
 #### Scenario: Matching outside markets
-- **WHEN** a ride-sharing model matches riders with idle cars by `StableMatchingProtocol`
+- **WHEN** a ride-sharing model matches riders with idle cars by `StableMatchingSpec`
 - **THEN** it uses `MatchingInteraction`, and no rider and car prefer each other to their matches
 
 #### Scenario: Galam groups

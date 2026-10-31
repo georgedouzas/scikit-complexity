@@ -11,17 +11,21 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import (
-    BatchClearingProtocol,
-    ContinuousClearingProtocol,
-    FeedbackInteraction,
-    MatchingInteraction,
-)
+from ....core.interactions import FeedbackInteraction, MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
-from ....specs import MatchSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....specs import (
+    BatchClearingSpec,
+    ContinuousClearingSpec,
+    MatchSpec,
+    ParameterSpec,
+    PhaseSpec,
+    PhasesScheduleSpec,
+    StateSpec,
+    VisualSpec,
+)
 from ..._catalog import register_model
 from ._zero_intelligence_buyer_view import ZeroIntelligenceBuyerView
 from ._zero_intelligence_seller_view import ZeroIntelligenceSellerView
@@ -368,7 +372,7 @@ def double_auction(
         'auction',
         requesters='buyers',
         providers='sellers',
-        protocol=ContinuousClearingProtocol() if protocol == 'order_book' else BatchClearingProtocol(),
+        rule=ContinuousClearingSpec() if protocol == 'order_book' else BatchClearingSpec(),
         limit=('bid', 'ask'),
         quantity=('demand', 'supply'),
         phase='trade',

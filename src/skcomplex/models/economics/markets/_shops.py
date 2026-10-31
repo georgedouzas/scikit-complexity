@@ -12,12 +12,21 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import GreedyProtocol, MatchingInteraction
+from ....core.interactions import MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import ModelView
-from ....specs import MatchSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....specs import (
+    GreedyMatchingSpec,
+    MatchSpec,
+    ObservableSpec,
+    ParameterSpec,
+    PhaseSpec,
+    PhasesScheduleSpec,
+    StateSpec,
+    VisualSpec,
+)
 from ..._catalog import register_model
 from ._resident_view import ResidentView
 from ._store_view import StoreView
@@ -392,7 +401,7 @@ def shops(
         'shopping',
         requesters='shoppers',
         providers='shops',
-        protocol=GreedyProtocol(score=ResidentElement.get_preference),
+        rule=GreedyMatchingSpec(score=ResidentElement.get_preference),
         limit=('bid', 'ask'),
         quantity=('demand', 'supply'),
         transfers=(('money', -1),),

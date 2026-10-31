@@ -7,9 +7,11 @@ from ._arguments_spec import ArgumentsSpec
 from ._base_record_spec import BaseRecordSpec
 from ._base_spec import BaseSpec
 from ._base_structure_spec import BaseStructureSpec
+from ._batch_clearing_spec import BatchClearingSpec
 from ._call_spec import CallSpec
 from ._capacity_rows_spec import CapacityRowsSpec
 from ._cascade_record_spec import CascadeRecordSpec
+from ._continuous_clearing_spec import ContinuousClearingSpec
 from ._control_solution_spec import ControlSolutionSpec
 from ._dialect_spec import DialectSpec
 from ._draw_spec import DrawSpec
@@ -19,9 +21,11 @@ from ._event_record_spec import EventRecordSpec
 from ._extremal_record_spec import ExtremalRecordSpec
 from ._fractional_rows_spec import FractionalRowsSpec
 from ._fractional_state_spec import FractionalStateSpec
+from ._greedy_matching_spec import GreedyMatchingSpec
 from ._heading_spec import HeadingSpec
 from ._hilbert_spec import HilbertSpec
 from ._issue_spec import IssueSpec
+from ._iterative_clearing_spec import IterativeClearingSpec
 from ._jump_path_spec import JumpPathSpec
 from ._lammps_fix_spec import LammpsFixSpec
 from ._layer_spec import LayerSpec
@@ -43,8 +47,11 @@ from ._outer_totalistic_spec import OuterTotalisticSpec
 from ._pair_read_spec import PairReadSpec
 from ._parameter_spec import ParameterSpec
 from ._parameters_spec import ParametersSpec
+from ._partner_switch_spec import PartnerSwitchSpec
 from ._phase_spec import PhaseSpec
 from ._phases_schedule_spec import ACTIVATIONS, PhasesScheduleSpec
+from ._queue_spec import QueueSpec
+from ._random_search_spec import RandomSearchSpec
 from ._read_spec import ReadSpec
 from ._reduction_spec import ReductionSpec
 from ._renewal_record_spec import RenewalRecordSpec
@@ -59,6 +66,7 @@ from ._sector_spec import SectorSpec
 from ._series_spec import SeriesSpec
 from ._signature_spec import SignatureSpec
 from ._snapshots_spec import SnapshotsSpec
+from ._stable_matching_spec import StableMatchingSpec
 from ._state_spec import StateSpec
 from ._step_spec import StepSpec
 from ._structure_state_spec import StructureStateSpec
@@ -88,9 +96,11 @@ __all__ = [
     'BaseRecordSpec',
     'BaseSpec',
     'BaseStructureSpec',
+    'BatchClearingSpec',
     'CallSpec',
     'CapacityRowsSpec',
     'CascadeRecordSpec',
+    'ContinuousClearingSpec',
     'ControlSolutionSpec',
     'DialectSpec',
     'DrawSpec',
@@ -100,9 +110,11 @@ __all__ = [
     'ExtremalRecordSpec',
     'FractionalRowsSpec',
     'FractionalStateSpec',
+    'GreedyMatchingSpec',
     'HeadingSpec',
     'HilbertSpec',
     'IssueSpec',
+    'IterativeClearingSpec',
     'JumpPathSpec',
     'LammpsFixSpec',
     'LayerSpec',
@@ -124,8 +136,11 @@ __all__ = [
     'PairReadSpec',
     'ParameterSpec',
     'ParametersSpec',
+    'PartnerSwitchSpec',
     'PhaseSpec',
     'PhasesScheduleSpec',
+    'QueueSpec',
+    'RandomSearchSpec',
     'ReadSpec',
     'ReductionSpec',
     'RenewalRecordSpec',
@@ -141,6 +156,7 @@ __all__ = [
     'SignatureSpec',
     'SnapshotsSpec',
     'Spec',
+    'StableMatchingSpec',
     'StateSpec',
     'StepSpec',
     'StructureStateSpec',

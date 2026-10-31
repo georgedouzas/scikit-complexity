@@ -3349,20 +3349,22 @@ agents learn from their past.
   writes apply at its end. `RuleLaw(function, phase=name)` puts a rule in a phase. Rules without a phase run in the
   phase `'default'`, which runs first unless the system lists it, so systems without phases keep one random activation
   per step.
-- `MatchingInteraction(label, requesters=..., providers=..., protocol=...)`, from `skcomplex.core.interactions`,
+- `MatchingInteraction(label, requesters=..., providers=..., rule=...)`, from `skcomplex.core.interactions`,
   matches two groups. Requesters state the highest clearing value they accept in their `limit` state, the quantity they
   want in `quantity`, and the most value they can give in `budget`, and providers their lowest clearing value and the
   quantity they offer. A name given as a pair, such as `limit=('bid', 'ask')`, names the state of the requesters and of
-  the providers. The protocols are `RandomSearchProtocol`, the default, `PartnerSwitchProtocol` (partner choice with
-  switching), `QueueProtocol`, `IterativeClearingProtocol` (a clearing value adjusted until requests and offers
-  balance), `ContinuousClearingProtocol` (arriving offers match resting ones by limit and arrival),
-  `BatchClearingProtocol` (one clearing value for all offers), `StableMatchingProtocol` (stable matching by the
-  `matching` library), and `GreedyProtocol(score, candidates, capacity)` (requesters in random order take the feasible
-  provider of the highest score among all, neighbouring, or near providers). A protocol is a configurable object:
-  `protocol.check().prepare().run(MatchingRoundSpec(requesters, providers, rng, storage))` sets its `trades_`, a list of
-  `MatchSpec`, whose `price` is the clearing value per unit. Every match lowers the quantities of both sides and moves
-  the states of `transfers`, `('money', -1)` from the requester to the provider and `('goods', 1)` back. The matching
-  reports `<label>.price`, `<label>.volume`, and `<label>.unmatched`.
+  the providers. The rule is a frozen spec of `skcomplex.specs` that names the matching algorithm and holds only its
+  settings: `RandomSearchSpec(tries, clearing)`, the default, `PartnerSwitchSpec(sample, intensity, partner)` (partner
+  choice with switching), `QueueSpec(order)`, `IterativeClearingSpec(adjustment, iterations, tolerance)` (a clearing
+  value adjusted until requests and offers balance), `ContinuousClearingSpec(arrival)` (arriving offers match resting
+  ones by limit and arrival), `BatchClearingSpec()` (one clearing value for all offers),
+  `StableMatchingSpec(requester_preference, provider_preference, clearing)` (stable matching by the `matching`
+  library), and `GreedyMatchingSpec(score, candidates, capacity, clearing)` (requesters in random order take the
+  feasible provider of the highest score among all, neighbouring, or near providers). The matching runs the algorithm
+  of its rule on the offers of every round, and each match is a `MatchSpec`, whose `price` is the clearing value per
+  unit. Every match lowers the quantities of both sides and moves the states of `transfers`, `('money', -1)` from the
+  requester to the provider and `('goods', 1)` back. The matching reports `<label>.price`, `<label>.volume`, and
+  `<label>.unmatched`.
 - Agent operations of `skcomplex.core.interactions` run as agent rules: `MovementInteraction` moves agents by
   neighbour, Gaussian, Lévy, best-cell, or user steps, with a condition, an acceptance, exclusion, and a cost.
   `TransferInteraction` moves amounts of states between members, the agents of one cell, a `Source()`, and a `Sink()`,
@@ -3393,10 +3395,10 @@ from typing import Annotated, ClassVar
 import numpy as np
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.interactions import FeedbackInteraction, MatchingInteraction, BatchClearingProtocol
+from skcomplex.core.interactions import FeedbackInteraction, MatchingInteraction
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime
-from skcomplex.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
+from skcomplex.specs import BatchClearingSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -3457,7 +3459,7 @@ auction = System(
             'auction',
             requesters='buyers',
             providers='sellers',
-            protocol=BatchClearingProtocol(),
+            rule=BatchClearingSpec(),
             limit=('bid', 'ask'),
             quantity=('demand', 'supply'),
             budget='money',

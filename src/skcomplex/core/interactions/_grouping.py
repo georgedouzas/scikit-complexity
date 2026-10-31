@@ -12,7 +12,6 @@ from ...specs import RoleSpec
 from ..laws import BaseLaw, RuleLaw
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
-from ._utils import get_location_key
 
 GROUPS = ('pairs', 'partition', 'neighborhood', 'state')
 PAIR = 2
@@ -148,10 +147,9 @@ class GroupingInteraction(Interaction):
         """Return every agent followed by the agents in the cells or nodes around it."""
         located: dict[object, list[AgentViewProtocol]] = {}
         for agent in agents:
-            located.setdefault(get_location_key(agent.location), []).append(agent)
+            located.setdefault(agent.location_key, []).append(agent)
         return [
-            [agent, *(other for cell in agent.neighbor_cells() for other in located.get(get_location_key(cell), []))]
-            for agent in agents
+            [agent, *(other for cell in agent.neighbor_cells() for other in located.get(cell, []))] for agent in agents
         ]
 
     def _get_shared(

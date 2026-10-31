@@ -17,7 +17,6 @@ from ..laws import BaseLaw, RuleLaw
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
 from ._transfer import TransferInteraction
-from ._utils import get_location_key
 
 STEPS = ('neighbor', 'gaussian', 'levy', 'best')
 
@@ -182,7 +181,7 @@ class MovementInteraction(Interaction):
         cells = agent.neighbor_cells()
         if not self.exclusive:
             return cells
-        return [cell for cell in cells if get_location_key(cell) not in occupied]
+        return [cell for cell in cells if cell not in occupied]
 
     def _get_best(self, agent: AgentViewProtocol, cells: list[object], model: ModelViewProtocol) -> object:
         """Return the cell of the highest score, drawn at random among ties."""
@@ -218,12 +217,14 @@ class MovementInteraction(Interaction):
 
     def _take(self, agent: AgentViewProtocol, destination: object, occupied: set[object]) -> bool:
         """Move an agent to a destination unless an exclusive movement finds it held, and return whether it moved."""
-        key = get_location_key(destination)
-        if self.exclusive and key in occupied:
+        if not self.exclusive:
+            agent.move_to(destination)
+            return True
+        if destination in occupied:
             return False
-        occupied.discard(get_location_key(agent.location))
+        occupied.discard(agent.location_key)
         agent.move_to(destination)
-        occupied.add(key)
+        occupied.add(agent.location_key)
         return True
 
     def _move(
@@ -248,7 +249,7 @@ class MovementInteraction(Interaction):
     def _move_all(self, model: ModelViewProtocol) -> None:
         """Move every agent of the group whose condition holds, in random order."""
         agents = model.agents('target')
-        occupied = {get_location_key(agent.location) for agent in agents} if self.exclusive else set()
+        occupied = {agent.location_key for agent in agents} if self.exclusive else set()
         probability = model.parameter('probability')
         for index in model.rng.permutation(len(agents)):
             agent = agents[int(index)]

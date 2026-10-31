@@ -12,18 +12,21 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import BaseMatchingProtocol, FeedbackInteraction, GreedyProtocol, MatchingInteraction
+from ....core.interactions import FeedbackInteraction, MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.laws.utils import transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
+from ....core.types import MatchingRule
 from ....engine.solvers import ModelView
 from ....specs import (
+    GreedyMatchingSpec,
     MatchSpec,
     ObservableSpec,
     ParameterSpec,
     PhaseSpec,
     PhasesScheduleSpec,
+    RandomSearchSpec,
     RoleSpec,
     StateSpec,
     VisualSpec,
@@ -270,8 +273,8 @@ class HerderElement(Element):
 class GrazingInteraction(MatchingInteraction[ModelView]):
     """Grazing of the meadow, a matching of the cows with the pastures, after which every cow eats and burns energy.
 
-    The protocol of the matching pairs the cows with the pastures, such as
-    `GreedyProtocol(score=GrazingInteraction.score, candidates='neighbors')`, which pairs every cow, in random
+    The rule of the matching pairs the cows with the pastures, such as
+    `GreedyMatchingSpec(score=GrazingInteraction.score, candidates='neighbors')`, which pairs every cow, in random
     order, with the free pasture of most grass in its cell or the cells around it, ties broken at random. A pasture
     takes one cow, its default quantity of one unit. Every matched cow moves to its pasture and eats up to its
     appetite as a transfer of grass to its energy, and its herder earns milk for what it ate. Then every cow burns
@@ -287,8 +290,8 @@ class GrazingInteraction(MatchingInteraction[ModelView]):
         providers:
             The path of the group of pastures.
 
-        protocol:
-            The protocol that pairs the cows with the pastures, or `None` for `RandomSearchProtocol()`.
+        rule:
+            The spec of the algorithm that pairs the cows with the pastures.
 
         phase:
             The phase the grazing runs in.
@@ -317,14 +320,14 @@ class GrazingInteraction(MatchingInteraction[ModelView]):
         *,
         requesters: Annotated[str, RoleSpec()],
         providers: Annotated[str, RoleSpec()],
-        protocol: BaseMatchingProtocol | None = None,
+        rule: MatchingRule = RandomSearchSpec(),
         phase: str | None = 'grazing',
         herders: Annotated[str, RoleSpec()],
         appetite: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         metabolism: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         milk: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, requesters=requesters, providers=providers, protocol=protocol, phase=phase)
+        super().__init__(label, requesters=requesters, providers=providers, rule=rule, phase=phase)
         self.herders = herders
         self.appetite = appetite
         self.metabolism = metabolism
@@ -551,7 +554,7 @@ def tragedy_of_the_commons(
         'grazing',
         requesters='cows',
         providers='meadow',
-        protocol=GreedyProtocol(score=GrazingInteraction.score, candidates='neighbors'),
+        rule=GreedyMatchingSpec(score=GrazingInteraction.score, candidates='neighbors'),
         herders='herders',
     )
     return System(

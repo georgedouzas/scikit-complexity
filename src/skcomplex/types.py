@@ -21,6 +21,7 @@ type Pair = tuple[int, int]
 # functions and keys
 type VectorFunction = Callable[[float, Array, Array], Array]
 type ProcessKey = tuple[str, str, str | int]
+type Preference = Callable[[object, object], float]
 
 
 class DataKind(StrEnum):

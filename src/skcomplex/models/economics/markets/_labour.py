@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import FeedbackInteraction, MatchingInteraction, StableMatchingProtocol
+from ....core.interactions import FeedbackInteraction, MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
@@ -24,6 +24,7 @@ from ....specs import (
     PhaseSpec,
     PhasesScheduleSpec,
     RoleSpec,
+    StableMatchingSpec,
     StateSpec,
     VisualSpec,
 )
@@ -402,7 +403,7 @@ def labour_market(
         'labour',
         requesters='firms',
         providers='workers',
-        protocol=StableMatchingProtocol(clearing='requester'),
+        rule=StableMatchingSpec(clearing='requester'),
         limit=('bid', 'ask'),
         quantity=('demand', 'supply'),
         phase='matching',

@@ -1,4 +1,4 @@
-"""Share the participant element and the clearing of the tests of the matching interactions and protocols."""
+"""Share the participant element and the clearing of the tests of the matching interactions."""
 
 from collections.abc import Callable, Mapping
 from typing import Annotated
@@ -7,9 +7,9 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.interactions import BaseMatchingProtocol, MatchingInteraction
+from skcomplex.core.interactions import MatchingInteraction
 from skcomplex.core.system import System
-from skcomplex.core.types import ModelViewProtocol
+from skcomplex.core.types import MatchingRule, ModelViewProtocol
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import AgentView
 from skcomplex.specs import MatchSpec, StateSpec, VisualSpec
@@ -61,7 +61,7 @@ class ParticipantElement(Element):
 
 
 def _clear(
-    protocol: BaseMatchingProtocol | None,
+    rule: MatchingRule,
     requesters: Mapping[str, object],
     providers: Mapping[str, object],
     steps: int = 1,
@@ -88,7 +88,7 @@ def _clear(
                 'matching',
                 requesters='requesters',
                 providers='providers',
-                protocol=protocol,
+                rule=rule,
                 on_match=record,
             ),
         ],

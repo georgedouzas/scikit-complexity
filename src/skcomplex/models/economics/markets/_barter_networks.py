@@ -14,13 +14,23 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import BaseMatchingProtocol, GreedyProtocol, MatchingInteraction
+from ....core.interactions import MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.laws.utils import transfer
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
+from ....core.types import MatchingRule
 from ....engine.solvers import ModelView
-from ....specs import MatchSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import (
+    GreedyMatchingSpec,
+    MatchSpec,
+    ObservableSpec,
+    ParameterSpec,
+    RandomSearchSpec,
+    RoleSpec,
+    StateSpec,
+    VisualSpec,
+)
 from ..._catalog import register_model
 from ._barter_trader_view import BarterTraderView
 
@@ -208,8 +218,8 @@ class BilateralBarterInteraction(MatchingInteraction[ModelView]):
         providers:
             The path of the group of traders that can be found, the same group.
 
-        protocol:
-            The protocol that pairs the traders, such as `GreedyProtocol(candidates='neighbors')`.
+        rule:
+            The spec of the algorithm that pairs the traders, such as `GreedyMatchingSpec(candidates='neighbors')`.
 
         limit:
             The state with the limit of both sides, missing for traders, which then accept any partner.
@@ -246,7 +256,7 @@ class BilateralBarterInteraction(MatchingInteraction[ModelView]):
         *,
         requesters: Annotated[str, RoleSpec()],
         providers: Annotated[str, RoleSpec()],
-        protocol: BaseMatchingProtocol | None = None,
+        rule: MatchingRule = RandomSearchSpec(),
         limit: str | tuple[str, str] = 'limit',
         quantity: str | tuple[str, str] = 'quantity',
         budget: str = 'budget',
@@ -259,7 +269,7 @@ class BilateralBarterInteraction(MatchingInteraction[ModelView]):
             label,
             requesters=requesters,
             providers=providers,
-            protocol=protocol,
+            rule=rule,
             limit=limit,
             quantity=quantity,
             budget=budget,
@@ -407,7 +417,7 @@ def wilhite_trade_networks(
                 'barter',
                 requesters='traders',
                 providers='traders',
-                protocol=GreedyProtocol(score=BarterTraderElement.get_rate_gap),
+                rule=GreedyMatchingSpec(score=BarterTraderElement.get_rate_gap),
                 quantity=('request', 'partners'),
                 units=units,
             ),

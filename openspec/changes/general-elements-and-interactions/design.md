@@ -48,7 +48,7 @@ field.
 - `divisor` divides what a rate, gradient, or pair coupling adds to the highest derivative, such as a mass, a friction,
   or a capacitance. It is a named argument, not part of the user's function, so backends such as LAMMPS can read it.
 - A variant is a string argument checked in `_check` against a module constant, or a configurable class when it carries
-  its own algorithm, such as a matching protocol.
+  its own algorithm, such as a matching rule.
 
 ### Two lowerings, chosen by an argument
 A class whose operation agent models use takes `form='symbolic'` or `form='agent'`. In the agent form it lowers to an
@@ -123,13 +123,17 @@ Agents, groups, and exchange:
 | `TransferInteraction(source, target, amount, pairing, legs=(), guard=None)` | moves amounts of states between members, cells, or a source and a sink, as a rate or as agent rules |
 | `LifeCycleInteraction(target, birth, death, offspring=1, placement='here', inherit=(), mutate=None)` | births by splitting or by condition, and deaths by condition |
 | `GroupingInteraction(target, groups, act, size=2, capacity=None)` | draws pairs, a random partition, neighbourhoods, or groups by a chosen state each step, then acts on every group |
-| `MatchingInteraction(requesters, providers, protocol, limit, quantity, budget, transfers, on_match)` | pairs requesters with providers by a protocol, then transfers |
+| `MatchingInteraction(requesters, providers, rule, limit, quantity, budget, transfers, on_match)` | pairs requesters with providers by the algorithm its rule spec names, then transfers |
 | `FeedbackInteraction(rule)` | reads observables once per round and sets parameters |
 | `TopologyInteraction(target, action, rate=None, probability=None, condition=None, toward=None)` | adds or removes nodes and edges, and rewires, preferentially towards a weight |
 
-The matching protocols are `RandomSearchProtocol`, `PartnerSwitchProtocol`, `QueueProtocol`,
-`IterativeClearingProtocol`, `ContinuousClearingProtocol`, `BatchClearingProtocol`, `StableMatchingProtocol`, and
-`GreedyProtocol`, with `MatchingRoundSpec` for one round.
+The matching rules are frozen specs of `skcomplex.specs` that hold only the settings of their algorithm:
+`RandomSearchSpec(tries, clearing)`, the default, `PartnerSwitchSpec(sample, intensity, partner)`, `QueueSpec(order)`,
+`IterativeClearingSpec(adjustment, iterations, tolerance)`, `ContinuousClearingSpec(arrival)`, `BatchClearingSpec()`,
+`StableMatchingSpec(requester_preference, provider_preference, clearing)`, and
+`GreedyMatchingSpec(score, candidates, capacity, clearing)`. `MatchingInteraction` runs each algorithm as its own
+private method, chosen by the type of its `rule`, on the offers it reads directly, so no protocol class or round spec
+exists.
 
 ### Elements, laws, and utilities
 - Elements: `Element`, `GroupElement`, `FieldElement`, `LatticeElement`, `CompartmentElement`, whose state `n` a model renames by a
