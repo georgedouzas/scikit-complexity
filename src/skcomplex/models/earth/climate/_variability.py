@@ -7,8 +7,12 @@
 from types import SimpleNamespace
 from typing import Annotated
 
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
 from ....core.elements import Element
-from ....core.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.interactions import RelaxationInteraction
+from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import delayed
 from ....core.system import System
 from ....engine.solvers import EulerMaruyamaSolver
@@ -16,26 +20,57 @@ from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
+def _get_damping_time(s: SimpleNamespace) -> Expression:
+    """Return the damping time `1 / lam` of the temperature anomaly."""
+    return 1 / s.target.lam
+
+
+def _get_weather(s: SimpleNamespace) -> Expression:
+    """Return the amplitude `sigma` of the weather noise."""
+    return s.target.sigma
+
+
 class ClimateAnomalyElement(Element):
-    """Climate anomaly element."""
+    """Slow temperature anomaly of Hasselmann's stochastic climate, with its feedback rate and weather noise.
+
+    The relaxation of `hasselmann` damps the anomaly at the rate `lam` and drives it with weather noise of amplitude
+    `sigma`.
+
+    Args:
+        label:
+            The label of the anomaly.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        T:
+            The initial temperature anomaly.
+
+        lam:
+            The feedback rate that damps the anomaly.
+
+        sigma:
+            The amplitude of the weather noise.
+
+    Examples:
+        >>> from skcomplex.models.earth.climate import ClimateAnomalyElement
+        >>> ClimateAnomalyElement('ocean').lam
+        0.5
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        T: Annotated[object, StateSpec()] = 0.0,
-        lam: Annotated[object, ParameterSpec()] = 0.5,
-        sigma: Annotated[object, ParameterSpec()] = 0.3,
+        T: Annotated[float, StateSpec()] = 0.0,
+        lam: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
     ) -> None:
         super().__init__(label, visual=visual)
         self.T = T
         self.lam = lam
         self.sigma = sigma
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the climate anomaly element."""
-        return [RateLaw(s.T, -s.lam * s.T), NoiseLaw(s.T, s.sigma)]
 
 
 class DelayedOscillatorElement(Element):
@@ -91,7 +126,15 @@ def hasselmann(T: float = 0.0, *, lam: float = 0.5, sigma: float = 0.3) -> Syste
         >>> hasselmann(lam=0.1).elements[0].lam
         0.1
     """
-    return System(elements=[ClimateAnomalyElement('ocean', T=T, lam=lam, sigma=sigma)])
+    feedback = RelaxationInteraction(
+        'feedback',
+        target='ocean',
+        state='T',
+        goal=0.0,
+        time=_get_damping_time,
+        noise=_get_weather,
+    )
+    return System(elements=[ClimateAnomalyElement('ocean', T=T, lam=lam, sigma=sigma)], interactions=[feedback])
 
 
 @register_model(

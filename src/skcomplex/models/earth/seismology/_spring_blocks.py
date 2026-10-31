@@ -18,31 +18,64 @@ from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
-def _spring_block_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the sliding of a block under its springs and the stick-slip friction that weakens with speed."""
-    sliding = where(s.v > 0, s.v, 0)
-    force = s.k_c * laplacian(s.x) + s.k_p * (s.velocity * s.t - s.x)
-    friction = s.F0 / (1 + sliding / s.v_c)
-    stuck = both(s.v <= 0, force < s.F0)
-    return [RateLaw(s.x, sliding), RateLaw(s.v, where(stuck, 0, (force - friction) / s.m))]
-
-
 class SpringBlockElement(Element):
-    """Spring block element."""
+    """Block of the Burridge-Knopoff fault, pulled by springs and a moving plate against a friction that weakens.
+
+    The force on a block is the pull `k_c` of the springs to its neighbours plus the pull `k_p` of the plate moving at
+    `velocity`. A block at rest sticks until the force exceeds the static friction `F0`, and a sliding block feels the
+    friction `F0 / (1 + v / v_c)`. The stick condition reads the whole force, the coupling included, so the block keeps
+    its own rate laws.
+
+    Args:
+        label:
+            The label of the block or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial displacement.
+
+        v:
+            The initial velocity.
+
+        m:
+            The mass.
+
+        k_c:
+            The stiffness of the springs between neighbouring blocks.
+
+        k_p:
+            The stiffness of the springs to the plate.
+
+        velocity:
+            The speed of the plate.
+
+        F0:
+            The static friction.
+
+        v_c:
+            The characteristic speed of the weakening of the friction.
+
+    Examples:
+        >>> from skcomplex.models.earth.seismology import SpringBlockElement
+        >>> SpringBlockElement('block').F0
+        1.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec()] = 0.0,
-        v: Annotated[object, StateSpec()] = 0.0,
-        m: Annotated[object, ParameterSpec()] = 1.0,
-        k_c: Annotated[object, ParameterSpec()] = 2.5,
-        k_p: Annotated[object, ParameterSpec()] = 1.0,
-        velocity: Annotated[object, ParameterSpec()] = 0.01,
-        F0: Annotated[object, ParameterSpec()] = 1.0,
-        v_c: Annotated[object, ParameterSpec()] = 0.5,
+        x: Annotated[float, StateSpec()] = 0.0,
+        v: Annotated[float, StateSpec()] = 0.0,
+        m: Annotated[float, ParameterSpec()] = 1.0,
+        k_c: Annotated[float, ParameterSpec()] = 2.5,
+        k_p: Annotated[float, ParameterSpec()] = 1.0,
+        velocity: Annotated[float, ParameterSpec()] = 0.01,
+        F0: Annotated[float, ParameterSpec()] = 1.0,
+        v_c: Annotated[float, ParameterSpec()] = 0.5,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
@@ -55,8 +88,21 @@ class SpringBlockElement(Element):
         self.v_c = v_c
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the spring block element."""
-        return _spring_block_laws(s)
+        """Return the sliding of the block under its springs and the stick-slip friction that weakens with speed.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate laws of the displacement and the velocity.
+        """
+        sliding = where(s.v > 0, s.v, 0)
+        force = s.k_c * laplacian(s.x) + s.k_p * (s.velocity * s.t - s.x)
+        friction = s.F0 / (1 + sliding / s.v_c)
+        stuck = both(s.v <= 0, force < s.F0)
+        return [RateLaw(s.x, sliding), RateLaw(s.v, where(stuck, 0, (force - friction) / s.m))]
 
 
 @register_model(
