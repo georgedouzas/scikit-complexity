@@ -12,7 +12,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, oo, sin, vector
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, FieldElement, ParticleElement
+from ....core.elements import Element, FieldElement
 from ....core.interactions import PotentialInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import laplacian
@@ -21,7 +21,7 @@ from ....core.system import System
 from ....engine.solvers import VelocityVerletSolver
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.particles import SpringInteraction
+from ..common.particles import MassPointElement, SpringInteraction
 
 
 class WaveStringElement(Element):
@@ -92,7 +92,7 @@ class DrivenAnchorInteraction(PotentialInteraction):
         amplitude: Annotated[float, ParameterSpec()] = 0.0,
         omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, velocity='x_d1')
         self.target = target
         self.k = k
         self.center = center
@@ -178,11 +178,11 @@ def spring_chain(
     positions = spacing * np.arange(1, n_masses + 1)
     heights = _pluck(positions, length, pluck, pluck_at) if pluck else np.zeros(n_masses)
     masses = [
-        ParticleElement(f'mass_{index}', x=[float(positions[index]), float(heights[index])], v=[0.0, 0.0], m=mass)
+        MassPointElement(f'mass_{index}', x=[float(positions[index]), float(heights[index])], x_d1=[0.0, 0.0], m=mass)
         for index in range(n_masses)
     ]
     springs = [
-        SpringInteraction(f'spring_{index}', first=f'mass_{index}', second=f'mass_{index + 1}', k=k)
+        SpringInteraction(f'spring_{index}', velocity='x_d1', first=f'mass_{index}', second=f'mass_{index + 1}', k=k)
         for index in range(n_masses - 1)
     ]
     anchors = [

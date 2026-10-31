@@ -9,8 +9,8 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.elements import Element, GroupElement, ParticleElement
-from skcomplex.core.interactions import Interaction, PairPotentialInteraction
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import Interaction, PairCouplingInteraction
 from skcomplex.core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
@@ -30,14 +30,14 @@ from skcomplex.errors import BackendWarning, SolverError
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import PopulationElement
 from skcomplex.models.biology.epidemiology import CompartmentElement, InfectionInteraction, RecoveryInteraction
-from skcomplex.models.physics.common.particles import HarmonicPotentialInteraction
+from skcomplex.models.physics.common.particles import HarmonicPotentialInteraction, MassPointElement
 from skcomplex.specs import CallSpec, LoweredFunctionsSpec, ParameterSpec, RoleSpec, StateSpec, StepSpec, VisualSpec
 from skcomplex.types import FormKind
 
 CUTOFF = 2.5
 
 
-class LennardJonesInteraction(PairPotentialInteraction):
+class LennardJonesInteraction(PairCouplingInteraction):
     """Lennard-Jones pair potential."""
 
     def __init__(
@@ -52,7 +52,15 @@ class LennardJonesInteraction(PairPotentialInteraction):
         epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, first, second, cutoff=cutoff, position=position, period=period)
+        super().__init__(
+            label,
+            first,
+            second,
+            cutoff=cutoff,
+            position=position,
+            potential=self._get_pair_energy,
+            period=period,
+        )
         self.epsilon = epsilon
         self.sigma = sigma
 
@@ -171,9 +179,9 @@ def _lennard_jones_gas(n=400, period=None):
         elements=[
             GroupElement(
                 'gas',
-                element=ParticleElement,
+                element=MassPointElement,
                 size=n,
-                values={'x': grid + rng.normal(0, 0.05, (n, 2)), 'v': rng.normal(0, 1, (n, 2))},
+                values={'x': grid + rng.normal(0, 0.05, (n, 2)), 'x_d1': rng.normal(0, 1, (n, 2))},
             ),
         ],
         interactions=[
@@ -213,7 +221,7 @@ def test_backend_runs_the_kernels_of_a_form(backend):
 
 def test_compile_auto_backend_depends_on_group_size():
     """Test that `auto` picks Numba for 1000 members and NumPy for two single elements."""
-    large = System(elements=[GroupElement('gas', element=ParticleElement, size=1000)], space=ContinuousSpace(n_dim=2))
+    large = System(elements=[GroupElement('gas', element=MassPointElement, size=1000)], space=ContinuousSpace(n_dim=2))
     small = System(elements=[PopulationElement('a'), PopulationElement('b')])
     assert compile_system(large).backend == 'numba'
     assert compile_system(small).backend == 'numpy'
@@ -247,8 +255,8 @@ def test_backends_agree_on_two_groups(numba_backend):
     rng = np.random.default_rng(1)
     system = System(
         elements=[
-            GroupElement('a', element=ParticleElement, size=150, values={'x': rng.uniform(0, 12, (150, 2))}),
-            GroupElement('b', element=ParticleElement, size=100, values={'x': rng.uniform(3, 15, (100, 2))}),
+            GroupElement('a', element=MassPointElement, size=150, values={'x': rng.uniform(0, 12, (150, 2))}),
+            GroupElement('b', element=MassPointElement, size=100, values={'x': rng.uniform(3, 15, (100, 2))}),
         ],
         interactions=[LennardJonesInteraction('lj', first='a', second='b', cutoff=CUTOFF)],
         space=ContinuousSpace(n_dim=2),
@@ -274,7 +282,10 @@ def test_numba_pair_forces_conserve_momentum(numba_backend):
         space=ContinuousSpace(n_dim=2),
     )
     problem = compile_system(system, backend=numba_backend)
-    accelerations = problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'gas.v')
+    accelerations = problem.states.read(
+        problem.drift(0.0, problem.initial_state, problem.initial_parameters),
+        'gas.x_d1',
+    )
     assert np.allclose(accelerations.sum(axis=0), 0.0, atol=1e-9)
 
 
@@ -446,8 +457,8 @@ def test_compiled_iteration_matches_numpy(numba_backend):
 def test_velocity_verlet_conserves_energy(backend, numba_backend):
     """Test that velocity Verlet keeps the energy of an oscillator within 1e-3 over 1000 time units."""
     system = System(
-        elements=[GroupElement('p', element=ParticleElement, size=1, values={'x': [[1.0]], 'v': [[0.0]]})],
-        interactions=[HarmonicPotentialInteraction('trap', target='p')],
+        elements=[GroupElement('p', element=MassPointElement, size=1, values={'x': [[1.0]], 'x_d1': [[0.0]]})],
+        interactions=[HarmonicPotentialInteraction('trap', velocity='x_d1', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
     simulation = (
@@ -461,7 +472,7 @@ def test_velocity_verlet_conserves_energy(backend, numba_backend):
         .prepare()
     )
     trajectory = simulation.run(until=1000).trajectory_
-    energy = 0.5 * trajectory.values('p.v')[:, 0, 0] ** 2 + 0.5 * trajectory.values('p.x')[:, 0, 0] ** 2
+    energy = 0.5 * trajectory.values('p.x_d1')[:, 0, 0] ** 2 + 0.5 * trajectory.values('p.x')[:, 0, 0] ** 2
     assert np.allclose(energy, energy[0], rtol=1e-3)
 
 

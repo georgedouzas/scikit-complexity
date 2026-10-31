@@ -7,7 +7,7 @@ import pytest
 from sage.all__sagemath_symbolics import SR, cos, diff, function, sin, sqrt
 
 from skcomplex.analysis import SymbolicAnalysis
-from skcomplex.core.elements import Element, ParticleElement
+from skcomplex.core.elements import Element
 from skcomplex.core.interactions import ConstantForceInteraction, Interaction
 from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import derivative, lag
@@ -21,7 +21,7 @@ from skcomplex.models.biology.ecology import LogisticGrowthInteraction, Populati
 from skcomplex.models.biology.epidemiology import CompartmentElement, RecoveryInteraction
 from skcomplex.models.economics.finance import AssetElement, GeometricBrownianMotionInteraction
 from skcomplex.models.economics.markets import CobwebInteraction, MarketElement
-from skcomplex.models.physics.common.particles import HarmonicPotentialInteraction
+from skcomplex.models.physics.common.particles import HarmonicPotentialInteraction, MassPointElement
 from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 from ..conftest import CallableGrowthInteraction
@@ -62,7 +62,7 @@ def test_equations_of_jump_process_raises_error():
 
 def test_solve_symbolically_free_particle():
     """Test that a free particle moves linearly with two integration constants."""
-    system = System(elements=[ParticleElement('p')], space=ContinuousSpace(n_dim=1))
+    system = System(elements=[MassPointElement('p')], space=ContinuousSpace(n_dim=1))
     solution = SymbolicAnalysis('solve').check().prepare(system).run().solutions_['p.x[0]']
     t = compile_system(system).time
     slope, start = solution.rhs().diff(t), solution.rhs().subs({t: 0})
@@ -75,8 +75,8 @@ def test_solve_symbolically_free_particle():
 def test_solve_symbolically_constant_acceleration():
     """Test that a constant force gives `F * t**2 / (2 * m)` from rest."""
     system = System(
-        elements=[ParticleElement('p')],
-        interactions=[ConstantForceInteraction('push', target='p', F=3.0)],
+        elements=[MassPointElement('p')],
+        interactions=[ConstantForceInteraction('push', velocity='x_d1', target='p', F=3.0)],
         space=ContinuousSpace(n_dim=1),
     )
     problem = compile_system(system)
@@ -89,8 +89,8 @@ def test_solve_symbolically_constant_acceleration():
 def test_solve_symbolically_harmonic_oscillator():
     """Test that an oscillator from its initial state oscillates with frequency `sqrt(k / m)`."""
     system = System(
-        elements=[ParticleElement('p', x=1.0, v=0.0)],
-        interactions=[HarmonicPotentialInteraction('trap', target='p')],
+        elements=[MassPointElement('p', x=1.0, x_d1=0.0)],
+        interactions=[HarmonicPotentialInteraction('trap', velocity='x_d1', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
     problem = compile_system(system)
@@ -137,8 +137,8 @@ def test_sage_expression_compiles_like_number():
     """Test that a constant force given as a Sage expression simulates like the same force given as a number."""
     force = SR(2) * SR(1.5)
     system = System(
-        elements=[ParticleElement('p')],
-        interactions=[ConstantForceInteraction('push', target='p', F=float(force))],
+        elements=[MassPointElement('p')],
+        interactions=[ConstantForceInteraction('push', velocity='x_d1', target='p', F=float(force))],
         space=ContinuousSpace(n_dim=1),
     )
 
@@ -156,10 +156,10 @@ def test_sage_expression_compiles_like_number():
 
         def _get_laws(self, s):
             """Return a rate with a Sage value."""
-            return [RateLaw(s.target.v, [force])]
+            return [RateLaw(s.target.x, [force])]
 
     sage_system = System(
-        elements=[ParticleElement('p')],
+        elements=[MassPointElement('p')],
         interactions=[SageForceInteraction('push', target='p')],
         space=ContinuousSpace(n_dim=1),
     )

@@ -601,7 +601,10 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _binding_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
-        """Return the interactions over neighbours or hyperedges whose bound members live on a space without them."""
+        """Return the interactions over hyperedges, or over neighbours with an edge group, on a space without them.
+
+        An interaction over neighbours of members of a space without edges runs only the laws of the members.
+        """
         by_path = {node.path: node for node in nodes}
         issues = []
         for node in nodes:
@@ -624,6 +627,8 @@ class PassCompiler(BaseCompiler):
                     getattr(space, 'hyperedges', ()),
                 )
             )
+            if not offered and over == 'neighbors' and len(members) == len(bound):
+                continue
             if not offered:
                 needs = 'a lattice or network space' if over == 'neighbors' else 'a network space with hyperedges'
                 message = f'The binding over {over} needs {needs}, but the bound members live on {space!r}.'
@@ -797,8 +802,8 @@ class PassCompiler(BaseCompiler):
                         NeighborhoodKernel._cone_heading(over, states, getattr(record.space, 'n_dim_', 0))
                     except ValidationError as error:
                         fix = (
-                            "Declare a vector velocity, `StateSpec(vector=True, velocity_of='x')`, or name a heading "
-                            "state, such as `ConeNeighborhood(r, angle, heading='theta')`."
+                            'Declare the position of order 2, `StateSpec(vector=True, position=True, order=2)`, or '
+                            "name a heading state, such as `ConeNeighborhood(r, angle, heading='theta')`."
                         )
                         issues.append(IssueSpec('law-domain', record.path, f'The {name}: {error}', fix))
         return issues

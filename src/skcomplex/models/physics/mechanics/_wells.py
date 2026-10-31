@@ -9,12 +9,12 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import ParticleElement
 from ....core.interactions import PotentialInteraction
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec
 from ..._catalog import register_model
+from ..common.particles import MassPointElement
 
 
 class ExponentialWellInteraction(PotentialInteraction):
@@ -43,7 +43,7 @@ class ExponentialWellInteraction(PotentialInteraction):
         target: Annotated[str, RoleSpec()],
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, velocity='x_d1')
         self.target = target
         self.k = k
 
@@ -98,7 +98,7 @@ def particle_in_a_well(x: float = 1.0, v: float = 0.5, *, k: float = 2.0, m: flo
         3.0
     """
     return System(
-        elements=[ParticleElement('particle', x=x, v=v, m=m)],
+        elements=[MassPointElement('particle', x=x, x_d1=v, m=m)],
         interactions=[ExponentialWellInteraction('well', target='particle', k=k)],
         space=ContinuousSpace(n_dim=1),
     )

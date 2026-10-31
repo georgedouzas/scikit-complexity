@@ -1535,7 +1535,7 @@ visuals are parts of the engine, beside those of every other kind.
 | kinetics | `EncounterLaw`, `moment` | the encounter passes, `KineticSolver` |
 | fractional | `StateSpec(order=...)` in `(0, 1)`, `FractionalNoiseLaw` | the fractional passes, `FractionalABMSolver`, `GrunwaldLetnikovSolver`, `FractionalEulerMaruyamaSolver` |
 | topology | `TopologyRequestSpec` | the topology passes |
-| particles | `ParticleElement`, `PotentialInteraction`, `PairPotentialInteraction` | `VelocityVerletSolver`, `LammpsSolver` |
+| particles | `PointElement`, `PotentialInteraction`, `PairCouplingInteraction` | `VelocityVerletSolver`, `LammpsSolver` |
 | control | `ParameterSpec(adaptive=True, bounds=...)` | `PontryaginSolver`, `CollocationSolver` |
 
 Every compiler derives from `BaseCompiler`: `check()` validates its settings, `prepare(system)` validates the system and
@@ -1722,15 +1722,15 @@ and every law written for one member runs over all members with array operations
 ```python
 import numpy as np
 
-from skcomplex.core.elements import GroupElement, ParticleElement
+from skcomplex.core.elements import GroupElement, PointElement
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
 rng = np.random.default_rng(0)
-values = {'x': rng.uniform(0, 1, (1_000, 2)), 'v': rng.normal(0, 1, (1_000, 2))}
+values = {'x': rng.uniform(0, 1, (1_000, 2)), 'x_d1': rng.normal(0, 1, (1_000, 2))}
 gas = System(
-    elements=[GroupElement('gas', element=ParticleElement, size=1_000, values=values)],
+    elements=[GroupElement('gas', element=PointElement, size=1_000, values=values)],
     space=ContinuousSpace(extent=(1.0, 1.0), boundary='reflecting'),
 )
 trajectory = Simulation(gas, dt=0.01).check().prepare().run(until=0.5).trajectory_
@@ -2028,47 +2028,29 @@ replicator dynamics are derived symbolically. A larger group raises an error tha
 ### Pair interactions
 
 A pair interaction is written once for a pair of members and summed over every pair closer than its cutoff, inside one
-group or between two groups. `PairPotentialInteraction` derives the forces from a pair energy.
+group or between two groups. `PairCouplingInteraction` adds to the rate of a state of both members a function of
+the pair, or minus the gradient of a pair potential of their distance, divided by an optional `divisor`. On a state of
+order 2, such as the position of a `PointElement`, the rate is its second derivative.
 
 ```python
-from typing import Annotated
-
 import numpy as np
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
 
-from skcomplex.core.elements import GroupElement, ParticleElement
-from skcomplex.core.interactions import PairPotentialInteraction
+from skcomplex.core.elements import GroupElement, PointElement
+from skcomplex.core.interactions import PairCouplingInteraction
 from skcomplex.core.spaces import ContinuousSpace
-from skcomplex.specs import ParameterSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
 
-class LennardJonesInteraction(PairPotentialInteraction):
-    def __init__(
-        self,
-        label,
-        first,
-        second,
-        cutoff=2.5,
-        *,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ):
-        super().__init__(label, first, second, cutoff=cutoff)
-        self.epsilon = epsilon
-        self.sigma = sigma
-
-    def _get_pair_energy(self, s, r):
-        return 4 * s.epsilon * ((s.sigma / r) ** 12 - (s.sigma / r) ** 6)
+def lennard_jones(s, r):
+    return 4 * (r**-12 - r**-6)
 
 
 side = np.arange(10) * 1.2
 positions = np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2)
 liquid = System(
-    elements=[GroupElement('atoms', element=ParticleElement, size=100, values={'x': positions})],
-    interactions=[LennardJonesInteraction('lj', first='atoms', second='atoms', cutoff=2.5)],
+    elements=[GroupElement('atoms', element=PointElement, size=100, values={'x': positions})],
+    interactions=[PairCouplingInteraction('lj', 'atoms', 'atoms', cutoff=2.5, potential=lennard_jones)],
     space=ContinuousSpace(n_dim=2),
 )
 print(Simulation(liquid, dt=0.05).check().prepare().run(until=1).trajectory_.values('atoms.x').shape)
@@ -2083,7 +2065,7 @@ reports a state that a boundary would change. Adaptive solvers find the first ti
 restart there. Boundaries combine with every form, so walls and periodic boxes work for differential equations,
 stochastic systems, jump processes, and discrete maps.
 A `ContinuousSpace` with `boundary='reflecting'` mirrors the position states of its elements at the walls and reverses
-the velocities declared with `StateSpec(velocity_of=...)`, and `boundary='periodic'` wraps positions around the box.
+the first derivatives of the positions of order 2, and `boundary='periodic'` wraps positions around the box.
 
 ## Lattice models
 
@@ -3176,7 +3158,7 @@ and `LAMMPS_FIXES`.
 ```python
 import numpy as np
 
-from skcomplex.core.elements import GroupElement, ParticleElement
+from skcomplex.core.elements import GroupElement
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -3186,15 +3168,16 @@ from skcomplex.models.physics.common.particles import (
     LAMMPS_PAIRS,
     LangevinThermostatInteraction,
     LennardJonesInteraction,
+    MassPointElement,
 )
 
 side = np.arange(10) * 1.2
 grid = np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2)
 atoms = System(
-    elements=[GroupElement('atoms', element=ParticleElement, size=100, values={'x': grid})],
+    elements=[GroupElement('atoms', element=MassPointElement, size=100, values={'x': grid})],
     interactions=[
-        LennardJonesInteraction('lj', first='atoms', second='atoms', cutoff=2.5),
-        LangevinThermostatInteraction('bath', target='atoms', temperature=0.5, gamma=1.0),
+        LennardJonesInteraction('lj', first='atoms', second='atoms', cutoff=2.5, divisor='m'),
+        LangevinThermostatInteraction('bath', target='atoms', temperature=0.5, gamma=1.0, state='x_d1'),
     ],
     space=ContinuousSpace(n_dim=2),
 )
@@ -3208,14 +3191,14 @@ law it cannot run. The translation is the following.
 
 | Framework | LAMMPS |
 | --- | --- |
-| `ParticleElement` and particle groups | one atom type per element or group, with one mass per group |
+| elements and groups with a vector position of order 2, such as `PointElement` | one atom type per element or group, whose velocities are the first derivatives of the positions and whose mass is the parameter the `divisor` of their interactions names, 1 without one |
 | two or three dimensions | `dimension 2` with `fix enforce2d`, or `dimension 3` |
 | `ContinuousSpace(extent, boundary='reflecting')` | `fix wall/reflect` at `0` and the extent |
 | `ContinuousSpace(extent, boundary='periodic')` | periodic boundaries of the extent, shared by every group |
 | a class in `pairs`, such as `LennardJonesInteraction` | its native pair style, such as `pair_style lj/cut` |
-| other `PairPotentialInteraction` | `pair_style lepton` with the pair energy printed as a Lepton expression |
+| other `PairCouplingInteraction` with a potential | `pair_style lepton` with the potential printed as a Lepton expression |
 | a class in `fixes` | its native fix, such as `fix addforce`, `fix viscous`, or `fix langevin` |
-| any other interaction that only changes velocities | `fix external`, evaluated by the framework every step |
+| any other interaction that only changes the derivatives of the positions | `fix external`, evaluated by the framework every step |
 
 `LangevinThermostatInteraction` becomes `fix langevin`, seeded from the simulation's random state.
 
@@ -3777,13 +3760,12 @@ import tempfile
 from pathlib import Path
 
 from skcomplex.core.spaces import ContinuousSpace
-from skcomplex.core.elements import ParticleElement
-from skcomplex.models.physics.common.particles import SpringInteraction
+from skcomplex.models.physics.common.particles import MassPointElement, SpringInteraction
 from skcomplex.engine.viz import RerunObserver
 
 molecule = System(
-    elements=[ParticleElement('a', x=[0.0, 0.0, 0.0]), ParticleElement('b', x=[1.5, 0.0, 0.0], v=[0.0, 0.5, 0.0])],
-    interactions=[SpringInteraction('bond', first='a', second='b', k=4.0, length=1.0)],
+    elements=[MassPointElement('a', x=[0.0, 0.0, 0.0]), MassPointElement('b', x=[1.5, 0.0, 0.0], x_d1=[0.0, 0.5, 0.0])],
+    interactions=[SpringInteraction('bond', velocity='x_d1', first='a', second='b', k=4.0, length=1.0)],
     space=ContinuousSpace(n_dim=3),
 )
 path = Path(tempfile.mkdtemp()) / 'molecule.rrd'
@@ -3792,7 +3774,7 @@ Simulation(molecule, dt=0.02, observers=[RerunObserver('molecule', save_path=pat
 
 Particles appear as 3D points, populations as time series, agents on grids and in continuous spaces as points colored by
 a state, agents on networks as graph nodes, and reporters under `reporters/`. A group is logged as one batch per state,
-and `PointsVisual(position='x', color_by='v')` colors its points by speed. Points and agents in a continuous space
+and `PointsVisual(position='x', color_by='x_d1')` colors its points by speed. Points and agents in a continuous space
 without a given `radius` take a share of the extent of the view, and a group of at most ten points draws the trail of
 its recent positions, which `trail=0` turns off. A one-dimensional lattice also logs a space-time image, one row per
 logged frame with the oldest at the top, holding at most `ImageVisual(history=...)` rows. A complex state of a lattice
@@ -3913,19 +3895,18 @@ solves an ODE system exactly where Maxima can, with `desolve` for one equation a
 with constant coefficients.
 
 ```python
-from skcomplex.core.elements import ParticleElement
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 
 from skcomplex.analysis import SymbolicAnalysis
-from skcomplex.models.physics.common.particles import HarmonicPotentialInteraction
+from skcomplex.models.physics.common.particles import HarmonicPotentialInteraction, MassPointElement
 
 oscillator = System(
-    elements=[ParticleElement('p', x=1.0)],
-    interactions=[HarmonicPotentialInteraction('trap', target='p', k=4.0)],
+    elements=[MassPointElement('p', x=1.0)],
+    interactions=[HarmonicPotentialInteraction('trap', velocity='x_d1', target='p', k=4.0)],
     space=ContinuousSpace(n_dim=1),
 )
-print(SymbolicAnalysis().check().prepare(oscillator).run().equations_['p.v[0]'])
+print(SymbolicAnalysis().check().prepare(oscillator).run().equations_['p.x_d1[0]'])
 print(SymbolicAnalysis('solve', use_initial_state=True).check().prepare(oscillator).run().solutions_['p.x[0]'])
 ```
 

@@ -13,7 +13,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, exp, oo, sin, sqrt, vector
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement, ParticleElement
+from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
 from ....core.laws.utils import pulse_train, where
@@ -22,7 +22,7 @@ from ....core.system import System
 from ....engine.solvers import EulerMaruyamaSolver
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.particles import LangevinThermostatInteraction
+from ..common.particles import LangevinThermostatInteraction, MassPointElement
 from ._brownian import DoubleWellElement
 
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.05})
@@ -381,12 +381,12 @@ def brownian_motion(
     velocities = np.random.default_rng(random_state).normal(0.0, math.sqrt(kT / m), (n_particles, n_dim))
     beads = GroupElement(
         'beads',
-        element=ParticleElement,
+        element=MassPointElement,
         size=n_particles,
-        values={'x': np.zeros((n_particles, n_dim)), 'v': velocities, 'm': m},
+        values={'x': np.zeros((n_particles, n_dim)), 'x_d1': velocities, 'm': m},
         visual=POINTS,
     )
-    bath = LangevinThermostatInteraction('bath', target='beads', temperature=kT, gamma=gamma)
+    bath = LangevinThermostatInteraction('bath', state='x_d1', target='beads', temperature=kT, gamma=gamma)
     return System(elements=[beads], interactions=[bath], space=space)
 
 

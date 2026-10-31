@@ -553,12 +553,55 @@ class SpecsPass(BasePass):
         return symbol(name, domain_of(item)), symbol(f'{name}__other', domain_of(item))
 
     @staticmethod
+    def _ends_spec(
+        block: BlockSpec,
+        nodes: BlockSpec,
+        parameters: SimpleNamespace,
+        references: dict[Expression, ReferenceSpec],
+        time: Expression,
+    ) -> KernelSpec:
+        """Return the spec of the laws of the members of an interaction over neighbours whose members have no edges.
+
+        The laws read one end as the member and, inside their reductions, the other end as the other members, as on a
+        lattice or a network, and the interaction has no laws per edge.
+
+        Args:
+            block:
+                The block of the interaction.
+
+            nodes:
+                The block of the group the interaction binds.
+
+            parameters:
+                The namespace of the parameters of the interaction.
+
+            references:
+                The references of the parameters, which the references of the ends extend.
+
+            time:
+                The time symbol.
+
+        Returns:
+            spec:
+                The spec of the laws of one end.
+        """
+        namespaces = {}
+        for end, source, suffix in zip(_EDGE_NAMES[:2], (ReadKind.FIRST, ReadKind.SECOND), END_SUFFIXES, strict=True):
+            namespaces[end], end_references = SpecsPass._namespace(nodes, source, alias=suffix)
+            references.update(end_references)
+        namespace = SimpleNamespace(t=time, **vars(parameters), **namespaces)
+        paths: dict[str, str | tuple[str, ...]] = {'source': nodes.node.path, 'target': nodes.node.path}
+        return SpecsPass._end_spec(KernelSpec(block.node.path, namespace, references, 0, roles=paths), nodes)
+
+    @staticmethod
     def _edge_specs(
         block: BlockSpec,
         elements: dict[str, BlockSpec],
         declarations: DeclarationsSpec,
     ) -> tuple[list[KernelSpec], DeclarationsSpec]:
         """Return the specs of an interaction over neighbours, once per edge of its layer and once per node member.
+
+        Members of a space without edges, such as a continuous space, get the spec of the laws of one end alone.
 
         Args:
             block:
@@ -572,7 +615,7 @@ class SpecsPass(BasePass):
 
         Returns:
             specs:
-                The spec of the edges and the spec of the laws of one end, with the extended declarations.
+                The spec of the edges, if any, and the spec of the laws of one end, with the extended declarations.
 
         Raises:
             LabelError:
@@ -580,7 +623,6 @@ class SpecsPass(BasePass):
         """
         node = block.node
         nodes, edges = SpecsPass._edge_roles(node, elements)
-        search = SpecsPass._edge_search(node, nodes, edges, elements)
         parameters, references = SpecsPass._namespace(block, ReadKind.SINGLE)
         clashes = sorted(set(vars(parameters)) & {*_EDGE_NAMES, 't'})
         if clashes:
@@ -589,6 +631,9 @@ class SpecsPass(BasePass):
                 'its laws read as the ends and the member of an edge. Rename them.'
             )
             raise LabelError(error_msg)
+        if edges is None and not isinstance(SpecsPass._group_space(nodes), LatticeSpace | NetworkSpace | CayleySpace):
+            return [SpecsPass._ends_spec(block, nodes, parameters, references, declarations.time)], declarations
+        search = SpecsPass._edge_search(node, nodes, edges, elements)
         declarations, degrees = SpecsPass._declare_degrees(node, nodes, search, declarations)
         namespaces: dict[str, SimpleNamespace] = {}
         base = re.sub(r'[^0-9A-Za-z]', '_', node.path)

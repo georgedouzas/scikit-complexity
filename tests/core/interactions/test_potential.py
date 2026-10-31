@@ -4,12 +4,12 @@ from typing import Annotated
 
 import numpy as np
 
-from skcomplex.core.elements import ParticleElement
 from skcomplex.core.interactions import PotentialInteraction
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
+from skcomplex.models.physics.common.particles import MassPointElement
 from skcomplex.specs import ParameterSpec, RoleSpec
 
 
@@ -24,7 +24,7 @@ class SpringInteraction(PotentialInteraction):
         b: Annotated[str, RoleSpec()],
         k: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, velocity='x_d1')
         self.a = a
         self.b = b
         self.k = k
@@ -38,7 +38,7 @@ class SpringInteraction(PotentialInteraction):
 def test_spring_oscillates_its_particles_about_their_centre_of_mass():
     """Test that two particles joined by a spring keep their centre of mass and oscillate at their frequency."""
     system = System(
-        elements=[ParticleElement('a', x=[-1.0], m=1.0), ParticleElement('b', x=[1.0], m=1.0)],
+        elements=[MassPointElement('a', x=[-1.0], m=1.0), MassPointElement('b', x=[1.0], m=1.0)],
         interactions=[SpringInteraction('spring', a='a', b='b', k=0.5)],
         space=ContinuousSpace(n_dim=1),
     )

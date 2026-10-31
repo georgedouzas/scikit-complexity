@@ -9,7 +9,7 @@ import pytest
 from sage.all__sagemath_symbolics import CC, oo, var
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.elements import Element, GroupElement, ParticleElement
+from skcomplex.core.elements import Element, GroupElement, PointElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import GeneratorLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.laws.utils import local_operator
@@ -243,7 +243,7 @@ def test_static_time_rejects_dynamic_laws():
 def test_periodic_space_wraps_positions():
     """Test that a particle crossing the side of a periodic space re-enters on the opposite side."""
     system = System(
-        elements=[ParticleElement('p', x=[0.9, 0.5], v=[1.0, 0.0])],
+        elements=[PointElement('p', x=[0.9, 0.5], x_d1=[1.0, 0.0])],
         space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
     )
     trajectory = Simulation(system, dt=0.2).check().prepare().run(until=0.2).trajectory_
@@ -254,13 +254,13 @@ def test_periodic_box_wraps_member_with_same_velocity():
     """Test that a member leaving one side reappears at the opposite side with the same velocity."""
     system = System(
         elements=[
-            GroupElement('gas', element=ParticleElement, size=1, values={'x': [[0.95, 0.5]], 'v': [[1.0, 0.0]]}),
+            GroupElement('gas', element=PointElement, size=1, values={'x': [[0.95, 0.5]], 'x_d1': [[1.0, 0.0]]}),
         ],
         space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
     )
     trajectory = Simulation(system, dt=0.1).check().prepare().run(until=0.2).trajectory_
     assert np.allclose(trajectory.values('gas.x')[-1], [[0.15, 0.5]])
-    assert np.allclose(trajectory.values('gas.v')[-1], [[1.0, 0.0]])
+    assert np.allclose(trajectory.values('gas.x_d1')[-1], [[1.0, 0.0]])
 
 
 def test_variable_group_of_elements_grows():

@@ -503,11 +503,11 @@ def test_validate_reports_a_cone_without_a_heading():
     )
     issues = PassCompiler().check().prepare(system).report_.issues
     assert [issue.code for issue in issues] == ['law-domain']
-    assert 'velocity_of' in issues[0].fix
+    assert 'order=2' in issues[0].fix
 
 
 def test_validate_accepts_a_cone_along_the_velocity():
-    """Test that a cone reads the vector velocity of the position as the heading of every member."""
+    """Test that a cone reads the first derivative of a position of order 2 as the heading of every member."""
 
     class MovingElement(Element):
         """Moving element."""
@@ -519,14 +519,14 @@ def test_validate_accepts_a_cone_along_the_velocity():
             *,
             out: Annotated[object, StateSpec()] = 0.0,
             y: Annotated[object, StateSpec()] = 0.0,
-            x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
-            v: Annotated[object, StateSpec(vector=True, velocity_of='x')] = 0.0,
+            x: Annotated[object, StateSpec(vector=True, position=True, order=2)] = 0.0,
+            x_d1: object = 0.0,
         ) -> None:
             super().__init__(label, visual=visual)
             self.out = out
             self.y = y
             self.x = x
-            self.v = v
+            self.x_d1 = x_d1
 
         def _get_laws(self, s):
             """Return the laws of the moving element."""

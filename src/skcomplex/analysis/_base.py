@@ -29,7 +29,7 @@ from .types import Run, Runs, Source
 VELOCITY_NAMES = ('vx', 'vy', 'vz')
 HEADING_NAMES = ('heading', 'theta', 'angle', 'phase')
 POSITION_STATE = 'x'
-VELOCITY_STATE = 'v'
+VELOCITY_STATES = ('x_d1', 'v')
 SERIES_DIMENSIONS = 1
 SNAPSHOT_DIMENSIONS = 2
 RUNS_DIMENSIONS = 3
@@ -331,12 +331,12 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         box = np.asarray(space.extent_, dtype=np.float64) if isinstance(space, ContinuousSpace) and periodic else None
         raw = np.asarray(trajectory.values(element.states[POSITION_STATE]), dtype=float)
         positions = BaseAnalysis._unwrap(raw, box, periodic=periodic)
-        velocity = element.states.get(VELOCITY_STATE)
-        velocities = np.asarray(trajectory.values(velocity), dtype=float) if velocity is not None else None
+        velocity = next((name for name in VELOCITY_STATES if name in element.states), None)
+        velocities = np.asarray(trajectory.values(element.states[velocity]), dtype=float) if velocity else None
         others = {
             name: np.asarray(trajectory.values(dotted)).reshape(len(trajectory.times), -1)
             for name, dotted in element.states.items()
-            if name not in {POSITION_STATE, VELOCITY_STATE}
+            if name not in {POSITION_STATE, velocity}
         }
         heading = next((name for name in HEADING_NAMES if name in others), None)
         headings = np.asarray(others.pop(heading), dtype=float) if heading is not None else None
@@ -449,7 +449,7 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
 
         Agent groups give their positions unwrapped across periodic sides, velocities from the states `vx`, `vy`, and
         `vz`, and headings from a state named `heading`, `theta`, `angle`, or `phase`. Particle groups give their vector
-        states `x` and `v`.
+        state `x` and its first derivative `x_d1`, or else their state `v`.
 
         Args:
             source:

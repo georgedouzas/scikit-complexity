@@ -54,9 +54,6 @@ class StateSpec(BaseSpec):
             Whether a vector state is the position of its element in a continuous space, on which the boundary of the
             space acts.
 
-        velocity_of:
-            The position state whose rate a vector state is, which a reflecting boundary reverses, or `None`.
-
     Examples:
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
@@ -75,7 +72,6 @@ class StateSpec(BaseSpec):
     quantity: str | None = None
     history: object = None
     position: bool = False
-    velocity_of: str | None = None
 
     def _check(self) -> None:
         """Raise an error for an order that is not positive, negative lags, both, or too many initial values.

@@ -136,7 +136,6 @@ def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:
         quantity=spec.quantity,
         history=spec.history,
         position=spec.position,
-        velocity_of=spec.velocity_of,
     )
 
 

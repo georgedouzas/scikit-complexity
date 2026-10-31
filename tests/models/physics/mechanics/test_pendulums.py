@@ -66,7 +66,7 @@ def test_parametric_pendulum_resonates_at_twice_its_frequency():
 def test_magnetic_pendulum_comes_to_rest_near_a_magnet():
     """Test that the damped magnetic pendulum stops near one of the magnets."""
     trajectory = _run(magnetic_pendulum(), 100.0, 5.0, solver=ScipyODESolver())
-    position, velocity = (array[-1] for array in _series(trajectory, 'bob.x', 'bob.v'))
+    position, velocity = (array[-1] for array in _series(trajectory, 'bob.x', 'bob.x_d1'))
     magnets = np.stack([np.cos(2 * np.pi * np.arange(3) / 3), np.sin(2 * np.pi * np.arange(3) / 3)], axis=1)
     assert np.linalg.norm(velocity) < 1e-3
     assert np.linalg.norm(magnets - position, axis=1).min() < 0.5

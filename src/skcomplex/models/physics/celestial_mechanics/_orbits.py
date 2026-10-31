@@ -13,7 +13,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import cos, oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, ParticleElement
+from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import derivative
 from ....core.spaces import ContinuousSpace
@@ -22,7 +22,7 @@ from ....engine.solvers import RK4Solver
 from ....errors import ValidationError
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.particles import GravityInteraction
+from ..common.particles import GravityInteraction, MassPointElement
 from .types import Preset
 
 FIGURE_EIGHT: Preset = (
@@ -146,10 +146,10 @@ def two_body_orbit(
     speed = float(np.sqrt(G * mass * (1 + eccentricity) / radius))
     return System(
         elements=[
-            ParticleElement('star', m=mass),
-            ParticleElement('planet', x=[radius, 0.0], v=[0.0, speed], m=1e-6),
+            MassPointElement('star', m=mass),
+            MassPointElement('planet', x=[radius, 0.0], x_d1=[0.0, speed], m=1e-6),
         ],
-        interactions=[GravityInteraction('gravity', first='star', second='planet', G=G)],
+        interactions=[GravityInteraction('gravity', velocity='x_d1', first='star', second='planet', G=G)],
         space=ContinuousSpace(n_dim=2),
     )
 
@@ -210,11 +210,17 @@ def n_body(
     velocities = preset_velocities if velocities is None else velocities
     G = preset_G if G is None else G
     bodies = [
-        ParticleElement(f'body_{index}', x=list(position), v=list(velocity), m=mass)
+        MassPointElement(f'body_{index}', x=list(position), x_d1=list(velocity), m=mass)
         for index, (mass, position, velocity) in enumerate(zip(masses, positions, velocities, strict=True))
     ]
     attractions = [
-        GravityInteraction(f'gravity_{first}_{second}', first=f'body_{first}', second=f'body_{second}', G=G)
+        GravityInteraction(
+            f'gravity_{first}_{second}',
+            velocity='x_d1',
+            first=f'body_{first}',
+            second=f'body_{second}',
+            G=G,
+        )
         for first, second in itertools.combinations(range(len(bodies)), 2)
     ]
     return System(elements=bodies, interactions=attractions, space=ContinuousSpace(n_dim=2))

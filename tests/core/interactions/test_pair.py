@@ -5,7 +5,7 @@ from typing import Annotated
 
 import pytest
 
-from skcomplex.core.elements import Element, GroupElement, ParticleElement
+from skcomplex.core.elements import Element, GroupElement, PointElement
 from skcomplex.core.interactions import PairInteraction
 from skcomplex.core.laws import BoundaryLaw, RateLaw
 from skcomplex.core.spaces import ContinuousSpace
@@ -34,7 +34,7 @@ class AttractionInteraction(PairInteraction):
 
     def _get_laws(self, s):
         """Return a boundary law."""
-        return [BoundaryLaw(s.first.v, s.first.v)]
+        return [BoundaryLaw(s.first.x_d1, s.first.x_d1)]
 
 
 class ContactInteraction(PairInteraction):
@@ -77,7 +77,7 @@ def test_pair_interaction_needs_a_positive_cutoff():
 def test_pair_interaction_rejects_other_law_kinds():
     """Test that pair interactions take rate laws only."""
     system = System(
-        elements=[GroupElement('gas', element=ParticleElement, size=3)],
+        elements=[GroupElement('gas', element=PointElement, size=3)],
         interactions=[AttractionInteraction('pull', first='gas', second='gas')],
         space=ContinuousSpace(n_dim=2),
     )

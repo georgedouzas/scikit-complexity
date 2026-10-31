@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ._alignment import AlignmentInteraction
 from ._base import BaseInteraction
 from ._base_matching_protocol import BaseMatchingProtocol
 from ._choice import ChoiceInteraction
@@ -22,8 +21,7 @@ from ._matching import MatchingInteraction
 from ._neighbor import NeighborInteraction
 from ._ornstein_uhlenbeck import OrnsteinUhlenbeckInteraction
 from ._pair import PairInteraction
-from ._pair_force import PairForceInteraction
-from ._pair_potential import PairPotentialInteraction
+from ._pair_coupling import PairCouplingInteraction
 from ._partner_switch_protocol import PartnerSwitchProtocol
 from ._potential import PotentialInteraction
 from ._price_adjustment_protocol import PriceAdjustmentProtocol
@@ -39,7 +37,6 @@ from ._threshold import ThresholdInteraction
 from ._uniform_price_protocol import UniformPriceProtocol
 
 __all__: list[str] = [
-    'AlignmentInteraction',
     'BaseInteraction',
     'BaseMatchingProtocol',
     'ChoiceInteraction',
@@ -57,9 +54,8 @@ __all__: list[str] = [
     'MatchingInteraction',
     'NeighborInteraction',
     'OrnsteinUhlenbeckInteraction',
-    'PairForceInteraction',
+    'PairCouplingInteraction',
     'PairInteraction',
-    'PairPotentialInteraction',
     'PartnerSwitchProtocol',
     'PotentialInteraction',
     'PriceAdjustmentProtocol',

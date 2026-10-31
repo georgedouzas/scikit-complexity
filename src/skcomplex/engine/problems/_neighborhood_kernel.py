@@ -341,7 +341,7 @@ class NeighborhoodKernel(BaseKernel):
 
     @staticmethod
     def _cone_heading(cone: ConeNeighborhood, states: Mapping[str, VariableSpec], n_dim: int) -> str:
-        """Return the state that holds the heading of a cone: the named state, else the velocity of the position.
+        """Return the state that holds the heading of a cone: the named state, else the derivative of the position.
 
         Args:
             cone:
@@ -393,20 +393,14 @@ class NeighborhoodKernel(BaseKernel):
             )
             raise ValidationError(error_msg)
         position = NeighborhoodKernel._position_state(states)
-        velocity = next(
-            (name for name, item in states.items() if item.vector and position and item.velocity_of == position),
-            None,
-        )
-        if velocity is None and position is not None and states[position].order > 1:
-            velocity = f'{position}_d1'
-        if velocity is None:
+        if position is None or states[position].order <= 1:
             error_msg = (
-                'The cone has no heading: the members declare no vector velocity of their position. Declare one with '
-                "`state(vector=True, velocity_of='x')`, or name a heading state, such as "
+                'The cone has no heading: the position of the members has no first derivative. Declare the position '
+                "of order 2, `state(vector=True, position=True, order=2)`, or name a heading state, such as "
                 "`Cone(r, angle, heading='theta')`."
             )
             raise ValidationError(error_msg)
-        return velocity
+        return f'{position}_d1'
 
     @staticmethod
     def _check_rows(space: BaseSpace, rows: int) -> None:

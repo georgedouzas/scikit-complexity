@@ -11,8 +11,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, exp, oo, vector
 from sage.sets.real_set import RealSet
 
-from ....core.elements import GroupElement, ParticleElement
-from ....core.interactions import BaseInteraction, Interaction, PairPotentialInteraction
+from ....core.elements import GroupElement, PointElement
+from ....core.interactions import BaseInteraction, Interaction, PairCouplingInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
@@ -24,7 +24,8 @@ from ..._catalog import register_model
 class MotivationInteraction(Interaction):
     """Driving force of the social force model, which relaxes a walker's velocity to its desired velocity.
 
-    The force per unit mass is `(speed * direction - v) / tau`.
+    The force per unit mass is `(speed * direction - x_d1) / tau`, where the velocity `x_d1` is the first derivative of
+    the position `x`.
 
     Args:
         label:
@@ -74,7 +75,7 @@ class MotivationInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        return [RateLaw(s.target.v, (s.speed * s.direction - s.target.v) / s.tau)]
+        return [RateLaw(s.target.x, (s.speed * s.direction - s.target.x_d1) / s.tau)]
 
 
 class WallsInteraction(Interaction):
@@ -138,10 +139,10 @@ class WallsInteraction(Interaction):
         """
         y = s.target.x[1]
         push = s.strength * (exp((s.radius - y) / s.falloff) - exp((s.radius - s.width + y) / s.falloff))
-        return [RateLaw(s.target.v, vector(SR, [0, push]))]
+        return [RateLaw(s.target.x, vector(SR, [0, push]))]
 
 
-class SocialRepulsionInteraction(PairPotentialInteraction):
+class SocialRepulsionInteraction(PairCouplingInteraction):
     """Repulsion between two walkers, the force `strength * exp((2 * radius - r) / falloff)` of the social force model.
 
     It derives from the pair energy `strength * falloff * exp((2 * radius - r) / falloff)`.
@@ -193,25 +194,22 @@ class SocialRepulsionInteraction(PairPotentialInteraction):
         falloff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
         radius: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
     ) -> None:
-        super().__init__(label, first, second, cutoff=cutoff, position=position, period=period)
+        super().__init__(
+            label,
+            first,
+            second,
+            cutoff=cutoff,
+            position=position,
+            potential=self._get_pair_energy,
+            period=period,
+        )
         self.strength = strength
         self.falloff = falloff
         self.radius = radius
 
-    def _get_pair_energy(self, s: SimpleNamespace, r: Expression) -> Expression:
-        """Return the pair energy `strength * falloff * exp((2 * radius - r) / falloff)`.
-
-        Args:
-            s:
-                The namespace of the symbols the energy can use.
-
-            r:
-                The distance between the two walkers.
-
-        Returns:
-            energy:
-                The pair energy as a symbolic expression.
-        """
+    @staticmethod
+    def _get_pair_energy(s: SimpleNamespace, r: Expression) -> Expression:
+        """Return the pair energy `strength * falloff * exp((2 * radius - r) / falloff)`."""
         return s.strength * s.falloff * exp((2 * s.radius - r) / s.falloff)
 
 
@@ -257,7 +255,7 @@ def social_force(
     walkers = [
         GroupElement(
             label,
-            element=ParticleElement,
+            element=PointElement,
             size=n_walkers,
             values={'x': rng.uniform([0.0, 0.5], [length, length - 0.5], (n_walkers, 2))},
         )

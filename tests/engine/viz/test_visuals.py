@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.elements import GroupElement, LatticeElement, ParticleElement
+from skcomplex.core.elements import GroupElement, LatticeElement, PointElement
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.problems import FrameSpec
@@ -102,7 +102,7 @@ def test_image_visual_logs_one_row_as_rgb_image():
 def test_points_visual_radius_scales_with_extent():
     """Test that points without a given radius take a share of the extent of the positions."""
     system = System(
-        elements=[GroupElement('bodies', element=ParticleElement, size=2, values={'x': [[0.0, 0.0], [100.0, 0.0]]})],
+        elements=[GroupElement('bodies', element=PointElement, size=2, values={'x': [[0.0, 0.0], [100.0, 0.0]]})],
         space=ContinuousSpace(n_dim=2),
     )
     problem, frame = _first_frame(system)
@@ -127,7 +127,7 @@ def test_points_visual_radius_scales_with_extent():
 def test_points_visual_logs_trail_of_small_groups():
     """Test that a small group logs one line strip per point with its recent positions."""
     system = System(
-        elements=[GroupElement('bodies', element=ParticleElement, size=2, values={'v': [[1.0, 0.0], [0.0, 1.0]]})],
+        elements=[GroupElement('bodies', element=PointElement, size=2, values={'x_d1': [[1.0, 0.0], [0.0, 1.0]]})],
         space=ContinuousSpace(n_dim=2),
     )
     problem, frames = _frames(system, steps=4)
@@ -150,7 +150,7 @@ def test_points_visual_logs_trail_of_small_groups():
 def test_points_visual_leaves_out_trail(count, trail):
     """Test that large groups and a trail of 0 positions log no trail."""
     system = System(
-        elements=[GroupElement('bodies', element=ParticleElement, size=count)],
+        elements=[GroupElement('bodies', element=PointElement, size=count)],
         space=ContinuousSpace(n_dim=3),
     )
     problem, frame = _first_frame(system)
@@ -180,7 +180,7 @@ def test_agents_visual_radius_scales_with_continuous_space(log_agents):
 def test_points_visual_trail_width_follows_extent():
     """Test that the trail is a quarter as wide as the extent share, even when a tiny radius is given."""
     system = System(
-        elements=[GroupElement('bodies', element=ParticleElement, size=2, values={'x': [[0.0, 0.0], [100.0, 0.0]]})],
+        elements=[GroupElement('bodies', element=PointElement, size=2, values={'x': [[0.0, 0.0], [100.0, 0.0]]})],
         space=ContinuousSpace(n_dim=2),
     )
     problem, frame = _first_frame(system)
@@ -244,7 +244,7 @@ def test_scalars_visual_colors_elements_apart():
 def test_points_visual_draws_two_dimensions_with_vertical_axis_up():
     """Test that a 2D position (1, 2) is logged as (1, -2), since Rerun's 2D views point their vertical axis down."""
     system = System(
-        elements=[GroupElement('bodies', element=ParticleElement, size=1, values={'x': [[1.0, 2.0]]})],
+        elements=[GroupElement('bodies', element=PointElement, size=1, values={'x': [[1.0, 2.0]]})],
         space=ContinuousSpace(n_dim=2),
     )
     problem, frame = _first_frame(system)
@@ -276,11 +276,11 @@ def test_agents_visual_widens_color_range_of_equal_start(log_agents):
 def test_points_visual_keeps_given_color_range():
     """Test that a given color range stays fixed and the visual does not overwrite its parameter."""
     system = System(
-        elements=[GroupElement('bodies', element=ParticleElement, size=2, values={'v': [[1.0, 0.0], [3.0, 0.0]]})],
+        elements=[GroupElement('bodies', element=PointElement, size=2, values={'x_d1': [[1.0, 0.0], [3.0, 0.0]]})],
         space=ContinuousSpace(n_dim=2),
     )
     problem, frame = _first_frame(system)
-    visual = PointsVisual(position='x', color_by='v', states=(), path=problem.elements[0].path, recording=Logs())
+    visual = PointsVisual(position='x', color_by='x_d1', states=(), path=problem.elements[0].path, recording=Logs())
     visual.check().prepare(problem).run(frame)
     assert visual.color_range is None
 
@@ -340,14 +340,14 @@ def test_colors_start_bright_enough_to_see_on_black():
     problem, frame = _first_frame(
         System(
             elements=[
-                GroupElement('bodies', element=ParticleElement, size=2, values={'v': [[0.0, 0.0], [1.0, 0.0]]}),
+                GroupElement('bodies', element=PointElement, size=2, values={'x_d1': [[0.0, 0.0], [1.0, 0.0]]}),
             ],
             space=ContinuousSpace(n_dim=2),
         ),
     )
     logs = Logs()
     (
-        PointsVisual(position='x', color_by='v', states=(), path=problem.elements[0].path, recording=logs)
+        PointsVisual(position='x', color_by='x_d1', states=(), path=problem.elements[0].path, recording=logs)
         .check()
         .prepare(problem)
         .run(frame)

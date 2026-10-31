@@ -12,7 +12,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sign, sin, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, ParticleElement
+from ....core.elements import Element
 from ....core.interactions import DampingInteraction, Interaction, PotentialInteraction
 from ....core.laws import BaseLaw, CrossingLaw, EquationLaw, RateLaw
 from ....core.laws.utils import derivative
@@ -20,7 +20,7 @@ from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.particles import HarmonicPotentialInteraction
+from ..common.particles import HarmonicPotentialInteraction, MassPointElement
 from ._mechanics import PendulumElement
 
 
@@ -365,7 +365,7 @@ class MagnetInteraction(PotentialInteraction):
         gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         d: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, velocity='x_d1')
         self.target = target
         self.center = center
         self.gamma = gamma
@@ -719,10 +719,10 @@ def magnetic_pendulum(
         for index, angle in enumerate(angles)
     ]
     return System(
-        elements=[ParticleElement('bob', x=[x, y], v=[0.0, 0.0])],
+        elements=[MassPointElement('bob', x=[x, y], x_d1=[0.0, 0.0])],
         interactions=[
-            HarmonicPotentialInteraction('string', target='bob', k=omega**2),
-            DampingInteraction('friction', target='bob', gamma=q),
+            HarmonicPotentialInteraction('string', velocity='x_d1', target='bob', k=omega**2),
+            DampingInteraction('friction', velocity='x_d1', target='bob', gamma=q),
             *magnets,
         ],
         space=ContinuousSpace(n_dim=2),

@@ -53,7 +53,7 @@ def test_living_crystals_form_only_with_phoretic_attraction():
 def test_cucker_smale_flock_aligns_and_keeps_momentum():
     """Test that Cucker-Smale velocities converge to their conserved mean."""
     trajectory = Simulation(cucker_smale_flocking(), dt=1.0, random_state=0).check().prepare().run(until=20).trajectory_
-    velocities = trajectory.values('birds.v')
+    velocities = trajectory.values('birds.x_d1')
     assert np.allclose(velocities[-1].mean(axis=0), velocities[0].mean(axis=0), atol=1e-6)
     assert velocities[-1].std(axis=0).max() < 1e-2 * velocities[0].std(axis=0).min()
 

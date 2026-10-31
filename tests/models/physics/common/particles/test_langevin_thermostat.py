@@ -21,10 +21,10 @@ def test_langevin_thermostat_reaches_its_temperature(solver, dt):
         elements=gas.elements,
         interactions=[
             *gas.interactions,
-            LangevinThermostatInteraction('bath', target='gas', temperature=2.0, gamma=1.0),
+            LangevinThermostatInteraction('bath', state='x_d1', target='gas', temperature=2.0, gamma=1.0),
         ],
         space=gas.space,
     )
     trajectory = Simulation(system, solver=solver, dt=dt, random_state=0).check().prepare().run(until=20).trajectory_
-    temperature = (trajectory.values('gas.v')[-5:] ** 2).sum(axis=2).mean() / 2
+    temperature = (trajectory.values('gas.x_d1')[-5:] ** 2).sum(axis=2).mean() / 2
     assert temperature == pytest.approx(2.0, rel=0.05)

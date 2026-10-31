@@ -41,7 +41,7 @@ class BoundaryLawsPass(BasePass):
 
         A periodic boundary wraps every position component into the box. A reflecting boundary mirrors a position that
         crossed a wall back into the box and reverses the velocity component across the wall, where the velocity is the
-        state declared as the rate of the position, or the first derivative of a second-order position.
+        first derivative of a position of order 2.
         """
         space = block.node.space
         if block.node.interaction or not isinstance(space, ContinuousSpace) or space.boundary == 'open':
@@ -51,10 +51,7 @@ class BoundaryLawsPass(BasePass):
         for name, declaration in declarations.items():
             if not declaration.position:
                 continue
-            velocity_name = next(
-                (other for other, item in declarations.items() if item.velocity_of == name),
-                f'{name}_d1' if declaration.order > 1 else None,
-            )
+            velocity_name = f'{name}_d1' if declaration.order > 1 else None
             positions = [SR(item) for item in components_of(getattr(spec.namespace, name))]
             velocities = (
                 [SR(item) for item in components_of(getattr(spec.namespace, velocity_name))]
