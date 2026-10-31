@@ -585,7 +585,12 @@ def goodwin_oscillator(
     labels = [f'x{index}' for index in range(1, variables + 1)]
     stages = [SpeciesElement(label, x=float(value)) for label, value in zip(labels, initial, strict=True)]
     repression = RepressionInteraction(
-        'repression', products={(labels[0], 'x'): 1}, modifiers={(labels[-1], 'x'): 1}, alpha=a, K=K, n=n,
+        'repression',
+        products={(labels[0], 'x'): 1},
+        modifiers={(labels[-1], 'x'): 1},
+        alpha=a,
+        K=K,
+        n=n,
     )
     syntheses = [
         ReactionInteraction(f'synthesis_{target}', products={(target, 'x'): 1}, modifiers={(source, 'x'): 1}, k=k)

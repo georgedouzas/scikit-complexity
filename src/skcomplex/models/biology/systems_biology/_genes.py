@@ -59,7 +59,11 @@ def _express(gene: str, b: float, beta: float, delta: float, mode: str) -> list[
     return [
         ReactionInteraction(f'mrna_decay_{gene}', reactants={(gene, 'm'): 1}, k=delta, mode=mode),
         ReactionInteraction(
-            f'translation_{gene}', products={(gene, 'p'): 1}, modifiers={(gene, 'm'): 1}, k=b, mode=mode,
+            f'translation_{gene}',
+            products={(gene, 'p'): 1},
+            modifiers={(gene, 'm'): 1},
+            k=b,
+            mode=mode,
         ),
         ReactionInteraction(f'protein_decay_{gene}', reactants={(gene, 'p'): 1}, k=beta, mode=mode),
     ]

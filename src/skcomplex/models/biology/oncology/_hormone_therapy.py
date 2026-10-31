@@ -1571,7 +1571,9 @@ def piecewise_linear_ias(patient: int = 1, *, h0: float = 4.0, h1: float = 10.0)
         w33_off=off33 - 1,
     )
     switches = _get_switches(
-        lambda s: s.target.x1 * s.target.AD + s.target.x2 * s.target.AIR + s.target.x3 * s.target.AII, h0, h1,
+        lambda s: s.target.x1 * s.target.AD + s.target.x2 * s.target.AIR + s.target.x3 * s.target.AII,
+        h0,
+        h1,
     )
     return System(elements=[tumour], interactions=switches)
 

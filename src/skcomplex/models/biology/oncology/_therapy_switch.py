@@ -66,7 +66,11 @@ class TherapySwitchInteraction(CrossingInteraction):
         direction: int = 1,
     ) -> None:
         super().__init__(
-            label, target=target, guard=self._get_guard, reset={state: self._get_value}, direction=direction,
+            label,
+            target=target,
+            guard=self._get_guard,
+            reset={state: self._get_value},
+            direction=direction,
         )
         self.signal = signal
         self.threshold = threshold
