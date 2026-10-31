@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import operator
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
@@ -52,7 +53,8 @@ class RateInteraction(Interaction):
             A function of the namespace that returns the amplitude of the noise, a number, or `None` for no noise.
 
         divisor:
-            The name of the state or parameter of the target that divides the rate and the noise, or `None`.
+            The name of the state or parameter of the target that divides the rate and the noise, a function of the
+            namespace of the target that returns the divisor, such as a moment of inertia `m l^2`, or `None`.
 
         process:
             The Wiener processes that drive the noise, or `None` for one independent process per component and member.
@@ -65,8 +67,8 @@ class RateInteraction(Interaction):
             The stochastic calculus of the noise, `'ito'`, `'stratonovich'`, or `'anti-ito'`.
 
         hurst:
-            The Hurst index in `(0, 1)` of a fractional Brownian motion that drives the noise, or `None` for a Wiener
-            process.
+            The Hurst index in `(0, 1)` of a fractional Brownian motion that drives the noise, a number or a function
+            of the namespace that returns a parameter, or `None` for a Wiener process.
 
         conserved:
             Whether the noise is the divergence of a random flux on the links of the lattice of a field, so it keeps the
@@ -98,11 +100,11 @@ class RateInteraction(Interaction):
         rate: Callable[[SimpleNamespace], object] | float = 0.0,
         sources: Annotated[Sequence[str], RoleSpec(variadic=True)] = (),
         noise: Callable[[SimpleNamespace], object] | float | None = None,
-        divisor: str | None = None,
+        divisor: str | Callable[[SimpleNamespace], object] | None = None,
         process: Annotated[WienerProcessSpec | None, RoleSpec(noise=True)] = None,
         index: int | None = None,
         convention: str = 'ito',
-        hurst: float | None = None,
+        hurst: Callable[[SimpleNamespace], object] | float | None = None,
         conserved: bool = False,
     ) -> None:
         super().__init__(label)
@@ -131,8 +133,15 @@ class RateInteraction(Interaction):
             if not (value is None or callable(value) or isinstance(value, int | float)):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace or a number.'
                 raise ValidationError(error_msg)
-        if self.divisor is not None and not (isinstance(self.divisor, str) and self.divisor.isidentifier()):
-            error_msg = f'The divisor of {self.label!r} is {self.divisor!r}. Give the name of a state or parameter.'
+        if not (
+            self.divisor is None
+            or callable(self.divisor)
+            or (isinstance(self.divisor, str) and self.divisor.isidentifier())
+        ):
+            error_msg = (
+                f'The divisor of {self.label!r} is {self.divisor!r}. Give the name of a state or parameter, or a '
+                'function of the namespace of the target.'
+            )
             raise ValidationError(error_msg)
 
     def _check_noise(self) -> None:
@@ -140,8 +149,10 @@ class RateInteraction(Interaction):
         if self.convention not in CONVENTIONS:
             error_msg = f'Unknown noise convention {self.convention!r}. Use one of {", ".join(CONVENTIONS)}.'
             raise ValidationError(error_msg)
-        if self.hurst is not None and not (isinstance(self.hurst, int | float) and 0 < self.hurst < 1):
-            error_msg = f'The Hurst index of {self.label!r} is {self.hurst!r}. Give a number in (0, 1).'
+        if not (
+            self.hurst is None or callable(self.hurst) or (isinstance(self.hurst, int | float) and 0 < self.hurst < 1)
+        ):
+            error_msg = f'The Hurst index of {self.label!r} is {self.hurst!r}. Give a number in (0, 1) or a function.'
             raise ValidationError(error_msg)
         if self.index is not None and self.process is None:
             error_msg = f'{self.label!r} picks the process {self.index!r} but binds no processes. Give `process`.'
@@ -183,7 +194,8 @@ class RateInteraction(Interaction):
         """Return a value divided by the divisor of the target, or the value without a divisor."""
         if self.divisor is None:
             return value
-        return value / getattr(namespace.target, self.divisor)
+        divisor = self.divisor(namespace.target) if callable(self.divisor) else getattr(namespace.target, self.divisor)
+        return operator.truediv(value, divisor)
 
     def _get_rate(self, namespace: SimpleNamespace) -> object:
         """Return the rate before the divisor, the hook a subclass overrides to derive it from its parameters."""
@@ -196,7 +208,8 @@ class RateInteraction(Interaction):
     def _get_noise_law(self, state: object, amplitude: object, namespace: SimpleNamespace) -> BasePart:
         """Return the noise law of an amplitude, by the process, the convention, and the Hurst index."""
         if self.hurst is not None:
-            return FractionalNoiseLaw(state, amplitude, hurst=self.hurst, convention=self.convention)
+            hurst = self._evaluate(self.hurst, namespace)
+            return FractionalNoiseLaw(state, amplitude, hurst=hurst, convention=self.convention)
         process = None
         if self.process is not None:
             handle = namespace.process.dW

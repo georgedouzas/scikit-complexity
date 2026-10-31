@@ -16,7 +16,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.errors import ValidationError
-from skcomplex.specs import StateSpec
+from skcomplex.specs import RoleSpec, StateSpec
 
 DAMPING, FORCE, OMEGA = 0.3, 0.5, 1.3
 
@@ -117,3 +117,37 @@ def test_check_rejects_a_lagrangian_that_is_not_callable():
     """Test that `check` rejects a Lagrangian that is not a function."""
     with pytest.raises(ValidationError, match='lagrangian'):
         EulerLagrangeInteraction('swing', target='bob', lagrangian='kinetic').check()
+
+
+class SpringInteraction(EulerLagrangeInteraction):
+    """Spring between the angles of two elements, whose Lagrangian holds only the energy of the spring."""
+
+    def __init__(self, label: str, *, first: Annotated[str, RoleSpec()], second: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label, target=first, states='q')
+        self.first = first
+        self.second = second
+
+    def _get_lagrangian(self, s):
+        """Return minus the energy of the spring."""
+        return -((s.second.q - s.first.q) ** 2) / 2
+
+
+def test_run_adds_the_equations_of_one_coordinate_from_several_interactions():
+    """Test that a coupling Lagrangian adds to the free ones: two equal masses exchange the energy of their modes."""
+    free = [
+        EulerLagrangeInteraction(
+            f'free_{label}',
+            target=label,
+            states='q',
+            lagrangian=lambda s: derivative(s.target.q, 1) ** 2 / 2 - s.target.q**2 / 2,
+        )
+        for label in ('left', 'right')
+    ]
+    system = System(
+        elements=[AngleElement('left', q=1.0), AngleElement('right', q=1.0)],
+        interactions=[*free, SpringInteraction('spring', first='left', second='right')],
+    )
+    simulation = Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=1.0).check().prepare()
+    trajectory = simulation.run(until=1.0).trajectory_
+    np.testing.assert_allclose(trajectory.values('left.q')[-1], np.cos(1.0), atol=1e-7)
+    np.testing.assert_allclose(trajectory.values('right.q')[-1], np.cos(1.0), atol=1e-7)

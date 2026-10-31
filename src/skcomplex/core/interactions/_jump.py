@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import SR, Expression
+from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
@@ -50,7 +51,7 @@ class JumpInteraction(Interaction):
 
         reset:
             With a waiting time, a mapping from the name of a state of the target to the function `f(namespace)` of its
-            new value, or `None`.
+            new value, one value per component of a vector state, or `None`.
 
     Raises:
         ValidationError:
@@ -144,10 +145,26 @@ class JumpInteraction(Interaction):
         fired = where(uniform(name) < probability, 1, 0)
         return [UpdateLaw(state, state + amount * fired) for state, amount in changes.items()]
 
+    def _get_reset(self, state: object, value: object) -> dict[Expression, Expression]:
+        """Return the new value of every component of a state, one per component of a vector state.
+
+        Raises:
+            ValidationError:
+                The new value of a vector state has not one component per component of the state.
+        """
+        if not isinstance(state, FreeModuleElement):
+            return {SR(state): SR(value)}
+        components = list(value) if isinstance(value, FreeModuleElement | list | tuple) else [value] * len(state)
+        if len(components) != len(state):
+            error_msg = f'The jump {self.label!r} resets {len(state)} components with {len(components)} values.'
+            raise ValidationError(error_msg)
+        return {SR(item): SR(component) for item, component in zip(state, components, strict=True)}
+
     def _get_renewal(self, namespace: SimpleNamespace, changes: dict[Expression, float]) -> JumpLaw:
         """Return the renewal of the event, which adds the changes and sets the reset states after every wait."""
         reset: dict[Expression, object] = {state: state + amount for state, amount in changes.items()}
-        reset.update({getattr(namespace.target, name): SR(f(namespace)) for name, f in (self.reset or {}).items()})
+        for name, function in (self.reset or {}).items():
+            reset.update(self._get_reset(getattr(namespace.target, name), function(namespace)))
         waiting = SR(self.waiting(namespace)) if self.waiting is not None else SR(0)
         return JumpLaw(waiting=waiting, reset=reset, label=self.label)
 

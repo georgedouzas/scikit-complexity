@@ -24,8 +24,11 @@ class EulerLagrangeInteraction(Interaction):
     The coordinates are states of order 2, and the Lagrangian, the Rayleigh dissipation function `R`, and the
     generalized forcing `Q` read them and their first derivatives `derivative(q, 1)`. The interaction returns one
     equation law per coordinate, which the compiler solves jointly for the second derivatives, so a Lagrangian with a
-    mass matrix, such as a double pendulum's, needs no inversion by hand. The coordinates are the states of every role
-    that binds one element or group, `target` by default, and every component of a vector state is a coordinate.
+    mass matrix, such as a double pendulum's, needs no inversion by hand. The equations of one coordinate from several
+    interactions add, so their Lagrangians, dissipations, and forcings sum: a coupling, such as a spring between two
+    pendulums, is an interaction of its own whose Lagrangian holds only the coupling energy. The coordinates are the
+    states of every role that binds one element or group, `target` by default, and every component of a vector state
+    is a coordinate.
 
     A Lagrangian, dissipation, or forcing function takes the namespace of the interaction, with the namespaces of the
     roles, the time `t`, and the symbols of the parameters a subclass declares. The forcing returns one generalized
@@ -176,5 +179,5 @@ class EulerLagrangeInteraction(Interaction):
             )
             lhs = (change - lagrangian.diff(q)).subs(back)
             rhs = (force - dissipation.diff(slot)).subs(back)
-            laws.append(EquationLaw(lhs == rhs))
+            laws.append(EquationLaw(lhs == rhs, target=q))
         return laws

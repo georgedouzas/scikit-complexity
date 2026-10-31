@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from ._advection import AdvectionInteraction
 from ._base import BaseInteraction
 from ._cascade import CascadeInteraction
 from ._choice import ChoiceInteraction
@@ -40,6 +41,7 @@ from ._transfer import TransferInteraction
 from ._transition import TransitionInteraction
 
 __all__: list[str] = [
+    'AdvectionInteraction',
     'BaseInteraction',
     'CascadeInteraction',
     'ChoiceInteraction',

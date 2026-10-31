@@ -17,7 +17,10 @@ class EquationLaw(BaseLaw):
 
     The states are Sage functions of time, such as `function('theta')(t)`, and their derivatives are Sage derivatives,
     `theta.diff(t, 2)`. The compiler solves all equations of a system jointly for the highest derivatives, which must
-    appear linearly, and adds the rate laws on the same states to the solution.
+    appear linearly, and adds the rate laws on the same states to the solution. An equation may name the state whose
+    equation it is, its `target`, and the equations of one target, from any element or interaction, add into one
+    before the solve, so a term of it may hold no highest derivative, such as the part a coupling Lagrangian adds to
+    the Euler-Lagrange equation of a coordinate.
 
     Args:
         lhs:
@@ -25,6 +28,10 @@ class EquationLaw(BaseLaw):
 
         rhs:
             The right side, or `None` when `lhs` is a relation.
+
+        target:
+            The state whose equation this is, so that the equations of one target add, or `None` for an equation of
+            its own.
 
         label:
             The name of the law, or the empty string for a law without one.
@@ -45,10 +52,11 @@ class EquationLaw(BaseLaw):
         -g*sin(theta(t))
     """
 
-    def __init__(self, lhs: object, rhs: object = None, *, label: str = '') -> None:
+    def __init__(self, lhs: object, rhs: object = None, *, target: object = None, label: str = '') -> None:
         super().__init__(label)
         self.lhs = lhs
         self.rhs = rhs
+        self.target = target
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return no states, since the compiler finds the states whose derivatives the equation solves for."""
