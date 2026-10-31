@@ -10,11 +10,11 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import cos, oo
+from sage.all__sagemath_symbolics import Expression, cos, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import EulerLagrangeInteraction, GradientInteraction
 from ....core.laws.utils import derivative
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
@@ -55,8 +55,54 @@ def _primaries(mu: float, **_: float) -> list[list[float]]:
     return [[-mu, 0.0], [1 - mu, 0.0]]
 
 
+def _get_rotating_frame_lagrangian(s: SimpleNamespace) -> Expression:
+    """Return the Lagrangian of a light body in the frame that rotates with two primaries at unit angular velocity."""
+    body = s.target
+    vx, vy = derivative(body.x, 1), derivative(body.y, 1)
+    first = sqrt((body.x + body.mu) ** 2 + body.y**2)
+    second = sqrt((body.x - 1 + body.mu) ** 2 + body.y**2)
+    kinetic = (vx**2 + vy**2) / 2 + body.x * vy - body.y * vx + (body.x**2 + body.y**2) / 2
+    return kinetic + (1 - body.mu) / first + body.mu / second
+
+
+def _get_sitnikov_potential(s: SimpleNamespace) -> Expression:
+    """Return the potential `-1 / sqrt(z² + r(t)²)` of the two primaries at the distance `r(t)` from the axis."""
+    distance = (1 - s.target.e * cos(s.t)) / 2
+    return -1 / sqrt(s.target.z**2 + distance**2)
+
+
 class RotatingFrameBodyElement(Element):
-    """Rotating frame body element."""
+    """Light body at `(x, y)`, coordinates of order 2 in the frame that rotates with two primaries.
+
+    The primaries of masses `1 - mu` and `mu` sit at `(-mu, 0)` and `(1 - mu, 0)`.
+
+    Args:
+        label:
+            The label of the body.
+
+        visual:
+            How the body is drawn, or `None` for its class visual.
+
+        x:
+            The initial first coordinate.
+
+        x_d1:
+            The initial first velocity.
+
+        y:
+            The initial second coordinate.
+
+        y_d1:
+            The initial second velocity.
+
+        mu:
+            The mass of the lighter primary, as a fraction of the total.
+
+    Examples:
+        >>> from skcomplex.models.physics.celestial_mechanics import RotatingFrameBodyElement
+        >>> RotatingFrameBodyElement('body', mu=0.1).mu
+        0.1
+    """
 
     visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'marks': _primaries})
 
@@ -65,11 +111,11 @@ class RotatingFrameBodyElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec(order=2)] = 0.5,
+        x: Annotated[float, StateSpec(order=2)] = 0.5,
         x_d1: float = 0.0,
-        y: Annotated[object, StateSpec(order=2)] = 0.0,
+        y: Annotated[float, StateSpec(order=2)] = 0.0,
         y_d1: float = 0.0,
-        mu: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01215,
+        mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01215,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
@@ -77,25 +123,6 @@ class RotatingFrameBodyElement(Element):
         self.y = y
         self.y_d1 = y_d1
         self.mu = mu
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the rotating frame body element."""
-        return [
-            RateLaw(
-                s.x,
-                2 * derivative(s.y, 1)
-                + s.x
-                - (1 - s.mu) * (s.x + s.mu) / ((s.x + s.mu) ** 2 + s.y**2) ** (3 / 2)
-                - s.mu * (s.x - 1 + s.mu) / ((s.x - 1 + s.mu) ** 2 + s.y**2) ** (3 / 2),
-            ),
-            RateLaw(
-                s.y,
-                -2 * derivative(s.x, 1)
-                + s.y
-                - (1 - s.mu) * s.y / ((s.x + s.mu) ** 2 + s.y**2) ** (3 / 2)
-                - s.mu * s.y / ((s.x - 1 + s.mu) ** 2 + s.y**2) ** (3 / 2),
-            ),
-        ]
 
 
 def _preset(name: str) -> Preset:
@@ -276,29 +303,59 @@ def restricted_three_body(
         >>> restricted_three_body(mu=0.1).elements[0].mu
         0.1
     """
-    return System(elements=[RotatingFrameBodyElement('body', x=x, y=y, x_d1=vx, y_d1=vy, mu=mu)])
+    return System(
+        elements=[RotatingFrameBodyElement('body', x=x, y=y, x_d1=vx, y_d1=vy, mu=mu)],
+        interactions=[
+            EulerLagrangeInteraction(
+                'motion',
+                target='body',
+                states=('x', 'y'),
+                lagrangian=_get_rotating_frame_lagrangian,
+            ),
+        ],
+    )
 
 
 class SitnikovBodyElement(Element):
-    """Sitnikov body element."""
+    """Light body at the height `z`, of order 2, on the axis through the centre of mass of two equal primaries.
+
+    The primaries orbit with the eccentricity `e`.
+
+    Args:
+        label:
+            The label of the body.
+
+        visual:
+            How the body is drawn, or `None` for none.
+
+        z:
+            The initial height.
+
+        z_d1:
+            The initial vertical velocity.
+
+        e:
+            The eccentricity of the primaries' orbits.
+
+    Examples:
+        >>> from skcomplex.models.physics.celestial_mechanics import SitnikovBodyElement
+        >>> SitnikovBodyElement('body', e=0.1).e
+        0.1
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        z: Annotated[object, StateSpec(order=2)] = 0.5,
+        z: Annotated[float, StateSpec(order=2)] = 0.5,
         z_d1: float = 0.0,
-        e: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.z = z
         self.z_d1 = z_d1
         self.e = e
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the sitnikov body element."""
-        return [RateLaw(s.z, -s.z / (s.z**2 + ((1 - s.e * cos(s.t)) / 2) ** 2) ** (3 / 2))]
 
 
 @register_model(
@@ -334,4 +391,7 @@ def sitnikov(z: float = 0.5, vz: float = 0.0, *, e: float = 0.0) -> System:
         >>> sitnikov(e=0.1).elements[0].e
         0.1
     """
-    return System(elements=[SitnikovBodyElement('body', z=z, z_d1=vz, e=e)])
+    return System(
+        elements=[SitnikovBodyElement('body', z=z, z_d1=vz, e=e)],
+        interactions=[GradientInteraction('gravity', target='body', states='z', potential=_get_sitnikov_potential)],
+    )
