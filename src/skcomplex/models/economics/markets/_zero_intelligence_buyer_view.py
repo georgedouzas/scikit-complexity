@@ -7,9 +7,14 @@ from ....engine.solvers import AgentView
 
 
 class ZeroIntelligenceBuyerView(AgentView):
-    """Zero-intelligence buyer as the rules see it: its `value`, `bid`, `demand`, and `profit`."""
+    """Zero-intelligence buyer as the rules see it, with its value, bid, demand, profit, and price bounds.
+
+    It reads its `value`, `bid`, `demand`, and `profit`, the price `ceiling`, and whether it is `constrained`.
+    """
 
     value: float
     bid: float
     demand: float
     profit: float
+    ceiling: float
+    constrained: float

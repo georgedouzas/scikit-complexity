@@ -7,13 +7,12 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import MapInteraction
+from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -67,31 +66,19 @@ class DuopolistElement(Element):
         """Return the view of a duopolist, with its output and cost."""
         return DuopolistView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the market sets the outputs of both firms at once.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
-
-
-class CournotAdjustmentInteraction(Interaction):
+class CournotAdjustmentInteraction(MapInteraction):
     """Simultaneous best responses of two firms to their beliefs about the rival's last output.
 
     Under the inverse demand `P = a - b Q`, each firm sets `q_i = (a - c_i) / (2 b) - belief_j / 2`, where the
-    belief is the rival's last output scaled by a factor drawn uniformly from `[1 - error, 1 + error]`.
+    belief is the rival's last output scaled by a factor drawn uniformly from `[1 - error, 1 + error]`. It is a
+    synchronous map of the agent form of the outputs, so both firms respond to the outputs of the step before.
 
     Args:
         label:
             The label of the interaction.
 
-        firms:
+        target:
             The path of the group of the two firms.
 
         a:
@@ -105,7 +92,7 @@ class CournotAdjustmentInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.models.economics.markets import CournotAdjustmentInteraction
-        >>> CournotAdjustmentInteraction('market', firms='firms', error=0.1).error
+        >>> CournotAdjustmentInteraction('market', target='firms', error=0.1).check().error
         0.1
     """
 
@@ -113,42 +100,22 @@ class CournotAdjustmentInteraction(Interaction):
         self,
         label: str,
         *,
-        firms: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
         a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1500.0,
         b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
         error: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label)
-        self.firms = firms
+        super().__init__(label, target=target, state='output', function=self._get_response, form='agent')
         self.a = a
         self.b = b
         self.error = error
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that sets both outputs.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.respond)]
-
-    def respond(self, model: ModelView) -> None:
-        """Set the output of each firm to its best response to its belief about the other's last output.
-
-        Args:
-            model:
-                The model.
-        """
+    def _get_response(self, agent: DuopolistView, model: ModelView) -> float:
+        """Return the best response of a firm to its belief about the last output of its rival."""
         a, b, error = (model.parameter(name) for name in ('a', 'b', 'error'))
-        first, second = model.agents('firms', DuopolistView)
-        beliefs = np.array([second.output, first.output]) * (1 + error * model.rng.uniform(-1.0, 1.0, N_FIRMS))
-        for firm, belief in zip((first, second), beliefs, strict=True):
-            firm.output = max((a - firm.cost) / (2 * b) - float(belief) / 2, 0.0)
+        rival = next(firm for firm in model.agents('target', DuopolistView) if firm.id != agent.id)
+        belief = rival.output * (1 + error * float(model.rng.uniform(-1.0, 1.0)))
+        return max((a - agent.cost) / (2 * b) - belief / 2, 0.0)
 
 
 @register_model(
@@ -207,5 +174,6 @@ def cournot_duopoly(
     )
     return System(
         elements=[firms],
-        interactions=[CournotAdjustmentInteraction('market', firms='firms', a=a, b=b, error=error)],
+        interactions=[CournotAdjustmentInteraction('market', target='firms', a=a, b=b, error=error)],
+        time=DiscreteTime(),
     )

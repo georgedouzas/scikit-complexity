@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import numpy as np
@@ -11,8 +10,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import FeedbackInteraction, MatchingInteraction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import FeedbackInteraction, MapInteraction, MatchingInteraction
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
@@ -130,31 +128,22 @@ class ZeroIntelligenceBuyerElement(Element):
         """Return the view of a buyer, with its value, bid, demand, and profit."""
         return ZeroIntelligenceBuyerView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the bidding rule of the trading rounds.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.quote, phase='trade')]
-
-    def quote(self, agent: ZeroIntelligenceBuyerView, model: ModelView) -> None:
-        """Bid a random price.
+    @staticmethod
+    def get_bid(agent: ZeroIntelligenceBuyerView, model: ModelView) -> float:
+        """Return a bid drawn uniformly from 0 to the value, or to the price ceiling without the constraint.
 
         Args:
             agent:
                 The buyer.
 
             model:
-                The model.
+                The model view of the quotes.
+
+        Returns:
+            bid:
+                The bid of the round.
         """
-        top = agent.value if model.parameter('constrained') else model.parameter('ceiling')
-        agent.bid = float(model.rng.uniform(0.0, top))
+        return float(model.rng.uniform(0.0, agent.value if agent.constrained else agent.ceiling))
 
 
 class ZeroIntelligenceSellerElement(Element):
@@ -219,31 +208,23 @@ class ZeroIntelligenceSellerElement(Element):
         """Return the view of a seller, with its cost, ask, supply, and profit."""
         return ZeroIntelligenceSellerView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the asking rule of the trading rounds.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.quote, phase='trade')]
-
-    def quote(self, agent: ZeroIntelligenceSellerView, model: ModelView) -> None:
-        """Ask a random price.
+    @staticmethod
+    def get_ask(agent: ZeroIntelligenceSellerView, model: ModelView) -> float:
+        """Return an ask drawn uniformly from the cost, or from 0 without the constraint, to the price ceiling.
 
         Args:
             agent:
                 The seller.
 
             model:
-                The model.
+                The model view of the quotes.
+
+        Returns:
+            ask:
+                The ask of the round.
         """
-        bottom = agent.value if model.parameter('constrained') else 0.0
-        agent.ask = float(model.rng.uniform(bottom, max(bottom, model.parameter('ceiling'))))
+        bottom = agent.value if agent.constrained else 0.0
+        return float(model.rng.uniform(bottom, max(bottom, agent.ceiling)))
 
 
 class AuctionLedgerInteraction(FeedbackInteraction[ModelView]):
@@ -378,8 +359,15 @@ def double_auction(
         phase='trade',
         on_match=_book_profit,
     )
+    quotes = [
+        MapInteraction(label, target=group, state=state, function=function, form='agent', phase='trade')
+        for label, group, state, function in (
+            ('bids', 'buyers', 'bid', ZeroIntelligenceBuyerElement.get_bid),
+            ('asks', 'sellers', 'ask', ZeroIntelligenceSellerElement.get_ask),
+        )
+    ]
     return System(
         elements=[buyers, sellers],
-        interactions=[market, AuctionLedgerInteraction('ledger', phase='close')],
+        interactions=[*quotes, market, AuctionLedgerInteraction('ledger', phase='close')],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('trade', repeat=rounds), PhaseSpec('close')])),
     )

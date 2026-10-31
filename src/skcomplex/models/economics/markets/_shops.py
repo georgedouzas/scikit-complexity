@@ -4,7 +4,7 @@
 # License: MIT
 
 import math
-from types import SimpleNamespace
+from collections.abc import Callable
 from typing import Annotated
 
 import numpy as np
@@ -12,8 +12,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import MatchingInteraction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import LifeCycleInteraction, MapInteraction, MatchingInteraction
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import ModelView
@@ -107,32 +106,22 @@ class ResidentElement(Element):
         """Return the view of a shopper, with its states and shopping parameters."""
         return ResidentView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that decides how the shopper shops in the step.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.plan, phase='market')]
-
-    def plan(self, agent: ResidentView, model: ModelView) -> None:
-        """Want one unit, and shop online with the probability of shopping online.
+    @staticmethod
+    def get_travel(agent: ResidentView, model: ModelView) -> float:
+        """Return the travel cost per cell of the step, zero when the shopper shops online with its probability.
 
         Args:
             agent:
                 The shopper.
 
             model:
-                The model.
+                The model view of the plan.
+
+        Returns:
+            travel:
+                The travel cost per cell.
         """
-        agent.demand = 1.0
-        online = model.rng.random() < model.parameter('online')
-        agent.travel = 0.0 if online else model.parameter('distance_cost')
+        return 0.0 if model.rng.random() < agent.online else agent.distance_cost
 
     @staticmethod
     def get_preference(shopper: object, shop: object) -> float:
@@ -244,53 +233,55 @@ class StoreElement(Element):
         """Return the view of a shop, with its states and cost parameters."""
         return StoreView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that opens the shop for the market and the rule that settles its accounts.
+    @staticmethod
+    def get_profit(agent: StoreView) -> float:
+        """Return the profit of the step, the margin on the units sold less the fixed cost.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            agent:
+                The shop.
 
         Returns:
-            laws:
-                The laws of the component.
+            profit:
+                The profit of the step.
         """
-        return [RuleLaw(self.open, phase='market'), RuleLaw(self.settle, phase='accounts')]
+        return agent.sales * (agent.ask - agent.unit_cost) - agent.fixed_cost
 
-    def open(self, agent: StoreView, model: ModelView) -> None:
-        """Offer the capacity at the price.
+    @staticmethod
+    def get_opening() -> tuple[tuple[str, Callable[[StoreView, ModelView], float]], ...]:
+        """Return the states a shop sets when it opens for the market, its capacity offered at its price.
 
-        Args:
-            agent:
-                The shop.
-
-            model:
-                The model.
+        Returns:
+            opening:
+                The name of every state and the function of its value, of the shop and the model view.
         """
-        agent.supply = model.parameter('capacity')
-        agent.ask = agent.price
-        agent.sales = 0.0
+        return (
+            ('supply', lambda agent, model: agent.capacity),
+            ('ask', lambda agent, model: agent.price),
+            ('sales', lambda agent, model: 0.0),
+        )
 
-    def settle(self, agent: StoreView, model: ModelView) -> None:
-        """Pay the costs, close when the money runs out, and move the price toward a larger profit.
+    @staticmethod
+    def get_settlement() -> tuple[tuple[str, Callable[[StoreView, ModelView], float]], ...]:
+        """Return the states a shop sets when it settles its accounts, in their order.
 
-        Args:
-            agent:
-                The shop.
+        The shop turns its price back when its profit falls, records the profit, moves the price, never below the unit
+        cost, and pays its costs.
 
-            model:
-                The model.
+        Returns:
+            settlement:
+                The name of every state and the function of its value, of the shop and the model view.
         """
-        unit_cost = model.parameter('unit_cost')
-        profit = agent.sales * (agent.ask - unit_cost) - model.parameter('fixed_cost')
-        agent.money -= agent.sales * unit_cost + model.parameter('fixed_cost')
-        if agent.money < 0:
-            agent.remove()
-            return
-        if profit < agent.profit:
-            agent.direction = -agent.direction
-        agent.profit = profit
-        agent.price = max(unit_cost, agent.price * (1 + agent.direction * model.parameter('adjustment')))
+        profit = StoreElement.get_profit
+        return (
+            ('direction', lambda agent, model: -agent.direction if profit(agent) < agent.profit else agent.direction),
+            ('profit', lambda agent, model: profit(agent)),
+            (
+                'price',
+                lambda agent, model: max(agent.unit_cost, agent.price * (1 + agent.direction * agent.adjustment)),
+            ),
+            ('money', lambda agent, model: agent.money - agent.sales * agent.unit_cost - agent.fixed_cost),
+        )
 
     @staticmethod
     def record_sale(match: MatchSpec, model: ModelView) -> None:
@@ -397,6 +388,49 @@ def shops(
         variable=True,
         location=[cells[index] for index in places],
     )
+    plan = [
+        MapInteraction(
+            'demand',
+            target='shoppers',
+            state='demand',
+            function=lambda agent, model: 1.0,
+            form='agent',
+            phase='market',
+        ),
+        MapInteraction(
+            'travel',
+            target='shoppers',
+            state='travel',
+            function=ResidentElement.get_travel,
+            form='agent',
+            phase='market',
+        ),
+        *(
+            MapInteraction(
+                f'opening_{name}',
+                target='shops',
+                state=name,
+                function=function,
+                form='agent',
+                phase='market',
+            )
+            for name, function in StoreElement.get_opening()
+        ),
+    ]
+    settlement = [
+        *(
+            MapInteraction(
+                f'settlement_{name}',
+                target='shops',
+                state=name,
+                function=function,
+                form='agent',
+                phase='accounts',
+            )
+            for name, function in StoreElement.get_settlement()
+        ),
+        LifeCycleInteraction('closure', target='shops', death=lambda agent, model: agent.money < 0, phase='accounts'),
+    ]
     shopping = MatchingInteraction[ModelView](
         'shopping',
         requesters='shoppers',
@@ -410,7 +444,7 @@ def shops(
     )
     return System(
         elements=[shoppers, stores],
-        interactions=[shopping],
+        interactions=[*plan, shopping, *settlement],
         space=LatticeSpace((width, height), boundary='fixed', neighborhood='moore'),
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('market'), PhaseSpec('accounts')])),
     )

@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable
-from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import numpy as np
@@ -12,8 +11,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import FeedbackInteraction, MatchingInteraction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import FeedbackInteraction, MapInteraction, MatchingInteraction
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
@@ -92,34 +90,27 @@ class EmployerElement(Element):
         """Return the view of an employer, with its vacancy and the parameters of its offers."""
         return EmployerView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the posting rule in the phase of offers.
+    @staticmethod
+    def get_posting() -> tuple[tuple[str, Callable[[EmployerView, ModelView], float]], ...]:
+        """Return the states a firm sets in the phase of offers, in their order.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+        The firm withdraws its last vacancy and posts a new one at the vacancy rate, with a uniform wage offer and the
+        step of posting.
 
         Returns:
-            laws:
-                The laws of the component.
+            posting:
+                The name of every state and the function of its value, of the firm and the model view.
         """
-        return [RuleLaw(self.post, phase='offers')]
-
-    def post(self, agent: EmployerView, model: ModelView) -> None:
-        """Withdraw the last vacancy and post a new one with a uniform wage offer at the vacancy rate.
-
-        Args:
-            agent:
-                The firm.
-
-            model:
-                The model.
-        """
-        agent.demand = 0.0
-        if model.rng.random() < agent.vacancy_rate:
-            agent.demand = 1.0
-            agent.bid = float(model.rng.uniform(agent.low_wage, agent.high_wage))
-            agent.posted = model.time
+        return (
+            ('demand', lambda agent, model: float(model.rng.random() < agent.vacancy_rate)),
+            (
+                'bid',
+                lambda agent, model: (
+                    float(model.rng.uniform(agent.low_wage, agent.high_wage)) if agent.demand else agent.bid
+                ),
+            ),
+            ('posted', lambda agent, model: model.time if agent.demand else agent.posted),
+        )
 
 
 class JobseekerElement(Element):
@@ -204,37 +195,39 @@ class JobseekerElement(Element):
         """Return the view of a worker, with its search and job states and their parameters."""
         return JobseekerView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of separations and search in the phase of offers.
+    @staticmethod
+    def get_search() -> tuple[tuple[str, Callable[[JobseekerView, ModelView], float]], ...]:
+        """Return the states a worker sets in the phase of offers, in their order.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+        A worker unemployed at the start of the step searches, with a reservation wage that falls with the duration of
+        its search. An employed worker loses its job at the separation rate and searches from the next step.
 
         Returns:
-            laws:
-                The laws of the component.
+            search:
+                The name of every state and the function of its value, of the worker and the model view.
         """
-        return [RuleLaw(self.search, phase='offers')]
-
-    def search(self, agent: JobseekerView, model: ModelView) -> None:
-        """Lose the job at the separation rate, or search with a reservation wage that falls with the duration.
-
-        Args:
-            agent:
-                The worker.
-
-            model:
-                The model.
-        """
-        if agent.employer >= 0:
-            agent.supply = 0.0
-            if model.rng.random() < agent.separation:
-                agent.employer, agent.wage, agent.duration = -1.0, 0.0, 0.0
-            return
-        agent.supply = 1.0
-        agent.ask = agent.reservation * (1 - agent.decline) ** agent.duration
-        agent.duration += 1
+        return (
+            ('supply', lambda agent, model: float(agent.employer < 0)),
+            (
+                'ask',
+                lambda agent, model: (
+                    agent.reservation * (1 - agent.decline) ** agent.duration if agent.supply else agent.ask
+                ),
+            ),
+            (
+                'employer',
+                lambda agent, model: (
+                    -1.0 if not agent.supply and model.rng.random() < agent.separation else agent.employer
+                ),
+            ),
+            ('wage', lambda agent, model: 0.0 if agent.employer < 0 else agent.wage),
+            (
+                'duration',
+                lambda agent, model: (
+                    agent.duration + 1 if agent.supply else 0.0 if agent.employer < 0 else agent.duration
+                ),
+            ),
+        )
 
 
 def hire(trade: MatchSpec, model: ModelView) -> None:
@@ -399,6 +392,11 @@ def labour_market(
             'decline': decline,
         },
     )
+    offers = [
+        MapInteraction(f'{group}_{name}', target=group, state=name, function=function, form='agent', phase='offers')
+        for group, steps in (('firms', EmployerElement.get_posting()), ('workers', JobseekerElement.get_search()))
+        for name, function in steps
+    ]
     market = MatchingInteraction(
         'labour',
         requesters='firms',
@@ -411,6 +409,6 @@ def labour_market(
     )
     return System(
         elements=[firms, workers],
-        interactions=[SearchCountInteraction('office', workers='workers', phase='matching'), market],
+        interactions=[*offers, SearchCountInteraction('office', workers='workers', phase='matching'), market],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('offers'), PhaseSpec('matching')])),
     )
