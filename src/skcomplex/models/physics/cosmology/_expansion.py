@@ -140,6 +140,9 @@ def friedmann_expansion(
         omega_lambda=omega_lambda,
     )
     acceleration = GradientInteraction(
-        'acceleration', target='universe', states='a', potential=_get_expansion_potential,
+        'acceleration',
+        target='universe',
+        states='a',
+        potential=_get_expansion_potential,
     )
     return System(elements=[universe], interactions=[acceleration])
