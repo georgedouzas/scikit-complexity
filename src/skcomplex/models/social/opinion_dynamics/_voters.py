@@ -14,21 +14,22 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, LatticeElement
-from ....core.laws import BaseLaw, LocalRuleLaw, RuleLaw
+from ....core.laws import BaseLaw, LocalRuleLaw
 from ....core.spaces import LatticeSpace, MooreNeighborhood, NetworkSpace
 from ....core.system import System
-from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, TotalisticSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
 from ._variant_voter_view import VariantVoterView
+from ._variant_voting import VariantVotingInteraction
+from ._voter_imitation import VoterImitationInteraction
 from ._voter_view import VoterView
 
 MAJORITY = 5
 
 
 class VoterElement(Element):
-    """Agent of the voter model, who adopts the opinion of a random neighbour on a network.
+    """Agent of the voter model, whose opinion the imitation sets to that of a random neighbour on a network.
 
     Args:
         label:
@@ -61,33 +62,6 @@ class VoterElement(Element):
     def _get_view(cls) -> type[VoterView]:
         """Return the class of the views of the agents, whose attributes are the states and parameters."""
         return VoterView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the imitation rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.imitate)]
-
-    def imitate(self, agent: VoterView, model: ModelView) -> None:
-        """Adopt the opinion of a random neighbour.
-
-        Args:
-            agent:
-                The voter.
-
-            model:
-                The model.
-        """
-        neighbors = [item for item in agent.neighbors() if isinstance(item, VoterView)]
-        if neighbors:
-            agent.opinion = neighbors[int(model.rng.integers(len(neighbors)))].opinion
 
 
 class MajorityVoterElement(Element):
@@ -138,9 +112,10 @@ class MajorityVoterElement(Element):
 class VariantVoterElement(Element):
     """Agent of the voter model variants: an imitator, a threshold voter, or a contrarian.
 
-    With a threshold of 0 the agent copies a random neighbour, as in the voter model. With a positive threshold it
-    adopts the opinion opposite to its own when the share of neighbours that hold it exceeds the threshold, so a
-    threshold of 0.5 gives the majority rule. A contrarian adopts the opposite of what it would otherwise adopt.
+    With a threshold of 0 the voting copies a random neighbour into the agent, as in the voter model. With a positive
+    threshold it gives the agent the opinion opposite to its own when the share of neighbours that hold it exceeds the
+    threshold, so a threshold of 0.5 gives the majority rule. A contrarian adopts the opposite of what it would
+    otherwise adopt.
 
     Args:
         label:
@@ -184,42 +159,6 @@ class VariantVoterElement(Element):
     def _get_view(cls) -> type[VariantVoterView]:
         """Return the class of the views of the agents, whose attributes are the states and parameters."""
         return VariantVoterView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the voting rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.vote)]
-
-    def _choice(self, agent: VariantVoterView, neighbors: list[VariantVoterView], model: ModelView) -> float:
-        """Return the opinion an agent that conforms would take."""
-        if agent.threshold <= 0:
-            return float(neighbors[int(model.rng.integers(len(neighbors)))].opinion)
-        disagreeing = sum(neighbor.opinion != agent.opinion for neighbor in neighbors) / len(neighbors)
-        return float(1 - agent.opinion) if disagreeing > agent.threshold else float(agent.opinion)
-
-    def vote(self, agent: VariantVoterView, model: ModelView) -> None:
-        """Take the opinion of the agent's variant, inverted for a contrarian.
-
-        Args:
-            agent:
-                The voter.
-
-            model:
-                The model.
-        """
-        neighbors = [item for item in agent.neighbors() if isinstance(item, VariantVoterView)]
-        if not neighbors:
-            return
-        choice = self._choice(agent, neighbors, model)
-        agent.opinion = 1 - choice if agent.contrarian else choice
 
 
 def _random_cells(shape: Sequence[int], density: float, random_state: int | np.random.Generator | None) -> Array:
@@ -313,6 +252,7 @@ def voter_model(
     opinions = (rng.random(size) < share).astype(float)
     return System(
         elements=[GroupElement('voters', element=VoterElement, size=size, values={'opinion': opinions})],
+        interactions=[VoterImitationInteraction('imitation', target='voters')],
         space=NetworkSpace(graph),
     )
 
@@ -373,4 +313,8 @@ def voter_variants(
             'threshold': threshold,
         },
     )
-    return System(elements=[voters], space=NetworkSpace(graph))
+    return System(
+        elements=[voters],
+        interactions=[VariantVotingInteraction('voting', target='voters')],
+        space=NetworkSpace(graph),
+    )

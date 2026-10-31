@@ -14,10 +14,11 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
+from ....core.interactions import MovementInteraction, TransitionInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace, LatticeSpace
 from ....core.system import System
+from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....engine.solvers import ModelView
 from ....errors import ValidationError
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -32,13 +33,11 @@ INNOVATORS = 0.025
 MODES = ('infection', 'influence')
 
 
-def _circles(positions: Array, size: float, reach: float) -> npt.NDArray[np.bool_]:
-    """Return which agents lie within the reach of each other on a torus, an agent not being in its own circle."""
-    separation = np.abs(positions[:, None, :] - positions[None, :, :])
-    separation = np.minimum(separation, size - separation)
-    within = np.linalg.norm(separation, axis=-1) <= reach
-    np.fill_diagonal(within, val=False)
-    return within
+def _shift(agent: AgentViewProtocol, model: ModelViewProtocol, size: float) -> Array:
+    """Return the position one unit away from an agent in a random direction, wrapped on a square torus."""
+    angle = model.rng.uniform(0, 2 * np.pi)
+    position = np.asarray(agent.location, dtype=float) + np.array([np.cos(angle), np.sin(angle)])
+    return np.mod(position, size)
 
 
 class BelieverElement(Element):
@@ -146,9 +145,6 @@ class AdopterElement(Element):
         reach:
             The distance within which other agents form an agent's social circle.
 
-        shifting:
-            The share of agents that move one unit in a random direction every step.
-
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import AdopterElement
         >>> group = GroupElement('people', element=AdopterElement, size=10, values={'threshold': 50.0})
@@ -164,13 +160,11 @@ class AdopterElement(Element):
         adopted: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         threshold: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
         reach: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
-        shifting: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.adopted = adopted
         self.threshold = threshold
         self.reach = reach
-        self.shifting = shifting
 
     @classmethod
     def _get_view(cls) -> type[AdopterView]:
@@ -178,11 +172,12 @@ class AdopterElement(Element):
         return AdopterView
 
 
-class AdoptionInteraction(Interaction):
-    """Synchronous adoption step of the threshold model, after a share of agents shift.
+class AdoptionInteraction(TransitionInteraction):
+    """Synchronous adoption of the threshold model, where every agent adopts for good from its social circle.
 
     In the infection mode an agent adopts once anyone in its social circle has adopted. In the influence mode it
     adopts once the percentage of adopters in its circle exceeds its threshold, or in society when its circle is empty.
+    Every agent decides from the adoptions at the start of the step.
 
     Args:
         label:
@@ -191,15 +186,16 @@ class AdoptionInteraction(Interaction):
         target:
             The path of the group of adopters.
 
-        size:
-            The side of the square torus the agents live on.
-
         mode:
             `'infection'` or `'influence'`.
 
+    Raises:
+        ValidationError:
+            The mode is unknown.
+
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import AdoptionInteraction
-        >>> AdoptionInteraction('adoption', target='people', mode='influence').mode
+        >>> AdoptionInteraction('adoption', target='people', mode='influence').check().mode
         'influence'
     """
 
@@ -208,66 +204,41 @@ class AdoptionInteraction(Interaction):
         label: str,
         *,
         target: Annotated[str, RoleSpec()],
-        size: float = 175.0,
         mode: str = 'infection',
     ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.size = size
+        super().__init__(
+            label,
+            target=target,
+            state='adopted',
+            source=0.0,
+            destination=1.0,
+            condition=self._adopts,
+            form='agent',
+        )
         self.mode = mode
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the adoption rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
+    def _check(self) -> None:
+        """Raise an error for an unknown mode.
 
         Raises:
             ValidationError:
                 The mode is unknown.
         """
+        super()._check()
         if self.mode not in MODES:
             error_msg = f'Unknown adoption mode {self.mode!r}. Use one of {", ".join(MODES)}.'
             raise ValidationError(error_msg)
-        return [RuleLaw(self.adopt)]
 
-    def _shift(self, agents: list[AdopterView], model: ModelView) -> None:
-        """Move a share of the agents one unit in a random direction."""
-        for agent in agents:
-            if model.rng.random() < agent.shifting:
-                angle = model.rng.uniform(0, 2 * np.pi)
-                position = np.asarray(agent.location, dtype=float) + np.array([np.cos(angle), np.sin(angle)])
-                agent.move_to(np.mod(position, self.size))
-
-    def adopt(self, model: ModelView) -> None:
-        """Shift agents, then let every agent adopt from the adopters in its social circle.
-
-        Args:
-            model:
-                The model.
-        """
-        agents = model.agents(self.target, AdopterView)
-        if not agents:
-            return
-        self._shift(agents, model)
-        positions = np.array([agent.location for agent in agents], dtype=float)
-        adopted = np.array([agent.adopted for agent in agents], dtype=float)
-        circles = _circles(positions, self.size, agents[0].reach)
-        adopters = circles @ adopted
+    def _adopts(self, agent: AdopterView, model: ModelViewProtocol) -> bool:
+        """Return whether an agent adopts from the adopters in its social circle, or in society without a circle."""
+        circle = [item for item in agent.neighbors(agent.reach) if isinstance(item, AdopterView)]
+        adopters = sum(item.adopted for item in circle)
         if self.mode == 'infection':
-            following = (adopted > 0) | (adopters > 0)
-        else:
-            members = circles.sum(axis=1)
-            percent = np.where(members > 0, 100 * adopters / np.maximum(members, 1), 100 * adopted.mean())
-            thresholds = np.array([agent.threshold for agent in agents], dtype=float)
-            following = (adopted > 0) | (percent > thresholds)
-        for agent, value in zip(agents, following, strict=True):
-            agent.adopted = float(value)
+            return adopters > 0
+        if circle:
+            return 100 * adopters / len(circle) > agent.threshold
+        society = [item for item in model.agents('target') if isinstance(item, AdopterView)]
+        return 100 * sum(item.adopted for item in society) / len(society) > agent.threshold
 
 
 @register_model(
@@ -394,11 +365,19 @@ def threshold_adoption(
         'people',
         element=AdopterElement,
         size=n_agents,
-        values={'adopted': adopted, 'threshold': drawn, 'reach': reach, 'shifting': shifting},
+        values={'adopted': adopted, 'threshold': drawn, 'reach': reach},
         location=rng.uniform(0, size, (n_agents, 2)),
     )
     return System(
         elements=[people],
-        interactions=[AdoptionInteraction('adoption', target='people', size=size, mode=mode)],
+        interactions=[
+            MovementInteraction(
+                'shift',
+                target='people',
+                step=lambda agent, model: _shift(agent, model, size),
+                probability=shifting,
+            ),
+            AdoptionInteraction('adoption', target='people', mode=mode),
+        ],
         space=ContinuousSpace(extent=(size, size), boundary='periodic'),
     )

@@ -4,7 +4,6 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
@@ -13,20 +12,16 @@ from sage.all__sagemath_symbolics import NN, ZZ, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import GroupingInteraction, Interaction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import GroupingInteraction, MapInteraction
 from ....core.spaces import LatticeSpace, NetworkSpace
 from ....core.system import System
 from ....core.types import AgentViewProtocol, ModelViewProtocol
-from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
 from ._citizen_view import CitizenView
 from ._influencee_view import InfluenceeView
 from ._persuader_view import PersuaderView
-
-PAIR = 2
 
 
 def _shares(size: int, share: float, random_state: int | np.random.Generator | None) -> Array:
@@ -268,13 +263,13 @@ class InfluenceeElement(Element):
         return InfluenceeView
 
 
-class SocialImpactInteraction(Interaction):
+class SocialImpactInteraction(MapInteraction):
     """Synchronous update of the social impact model, where every agent takes the opinion of the stronger impact.
 
     The impact on agent `i` is `I_i = sum_j t_j (1 - o_i o_j) / d_ij^a - sum_j s_j (1 + o_i o_j) / d_ij^a`, with the
     persuasiveness `t`, the supportiveness `s`, and the distance `d` on the grid, where an agent supports itself from
     distance 1. The impact is the net pressure to change, whatever the opinion, so an agent flips its opinion when
-    `I_i + h_i > 0`, with a uniform random field `h_i`.
+    `I_i + h_i > 0`, with a uniform random field `h_i`. Every agent decides from the opinions at the start of the step.
 
     Args:
         label:
@@ -285,8 +280,8 @@ class SocialImpactInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import SocialImpactInteraction
-        >>> SocialImpactInteraction('impact', target='people').target
-        'people'
+        >>> SocialImpactInteraction('impact', target='people').check().form
+        'agent'
     """
 
     def __init__(
@@ -295,47 +290,24 @@ class SocialImpactInteraction(Interaction):
         *,
         target: Annotated[str, RoleSpec()],
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, state='opinion', function=self._get_opinion, form='agent')
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the impact rule.
+    def _get_impact(self, agent: InfluenceeView, model: ModelViewProtocol) -> float:
+        """Return the net pressure to change on an agent from every agent of the group, itself from distance 1."""
+        agents = [item for item in model.agents('target') if isinstance(item, InfluenceeView)]
+        locations = np.array([item.location for item in agents], dtype=float)
+        distances = np.linalg.norm(locations - np.asarray(agent.location, dtype=float), axis=-1)
+        distances[[item.id == agent.id for item in agents]] = 1.0
+        weights = distances**-agent.exponent
+        agreement = agent.opinion * np.array([item.opinion for item in agents], dtype=float)
+        persuasion = np.array([item.persuasiveness for item in agents], dtype=float)
+        support = np.array([item.supportiveness for item in agents], dtype=float)
+        return float((weights * persuasion * (1 - agreement)).sum() - (weights * support * (1 + agreement)).sum())
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.update)]
-
-    def update(self, model: ModelView) -> None:
-        """Flip every opinion under a positive net pressure to change.
-
-        Args:
-            model:
-                The model.
-        """
-        agents = model.agents(self.target, InfluenceeView)
-        if len(agents) < PAIR:
-            return
-        locations = np.array([agent.location for agent in agents], dtype=float)
-        opinions = np.array([agent.opinion for agent in agents], dtype=float)
-        persuasion = np.array([agent.persuasiveness for agent in agents], dtype=float)
-        support = np.array([agent.supportiveness for agent in agents], dtype=float)
-        distances = np.linalg.norm(locations[:, None, :] - locations[None, :, :], axis=-1)
-        np.fill_diagonal(distances, 1.0)
-        weights = distances ** -agents[0].exponent
-        agreement = opinions[:, None] * opinions[None, :]
-        impact = (weights * persuasion * (1 - agreement)).sum(axis=1) - (weights * support * (1 + agreement)).sum(
-            axis=1,
-        )
-        field = model.rng.uniform(-agents[0].noise, agents[0].noise, len(agents))
-        following = np.where(impact + field > 0, -opinions, opinions)
-        for agent, opinion in zip(agents, following, strict=True):
-            agent.opinion = float(opinion)
+    def _get_opinion(self, agent: InfluenceeView, model: ModelViewProtocol) -> float:
+        """Return the opposite opinion of an agent under a positive net pressure to change, and its own otherwise."""
+        field = model.rng.uniform(-agent.noise, agent.noise)
+        return -agent.opinion if self._get_impact(agent, model) + field > 0 else float(agent.opinion)
 
 
 @register_model(
