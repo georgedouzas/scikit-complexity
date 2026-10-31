@@ -12,11 +12,10 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import GroupingInteraction
+from ....core.interactions import EvolutionInteraction, GroupingInteraction
 from ....core.system import System
 from ....core.types import AgentViewProtocol, ModelViewProtocol
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....types import Array
+from ....specs import RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._strategist_view import StrategistView
 
@@ -90,12 +89,6 @@ class StrategistElement(Element):
         fitness:
             The mean score per round of the last tournament.
 
-        death:
-            The probability that an agent dies every step.
-
-        mutation:
-            The probability that an offspring has one gene flipped.
-
     Examples:
         >>> from skcomplex.models.social.cooperation import StrategistElement
         >>> group = GroupElement('agents', element=StrategistElement, size=10, values={'genome': [1.0] * 7})
@@ -110,14 +103,10 @@ class StrategistElement(Element):
         *,
         genome: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 1.0,
         fitness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        death: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
     ) -> None:
         super().__init__(label, visual=visual)
         self.genome = genome
         self.fitness = fitness
-        self.death = death
-        self.mutation = mutation
 
     @classmethod
     def _get_view(cls) -> type[StrategistView]:
@@ -126,11 +115,10 @@ class StrategistElement(Element):
 
 
 class TournamentInteraction(GroupingInteraction):
-    """Tournament and selection of strategies of the iterated prisoner's dilemma.
+    """Tournament of strategies of the iterated prisoner's dilemma.
 
     Every step the agents stand in a random ring, and every agent forms a group with its two neighbours in the ring,
-    whom it plays. Its fitness is its mean score per round. Then every agent dies with probability `death` and is
-    replaced by the offspring of an agent chosen with probability proportional to its fitness.
+    whom it plays. Its fitness is its mean score per round.
 
     Args:
         label:
@@ -169,32 +157,6 @@ class TournamentInteraction(GroupingInteraction):
             return []
         ring = [agents[int(index)] for index in model.rng.permutation(len(agents))]
         return [[agent, ring[position - 1], ring[(position + 1) % len(ring)]] for position, agent in enumerate(ring)]
-
-    @staticmethod
-    def _get_offspring(parent: StrategistView, rng: np.random.Generator) -> Array:
-        """Return the genome of a parent, with one gene flipped with the mutation probability."""
-        genome = np.array(parent.genome, dtype=np.float64)
-        if rng.random() < parent.mutation:
-            index = int(rng.integers(GENES))
-            genome[index] = 1.0 - genome[index]
-        return genome
-
-    def _replace(self, model: ModelViewProtocol) -> None:
-        """Replace every agent with the death probability by the offspring of a parent chosen by fitness."""
-        agents = [agent for agent in model.agents('target') if isinstance(agent, StrategistView)]
-        if len(agents) < PAIR:
-            return
-        fitness = np.array([agent.fitness for agent in agents])
-        dead = np.flatnonzero(model.rng.random(len(agents)) < agents[0].death)
-        parents = model.rng.choice(len(agents), size=len(dead), p=fitness / fitness.sum())
-        genomes = [self._get_offspring(agents[parent], model.rng) for parent in parents]
-        for index, genome in zip(dead, genomes, strict=True):
-            agents[index].genome = genome
-
-    def _act_on_groups(self, model: ModelViewProtocol) -> None:
-        """Play the tournament of every group, then replace the dead."""
-        super()._act_on_groups(model)
-        self._replace(model)
 
     def act_on(self, members: list[AgentViewProtocol], model: ModelViewProtocol) -> None:
         """Set the fitness of the first member to its mean score per round against the two others.
@@ -245,7 +207,8 @@ def prisoners_dilemma_tournament(
 
     Returns:
         system:
-            The model, with the group `agents`.
+            The model, with the group `agents`, the tournament `tournament`, and the death-birth replacement
+            `selection`.
 
     Examples:
         >>> from skcomplex.models.social.cooperation import prisoners_dilemma_tournament
@@ -258,10 +221,23 @@ def prisoners_dilemma_tournament(
         'agents',
         element=StrategistElement,
         size=n_agents,
-        values={'genome': genomes, 'death': death, 'mutation': mutation},
+        values={'genome': genomes},
         visual=visual,
     )
     return System(
         elements=[agents],
-        interactions=[TournamentInteraction('tournament', target='agents', rounds=rounds)],
+        interactions=[
+            TournamentInteraction('tournament', target='agents', rounds=rounds),
+            EvolutionInteraction(
+                'selection',
+                target='agents',
+                strategy='genome',
+                selection='proportional',
+                replacement='death-birth',
+                mutation=mutation,
+                death=death,
+                change='one',
+                parents='all',
+            ),
+        ],
     )

@@ -49,6 +49,20 @@ class LearnerElement(Element):
         return LearnerView
 
 
+class PoolElement(Element):
+    """Member whose scores of several options are the components of one vector state."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        scores: Annotated[object, StateSpec(vector=True)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.scores = scores
+
+
 def _run(interactions: list, values: dict, size: int, until: int) -> Trajectory:
     """Return the trajectory of a group of learners bound to interactions."""
     group = GroupElement('learners', element=LearnerElement, size=size, values=values)
@@ -101,10 +115,41 @@ def test_reinforcement_interaction_agent_scores_steer_a_best_choice():
     assert frame['second'].tolist() == pytest.approx([0.5 * (1 - 0.5**4), 3.0 * (1 - 0.5**4)])
 
 
+def test_reinforcement_interaction_cumulative_rule_adds_the_payoffs():
+    """Test that the cumulative rule adds the payoff of every option to its score in every step."""
+    reinforcement = ReinforcementInteraction(
+        'reinforcement',
+        target='learners',
+        scores=('first', 'second'),
+        payoff=lambda s, index: s.target.value * (index + 1),
+        rule='cumulative',
+    )
+    trajectory = _run([reinforcement], {'value': np.array([2.0, 4.0])}, 2, 3)
+    assert np.allclose(trajectory.values('learners.second')[-1], [12.0, 24.0])
+
+
+def test_reinforcement_interaction_reinforces_the_components_of_a_vector_state():
+    """Test that the agent form reinforces every component of a vector state of scores, one per option."""
+    reinforcement = ReinforcementInteraction(
+        'reinforcement',
+        target='pool',
+        scores='scores',
+        payoff=lambda agent, model, index: float(index),
+        rate=0.5,
+        form='agent',
+    )
+    group = GroupElement('pool', element=PoolElement, size=1, values={'scores': np.zeros((1, 4))})
+    system = System(elements=[group], interactions=[reinforcement], time=DiscreteTime())
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=2).trajectory_
+    scores = np.array(trajectory.agents('pool', 2).values['scores'].tolist(), dtype=float)
+    assert scores.ravel().tolist() == pytest.approx([0.0, 0.75, 1.5, 2.25])
+
+
 @pytest.mark.parametrize(
     ('arguments', 'message'),
     [
         ({'form': 'table'}, 'Unknown form'),
+        ({'rule': 'median'}, 'Unknown rule'),
         ({'scores': 'first'}, 'sequence of state names'),
         ({'scores': ()}, 'sequence of state names'),
         ({'payoff': 1.0}, 'must be callable'),

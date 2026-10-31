@@ -167,9 +167,11 @@ change of an energy.
 
 ### Requirement: Choice, imitation, reinforcement, and evolution
 `ChoiceInteraction` SHALL draw an option from utilities by the logit, Metropolis, Fermi, or best rule.
-`ImitationInteraction` SHALL copy a neighbour's state at random, by majority, from the best, or by the Fermi rule.
-`ReinforcementInteraction` SHALL move option scores towards realized payoffs. `EvolutionInteraction` SHALL replace
-strategies by selection, replacement, crossover, and mutation, drawing from the model's random stream.
+`ImitationInteraction` SHALL copy a neighbour's state at random, by majority, from the best, from a random better
+neighbour, or by the Fermi rule, as rates, per-step probabilities, or agent rules. `ReinforcementInteraction` SHALL
+move option scores towards realized payoffs or add the payoffs to them, over named states or the components of one
+vector state, which a one-member group shares. `EvolutionInteraction` SHALL replace strategies by selection,
+replacement, crossover, and mutation, drawing from the model's random stream.
 
 #### Scenario: Glauber dynamics
 - **WHEN** fully connected spins choose by the logit rule at intensity 2
@@ -178,6 +180,21 @@ strategies by selection, replacement, crossover, and mutation, drawing from the 
 #### Scenario: Voter consensus
 - **WHEN** voters on a ring of 50 imitate a random neighbour
 - **THEN** every run reaches consensus, and each opinion wins with its initial fraction
+
+### Requirement: Evolution variants
+`EvolutionInteraction` SHALL select by tournament, roulette, proportional, or rank selection, replace by generational,
+Moran, death-birth (parents among survivors or all), truncation, or best-mutant replacement, mutate to another, a
+redrawn, a stepped, or a new label, run once every period, and read the fitness from a state or evaluate it from the
+strategies.
+
+#### Scenario: Virtual scores and truncation
+- **WHEN** players of the minority game add the virtual payoff of each strategy by cumulative reinforcement, and every
+  50 rounds the poorest tenth redraw their strategies by truncation
+- **THEN** the volatility near `alpha = 2^m / N ~ 0.34` falls below that of random play
+
+#### Scenario: Best-mutant climbing
+- **WHEN** a population sharing one strategy takes the fittest mutant only when it is fitter or every member mutated
+- **THEN** with few mutants its evaluated fitness never falls
 
 ### Requirement: Agents, groups, and exchange
 `MovementInteraction` SHALL move agents by a step. `TransferInteraction` SHALL move amounts of states between members,

@@ -176,6 +176,89 @@ def test_evolution_interaction_keeps_the_elite():
     assert _strategies(_run_evolution(evolution, initial, 1, 0), 1)[0].tolist() == [1.0, 1.0, 1.0, 1.0]
 
 
+def test_evolution_interaction_truncation_redraws_the_least_fit_every_period_and_resets_states():
+    """Test that truncation with redraw replaces the least fit only every period and resets their states."""
+    evolution = EvolutionInteraction(
+        'evolution',
+        target='agents',
+        replacement='truncation',
+        fraction=0.25,
+        mutation=1.0,
+        change='any',
+        alphabet=1000,
+        period=2,
+        reset={'fitness': -1.0},
+    )
+    group = GroupElement(
+        'agents',
+        element=TypeElement,
+        size=8,
+        values={'strategy': np.arange(8.0)[:, None] * 0 - 1, 'fitness': np.arange(8.0)},
+    )
+    system = System(elements=[group], interactions=[evolution], time=DiscreteTime())
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=2).trajectory_
+    assert np.all(_strategies(trajectory, 1) == -1.0)
+    final = trajectory.agents('agents', 2).values
+    changed = _strategies(trajectory, 2).ravel() != -1.0
+    assert changed.tolist() == [True, True] + [False] * 6
+    assert final['fitness'].tolist()[:3] == [-1.0, -1.0, 2.0]
+
+
+def test_evolution_interaction_mutates_to_new_labels_and_by_steps():
+    """Test that mutation to new labels exceeds every label held, and steps move a gene by one."""
+    for change, check in (('new', lambda values: values.min() > 3.0), ('step', lambda values: set(values) <= {2, 4})):
+        evolution = EvolutionInteraction(
+            'evolution',
+            target='agents',
+            fitness=None,
+            selection='proportional',
+            alphabet=None,
+            change=change,
+            mutation=1.0,
+            crossover=0.0,
+        )
+        group = GroupElement('agents', element=TypeElement, size=6, values={'strategy': np.full((6, 1), 3.0)})
+        system = System(elements=[group], interactions=[evolution], time=DiscreteTime())
+        trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+        assert check(_strategies(trajectory, 1).ravel())
+
+
+def test_evolution_interaction_best_mutant_climbs_an_evaluated_landscape():
+    """Test that the best-mutant replacement never lowers the evaluated fitness of a common strategy."""
+    evolution = EvolutionInteraction(
+        'evolution',
+        target='agents',
+        replacement='best-mutant',
+        evaluate=lambda strategies, model: strategies.sum(axis=1),
+        mutation=0.02,
+    )
+    group = GroupElement('agents', element=TypeElement, size=5, values={'strategy': np.zeros((5, 10))})
+    system = System(elements=[group], interactions=[evolution], time=DiscreteTime())
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=60).trajectory_
+    fitness = [trajectory.agents('agents', frame).values['fitness'][0] for frame in range(1, 61)]
+    assert np.all(np.diff(fitness) >= 0)
+    assert fitness[-1] > 2
+    assert np.ptp(_strategies(trajectory, 60), axis=0).max() == 0.0
+
+
+def test_evolution_interaction_one_gene_changes_and_parents_include_the_dead():
+    """Test that the change of one gene alters exactly one gene of every offspring in death-birth among all."""
+    evolution = EvolutionInteraction(
+        'evolution',
+        target='agents',
+        selection='proportional',
+        replacement='death-birth',
+        death=1.0,
+        parents='all',
+        change='one',
+        mutation=1.0,
+    )
+    group = GroupElement('agents', element=TypeElement, size=10, values={'strategy': np.zeros((10, 7))})
+    system = System(elements=[group], interactions=[evolution], time=DiscreteTime())
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    assert _strategies(trajectory, 1).sum(axis=1).tolist() == [1.0] * 10
+
+
 @pytest.mark.parametrize(
     ('arguments', 'message'),
     [
@@ -188,6 +271,11 @@ def test_evolution_interaction_keeps_the_elite():
         ({'elite': -1}, 'elite'),
         ({'tournament': 0}, 'tournament'),
         ({'alphabet': 1}, 'alphabet'),
+        ({'change': 'swap'}, 'Unknown change'),
+        ({'parents': 'elders'}, 'Unknown parents'),
+        ({'fraction': 1.5}, 'fraction probability'),
+        ({'period': 0}, 'period'),
+        ({'evaluate': 'sum'}, 'evaluation'),
     ],
 )
 def test_check_rejects_invalid_arguments(arguments, message):

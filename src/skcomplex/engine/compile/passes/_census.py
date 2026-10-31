@@ -426,6 +426,8 @@ class CensusPass(BasePass):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
             raise ValidationError(error_msg)
         declared = [law.check().prepare(spec.owner) for law in laws]
+        rules = [law for law in declared if isinstance(law, RuleLaw) and spec.edges is None]
+        declared = [law for law in declared if law not in rules]
         if isinstance(spec.pairs, PairSearch) and not all(isinstance(law, RateLaw) for law in declared):
             error_msg = (
                 f'Pair interaction {spec.owner} returns laws other than Rate, which pair interactions do not take.'
@@ -461,7 +463,7 @@ class CensusPass(BasePass):
             except ValidationError as error:
                 error_msg = f'{type(law).__name__} of {spec.owner}: {error}'
                 raise ValidationError(error_msg) from error
-        return checked
+        return [*rules, *checked]
 
     @staticmethod
     def _component_of(node: NodeSpec) -> BasePart:
