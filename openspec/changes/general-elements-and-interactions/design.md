@@ -40,7 +40,7 @@ A mechanism changes states, so it is an interaction that binds the groups it act
 the states it reads and writes as constructor arguments. Each is a subclass of the binding it needs:
 - `Interaction`: reaction, growth, Ornstein-Uhlenbeck, damping, constant force, choice, evolution, feedback,
   matching.
-- `NeighborInteraction`: spreading, imitation, network coupling, threshold.
+- `NeighborInteraction`: spreading, imitation, network coupling, threshold, on the extended edge kernel below.
 - `PairInteraction`: pair force, alignment within a radius.
 - `HyperedgeInteraction`: group mechanisms.
 
@@ -49,6 +49,23 @@ Elements are added only where several fields declare the same states or equation
 
 Alternative considered: mechanisms as elements with built-in laws, such as a `WalkerElement`. Rejected, because a
 model then cannot combine two mechanisms on one element without multiple inheritance.
+
+### Neighbour interactions take what the mechanisms need
+Spreading, imitation, network coupling, and thresholds stay `NeighborInteraction` subclasses, so the engine extends the
+binding instead of the mechanisms falling back to plain interactions:
+- Per-member laws: an edge kernel takes laws of the members at either end that do not depend on the edge, such as
+  recovery and loss of immunity, compiled once per member rather than once per edge.
+- Degree: the edge namespace offers the degree of the source and the target, so a rate can be proportional to the
+  fraction of neighbours.
+- Delays: `delayed` reads the past state of the source or the target of an edge.
+- Relaxation: an edge kernel takes `RelaxationLaw`, `DriveLaw`, and `LocalRuleLaw`, so cascades run over the edges of a
+  network and are recorded as events, as on lattices.
+
+### Reductions name the reading member, and reduce to an argmax
+- A reduction over a group can read the member that reads it, apart from the member being reduced, so
+  `mean(f(other.x, x), over=...)` evaluates any coupling function `f` against the reading member. The mean field of
+  `CouplingInteraction` rests on it for any function, not only separable ones.
+- A reduction returns the state of the neighbour at which an expression is largest, which `'best'` imitation reads.
 
 ### Variants are named arguments, checked in `_check`
 A variant that changes the form of the laws is a string argument checked against a module constant of the allowed

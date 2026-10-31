@@ -176,3 +176,21 @@ core.
 #### Scenario: Stuart-Landau once
 - **WHEN** the amplitude-death, oscillator, and Hopf normal-form models run
 - **THEN** all three use the core `StuartLandauElement`, and no model module defines another
+
+### Requirement: Neighbour interactions carry member laws, degrees, delays, and cascades
+`NeighborInteraction` SHALL take laws of the members at either end of an edge that run once per member, SHALL offer
+the degrees of both ends, SHALL let `delayed` read the past state of either end, and SHALL take relaxation, drive, and
+local-rule laws, recording cascades as events.
+
+#### Scenario: Recovery beside spreading
+- **WHEN** a spreading interaction on a network declares infection per edge and recovery per member
+- **THEN** recovery runs once per member, not once per edge, and the fraction of neighbours uses the degree
+
+### Requirement: Reductions read the reading member and reduce to an argmax
+A reduction over a group SHALL be able to read the member that reads it apart from the reduced member, and a reduction
+SHALL return the state of the neighbour at which an expression is largest.
+
+#### Scenario: Mean field of a general function
+- **WHEN** a coupling reads the mean of `sin(other.x - x)` over its group
+- **THEN** every member gets the mean of the sine of its own difference to every other member
+
