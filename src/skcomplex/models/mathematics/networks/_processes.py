@@ -13,48 +13,87 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement, GroupElement
-from ....core.laws import BaseLaw, RateLaw, RuleLaw, UpdateLaw
-from ....core.laws.utils import laplacian
+from ....core.interactions import CouplingInteraction, DiffusionInteraction, MovementInteraction
 from ....core.spaces import NetworkSpace
 from ....core.system import System
-from ....engine.solvers import ModelView
+from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._network_walker_view import NetworkWalkerView
 
 
 class NodeContentElement(Element):
-    """Node content element."""
+    """Content of a node of a network, which diffuses along the links with the coefficient `D`.
+
+    Args:
+        label:
+            The label of the node or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        u:
+            The initial content.
+
+        D:
+            The diffusion coefficient of every link.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.networks import NodeContentElement
+        >>> NodeContentElement('node', D=0.5).D
+        0.5
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        u: Annotated[object, StateSpec()] = 0.0,
-        D: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        u: Annotated[float, StateSpec()] = 0.0,
+        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.u = u
         self.D = D
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the node content element."""
-        return [RateLaw(s.u, s.D * laplacian(s.u))]
-
 
 class NodeRankElement(Element):
-    """Node rank element."""
+    """Page of a network with its PageRank, its degree, the number of pages, and the damping of the surfer.
+
+    Args:
+        label:
+            The label of the page or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        rank:
+            The initial rank.
+
+        damping:
+            The probability that the surfer follows a link rather than jumping to a random page.
+
+        degree:
+            The number of links of the page.
+
+        n_nodes:
+            The number of pages of the network.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.networks import NodeRankElement
+        >>> NodeRankElement('page', damping=0.9).damping
+        0.9
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        rank: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        damping: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.85,
-        degree: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        n_nodes: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        rank: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        damping: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.85,
+        degree: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        n_nodes: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.rank = rank
@@ -62,15 +101,9 @@ class NodeRankElement(Element):
         self.degree = degree
         self.n_nodes = n_nodes
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the node rank element."""
-        return [
-            UpdateLaw(s.rank, (1 - s.damping) / s.n_nodes + s.damping * (laplacian(s.rank / s.degree) + s.rank)),
-        ]
-
 
 class NetworkWalkerElement(Element):
-    """Walker that moves to a uniformly random neighbouring node of a network at every step.
+    """Walker on the nodes of a network, which counts the steps it takes.
 
     Args:
         label:
@@ -104,34 +137,17 @@ class NetworkWalkerElement(Element):
         """Return the view of the agents, which types their states."""
         return NetworkWalkerView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the stepping rule.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.step)]
-
-    def step(self, agent: NetworkWalkerView, model: ModelView) -> None:
-        """Move to a random neighbouring node.
-
-        Args:
-            agent:
-                The walker.
-
-            model:
-                The model.
-        """
-        cells = agent.neighbor_cells()
-        if not cells:
-            return
-        agent.move_to(cells[int(model.rng.integers(len(cells)))])
+def _count_step(agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
+    """Count a step the walker takes."""
+    if isinstance(agent, NetworkWalkerView):
         agent.steps += 1
+
+
+def _get_link_term(s: SimpleNamespace) -> object:
+    """Return what one link brings to the rank of a page: a share of the rank of the other page and of the jumps."""
+    member, other = s.member, s.other
+    return member.damping * other.rank / other.degree + (1 - member.damping) / (member.n_nodes * member.degree)
 
 
 def _graph_or_default(graph: nx.Graph | None) -> nx.Graph:
@@ -166,8 +182,10 @@ def network_random_walk(graph: nx.Graph | None = None, *, n_walkers: int = 50) -
         3
     """
     graph = _graph_or_default(graph)
+    walk = MovementInteraction('walk', target='walkers', step='neighbor', cost=_count_step)
     return System(
         elements=[GroupElement('walkers', element=NetworkWalkerElement, size=n_walkers)],
+        interactions=[walk],
         space=NetworkSpace(graph),
     )
 
@@ -207,7 +225,8 @@ def network_diffusion(graph: nx.Graph | None = None, *, D: float = 1.0, source: 
     initial = np.zeros(graph.number_of_nodes())
     initial[source] = 1.0
     nodes = FieldElement('nodes', element=NodeContentElement, space=NetworkSpace(graph), values={'u': initial, 'D': D})
-    return System(elements=[nodes])
+    diffusion = DiffusionInteraction('diffusion', target='nodes', state='u', coefficient=lambda s: s.target.D)
+    return System(elements=[nodes], interactions=[diffusion])
 
 
 @register_model(
@@ -242,4 +261,6 @@ def pagerank(graph: nx.Graph | None = None, *, damping: float = 0.85) -> System:
     size = graph.number_of_nodes()
     degrees = np.array([degree for _, degree in graph.degree()], dtype=float)
     values = {'rank': np.full(size, 1 / size), 'degree': degrees, 'n_nodes': float(size), 'damping': damping}
-    return System(elements=[FieldElement('pages', element=NodeRankElement, space=NetworkSpace(graph), values=values)])
+    pages = FieldElement('pages', element=NodeRankElement, space=NetworkSpace(graph), values=values)
+    links = CouplingInteraction('links', target='pages', read='rank', write='rank', function=_get_link_term, form='map')
+    return System(elements=[pages], interactions=[links])

@@ -14,13 +14,12 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import NeighborInteraction
-from ....core.laws import BaseLaw, UpdateLaw
+from ....core.interactions import MapInteraction, TopologyInteraction
 from ....core.laws.utils import maximum, neighbors, where
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....errors import ValidationError
-from ....specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._growth import DEGREE_VISUAL, LinkElement
 
@@ -29,10 +28,10 @@ STRATEGIES = ('random', 'targeted')
 
 
 class FailingElement(Element):
-    """Node of a network under failures or attacks, removed at random or when it has the largest degree.
+    """Node of a network under failures or attacks, with its degree and the parameters of its removal.
 
-    Every step a node fails with probability `rate` under random failures, and under a targeted attack the nodes
-    of the largest degree are removed, one degree class per step.
+    The removal of the model reads the parameters: every step a node fails with probability `rate` under random
+    failures, and under a targeted attack the nodes of the largest degree are removed, one degree class per step.
 
     Args:
         label:
@@ -68,29 +67,12 @@ class FailingElement(Element):
         super().__init__(label, visual=visual)
         self.degree = degree
         self.rate = rate
+
         self.targeted = targeted
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the degree of the node and its removal.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        degree = neighbors(1)
-        hub = where(s.targeted * (degree - maximum(degree)) >= 0, s.targeted, 0)
-        return [
-            UpdateLaw(s.degree, degree),
-            UpdateLaw(TopologyRequestSpec('remove-node'), (1 - s.targeted) * s.rate + hub),
-        ]
 
 
 class EnsembleNodeElement(Element):
-    """Node of a random graph that adds edges to uniformly random nodes, building an Erdős-Rényi graph edge by edge.
+    """Node of a random graph, with its degree and the probability that it adds an edge to a random node per step.
 
     Args:
         label:
@@ -123,71 +105,17 @@ class EnsembleNodeElement(Element):
         self.degree = degree
         self.rate = rate
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the degree of the node and its new edges.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [UpdateLaw(s.degree, neighbors(1)), UpdateLaw(TopologyRequestSpec('add-edge'), s.rate)]
+def _get_removal(s: SimpleNamespace) -> object:
+    """Return the probability that a node is removed in a step, at random or as a node of the largest degree."""
+    degree = neighbors(1)
+    hub = where(s.source.targeted * (degree - maximum(degree)) >= 0, s.source.targeted, 0)
+    return (1 - s.source.targeted) * s.source.rate + hub
 
 
-class RewiringInteraction(NeighborInteraction):
-    """Rewiring of every edge of a ring lattice to a uniformly random node, the Watts-Strogatz construction.
-
-    Every step every edge moves its target to a random node with probability `rate`, so after `n` steps an edge has
-    moved with probability `1 - (1 - rate)^n`. A second move draws a new random end, so the result follows the
-    Watts-Strogatz ensemble of that rewiring probability.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        nodes:
-            The path of the group on the nodes.
-
-        links:
-            The path of the variable group on the edges.
-
-        rate:
-            The probability that an edge moves in a step.
-
-    Examples:
-        >>> from skcomplex.models.mathematics.networks import RewiringInteraction
-        >>> RewiringInteraction('rewiring', nodes='nodes', links='links', rate=0.01).rate
-        0.01
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        nodes: Annotated[str, RoleSpec()],
-        links: Annotated[str, RoleSpec()],
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.nodes = nodes
-        self.links = links
-        self.rate = rate
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rewiring of one edge.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [UpdateLaw(TopologyRequestSpec('rewire', keep='source'), s.rate)]
+def _get_degree() -> MapInteraction:
+    """Return the map that sets the degree of every node from its edges at the start of a step."""
+    return MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
 
 
 def _variable_network(
@@ -267,7 +195,8 @@ def network_attack(
     space = NetworkSpace(nx.barabasi_albert_graph(n_nodes, edges, seed=random_state))
     targeted = float(strategy == 'targeted')
     groups = _variable_network(FailingElement, space, space.graph.number_of_edges(), rate=rate, targeted=targeted)
-    return System(elements=groups, space=space, time=DiscreteTime())
+    removal = TopologyInteraction('removal', target='nodes', action='remove-node', probability=_get_removal)
+    return System(elements=groups, interactions=[_get_degree(), removal], space=space, time=DiscreteTime())
 
 
 @register_model(
@@ -310,7 +239,8 @@ def random_graph_ensembles(
 
     Returns:
         system:
-            The model, with the groups `nodes` and `links` and, for Watts-Strogatz, the interaction `rewiring`.
+            The model, with the groups `nodes` and `links`, the map `degree`, and the interaction `linking` or
+            `rewiring`.
 
     Raises:
         ValidationError:
@@ -336,9 +266,10 @@ def random_graph_ensembles(
             int(np.ceil(1.5 * mean_degree * n_nodes / 2)) + 10,
             rate=rate,
         )
-        return System(elements=groups, space=space, time=DiscreteTime())
+        linking = TopologyInteraction('linking', target='nodes', action='add-edge', probability=lambda s: s.source.rate)
+        return System(elements=groups, interactions=[_get_degree(), linking], space=space, time=DiscreteTime())
     space = NetworkSpace(nx.watts_strogatz_graph(n_nodes, int(mean_degree), 0.0))
     rate = 1 - (1 - rewiring) ** (1 / steps)
     groups = _variable_network(EnsembleNodeElement, space, space.graph.number_of_edges())
-    rewiring_law = RewiringInteraction('rewiring', nodes='nodes', links='links', rate=rate)
-    return System(elements=groups, interactions=[rewiring_law], space=space, time=DiscreteTime())
+    rewiring = TopologyInteraction('rewiring', target='nodes', action='rewire', probability=rate)
+    return System(elements=groups, interactions=[_get_degree(), rewiring], space=space, time=DiscreteTime())
