@@ -206,7 +206,7 @@ class RiceMillElement(Element):
         self.expansion_time = expansion_time
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the rice mill element."""
+        """Return the flows of grain through the mill and the adjustment of its capacity."""
         return _rice_mill_laws(s)
 
 
@@ -254,7 +254,7 @@ class WasteSystemElement(Element):
         self.capacity_time = capacity_time
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the waste system element."""
+        """Return the flows of waste through the city and the adjustment of its collection capacity."""
         return _waste_laws(s)
 
 
@@ -290,7 +290,7 @@ class ReliefPipelineElement(Element):
         self.distribution_time = distribution_time
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the relief pipeline element."""
+        """Return the flows of food through the supply line."""
         return _relief_laws(s)
 
 
@@ -342,7 +342,7 @@ class IrrigationSchemeElement(Element):
         self.baseflow_time = baseflow_time
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the irrigation scheme element."""
+        """Return the flows of water through the scheme."""
         return _irrigation_laws(s)
 
 
