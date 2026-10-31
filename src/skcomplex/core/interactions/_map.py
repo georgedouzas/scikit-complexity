@@ -19,7 +19,7 @@ from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
 
 MODES = ('replace', 'increment')
-SCHEDULES = ('synchronous', 'sequential', 'random-sequential')
+SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
 FORMS = ('symbolic', 'agent')
 
 
@@ -30,7 +30,8 @@ class MapInteraction(Interaction):
     Under the `'synchronous'` schedule every member of a bound group updates at once, from the states at the start of
     the step. Under the `'sequential'` schedule the members update one after the other, in their order, and under the
     `'random-sequential'` schedule in a new random order every step, each member reading the values the members before
-    it set.
+    it set. Under the `'member'` schedule of the agent form, every member updates in its own activation, together with
+    the rules of its element and the other member interactions, in the order the system lists them.
 
     In the `'symbolic'` form, `function(namespace)` returns a symbolic expression, or a vector of them for a vector
     state, where `namespace.target` holds the states and parameters of the target, `namespace.sources` the namespaces
@@ -58,7 +59,7 @@ class MapInteraction(Interaction):
             `'replace'` or `'increment'`.
 
         schedule:
-            `'synchronous'`, `'sequential'`, or `'random-sequential'`.
+            `'synchronous'`, `'sequential'`, `'random-sequential'`, or `'member'` for the agent form.
 
         form:
             `'symbolic'` for update laws of the states of the target, or `'agent'` for a rule over an agent group.
@@ -68,7 +69,8 @@ class MapInteraction(Interaction):
 
     Raises:
         ValidationError:
-            The mode, the schedule, or the form is unknown, or the function is not callable.
+            The mode, the schedule, or the form is unknown, the symbolic form has the schedule `'member'`, or the
+            function is not callable.
 
     Examples:
         >>> from skcomplex.core.elements import Element
@@ -121,7 +123,8 @@ class MapInteraction(Interaction):
 
         Raises:
             ValidationError:
-                The mode, the schedule, or the form is unknown, or the function is not callable.
+                The mode, the schedule, or the form is unknown, the symbolic form has the schedule `'member'`, or the
+                function is not callable.
         """
         super()._check()
         for name, value, variants in (
@@ -132,6 +135,11 @@ class MapInteraction(Interaction):
             if value not in variants:
                 error_msg = f'The {name} of map {self.label!r} is {value!r}. Use one of {", ".join(variants)}.'
                 raise ValidationError(error_msg)
+        if self.schedule == 'member' and self.form != 'agent':
+            error_msg = (
+                f'The map {self.label!r} updates every member in its activation, which only the agent form does.'
+            )
+            raise ValidationError(error_msg)
         if not callable(self.function):
             error_msg = f'The function of map {self.label!r} must be callable, but it is {self.function!r}.'
             raise ValidationError(error_msg)
@@ -144,6 +152,11 @@ class MapInteraction(Interaction):
             raise ValidationError(error_msg)
         value = float(found)
         return float(getattr(agent, self.state)) + value if self.mode == 'increment' else value
+
+    def _update_member(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
+        """Set the state of one member to its next value."""
+        if agent.alive:
+            setattr(agent, self.state, self._get_value(agent, model))
 
     def update(self, model: ModelViewProtocol) -> None:
         """Set the state of every agent of the target to its next value, by the schedule.
@@ -160,7 +173,7 @@ class MapInteraction(Interaction):
             return
         order = model.rng.permutation(len(agents)) if self.schedule == 'random-sequential' else range(len(agents))
         for index in order:
-            setattr(agents[index], self.state, self._get_value(agents[index], model))
+            self._update_member(agents[int(index)], model)
 
     def _get_order(self) -> object:
         """Return the order of the members of the symbolic form: none, their own order, or a uniform draw."""
@@ -181,6 +194,8 @@ class MapInteraction(Interaction):
             laws:
                 The update law of the state, or the rule that runs the map of the agents.
         """
+        if self.form == 'agent' and self.schedule == 'member':
+            return [RuleLaw(self._update_member, phase=self.phase, members='target')]
         if self.form == 'agent':
             return [RuleLaw(self.update, phase=self.phase)]
         value = getattr(namespace.target, self.state)

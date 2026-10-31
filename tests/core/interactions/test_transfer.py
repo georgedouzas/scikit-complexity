@@ -236,6 +236,13 @@ def test_transfer_symbolic_flows_run_in_discrete_time():
         {'pairing': 'random'},
         {'form': 'rule'},
         {'guard': 1},
+        {'form': 'agent', 'schedule': 'parallel'},
+        {'form': 'agent', 'actor': 'both'},
+        {'form': 'agent', 'remove': 'both'},
+        {'form': 'agent', 'schedule': 'member', 'pairing': 'pairs'},
+        {'schedule': 'member'},
+        {'form': 'agent', 'schedule': 'member', 'pairing': 'cell', 'partners': 0},
+        {'form': 'agent', 'pairing': 'site', 'actor': 'target'},
     ],
 )
 def test_check_rejects_invalid_arguments(arguments):
@@ -243,3 +250,28 @@ def test_check_rejects_invalid_arguments(arguments):
     settings = {'state': 'level', 'amount': 1.0, **arguments}
     with pytest.raises(ValidationError):
         TransferInteraction('flow', source='a', target='b', **settings).check()
+
+
+def test_transfer_actors_take_one_partner_of_their_cell_and_remove_it():
+    """Test that every actor takes one random partner of its cell, gains its amount, and removes it."""
+    prey = GroupElement('prey', element=StockElement, size=3, location=[(0, 0)] * 3, variable=True)
+    hunters = GroupElement('hunters', element=StockElement, size=2, location=[(0, 0), (1, 1)], variable=True)
+    eating = TransferInteraction(
+        'eating',
+        source='prey',
+        target='hunters',
+        state=Source(),
+        into='level',
+        amount=5.0,
+        pairing='cell',
+        form='agent',
+        schedule='member',
+        actor='target',
+        partners=1,
+        remove='source',
+    )
+    system = System(elements=[prey, hunters], interactions=[eating], space=LatticeSpace((2, 2)))
+    trajectory = _run(system, 2)
+    assert len(trajectory.agents('prey', 1).values['level']) == 2
+    assert len(trajectory.agents('prey', 2).values['level']) == 1
+    assert trajectory.agents('hunters', 2).values['level'].tolist() == [10.0, 0.0]

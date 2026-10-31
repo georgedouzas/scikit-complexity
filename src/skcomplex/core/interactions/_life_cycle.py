@@ -14,6 +14,7 @@ from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
 
 PLACEMENTS = ('here', 'neighbor')
+SCHEDULES = ('sequential', 'random-sequential', 'member')
 
 type Chance = float | Callable[[AgentViewProtocol, ModelViewProtocol], float]
 type Count = int | Callable[[AgentViewProtocol, ModelViewProtocol], int]
@@ -23,7 +24,10 @@ type Mutation = Callable[[dict[str, object], ModelViewProtocol], dict[str, objec
 class LifeCycleInteraction(Interaction):
     """Life cycle of the agents of a group, which give birth to offspring and die, every step of discrete time.
 
-    Every step the agents act once each in random order. An agent dies with the probability `death`, and an agent that
+    Every step the agents act once each, in their order under the schedule `'sequential'`, in a new random order under
+    `'random-sequential'`, or each in its own activation under `'member'`, together with the rules of its element and
+    the other member interactions, in the order the system lists them. An agent dies with the probability `death`, and
+    an agent that
     survives gives birth with the probability `birth`, or as many times as a Poisson number of the mean `rate`. A
     probability is a number or a function of the agent and the model view, and a function that returns a condition
     gives probability one where it holds. Every birth creates `offspring` new agents of the group, a number or a
@@ -65,13 +69,16 @@ class LifeCycleInteraction(Interaction):
         mutate:
             A function of the values of a new agent and the model view that returns its values, or `None`.
 
+        schedule:
+            The order of the agents, `'sequential'`, `'random-sequential'`, or `'member'`.
+
         phase:
             The phase of the step the life cycle runs in, or `None` for the default phase.
 
     Raises:
         ValidationError:
-            The placement is unknown, both a birth probability and a rate are given, or a function is not callable,
-            raised by `check`.
+            The placement or the schedule is unknown, both a birth probability and a rate are given, or a function is
+            not callable, raised by `check`.
 
     Examples:
         >>> from typing import Annotated
@@ -106,6 +113,7 @@ class LifeCycleInteraction(Interaction):
         inherit: Sequence[str] = (),
         split: Sequence[str] = (),
         mutate: Mutation | None = None,
+        schedule: str = 'random-sequential',
         phase: str | None = None,
     ) -> None:
         super().__init__(label)
@@ -118,6 +126,7 @@ class LifeCycleInteraction(Interaction):
         self.inherit = inherit
         self.split = split
         self.mutate = mutate
+        self.schedule = schedule
         self.phase = phase
 
     def _check(self) -> None:
@@ -125,12 +134,15 @@ class LifeCycleInteraction(Interaction):
 
         Raises:
             ValidationError:
-                The placement is unknown, both a birth probability and a rate are given, or a value is neither a
-                number nor a function.
+                The placement or the schedule is unknown, both a birth probability and a rate are given, or a value
+                is neither a number nor a function.
         """
         super()._check()
         if self.placement not in PLACEMENTS:
             error_msg = f'Unknown placement {self.placement!r} of {self.label!r}. Use one of {", ".join(PLACEMENTS)}.'
+            raise ValidationError(error_msg)
+        if self.schedule not in SCHEDULES:
+            error_msg = f'Unknown schedule {self.schedule!r} of {self.label!r}. Use one of {", ".join(SCHEDULES)}.'
             raise ValidationError(error_msg)
         if self.birth is not None and self.rate is not None:
             error_msg = f'{self.label!r} gives births by a probability and by a rate. Give one of them.'
@@ -191,21 +203,31 @@ class LifeCycleInteraction(Interaction):
                 values = self.mutate(values, model)
             agent.create(None, place, **values)
 
+    def _live_agent(self, agent: AgentViewProtocol, model: ModelViewProtocol, occupied: set[object]) -> None:
+        """Remove an agent that dies, or create the offspring of an agent that gives birth."""
+        if not agent.alive:
+            return
+        if self._happens(self.death, agent, model):
+            occupied.discard(agent.location_key)
+            agent.remove()
+            return
+        count = self._count_births(agent, model)
+        if count:
+            self._bear(agent, self._get_places(agent, count, occupied, model), model)
+
+    def _live_member(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
+        """Run the life cycle of one agent in its own activation."""
+        neighbor = self.placement == 'neighbor'
+        occupied = {other.location_key for other in model.agents('target')} if neighbor else set()
+        self._live_agent(agent, model, occupied)
+
     def _live(self, model: ModelViewProtocol) -> None:
-        """Remove the agents that die and create the offspring of those that give birth, in random order."""
+        """Remove the agents that die and create the offspring of those that give birth, in order or random order."""
         agents = model.agents('target')
         occupied = {agent.location_key for agent in agents} if self.placement == 'neighbor' else set()
-        for index in model.rng.permutation(len(agents)):
-            agent = agents[int(index)]
-            if not agent.alive:
-                continue
-            if self._happens(self.death, agent, model):
-                occupied.discard(agent.location_key)
-                agent.remove()
-                continue
-            count = self._count_births(agent, model)
-            if count:
-                self._bear(agent, self._get_places(agent, count, occupied, model), model)
+        order = model.rng.permutation(len(agents)) if self.schedule == 'random-sequential' else range(len(agents))
+        for index in order:
+            self._live_agent(agents[int(index)], model, occupied)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of the life cycle.
@@ -218,4 +240,6 @@ class LifeCycleInteraction(Interaction):
             laws:
                 The rule that removes and creates agents every step.
         """
+        if self.schedule == 'member':
+            return [RuleLaw(self._live_member, phase=self.phase, members='target')]
         return [RuleLaw(self._live, phase=self.phase)]

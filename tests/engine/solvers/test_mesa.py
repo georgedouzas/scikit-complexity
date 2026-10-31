@@ -744,3 +744,52 @@ def test_memory_of_unremembered_state_raises():
         Simulation(System(elements=[GroupElement('agents', element=ForgetfulElement, size=1)])).check().prepare().run(
             until=1,
         )
+
+
+class TickerElement(Element):
+    """Agent that logs its id in its own rule."""
+
+    def _get_laws(self, s):
+        """Return the logging rule."""
+        return [RuleLaw(self.tick)]
+
+    def tick(self, agent, model):
+        """Log the agent with the element tag."""
+        LOG.append(('element', agent.id))
+
+
+LOG: list[tuple[str, int]] = []
+
+
+class EchoInteraction(Interaction):
+    """Interaction whose members log their id in their own activation, with the gain of the interaction."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        gain: Annotated[float, ParameterSpec()] = 2.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.gain = gain
+
+    def _get_laws(self, s):
+        """Return the member rule."""
+        return [RuleLaw(self.echo, members='target')]
+
+    def echo(self, agent, model):
+        """Log the agent with the gain of the interaction."""
+        LOG.append((f'member {model.parameter("gain")}', agent.id))
+
+
+def test_member_rules_run_in_the_activation_of_every_member_after_its_element_rules():
+    """Test that a member rule of an interaction runs right after the rules of each agent, with its own view."""
+    LOG.clear()
+    group = GroupElement('tickers', element=TickerElement, size=5)
+    system = System(elements=[group], interactions=[EchoInteraction('echo', target='tickers')], time=DiscreteTime())
+    Simulation(system, random_state=0).check().prepare().run(until=2)
+    assert len(LOG) == 20
+    for first, second in zip(LOG[::2], LOG[1::2], strict=True):
+        assert (first[0], second) == ('element', ('member 2.0', first[1]))

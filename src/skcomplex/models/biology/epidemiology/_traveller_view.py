@@ -13,7 +13,5 @@ class TravellerView(AgentView):
     """
 
     health: float
-    clock: float
     tau: float
-    days: float
     m: float

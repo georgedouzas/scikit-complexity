@@ -180,9 +180,32 @@ def test_move_function_steps_go_to_the_returned_location():
     assert np.asarray(trajectory.agents('walkers', 1).locations).tolist() == [[0, 0]] * 4
 
 
+def test_move_best_steps_with_vision_look_along_the_axes():
+    """Test that a best step with a vision of 3 reaches the cell 3 away along an axis, the nearest among ties."""
+    walk = MovementInteraction(
+        'walk',
+        target='walkers',
+        step='best',
+        score=lambda walker, cell, model: min(cell[0], 7),
+        vision=3,
+    )
+    trajectory = _lattice_walk(2, walk, size=1)
+    assert np.asarray(trajectory.agents('walkers', 1).locations).tolist() == [[7, 4]]
+    assert np.asarray(trajectory.agents('walkers', 2).locations).tolist() == [[7, 4]]
+
+
+def test_move_member_schedule_charges_every_walker_in_its_activation():
+    """Test that a movement of the member schedule moves every walker once and charges its cost."""
+    walk = MovementInteraction('walk', target='walkers', cost=_cost(1.0), schedule='member')
+    trajectory = _lattice_walk(3, walk)
+    assert trajectory.agents('walkers', 3).values['level'].tolist() == [7.0] * 4
+
+
 @pytest.mark.parametrize(
     'arguments',
     [
+        {'schedule': 'parallel'},
+        {'vision': 'far'},
         {'step': 'cauchy'},
         {'rate': 0.0},
         {'rate': True},

@@ -118,6 +118,10 @@ class AgentViewProtocol(Protocol):
         """Unique id of the agent."""
 
     @property
+    def group(self) -> str:
+        """Path of the group of the agent."""
+
+    @property
     def location(self) -> object:
         """Grid coordinates, network node, or position of the agent."""
 
@@ -131,6 +135,9 @@ class AgentViewProtocol(Protocol):
 
     def neighbor_cells(self) -> list[object]:
         """Return the coordinates of the cells or nodes around the agent's cell or node, hashable as location keys."""
+
+    def agents_here(self, group: str | None = None) -> Sequence[AgentViewProtocol]:
+        """Return the other agents of the agent's cell or node, of every group or of the group of a path."""
 
     def distance_to(self, other: AgentViewProtocol | object) -> float:
         """Return the distance to another agent or a location, the number of hops on a network."""
@@ -160,8 +167,22 @@ class ModelViewProtocol(Protocol):
     def agents(self, name: str) -> Sequence[AgentViewProtocol]:
         """Return the agents of a group bound to a role of the owner, or of a group by path."""
 
+    @property
+    def dimensions(self) -> tuple[float, ...] | None:
+        """Extent of the agent space per axis, cells of a lattice or lengths of a continuous space, `None` otherwise."""
+
+    @property
+    def torus(self) -> bool:
+        """Whether the agent space wraps around at its edges."""
+
     def parameter(self, name: str) -> float:
         """Return the current value of a parameter of the owner."""
+
+    def field(self, name: str, cell: object) -> float:
+        """Return the value of a field state, by path or as `<role>.<state>`, at a cell or node."""
+
+    def deposit(self, name: str, cell: object, amount: float) -> None:
+        """Add an amount to a field state, by path or as `<role>.<state>`, at a cell or node."""
 
     def report(self, name: str, value: float) -> None:
         """Publish a value of the owner as the reporter `<owner>.<name>`."""

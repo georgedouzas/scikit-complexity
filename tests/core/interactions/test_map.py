@@ -163,7 +163,12 @@ def test_random_sequential_hopfield_map_reaches_a_stored_pattern():
 
 @pytest.mark.parametrize(
     ('schedule', 'expected'),
-    [('synchronous', [4.0, 4.0, 4.0]), ('sequential', [4.0, 7.0, 13.0]), ('random-sequential', [4.0, 7.0, 13.0])],
+    [
+        ('synchronous', [4.0, 4.0, 4.0]),
+        ('sequential', [4.0, 7.0, 13.0]),
+        ('random-sequential', [4.0, 7.0, 13.0]),
+        ('member', [4.0, 7.0, 13.0]),
+    ],
 )
 def test_agent_map_updates_agents_by_the_schedule(schedule, expected):
     """Test that agents under a schedule read the values of the start of the step, or those set before them."""
@@ -190,6 +195,7 @@ def test_agent_map_in_the_increment_mode_adds_the_value():
         ({'mode': 'assign', 'function': lambda s: 0.0}, 'mode of map'),
         ({'schedule': 'parallel', 'function': lambda s: 0.0}, 'schedule of map'),
         ({'form': 'mesa', 'function': lambda s: 0.0}, 'form of map'),
+        ({'schedule': 'member', 'function': lambda s: 0.0}, 'only the agent form'),
         ({'function': 1.0}, 'callable'),
     ],
 )

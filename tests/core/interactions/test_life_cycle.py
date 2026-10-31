@@ -132,6 +132,29 @@ def test_live_removes_foragers_below_zero_reserve():
     assert _reserves(trajectory, 2) == []
 
 
+def test_live_member_schedule_runs_the_upkeep_and_the_death_of_each_forager_together():
+    """Test that a forager pays its upkeep and dies below zero in its own activation, under the member schedule."""
+    upkeep = TransferInteraction(
+        'upkeep',
+        source='foragers',
+        target='foragers',
+        state='reserve',
+        into=Sink(),
+        amount=1.0,
+        schedule='member',
+        form='agent',
+    )
+    life = LifeCycleInteraction(
+        'life',
+        target='foragers',
+        death=lambda forager, model: forager.reserve < 0,
+        schedule='member',
+    )
+    trajectory = _forage(2, [upkeep, life], resource=0.0, reserve=1.0, size=3)
+    assert _reserves(trajectory, 1) == [0.0] * 3
+    assert _reserves(trajectory, 2) == []
+
+
 def test_live_splits_the_reserve_above_the_threshold():
     """Test that a forager at its threshold splits its reserve with an offspring, and one below it does not."""
     split = _forage(1, [_upkeep(1.0), _life(threshold=6.0, probability=1.0)], resource=0.0, reserve=8.0)
@@ -197,7 +220,7 @@ def test_live_inherits_and_mutates_the_states_of_offspring():
 
 @pytest.mark.parametrize(
     'arguments',
-    [{'placement': 'far'}, {'birth': 0.5, 'rate': 1.0}, {'death': 'old'}, {'mutate': 3}],
+    [{'placement': 'far'}, {'birth': 0.5, 'rate': 1.0}, {'death': 'old'}, {'mutate': 3}, {'schedule': 'parallel'}],
 )
 def test_check_rejects_invalid_arguments(arguments):
     """Test that an unknown placement, two kinds of birth, and values that are not numbers or functions are rejected."""

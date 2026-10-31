@@ -19,9 +19,11 @@ from ._interaction import Interaction
 from ._transfer import TransferInteraction
 
 STEPS = ('neighbor', 'gaussian', 'levy', 'best')
+SCHEDULES = ('sequential', 'random-sequential', 'member')
 
 type Step = str | Callable[[AgentViewProtocol, ModelViewProtocol], object]
 type Cost = TransferInteraction | Callable[[AgentViewProtocol, ModelViewProtocol], None]
+type Vision = float | Callable[[AgentViewProtocol, ModelViewProtocol], float]
 
 
 class MovementInteraction(Interaction):
@@ -35,15 +37,19 @@ class MovementInteraction(Interaction):
     - `'levy'` moves an agent in a uniformly drawn direction by a Pareto length, whose least value is `scale` and whose
       tail exponent is `exponent`, in a continuous space.
     - `'best'` moves an agent to the cell or node next to its own with the highest `score(agent, cell, model)`, ties
-      broken at random.
+      broken at random. With a `vision`, a number or a function of the agent and the model view, it looks instead
+      along every direction of the neighbourhood of a lattice up to that many cells, and at the cell of the agent, and
+      moves to the cell of the highest score, the nearest of them among ties.
     - A function `step(agent, model)` returns the destination, or `None` to stay.
 
     An agent for which `condition(agent, model)` holds attempts one step every step of time, or a Poisson number of
     steps with the mean `rate`, and takes each attempt with the probability `probability` and then with the probability
     `accept(agent, destination, model)`. An exclusive movement never moves an agent to a cell another agent of the group
-    holds, and the agents move in random order. Every step taken charges its `cost`, a `TransferInteraction` from the
-    agent to itself or a function of the agent and the model view. The movement is an agent rule, so the system runs in
-    discrete time.
+    holds. The agents move one after the other, in their order under the schedule `'sequential'`, in a new random order
+    every step under `'random-sequential'`, or each in its own activation under `'member'`, together with the rules of
+    its element and the other member interactions, in the order the system lists them. Every step taken charges its
+    `cost`, a `TransferInteraction` from the agent to itself or a function of the agent and the model view. The
+    movement is an agent rule, so the system runs in discrete time.
 
     Args:
         label:
@@ -85,13 +91,20 @@ class MovementInteraction(Interaction):
             A `TransferInteraction` that the agent pays to itself or to the environment for every step taken, a function
             of the agent and the model view run for every step taken, or `None`.
 
+        vision:
+            The number of cells the step `'best'` looks along every direction of a lattice, a number or a function of
+            the agent and the model view, or `None` for the cells next to the agent.
+
+        schedule:
+            The order of the agents, `'sequential'`, `'random-sequential'`, or `'member'`.
+
         phase:
             The phase of the step the movement runs in, or `None` for the default phase.
 
     Raises:
         ValidationError:
-            The step is unknown, the rate is not positive, a function is not callable, or the step `'best'` has no
-            score, raised by `check`.
+            The step or the schedule is unknown, the rate is not positive, a function is not callable, or the step
+            `'best'` has no score, raised by `check`.
 
     Examples:
         >>> from skcomplex.core.elements import Element, GroupElement
@@ -123,6 +136,8 @@ class MovementInteraction(Interaction):
         scale: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         exponent: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
         cost: Cost | None = None,
+        vision: Vision | None = None,
+        schedule: str = 'random-sequential',
         phase: str | None = None,
     ) -> None:
         super().__init__(label)
@@ -137,6 +152,8 @@ class MovementInteraction(Interaction):
         self.scale = scale
         self.exponent = exponent
         self.cost = cost
+        self.vision = vision
+        self.schedule = schedule
         self.phase = phase
 
     def _check_functions(self) -> None:
@@ -157,8 +174,8 @@ class MovementInteraction(Interaction):
 
         Raises:
             ValidationError:
-                The step is unknown, the rate is not positive, a function is not callable, or the step `'best'` has
-                no score.
+                The step or the schedule is unknown, the rate is not positive, a function is not callable, or the
+                step `'best'` has no score.
         """
         super()._check()
         if not callable(self.step) and self.step not in STEPS:
@@ -166,6 +183,12 @@ class MovementInteraction(Interaction):
             raise ValidationError(error_msg)
         if self.rate is not None and (isinstance(self.rate, bool) or not self.rate > 0):
             error_msg = f'The rate of {self.label!r} is {self.rate!r}. Give a positive number, or None.'
+            raise ValidationError(error_msg)
+        if self.schedule not in SCHEDULES:
+            error_msg = f'Unknown schedule {self.schedule!r} of {self.label!r}. Use one of {", ".join(SCHEDULES)}.'
+            raise ValidationError(error_msg)
+        if self.vision is not None and not callable(self.vision) and not isinstance(self.vision, int | float):
+            error_msg = f'The vision of {self.label!r} is {self.vision!r}. Give a number, a function, or None.'
             raise ValidationError(error_msg)
         if self.step == 'best' and self.score is None:
             error_msg = f'The step `best` of {self.label!r} maximizes a score. Pass `score(agent, cell, model)`.'
@@ -183,19 +206,67 @@ class MovementInteraction(Interaction):
             return cells
         return [cell for cell in cells if cell not in occupied]
 
-    def _get_best(self, agent: AgentViewProtocol, cells: list[object], model: ModelViewProtocol) -> object:
-        """Return the cell of the highest score, drawn at random among ties."""
+    def _get_best(
+        self,
+        agent: AgentViewProtocol,
+        cells: list[object],
+        model: ModelViewProtocol,
+        distances: list[int] | None = None,
+    ) -> object:
+        """Return the cell of the highest score, the nearest among ties, drawn at random among equally near ones."""
         if self.score is None or not cells:
             return None
         scores = np.asarray([self.score(agent, cell, model) for cell in cells], dtype=float)
         best = np.flatnonzero(scores == scores.max())
+        if distances is not None:
+            near = np.asarray([distances[int(index)] for index in best])
+            best = best[near == near.min()]
         return cells[int(best[int(model.rng.integers(len(best)))])]
+
+    @staticmethod
+    def _shift(here: tuple[int, ...], cell: tuple[int, ...], model: ModelViewProtocol) -> tuple[int, ...]:
+        """Return the unit step from a cell to a neighbouring cell, across the wrapped edge of a torus."""
+        shift = [b - a for a, b in zip(here, cell, strict=True)]
+        if model.torus:
+            sizes = [int(item) for item in model.dimensions or ()]
+            shift = [d - round(d / n) * n for d, n in zip(shift, sizes, strict=True)]
+        return tuple(shift)
+
+    def _get_sight(
+        self,
+        agent: AgentViewProtocol,
+        occupied: set[object],
+        model: ModelViewProtocol,
+    ) -> tuple[list[object], list[int]]:
+        """Return the cells in sight of an agent along every direction of a lattice, its own first, with distances."""
+        vision = self.vision(agent, model) if callable(self.vision) else self.vision
+        reach = int(vision or 0)
+        here = tuple(int(item) for item in np.atleast_1d(np.asarray(agent.location_key)))
+        sizes = [int(item) for item in model.dimensions or ()]
+        cells: list[object] = [agent.location_key]
+        distances = [0]
+        for neighbor in agent.neighbor_cells():
+            shift = self._shift(here, tuple(int(item) for item in np.atleast_1d(np.asarray(neighbor))), model)
+            for distance in range(1, reach + 1):
+                point = [a + distance * d for a, d in zip(here, shift, strict=True)]
+                if model.torus:
+                    point = [item % size for item, size in zip(point, sizes, strict=True)]
+                elif any(not 0 <= item < size for item, size in zip(point, sizes, strict=True)):
+                    break
+                cell = tuple(point)
+                if not self.exclusive or cell not in occupied:
+                    cells.append(cell)
+                    distances.append(distance)
+        return cells, distances
 
     def _get_destination(self, agent: AgentViewProtocol, model: ModelViewProtocol, occupied: set[object]) -> object:
         """Return the location a step of an agent leads to, or `None` to stay."""
         rng = model.rng
         if callable(self.step):
             return self.step(agent, model)
+        if self.step == 'best' and self.vision is not None:
+            cells, distances = self._get_sight(agent, occupied, model)
+            return self._get_best(agent, cells, model, distances)
         if self.step in ('neighbor', 'best'):
             cells = self._get_cells(agent, occupied)
             if self.step == 'best':
@@ -219,6 +290,8 @@ class MovementInteraction(Interaction):
         """Move an agent to a destination unless an exclusive movement finds it held, and return whether it moved."""
         if not self.exclusive:
             agent.move_to(destination)
+            return True
+        if destination == agent.location_key:
             return True
         if destination in occupied:
             return False
@@ -246,12 +319,19 @@ class MovementInteraction(Interaction):
             if self._take(agent, destination, occupied):
                 self._charge(agent, model)
 
+    def _move_member(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
+        """Move one agent whose condition holds, in its own activation."""
+        if agent.alive and (self.condition is None or self.condition(agent, model)):
+            occupied = {other.location_key for other in model.agents('target')} if self.exclusive else set()
+            self._move(agent, model, model.parameter('probability'), occupied)
+
     def _move_all(self, model: ModelViewProtocol) -> None:
-        """Move every agent of the group whose condition holds, in random order."""
+        """Move every agent of the group whose condition holds, in their order or in random order."""
         agents = model.agents('target')
         occupied = {agent.location_key for agent in agents} if self.exclusive else set()
         probability = model.parameter('probability')
-        for index in model.rng.permutation(len(agents)):
+        order = model.rng.permutation(len(agents)) if self.schedule == 'random-sequential' else range(len(agents))
+        for index in order:
             agent = agents[int(index)]
             if agent.alive and (self.condition is None or self.condition(agent, model)):
                 self._move(agent, model, probability, occupied)
@@ -267,4 +347,6 @@ class MovementInteraction(Interaction):
             laws:
                 The rule that moves the agents every step.
         """
+        if self.schedule == 'member':
+            return [RuleLaw(self._move_member, phase=self.phase, members='target')]
         return [RuleLaw(self._move_all, phase=self.phase)]

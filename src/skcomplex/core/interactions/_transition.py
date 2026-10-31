@@ -22,7 +22,8 @@ from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
 
 KINDS = ('rate', 'probability', 'condition', 'matrix')
-OVERS = ('member', 'neighbors')
+OVERS = ('member', 'neighbors', 'cell')
+SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
 FORMS = ('symbolic', 'agent')
 
 
@@ -41,8 +42,17 @@ class TransitionInteraction(Interaction):
 
     In the `'symbolic'` form, every function reads `namespace.target`, the states and parameters of the target, and the
     time `namespace.t`. In the `'agent'` form, the target is an agent group and every function takes the agent and
-    the model view, `f(agent, model)`, and returns a number, a truth value, or the rows of a matrix. Every agent decides
-    from the states at the start of the step, and a rate `r` moves an agent with probability `1 - exp(-r)` in a step.
+    the model view, `f(agent, model)`, and returns a number, a truth value, or the rows of a matrix, and a rate `r`
+    moves an agent with probability `1 - exp(-r)` in a step. With `over='cell'`, every member acts on the other members
+    of its cell: it moves each one that holds the source value with the probability, the rate, or the condition
+    `f(agent, other, model)` of that member `agent` and the acting member `other`, each by its own draw.
+
+    The `schedule` of the agent form orders the members. Under `'synchronous'` every member decides from the states at
+    the start of the step, under `'sequential'` the members act one after the other in their order, and under
+    `'random-sequential'` in a new random order every step, each reading the values the members before it set. Under
+    `'member'` every member acts in its own activation, together with the rules of its element and the other member
+    interactions, in the order the system lists them, so one rule of a member runs its movement, transfers,
+    transitions, and life cycle.
 
     Args:
         label:
@@ -80,13 +90,18 @@ class TransitionInteraction(Interaction):
             The name of the state of the target that the emission matrix draws, or `None`.
 
         over:
-            `'member'` for a rate or a probability of the member, or `'neighbors'` for that of one neighbour.
+            `'member'` for a rate or a probability of the member, `'neighbors'` for that of one neighbour, or `'cell'`
+            for the agent form whose members act on the members of their cell.
 
         neighborhood:
             The neighbourhood of `over='neighbors'`, or `None` for the neighbours of the network or the lattice.
 
         after:
             The number of steps a member holds the source value before it can move, or `None`.
+
+        schedule:
+            The order of the members of the agent form, `'synchronous'`, `'sequential'`, `'random-sequential'`, or
+            `'member'`.
 
         form:
             `'symbolic'` for laws of the states of the target, or `'agent'` for a rule over an agent group.
@@ -97,9 +112,9 @@ class TransitionInteraction(Interaction):
     Raises:
         ValidationError:
             The transition has not exactly one kind, the source and the destination are equal, an emission has no
-            matrix or no observed state, `over` is unknown or goes with a condition, a matrix, or the agent form, the
-            residence time is negative or goes with a rate or a matrix, the form is unknown, or a function is not
-            callable.
+            matrix or no observed state, `over` is unknown or goes with a form or a kind it cannot take, the
+            residence time is negative or goes with a rate, a matrix, or members acting on their cell, the form or the
+            schedule is unknown, the symbolic form has a schedule, or a function is not callable.
 
     Examples:
         >>> from skcomplex.core.interactions import TransitionInteraction
@@ -133,6 +148,7 @@ class TransitionInteraction(Interaction):
         over: str = 'member',
         neighborhood: BaseNeighborhood | None = None,
         after: float | None = None,
+        schedule: str = 'synchronous',
         form: str = 'symbolic',
         phase: str | None = None,
     ) -> None:
@@ -150,6 +166,7 @@ class TransitionInteraction(Interaction):
         self.over = over
         self.neighborhood = neighborhood
         self.after = after
+        self.schedule = schedule
         self.form = form
         self.phase = phase
 
@@ -179,6 +196,18 @@ class TransitionInteraction(Interaction):
             raise ValidationError(error_msg)
         if self.form not in FORMS:
             error_msg = f'The form of transition {self.label!r} is {self.form!r}. Use one of {", ".join(FORMS)}.'
+            raise ValidationError(error_msg)
+        if self.schedule not in SCHEDULES or (self.form == 'symbolic' and self.schedule != 'synchronous'):
+            error_msg = (
+                f'The schedule of transition {self.label!r} is {self.schedule!r}. Use one of {", ".join(SCHEDULES)}, '
+                'and the agent form for another than `synchronous`.'
+            )
+            raise ValidationError(error_msg)
+        if self.over == 'cell' and (self.form != 'agent' or kind == 'matrix' or self.after is not None):
+            error_msg = (
+                f'The members of transition {self.label!r} act on their cell, which only the agent form does, by a '
+                'rate, a probability, or a condition and without a residence time.'
+            )
             raise ValidationError(error_msg)
         if self.over == 'neighbors' and (kind not in {'rate', 'probability'} or self.form == 'agent'):
             error_msg = (
@@ -262,14 +291,31 @@ class TransitionInteraction(Interaction):
         weights = np.asarray(row, dtype=float)
         return float(model.rng.choice(weights.size, p=weights / weights.sum()))
 
-    def _moves_agent(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> bool:
-        """Return whether an agent that holds the source value moves in this step."""
+    def _evaluate[T](
+        self,
+        function: Callable[..., T],
+        agent: AgentViewProtocol,
+        other: AgentViewProtocol | None,
+        model: ModelViewProtocol,
+    ) -> T:
+        """Return a function of an agent, or of an agent and the member of its cell that acts on it."""
+        return function(agent, model) if other is None else function(agent, other, model)
+
+    def _moves_agent(
+        self,
+        agent: AgentViewProtocol,
+        model: ModelViewProtocol,
+        other: AgentViewProtocol | None = None,
+    ) -> bool:
+        """Return whether an agent that holds the source value moves in this step, moved by another one or alone."""
         if self.condition is not None:
-            return bool(self.condition(agent, model))
+            return bool(self._evaluate(self.condition, agent, other, model))
         if self.rate is not None:
-            probability = 1.0 - math.exp(-float(self.rate(agent, model)))
+            probability = 1.0 - math.exp(-float(self._evaluate(self.rate, agent, other, model)))
+        elif self.probability is not None:
+            probability = float(self._evaluate(self.probability, agent, other, model))
         else:
-            probability = float(self.probability(agent, model)) if self.probability is not None else 0.0
+            probability = 0.0
         return bool(model.rng.random() < probability)
 
     def _get_next(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> float | None:
@@ -282,21 +328,46 @@ class TransitionInteraction(Interaction):
             return None
         return float(self.destination) if self._moves_agent(agent, model) else None
 
+    def _get_moves(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> list[tuple[AgentViewProtocol, float]]:
+        """Return the members an agent moves in this step, itself or the members of its cell, with their values."""
+        if self.over != 'cell':
+            value = self._get_next(agent, model)
+            return [] if value is None else [(agent, value)]
+        return [
+            (other, float(self.destination))
+            for other in agent.agents_here(agent.group)
+            if other is not agent
+            and float(getattr(other, self.state)) == self.source
+            and self._moves_agent(other, model, agent)
+        ]
+
+    def _apply(self, moves: list[tuple[AgentViewProtocol, float]], model: ModelViewProtocol) -> None:
+        """Set the moved states, and draw the observed state of an emission."""
+        for agent, value in moves:
+            setattr(agent, self.state, value)
+            if self.emission is not None and self.observed is not None:
+                setattr(agent, self.observed, self._draw_row(self.emission(agent, model)[int(value)], model))
+
+    def _move_member(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
+        """Move the state of one member, or of the members of its cell, from the states the members before it set."""
+        if agent.alive:
+            self._apply(self._get_moves(agent, model), model)
+
     def move(self, model: ModelViewProtocol) -> None:
-        """Move the state of every agent of the target that moves in this step, all from the states at its start.
+        """Move the state of every agent of the target that moves in this step, by the schedule.
 
         Args:
             model:
                 The model view of the interaction.
         """
         agents = list(model.agents('target'))
-        moved = [(agent, self._get_next(agent, model)) for agent in agents]
-        for agent, value in moved:
-            if value is None:
-                continue
-            setattr(agent, self.state, value)
-            if self.emission is not None and self.observed is not None:
-                setattr(agent, self.observed, self._draw_row(self.emission(agent, model)[int(value)], model))
+        if self.schedule == 'synchronous':
+            moves = [move for agent in agents for move in self._get_moves(agent, model)]
+            self._apply(moves, model)
+            return
+        order = model.rng.permutation(len(agents)) if self.schedule == 'random-sequential' else range(len(agents))
+        for index in order:
+            self._move_member(agents[int(index)], model)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
         """Return the jump, the update, the transition or emission law of the state, or the rule of the agent form.
@@ -309,6 +380,8 @@ class TransitionInteraction(Interaction):
             laws:
                 The law of the move, or the rule that moves the agents.
         """
+        if self.form == 'agent' and self.schedule == 'member':
+            return [RuleLaw(self._move_member, phase=self.phase, members='target')]
         if self.form == 'agent':
             return [RuleLaw(self.move, phase=self.phase)]
         value = getattr(namespace.target, self.state)

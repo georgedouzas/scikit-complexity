@@ -26,3 +26,10 @@ def test_rule_needs_a_callable_function():
     """Test that a rule rejects a function that cannot be called."""
     with pytest.raises(ValidationError, match='callable'):
         RuleLaw('move').check()
+
+
+@pytest.mark.parametrize('members', ['', 3])
+def test_rule_members_name_a_role(members):
+    """Test that the members of a rule must name a role."""
+    with pytest.raises(ValidationError, match='name a role'):
+        RuleLaw(lambda agent, model: None, members=members).check()

@@ -4,6 +4,7 @@
 # License: MIT
 
 
+import math
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,7 +14,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import MovementInteraction
+from ....core.interactions import MovementInteraction, TransitionInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace, NetworkSpace
 from ....core.system import System
@@ -45,6 +46,31 @@ def _get_person_step(agent: AgentViewProtocol, destination: object, model: Model
 def _get_traveller_step(agent: AgentViewProtocol, destination: object, model: ModelViewProtocol) -> float:
     """Return the probability `m` that a traveller moves to a neighbouring node."""
     return float(agent.m) if isinstance(agent, TravellerView) else 0.0
+
+
+def _is_living_walker(agent: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return whether an agent is a living walker, so it walks."""
+    return isinstance(agent, WalkerView) and agent.health != DECEASED
+
+
+def _get_walker_step(agent: AgentViewProtocol, destination: object, model: ModelViewProtocol) -> float:
+    """Return the probability `travel` that a walker takes its step."""
+    return float(agent.travel) if isinstance(agent, WalkerView) else 0.0
+
+
+def _get_walker_infection(agent: AgentViewProtocol, other: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return the probability that a walker of the cell infects a healthy walker, `infection` when it is sick."""
+    return float(other.infection) if isinstance(other, WalkerView) and other.health == SICK else 0.0
+
+
+def _get_traveller_infection(agent: AgentViewProtocol, other: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return the probability that a traveller of the node infects a susceptible one, `tau` when it is infected."""
+    return float(other.tau) if isinstance(other, TravellerView) and other.health == INFECTED else 0.0
+
+
+def _is_due(agent: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return true, so a member moves as soon as it has held its value for the residence time."""
+    return True
 
 
 def _initial_health(size: int, sick: int, rng: np.random.Generator, value: float) -> np.ndarray:
@@ -199,9 +225,10 @@ class PersonElement(Element):
 class WalkerElement(Element):
     """Random walker that carries a deadly disease, of Charbonneau's epidemic model.
 
-    A living walker moves to a neighbouring cell or node with probability `travel`. A sick walker infects every
-    healthy walker of its cell with probability `infection` at every step, and falls dead `lifetime` steps after its
-    own infection. Health is 0 healthy, 1 sick, or 2 dead.
+    In its own activation, a living walker moves to a neighbouring cell or node with probability `travel` by a
+    `MovementInteraction`, and a `TransitionInteraction` whose members act on their cell makes a sick walker infect
+    every healthy walker of its cell with probability `infection`. Another transition kills a sick walker after a
+    residence of a number of steps. Health is 0 healthy, 1 sick, or 2 dead.
 
     Args:
         label:
@@ -212,12 +239,6 @@ class WalkerElement(Element):
 
         health:
             The health state.
-
-        remaining:
-            The steps a sick walker has left to live.
-
-        lifetime:
-            The number of steps a walker lives after its infection.
 
         infection:
             The probability that a sick walker infects a healthy walker of its cell at every step.
@@ -237,15 +258,11 @@ class WalkerElement(Element):
         visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 2.0)}),
         *,
         health: Annotated[float, StateSpec(domain=NN)] = HEALTHY,
-        remaining: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        lifetime: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
         infection: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         travel: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.health = health
-        self.remaining = remaining
-        self.lifetime = lifetime
         self.infection = infection
         self.travel = travel
 
@@ -254,58 +271,14 @@ class WalkerElement(Element):
         """Return the view of a walker, `WalkerView`."""
         return WalkerView
 
-    def _step(self, agent: WalkerView, model: ModelView) -> None:
-        """Move a walker to a random neighbouring cell or node with the probability `travel`."""
-        cells = agent.neighbor_cells()
-        if cells and model.rng.random() < agent.travel:
-            agent.move_to(cells[int(model.rng.integers(len(cells)))])
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the life rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.walk)]
-
-    def walk(self, agent: WalkerView, model: ModelView) -> None:
-        """Walk, and when sick, infect the walkers of the cell and age towards death.
-
-        The walk stays in the rule of the walker, before its infections, since a walker infected earlier in the same
-        step walks on and infects the cell it reaches, which spreads the epidemic several cells in one step.
-
-        Args:
-            agent:
-                The walker.
-
-            model:
-                The model.
-        """
-        if agent.health == DECEASED:
-            return
-        self._step(agent, model)
-        if agent.health != SICK:
-            return
-        for other in agent.agents_here(agent.group):
-            if isinstance(other, WalkerView) and other.health == HEALTHY and model.rng.random() < agent.infection:
-                other.health = SICK
-                other.remaining = other.lifetime
-        agent.remaining -= 1
-        if agent.remaining <= 0:
-            agent.health = DECEASED
-
 
 class TravellerElement(Element):
     """Resident of a city at a network node, who infects fellow residents and travels to neighbouring cities.
 
-    An infected traveller infects every susceptible traveller of its node with probability `tau`, recovers after
-    `days` steps, and a `MovementInteraction` moves it to a random neighbouring node with probability `m`. Health is 0
-    susceptible, 2 infected, or 3 recovered.
+    In its own activation, an infected traveller infects every susceptible traveller of its node with probability
+    `tau`, by a `TransitionInteraction` whose members act on their cell, and another transition makes it recover after
+    a residence of a number of steps. A `MovementInteraction` moves it to a random neighbouring node with probability
+    `m`. Health is 0 susceptible, 2 infected, or 3 recovered.
 
     Args:
         label:
@@ -317,14 +290,8 @@ class TravellerElement(Element):
         health:
             The health state.
 
-        clock:
-            The steps since infection.
-
         tau:
             The probability of infecting a susceptible traveller of the same node at every step.
-
-        days:
-            The number of steps an infection lasts.
 
         m:
             The probability of moving to a neighbouring node at every step.
@@ -341,54 +308,18 @@ class TravellerElement(Element):
         visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 3.0)}),
         *,
         health: Annotated[float, StateSpec(domain=NN)] = SUSCEPTIBLE,
-        clock: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         tau: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        days: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 14.0,
         m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
     ) -> None:
         super().__init__(label, visual=visual)
         self.health = health
-        self.clock = clock
         self.tau = tau
-        self.days = days
         self.m = m
 
     @classmethod
     def _get_view(cls) -> type[TravellerView]:
         """Return the view of a traveller, `TravellerView`."""
         return TravellerView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the life rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.live)]
-
-    def live(self, agent: TravellerView, model: ModelView) -> None:
-        """Infect and recover when infected.
-
-        Args:
-            agent:
-                The traveller.
-
-            model:
-                The model.
-        """
-        if agent.health == INFECTED:
-            for other in agent.agents_here(agent.group):
-                if isinstance(other, TravellerView) and other.health == SUSCEPTIBLE and model.rng.random() < agent.tau:
-                    other.health = INFECTED
-                    other.clock = 0.0
-            agent.clock += 1
-            if agent.clock > agent.days:
-                agent.health = RECOVERED
 
 
 @register_model(
@@ -569,16 +500,41 @@ def random_walker_epidemics(
         'walkers',
         element=WalkerElement,
         size=walkers,
-        values={
-            'health': health,
-            'remaining': health * lifetime,
-            'lifetime': lifetime,
-            'infection': infection,
-            'travel': travel,
-        },
+        values={'health': health, 'infection': infection, 'travel': travel},
         location=locations,
     )
-    return System(elements=[group], space=space)
+    interactions = [
+        MovementInteraction(
+            'walk',
+            target='walkers',
+            condition=_is_living_walker,
+            accept=_get_walker_step,
+            schedule='member',
+        ),
+        TransitionInteraction(
+            'infection',
+            target='walkers',
+            state='health',
+            source=HEALTHY,
+            destination=SICK,
+            probability=_get_walker_infection,
+            over='cell',
+            schedule='member',
+            form='agent',
+        ),
+        TransitionInteraction(
+            'death',
+            target='walkers',
+            state='health',
+            source=SICK,
+            destination=DECEASED,
+            condition=_is_due,
+            after=math.ceil(lifetime),
+            schedule='member',
+            form='agent',
+        ),
+    ]
+    return System(elements=[group], interactions=interactions, space=space)
 
 
 @register_model(
@@ -637,8 +593,30 @@ def network_sir(
         'travellers',
         element=TravellerElement,
         size=size,
-        values={'health': _initial_health(size, 1, rng, INFECTED), 'tau': tau, 'days': days, 'm': m},
+        values={'health': _initial_health(size, 1, rng, INFECTED), 'tau': tau, 'm': m},
         location=[node for node in nodes for _ in range(residents)],
     )
+    infection = TransitionInteraction(
+        'infection',
+        target='travellers',
+        state='health',
+        source=SUSCEPTIBLE,
+        destination=INFECTED,
+        probability=_get_traveller_infection,
+        over='cell',
+        schedule='member',
+        form='agent',
+    )
+    recovery = TransitionInteraction(
+        'recovery',
+        target='travellers',
+        state='health',
+        source=INFECTED,
+        destination=RECOVERED,
+        condition=_is_due,
+        after=math.floor(days) + 1,
+        schedule='member',
+        form='agent',
+    )
     travel = MovementInteraction('travel', target='travellers', accept=_get_traveller_step)
-    return System(elements=[group], interactions=[travel], space=NetworkSpace(graph))
+    return System(elements=[group], interactions=[infection, recovery, travel], space=NetworkSpace(graph))

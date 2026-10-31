@@ -13,7 +13,5 @@ class WalkerView(AgentView):
     """
 
     health: float
-    remaining: float
-    lifetime: float
     infection: float
     travel: float

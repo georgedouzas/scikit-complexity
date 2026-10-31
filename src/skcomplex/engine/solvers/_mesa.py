@@ -211,6 +211,12 @@ class ModelView:
         """
         return sum(len(self._stepper._group_agents(path)) for path in self._paths(name))
 
+    def _field_name(self, name: str) -> str:
+        """Return the path of a field state named by its path, or as `<role>.<state>` of a role of the owner."""
+        role, _, state = name.rpartition('.')
+        bound = self._roles.get(role)
+        return f'{bound}.{state}' if isinstance(bound, str) else name
+
     def _site(self, name: str, cell: object) -> int:
         """Return the member index of a field state's site at a cell or network node."""
         problem = self._stepper.problem_
@@ -234,7 +240,8 @@ class ModelView:
 
         Args:
             name:
-                The dotted path of the field state, such as `ground/pheromone.level`.
+                The dotted path of the field state, such as `ground/pheromone.level`, or `<role>.<state>` for a field
+                bound to a role of the owner.
 
             cell:
                 The lattice coordinates of the cell, which match the coordinates of a grid of the same shape, or a
@@ -248,6 +255,7 @@ class ModelView:
             KeyError:
                 The name is not a state of a field.
         """
+        name = self._field_name(name)
         site = self._site(name, cell)
         values = self._stepper.inputs_.get(name)
         if values is None:
@@ -260,7 +268,8 @@ class ModelView:
 
         Args:
             name:
-                The dotted path of the field state, such as `ground/pheromone.level`.
+                The dotted path of the field state, such as `ground/pheromone.level`, or `<role>.<state>` for a field
+                bound to a role of the owner.
 
             cell:
                 The lattice coordinates of the cell or a network node.
@@ -272,6 +281,7 @@ class ModelView:
             KeyError:
                 The name is not a state of a field.
         """
+        name = self._field_name(name)
         site = self._site(name, cell)
         entry = self._stepper.problem_.states.entry(name)
         self._stepper.deposits_[entry.start + site * entry.columns] += amount
@@ -781,11 +791,17 @@ class MesaSolver(ExternalSolver):
         )
         roles = {item.path: item.roles for item in problem.interactions}
         self._views = {spec.path: ModelView(self, spec.path) for spec in problem.agents}
-        self._rules = [
-            (ModelView(self, owner, roles.get(owner)), rule)
-            for owner, rule in problem.model_rules
-            if isinstance(rule, RuleLaw)
-        ]
+        self._rules: list[tuple[ModelView, RuleLaw]] = []
+        self._member_rules: dict[str, list[tuple[ModelView, RuleLaw]]] = {}
+        for owner, rule in problem.model_rules:
+            if not isinstance(rule, RuleLaw):
+                continue
+            view = ModelView(self, owner, roles.get(owner))
+            if rule.members is None:
+                self._rules.append((view, rule))
+                continue
+            for path in view._paths(rule.members):
+                self._member_rules.setdefault(path, []).append((view, rule))
         time = getattr(problem.system, 'time', None)
         schedule = time.check().prepare().schedule_ if isinstance(time, DiscreteTime) else None
         self._phases = self._phase_plan(schedule.phases if isinstance(schedule, PhasesScheduleSpec) else (), problem)
@@ -812,12 +828,11 @@ class MesaSolver(ExternalSolver):
             if isinstance(space, LatticeSpace | NetworkSpace)
             else ContinuousSpaceAgent if space else mesa.Agent
         )
-        model = self._views[spec.path]
 
         def step(agent: mesa.Agent) -> None:
-            """Run the rules of the agent's type unless the agent was removed earlier in the step."""
+            """Run the rules of the agent's type and its member rules unless the agent was removed earlier."""
             view = self._view_of(agent)
-            for rule in self._rules_of(spec.rules):
+            for model, rule in self._agent_rules(spec):
                 if getattr(agent, 'removed_', False):
                     return
                 rule.function(view, model)
@@ -826,6 +841,11 @@ class MesaSolver(ExternalSolver):
         self._classes[agent_class] = spec
         self._view_classes[agent_class] = self._view_class(spec)
         return agent_class
+
+    def _agent_rules(self, spec: CompiledAgentsSpec) -> list[tuple[ModelView, RuleLaw]]:
+        """Return the rules of an agent with their views, those of its element and then its member rules."""
+        own = [(self._views[spec.path], rule) for rule in self._rules_of(spec.rules)]
+        return own + self._member_rules.get(spec.path, [])
 
     def _place(self, agent: mesa.Agent, location: object) -> None:
         """Place a new agent at a location, or at a random place that respects the space's capacity."""
@@ -1009,9 +1029,8 @@ class MesaSolver(ExternalSolver):
             self.buffer_ = {}
         try:
             for agent in self._ordered_agents(phase):
-                spec = self._spec_of(agent)
-                view, model = self._view_of(agent), self._views[spec.path]
-                for rule in self._rules_of(spec.rules):
+                view = self._view_of(agent)
+                for model, rule in self._agent_rules(self._spec_of(agent)):
                     if getattr(agent, 'removed_', False):
                         break
                     if self._phase_of(rule) == phase.name:

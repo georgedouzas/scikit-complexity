@@ -1,5 +1,6 @@
 """Test the `_transition` module of `skcomplex.core.interactions`."""
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -265,9 +266,58 @@ def test_emission_matrix_draws_an_observation_given_the_moved_state():
         ({'probability': lambda s: 0.5, 'after': -1}, 'residence time'),
         ({'probability': lambda s: 0.5, 'form': 'mesa'}, 'form of transition'),
         ({'probability': lambda a, m: 0.5, 'over': 'neighbors', 'form': 'agent'}, 'symbolic form'),
+        ({'probability': lambda s: 0.5, 'schedule': 'member'}, 'schedule of transition'),
+        ({'probability': lambda a, m: 0.5, 'schedule': 'parallel', 'form': 'agent'}, 'schedule of transition'),
+        ({'probability': lambda s: 0.5, 'over': 'cell'}, 'act on their cell'),
+        ({'condition': lambda a, o, m: True, 'over': 'cell', 'after': 2, 'form': 'agent'}, 'act on their cell'),
     ],
 )
 def test_check_rejects_forms_it_cannot_take(arguments, match):
     """Test that a transition without one form, or with arguments its form ignores, raises an error."""
     with pytest.raises(ValidationError, match=match):
         TransitionInteraction('move', target='members', state='s', **arguments).check()
+
+
+def _empty(agent, model):
+    """Return whether no member holds the value 1."""
+    return all(member.s != 1 for member in model.agents('target'))
+
+
+@pytest.mark.parametrize(
+    ('schedule', 'moved'),
+    [('synchronous', 5), ('sequential', 1), ('random-sequential', 1), ('member', 1)],
+)
+def test_agent_transition_schedule_reads_the_values_set_before(schedule, moved):
+    """Test that synchronous agents decide from the start of the step and the other schedules from earlier moves."""
+    move = TransitionInteraction('move', target='members', state='s', condition=_empty, schedule=schedule, form='agent')
+    assert _agent_values(_group(0.0, size=5), [move], 1).sum() == moved
+
+
+def test_agent_transition_over_the_cell_moves_the_members_of_the_cell():
+    """Test that a member holding 1 moves the members of its cell, and no member of another cell."""
+    cells = [(0, 0), (0, 0), (0, 0), (2, 2)]
+    group = GroupElement('members', element=HolderElement, size=4, values={'s': [1, 0, 0, 0]}, location=cells)
+    spread = TransitionInteraction(
+        'spread',
+        target='members',
+        state='s',
+        condition=lambda agent, other, model: other.s == 1,
+        over='cell',
+        form='agent',
+    )
+    system = System(elements=[group], interactions=[spread], space=LatticeSpace((3, 3)), time=DiscreteTime())
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    assert trajectory.agents('members', 1).values['s'].tolist() == [1, 1, 1, 0]
+
+
+def test_agent_transition_member_schedule_lowers_to_a_member_rule():
+    """Test that the member schedule lowers to a rule run by the members of the target."""
+    move = TransitionInteraction(
+        'move',
+        target='members',
+        state='s',
+        probability=lambda a, m: 0.5,
+        schedule='member',
+        form='agent',
+    )
+    assert move.check().prepare().run(SimpleNamespace()).laws_[0].members == 'target'
