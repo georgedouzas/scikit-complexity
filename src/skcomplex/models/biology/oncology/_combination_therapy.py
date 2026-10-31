@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import pulse, where
+from ....core.laws.utils import pulse_train, where
 from ....core.system import System
 from ....engine.solvers import ScipyODESolver
 from ....errors import ParameterError
@@ -20,11 +20,6 @@ from ..._catalog import register_model
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 INFUSIONS = ('constant', 'exponential', 'periodic')
-
-
-def _doses(t: Expression, start: float, period: float, width: float, count: int) -> Expression:
-    """Return a schedule of `count` rectangular doses of unit height, one every `period` from `start`."""
-    return sum(pulse(t, start + k * period, width) for k in range(count))
 
 
 def _toxicity(concentration: Expression, scale: Expression) -> Expression:
@@ -285,7 +280,7 @@ class ChemoimmunotherapyTumourElement(Element):
                 The laws of the component.
         """
         A, N, E, C, I, M = s.A, s.N, s.E, s.C, s.I, s.M
-        schedule = _doses(s.t, self.start, self.period, self.width, self.doses)
+        schedule = pulse_train(s.t, self.period, self.width, start=self.start, count=self.doses)
         kill = 1 - exp(-M)
         ratio = abs(E) ** s.l
         D = s.a1 * ratio / (s.g1 * abs(A) ** s.l + ratio)
@@ -503,6 +498,10 @@ class ChemovirotherapyTumourElement(Element):
         infusion:
             The form of the infusion, `'constant'`, `'exponential'`, or `'periodic'`.
 
+    Raises:
+        ParameterError:
+            The infusion is not one of the known forms.
+
     Examples:
         >>> from skcomplex.models.biology.oncology import ChemovirotherapyTumourElement
         >>> ChemovirotherapyTumourElement('tumour', infusion='periodic').infusion
@@ -547,6 +546,18 @@ class ChemovirotherapyTumourElement(Element):
         self.u1 = u1
         self.infusion = infusion
 
+    def _check(self) -> None:
+        """Raise an error for an unknown infusion.
+
+        Raises:
+            ParameterError:
+                The infusion is not one of the known forms.
+        """
+        super()._check()
+        if self.infusion not in INFUSIONS:
+            error_msg = f'The infusion must be one of {INFUSIONS}, got {self.infusion!r}.'
+            raise ParameterError(error_msg)
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the growth, the infection, and the drug kill of the cells, the virus balance, and the drug balance.
 
@@ -557,14 +568,7 @@ class ChemovirotherapyTumourElement(Element):
         Returns:
             laws:
                 The laws of the component.
-
-        Raises:
-            ParameterError:
-                The infusion is not one of the known forms.
         """
-        if self.infusion not in INFUSIONS:
-            error_msg = f'The infusion must be one of {INFUSIONS}, got {self.infusion!r}.'
-            raise ParameterError(error_msg)
         AU, AV, V, U = s.AU, s.AV, s.V, s.U
         shape = {'constant': 1, 'exponential': exp(-s.d_u * s.t), 'periodic': sin(s.d_u * s.t) ** 2}[self.infusion]
         infection = s.alpha * AU * V
@@ -1149,7 +1153,7 @@ class AngiogenesisImmunotherapyTumourElement(Element):
                 The laws of the component.
         """
         A, Vb, E = s.A, s.Vb, s.E
-        schedule = _doses(s.t, 0.0, self.period, self.width, self.doses)
+        schedule = pulse_train(s.t, self.period, self.width, count=self.doses)
         antiangiogenic, UAn = self._drug_laws(s, 'an', schedule)
         immunotherapy, UIm = self._drug_laws(s, 'im', schedule)
         return [

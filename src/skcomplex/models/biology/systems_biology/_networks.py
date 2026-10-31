@@ -13,12 +13,14 @@ from sage.all__sagemath_symbolics import SR, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import BaseInteraction, Interaction
+from ....core.interactions import BaseInteraction, Interaction, ReactionInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.system import System
 from ....errors import ValidationError
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._repression import RepressionInteraction
+from ._species import SpeciesElement
 
 RAMAN = 'Raman 2021'
 PATHWAY_ALPHA = (2.0, 1.0, 1.0)
@@ -29,19 +31,6 @@ PATHWAY_STOICHIOMETRY = ((1.0, -1.0, 0.0, 0.0), (0.0, 1.0, -1.0, 0.0), (0.0, 0.0
 PATHWAY_GAMMA = (2.0, 1.0, 1.0, 1.0)
 PATHWAY_ORDERS = ((0.0, 0.0, -0.5), (0.5, 0.0, 0.0), (0.0, 0.5, 0.0), (0.0, 0.0, 0.5))
 MIN_GOODWIN_STAGES = 2
-
-
-def _power_product(values: Sequence[Expression], orders: Sequence[float]) -> Expression:
-    """Return the product `prod_k x_k^f_k` of the values raised to their kinetic orders, leaving out zero orders."""
-    return prod((value**order for value, order in zip(values, orders, strict=True) if order), start=SR(1))
-
-
-def _check_shape(name: str, matrix: Sequence[Sequence[float]], rows: int, columns: int) -> None:
-    """Raise an error unless a matrix has the given numbers of rows and columns."""
-    if len(matrix) == rows and all(len(row) == columns for row in matrix):
-        return
-    error_msg = f'The matrix {name} must have {rows} rows of {columns} entries, one row per flux or species.'
-    raise ValidationError(error_msg)
 
 
 class PhosphorylationLoopElement(Element):
@@ -168,36 +157,6 @@ class PhosphorylationLoopElement(Element):
         ]
 
 
-class MetaboliteElement(Element):
-    """Metabolite or other species of a biochemical system, with a positive concentration.
-
-    Args:
-        label:
-            The label of the metabolite.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial concentration.
-
-    Examples:
-        >>> from skcomplex.models.biology.systems_biology import MetaboliteElement
-        >>> MetaboliteElement('X1', x=2.0).x
-        2.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-
-
 class GeneralizedMassActionInteraction(Interaction):
     """Rates of a biochemical system in the generalized mass action form of biochemical systems theory.
 
@@ -219,6 +178,10 @@ class GeneralizedMassActionInteraction(Interaction):
 
         orders:
             The kinetic order `f_jk` of every species in every flux, one row per flux.
+
+    Raises:
+        ValidationError:
+            The matrices do not have one row per flux or species and one entry per species or flux.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import GeneralizedMassActionInteraction
@@ -244,6 +207,44 @@ class GeneralizedMassActionInteraction(Interaction):
         self.gamma = gamma
         self.orders = orders
 
+    def _get_power_product(self, values: Sequence[Expression], orders: Sequence[float]) -> Expression:
+        """Return the product `prod_k x_k^f_k` of the values raised to their kinetic orders, leaving out zero orders."""
+        return prod((value**order for value, order in zip(values, orders, strict=True) if order), start=SR(1))
+
+    def _check_shape(self, name: str, rows: int, columns: int) -> None:
+        """Raise an error unless a matrix argument has the given numbers of rows and columns."""
+        matrix = getattr(self, name)
+        if len(matrix) == rows and all(len(row) == columns for row in matrix):
+            return
+        error_msg = (
+            f'The matrix {name} of {self.label!r} must have {rows} rows of {columns} entries, one row per flux or '
+            'species.'
+        )
+        raise ValidationError(error_msg)
+
+    def _check_matrices(self) -> None:
+        """Raise an error for a stoichiometry or kinetic orders that do not match the species and the fluxes."""
+        self._check_shape('stoichiometry', len(self.species), len(self.gamma))
+        self._check_shape('orders', len(self.gamma), len(self.species))
+
+    def _get_fluxes(self, s: SimpleNamespace, values: Sequence[Expression]) -> list[Expression]:
+        """Return the power-law fluxes `gamma_j prod_k x_k^f_jk`."""
+        return [rate * self._get_power_product(values, row) for rate, row in zip(self.gamma, self.orders, strict=True)]
+
+    def _get_stoichiometry(self) -> Sequence[Sequence[float]]:
+        """Return the stoichiometric coefficient of every species in every flux, one row per species."""
+        return self.stoichiometry
+
+    def _check(self) -> None:
+        """Raise an error for matrices that do not match the species and the fluxes.
+
+        Raises:
+            ValidationError:
+                The matrices do not have one row per flux or species and one entry per species or flux.
+        """
+        super()._check()
+        self._check_matrices()
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the sum of the power-law fluxes of every species.
 
@@ -254,26 +255,21 @@ class GeneralizedMassActionInteraction(Interaction):
         Returns:
             laws:
                 The laws of the component.
-
-        Raises:
-            ValidationError:
-                The stoichiometry or the kinetic orders do not match the species and the fluxes.
         """
         values = [item.x for item in s.species]
-        _check_shape('stoichiometry', self.stoichiometry, len(values), len(self.gamma))
-        _check_shape('orders', self.orders, len(self.gamma), len(values))
-        fluxes = [rate * _power_product(values, row) for rate, row in zip(self.gamma, self.orders, strict=True)]
+        fluxes = self._get_fluxes(s, values)
         return [
             RateLaw(value, sum((c * flux for c, flux in zip(row, fluxes, strict=True) if c), start=SR(0)))
-            for value, row in zip(values, self.stoichiometry, strict=True)
+            for value, row in zip(values, self._get_stoichiometry(), strict=True)
         ]
 
 
-class SSystemInteraction(Interaction):
+class SSystemInteraction(GeneralizedMassActionInteraction):
     """Rates of a biochemical system in the S-system form of biochemical systems theory.
 
     Every species has one aggregated production and one aggregated degradation, both power laws:
-    `dx_i/dt = alpha_i prod_j x_j^g_ij - beta_i prod_j x_j^h_ij`.
+    `dx_i/dt = alpha_i prod_j x_j^g_ij - beta_i prod_j x_j^h_ij`. It is the generalized mass action form with two
+    fluxes per species.
 
     Args:
         label:
@@ -294,6 +290,10 @@ class SSystemInteraction(Interaction):
         h:
             The kinetic orders of the degradations, one row per species.
 
+    Raises:
+        ValidationError:
+            The kinetic orders do not have one row and one column per species.
+
     Examples:
         >>> from skcomplex.models.biology.systems_biology import SSystemInteraction
         >>> SSystemInteraction('rates', species=['X'], alpha=[1.0], beta=[1.0], g=((0.0,),), h=((1.0,),)).h
@@ -310,191 +310,32 @@ class SSystemInteraction(Interaction):
         g: Sequence[Sequence[float]] = ((0.0,),),
         h: Sequence[Sequence[float]] = ((0.0,),),
     ) -> None:
-        super().__init__(label)
-        self.species = species
+        super().__init__(label, species=species)
         self.alpha = alpha
         self.beta = beta
         self.g = g
         self.h = h
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the production minus the degradation of every species.
+    def _check_matrices(self) -> None:
+        """Raise an error for kinetic orders without one row and one column per species."""
+        self._check_shape('g', len(self.species), len(self.species))
+        self._check_shape('h', len(self.species), len(self.species))
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-
-        Raises:
-            ValidationError:
-                The kinetic orders do not have one row and one column per species.
-        """
-        values = [item.x for item in s.species]
-        _check_shape('g', self.g, len(values), len(values))
-        _check_shape('h', self.h, len(values), len(values))
+    def _get_fluxes(self, s: SimpleNamespace, values: Sequence[Expression]) -> list[Expression]:
+        """Return the production and the degradation flux of every species, in turn."""
         return [
-            RateLaw(value, alpha * _power_product(values, g) - beta * _power_product(values, h))
-            for value, alpha, beta, g, h in zip(values, s.alpha, s.beta, self.g, self.h, strict=True)
+            flux
+            for alpha, beta, g, h in zip(s.alpha, s.beta, self.g, self.h, strict=True)
+            for flux in (alpha * self._get_power_product(values, g), beta * self._get_power_product(values, h))
         ]
 
-
-class GoodwinStageElement(Element):
-    """Stage of the Goodwin loop, an mRNA, an enzyme, or a product, which decays at a constant rate.
-
-    Args:
-        label:
-            The label of the stage.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial concentration.
-
-        b:
-            The degradation rate.
-
-    Examples:
-        >>> from skcomplex.models.biology.systems_biology import GoodwinStageElement
-        >>> GoodwinStageElement('mRNA', x=0.1).x
-        0.1
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        b: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.b = b
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the decay `-b x`.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.x, -s.b * s.x)]
-
-
-class HillRepressionInteraction(Interaction):
-    """Synthesis of a target repressed by a Hill function of a repressor, `a / (1 + (y / K)^n)`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        repressor:
-            The path of the repressing stage.
-
-        target:
-            The path of the synthesized stage.
-
-        a:
-            The synthesis rate without repressor.
-
-        K:
-            The repressor concentration at half repression.
-
-        n:
-            The Hill coefficient.
-
-    Examples:
-        >>> from skcomplex.models.biology.systems_biology import HillRepressionInteraction
-        >>> HillRepressionInteraction('repression', repressor='product', target='mRNA', n=12.0).n
-        12.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        repressor: Annotated[str, RoleSpec()],
-        target: Annotated[str, RoleSpec()],
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
-    ) -> None:
-        super().__init__(label)
-        self.repressor = repressor
-        self.target = target
-        self.a = a
-        self.K = K
-        self.n = n
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the repressed synthesis of the target.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.target.x, s.a / (1 + (s.repressor.x / s.K) ** s.n))]
-
-
-class SynthesisInteraction(Interaction):
-    """Synthesis of a target in proportion to a source, `k x`, such as translation or an enzymatic product.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        source:
-            The path of the stage that drives the synthesis.
-
-        target:
-            The path of the synthesized stage.
-
-        k:
-            The synthesis rate per unit of source.
-
-    Examples:
-        >>> from skcomplex.models.biology.systems_biology import SynthesisInteraction
-        >>> SynthesisInteraction('translation', source='mRNA', target='enzyme', k=2.0).k
-        2.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        source: Annotated[str, RoleSpec()],
-        target: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.source = source
-        self.target = target
-        self.k = k
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the synthesis `k x` of the target.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.target.x, s.k * s.source.x)]
+    def _get_stoichiometry(self) -> Sequence[Sequence[float]]:
+        """Return the coefficient 1 of every species in its production and -1 in its degradation."""
+        size = len(self.species)
+        return [
+            [1.0 if flux == 2 * row else -1.0 if flux == 2 * row + 1 else 0.0 for flux in range(2 * size)]
+            for row in range(size)
+        ]
 
 
 @register_model(
@@ -651,7 +492,7 @@ def biochemical_systems_theory(
         >>> biochemical_systems_theory(form='gma').interactions[0].gamma
         (2.0, 1.0, 1.0, 1.0)
     """
-    species = [MetaboliteElement(f'X{index}', x=float(value)) for index, value in enumerate(x, start=1)]
+    species = [SpeciesElement(f'X{index}', x=float(value)) for index, value in enumerate(x, start=1)]
     paths = [item.label for item in species]
     if form == 's-system':
         rates: BaseInteraction = SSystemInteraction(
@@ -742,10 +583,13 @@ def goodwin_oscillator(
         error_msg = f'The Goodwin loop needs at least 2 stages and one initial value per stage, not {variables} stages.'
         raise ValidationError(error_msg)
     labels = [f'x{index}' for index in range(1, variables + 1)]
-    stages = [GoodwinStageElement(label, x=float(value), b=b) for label, value in zip(labels, initial, strict=True)]
-    repression = HillRepressionInteraction('repression', repressor=labels[-1], target=labels[0], a=a, K=K, n=n)
+    stages = [SpeciesElement(label, x=float(value)) for label, value in zip(labels, initial, strict=True)]
+    repression = RepressionInteraction(
+        'repression', products={(labels[0], 'x'): 1}, modifiers={(labels[-1], 'x'): 1}, alpha=a, K=K, n=n,
+    )
     syntheses = [
-        SynthesisInteraction(f'synthesis_{target}', source=source, target=target, k=k)
+        ReactionInteraction(f'synthesis_{target}', products={(target, 'x'): 1}, modifiers={(source, 'x'): 1}, k=k)
         for source, target in itertools.pairwise(labels)
     ]
-    return System(elements=stages, interactions=[repression, *syntheses])
+    degradations = [ReactionInteraction(f'degradation_{label}', reactants={(label, 'x'): 1}, k=b) for label in labels]
+    return System(elements=stages, interactions=[repression, *syntheses, *degradations])

@@ -8,35 +8,28 @@ from ._boolean import (
     yeast_cell_cycle,
 )
 from ._boolean_models import boolean_repressilator, mammalian_cell_cycle, three_gene_boolean_network
-from ._cascades import ActivationInteraction, CascadeStageElement, GProteinElement, hormone_cascade_amplifier
+from ._cascades import GProteinElement, hormone_cascade_amplifier
 from ._clocks import PerClockElement, circadian_clock
-from ._genes import GeneElement, RepressionInteraction, negative_autoregulation, repressilator, toggle_switch
+from ._genes import GeneElement, negative_autoregulation, repressilator, toggle_switch
 from ._min_proteins import MinSkeletonElement, min_protein_skeleton
 from ._networks import (
     GeneralizedMassActionInteraction,
-    GoodwinStageElement,
-    HillRepressionInteraction,
-    MetaboliteElement,
     PhosphorylationLoopElement,
     SSystemInteraction,
-    SynthesisInteraction,
     biochemical_systems_theory,
     goodwin_oscillator,
     phosphorylation_oscillator,
 )
 from ._probabilistic import ProbabilisticFunctionInteraction, ProbabilisticNodeElement, probabilistic_boolean_network
+from ._repression import RepressionInteraction
+from ._species import SpeciesElement
 
 __all__: list[str] = [
-    'ActivationInteraction',
     'BooleanFunctionInteraction',
     'BooleanNodeElement',
-    'CascadeStageElement',
     'GProteinElement',
     'GeneElement',
     'GeneralizedMassActionInteraction',
-    'GoodwinStageElement',
-    'HillRepressionInteraction',
-    'MetaboliteElement',
     'MinSkeletonElement',
     'PerClockElement',
     'PhosphorylationLoopElement',
@@ -44,7 +37,7 @@ __all__: list[str] = [
     'ProbabilisticNodeElement',
     'RepressionInteraction',
     'SSystemInteraction',
-    'SynthesisInteraction',
+    'SpeciesElement',
     'ThresholdFunctionInteraction',
     'biochemical_systems_theory',
     'boolean_repressilator',

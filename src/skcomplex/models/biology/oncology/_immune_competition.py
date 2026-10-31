@@ -5,20 +5,17 @@
 
 from functools import partial
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import Expression, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
-from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, DestructionLaw, EncounterLaw, ProliferationLaw
+from ....core.elements import DensityElement, GroupElement
+from ....core.interactions import EncounterInteraction
 from ....core.laws.utils import moment
 from ....core.spaces import ContinuousTime, LatticeSpace
 from ....core.system import System
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec
 from ..._catalog import register_model
 
 IMMUNE_REFERENCES = ('Bellomo et al. 2017', 'Bellomo and Delitala 2008', 'Bellomo, Bellouquid, and Delitala 2004')
@@ -103,166 +100,6 @@ def mean_activity(s: SimpleNamespace, activities: npt.NDArray[np.float64]) -> Ex
             The normalized first moment.
     """
     return moment(s.f, 1, activities, normalized=True)
-
-
-class CellsElement(Element):
-    """Density of a population of cells at one activity class, a member of a distribution over activities.
-
-    Args:
-        label:
-            The label of the distribution.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        f:
-            The initial density.
-
-    Examples:
-        >>> from skcomplex.models.biology.oncology import CellsElement
-        >>> GroupElement('tumour', element=CellsElement, size=5, values={'f': 0.02}).size
-        5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.f = f
-
-
-class TumourGrowthInteraction(Interaction):
-    """Proliferation of tumour cells in the host environment, and their progression to higher activity classes.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        tumour:
-            The path of the distribution of tumour cells over their progression.
-
-        host:
-            The path of the group of one member whose fixed density is the host environment.
-
-        classes:
-            The number of progression classes.
-
-        growth:
-            The proliferation rate.
-
-        progression:
-            The rate at which tumour cells move one progression class up.
-
-    Examples:
-        >>> from skcomplex.models.biology.oncology import TumourGrowthInteraction
-        >>> TumourGrowthInteraction('growth', tumour='tumour', host='host').growth
-        0.3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        tumour: Annotated[str, RoleSpec()],
-        host: Annotated[str, RoleSpec()],
-        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 5,
-        growth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        progression: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-    ) -> None:
-        super().__init__(label)
-        self.tumour = tumour
-        self.host = host
-        self.classes = classes
-        self.growth = growth
-        self.progression = progression
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the proliferation and the progression.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            ProliferationLaw(s.tumour.f, s.host.f, s.growth),
-            EncounterLaw(s.tumour.f, s.host.f, s.progression, step_table(int(self.classes), 1)),
-        ]
-
-
-class ImmuneCompetitionInteraction(Interaction):
-    """Encounters of tumour and immune cells: active immune cells destroy tumour cells, which inhibit immune cells.
-
-    A tumour cell meets an immune cell of activation `v_k` and is destroyed at the rate `kill v_k`. An immune cell
-    meets a tumour cell of progression `u_k` and loses one activation class at the rate `inhibition u_k`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        tumour:
-            The path of the distribution of tumour cells over their progression.
-
-        immune:
-            The path of the distribution of immune cells over their activation.
-
-        classes:
-            The number of activity classes of both distributions.
-
-        kill:
-            The rate at which fully active immune cells destroy tumour cells.
-
-        inhibition:
-            The rate at which the most progressed tumour cells inhibit immune cells.
-
-    Examples:
-        >>> from skcomplex.models.biology.oncology import ImmuneCompetitionInteraction
-        >>> ImmuneCompetitionInteraction('competition', tumour='tumour', immune='immune').kill
-        1.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        tumour: Annotated[str, RoleSpec()],
-        immune: Annotated[str, RoleSpec()],
-        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 5,
-        kill: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        inhibition: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-    ) -> None:
-        super().__init__(label)
-        self.tumour = tumour
-        self.immune = immune
-        self.classes = classes
-        self.kill = kill
-        self.inhibition = inhibition
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the destruction of tumour cells and the inhibition of immune cells.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        classes = int(self.classes)
-        activities = activity_grid(classes)
-        kill = np.tile(activities, (classes, 1))
-        return [
-            DestructionLaw(s.tumour.f, s.immune.f, kill * s.kill),
-            EncounterLaw(s.immune.f, s.tumour.f, kill * s.inhibition, step_table(classes, -1, classes)),
-        ]
 
 
 def _classes_of(system: System) -> int:
@@ -358,32 +195,45 @@ def immune_competition(
         ['tumour', 'immune', 'host']
     """
     activities = activity_grid(classes)
+    activation_rates = np.tile(activities, (classes, 1))
     tumour_density = np.zeros(classes)
     tumour_density[0] = tumour
     immune_density = np.zeros(classes)
     immune_density[int(np.argmin(np.abs(activities - activation)))] = immune
     return System(
         elements=[
-            GroupElement('tumour', element=CellsElement, size=classes, on='sites', values={'f': tumour_density}),
-            GroupElement('immune', element=CellsElement, size=classes, on='sites', values={'f': immune_density}),
-            GroupElement('host', element=CellsElement, size=1, values={'f': 1.0}),
+            GroupElement('tumour', element=DensityElement, size=classes, on='sites', values={'f': tumour_density}),
+            GroupElement('immune', element=DensityElement, size=classes, on='sites', values={'f': immune_density}),
+            GroupElement('host', element=DensityElement, size=1, values={'f': 1.0}),
         ],
         interactions=[
-            TumourGrowthInteraction(
-                'growth',
-                tumour='tumour',
-                host='host',
-                classes=classes,
-                growth=growth,
-                progression=progression,
+            EncounterInteraction(
+                'proliferation',
+                candidate='tumour',
+                field='host',
+                rate=lambda _: growth,
+                outcome='proliferative',
             ),
-            ImmuneCompetitionInteraction(
-                'competition',
-                tumour='tumour',
-                immune='immune',
-                classes=classes,
-                kill=kill,
-                inhibition=inhibition,
+            EncounterInteraction(
+                'progression',
+                candidate='tumour',
+                field='host',
+                rate=lambda _: progression,
+                kernel=lambda _: step_table(classes, 1),
+            ),
+            EncounterInteraction(
+                'destruction',
+                candidate='tumour',
+                field='immune',
+                rate=lambda _: activation_rates * kill,
+                outcome='destructive',
+            ),
+            EncounterInteraction(
+                'inhibition',
+                candidate='immune',
+                field='tumour',
+                rate=lambda _: activation_rates * inhibition,
+                kernel=lambda _: step_table(classes, -1, classes),
             ),
         ],
         space=LatticeSpace(classes, boundary='fixed'),

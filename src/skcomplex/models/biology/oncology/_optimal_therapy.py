@@ -202,19 +202,6 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
         )
         self.w = w
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the balances of the cells and of the drug.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return super()._get_laws(s)
-
 
 class OptimalImmunotherapyElement(Element):
     """Effector cells, tumour cells, and IL-2 under adoptive therapy and IL-2 injection at bounded rates.

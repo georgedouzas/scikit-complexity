@@ -3,27 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
-from functools import partial
-from types import SimpleNamespace
+from collections.abc import Sequence
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, JumpLaw, RateLaw
+from ....core.interactions import BaseInteraction, ReactionInteraction
 from ....core.system import System
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._repression import RepressionInteraction
 
 
 class GeneElement(Element):
-    """Gene whose messenger RNA decays, is translated into protein, and whose protein decays.
+    """Gene with a count `m` of messenger RNA and a count `p` of protein.
 
-    The mRNA count `m` decays at rate `delta * m`, translation adds protein at rate `b * m`, and the protein count `p`
-    decays at rate `beta * p`. In stochastic mode each of these is a random event that changes a count by one.
+    A gene has no laws of its own. Reactions transcribe, translate, and degrade its molecules.
 
     Args:
         label:
@@ -38,18 +35,6 @@ class GeneElement(Element):
         p:
             The initial number of protein molecules.
 
-        delta:
-            The decay rate of mRNA.
-
-        b:
-            The translation rate per mRNA molecule.
-
-        beta:
-            The decay rate of the protein.
-
-        stochastic:
-            Whether expression is a sequence of random events.
-
     Examples:
         >>> from skcomplex.models.biology.systems_biology import GeneElement
         >>> GeneElement('lacI', p=20.0).p
@@ -63,127 +48,52 @@ class GeneElement(Element):
         *,
         m: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         p: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        delta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
-        stochastic: bool = False,
     ) -> None:
         super().__init__(label, visual=visual)
         self.m = m
         self.p = p
-        self.delta = delta
-        self.b = b
-        self.beta = beta
-        self.stochastic = stochastic
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the decay of mRNA, the translation, and the decay of the protein.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        if self.stochastic:
-            return [JumpLaw(s.delta * s.m, {s.m: -1}), JumpLaw(s.b * s.m, {s.p: 1}), JumpLaw(s.beta * s.p, {s.p: -1})]
-        return [RateLaw(s.m, -s.delta * s.m), RateLaw(s.p, s.b * s.m - s.beta * s.p)]
 
 
-class RepressionInteraction(Interaction):
-    """Transcription of a target gene repressed by the protein of a repressor gene, a Hill function of its count.
+def _express(gene: str, b: float, beta: float, delta: float, mode: str) -> list[BaseInteraction]:
+    """Return the decay of the mRNA, the translation, and the decay of the protein of a gene."""
+    return [
+        ReactionInteraction(f'mrna_decay_{gene}', reactants={(gene, 'm'): 1}, k=delta, mode=mode),
+        ReactionInteraction(
+            f'translation_{gene}', products={(gene, 'p'): 1}, modifiers={(gene, 'm'): 1}, k=b, mode=mode,
+        ),
+        ReactionInteraction(f'protein_decay_{gene}', reactants={(gene, 'p'): 1}, k=beta, mode=mode),
+    ]
 
-    The target gains mRNA at rate `alpha0 + alpha / (1 + (p / K)^n)`, where `p` is the repressor protein. In stochastic
-    mode each transcription is a random event that adds one mRNA molecule. A gene that represses itself binds both
-    roles to the same gene.
 
-    Args:
-        label:
-            The label of the interaction.
-
-        repressor:
-            The path of the repressing gene.
-
-        target:
-            The path of the repressed gene.
-
-        alpha:
-            The transcription rate without repressor.
-
-        alpha0:
-            The leaky transcription rate at saturating repressor.
-
-        K:
-            The repressor count at half repression.
-
-        n:
-            The Hill coefficient of repression.
-
-        stochastic:
-            Whether transcriptions are random events.
-
-    Examples:
-        >>> from skcomplex.models.biology.systems_biology import RepressionInteraction
-        >>> RepressionInteraction('repression', repressor='tetR', target='cI', n=2.0).n
-        2.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        repressor: Annotated[str, RoleSpec()],
-        target: Annotated[str, RoleSpec()],
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 40.0,
-        alpha0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.04,
-        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
-        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        stochastic: bool = False,
-    ) -> None:
-        super().__init__(label)
-        self.repressor = repressor
-        self.target = target
-        self.alpha = alpha
-        self.alpha0 = alpha0
-        self.K = K
-        self.n = n
-        self.stochastic = stochastic
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the repressed transcription `alpha0 + alpha / (1 + (p / K)^n)`.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        rate = s.alpha0 + s.alpha / (1 + (s.repressor.p / s.K) ** s.n)
-        if self.stochastic:
-            return [JumpLaw(rate, {s.target.m: 1})]
-        return [RateLaw(s.target.m, rate)]
+def _repress(label: str, repressor: str, target: str, parameters: dict[str, float], mode: str) -> RepressionInteraction:
+    """Return the transcription of the mRNA of a target gene repressed by the protein of a repressor gene."""
+    return RepressionInteraction(
+        label,
+        products={(target, 'm'): 1},
+        modifiers={(repressor, 'p'): 1},
+        alpha=parameters['alpha'],
+        alpha0=parameters['alpha0'],
+        K=parameters['K'],
+        n=parameters['n'],
+        mode=mode,
+    )
 
 
 def _circuit(
     proteins: Sequence[float],
     edges: Sequence[tuple[int, int]],
-    gene: GeneElement,
-    repression: Callable[..., RepressionInteraction],
+    expression: dict[str, float],
+    repression: dict[str, float],
+    mode: str,
 ) -> System:
-    """Return copies of a gene with initial protein counts, where the first gene of each edge represses the second."""
-    genes = [
-        type(gene)(**gene.get_params(deep=False) | {'label': f'gene_{index}', 'p': float(p)})
-        for index, p in enumerate(proteins)
-    ]
-    repressions = [
-        repression(f'repression_{source}_{target}', repressor=f'gene_{source}', target=f'gene_{target}')
+    """Return genes with initial protein counts, where the first gene of each edge represses the second."""
+    genes = [GeneElement(f'gene_{index}', p=float(p)) for index, p in enumerate(proteins)]
+    repressions: list[BaseInteraction] = [
+        _repress(f'repression_{source}_{target}', f'gene_{source}', f'gene_{target}', repression, mode)
         for source, target in edges
     ]
-    return System(elements=genes, interactions=repressions)
+    expressions = [interaction for gene in genes for interaction in _express(gene.label, mode=mode, **expression)]
+    return System(elements=genes, interactions=[*repressions, *expressions])
 
 
 @register_model(
@@ -244,12 +154,13 @@ def repressilator(
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import repressilator
-        >>> [interaction.repressor for interaction in repressilator().interactions]
-        ['gene_2', 'gene_0', 'gene_1']
+        >>> [interaction.modifiers for interaction in repressilator().interactions[:3]]
+        [{('gene_2', 'p'): 1}, {('gene_0', 'p'): 1}, {('gene_1', 'p'): 1}]
     """
-    gene = GeneElement('gene', b=b, beta=beta, delta=delta, stochastic=stochastic)
-    repression = partial(RepressionInteraction, alpha=alpha, alpha0=alpha0, K=K, n=n, stochastic=stochastic)
-    return _circuit(proteins, [(2, 0), (0, 1), (1, 2)], gene, repression)
+    mode = 'jump' if stochastic else 'rate'
+    expression = {'b': b, 'beta': beta, 'delta': delta}
+    repression = {'alpha': alpha, 'alpha0': alpha0, 'K': K, 'n': n}
+    return _circuit(proteins, [(2, 0), (0, 1), (1, 2)], expression, repression, mode)
 
 
 @register_model(
@@ -312,9 +223,10 @@ def toggle_switch(
         >>> [element.p for element in toggle_switch((0.0, 50.0)).elements]
         [0.0, 50.0]
     """
-    gene = GeneElement('gene', b=b, beta=beta, delta=delta, stochastic=stochastic)
-    repression = partial(RepressionInteraction, alpha=alpha, alpha0=alpha0, K=K, n=n, stochastic=stochastic)
-    return _circuit(proteins, [(1, 0), (0, 1)], gene, repression)
+    mode = 'jump' if stochastic else 'rate'
+    expression = {'b': b, 'beta': beta, 'delta': delta}
+    repression = {'alpha': alpha, 'alpha0': alpha0, 'K': K, 'n': n}
+    return _circuit(proteins, [(1, 0), (0, 1)], expression, repression, mode)
 
 
 @register_model(
@@ -371,18 +283,10 @@ def negative_autoregulation(
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import negative_autoregulation
-        >>> negative_autoregulation().interactions[0].repressor
-        'gene'
+        >>> negative_autoregulation().interactions[0].modifiers
+        {('gene', 'p'): 1}
     """
-    gene = GeneElement('gene', p=p, b=b, beta=beta, delta=delta, stochastic=stochastic)
-    feedback = RepressionInteraction(
-        'autoregulation',
-        repressor='gene',
-        target='gene',
-        alpha=alpha,
-        alpha0=0.0,
-        K=K,
-        n=n,
-        stochastic=stochastic,
-    )
-    return System(elements=[gene], interactions=[feedback])
+    mode = 'jump' if stochastic else 'rate'
+    feedback = _repress('autoregulation', 'gene', 'gene', {'alpha': alpha, 'alpha0': 0.0, 'K': K, 'n': n}, mode)
+    expression = _express('gene', b, beta, delta, mode)
+    return System(elements=[GeneElement('gene', p=p)], interactions=[feedback, *expression])

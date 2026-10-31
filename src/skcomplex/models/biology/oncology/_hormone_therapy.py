@@ -4,6 +4,7 @@
 # License: MIT
 
 
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -11,13 +12,15 @@ from sage.all__sagemath_symbolics import Expression, log, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, CrossingLaw, RateLaw
-from ....core.laws.utils import pulse_train
+from ....core.interactions import BaseInteraction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import hill, pulse_train
 from ....core.system import System
 from ....engine.solvers import ScipyODESolver
 from ....errors import ValidationError
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._therapy_switch import TherapySwitchInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 PATIENT_FACTORS = {
@@ -37,11 +40,6 @@ PATIENT_FACTORS = {
         'cells': (11.02, 0.976, 0.0),
     },
 }
-
-
-def _hill(x: Expression, half: Expression, n: Expression) -> Expression:
-    """Return the Hill function `x^n / (x^n + half^n)`."""
-    return x**n / (x**n + half**n)
 
 
 def _prostate_volume(s: SimpleNamespace) -> Expression:
@@ -64,6 +62,14 @@ def _quota_rate(s: SimpleNamespace, Q: Expression, q: Expression) -> Expression:
     """Return the uptake of androgen into a quota less its use for growth and its degradation."""
     uptake = s.vm * (s.qm - Q) / (s.qm - q) * s.U / (s.U + s.v50)
     return uptake - s.rm * (Q - q) - s.d3 * Q
+
+
+def _get_switches(signal: Callable[[SimpleNamespace], object], h0: float, h1: float) -> list[BaseInteraction]:
+    """Return the relay with hysteresis that starts the therapy above `h1` and stops it below `h0` of a signal."""
+    return [
+        TherapySwitchInteraction('on', target='tumour', signal=signal, threshold=h1, value=1.0, direction=1),
+        TherapySwitchInteraction('off', target='tumour', signal=signal, threshold=h0, value=0.0, direction=-1),
+    ]
 
 
 class AndrogenSuppressionElement(Element):
@@ -244,16 +250,10 @@ class IntermittentSuppressionElement(Element):
         x2:
             The PSA per independent cell.
 
-        h0:
-            The PSA below which the therapy stops.
-
-        h1:
-            The PSA above which the therapy starts.
-
     Examples:
         >>> from skcomplex.models.biology.oncology import IntermittentSuppressionElement
-        >>> IntermittentSuppressionElement('tumour').h1
-        15.0
+        >>> IntermittentSuppressionElement('tumour').U0
+        30.0
     """
 
     def __init__(
@@ -278,8 +278,6 @@ class IntermittentSuppressionElement(Element):
         du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
         x1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         x2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        h0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        h1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.AD = AD
@@ -299,8 +297,6 @@ class IntermittentSuppressionElement(Element):
         self.du = du
         self.x1 = x1
         self.x2 = x2
-        self.h0 = h0
-        self.h1 = h1
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the growth and transition of the cells, the androgen, and the switching of the therapy.
@@ -316,13 +312,10 @@ class IntermittentSuppressionElement(Element):
         deprivation = 1 - s.U / s.U0
         growth = s.r1 * (s.k1 + (1 - s.k1) * s.U / (s.U + s.k2))
         death = s.d1 * (s.k3 + (1 - s.k3) * s.U / (s.U + s.k4))
-        psa = s.x1 * s.AD + s.x2 * s.AI
         return [
             RateLaw(s.AD, (growth - death - s.m1 * deprivation) * s.AD),
             RateLaw(s.AI, s.m1 * deprivation * s.AD + (s.r2 * deprivation - s.d2) * s.AI),
             RateLaw(s.U, -s.du * (s.U - s.U0) - s.U0 * s.du * s.u),
-            CrossingLaw(psa - s.h1, {s.u: 1}, direction=1, label='on'),
-            CrossingLaw(psa - s.h0, {s.u: 0}, direction=-1, label='off'),
         ]
 
 
@@ -528,9 +521,9 @@ class CellQuotaProstateElement(Element):
             laws:
                 The laws of the component.
         """
-        to_independent = s.mx1 * (1 - _hill(s.Q1, s.m501, s.n)) * s.AD
-        to_dependent = s.mx2 * _hill(s.Q2, s.m502, s.n) * s.AI
-        produced = s.r1 * s.AD * _hill(s.Q1, s.rho1, s.theta) + s.r2 * s.AI * _hill(s.Q2, s.rho2, s.theta)
+        to_independent = s.mx1 * (1 - hill(s.Q1, s.m501, s.n)) * s.AD
+        to_dependent = s.mx2 * hill(s.Q2, s.m502, s.n) * s.AI
+        produced = s.r1 * s.AD * hill(s.Q1, s.rho1, s.theta) + s.r2 * s.AI * hill(s.Q2, s.rho2, s.theta)
         androgen = s.U0 - (s.U0 - s.Umin) * pulse_train(s.t, self.period, self.width)
         return [
             RateLaw(s.AD, s.rm * (1 - s.q1 / s.Q1) * s.AD - s.d1 * s.AD - to_independent + to_dependent),
@@ -808,8 +801,8 @@ class PiecewiseLinearProstateElement(Element):
 
     During therapy, `u = 1`, the cells follow `dAD/dt = w11_on AD`, `dAIR/dt = w21_on AD + w22_on AIR`, and
     `dAII/dt = w31_on AD + w32_on AIR + w33_on AII`. Off therapy they follow `dAD/dt = w11_off AD + w12_off AIR`,
-    `dAIR/dt = w22_off AIR`, and `dAII/dt = w33_off AII`. The therapy turns on when the PSA `x1 AD + x2 AIR + x3 AII`
-    rises through `h1` and off when it falls through `h0`.
+    `dAIR/dt = w22_off AIR`, and `dAII/dt = w33_off AII`. Switches on the PSA `x1 AD + x2 AIR + x3 AII` set the
+    therapy `u`.
 
     Args:
         label:
@@ -869,16 +862,10 @@ class PiecewiseLinearProstateElement(Element):
         x3:
             The PSA per mutated cell.
 
-        h0:
-            The PSA below which the therapy stops.
-
-        h1:
-            The PSA above which the therapy starts.
-
     Examples:
         >>> from skcomplex.models.biology.oncology import PiecewiseLinearProstateElement
-        >>> PiecewiseLinearProstateElement('tumour').h0
-        4.0
+        >>> PiecewiseLinearProstateElement('tumour').u
+        1.0
     """
 
     def __init__(
@@ -903,8 +890,6 @@ class PiecewiseLinearProstateElement(Element):
         x1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         x2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         x3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        h0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        h1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.AD = AD
@@ -924,8 +909,6 @@ class PiecewiseLinearProstateElement(Element):
         self.x1 = x1
         self.x2 = x2
         self.x3 = x3
-        self.h0 = h0
-        self.h1 = h1
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the linear growth and transitions of each mode and the switching of the therapy.
@@ -939,13 +922,10 @@ class PiecewiseLinearProstateElement(Element):
                 The laws of the component.
         """
         on, off = s.u, 1 - s.u
-        psa = s.x1 * s.AD + s.x2 * s.AIR + s.x3 * s.AII
         return [
             RateLaw(s.AD, on * s.w11_on * s.AD + off * (s.w11_off * s.AD + s.w12_off * s.AIR)),
             RateLaw(s.AIR, on * (s.w21_on * s.AD + s.w22_on * s.AIR) + off * s.w22_off * s.AIR),
             RateLaw(s.AII, on * (s.w31_on * s.AD + s.w32_on * s.AIR + s.w33_on * s.AII) + off * s.w33_off * s.AII),
-            CrossingLaw(psa - s.h1, {s.u: 1}, direction=1, label='on'),
-            CrossingLaw(psa - s.h0, {s.u: 0}, direction=-1, label='off'),
         ]
 
 
@@ -1313,7 +1293,7 @@ def ideta_intermittent_androgen(
 
     Examples:
         >>> from skcomplex.models.biology.oncology import ideta_intermittent_androgen
-        >>> ideta_intermittent_androgen(h1=20.0).elements[0].h1
+        >>> ideta_intermittent_androgen(h1=20.0).interactions[0].threshold
         20.0
     """
     tumour = IntermittentSuppressionElement(
@@ -1332,10 +1312,9 @@ def ideta_intermittent_androgen(
         k4=k4,
         U0=U0,
         du=du,
-        h0=h0,
-        h1=h1,
     )
-    return System(elements=[tumour])
+    switches = _get_switches(lambda s: s.target.x1 * s.target.AD + s.target.x2 * s.target.AI, h0, h1)
+    return System(elements=[tumour], interactions=switches)
 
 
 @register_model(
@@ -1590,10 +1569,11 @@ def piecewise_linear_ias(patient: int = 1, *, h0: float = 4.0, h1: float = 10.0)
         w12_off=off12,
         w22_off=off22 - 1,
         w33_off=off33 - 1,
-        h0=h0,
-        h1=h1,
     )
-    return System(elements=[tumour])
+    switches = _get_switches(
+        lambda s: s.target.x1 * s.target.AD + s.target.x2 * s.target.AIR + s.target.x3 * s.target.AII, h0, h1,
+    )
+    return System(elements=[tumour], interactions=switches)
 
 
 @register_model(

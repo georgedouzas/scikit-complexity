@@ -11,13 +11,14 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import Interaction
+from ....core.interactions import ReactionInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import pulse
 from ....core.system import System
 from ....errors import ValidationError
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._species import SpeciesElement
 
 STAGES = ('adenylate_cyclase', 'camp', 'protein_kinase_a', 'phosphorylase_kinase', 'phosphorylase')
 
@@ -94,108 +95,6 @@ class GProteinElement(Element):
         return [RateLaw(s.g, s.k_on * hormone * (1 - s.g) - s.k_gtp * s.g)]
 
 
-class CascadeStageElement(Element):
-    """Stage of a signalling cascade, an active enzyme or a messenger, which is inactivated at a constant rate.
-
-    Args:
-        label:
-            The label of the stage.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial amount of the active form.
-
-        beta:
-            The inactivation rate.
-
-    Examples:
-        >>> from skcomplex.models.biology.systems_biology import CascadeStageElement
-        >>> CascadeStageElement('camp', beta=2.0).beta
-        2.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.beta = beta
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the inactivation `-beta x`.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.x, -s.beta * s.x)]
-
-
-class ActivationInteraction(Interaction):
-    """Activation of a cascade stage by the active form of the stage above it, at the rate `alpha` times its amount.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        upstream:
-            The path of the activating stage.
-
-        downstream:
-            The path of the activated stage.
-
-        alpha:
-            The activation rate per unit of the activating stage.
-
-        state_name:
-            The state of the activating stage, `'x'` for a stage and `'g'` for the G protein.
-
-    Examples:
-        >>> from skcomplex.models.biology.systems_biology import ActivationInteraction
-        >>> ActivationInteraction('activation', upstream='camp', downstream='protein_kinase_a', alpha=5.0).alpha
-        5.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        upstream: Annotated[str, RoleSpec()],
-        downstream: Annotated[str, RoleSpec()],
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        state_name: str = 'x',
-    ) -> None:
-        super().__init__(label)
-        self.upstream = upstream
-        self.downstream = downstream
-        self.alpha = alpha
-        self.state_name = state_name
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the activation `alpha` times the active upstream amount.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.downstream.x, s.alpha * getattr(s.upstream, self.state_name))]
-
-
 @register_model(
     field='biology/systems_biology',
     tags=('signalling', 'cascade', 'amplification', 'hormone', 'g protein', 'ode'),
@@ -263,16 +162,14 @@ def hormone_cascade_amplifier(
         error_msg = f'Give one activation and one inactivation rate per stage, {len(STAGES)} of each.'
         raise ValidationError(error_msg)
     g_protein = GProteinElement('g_protein', k_on=k_on, k_gtp=k_gtp, hormone=hormone, start=start, width=width)
-    stages = [CascadeStageElement(label, beta=rate) for label, rate in zip(STAGES, beta, strict=True)]
-    upstreams = ('g_protein', *STAGES[:-1])
+    stages = [SpeciesElement(label) for label in STAGES]
+    upstreams = (('g_protein', 'g'), *((label, 'x') for label in STAGES[:-1]))
     activations = [
-        ActivationInteraction(
-            f'activation_of_{label}',
-            upstream=upstream,
-            downstream=label,
-            state_name='g' if upstream == 'g_protein' else 'x',
-            alpha=rate,
-        )
+        ReactionInteraction(f'activation_of_{label}', products={(label, 'x'): 1}, modifiers={upstream: 1}, k=rate)
         for upstream, label, rate in zip(upstreams, STAGES, alpha, strict=True)
     ]
-    return System(elements=[g_protein, *stages], interactions=activations)
+    inactivations = [
+        ReactionInteraction(f'inactivation_of_{label}', reactants={(label, 'x'): 1}, k=rate)
+        for label, rate in zip(STAGES, beta, strict=True)
+    ]
+    return System(elements=[g_protein, *stages], interactions=[*activations, *inactivations])

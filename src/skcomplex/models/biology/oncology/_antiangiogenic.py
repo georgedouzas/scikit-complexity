@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import pulse_train
+from ....core.laws.utils import logistic, pulse_train
 from ....core.system import System
 from ....engine.solvers import ScipyODESolver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -22,11 +22,6 @@ BOOK_REFERENCE = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 INHIBITOR_CLEARANCE = math.log(2) / 3.9
 
 
-def _switch(x: Expression, p: Expression, kappa: Expression) -> Expression:
-    """Return the sigmoid `1 / (1 + exp((p - x) / kappa))`, which rises through `x = p` for a positive `kappa`."""
-    return 1 / (1 + exp((p - x) / kappa))
-
-
 def _ball(radius: Expression) -> Expression:
     """Return the volume of a ball of a radius."""
     return 4 * pi * radius**3 / 3
@@ -34,7 +29,7 @@ def _ball(radius: Expression) -> Expression:
 
 def _core_ratio(radius: Expression) -> Expression:
     """Return the core-periphery ratio `(1 / (1 + exp((0.5 - Ar) / 0.333)))^2.2 - 0.15` of a tumour radius."""
-    return _switch(radius, 0.5, 0.333) ** 2.2 - 0.15
+    return logistic(radius, 0.5, 0.333) ** 2.2 - 0.15
 
 
 class AngiogenicTumourElement(Element):
@@ -363,15 +358,15 @@ class VascularizedSpheroidElement(Element):
         core = _ball(ratio * s.Ar)
         periphery = _ball(s.Ar) - core
         density = s.Ap / periphery
-        growth = s.r1 * _switch(density, s.p_g, s.kappa_g)
+        growth = s.r1 * logistic(density, s.p_g, s.kappa_g)
         core_increment = _ball(ratio * (s.Ar + growth)) - core
         volume_increment = _ball(s.Ar + growth) - _ball(s.Ar)
         transfer = core_increment / periphery
         core_nutrient = s.Vbc / (core * s.rv_ref)
         periphery_nutrient = s.Vbp / (periphery * s.rv_ref)
-        necrosis = s.m * _switch(core_nutrient, s.p3, s.kappa3) ** s.theta1 * s.Ac
-        proliferation = s.r2 * _switch(periphery_nutrient, s.p1, s.kappa1) * _switch(density, s.p2, s.kappa2) * s.Ap
-        signal = _switch(core_nutrient, s.p4, s.kappa4) ** s.theta2
+        necrosis = s.m * logistic(core_nutrient, s.p3, s.kappa3) ** s.theta1 * s.Ac
+        proliferation = s.r2 * logistic(periphery_nutrient, s.p1, s.kappa1) * logistic(density, s.p2, s.kappa2) * s.Ap
+        signal = logistic(core_nutrient, s.p4, s.kappa4) ** s.theta2
         angiogenesis = s.a1 * exp(-s.xi_e * s.U) * signal * s.Vbp
         internalization = s.r3 * s.Ar**s.beta * transfer * s.Vbp
         infusion = s.dose * pulse_train(s.t, self.period, self.width, start=self.start)

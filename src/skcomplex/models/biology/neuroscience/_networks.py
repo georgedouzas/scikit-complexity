@@ -8,28 +8,27 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, exp, oo, tanh
+from sage.all__sagemath_symbolics import Expression, oo, tanh
 from sage.sets.real_set import RealSet
 from scipy.ndimage import convolve
 
 from ....core.elements import Element, FieldElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, CrossingLaw, RateLaw
-from ....core.laws.utils import delayed, laplacian, maximum
+from ....core.interactions import Interaction, RateInteraction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import delayed, laplacian, logistic, maximum
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._spike_reset import SpikeResetInteraction
 
 NEAREST = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
 LEGION_OBJECTS = ((1, 1, 0, 0), (1, 0, 0, 0), (0, 0, 0, 1), (0, 0, 0, 1))
 SILENT = -2.0
-
-
-def _step(u: Expression, width: Expression) -> Expression:
-    """Return a smooth step from 0 to 1 around `u = 0`, of a given width."""
-    return 1 / (1 + exp(-u / width))
+THRESHOLD = 20.0
+RESET = 10.0
+TRACE_TIME = 2.0
 
 
 def _random_connections(n_neurons: int, probability: float, rng: np.random.Generator) -> list[tuple[int, int]]:
@@ -51,8 +50,8 @@ def _link_weights(stimulus: Array, total: float) -> Array:
 class SpikingNeuronElement(Element):
     """Leaky integrate-and-fire neuron with an exponential synaptic trace of its own spikes.
 
-    The potential follows `tau v' = -v + mu` plus synaptic input. When it reaches `threshold` it is reset and the
-    trace `s` jumps by `1 / tau_s`, then decays as `s' = -s / tau_s`, so every spike carries a unit area of trace.
+    The potential follows `tau v' = -v + mu` plus synaptic input, and the trace decays as `s' = -s / tau_s`. A spike
+    reset sets the potential back and raises the trace by `1 / tau_s`, so every spike carries a unit area of trace.
     Units are mV and ms.
 
     Args:
@@ -71,12 +70,6 @@ class SpikingNeuronElement(Element):
         tau:
             The membrane time constant.
 
-        threshold:
-            The firing threshold.
-
-        reset:
-            The potential after a spike.
-
         mu:
             The constant external drive, the potential the membrane relaxes to.
 
@@ -85,8 +78,8 @@ class SpikingNeuronElement(Element):
 
     Examples:
         >>> from skcomplex.models.biology.neuroscience import SpikingNeuronElement
-        >>> SpikingNeuronElement('neuron').threshold
-        20.0
+        >>> SpikingNeuronElement('neuron').tau_s
+        2.0
     """
 
     def __init__(
@@ -97,8 +90,6 @@ class SpikingNeuronElement(Element):
         v: Annotated[float, StateSpec()] = 0.0,
         s: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
-        threshold: Annotated[float, ParameterSpec()] = 20.0,
-        reset: Annotated[float, ParameterSpec()] = 10.0,
         mu: Annotated[float, ParameterSpec()] = 25.0,
         tau_s: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
     ) -> None:
@@ -106,13 +97,11 @@ class SpikingNeuronElement(Element):
         self.v = v
         self.s = s
         self.tau = tau
-        self.threshold = threshold
-        self.reset = reset
         self.mu = mu
         self.tau_s = tau_s
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the leaky membrane, the decay of the trace, and the spike that resets the potential.
+        """Return the leaky membrane and the decay of the trace.
 
         Args:
             s:
@@ -122,14 +111,10 @@ class SpikingNeuronElement(Element):
             laws:
                 The laws of the component.
         """
-        return [
-            RateLaw(s.v, (s.mu - s.v) / s.tau),
-            RateLaw(s.s, -s.s / s.tau_s),
-            CrossingLaw(s.v - s.threshold, {s.v: s.reset, s.s: s.s + 1 / s.tau_s}, direction=1, label='spike'),
-        ]
+        return [RateLaw(s.v, (s.mu - s.v) / s.tau), RateLaw(s.s, -s.s / s.tau_s)]
 
 
-class DelayedSynapseInteraction(Interaction):
+class DelayedSynapseInteraction(RateInteraction):
     """Synapse that adds the presynaptic trace from a transmission delay ago to the postsynaptic potential.
 
     The target gains `J s_source(t - D)`, so every presynaptic spike moves the postsynaptic potential by `J` in
@@ -166,24 +151,23 @@ class DelayedSynapseInteraction(Interaction):
         J: Annotated[float, ParameterSpec()] = 0.5,
         D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, target=target, state='v')
         self.source = source
-        self.target = target
         self.J = J
         self.D = D
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the delayed synaptic input `J s_source(t - D)`.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the rate can use, with the namespaces of the source and the target.
 
         Returns:
-            laws:
-                The laws of the component.
+            rate:
+                The rate of the postsynaptic potential.
         """
-        return [RateLaw(s.target.v, s.J * delayed(s.source.s, s.D))]
+        return namespace.J * delayed(namespace.source.s, namespace.D)
 
 
 class TermanWangElement(Element):
@@ -276,7 +260,7 @@ class TermanWangElement(Element):
             laws:
                 The laws of the component.
         """
-        active = s.m * _step(s.x - s.theta_x, s.kappa)
+        active = s.m * logistic(s.x - s.theta_x, 0, s.kappa)
         excitation = s.W * s.m * (laplacian(active) + 4 * active)
         return [
             RateLaw(s.x, 3 * s.x - s.x**3 + 2 - s.y + s.I + excitation),
@@ -388,9 +372,9 @@ class GlobalInhibitionInteraction(Interaction):
                 The laws of the component.
         """
         oscillator, inhibitor = s.oscillators, s.inhibitor
-        activity = maximum(oscillator.m * _step(oscillator.x - oscillator.theta_x, oscillator.kappa))
+        activity = maximum(oscillator.m * logistic(oscillator.x - oscillator.theta_x, 0, oscillator.kappa))
         return [
-            RateLaw(oscillator.x, -s.W_z * _step(inhibitor.z - s.theta_z, oscillator.kappa)),
+            RateLaw(oscillator.x, -s.W_z * logistic(inhibitor.z - s.theta_z, 0, oscillator.kappa)),
             RateLaw(inhibitor.z, inhibitor.phi * activity),
         ]
 
@@ -437,8 +421,8 @@ def delayed_lif_network(
 
     Returns:
         system:
-            The model, with the potentials `neuron_<i>.v`, the traces `neuron_<i>.s`, and the spikes as `spike`
-            events.
+            The model, with the potentials `neuron_<i>.v`, the traces `neuron_<i>.s`, and the spikes of neuron `i` as
+            `spike_<i>` events.
 
     Examples:
         >>> from skcomplex.models.biology.neuroscience import delayed_lif_network
@@ -447,7 +431,21 @@ def delayed_lif_network(
     """
     rng = np.random.default_rng(random_state)
     potentials = rng.uniform(10.0, 20.0, n_neurons)
-    neurons = [SpikingNeuronElement(f'neuron_{index}', v=float(potentials[index]), mu=mu) for index in range(n_neurons)]
+    neurons = [
+        SpikingNeuronElement(f'neuron_{index}', v=float(potentials[index]), mu=mu, tau_s=TRACE_TIME)
+        for index in range(n_neurons)
+    ]
+    spikes = [
+        SpikeResetInteraction(
+            f'spike_{index}',
+            target=neuron.label,
+            threshold=THRESHOLD,
+            after=RESET,
+            kicked='s',
+            kick=1 / TRACE_TIME,
+        )
+        for index, neuron in enumerate(neurons)
+    ]
     synapses = [
         DelayedSynapseInteraction(
             f'synapse_{source}_{target}',
@@ -458,7 +456,7 @@ def delayed_lif_network(
         )
         for source, target in _random_connections(n_neurons, probability, rng)
     ]
-    return System(elements=neurons, interactions=synapses)
+    return System(elements=neurons, interactions=[*spikes, *synapses])
 
 
 @register_model(

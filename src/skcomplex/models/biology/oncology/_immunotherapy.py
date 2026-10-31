@@ -7,12 +7,12 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, log, oo
+from sage.all__sagemath_symbolics import log, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import delayed, pulse_train, step, where
+from ....core.laws.utils import delayed, hill, pulse_train, where
 from ....core.system import System
 from ....engine.solvers import ScipyODESolver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -20,16 +20,6 @@ from ..._catalog import register_model
 
 BOOK_REFERENCE = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 STIFF_SOLVER = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
-
-
-def _schedule(t: Expression, period: float, width: float, start: float, doses: int) -> Expression:
-    """Return a train of `doses` unit pulses of a width every period from a start."""
-    return pulse_train(t, period, width, start=start) * (1 - step(t, start + doses * period))
-
-
-def _saturation(x: Expression, half: Expression) -> Expression:
-    """Return the Michaelis-Menten fraction `x / (half + x)`."""
-    return x / (half + x)
 
 
 class KirschnerPanettaTumourElement(Element):
@@ -163,9 +153,9 @@ class KirschnerPanettaTumourElement(Element):
         """
         E, A, C = s.E, s.A, s.C
         return [
-            RateLaw(E, s.alpha_a * A - s.d1 * E + s.a1 * s.u1 + s.rho1 * E * _saturation(C, s.alpha1)),
-            RateLaw(A, s.r1 * A * (1 - s.b * A) - s.c1 * E * _saturation(A, s.alpha2)),
-            RateLaw(C, s.a2 * s.u2 + s.rho2 * E * _saturation(A, s.alpha3) - s.du * C),
+            RateLaw(E, s.alpha_a * A - s.d1 * E + s.a1 * s.u1 + s.rho1 * E * hill(C, s.alpha1)),
+            RateLaw(A, s.r1 * A * (1 - s.b * A) - s.c1 * E * hill(A, s.alpha2)),
+            RateLaw(C, s.a2 * s.u2 + s.rho2 * E * hill(A, s.alpha3) - s.du * C),
         ]
 
 
@@ -345,7 +335,7 @@ class VaccinatedTumourElement(Element):
                 The laws of the component.
         """
         EH, E, A, ED, C = s.EH, s.E, s.A, s.ED, s.C
-        vaccine = s.dose * _schedule(s.t, self.period, self.width, self.start, self.doses)
+        vaccine = s.dose * pulse_train(s.t, self.period, self.width, start=self.start, count=self.doses)
         return [
             RateLaw(EH, s.s1 + s.rho1 * ED * s.r1 * EH * (1 - s.b1 * EH) - s.d1 * EH),
             RateLaw(E, s.s2 + s.rho2 * C * (A + ED) * s.r2 * E * (1 - s.b2 * E) - s.d2 * E),
@@ -516,7 +506,7 @@ class CheckpointTumourElement(Element):
         free_receptor = where(expression > 0, expression, 0) * E
         free_ligand = s.sigma_l * (E + s.c_l * A)
         complex_ = s.sigma * free_receptor * free_ligand
-        activation = s.r1 * s.ENC * _saturation(s.C1_ss, s.C1_50) + s.r2 * E * _saturation(s.C2_ss, s.C2_50)
+        activation = s.r1 * s.ENC * hill(s.C1_ss, s.C1_50) + s.r2 * E * hill(s.C2_ss, s.C2_50)
         return [
             RateLaw(E, activation / (1 + complex_ / s.psi_pp) - s.d1 * E),
             RateLaw(A, s.r3 * A * (1 - s.b * A) - s.a_rho * A * E),
@@ -862,7 +852,7 @@ class DelayedVaccinatedTumourElement(Element):
         """
         A, ENK, ENC, E, ED, C, ER, ENH, E1H = s.A, s.ENK, s.ENC, s.E, s.ED, s.C, s.ER, s.ENH, s.E1H
         ratio = (log(E) / log(A)) ** 5
-        vaccine = s.dose * _schedule(s.t, self.period, self.width, self.start, self.doses)
+        vaccine = s.dose * pulse_train(s.t, self.period, self.width, start=self.start, count=self.doses)
         C1, ED2, E2, C2 = delayed(C, s.tau1), delayed(ED, s.tau2), delayed(E, s.tau2), delayed(C, s.tau2)
         ER3, C3, A3, ED3, E3 = (delayed(x, s.tau3) for x in (ER, C, A, ED, E))
         ED7, ENC7 = (delayed(x, 7 * s.tau2, 7 * self.tau2) for x in (ED, ENC))
@@ -1242,7 +1232,7 @@ class SuppressedTumourElement(Element):
         kill = s.a1 * accessible * E / (E + accessible / s.g1 + ER / s.g2) / (1 + C3 / s.C3_50)
         licensing = s.lambda_a * EUD / (1 + EUD / s.EMH)
         memory = s.EMC + s.EMH + s.EMR
-        maturation = _saturation(C1, s.EC1_50) / (1 + C3 / s.EC3_50)
+        maturation = hill(C1, s.EC1_50) / (1 + C3 / s.EC3_50)
         conversion = s.a6 * EH * C3 / (s.g5 + C3)
         return [
             RateLaw(A, growth - kill),
@@ -1253,7 +1243,7 @@ class SuppressedTumourElement(Element):
             RateLaw(EPH, s.a4 * s.EMH * (ED + EUD) / (ED + EUD + s.g4 * memory) - s.d5 * EPH),
             RateLaw(EH, s.a5 * EPH * maturation - conversion - s.d6 * EH),
             RateLaw(EPR, s.a7 * s.EMR * ED / (ED + s.g4 * memory) - s.d7 * EPR),
-            RateLaw(ER, s.a8 * EPR * _saturation(C1, s.EC1_50) + conversion - s.d8 * ER),
+            RateLaw(ER, s.a8 * EPR * hill(C1, s.EC1_50) + conversion - s.d8 * ER),
             RateLaw(C1, s.a9 * EPH / ((1 + C3 / s.CC3_50) * (1 + C2 / s.CC2_50)) - C1 / s.tau1),
             RateLaw(C2, s.r3 * ER + s.r4 * A - C2 / s.tau2),
             RateLaw(C3, s.r5 * ER + s.r6 * A - C3 / s.tau3),

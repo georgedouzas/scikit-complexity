@@ -11,79 +11,145 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, CrossingLaw, RateLaw
+from ....core.laws import BaseLaw, RateLaw
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._spike_reset import SpikeResetInteraction
+
+PEAK = 30.0
 
 
 class LeakyIntegrateAndFireElement(Element):
-    """Leaky integrate and fire element."""
+    """Leaky integrate-and-fire neuron, whose potential relaxes to `rest + resistance I` over the time `tau`.
+
+    The potential follows `tau v' = -(v - rest) + resistance I`. A spike reset fires the neuron. Units are mV, ms, MΩ,
+    and nA.
+
+    Args:
+        label:
+            The label of the neuron.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        v:
+            The initial potential.
+
+        rest:
+            The resting potential.
+
+        resistance:
+            The membrane resistance.
+
+        tau:
+            The membrane time constant.
+
+        I:
+            The input current.
+
+    Examples:
+        >>> from skcomplex.models.biology.neuroscience import LeakyIntegrateAndFireElement
+        >>> LeakyIntegrateAndFireElement('neuron').tau
+        10.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        v: Annotated[object, StateSpec()] = -65.0,
-        rest: Annotated[object, ParameterSpec()] = -65.0,
-        threshold: Annotated[object, ParameterSpec()] = -50.0,
-        reset: Annotated[object, ParameterSpec()] = -65.0,
-        resistance: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        I: Annotated[object, ParameterSpec()] = 2.0,
+        v: Annotated[float, StateSpec()] = -65.0,
+        rest: Annotated[float, ParameterSpec()] = -65.0,
+        resistance: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        I: Annotated[float, ParameterSpec()] = 2.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.v = v
         self.rest = rest
-        self.threshold = threshold
-        self.reset = reset
         self.resistance = resistance
         self.tau = tau
         self.I = I
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the leaky integrate and fire element."""
-        return [
-            RateLaw(s.v, (-(s.v - s.rest) + s.resistance * s.I) / s.tau),
-            CrossingLaw(s.v - s.threshold, {s.v: s.reset}, direction=1, label='spike'),
-        ]
+        """Return the leaky integration of the input current.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [RateLaw(s.v, (-(s.v - s.rest) + s.resistance * s.I) / s.tau)]
 
 
 class IzhikevichElement(Element):
-    """Izhikevich element."""
+    """Izhikevich neuron, a quadratic potential `v` and a linear recovery `u`.
+
+    The potential follows `v' = 0.04 v² + 5 v + 140 - u + I` and the recovery `u' = a (b v - u)`. A spike reset fires
+    the neuron.
+
+    Args:
+        label:
+            The label of the neuron.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        v:
+            The initial potential.
+
+        u:
+            The initial recovery.
+
+        a:
+            The time scale of the recovery.
+
+        b:
+            The sensitivity of the recovery to the potential.
+
+        I:
+            The input current.
+
+    Examples:
+        >>> from skcomplex.models.biology.neuroscience import IzhikevichElement
+        >>> IzhikevichElement('neuron').b
+        0.2
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        v: Annotated[object, StateSpec()] = -65.0,
-        u: Annotated[object, StateSpec()] = -13.0,
-        a: Annotated[object, ParameterSpec()] = 0.02,
-        b: Annotated[object, ParameterSpec()] = 0.2,
-        c: Annotated[object, ParameterSpec()] = -65.0,
-        d: Annotated[object, ParameterSpec()] = 8.0,
-        I: Annotated[object, ParameterSpec()] = 10.0,
-        peak: Annotated[object, ParameterSpec()] = 30.0,
+        v: Annotated[float, StateSpec()] = -65.0,
+        u: Annotated[float, StateSpec()] = -13.0,
+        a: Annotated[float, ParameterSpec()] = 0.02,
+        b: Annotated[float, ParameterSpec()] = 0.2,
+        I: Annotated[float, ParameterSpec()] = 10.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.v = v
         self.u = u
         self.a = a
         self.b = b
-        self.c = c
-        self.d = d
         self.I = I
-        self.peak = peak
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the izhikevich element."""
-        return [
-            RateLaw(s.v, 0.04 * s.v**2 + 5 * s.v + 140 - s.u + s.I),
-            RateLaw(s.u, s.a * (s.b * s.v - s.u)),
-            CrossingLaw(s.v - s.peak, {s.v: s.c, s.u: s.u + s.d}, direction=1, label='spike'),
-        ]
+        """Return the quadratic potential and the linear recovery.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [RateLaw(s.v, 0.04 * s.v**2 + 5 * s.v + 140 - s.u + s.I), RateLaw(s.u, s.a * (s.b * s.v - s.u))]
 
 
 @register_model(
@@ -140,20 +206,9 @@ def integrate_and_fire(
         >>> round(trajectory.events[0].time, 2)
         13.86
     """
-    return System(
-        elements=[
-            LeakyIntegrateAndFireElement(
-                'neuron',
-                v=v,
-                rest=rest,
-                threshold=threshold,
-                reset=reset,
-                resistance=resistance,
-                tau=tau,
-                I=I,
-            ),
-        ],
-    )
+    neuron = LeakyIntegrateAndFireElement('neuron', v=v, rest=rest, resistance=resistance, tau=tau, I=I)
+    spike = SpikeResetInteraction('spike', target='neuron', threshold=threshold, after=reset)
+    return System(elements=[neuron], interactions=[spike])
 
 
 @register_model(
@@ -205,7 +260,9 @@ def izhikevich(
 
     Examples:
         >>> from skcomplex.models.biology.neuroscience import izhikevich
-        >>> izhikevich(d=2.0).elements[0].d
+        >>> izhikevich(d=2.0).interactions[0].kick
         2.0
     """
-    return System(elements=[IzhikevichElement('neuron', v=v, u=b * v if u is None else u, a=a, b=b, c=c, d=d, I=I)])
+    neuron = IzhikevichElement('neuron', v=v, u=b * v if u is None else u, a=a, b=b, I=I)
+    spike = SpikeResetInteraction('spike', target='neuron', threshold=PEAK, after=c, kicked='u', kick=d)
+    return System(elements=[neuron], interactions=[spike])

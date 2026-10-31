@@ -85,9 +85,6 @@ from ._hormone_therapy import (
     tamoxifen_cell_cycle,
 )
 from ._immune_competition import (
-    CellsElement,
-    ImmuneCompetitionInteraction,
-    TumourGrowthInteraction,
     activity_grid,
     cell_density,
     immune_competition,
@@ -107,6 +104,7 @@ from ._immunotherapy import (
     kirschner_panetta,
     tumour_immune_suppression,
 )
+from ._irradiation import IrradiationInteraction
 from ._optimal_therapy import (
     OptimalChemotherapyElement,
     OptimalImmunotherapyElement,
@@ -127,6 +125,7 @@ from ._stem_cells import (
     leukaemia_stem_cells,
     stem_cell_differentiation,
 )
+from ._therapy_switch import TherapySwitchInteraction
 
 __all__: list[str] = [
     'AndrogenReceptorProstateElement',
@@ -136,7 +135,6 @@ __all__: list[str] = [
     'BoneMarrowBloodElement',
     'CellCycleElement',
     'CellQuotaProstateElement',
-    'CellsElement',
     'CheckpointTumourElement',
     'ChemoimmunotherapyTumourElement',
     'ChemovirotherapyTumourElement',
@@ -150,9 +148,9 @@ __all__: list[str] = [
     'GliomaBrainElement',
     'GompertzGrowthInteraction',
     'Her2TumourElement',
-    'ImmuneCompetitionInteraction',
     'IntermittentSuppressionElement',
     'IrradiatedTumourElement',
+    'IrradiationInteraction',
     'KirschnerPanettaTumourElement',
     'LeukaemiaStemCellsElement',
     'LogKillInteraction',
@@ -174,10 +172,10 @@ __all__: list[str] = [
     'SuppressedTumourElement',
     'TamoxifenTumourElement',
     'TcrGeneTherapyElement',
+    'TherapySwitchInteraction',
     'TissueElement',
     'TumourCellElement',
     'TumourElement',
-    'TumourGrowthInteraction',
     'TumourImmuneChemotherapyElement',
     'VaccinatedTumourElement',
     'VascularSupportInteraction',
