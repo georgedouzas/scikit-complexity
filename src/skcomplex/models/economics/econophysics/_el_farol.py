@@ -14,7 +14,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import FeedbackInteraction
+from ....core.interactions import ChoiceInteraction, FeedbackInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
@@ -83,11 +83,12 @@ def forecasts(history: npt.ArrayLike) -> Array:
 
 
 class PatronElement(Element):
-    """Patron of the El Farol bar, who goes when its most accurate predictor forecasts room in the bar.
+    """Patron of the El Farol bar, who forecasts the attendance with its most accurate predictor.
 
     Every patron holds a few predictors of the pool, the set bits of `predictors`. The accuracy of a predictor is the
     discounted mean of its absolute errors, the same for every patron that holds it, since it depends only on the
-    history of attendance that the bar reports.
+    history of attendance that the bar reports. A choice then sends the patron to the bar when the forecast is below
+    the capacity.
 
     Args:
         label:
@@ -138,7 +139,7 @@ class PatronElement(Element):
         return PatronView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the decision rule.
+        """Return the forecasting rule.
 
         Args:
             s:
@@ -148,7 +149,7 @@ class PatronElement(Element):
             laws:
                 The laws of the component.
         """
-        return [RuleLaw(self.decide, phase='decide')]
+        return [RuleLaw(self.predict, phase='forecast')]
 
     def _pool(self, model: ModelView) -> _PoolSpec:
         """Return this week's forecasts and errors of the pool, shared by the patrons and updated once a week."""
@@ -169,8 +170,8 @@ class PatronElement(Element):
         model.storage['pool'] = pool
         return pool
 
-    def decide(self, agent: PatronView, model: ModelView) -> None:
-        """Forecast the attendance with the most accurate predictor held and go when it is below the capacity.
+    def predict(self, agent: PatronView, model: ModelView) -> None:
+        """Forecast the attendance with the most accurate predictor held.
 
         Args:
             agent:
@@ -184,7 +185,6 @@ class PatronElement(Element):
         held = [index for index in range(len(PREDICTORS)) if mask >> index & 1]
         best = held[int(np.argmin(pool.errors[held]))]
         agent.forecast = float(pool.forecasts[best])
-        agent.attends = float(agent.forecast < model.parameters[f'{self.bar}.capacity'])
 
 
 class BarInteraction(FeedbackInteraction[ModelView]):
@@ -254,7 +254,8 @@ def el_farol(
     """Return Arthur's El Farol bar problem, whose attendance self-organizes around the capacity.
 
     Every patron holds a random set of predictors of next week's attendance, drawn from a pool of 46, and acts on
-    its currently most accurate one. The attendance is random-looking, yet its mean settles near the capacity.
+    its currently most accurate one, going when it forecasts room in the bar. The attendance is random-looking, yet
+    its mean settles near the capacity.
 
     Args:
         n_agents:
@@ -274,7 +275,8 @@ def el_farol(
 
     Returns:
         system:
-            The model, with the group `patrons` and the institution `bar`, which reports the attendance
+            The model, with the group `patrons`, the choice `choice` to go when the forecast is below the capacity,
+            and the institution `bar`, which reports the attendance
             `bar.attendance`.
 
     Examples:
@@ -293,8 +295,20 @@ def el_farol(
         size=n_agents,
         values={'predictors': masks, 'discount': discount},
     )
+    choice = ChoiceInteraction(
+        'choice',
+        target='patrons',
+        state='attends',
+        options=(0.0, 1.0),
+        utility=lambda agent, model, option: option if agent.forecast < model.parameters['bar.capacity'] else -option,
+        rule='best',
+        form='agent',
+        phase='decide',
+    )
     return System(
         elements=[patrons],
-        interactions=[BarInteraction('bar', capacity=capacity)],
-        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('decide'), PhaseSpec('count')])),
+        interactions=[choice, BarInteraction('bar', capacity=capacity)],
+        time=DiscreteTime(
+            schedule=PhasesScheduleSpec([PhaseSpec('forecast'), PhaseSpec('decide'), PhaseSpec('count')]),
+        ),
     )
