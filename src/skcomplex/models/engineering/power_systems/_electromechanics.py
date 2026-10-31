@@ -11,15 +11,10 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import derivative, pulse_train, where
+from ....core.laws.utils import derivative, pulse_train, sign
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-
-
-def _dry_friction(speed: Expression, coefficient: Expression) -> Expression:
-    """Return dry friction of a coefficient against the direction of a speed, 0 at rest."""
-    return where(speed > 0, coefficient, where(speed < 0, -coefficient, 0))
 
 
 def _wheel_load(s: SimpleNamespace) -> Expression:
@@ -28,7 +23,7 @@ def _wheel_load(s: SimpleNamespace) -> Expression:
 
 
 class RegenerativeCarElement(Element):
-    """Regenerative car element."""
+    """Car whose motor recovers braking energy, slowed by dry and viscous friction."""
 
     def __init__(
         self,
@@ -59,16 +54,16 @@ class RegenerativeCarElement(Element):
         self.beta = beta
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the regenerative car element."""
+        """Return the rates of the speed, the current, and the charge of the car."""
         return [
-            RateLaw(s.v, -(s.A * s.I + _dry_friction(s.v, s.alpha) + s.beta * s.v) / s.m),
+            RateLaw(s.v, -(s.A * s.I + s.alpha * sign(s.v) + s.beta * s.v) / s.m),
             RateLaw(s.I, (s.A * s.v - s.R * s.I - s.Vs) / s.L),
             RateLaw(s.Vs, s.I / s.C),
         ]
 
 
 class FaradayDiskElement(Element):
-    """Faraday disk element."""
+    """Homopolar generator, a spinning conducting disk in a field that charges a load."""
 
     def __init__(
         self,
@@ -119,7 +114,7 @@ class FaradayDiskElement(Element):
         self.a3 = a3
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the faraday disk element."""
+        """Return the rates of the spin, the current, and the charge of the disk."""
         return [
             RateLaw(
                 s.I,
@@ -136,7 +131,7 @@ class FaradayDiskElement(Element):
                 s.omega,
                 (
                     s.M
-                    - _dry_friction(s.omega, s.alpha)
+                    - s.alpha * sign(s.omega)
                     - s.beta * s.r2 * s.omega
                     - s.I * (s.B + s.mu * s.N * s.I / s.l) * (s.r2**2 - s.r1**2) / 2
                 )
@@ -146,7 +141,7 @@ class FaradayDiskElement(Element):
 
 
 class RailSegmentElement(Element):
-    """Rail segment element."""
+    """Rail segment on a sleeper, two masses joined by a spring and a damper and loaded by passing wheels."""
 
     def __init__(
         self,
@@ -191,7 +186,7 @@ class RailSegmentElement(Element):
         self.spacing = spacing
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the rail segment element."""
+        """Return the accelerations of the rail and of the sleeper."""
         return [
             RateLaw(
                 s.z,
