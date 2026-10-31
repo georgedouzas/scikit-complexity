@@ -13,14 +13,14 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sign, sin, sqr
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, ParticleElement
-from ....core.interactions import Interaction, PotentialInteraction
+from ....core.interactions import DampingInteraction, Interaction, PotentialInteraction
 from ....core.laws import BaseLaw, CrossingLaw, EquationLaw, RateLaw
 from ....core.laws.utils import derivative
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.particles import HarmonicPotentialInteraction, LinearDragInteraction
+from ..common.particles import HarmonicPotentialInteraction
 from ._mechanics import PendulumElement
 
 
@@ -722,7 +722,7 @@ def magnetic_pendulum(
         elements=[ParticleElement('bob', x=[x, y], v=[0.0, 0.0])],
         interactions=[
             HarmonicPotentialInteraction('string', target='bob', k=omega**2),
-            LinearDragInteraction('friction', target='bob', gamma=q),
+            DampingInteraction('friction', target='bob', gamma=q),
             *magnets,
         ],
         space=ContinuousSpace(n_dim=2),

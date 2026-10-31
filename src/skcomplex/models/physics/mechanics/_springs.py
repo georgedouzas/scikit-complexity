@@ -10,13 +10,13 @@ from sage.all__sagemath_symbolics import cos, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import ParticleElement
-from ....core.interactions import Interaction
+from ....core.interactions import DampingInteraction, Interaction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec
 from ..._catalog import register_model
-from ..common.particles import HarmonicPotentialInteraction, LinearDragInteraction, SpringInteraction
+from ..common.particles import HarmonicPotentialInteraction, SpringInteraction
 
 
 class HarmonicForceInteraction(Interaction):
@@ -132,8 +132,8 @@ def two_mass_spring_damper(
             HarmonicPotentialInteraction('left_spring', target='first', k=k1, center=rest1),
             HarmonicPotentialInteraction('right_spring', target='second', k=k2, center=rest2),
             SpringInteraction('middle_spring', first='first', second='second', k=k, length=l2),
-            LinearDragInteraction('first_damper', target='first', gamma=b1),
-            LinearDragInteraction('second_damper', target='second', gamma=b2),
+            DampingInteraction('first_damper', target='first', gamma=b1),
+            DampingInteraction('second_damper', target='second', gamma=b2),
             HarmonicForceInteraction('first_force', target='first', F=F1, omega=omega1),
             HarmonicForceInteraction('second_force', target='second', F=F2, omega=omega2),
         ],
