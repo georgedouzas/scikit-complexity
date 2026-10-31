@@ -3,6 +3,7 @@
 import importlib
 import inspect
 import pkgutil
+import re
 from importlib.resources import files
 from pathlib import Path
 from types import SimpleNamespace
@@ -22,6 +23,40 @@ from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
 
 SOURCE = str(Path(str(files('skcomplex'))))
 PACKAGES = ('skcomplex.core', 'skcomplex.engine', 'skcomplex.experiments', 'skcomplex.analysis')
+FIELD_TERMS = (
+    'Ant',
+    'Ask',
+    'Bank',
+    'Bid',
+    'Bird',
+    'Climate',
+    'Contagion',
+    'Cow',
+    'Credit',
+    'Disease',
+    'Epidemic',
+    'Firm',
+    'Gene',
+    'Grass',
+    'Infection',
+    'Institution',
+    'Market',
+    'Neuron',
+    'Opinion',
+    'Pasture',
+    'Predator',
+    'Prey',
+    'Price',
+    'Protein',
+    'Sheep',
+    'Species',
+    'Synapse',
+    'Trade',
+    'Traffic',
+    'Voter',
+    'Wolf',
+    'Worker',
+)
 ARITHMETIC = {
     '__add__',
     '__radd__',
@@ -203,6 +238,20 @@ def test_parts_derive_from_the_part_base():
     assert all(issubclass(part, BasePart) for part in parts)
     with pytest.raises(TypeError, match='abstract'):
         BasePart('part')
+
+
+def test_core_names_carry_no_field_term():
+    """Test that no public name of a package of `skcomplex.core` contains a term of a scientific field."""
+    found = {}
+    for module in _modules():
+        if not module.__name__.startswith('skcomplex.core'):
+            continue
+        for name in getattr(module, '__all__', []):
+            words = re.findall('[A-Z][a-z]*', name)
+            terms = sorted(set(words) & set(FIELD_TERMS))
+            if terms:
+                found[f'{module.__name__}.{name}'] = terms
+    assert found == {}, found
 
 
 def test_no_class_defines_magic_methods():
