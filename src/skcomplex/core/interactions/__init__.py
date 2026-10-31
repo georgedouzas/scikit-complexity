@@ -4,6 +4,8 @@
 # License: MIT
 
 from ._base import BaseInteraction
+from ._choice import ChoiceInteraction
+from ._evolution import EvolutionInteraction
 from ._hyperedge import HyperedgeInteraction
 from ._interaction import Interaction
 from ._neighbor import NeighborInteraction
@@ -13,6 +15,8 @@ from ._potential import PotentialInteraction
 
 __all__: list[str] = [
     'BaseInteraction',
+    'ChoiceInteraction',
+    'EvolutionInteraction',
     'HyperedgeInteraction',
     'Interaction',
     'NeighborInteraction',
