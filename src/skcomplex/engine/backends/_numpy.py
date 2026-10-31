@@ -8,6 +8,7 @@ from dataclasses import replace
 
 from ...core.laws import (
     BoundaryLaw,
+    CascadeLaw,
     CrossingLaw,
     DestructionLaw,
     DissipatorLaw,
@@ -25,7 +26,6 @@ from ...core.laws import (
     NoiseLaw,
     ProliferationLaw,
     RateLaw,
-    RelaxationLaw,
     RuleLaw,
     SampleLaw,
     TransferLaw,
@@ -87,7 +87,7 @@ class NumpyBackend(BaseBackend):
                 NoiseLaw,
                 ProliferationLaw,
                 RateLaw,
-                RelaxationLaw,
+                CascadeLaw,
                 RuleLaw,
                 SampleLaw,
                 TransferLaw,

@@ -13,6 +13,7 @@ from ....core.elements import GroupElement
 from ....core.laws import (
     BaseLaw,
     BoundaryLaw,
+    CascadeLaw,
     CrossingLaw,
     EquationLaw,
     ExtremalLaw,
@@ -21,7 +22,6 @@ from ....core.laws import (
     MatchLaw,
     NoiseLaw,
     RateLaw,
-    RelaxationLaw,
     RuleLaw,
     SampleLaw,
     TransferLaw,
@@ -270,11 +270,11 @@ class CensusPass(BasePass):
         owner = CensusPass._special_owner(spec, law, agents)
         if owner is not None:
             return owner
-        if isinstance(law, TransferLaw | SampleLaw | EquationLaw | CrossingLaw) or (
-            isinstance(law, RelaxationLaw) and not law._get_targets()
+        if isinstance(law, TransferLaw | EquationLaw | CrossingLaw) or (
+            isinstance(law, CascadeLaw) and not law._get_targets()
         ):
             return spec.owner
-        lattice = isinstance(law, RelaxationLaw | LocalRuleLaw | ExtremalLaw)
+        lattice = isinstance(law, CascadeLaw | LocalRuleLaw | ExtremalLaw | SampleLaw)
         target = law._get_targets()[0] if lattice else CensusPass._changed_target(spec, law)
         return spec._target_references(target)[0].entry.name.rpartition('.')[0]
 

@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, DriveLaw, LocalRuleLaw, RelaxationLaw
+from ....core.laws import BaseLaw, CascadeLaw, DriveLaw, LocalRuleLaw
 from ....core.spaces import (
     AdjacencyNeighborhood,
     LatticeNeighborhood,
@@ -112,7 +112,7 @@ class SandpileCellElement(Element):
             return height - threshold * (height >= threshold) + sum(item >= threshold for item in around)
 
         return [
-            RelaxationLaw(
+            CascadeLaw(
                 drive=[DriveLaw(s.height, _drop_grain)],
                 relax=[LocalRuleLaw(s.height, NEAREST, topple)],
                 stable=lambda heights: bool((heights < threshold).all()),
@@ -166,7 +166,7 @@ class MannaCellElement(Element):
                 The laws of the component.
         """
         return [
-            RelaxationLaw(
+            CascadeLaw(
                 drive=[DriveLaw(s.height, _drop_grain)],
                 relax=[DriveLaw(s.height, _topple_at_random)],
                 stable=lambda heights: bool((heights < MANNA_THRESHOLD).all()),

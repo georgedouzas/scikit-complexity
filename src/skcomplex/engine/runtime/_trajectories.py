@@ -40,7 +40,7 @@ class Trajectory:
 
         events:
             The events that fired during the run, in order, each with its time and the states before and after its
-            reset, the relaxations of lattices with their sizes, durations, and areas, and the renewals of renewal laws
+            reset, the cascades of lattices with their sizes, durations, and areas, and the renewals of renewal laws
             with their members.
 
         structures:

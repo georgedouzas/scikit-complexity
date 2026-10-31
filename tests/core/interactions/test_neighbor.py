@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import sin
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import NeighborInteraction
-from skcomplex.core.laws import DriveLaw, JumpLaw, LocalRuleLaw, RateLaw, RelaxationLaw, UpdateLaw
+from skcomplex.core.laws import CascadeLaw, DriveLaw, JumpLaw, LocalRuleLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import delayed, mean
 from skcomplex.core.spaces import AdjacencyNeighborhood, BoxNeighborhood, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
@@ -545,7 +545,7 @@ class ToppleInteraction(NeighborInteraction):
 def _sandpile(height, over):
     """Return a relaxation that drops a grain on site 2 and topples sites of three grains over a neighbourhood."""
     return [
-        RelaxationLaw(
+        CascadeLaw(
             drive=[DriveLaw(height, lambda values, *, random: values + (np.arange(values.size) == 2))],
             relax=[
                 LocalRuleLaw(

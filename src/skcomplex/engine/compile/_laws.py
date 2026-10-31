@@ -6,6 +6,7 @@
 
 from ...core.laws import (
     BoundaryLaw,
+    CascadeLaw,
     CrossingLaw,
     DestructionLaw,
     DriveLaw,
@@ -14,7 +15,6 @@ from ...core.laws import (
     FluxLaw,
     LocalRuleLaw,
     ProliferationLaw,
-    RelaxationLaw,
     RuleLaw,
     SampleLaw,
     TransferLaw,
@@ -30,14 +30,14 @@ _KERNEL_FREE_LAWS = (
     DestructionLaw,
     LocalRuleLaw,
     DriveLaw,
-    RelaxationLaw,
+    CascadeLaw,
     ExtremalLaw,
     SampleLaw,
     FluxLaw,
 )
 """Laws that their own passes lower, which no numeric kernel is written for."""
 
-LATTICE_LAWS = (LocalRuleLaw, DriveLaw, RelaxationLaw, ExtremalLaw, SampleLaw)
+LATTICE_LAWS = (LocalRuleLaw, DriveLaw, CascadeLaw, ExtremalLaw, SampleLaw)
 """Laws that update the sites of lattices and networks."""
 
 _AGENT_LAWS = (RuleLaw,)

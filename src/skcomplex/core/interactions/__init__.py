@@ -6,6 +6,7 @@
 from ._alignment import AlignmentInteraction
 from ._base import BaseInteraction
 from ._base_matching_protocol import BaseMatchingProtocol
+from ._cascade import CascadeInteraction
 from ._choice import ChoiceInteraction
 from ._clearing_spec import ClearingSpec
 from ._constant_force import ConstantForceInteraction
@@ -35,13 +36,13 @@ from ._reaction import ReactionInteraction
 from ._regrowth import RegrowthInteraction
 from ._spreading import SpreadingInteraction
 from ._stable_matching_protocol import StableMatchingProtocol
-from ._threshold import ThresholdInteraction
 from ._uniform_price_protocol import UniformPriceProtocol
 
 __all__: list[str] = [
     'AlignmentInteraction',
     'BaseInteraction',
     'BaseMatchingProtocol',
+    'CascadeInteraction',
     'ChoiceInteraction',
     'ClearingSpec',
     'ConstantForceInteraction',
@@ -71,6 +72,5 @@ __all__: list[str] = [
     'RegrowthInteraction',
     'SpreadingInteraction',
     'StableMatchingProtocol',
-    'ThresholdInteraction',
     'UniformPriceProtocol',
 ]

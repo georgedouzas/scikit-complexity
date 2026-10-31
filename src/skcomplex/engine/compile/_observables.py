@@ -20,7 +20,7 @@ from ...errors import ValidationError
 from ...specs import EntrySpec, ObservableSpec, ReadSpec, StateSpec
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...types import Array, FormKind, Indices, VariableKind
-from .._utils import declarations_of, symbol, symbols_of
+from .._utils import bound_labels, declarations_of, symbol, symbols_of
 from ..problems import (
     BaseProblemSpec,
     ExpressionPrinter,
@@ -45,9 +45,8 @@ def _role_paths(system: System, scope: str = '') -> set[str]:
     paths = set()
     for interaction in system.interactions:
         for name in declarations_of(interaction, VariableKind.ROLE):
-            value = getattr(interaction, name)
-            labels = [value] if isinstance(value, str) else list(value) if isinstance(value, list | tuple) else []
-            paths |= {f'{scope}/{label}' if scope else label for label in labels if isinstance(label, str)}
+            labels = bound_labels(getattr(interaction, name))
+            paths |= {f'{scope}/{label}' if scope else label for label in labels}
     for child in system.systems:
         paths |= _role_paths(child, f'{scope}/{child.label}' if scope else child.label)
     return paths

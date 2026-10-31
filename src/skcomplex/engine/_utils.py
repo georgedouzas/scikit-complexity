@@ -4,7 +4,7 @@
 # License: MIT
 
 import inspect
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 
 from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression
 from sage.all__sagemath_symbolics import vector as sage_vector
@@ -109,6 +109,33 @@ def symbols_of(expressions: Iterable[object]) -> set[Expression]:
             The symbols.
     """
     return {item for expression in expressions for item in SR(expression).variables()}
+
+
+def bound_labels(value: object) -> list[str]:
+    """Return the labels of the elements and groups a role binds.
+
+    A role binds one label, a sequence of labels, or the entries of a variadic role. An entry is a label, or a pair of
+    a label and the name of a state, and the entries may be the keys of a mapping, such as the coefficients of a
+    reaction.
+
+    Args:
+        value:
+            The value of the role.
+
+    Returns:
+        labels:
+            The labels, in the order the role binds them.
+
+    Examples:
+        >>> from skcomplex.engine._utils import bound_labels
+        >>> bound_labels({('cell', 'u'): 2.0, 'tank': 1.0})
+        ['cell', 'tank']
+    """
+    if isinstance(value, str):
+        return [value]
+    entries = list(value) if isinstance(value, Mapping | list | tuple) else []
+    labels = [entry[0] if isinstance(entry, tuple) and entry else entry for entry in entries]
+    return [label for label in labels if isinstance(label, str)]
 
 
 def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:

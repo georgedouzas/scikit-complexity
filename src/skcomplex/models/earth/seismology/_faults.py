@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, DriveLaw, LocalRuleLaw, RelaxationLaw
+from ....core.laws import BaseLaw, CascadeLaw, DriveLaw, LocalRuleLaw
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -87,7 +87,7 @@ class FaultElement(Element):
             return np.where(force >= threshold, 0.0, force) + alpha * passed
 
         return [
-            RelaxationLaw(
+            CascadeLaw(
                 drive=[DriveLaw(s.force, load)],
                 relax=[LocalRuleLaw(s.force, NEAREST, slip)],
                 stable=lambda force: bool((force < threshold).all()),

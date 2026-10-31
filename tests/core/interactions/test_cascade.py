@@ -1,4 +1,4 @@
-"""Test the `_threshold` module of `skcomplex.core.interactions`."""
+"""Test the `_cascade` module of `skcomplex.core.interactions`."""
 
 from typing import Annotated
 
@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, LatticeElement
-from skcomplex.core.interactions import ThresholdInteraction
+from skcomplex.core.interactions import CascadeInteraction
 from skcomplex.core.spaces import (
     AdjacencyNeighborhood,
     DiscreteTime,
@@ -47,10 +47,10 @@ def _drop(values, *, random):
 
 
 def _run(space, heights, threshold, until, **arguments):
-    """Return a simulation of a threshold over the sites of a space, run for some steps."""
+    """Return a simulation of a cascade over the sites of a space, run for some steps."""
     system = System(
         elements=[LatticeElement('sites', element=SiteElement, space=space, values={'height': heights})],
-        interactions=[ThresholdInteraction('cascade', nodes='sites', state='height', threshold=threshold, **arguments)],
+        interactions=[CascadeInteraction('cascade', target='sites', state='height', threshold=threshold, **arguments)],
         time=DiscreteTime(),
     )
     return Simulation(system, dt=until, random_state=0).check().prepare().run(until=until)
@@ -75,22 +75,22 @@ def test_sandpile_avalanches_follow_a_power_law_over_two_decades():
 
 
 def test_redistribution_keeps_the_grains_inside_a_periodic_lattice():
-    """Test that a firing site on a periodic ring gives its threshold to its neighbours and the total is kept."""
+    """Test that a relaxing site on a periodic ring gives its threshold to its neighbours and the total is kept."""
     simulation = _run(
         LatticeSpace(5),
         [0.0, 1.0, 3.0, 1.0, 0.0],
         2,
         1,
         share=1,
-        over=VonNeumannNeighborhood(n_dim=1, center=True),
+        neighborhood=VonNeumannNeighborhood(n_dim=1, center=True),
     )
     assert simulation.state_.tolist() == [1.0] * 5
     (event,) = simulation.trajectory_.events
     assert (event.size, event.duration) == (4, 3)
 
 
-def test_reset_passes_a_fraction_of_the_fired_state_to_the_neighbours():
-    """Test that in the mode reset a firing node falls to 0 and its neighbours gain a share of its state."""
+def test_reset_passes_a_fraction_of_the_relaxed_state_to_the_neighbours():
+    """Test that in the mode reset a relaxing node falls to 0 and its neighbours gain a share of its state."""
     space = NetworkSpace(nx.path_graph(3))
     simulation = _run(
         space,
@@ -98,7 +98,7 @@ def test_reset_passes_a_fraction_of_the_fired_state_to_the_neighbours():
         1.0,
         1,
         share=0.5,
-        over=AdjacencyNeighborhood(center=True),
+        neighborhood=AdjacencyNeighborhood(center=True),
         mode='reset',
     )
     assert np.allclose(simulation.state_, [0.6, 0.0, 0.7])
@@ -106,15 +106,41 @@ def test_reset_passes_a_fraction_of_the_fired_state_to_the_neighbours():
     assert event.size == 1
 
 
+def test_random_mode_passes_parcels_to_random_neighbours():
+    """Test that in the mode random a relaxing site sends its parcels to random neighbours, keeping them inside."""
+    heights = np.zeros((9, 9))
+    heights[4, 4] = 2.0
+    simulation = _run(LatticeSpace((9, 9), boundary='fixed'), heights.ravel(), 2, 1, share=1, mode='random')
+    following = simulation.state_.reshape(9, 9)
+    neighbours = following[[3, 5, 4, 4], [4, 4, 3, 5]]
+    assert following.sum() == 2.0
+    assert following[4, 4] == 0.0
+    assert neighbours.sum() == 2.0
+    (event,) = simulation.trajectory_.events
+    assert (event.size, event.duration) == (1, 1)
+
+
+def test_random_mode_drives_a_stochastic_sandpile_to_a_stationary_density():
+    """Test that random parcels of two grains on a bounded lattice settle at a mean height below the threshold."""
+    space = LatticeSpace((20, 20), boundary='fixed')
+    simulation = _run(space, np.zeros(400), 2, 3000, share=1, mode='random', drive=_drop)
+    heights = simulation.trajectory_.values('sites.height')
+    assert heights.max() < 2
+    assert 0.5 < heights[-1].mean() < 1.0
+    assert max(event.size for event in simulation.trajectory_.events) > 50
+
+
 @pytest.mark.parametrize(
     ('arguments', 'match'),
     [
-        ({'mode': 'flip'}, 'mode of the threshold'),
+        ({'mode': 'flip'}, 'mode of the cascade'),
         ({'drive': 1.0}, 'callable'),
-        ({'over': VonNeumannNeighborhood()}, 'center=True'),
+        ({'neighborhood': VonNeumannNeighborhood()}, 'center=True'),
+        ({'mode': 'random', 'neighborhood': AdjacencyNeighborhood(center=True)}, 'lattice neighbourhood'),
+        ({'mode': 'random', 'threshold': 3.0, 'share': 2.0}, 'divides the threshold'),
     ],
 )
 def test_check_rejects_unknown_modes_drives_and_neighbourhoods(arguments, match):
-    """Test that an unknown mode, a drive that is not callable, or a neighbourhood without its centre raise errors."""
+    """Test that unknown modes, drives, neighbourhoods, and parcels that do not divide the threshold raise errors."""
     with pytest.raises(ValidationError, match=match):
-        ThresholdInteraction('cascade', nodes='sites', **arguments).check()
+        CascadeInteraction('cascade', target='sites', **arguments).check()
