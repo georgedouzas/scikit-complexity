@@ -10,8 +10,8 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import RelaxationInteraction
-from ....core.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
+from ....core.interactions import RelaxationInteraction, TransferInteraction
+from ....core.laws import BaseLaw, RateLaw, Sink, Source
 from ....core.laws.utils import lookup
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -48,12 +48,9 @@ def _self_sufficiency(s: SimpleNamespace) -> Expression:
 
 
 def _rice_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the development and loss of rice land, the population, the yield potential, the soil, and the practice."""
+    """Return the yield potential, the soil, and the practice."""
     chemical = 1 - s.bio_fraction
     return [
-        TransferLaw(s.available_land, s.rice_area, s.available_land / s.conversion_time, label='development'),
-        TransferLaw(s.rice_area, Sink('urban'), s.discard_rate * s.rice_area, label='discard'),
-        TransferLaw(Source('births'), s.population, s.growth_rate * s.population, label='population_growth'),
         RateLaw(s.potential, s.research * (s.potential_limit - s.potential) / s.research_time),
         RateLaw(
             s.soil_quality,
@@ -67,11 +64,12 @@ def _rice_laws(s: SimpleNamespace) -> list[BaseLaw]:
 class RiceSectorElement(Element):
     """Rice sector of a country, its land, population, and the factors of the productivity of its rice land.
 
-    The suitable land is developed into rice area and the rice area is discarded, the population grows
-    exponentially, research raises the potential yield towards a limit, chemical fertiliser degrades the soil and
-    fallow regenerates it, and training improves the farming practice through a learning table. The training, the
-    share of bio-fertiliser, and the cropping intensity relax towards their targets through relaxation interactions
-    of the model, which read the targets and times of the sector.
+    The suitable land is developed into rice area and the rice area is discarded, and the population grows
+    exponentially, through transfers within the sector of the model. Research raises the potential yield towards a
+    limit, chemical fertiliser degrades the soil and fallow regenerates it, and training improves the farming
+    practice through a learning table. The training, the share of bio-fertiliser, and the cropping intensity relax
+    towards their targets through relaxation interactions of the model, which read the targets and times of the
+    sector.
 
     Args:
         label:
@@ -235,7 +233,7 @@ class RiceSectorElement(Element):
         self.implementation_time = implementation_time
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the land flows, the population growth, and the potential, soil, and practice of the sector.
+        """Return the potential, soil, and practice of the sector.
 
         Args:
             s:
@@ -325,6 +323,27 @@ def food_security(
         training_target=training_target,
         intensity_target=intensity_target,
     )
+    transfers = [
+        TransferInteraction(
+            'land_use',
+            source='rice',
+            target='rice',
+            state='available_land',
+            into='rice_area',
+            amount=lambda s: s.source.available_land / s.source.conversion_time,
+            flow='development',
+            legs=[('rice_area', Sink('urban'), lambda s: s.source.discard_rate * s.source.rice_area, 'discard')],
+        ),
+        TransferInteraction(
+            'births',
+            source='rice',
+            target='rice',
+            state=Source('births'),
+            into='population',
+            amount=lambda s: s.source.growth_rate * s.source.population,
+            flow='population_growth',
+        ),
+    ]
     relaxations = [
         RelaxationInteraction(
             'training',
@@ -348,4 +367,4 @@ def food_security(
             time=lambda s: s.target.implementation_time,
         ),
     ]
-    return System(elements=[sector], interactions=relaxations)
+    return System(elements=[sector], interactions=[*transfers, *relaxations])

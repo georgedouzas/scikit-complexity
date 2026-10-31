@@ -50,7 +50,8 @@ class TransferLaw(BaseLaw):
 
     A transfer is one outflow of its source and one inflow of its sink. Its amount is a rate in a system of rate laws,
     the amount moved per step in a system of update laws, and the size of every jump when a `rate` is given. The
-    trajectory records the amount at every frame under `<element path>.<label>`.
+    trajectory records the amount at every frame under `<path>.<label>`, the path of the part that declares the
+    transfer, or `owner` when given.
 
     Args:
         source:
@@ -66,7 +67,13 @@ class TransferLaw(BaseLaw):
             The propensity of a jump that moves `amount` at random times, or `None` for a deterministic flow.
 
         label:
-            The name of the flow, unique among the flows of its element, or the empty string for `flow_<index>`.
+            The name of the flow, unique among the flows reported under one part, or the empty string for
+            `flow_<index>`.
+
+        owner:
+            The path of the part the flow is reported under, relative to the system of the part that declares the
+            transfer, such as the element an interaction moves a quantity within, or the empty string for the part
+            that declares it.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
@@ -84,12 +91,14 @@ class TransferLaw(BaseLaw):
         rate: object = None,
         *,
         label: str = '',
+        owner: str = '',
     ) -> None:
         super().__init__(label)
         self.source = source
         self.sink = sink
         self.amount = amount
         self.rate = rate
+        self.owner = owner
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the states the transfer moves the quantity between, without the environment."""
@@ -117,8 +126,11 @@ class TransferLaw(BaseLaw):
             raise ValidationError(error_msg)
 
     def _check(self) -> None:
-        """Raise an error for invalid holders, an amount that is a NumPy array, or a symbolic jump size."""
+        """Raise an error for invalid holders, an array amount, a symbolic jump size, or an owner that is no string."""
         self._check_holders()
+        if not isinstance(self.owner, str):
+            error_msg = f'The owner of the transfer {self.label} is {self.owner!r}. Give a path, or an empty string.'
+            raise ValidationError(error_msg)
         self._check_array('amount')
         if self.rate is not None and not SR(self.amount).is_numeric():
             error_msg = (

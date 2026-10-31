@@ -120,12 +120,20 @@ Agents, groups, and exchange:
 | Class | Operation |
 | --- | --- |
 | `MovementInteraction(target, step, probability=1.0, rate=None, condition=None, accept=None, exclusive=False)` | moves agents by neighbour, Gaussian, Lévy, best-cell, or a user step |
-| `TransferInteraction(source, target, amount, pairing, legs=(), guard=None)` | moves amounts of states between members, cells, or a source and a sink, as a rate or as agent rules |
+| `TransferInteraction(source, target, state, into=None, amount, flow='', pairing='members', legs=(), fallback=None, guard=None, rate=None, form='symbolic', phase=None)` | moves amounts of states between members, cells, or a source and a sink, as a rate or as agent rules; pairs agents by members, random, disjoint pairs, neighbours, disjoint neighbour pairs, or cell, with a fallback group when no target lives |
 | `LifeCycleInteraction(target, birth, death, offspring=1, placement='here', inherit=(), mutate=None)` | births by splitting or by condition, and deaths by condition |
 | `GroupingInteraction(target, groups, act, size=2, capacity=None)` | draws pairs, a random partition, neighbourhoods, or groups by a chosen state each step, then acts on every group |
 | `MatchingInteraction(requesters, providers, rule, limit, quantity, budget, transfers, on_match)` | pairs requesters with providers by the algorithm its rule spec names, then transfers |
 | `FeedbackInteraction(rule)` | reads observables once per round and sets parameters |
 | `TopologyInteraction(target, action, rate=None, probability=None, condition=None, toward=None)` | adds or removes nodes and edges, and rewires, preferentially towards a weight |
+
+Transfer flows have names. Every leg of a symbolic `TransferInteraction` is a `TransferLaw`, which the trajectory
+records as a flow. A leg names its flow by `flow` (the first leg) or a fourth item `(state, into, amount, flow)`; a named
+flow of a transfer whose source and target are one element or group is reported under that element, `<element>.<flow>`,
+as a flow it declares itself would be, and every other flow under the interaction, `<label>.<flow>` or
+`<label>.flow_<index>`. `TransferLaw(..., owner='')` carries the path a flow is reported under, and the engine rejects two
+flows reported under one path. So a stock-and-flow element holds its stocks and parameters, and the transfers of its
+model move them, with the reporters unchanged. A role bound to `None` binds nothing, so `fallback` is an optional role.
 
 The matching rules are frozen specs of `skcomplex.specs` that hold only the settings of their algorithm:
 `RandomSearchSpec(tries, clearing)`, the default, `PartnerSwitchSpec(sample, intensity, partner)`, `QueueSpec(order)`,

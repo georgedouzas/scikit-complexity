@@ -1,5 +1,6 @@
 """Test the `_transfer` module of `skcomplex.core.interactions`."""
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -7,12 +8,12 @@ import pytest
 
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import TransferInteraction
-from skcomplex.core.laws import Sink, Source
+from skcomplex.core.laws import BaseLaw, RuleLaw, Sink, Source
 from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.errors import ValidationError
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 
 
 class StockElement(Element):
@@ -31,6 +32,14 @@ class StockElement(Element):
         self.level = level
         self.capacity = capacity
         self.clock = clock
+
+
+class MortalElement(StockElement):
+    """Holder of a level that leaves the system in the phase `die` of its first step."""
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rule that removes the holder."""
+        return [RuleLaw(lambda agent, model: agent.remove(), phase='die')]
 
 
 def _run(system: System, until: float) -> Trajectory:
@@ -125,7 +134,7 @@ def test_transfer_rate_moves_units_by_jumps_and_conserves_the_total():
     assert 20 < right[-1] < 40
 
 
-@pytest.mark.parametrize('pairing', ['random', 'pairs', 'neighbors'])
+@pytest.mark.parametrize('pairing', ['random', 'pairs', 'neighbors', 'neighbor-pairs'])
 def test_transfer_agent_pairings_conserve_the_total(pairing):
     """Test that random, paired, and neighbouring agent transfers keep the total of the level."""
     cells = [(row, column) for row in range(4) for column in range(4)]
@@ -146,6 +155,73 @@ def test_transfer_agent_pairings_conserve_the_total(pairing):
     assert levels.sum() == pytest.approx(80.0)
     assert levels.min() >= 0
     assert levels.std() > 0
+
+
+def test_transfer_reports_named_flows_under_the_element_they_move_within():
+    """Test that named flows within one element report under it, and the others under the interaction."""
+    within = TransferInteraction(
+        'within',
+        source='tank',
+        target='tank',
+        state='level',
+        into='capacity',
+        amount=1.0,
+        flow='filling',
+        legs=(('capacity', Sink(), 0.5, 'spill'), ('clock', Sink(), 0.25)),
+    )
+    between = TransferInteraction('between', source='tank', target='other', state='level', amount=0.5, flow='leak')
+    system = System(elements=[StockElement('tank', level=10.0), StockElement('other')], interactions=[within, between])
+    trajectory = _run(system, 1.0)
+    assert {'tank.filling', 'tank.spill', 'within.flow_2', 'between.leak'} <= set(trajectory.names)
+    assert trajectory.values('tank.filling')[-1] == pytest.approx(1.0)
+    assert trajectory.values('between.leak')[-1] == pytest.approx(0.5)
+    nested = System(systems=[System('plant', elements=[StockElement('tank', level=10.0)], interactions=[within])])
+    assert {'plant/tank.filling', 'plant/within.flow_2'} <= set(_run(nested, 1.0).names)
+
+
+def test_transfer_neighbor_pairs_are_disjoint_neighbours():
+    """Test that neighbour pairs share no agent and pair agents of neighbouring cells only."""
+    cells = [(row, 0) for row in range(6)]
+    traders = GroupElement('traders', element=StockElement, size=6, values={'level': 1.0}, location=cells)
+    give = TransferInteraction(
+        'give',
+        source='traders',
+        target='traders',
+        state='level',
+        into='clock',
+        amount=1.0,
+        pairing='neighbor-pairs',
+        form='agent',
+    )
+    space = LatticeSpace((6, 1), neighborhood='von_neumann')
+    trajectory = _run(System(elements=[traders], interactions=[give], space=space), 1)
+    levels = trajectory.agents('traders', 1).values['level'].tolist()
+    clocks = trajectory.agents('traders', 1).values['clock'].tolist()
+    assert sorted(set(levels)) <= [0.0, 1.0]
+    assert levels.count(0.0) == sum(clocks) >= 1
+    assert all(level + clock <= 1.0 + 1.0 for level, clock in zip(levels, clocks, strict=True))
+
+
+def test_transfer_fallback_receives_when_no_target_lives():
+    """Test that the fallback group receives the transfers of the steps in which no target member lives."""
+    payers = GroupElement('payers', element=StockElement, size=2, values={'level': 3.0})
+    payees = GroupElement('payees', element=MortalElement, size=1, variable=True)
+    others = GroupElement('others', element=StockElement, size=1)
+    pay = TransferInteraction(
+        'pay',
+        source='payers',
+        target='payees',
+        state='level',
+        amount=1.0,
+        pairing='random',
+        fallback='others',
+        form='agent',
+        phase='pay',
+    )
+    time = DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('pay'), PhaseSpec('die')]))
+    trajectory = _run(System(elements=[payers, payees, others], interactions=[pay], time=time), 2)
+    assert _levels(trajectory, 2, 'others') == [2.0]
+    assert _levels(trajectory, 2, 'payers') == [1.0, 1.0]
 
 
 def test_transfer_regrows_linearly_up_to_the_capacity():
@@ -236,10 +312,14 @@ def test_transfer_symbolic_flows_run_in_discrete_time():
         {'pairing': 'random'},
         {'form': 'rule'},
         {'guard': 1},
+        {'flow': 3},
+        {'flow': 'out', 'legs': (('capacity', 'capacity', 1.0, 'out'),)},
+        {'flow': 'out', 'form': 'agent'},
+        {'fallback': 'c'},
     ],
 )
 def test_check_rejects_invalid_arguments(arguments):
-    """Test that an unknown form or pairing, malformed legs and amounts, mismatched options, and a bad guard fail."""
+    """Test that unknown forms or pairings, malformed legs, amounts, or flow names, and mismatched options fail."""
     settings = {'state': 'level', 'amount': 1.0, **arguments}
     with pytest.raises(ValidationError):
         TransferInteraction('flow', source='a', target='b', **settings).check()

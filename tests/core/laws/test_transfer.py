@@ -272,6 +272,26 @@ def test_flow_holders_and_labels_are_checked():
         compile_system(System(elements=[reads('reads')]))
 
 
+def test_flow_owner_reports_the_flow_under_another_part():
+    """Test that an owner reports a flow under its path, and that two flows reported as one path are rejected."""
+
+    class ReportedElement(TanksElement):
+        """Tanks whose flow is reported under the other tanks."""
+
+        def _get_laws(self, s):
+            """Return the transfer reported under the other tanks."""
+            return [TransferLaw(s.a, s.b, s.a / 4, label='flow', owner='other')]
+
+    system = System(elements=[ReportedElement('tanks'), TanksElement('spare')])
+    trajectory = Simulation(system, dt=1).check().prepare().run(1).trajectory_
+    assert 'other.flow' in trajectory.names
+    assert 'tanks.flow' not in trajectory.names
+    with pytest.raises(LabelError, match="'flow'"):
+        compile_system(System(elements=[ReportedElement('tanks'), TanksElement('other')]))
+    with pytest.raises(ValidationError, match='owner'):
+        TransferLaw(var('a'), var('b'), 1.0, owner=3).check()
+
+
 def test_discrete_flows_are_per_step_and_join_the_updates():
     """Test that in a discrete map a flow moves its amount once per step and money changes only by lending."""
     trajectory = Simulation(System(elements=[LedgerElement('ledger')]), dt=1).check().prepare().run(5).trajectory_

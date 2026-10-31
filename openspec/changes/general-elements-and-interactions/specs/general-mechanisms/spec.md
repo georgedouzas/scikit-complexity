@@ -142,6 +142,23 @@ rewire nodes and edges.
 - **WHEN** the Galam discussion model draws groups of three every step
 - **THEN** it uses `GroupingInteraction`, and the majority of every group wins as before the change
 
+### Requirement: Transfer flows and pairings
+`TransferInteraction` SHALL report every symbolic leg as a flow under its name, under the element when the transfer moves
+a quantity within one element and under the interaction otherwise. Its agent form SHALL pair agents into disjoint pairs
+of neighbours, and SHALL pair with a fallback group in a step in which no target member lives.
+
+#### Scenario: Named flows keep their reporters
+- **WHEN** the Bass diffusion model moves adopters by a `TransferInteraction` within the market with `flow='adoption'`
+- **THEN** the trajectory records the flow as `market.adoption`, as when the market declared the transfer itself
+
+#### Scenario: Disjoint neighbour pairs
+- **WHEN** traders on a grid barter with `pairing='neighbor-pairs'`
+- **THEN** every trader is in at most one pair a step, and the two traders of a pair stand in neighbouring cells
+
+#### Scenario: Fallback group
+- **WHEN** a transfer pays a random member of a group that has no living member and names a `fallback` group
+- **THEN** a random member of the fallback group receives the amount
+
 ### Requirement: Agent and symbolic lowering
 A general class whose operation agent models use SHALL lower to agent rules in its agent form, with functions of the
 agent and the model view, and to symbolic laws in its symbolic form, chosen by a `form` argument.

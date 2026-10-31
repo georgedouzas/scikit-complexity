@@ -736,7 +736,7 @@ class SpecsPass(BasePass):
         labels = {
             role: getattr(node.component, role)
             for role, declaration in declared.items()
-            if not (declaration.noise and getattr(node.component, role) is None)
+            if declaration.variadic or getattr(node.component, role) is not None
         }
         variadic = {
             role: SpecsPass._resolve_entries(node, role, labels[role], elements)
