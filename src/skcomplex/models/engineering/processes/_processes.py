@@ -11,18 +11,18 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import Interaction
+from ....core.interactions import TransferInteraction
 from ....core.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
 from ....core.laws.utils import step, where
 from ....core.system import System
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 INFLOW_START = 5.0
 
 
 class TubElement(Element):
-    """Tub element."""
+    """Tub of water, a stock filled by a faucet that opens after five minutes and emptied by a drain."""
 
     def __init__(
         self,
@@ -39,7 +39,7 @@ class TubElement(Element):
         self.outflow = outflow
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the tub element."""
+        """Return the faucet and drain flows of the tub."""
         return [
             TransferLaw(Source(), s.water, s.inflow * step(s.t, INFLOW_START), label='faucet'),
             TransferLaw(s.water, Sink(), where(s.water > 0, s.outflow, 0), label='drain'),
@@ -47,7 +47,7 @@ class TubElement(Element):
 
 
 class StageElement(Element):
-    """Stage element."""
+    """Stage of a process, a stock of material `m` with a constant feed."""
 
     def __init__(
         self,
@@ -62,29 +62,8 @@ class StageElement(Element):
         self.feed = feed
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the stage element."""
+        """Return the constant feed of the stage."""
         return [RateLaw(s.m, s.feed)]
-
-
-class PassageInteraction(Interaction):
-    """Passage interaction."""
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        source: Annotated[object, RoleSpec()],
-        target: Annotated[object, RoleSpec()],
-        rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-    ) -> None:
-        super().__init__(label)
-        self.source = source
-        self.target = target
-        self.rate = rate
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the passage interaction."""
-        return [RateLaw(s.source.m, -s.rate * s.source.m), RateLaw(s.target.m, s.rate * s.source.m)]
 
 
 @register_model(
@@ -170,10 +149,22 @@ def cascade_classifier(
     stages = [StageElement(f'stage_{index}', feed=feed if index == entry else 0.0) for index in range(1, n_stages + 1)]
     labels = ['fine', *(stage.label for stage in stages), 'coarse']
     interactions = [
-        PassageInteraction(f'up_{index}', source=labels[index], target=labels[index - 1], rate=k)
+        TransferInteraction(
+            f'up_{index}',
+            source=labels[index],
+            target=labels[index - 1],
+            state='m',
+            amount=lambda s: k * s.source.m,
+        )
         for index in range(1, n_stages + 1)
     ] + [
-        PassageInteraction(f'down_{index}', source=labels[index], target=labels[index + 1], rate=1 - k)
+        TransferInteraction(
+            f'down_{index}',
+            source=labels[index],
+            target=labels[index + 1],
+            state='m',
+            amount=lambda s: (1 - k) * s.source.m,
+        )
         for index in range(1, n_stages + 1)
     ]
     return System(elements=[StageElement('fine'), *stages, StageElement('coarse')], interactions=interactions)

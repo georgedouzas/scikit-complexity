@@ -12,11 +12,10 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
-from ....core.laws.utils import lookup, step, where
+from ....core.laws.utils import clip, delay3, lookup, minimum, smooth, step
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ._delays import delay3, smooth
 
 MONTHS_PER_YEAR = 12.0
 DAYS_PER_YEAR = 365.0
@@ -25,16 +24,6 @@ WATER_STRESS = ((0.0, 0.0), (0.3, 0.5), (0.6, 1.0), (1.0, 1.0))
 HUSK_SHARE = 0.2
 BRAN_SHARE = 0.08
 INITIAL_COLLECTION_SHARE = 0.75
-
-
-def _smaller(first: Expression, second: Expression) -> Expression:
-    """Return the smaller of two symbolic values."""
-    return where(first < second, first, second)
-
-
-def _positive(value: Expression) -> Expression:
-    """Return the positive part of a symbolic value."""
-    return where(value > 0, value, 0)
 
 
 def _season(mean: Expression, amplitude: Expression, t: Expression, period: float) -> Expression:
@@ -54,7 +43,7 @@ def _indicated_milling(s: SimpleNamespace) -> Expression:
 
 def _milling(s: SimpleNamespace) -> Expression:
     """Return the milling, the indicated milling limited by the capacity."""
-    return _smaller(_indicated_milling(s), s.capacity)
+    return minimum(_indicated_milling(s), s.capacity)
 
 
 def _rice_mill_laws(s: SimpleNamespace) -> list[BaseLaw]:
@@ -81,7 +70,7 @@ def _generation(s: SimpleNamespace) -> Expression:
 
 def _collection(s: SimpleNamespace) -> Expression:
     """Return the collection of waste, limited by the collection capacity."""
-    return _smaller(s.uncollected / s.collection_time, s.collection_capacity)
+    return minimum(s.uncollected / s.collection_time, s.collection_capacity)
 
 
 def _acceptance(s: SimpleNamespace) -> Expression:
@@ -116,7 +105,7 @@ def _shipments(s: SimpleNamespace) -> Expression:
     need = _need(s)
     stock_gap = (s.cover * need - s.warehouse) / s.stock_time
     pipeline_gap = (s.shipping_delay * need - s.in_transit) / s.pipeline_time
-    return _positive(need + stock_gap + pipeline_gap)
+    return clip(need + stock_gap + pipeline_gap, 0)
 
 
 def _relief_laws(s: SimpleNamespace) -> list[BaseLaw]:
@@ -128,7 +117,7 @@ def _relief_laws(s: SimpleNamespace) -> list[BaseLaw]:
         TransferLaw(
             s.warehouse,
             Sink('beneficiaries'),
-            _smaller(_need(s), s.warehouse / s.distribution_time),
+            minimum(_need(s), s.warehouse / s.distribution_time),
             label='distribution',
         ),
     ]
@@ -136,25 +125,25 @@ def _relief_laws(s: SimpleNamespace) -> list[BaseLaw]:
 
 def _demand(s: SimpleNamespace) -> Expression:
     """Return the water demand of the crops, their evapotranspiration and the refill of the root zone."""
-    return _positive(s.potential_et + (s.target * s.field_capacity - s.soil) / s.refill_time)
+    return clip(s.potential_et + (s.target * s.field_capacity - s.soil) / s.refill_time, 0)
 
 
 def _release(s: SimpleNamespace) -> Expression:
     """Return the release of the reservoir, the demand before the canal losses, limited by the reservoir."""
-    return _smaller(_demand(s) / (1 - s.canal_loss), s.reservoir / s.release_time)
+    return minimum(_demand(s) / (1 - s.canal_loss), s.reservoir / s.release_time)
 
 
 def _pumping(s: SimpleNamespace) -> Expression:
     """Return the pumping of groundwater, the demand the release leaves unmet, limited by the pumps and the aquifer."""
     unmet = _demand(s) - (1 - s.canal_loss) * _release(s)
-    return _smaller(_positive(unmet), _smaller(s.pump_capacity, s.groundwater / s.pump_time))
+    return minimum(clip(unmet, 0), minimum(s.pump_capacity, s.groundwater / s.pump_time))
 
 
 def _irrigation_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the water balance of a reservoir, the root zone of the irrigated crops, and the aquifer below them."""
     release = _release(s)
     crop_water = s.potential_et * lookup(s.soil / s.field_capacity, WATER_STRESS)
-    spill = _positive(s.reservoir - s.reservoir_capacity) / s.spill_time
+    spill = clip(s.reservoir - s.reservoir_capacity, 0) / s.spill_time
     return [
         TransferLaw(
             Source('river'),
@@ -174,7 +163,7 @@ def _irrigation_laws(s: SimpleNamespace) -> list[BaseLaw]:
 
 
 class RiceMillElement(Element):
-    """Rice mill element."""
+    """Rice mill that buys seasonal paddy, mills it into rice, husk, and bran, and adjusts its capacity."""
 
     def __init__(
         self,
@@ -222,7 +211,7 @@ class RiceMillElement(Element):
 
 
 class WasteSystemElement(Element):
-    """Waste system element."""
+    """Solid waste system of a growing city that collects, recycles, composts, and landfills its waste."""
 
     def __init__(
         self,
@@ -270,7 +259,7 @@ class WasteSystemElement(Element):
 
 
 class ReliefPipelineElement(Element):
-    """Relief pipeline element."""
+    """Relief supply line that ships food through a delayed pipeline to a warehouse and distributes it."""
 
     def __init__(
         self,
@@ -306,7 +295,7 @@ class ReliefPipelineElement(Element):
 
 
 class IrrigationSchemeElement(Element):
-    """Irrigation scheme element."""
+    """Irrigation scheme that moves water between a reservoir, the root zone of crops, and an aquifer."""
 
     def __init__(
         self,
