@@ -1,4 +1,4 @@
-"""Test the `_self_propulsion` module of `skcomplex.models.physics.common.active`."""
+"""Test the `_self_propulsion` module of `skcomplex.models.physics.active_matter`."""
 
 import math
 
@@ -7,7 +7,7 @@ import numpy as np
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.physics.common.active import SelfPropulsionInteraction
+from skcomplex.models.physics.active_matter import SelfPropulsionInteraction
 from skcomplex.models.physics.common.oscillators import SitedOscillatorElement
 
 

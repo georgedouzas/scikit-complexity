@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -13,7 +12,7 @@ from sage.all__sagemath_symbolics import NN
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, LocalRuleLaw
+from ....core.interactions import LocalRuleInteraction
 from ....core.spaces import LatticeNeighborhood, LatticeSpace, TriangularNeighborhood
 from ....core.system import System
 from ....specs import StateSpec, VisualSpec
@@ -73,8 +72,8 @@ def _count(*channels: Array) -> Array:
 class FHPSiteElement(Element):
     """Site of the FHP-I lattice gas, with one boolean channel per direction of the triangular lattice.
 
-    Every step collides the particles at every site, head-on pairs turning by a sixth of a turn to either side with
-    equal probability and symmetric triples turning by a sixth of a turn, and then moves every particle to the
+    The local rules of the gas collide the particles at every site, head-on pairs turning by a sixth of a turn to either
+    side with equal probability and symmetric triples turning by a sixth of a turn, and then move every particle to the
     neighbouring site along its direction. Collisions conserve the number of particles and their momentum at every
     site. The state `density` holds the number of particles at the site.
 
@@ -133,24 +132,6 @@ class FHPSiteElement(Element):
         self.n4 = n4
         self.n5 = n5
         self.density = density
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the collision, the propagation along the six directions, and the count of particles.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        channels = tuple(getattr(s, name) for name in CHANNELS)
-        return [
-            LocalRuleLaw(channels, SITE, _collide, stochastic=True),
-            LocalRuleLaw(channels, TRIANGULAR, _propagate),
-            LocalRuleLaw(s.density, SITE, _count, reads=channels),
-        ]
 
 
 @register_model(
@@ -212,4 +193,25 @@ def fhp_lattice_gas(
         values={'density': occupied.sum(axis=1), **channels},
         visual=DENSITY_VISUAL,
     )
-    return System(elements=[gas])
+    return System(
+        elements=[gas],
+        interactions=[
+            LocalRuleInteraction(
+                'collision',
+                target='gas',
+                state=CHANNELS,
+                rule=_collide,
+                neighborhood=SITE,
+                stochastic=True,
+            ),
+            LocalRuleInteraction('propagation', target='gas', state=CHANNELS, rule=_propagate, neighborhood=TRIANGULAR),
+            LocalRuleInteraction(
+                'count',
+                target='gas',
+                state='density',
+                rule=_count,
+                neighborhood=SITE,
+                reads=CHANNELS,
+            ),
+        ],
+    )

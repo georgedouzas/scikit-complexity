@@ -34,6 +34,8 @@ from ._particles import (
     depot_brownian_particles,
     run_and_tumble,
 )
+from ._propulsion_step import PropulsionStepInteraction
+from ._self_propulsion import SelfPropulsionInteraction
 from ._tumbler_view import TumblerView
 
 __all__: list[str] = [
@@ -52,6 +54,8 @@ __all__: list[str] = [
     'PhoreticAttractionInteraction',
     'PolarAlignmentInteraction',
     'PolarFluidElement',
+    'PropulsionStepInteraction',
+    'SelfPropulsionInteraction',
     'TumblerElement',
     'TumblerView',
     'VicsekParticleElement',

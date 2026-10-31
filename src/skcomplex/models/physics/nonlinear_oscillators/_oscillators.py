@@ -14,7 +14,8 @@ from ....core.laws.utils import derivative
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.oscillators import StuartLandauElement, VanDerPolElement
+from ..common.oscillators import StuartLandauElement
+from ._van_der_pol import VanDerPolElement
 
 
 class DuffingElement(Element):

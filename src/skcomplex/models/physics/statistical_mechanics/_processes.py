@@ -13,6 +13,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, LatticeElement
+from ....core.interactions import LocalRuleInteraction
 from ....core.laws import BaseLaw, DriveLaw, LocalRuleLaw, RuleLaw
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
@@ -77,8 +78,9 @@ def _hop_open(
 class Q2RSpinElement(Element):
     """Site of the Q2R automaton, a spin and a phase that says whether the site updates in the current step.
 
-    Every step the updating sites flip their spin when their neighbours sum to zero, which leaves the Ising energy
-    unchanged, and every site swaps its phase, so the two sublattices update in turn and the dynamics is reversible.
+    The local rule of Q2R flips the spins of the updating sites whose neighbours sum to zero, which leaves the Ising
+    energy unchanged, and swaps the phase of every site, so the two sublattices update in turn and the dynamics is
+    reversible.
 
     Args:
         label:
@@ -93,13 +95,10 @@ class Q2RSpinElement(Element):
         phase:
             The initial phase, 1 for updating and 0 for quiescent.
 
-        n_dim:
-            The number of dimensions of the lattice.
-
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import Q2RSpinElement
-        >>> Q2RSpinElement('site').n_dim
-        2
+        >>> Q2RSpinElement('site').phase
+        0.0
     """
 
     def __init__(
@@ -109,26 +108,10 @@ class Q2RSpinElement(Element):
         *,
         spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
         phase: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        n_dim: int = 2,
     ) -> None:
         super().__init__(label, visual=visual)
         self.spin = spin
         self.phase = phase
-        self.n_dim = n_dim
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the reversible energy-conserving flip and the swap of phases.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        nearest = VonNeumannNeighborhood(n_dim=self.n_dim, center=True)
-        return [LocalRuleLaw((s.spin, s.phase), nearest, _flip_without_cost, reads=(s.spin, s.phase))]
 
 
 class PercolationSiteElement(Element):
@@ -413,9 +396,16 @@ def q2r(
         'spins',
         element=Q2RSpinElement,
         space=space,
-        values={'spin': spins, 'phase': _checkerboard(shape), 'n_dim': len(shape)},
+        values={'spin': spins, 'phase': _checkerboard(shape)},
     )
-    return System(elements=[group])
+    flip = LocalRuleInteraction(
+        'flip',
+        target='spins',
+        state=('spin', 'phase'),
+        rule=_flip_without_cost,
+        neighborhood=VonNeumannNeighborhood(n_dim=len(shape), center=True),
+    )
+    return System(elements=[group], interactions=[flip])
 
 
 @register_model(
