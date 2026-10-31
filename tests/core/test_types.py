@@ -22,7 +22,7 @@ def test_processes_may_be_nothing():
 
 def test_agent_views_have_an_id_a_location_and_a_life():
     """Test that an object with the id, location, and moves of an agent is an agent view, and an id alone is not."""
-    names = ('neighbor_cells', 'distance_to', 'move_to', 'remove', 'create')
+    names = ('neighbor_cells', 'neighbors', 'distance_to', 'move_to', 'remove', 'create')
     view = SimpleNamespace(id=1, location=(0, 0), location_key=(0, 0), alive=True, **dict.fromkeys(names, print))
     assert isinstance(view, AgentViewProtocol)
     assert not isinstance(SimpleNamespace(id=1), AgentViewProtocol)

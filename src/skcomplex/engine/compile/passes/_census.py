@@ -426,7 +426,8 @@ class CensusPass(BasePass):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
             raise ValidationError(error_msg)
         declared = [law.check().prepare(spec.owner) for law in laws]
-        rules = [law for law in declared if isinstance(law, RuleLaw) and spec.edges is None]
+        searched = spec.pairs is not None and spec.edges is None
+        rules = [law for law in declared if searched and isinstance(law, RuleLaw)]
         declared = [law for law in declared if law not in rules]
         if isinstance(spec.pairs, PairSearch) and not all(isinstance(law, RateLaw) for law in declared):
             error_msg = (
