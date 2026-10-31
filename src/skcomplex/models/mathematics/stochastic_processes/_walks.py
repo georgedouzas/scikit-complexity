@@ -464,7 +464,7 @@ def persistent_random_walk(
         target='walkers',
         state='x',
         function=lambda s: s.target.d,
-        form='increment',
+        mode='increment',
     )
     return System(elements=[walkers], interactions=[turn, step])
 
@@ -508,7 +508,7 @@ def random_walk_with_memory(n_walkers: int = 2000, *, alpha: float = 0.5, sigma:
         size=n_walkers,
         values={'alpha': alpha, 'sigma': sigma},
     )
-    step = MapInteraction('step', target='walkers', state='x', function=lambda s: s.target.v, form='increment')
+    step = MapInteraction('step', target='walkers', state='x', function=lambda s: s.target.v, mode='increment')
     velocity = MapInteraction(
         'velocity',
         target='walkers',

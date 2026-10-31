@@ -278,7 +278,7 @@ class CopyingElement(Element):
 def _get_bookkeeping() -> list[MapInteraction]:
     """Return the maps that age every node and read its degree from the edges at the start of a step."""
     return [
-        MapInteraction('ageing', target='nodes', state='age', function=lambda s: 1, form='increment'),
+        MapInteraction('ageing', target='nodes', state='age', function=lambda s: 1, mode='increment'),
         MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1)),
     ]
 

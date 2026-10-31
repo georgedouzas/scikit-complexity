@@ -200,7 +200,7 @@ def sequentially_linear_ecosystem(
         interactions=[
             LinearGrowthInteraction('growth', species='species', influences='influences', rate=rate),
             EdgeDrawInteraction('draw', target='species', edges='influences'),
-            MapInteraction('ageing', target='species', state='age', function=lambda s: 1, form='increment'),
+            MapInteraction('ageing', target='species', state='age', function=lambda s: 1, mode='increment'),
             TopologyInteraction(
                 'extinction',
                 target='species',

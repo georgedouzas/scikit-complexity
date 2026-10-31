@@ -300,7 +300,7 @@ def sole_manrubia(
         interactions=[
             DependencyFieldInteraction('field', species='species', couplings='couplings'),
             EdgeDrawInteraction('drift', target='species', edges='couplings', noise=noise),
-            MapInteraction('ageing', target='species', state='age', function=lambda s: 1, form='increment'),
+            MapInteraction('ageing', target='species', state='age', function=lambda s: 1, mode='increment'),
             TopologyInteraction(
                 'extinction',
                 target='species',
