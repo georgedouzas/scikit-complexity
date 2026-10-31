@@ -18,15 +18,13 @@ from ._instability import UnstablePopulationsElement, intrinsic_instability
 from ._meadow import CowElement, GrazingInteraction, HerdingInteraction, PastureElement, meadow_capacity
 from ._microbial_communities import GeneralizedLotkaVolterraInteraction, MicrobeElement, generalized_lotka_volterra
 from ._neutral import NeutralSpeciesElement, neutral_macroecology
-from ._populations import (
-    DelayedLogisticGrowthInteraction,
+from ..common.populations import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
     MortalityInteraction,
     PopulationElement,
-    PredationInteraction,
-    SeasonalLogisticGrowthInteraction,
 )
+from ._populations import PredationInteraction, SeasonalLogisticGrowthInteraction
 from ._predation import (
     ParasitismInteraction,
     PredatorPreyEventsInteraction,
@@ -59,7 +57,6 @@ __all__: list[str] = [
     'AbundanceElement',
     'CompetitionInteraction',
     'CowElement',
-    'DelayedLogisticGrowthInteraction',
     'EmotionMarksElement',
     'ExponentialGrowthInteraction',
     'FisherKPPElement',

@@ -16,15 +16,13 @@ from ....core.laws.utils import lag
 from ....core.system import System
 from ....specs import StateSpec, VisualSpec
 from ..._catalog import register_model
-from ._populations import (
-    DelayedLogisticGrowthInteraction,
+from ..common.populations import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
     MortalityInteraction,
     PopulationElement,
-    PredationInteraction,
-    SeasonalLogisticGrowthInteraction,
 )
+from ._populations import PredationInteraction, SeasonalLogisticGrowthInteraction
 
 
 @register_model(
@@ -186,7 +184,7 @@ def hutchinson(n: float = 50.0, *, r: float = 1.0, K: float = 100.0, tau: float 
     """
     return System(
         elements=[PopulationElement('population', n=n)],
-        interactions=[DelayedLogisticGrowthInteraction('growth', target='population', r=r, K=K, tau=tau)],
+        interactions=[LogisticGrowthInteraction('growth', target='population', r=r, K=K, tau=tau)],
     )
 
 
