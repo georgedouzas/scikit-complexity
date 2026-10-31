@@ -14,7 +14,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import ChoiceInteraction, FeedbackInteraction
+from ....core.interactions import ChoiceInteraction, FeedbackInteraction, ReinforcementInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
@@ -24,7 +24,7 @@ from ....types import Array
 from ..._catalog import register_model
 from ..common.forecasting import heuristics
 from ._patron_view import PatronView
-from ._pool_spec import _PoolSpec
+from ._predictor_pool_view import PredictorPoolView
 
 N_SEEDED_WEEKS = 10
 MAX_ATTENDANCE = 100.0
@@ -82,13 +82,114 @@ def forecasts(history: npt.ArrayLike) -> Array:
     return np.clip(predicted, 0.0, MAX_ATTENDANCE)
 
 
+class PredictorPoolElement(Element):
+    """Pool of Arthur's predictors, with the forecast and the accuracy of every predictor that the patrons share.
+
+    The accuracy of a predictor depends only on the history of attendance that the bar reports, so one member holds
+    it for every patron. Every week the pool forecasts the attendance with every predictor, from ten random weeks it
+    draws at the first week followed by the reported attendances, and a `ReinforcementInteraction` moves the error of
+    every predictor towards its last absolute error, a discounted mean of the errors.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        forecasts:
+            The forecast of next week's attendance by every predictor of the pool.
+
+        errors:
+            The discounted mean absolute error of every predictor of the pool.
+
+    Examples:
+        >>> from skcomplex.models.economics.econophysics import PredictorPoolElement
+        >>> GroupElement('pool', element=PredictorPoolElement, size=1).size
+        1
+    """
+
+    bar: ClassVar[str] = 'bar'
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        forecasts: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        errors: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.forecasts = forecasts
+        self.errors = errors
+
+    @classmethod
+    def _get_view(cls) -> type[PredictorPoolView]:
+        """Return the view of the pool."""
+        return PredictorPoolView
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the forecasting rule.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [RuleLaw(self.forecast, phase='forecast')]
+
+    def _history(self, model: ModelView) -> Array:
+        """Return the attendances, after ten random weeks drawn at the first week."""
+        seeded = model.storage.get('seeded')
+        if not isinstance(seeded, np.ndarray):
+            seeded = model.rng.integers(0, int(MAX_ATTENDANCE) + 1, N_SEEDED_WEEKS).astype(float)
+            model.storage['seeded'] = seeded
+        return np.concatenate([seeded, model.history(f'{self.bar}.attendance')])
+
+    def forecast(self, agent: PredictorPoolView, model: ModelView) -> None:
+        """Forecast next week's attendance with every predictor of the pool.
+
+        Args:
+            agent:
+                The pool.
+
+            model:
+                The model.
+        """
+        agent.forecasts = forecasts(self._history(model))
+
+    @staticmethod
+    def error(agent: PredictorPoolView, model: ModelView, index: int) -> float:
+        """Return the absolute error of a predictor last week, or its error so far before the first attendance.
+
+        Args:
+            agent:
+                The pool.
+
+            model:
+                The model view of the rule that reads the error.
+
+            index:
+                The index of the predictor in the pool.
+
+        Returns:
+            error:
+                The absolute error of the forecast of the predictor.
+        """
+        attendance = model.history(f'{PredictorPoolElement.bar}.attendance')
+        if not len(attendance):
+            return float(np.ravel(agent.errors)[index])
+        return float(abs(np.ravel(agent.forecasts)[index] - attendance[-1]))
+
+
 class PatronElement(Element):
     """Patron of the El Farol bar, who forecasts the attendance with its most accurate predictor.
 
-    Every patron holds a few predictors of the pool, the set bits of `predictors`. The accuracy of a predictor is the
-    discounted mean of its absolute errors, the same for every patron that holds it, since it depends only on the
-    history of attendance that the bar reports. A choice then sends the patron to the bar when the forecast is below
-    the capacity.
+    Every patron holds a few predictors of the pool, the set bits of `predictors`, and forecasts with the one of
+    smallest error in the pool. A choice then sends the patron to the bar when the forecast is below the capacity.
 
     Args:
         label:
@@ -106,16 +207,13 @@ class PatronElement(Element):
         attends:
             Whether the patron went to the bar this week, 1 or 0.
 
-        discount:
-            The weight of the past errors in the accuracy of a predictor.
-
     Examples:
         >>> from skcomplex.models.economics.econophysics import PatronElement
         >>> GroupElement('patrons', element=PatronElement, size=100, values={'predictors': 7}).size
         100
     """
 
-    bar: ClassVar[str] = 'bar'
+    pool: ClassVar[str] = 'pool'
 
     def __init__(
         self,
@@ -125,13 +223,11 @@ class PatronElement(Element):
         predictors: Annotated[float, StateSpec(domain=NN)] = 1,
         forecast: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         attends: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        discount: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
     ) -> None:
         super().__init__(label, visual=visual)
         self.predictors = predictors
         self.forecast = forecast
         self.attends = attends
-        self.discount = discount
 
     @classmethod
     def _get_view(cls) -> type[PatronView]:
@@ -139,7 +235,7 @@ class PatronElement(Element):
         return PatronView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the forecasting rule.
+        """Return the predicting rule.
 
         Args:
             s:
@@ -149,26 +245,7 @@ class PatronElement(Element):
             laws:
                 The laws of the component.
         """
-        return [RuleLaw(self.predict, phase='forecast')]
-
-    def _pool(self, model: ModelView) -> _PoolSpec:
-        """Return this week's forecasts and errors of the pool, shared by the patrons and updated once a week."""
-        pool = model.storage.get('pool')
-        if isinstance(pool, _PoolSpec) and pool.time == model.time:
-            return pool
-        if isinstance(pool, _PoolSpec):
-            seeded = pool.seeded
-        else:
-            seeded = model.rng.integers(0, int(MAX_ATTENDANCE) + 1, N_SEEDED_WEEKS).astype(float)
-        history = np.concatenate([seeded, model.history(f'{self.bar}.attendance')])
-        if isinstance(pool, _PoolSpec):
-            discount = model.parameter('discount')
-            errors = discount * pool.errors + (1 - discount) * np.abs(pool.forecasts - history[-1])
-        else:
-            errors = np.zeros(len(PREDICTORS))
-        pool = _PoolSpec(model.time, seeded, forecasts(history), errors)
-        model.storage['pool'] = pool
-        return pool
+        return [RuleLaw(self.predict, phase='predict')]
 
     def predict(self, agent: PatronView, model: ModelView) -> None:
         """Forecast the attendance with the most accurate predictor held.
@@ -180,11 +257,11 @@ class PatronElement(Element):
             model:
                 The model.
         """
-        pool = self._pool(model)
+        pool = model.agents(self.pool, PredictorPoolView)[0]
+        errors, predicted = np.ravel(pool.errors), np.ravel(pool.forecasts)
         mask = int(agent.predictors)
         held = [index for index in range(len(PREDICTORS)) if mask >> index & 1]
-        best = held[int(np.argmin(pool.errors[held]))]
-        agent.forecast = float(pool.forecasts[best])
+        agent.forecast = float(predicted[held[int(np.argmin(errors[held]))]])
 
 
 class BarInteraction(FeedbackInteraction[ModelView]):
@@ -275,9 +352,9 @@ def el_farol(
 
     Returns:
         system:
-            The model, with the group `patrons`, the choice `choice` to go when the forecast is below the capacity,
-            and the institution `bar`, which reports the attendance
-            `bar.attendance`.
+            The model, with the group `patrons`, the one-member group `pool` of the forecasts and the errors of the
+            predictors, the reinforcement `scoring` of the errors, the choice `choice` to go when the forecast is below
+            the capacity, and the institution `bar`, which reports the attendance `bar.attendance`.
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import el_farol
@@ -289,11 +366,21 @@ def el_farol(
         float(sum(1 << int(index) for index in rng.choice(len(PREDICTORS), n_predictors, replace=False)))
         for _ in range(n_agents)
     ]
-    patrons = GroupElement(
-        'patrons',
-        element=PatronElement,
-        size=n_agents,
-        values={'predictors': masks, 'discount': discount},
+    patrons = GroupElement('patrons', element=PatronElement, size=n_agents, values={'predictors': masks})
+    pool = GroupElement(
+        'pool',
+        element=PredictorPoolElement,
+        size=1,
+        values={'forecasts': np.zeros((1, len(PREDICTORS))), 'errors': np.zeros((1, len(PREDICTORS)))},
+    )
+    scoring = ReinforcementInteraction(
+        'scoring',
+        target='pool',
+        scores='errors',
+        payoff=PredictorPoolElement.error,
+        rate=1 - discount,
+        form='agent',
+        phase='learn',
     )
     choice = ChoiceInteraction(
         'choice',
@@ -306,9 +393,11 @@ def el_farol(
         phase='decide',
     )
     return System(
-        elements=[patrons],
-        interactions=[choice, BarInteraction('bar', capacity=capacity)],
+        elements=[patrons, pool],
+        interactions=[scoring, choice, BarInteraction('bar', capacity=capacity)],
         time=DiscreteTime(
-            schedule=PhasesScheduleSpec([PhaseSpec('forecast'), PhaseSpec('decide'), PhaseSpec('count')]),
+            schedule=PhasesScheduleSpec(
+                [PhaseSpec(name) for name in ('learn', 'forecast', 'predict', 'decide', 'count')],
+            ),
         ),
     )

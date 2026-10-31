@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import MapInteraction, MatchingInteraction
+from ....core.interactions import ImitationInteraction, MapInteraction, MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
@@ -55,8 +55,8 @@ class StockTraderElement(Element):
     A fundamentalist expects the price `p` to revert to the fundamental value `F`, `p + reversion (F - p)`, and a
     chartist expects the last change to go on, `p + extrapolation (p - p')`, both with a relative noise. The trader
     bids its expectation for one share when it is above the price and it can pay, and asks its expectation for one
-    share when it is below and it holds one. After trading, a trader whose wealth grew less than that of a random
-    neighbour copies the neighbour's strategy with the probability `imitation`.
+    share when it is below and it holds one. After trading, an `ImitationInteraction` of rule `'better'` lets a trader
+    whose wealth grew less than that of a random neighbour copy the neighbour's strategy.
 
     Args:
         label:
@@ -104,9 +104,6 @@ class StockTraderElement(Element):
         noise:
             The standard deviation of the relative noise of a forecast.
 
-        imitation:
-            The probability of copying a more successful neighbour.
-
     Examples:
         >>> from skcomplex.models.economics.finance import StockTraderElement
         >>> GroupElement('traders', element=StockTraderElement, size=4, values={'strategy': 1.0}).size
@@ -131,7 +128,6 @@ class StockTraderElement(Element):
         reversion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
         extrapolation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        imitation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
         super().__init__(label, visual=visual)
         self.strategy = strategy
@@ -147,7 +143,6 @@ class StockTraderElement(Element):
         self.reversion = reversion
         self.extrapolation = extrapolation
         self.noise = noise
-        self.imitation = imitation
 
     @classmethod
     def _get_view(cls) -> type[StockTraderView]:
@@ -155,7 +150,7 @@ class StockTraderElement(Element):
         return StockTraderView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the quoting and imitation rules in their phases.
+        """Return the quoting rule in its phase.
 
         Args:
             s:
@@ -165,7 +160,7 @@ class StockTraderElement(Element):
             laws:
                 The laws of the component.
         """
-        return [RuleLaw(self.quote, phase='quote'), RuleLaw(self.imitate, phase='imitation')]
+        return [RuleLaw(self.quote, phase='quote')]
 
     @staticmethod
     def _prices(agent: StockTraderView, model: ModelView) -> tuple[float, float]:
@@ -232,23 +227,6 @@ class StockTraderElement(Element):
         """
         price, _ = StockTraderElement._prices(agent, model)
         return agent.money + agent.shares * price
-
-    def imitate(self, agent: StockTraderView, model: ModelView) -> None:
-        """Copy the strategy of a random neighbour whose wealth grew more, with the probability of imitation.
-
-        Args:
-            agent:
-                The trader.
-
-            model:
-                The model.
-        """
-        neighbours = [other for other in agent.neighbors() if isinstance(other, StockTraderView)]
-        if not neighbours or model.rng.random() >= model.parameter('imitation'):
-            return
-        other = neighbours[int(model.rng.integers(len(neighbours)))]
-        if other.gain > agent.gain:
-            agent.strategy = other.strategy
 
 
 class BookInteraction(MatchingInteraction[ModelView]):
@@ -409,7 +387,7 @@ def order_book(
     Returns:
         system:
             The model, with the group `traders` and the book `book`, whose reporters are `book.price` and
-            `book.volume`.
+            `book.volume`, and the imitation `imitation` of the strategies of more successful neighbours.
 
     Examples:
         >>> from skcomplex.models.economics.finance import order_book
@@ -431,7 +409,6 @@ def order_book(
             'reversion': reversion,
             'extrapolation': extrapolation,
             'noise': noise,
-            'imitation': imitation,
         },
         location=cells,
     )
@@ -457,6 +434,16 @@ def order_book(
                 opening=fundamental,
             ),
             *accounts,
+            ImitationInteraction(
+                'imitation',
+                target='traders',
+                state='strategy',
+                payoff='gain',
+                rule='better',
+                form='agent',
+                probability=imitation,
+                phase='imitation',
+            ),
         ],
         space=LatticeSpace((width, height), boundary='periodic', neighborhood='von_neumann'),
         time=DiscreteTime(
