@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import derivative, step, where
+from ....core.laws.utils import clip, derivative, sign, step, where
 from ....core.system import System
 from ....engine.solvers import RK4Solver
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -20,11 +20,6 @@ from ..._catalog import register_model
 HOURS_PER_DAY = 24.0
 DISTURBANCE_TIME = 10.0
 CHANGE_TIME = 20.0
-
-
-def _sign(value: Expression) -> Expression:
-    """Return the sign of an expression, 0 at 0."""
-    return where(value > 0, 1, where(value < 0, -1, 0))
 
 
 def _error(s: SimpleNamespace) -> Expression:
@@ -40,7 +35,7 @@ def _pendulum_energy(s: SimpleNamespace) -> Expression:
 def _swing_up_control(s: SimpleNamespace) -> Expression:
     """Return the bang-bang control `u = -μ sign(θ' cos θ) sign(E_s - E)` of the energy of the pendulum."""
     gap = s.omega**2 - _pendulum_energy(s)
-    return -s.mu * _sign(derivative(s.theta, 1) * cos(s.theta)) * _sign(gap)
+    return -s.mu * sign(derivative(s.theta, 1) * cos(s.theta)) * sign(gap)
 
 
 def _satellite_energy(s: SimpleNamespace) -> Expression:
@@ -60,7 +55,7 @@ def _energy_of_satellite(s: SimpleNamespace) -> Expression:
 
 
 class RoomElement(Element):
-    """Room element."""
+    """Room heated by a furnace towards a setting and leaking heat to an outside temperature with a daily swing."""
 
     def __init__(
         self,
@@ -83,18 +78,18 @@ class RoomElement(Element):
         self.swing = swing
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the room element."""
+        """Return the saturated heating and the leak of the temperature `T`."""
         return [
             RateLaw(
                 s.T,
-                where(s.setting - s.T > s.furnace, s.furnace, where(s.setting > s.T, s.setting - s.T, 0))
+                clip(s.setting - s.T, 0, s.furnace)
                 - s.leak * (s.T - s.outside - s.swing * cos(2 * pi * (s.t - HOURS_PER_DAY / 2) / HOURS_PER_DAY)),
             ),
         ]
 
 
 class ControlledProcessElement(Element):
-    """Controlled process element."""
+    """First-order process under a PID controller whose derivative term is solved into the time constant."""
 
     def __init__(
         self,
@@ -125,7 +120,7 @@ class ControlledProcessElement(Element):
         self.disturbance = disturbance
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the controlled process element."""
+        """Return the rates of the output `y` and of the integral of the error."""
         return [
             RateLaw(
                 s.y,
@@ -137,7 +132,7 @@ class ControlledProcessElement(Element):
 
 
 class SwingingPendulumElement(Element):
-    """Swinging pendulum element."""
+    """Pendulum swung up by a bang-bang control of its energy, with `f` integrating the control."""
 
     def __init__(
         self,
@@ -160,7 +155,7 @@ class SwingingPendulumElement(Element):
         self.mu = mu
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the swinging pendulum element."""
+        """Return the controlled rate of the angle and the rate of the control integral."""
         return [
             RateLaw(s.theta, -(s.omega**2) * sin(s.theta) - _swing_up_control(s) * cos(s.theta)),
             RateLaw(s.f, _swing_up_control(s)),
@@ -168,7 +163,7 @@ class SwingingPendulumElement(Element):
 
 
 class SatelliteElement(Element):
-    """Satellite element."""
+    """Satellite on a planar Kepler orbit whose radial thrust moves it to an orbit of a final energy."""
 
     def __init__(
         self,
@@ -191,7 +186,7 @@ class SatelliteElement(Element):
         self.H_final = H_final
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the satellite element."""
+        """Return the radial rate under thrust and the rate of the angle."""
         return [
             RateLaw(s.s, s.Lz**2 / s.s**3 - 1 / s.s**2 - s.epsilon * _thrust_direction(s)),
             RateLaw(s.theta, s.Lz / s.s**2),

@@ -9,8 +9,8 @@ from typing import Annotated
 
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, BoundaryLaw
+from ....core.laws.utils import clip
 from ....specs import RoleSpec
-from ._utils import _limited, _read
 
 
 class StateFeedbackInteraction(Interaction):
@@ -76,7 +76,7 @@ class StateFeedbackInteraction(Interaction):
                 The laws of the component.
         """
         feedback = -sum(
-            (float(gain) * _read(s.plant, name) for name, gain in zip(self.states, self.gain, strict=True)),
+            (float(gain) * getattr(s.plant, name) for name, gain in zip(self.states, self.gain, strict=True)),
             0,
         )
-        return [BoundaryLaw(_read(s.plant, self.control), _limited(feedback, self.limits))]
+        return [BoundaryLaw(getattr(s.plant, self.control), clip(feedback, *(self.limits or (None, None))))]
