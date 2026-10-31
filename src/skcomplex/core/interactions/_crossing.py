@@ -21,15 +21,16 @@ class CrossingInteraction(Interaction):
     """Event at the crossing of zero by a guard, which sets states of the target to new values or ends the run.
 
     The guard and the new values are functions of the namespace, which holds `namespace.target`, the states and
-    parameters of the target element, and the time `namespace.t`. Solvers locate the crossing within their tolerance,
-    and the trajectory records every crossing among its events, under the label of the interaction.
+    parameters of the target, and the time `namespace.t`. A guard that reads the members of a group gives every member
+    its own event, which sets the states of that member alone. Solvers locate the crossing within their tolerance, and
+    the trajectory records every crossing among its events, under the label of the interaction and with the member.
 
     Args:
         label:
             The label of the interaction, unique among the parts of its system.
 
         target:
-            The path of the element whose states the guard reads and the event sets.
+            The path of the element or group whose states the guard reads and the event sets.
 
         guard:
             The function `guard(namespace)` of the expression whose crossing of zero triggers the event.

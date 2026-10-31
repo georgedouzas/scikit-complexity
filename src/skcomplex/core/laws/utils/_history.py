@@ -133,3 +133,35 @@ Examples:
     >>> delayed(x, tau)
     delayed(x, tau)
 """
+
+
+class _Residence(BuiltinFunction):
+    """Number of whole steps a state of a discrete map has held its current value, `residence(x)`."""
+
+    def __init__(self) -> None:
+        super().__init__('residence', nargs=1)
+
+
+residence = _Residence()
+
+
+residence.__doc__ = """Return the number of whole steps a state of a discrete map has held its current value.
+
+The residence is 0 in the step in which the state takes a value, and grows by 1 every step it keeps it. The compiler
+replaces it with hidden states that keep the previous value and the count of every member.
+
+Args:
+    value:
+        The symbol of a state.
+
+Returns:
+    residence:
+        The symbolic residence.
+
+Examples:
+    >>> from sage.all__sagemath_symbolics import var
+    >>> from skcomplex.core.laws.utils import residence
+    >>> x = var('x')
+    >>> residence(x) >= 3
+    residence(x) >= 3
+"""

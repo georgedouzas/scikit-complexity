@@ -25,9 +25,13 @@ class EventRecordSpec(BaseRecordSpec):
 
         after:
             The state vector after the reset.
+
+        member:
+            The member of the group whose event it is, or `None` for an event of single elements.
     """
 
     label: str
     time: float
     before: Array
     after: Array
+    member: int | None = None

@@ -634,6 +634,38 @@ class LatticeProblemPass(BasePass):
         )
 
     @staticmethod
+    def _bond_of(
+        local: Expression,
+        target: Expression,
+        neighbours: list[Expression],
+        masks: list[Expression],
+        owner: str,
+    ) -> Expression:
+        """Return the half change of the local energy with one neighbour when the site flips and then the neighbour.
+
+        This is `f(s, n) - f(-s, n)` for an energy of pair terms `f` that the flip of both values keeps, which gives the
+        Wolff bond probability `1 - exp(min(0, -(f(-s, n) - f(s, n)) / T))`.
+        """
+        flipped = local.subs({item: -item for item in [target, *neighbours]})
+        if not bool((flipped - local).expand().is_trivial_zero()):
+            error_msg = (
+                f'{owner} make cluster moves on the energy {local}, which changes when every value flips. Cluster '
+                'moves take an energy of pair terms that the flip of both values keeps, such as one without an '
+                'external field.'
+            )
+            raise ValidationError(error_msg)
+        kept = {**dict.fromkeys(neighbours[1:], 0), **dict.fromkeys(masks, 1)}
+        single = local.subs(kept)
+        first = neighbours[0]
+        mixed = (
+            single.subs({target: -target, first: -first})
+            - single.subs({target: -target})
+            - single.subs({first: -first})
+            + single
+        )
+        return (mixed / 2).expand()
+
+    @staticmethod
     def _compile_monte_carlo(
         energy: EnergySpec,
         move: MoveSpec,
@@ -697,6 +729,11 @@ class LatticeProblemPass(BasePass):
         proposal = symbol('_proposal')
         local = expression.subs(replacements)
         change = local.subs({move.target: proposal}) - local
+        bond = (
+            LatticeProblemPass._bond_of(local, move.target, neighbours, masks, owner)
+            if move.kind == 'cluster'
+            else None
+        )
         known = {move.target, proposal, *neighbours, *masks}
         extra = sorted(
             {item for item in (*change.variables(), *SR(sampler.temperature).variables()) if item not in known},
@@ -722,6 +759,18 @@ class LatticeProblemPass(BasePass):
         if not callable(energy_change) or not callable(temperature):
             error_msg = 'The compiled printer returned no function of the energy change or of the temperature.'
             raise TypeError(error_msg)
+        bond_change = (
+            None
+            if bond is None
+            else ExpressionPrinter(time=time, compiled=True)
+            .check()
+            .prepare([move.target, neighbours[0], *extra])
+            .run([bond])
+            .code_
+        )
+        if bond is not None and not callable(bond_change):
+            error_msg = 'The compiled printer returned no function of the energy of a bond.'
+            raise TypeError(error_msg)
         return (
             MonteCarloKernel(
                 context.owner,
@@ -734,6 +783,7 @@ class LatticeProblemPass(BasePass):
                 sampler=sampler,
                 classes=classes,
                 masked=masked,
+                bond=bond_change if callable(bond_change) else None,
             )
             .check()
             .prepare()

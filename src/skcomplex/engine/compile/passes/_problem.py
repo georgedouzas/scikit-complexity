@@ -18,7 +18,7 @@ from ....errors import PipelineError, ValidationError
 from ....specs import LayoutSpec, VisualSpec
 from ....specs._breakpoints_spec import _BreakpointsSpec
 from ....specs._delay_spec import _DelaySpec
-from ....types import Array, FormKind, VariableKind, VectorFunction
+from ....types import Array, FormKind, VariableKind
 from ..._utils import components_of, declarations_of, symbols_of
 from ...problems import (
     BlockSpec,
@@ -283,13 +283,37 @@ class ProblemPass(BasePass):
         return evaluate
 
     @staticmethod
+    def _reset_places(spec: KernelSpec, targets: Sequence[Expression]) -> list[npt.NDArray[np.intp]]:
+        """Return the flat indices every target of a reset writes, after checking that each is a state."""
+        places = []
+        for item in targets:
+            reference = spec.references.get(item)
+            if (
+                reference is None
+                or not reference.is_state
+                or reference.source not in {ReadKind.SINGLE, ReadKind.MEMBER}
+            ):
+                error_msg = (
+                    f'An event of {spec.owner} resets a symbol that is not a state of an element or a group member.'
+                )
+                raise ValidationError(error_msg)
+            places.append(ProblemPass._reset_indices(reference))
+        return places
+
+    @staticmethod
     def _reset_function(
         spec: KernelSpec,
         event: CrossingLaw,
         time: Expression,
         reductions: ReductionScheduleSpec,
-    ) -> VectorFunction | None:
-        """Return a function that sets the states an event resets, all from the state before the event."""
+        *,
+        members: bool = False,
+    ) -> Callable[..., Array] | None:
+        """Return a function that sets the states an event resets, all from the state before the event.
+
+        The reset of an event of the members of a group takes the member as a fourth argument, and sets the states of
+        that member alone.
+        """
         reset = event.reset or {}
         targets = [item for target in reset for item in components_of(target)]
         if not targets:
@@ -301,19 +325,7 @@ class ProblemPass(BasePass):
                 components_of(value) if isinstance(value, FreeModuleElement) else [value] * len(components_of(target))
             )
         ]
-        references = [spec.references.get(item) for item in targets]
-        places = []
-        for reference in references:
-            if (
-                reference is None
-                or not reference.is_state
-                or reference.source not in {ReadKind.SINGLE, ReadKind.MEMBER}
-            ):
-                error_msg = (
-                    f'An event of {spec.owner} resets a symbol that is not a state of an element or a group member.'
-                )
-                raise ValidationError(error_msg)
-            places.append(ProblemPass._reset_indices(reference))
+        places = ProblemPass._reset_places(spec, targets)
         arguments = sorted(symbols_of(values) - {time}, key=str)
         unknown = [item for item in arguments if spec.references.get(item) is None]
         if unknown:
@@ -329,18 +341,70 @@ class ProblemPass(BasePass):
             error_msg = f'The printer returns no function of the resets of an event of {spec.owner}.'
             raise TypeError(error_msg)
 
-        def apply(t: float, x: Array, p: Array) -> Array:
+        def evaluate(t: float, x: Array, p: Array) -> Sequence[object]:
             q = reductions.extend(t, x, p)
             results = function(t, *((x if is_state else q)[index] for is_state, index in reads))
             if not isinstance(results, list):
                 error_msg = f'The function of the resets of an event of {spec.owner} returns no list of values.'
                 raise TypeError(error_msg)
+            return results
+
+        def apply(t: float, x: Array, p: Array) -> Array:
             state = x.copy()
-            for place, value in zip(places, results, strict=True):
+            for place, value in zip(places, evaluate(t, x, p), strict=True):
                 state[place] = np.broadcast_to(np.asarray(value, dtype=float), place.shape)
             return state
 
-        return apply
+        def apply_member(t: float, x: Array, p: Array, member: int) -> Array:
+            state = x.copy()
+            for place, value in zip(places, evaluate(t, x, p), strict=True):
+                values = np.ravel(np.asarray(value, dtype=float))
+                state[place[member] if place.size > 1 else place] = values[member] if values.size > 1 else values[0]
+            return state
+
+        return apply_member if members else apply
+
+    @staticmethod
+    def _member_guard(
+        spec: KernelSpec,
+        guard: Expression,
+        time: Expression,
+        reductions: ReductionScheduleSpec,
+    ) -> Callable[[float, Array, Array], Array]:
+        """Return a function that gives the value of a guard for every member of a group."""
+        arguments = sorted(symbols_of([guard]) - {time}, key=str)
+        unknown = [item for item in arguments if spec.references.get(item) is None]
+        if unknown:
+            error_msg = (
+                f'An event of {spec.owner} uses {", ".join(map(str, unknown))}, which the namespace does not hold.'
+            )
+            raise ValidationError(error_msg)
+        reads = [
+            (spec.references[item].is_state, ProblemPass._reset_indices(spec.references[item])) for item in arguments
+        ]
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run([guard]).code_
+        if not callable(function):
+            error_msg = f'The printer returns no function of the guard of an event of {spec.owner}.'
+            raise TypeError(error_msg)
+        rows = spec.rows
+
+        def evaluate(t: float, x: Array, p: Array) -> Array:
+            q = reductions.extend(t, x, p)
+            results = function(t, *((x if is_state else q)[index] for is_state, index in reads))
+            if not isinstance(results, list):
+                error_msg = f'The function of the guard of an event of {spec.owner} returns no list of values.'
+                raise TypeError(error_msg)
+            return np.broadcast_to(np.asarray(results[0], dtype=float), (rows,))
+
+        return evaluate
+
+    @staticmethod
+    def _reads_members(spec: KernelSpec, guard: Expression) -> bool:
+        """Check whether a guard reads the states or parameters of the members of a group."""
+        return any(
+            reference is not None and reference.source is ReadKind.MEMBER
+            for reference in (spec.references.get(item) for item in symbols_of([guard]))
+        )
 
     @staticmethod
     def _state_conditions_of(expressions: Iterable[object], time: Expression) -> list[Expression]:
@@ -499,11 +563,26 @@ class ProblemPass(BasePass):
         for spec, event in events:
             position = positions[spec.owner]
             positions[spec.owner] += 1
+            label = event.label or (spec.owner if counts[spec.owner] == 1 else f'{spec.owner}:{position}')
+            if ProblemPass._reads_members(spec, SR(event.guard)):
+                compiled.append(
+                    EventKernel(
+                        label,
+                        ProblemPass._member_guard(spec, SR(event.guard), time, reductions),
+                        ProblemPass._reset_function(spec, event, time, reductions, members=True),
+                        int(event.direction),
+                        bool(event.terminal),
+                        members=spec.rows,
+                    )
+                    .check()
+                    .prepare(),
+                )
+                continue
             sources = ProblemPass._flat_sources(spec.references, spec.owner)
             guard = ProblemPass._scalar_function([event.guard], sources, time, spec.owner)
             compiled.append(
                 EventKernel(
-                    event.label or (spec.owner if counts[spec.owner] == 1 else f'{spec.owner}:{position}'),
+                    label,
                     ProblemPass._reduced_guard(guard, reductions),
                     ProblemPass._reset_function(spec, event, time, reductions),
                     int(event.direction),

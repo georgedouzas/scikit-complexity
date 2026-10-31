@@ -18,10 +18,12 @@ class EventKernel(BaseKernel):
             The name of the event.
 
         guard:
-            The function `g(t, x, p)` whose crossing of zero triggers the event.
+            The function `g(t, x, p)` whose crossing of zero triggers the event, or for an event of the members of a
+            group, whose value for every member triggers the event of that member.
 
         reset:
-            The function `r(t, x, p)` that returns the state vector after the event, or `None` to keep it.
+            The function `r(t, x, p)` that returns the state vector after the event, or for an event of the members of
+            a group, `r(t, x, p, member)` that returns it after the event of one member, or `None` to keep it.
 
         direction:
             `1`, `-1`, or `0` for crossings upwards, downwards, or both.
@@ -33,6 +35,9 @@ class EventKernel(BaseKernel):
             Whether the event only marks a switch of a law at a condition on states, so integrators restart at the
             crossing, without a reset and without a record in the trajectory.
 
+        members:
+            The number of members of the group whose members each have the event, or 0 for one event.
+
     Attributes:
         values_:
             The state vector after the event at the state of the last run.
@@ -43,12 +48,13 @@ class EventKernel(BaseKernel):
     def __init__(
         self,
         label: str,
-        guard: Callable[[float, Array, Array], float],
-        reset: Callable[[float, Array, Array], Array] | None,
+        guard: Callable[[float, Array, Array], float | Array],
+        reset: Callable[..., Array] | None,
         direction: int,
         terminal: bool,
         *,
         hidden: bool = False,
+        members: int = 0,
     ) -> None:
         self.label = label
         self.guard = guard
@@ -56,6 +62,7 @@ class EventKernel(BaseKernel):
         self.direction = direction
         self.terminal = terminal
         self.hidden = hidden
+        self.members = members
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Set the state vector after the event at the state, a copy of it without a reset."""

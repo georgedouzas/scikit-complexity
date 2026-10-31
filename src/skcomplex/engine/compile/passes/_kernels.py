@@ -90,17 +90,32 @@ class KernelsPass(BasePass):
         return [OutputSpec(target, expression) for target, expression in zip(targets, expressions, strict=True)]
 
     @staticmethod
+    def _combines(laws: Sequence[BaseLaw]) -> bool:
+        """Check whether update laws of one state combine: each an increment or a move from its own source value."""
+        if not all(isinstance(law, UpdateLaw) and law.order is None for law in laws):
+            return False
+        updates = [law for law in laws if isinstance(law, UpdateLaw)]
+        if not all(law.increment or law.source is not None for law in updates):
+            return False
+        sources = [float(law.source) for law in updates if law.source is not None]
+        return len(set(sources)) == len(sources)
+
+    @staticmethod
     def _check_assignments(
         spec: KernelSpec,
         law: BaseLaw,
         targets: list[ReferenceSpec],
-        assigned: set[tuple[str, int]],
+        assigned: dict[tuple[str, int], list[BaseLaw]],
         *,
         once: bool,
-    ) -> None:
-        """Raise an error for an update or boundary law that sums over members or assigns a component twice."""
+    ) -> set[int]:
+        """Raise an error for an update or boundary law that sums over members or sets a component it cannot share.
+
+        Returns the positions of the targets that an earlier law sets, whose changes this law adds to.
+        """
         kind = type(law).__name__
-        for target in targets:
+        combined = set()
+        for position, target in enumerate(targets):
             if target.source in {ReadKind.FIRST, ReadKind.SECOND}:
                 error_msg = (
                     f'A {kind} law of {spec.owner} sets {target.entry.name} at an end of every edge, which several '
@@ -110,11 +125,17 @@ class KernelsPass(BasePass):
             if target.source is ReadKind.SINGLE and spec.rows > 1 and not once:
                 error_msg = f'A {kind} law of {spec.owner} targets a single element from a group, which has no meaning.'
                 raise ValidationError(error_msg)
-            key = (target.entry.name, target.column)
-            if key in assigned:
-                error_msg = f'A {kind} law of {spec.owner} sets {target.entry.name} a second time. Each takes one law.'
+            laws = assigned[(target.entry.name, target.column)]
+            if laws and not KernelsPass._combines([*laws, law]):
+                error_msg = (
+                    f'A {kind} law of {spec.owner} sets {target.entry.name} a second time. Each takes one law, unless '
+                    'every update law of the state is an increment or moves the state from its own source value.'
+                )
                 raise ValidationError(error_msg)
-            assigned.add(key)
+            if laws:
+                combined.add(position)
+            laws.append(law)
+        return combined
 
     @staticmethod
     def _is_once(spec: KernelSpec, law: BaseLaw) -> bool:
@@ -180,7 +201,7 @@ class KernelsPass(BasePass):
         kernels: defaultdict[type, list[LawKernel]] = defaultdict(list)
         jump_changes: dict[int, list[tuple[ReferenceSpec, float]]] = {}
         laws_of: dict[int, tuple[KernelSpec, BaseLaw]] = {}
-        assigned: dict[type, set[tuple[str, int]]] = defaultdict(set)
+        assigned: dict[type, defaultdict[tuple[str, int], list[BaseLaw]]] = defaultdict(lambda: defaultdict(list))
         for spec, laws in specs:
             outputs: dict[tuple[type, bool], list[OutputSpec]] = defaultdict(list)
             for law in laws:
@@ -200,9 +221,16 @@ class KernelsPass(BasePass):
                     raise ValidationError(error_msg)
                 targets = spec._target_references(law._get_targets()[0])
                 once = KernelsPass._is_once(spec, law)
-                if isinstance(law, _ASSIGNED_KINDS):
+                combined = (
                     KernelsPass._check_assignments(spec, law, targets, assigned[type(law)], once=once)
+                    if isinstance(law, _ASSIGNED_KINDS)
+                    else set()
+                )
                 law_outputs = KernelsPass._law_outputs(spec, law, targets, declarations, lowered_outputs)
+                law_outputs = [
+                    replace(item, combined=True) if position in combined else item
+                    for position, item in enumerate(law_outputs)
+                ]
                 laws_of.update({id(item): (spec, law) for item in law_outputs})
                 outputs[(KernelsPass._kind_of(law), once)].extend(law_outputs)
             for (kind, once), kind_outputs in outputs.items():

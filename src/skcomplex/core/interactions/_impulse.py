@@ -21,15 +21,16 @@ class ImpulseInteraction(Interaction):
 
     The impulses fall at every time of `times` and, with a `period`, at `start + j * period` for `j` from 0, `count`
     times or without end. An impulse at the initial time of a run does not fire. The new values are functions of the
-    namespace, which holds `namespace.target`, the states and parameters of the target element, and the time
-    `namespace.t`, and the trajectory records every impulse among its events, under the label of the interaction.
+    namespace, which holds `namespace.target`, the states and parameters of the target, and the time `namespace.t`. An
+    impulse sets the states of every member of a group at once, and the trajectory records every impulse among its
+    events, under the label of the interaction.
 
     Args:
         label:
             The label of the interaction, unique among the parts of its system.
 
         target:
-            The path of the element whose states the impulses set.
+            The path of the element or group whose states the impulses set.
 
         reset:
             A mapping from the name of a state of the target to the function `f(namespace)` of its new value.

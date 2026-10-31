@@ -4,6 +4,7 @@
 # License: MIT
 
 
+from ...errors import ValidationError
 from ...specs import RequirementSpec, TopologyRequestSpec
 from ..spaces import DiscreteTime
 from ..types import Target
@@ -12,6 +13,16 @@ from ._base import BaseLaw
 
 class UpdateLaw(BaseLaw):
     """Next value of a state after one discrete time step.
+
+    A state takes one update law, unless each of its update laws declares how it combines with the others. An
+    `increment` law gives the state plus a change, and a law with a `source` changes only a state that holds the source
+    value and keeps every other value. Several such laws of one state combine in one step by adding their changes,
+    `x + sum_k (f_k - x)`, all computed from the states at the start of the step, so increments add and moves from
+    distinct source values compose. Two laws with the same source, or a law that declares neither, are an error.
+
+    With an `order`, the members of a group update one after the other, in increasing order of the value of `order` at
+    the start of the step, ties in the order of the members, and each member reads the values the members before it
+    set. Without one, every member updates at once from the states at the start of the step.
 
     Args:
         target:
@@ -24,18 +35,47 @@ class UpdateLaw(BaseLaw):
         label:
             The name of the law, or the empty string for a law without one.
 
+        increment:
+            Whether the value is the state plus a change that adds to the changes of the other update laws of the
+            state.
+
+        source:
+            The value the law moves the state from, keeping every other value, or `None`.
+
+        order:
+            A symbolic expression of the states, parameters, and draws of a member, whose values order the members
+            that update one after the other, or `None` for members that update at once.
+
+    Raises:
+        ValidationError:
+            The value is a NumPy array, or an increment law has a source.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import UpdateLaw
         >>> x = var('x')
         >>> UpdateLaw(x, 4 * x * (1 - x)).check().prepare().run({'x': 0.5}).value_
         1.0
+        >>> UpdateLaw(x, x + 1, increment=True).check().increment
+        True
     """
 
-    def __init__(self, target: Target | TopologyRequestSpec, value: object, *, label: str = '') -> None:
+    def __init__(
+        self,
+        target: Target | TopologyRequestSpec,
+        value: object,
+        *,
+        label: str = '',
+        increment: bool = False,
+        source: float | None = None,
+        order: object = None,
+    ) -> None:
         super().__init__(label)
         self.target = target
         self.value = value
+        self.increment = increment
+        self.source = source
+        self.order = order
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the state the update sets."""
@@ -46,8 +86,19 @@ class UpdateLaw(BaseLaw):
         return RequirementSpec(time=(DiscreteTime,))
 
     def _check(self) -> None:
-        """Raise an error for a value that is a NumPy array."""
+        """Raise an error for a value that is a NumPy array, or an increment with a source.
+
+        Raises:
+            ValidationError:
+                The value is a NumPy array, or an increment law has a source.
+        """
         self._check_array('value')
+        if self.increment and self.source is not None:
+            error_msg = (
+                f'The update law {self.label!r} is an increment with the source {self.source!r}. An increment changes '
+                'every value, so give it no source.'
+            )
+            raise ValidationError(error_msg)
 
     def _run(self, inputs: object) -> None:
         """Set `value_` to the next value at given values of the symbols it reads.

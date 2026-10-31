@@ -46,6 +46,7 @@ from ._problem import ProblemPass
 from ._reductions import ReductionsPass
 from ._renewal_problem import RenewalProblemPass
 from ._request_jumps import RequestJumpsPass
+from ._residences import ResidencesPass
 from ._rows import RowsPass
 from ._set_renewals_apart import SetRenewalsApartPass
 from ._set_rules_apart import SetRulesApartPass
@@ -67,6 +68,7 @@ _PASSES: tuple[type[BasePass], ...] = (
     LowerComplexPass,
     MarkovPass,
     RowsPass,
+    ResidencesPass,
     OrdersPass,
     DelaysPass,
     NoisePass,

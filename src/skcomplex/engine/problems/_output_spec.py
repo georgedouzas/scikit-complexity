@@ -39,6 +39,10 @@ class OutputSpec(BaseSpec):
 
         process:
             The named Wiener process of a noise output, or `None` for one independent process per evaluation index.
+
+        combined:
+            Whether an assigned output adds its change from the state to the value an earlier output set, so that
+            several update laws of one state combine.
     """
 
     target: ReferenceSpec | None
@@ -48,3 +52,4 @@ class OutputSpec(BaseSpec):
     component: int = 0
     components: int = 1
     process: NoiseProcessSpec | None = None
+    combined: bool = False

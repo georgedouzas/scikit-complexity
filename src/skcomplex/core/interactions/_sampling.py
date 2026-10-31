@@ -16,7 +16,7 @@ from ..laws import BaseLaw, SampleLaw
 from ..spaces import BaseNeighborhood, VonNeumannNeighborhood
 from ._interaction import Interaction
 
-MOVES = ('flip', 'random-value', 'rotate', 'gaussian')
+MOVES = ('flip', 'random-value', 'rotate', 'gaussian', 'cluster')
 
 
 class SamplingInteraction(Interaction):
@@ -29,7 +29,11 @@ class SamplingInteraction(Interaction):
     `'random-value'`, a value drawn from `values`, `'rotate'`, the value plus a uniform number in `[-width, width]`,
     `'gaussian'`, the value plus a normal number of standard deviation `width`, or a function
     `move(values, random)` of the array of the current values of some members and the random generator that returns
-    their proposed values.
+    their proposed values. The move `'cluster'` is the Wolff algorithm instead: a sweep flips clusters until the flipped
+    members number as many as the members, each cluster grown from a random member through the bonds to neighbours
+    with probability `1 - exp(min(0, -(f(-s, n) - f(s, n)) / T))`, where `f(s, n)` is the term of the local energy of
+    a member of value `s` with a neighbour of value `n`. It takes an energy of such pair terms that the flip of both
+    values keeps, and ignores the rule and the schedule.
 
     Args:
         label:
@@ -45,7 +49,7 @@ class SamplingInteraction(Interaction):
             The function `energy(namespace)` of the local energy of a member.
 
         move:
-            `'flip'`, `'random-value'`, `'rotate'`, `'gaussian'`, or a function that proposes values.
+            `'flip'`, `'random-value'`, `'rotate'`, `'gaussian'`, `'cluster'`, or a function that proposes values.
 
         temperature:
             The temperature.

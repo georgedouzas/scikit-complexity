@@ -48,6 +48,10 @@ class MonteCarloKernel(BaseKernel):
 
         masked:
             Whether the energy change reads the mask of the real neighbours of a neighbour sum.
+
+        bond:
+            For cluster moves, the half change `bond(value, neighbour, **arguments)` of the energy of a site with one
+            neighbour when the value of the site flips and then the value of the neighbour flips, or `None`.
     """
 
     values_: None
@@ -65,6 +69,7 @@ class MonteCarloKernel(BaseKernel):
         sampler: SamplerSpec,
         classes: tuple[Indices, ...] = (),
         masked: bool = False,
+        bond: Callable[..., object] | None = None,
     ) -> None:
         self.owner = owner
         self.target = target
@@ -76,6 +81,7 @@ class MonteCarloKernel(BaseKernel):
         self.sampler = sampler
         self.classes = classes
         self.masked = masked
+        self.bond = bond
 
     def _energy_change(
         self,
@@ -106,9 +112,8 @@ class MonteCarloKernel(BaseKernel):
             return np.broadcast_to(np.asarray(self.move.function(values.copy(), rng), dtype=float), values.shape)
         return values + rng.uniform(-self.move.width, self.move.width, size=values.size)
 
-    def _update(self, x: Array, p: Array, sites: Indices, rng: np.random.Generator) -> None:
-        """Propose and accept moves at sites that do not neighbour each other."""
-        keywords = self.arguments.values(x, p, sites)
+    def _temperature_of(self, keywords: Mapping[str, object]) -> Array:
+        """Return the temperature at some sites, after checking that it is positive."""
         temperature = np.asarray(
             ExpressionPrinter._values_of(self.temperature(0.0, *keywords.values()))[0],
             dtype=float,
@@ -116,6 +121,45 @@ class MonteCarloKernel(BaseKernel):
         if np.any(temperature <= 0):
             error_msg = f'The temperature of {self.owner} is {temperature}, but it must be positive.'
             raise SolverError(error_msg)
+        return temperature
+
+    def _grow(self, x: Array, p: Array, values: Array, sites: Indices, rng: np.random.Generator) -> Indices:
+        """Return the neighbours that bonds add to a cluster from its newest sites."""
+        rows = self.table[sites]
+        keywords = {
+            name: value[:, None] if isinstance(value, np.ndarray) else value
+            for name, value in self.arguments.values(x, p, sites).items()
+        }
+        temperature = self._temperature_of(keywords)
+        neighbours = np.append(values, self.target.space.fill)[rows]
+        if self.bond is None:
+            error_msg = f'The Monte Carlo laws of {self.owner} make cluster moves without the energy of a bond.'
+            raise SolverError(error_msg)
+        bond = ExpressionPrinter._values_of(self.bond(0.0, values[sites][:, None], neighbours, *keywords.values()))[0]
+        bonds = np.broadcast_to(np.asarray(bond, dtype=float), rows.shape)
+        with np.errstate(over='ignore'):
+            probability = 1.0 - np.exp(np.minimum(bonds / temperature, 0.0))
+        added = (rows != self.target.size) & (rng.random(rows.shape) < probability)
+        return np.unique(rows[added])
+
+    def _flip_cluster(self, x: Array, p: Array, rng: np.random.Generator) -> int:
+        """Flip the values of a cluster grown by Wolff bonds from a random site, and return its size."""
+        start, size = self.target.start, self.target.size
+        values = x[start : start + size].copy()
+        inside = np.zeros(size, dtype=bool)
+        newest = rng.integers(size, size=1)
+        inside[newest] = True
+        while newest.size:
+            found = self._grow(x, p, values, newest, rng)
+            newest = found[~inside[found]]
+            inside[newest] = True
+        x[start + np.flatnonzero(inside)] = -values[inside]
+        return int(inside.sum())
+
+    def _update(self, x: Array, p: Array, sites: Indices, rng: np.random.Generator) -> None:
+        """Propose and accept moves at sites that do not neighbour each other."""
+        keywords = self.arguments.values(x, p, sites)
+        temperature = self._temperature_of(keywords)
         values = x[self.target.start + sites]
         if self.sampler.kind == 'heat-bath':
             candidates = (
@@ -152,6 +196,11 @@ class MonteCarloKernel(BaseKernel):
         state = self._state_of(inputs)
         x, p, rng = state.x, state.p, self._generator_of(state)
         size = self.target.size
+        if self.move.kind == 'cluster':
+            flipped = 0
+            while flipped < size:
+                flipped += self._flip_cluster(x, p, rng)
+            return
         if self.sampler.schedule in {'checkerboard', 'colored'}:
             for sites in self.classes:
                 self._update(x, p, sites, rng)
