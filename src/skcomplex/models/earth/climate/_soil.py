@@ -15,17 +15,45 @@ from ..._catalog import register_model
 
 
 class SoilTemperatureElement(Element):
-    """Soil temperature element."""
+    """Soil of the coupled temperature maps, its dimensionless surface temperature and deeper soil temperature.
+
+    The surface temperature follows the energy balance of the ground, reduced to a logistic map, and the deeper soil
+    temperature relaxes towards it: `x_{n+1} = r x_n (1 - x_n) + epsilon y_n` and `y_{n+1} = epsilon (x_n + y_n)`.
+
+    Args:
+        label:
+            The label of the soil.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial dimensionless surface temperature.
+
+        y:
+            The initial dimensionless deeper soil temperature.
+
+        r:
+            The logistic parameter of the surface energy balance.
+
+        epsilon:
+            The coupling between the surface and the deeper soil.
+
+    Examples:
+        >>> from skcomplex.models.earth.climate import SoilTemperatureElement
+        >>> SoilTemperatureElement('soil').r
+        3.8
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec()] = 0.3,
-        y: Annotated[object, StateSpec()] = 0.1,
-        r: Annotated[object, ParameterSpec()] = 3.8,
-        epsilon: Annotated[object, ParameterSpec()] = 0.1,
+        x: Annotated[float, StateSpec()] = 0.3,
+        y: Annotated[float, StateSpec()] = 0.1,
+        r: Annotated[float, ParameterSpec()] = 3.8,
+        epsilon: Annotated[float, ParameterSpec()] = 0.1,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
@@ -34,7 +62,16 @@ class SoilTemperatureElement(Element):
         self.epsilon = epsilon
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the soil temperature element."""
+        """Return the logistic map of the surface temperature and the relaxation of the deeper soil towards it.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The update laws of both temperatures.
+        """
         return [
             UpdateLaw(s.x, s.r * s.x * (1 - s.x) + s.epsilon * s.y),
             UpdateLaw(s.y, s.epsilon * (s.x + s.y)),

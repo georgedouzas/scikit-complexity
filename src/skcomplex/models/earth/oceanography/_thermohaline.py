@@ -16,18 +16,49 @@ from ..._catalog import register_model
 
 
 class StommelBoxesElement(Element):
-    """Stommel boxes element."""
+    """Ocean of Stommel's two boxes, the differences of temperature and salinity between the equator and the pole.
+
+    Both differences relax to their forcing and are mixed by a flow proportional to the density difference
+    `|T - S|`: `dT/dt = eta1 - T (1 + |T - S|)` and `dS/dt = eta2 - S (eta3 + |T - S|)`.
+
+    Args:
+        label:
+            The label of the ocean.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        T:
+            The initial temperature difference.
+
+        S:
+            The initial salinity difference.
+
+        eta1:
+            The thermal forcing.
+
+        eta2:
+            The freshwater forcing.
+
+        eta3:
+            The ratio of the relaxation times of temperature and salinity.
+
+    Examples:
+        >>> from skcomplex.models.earth.oceanography import StommelBoxesElement
+        >>> StommelBoxesElement('ocean').eta2
+        1.2
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        T: Annotated[object, StateSpec()] = 3.0,
-        S: Annotated[object, StateSpec()] = 0.0,
-        eta1: Annotated[object, ParameterSpec()] = 3.0,
-        eta2: Annotated[object, ParameterSpec()] = 1.2,
-        eta3: Annotated[object, ParameterSpec()] = 0.3,
+        T: Annotated[float, StateSpec()] = 3.0,
+        S: Annotated[float, StateSpec()] = 0.0,
+        eta1: Annotated[float, ParameterSpec()] = 3.0,
+        eta2: Annotated[float, ParameterSpec()] = 1.2,
+        eta3: Annotated[float, ParameterSpec()] = 0.3,
     ) -> None:
         super().__init__(label, visual=visual)
         self.T = T
@@ -37,7 +68,16 @@ class StommelBoxesElement(Element):
         self.eta3 = eta3
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the stommel boxes element."""
+        """Return the relaxation of both differences to their forcing and their mixing by the circulation.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate laws of the temperature and salinity differences.
+        """
         return [
             RateLaw(s.T, s.eta1 - s.T * (1 + abs_symbolic(s.T - s.S))),
             RateLaw(s.S, s.eta2 - s.S * (s.eta3 + abs_symbolic(s.T - s.S))),

@@ -21,7 +21,29 @@ DOUBLING_DENOMINATOR = 1125899906840747.0
 
 
 class CubicWalkElement(Element):
-    """Cubic walk element."""
+    """Walker driven by Bertin's cubic chaotic map `x' = lam x (x - 1/2)(x - 1) + x`, which steps by `2 x - 1`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value of the map, between 0 and 1.
+
+        y:
+            The initial position of the walker.
+
+        lam:
+            The nonlinearity of the map.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import CubicWalkElement
+        >>> CubicWalkElement('walker', lam=8.0).lam
+        8.0
+    """
 
     visual = VisualSpec('points', {'position': 'y', 'states': ()})
 
@@ -40,7 +62,16 @@ class CubicWalkElement(Element):
         self.lam = lam
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the cubic walk element."""
+        """Return the next value of the map and the next position.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [
             UpdateLaw(s.x, s.lam * s.x * (s.x - 1 / 2) * (s.x - 1) + s.x),
             UpdateLaw(s.y, s.y + 2 * s.x - 1),
@@ -48,7 +79,26 @@ class CubicWalkElement(Element):
 
 
 class SkewTentMapElement(Element):
-    """Skew tent map element."""
+    """Skew tent map `x' = x / a` below the peak `a` and `(1 - x) / (1 - a)` above it.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value, between 0 and 1.
+
+        a:
+            The position of the peak, between 0 and 1.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import SkewTentMapElement
+        >>> SkewTentMapElement('point', a=0.5).a
+        0.5
+    """
 
     def __init__(
         self,
@@ -63,12 +113,40 @@ class SkewTentMapElement(Element):
         self.a = a
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the skew tent map element."""
+        """Return the next value.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [UpdateLaw(s.x, where(s.x < s.a, s.x / s.a, (1 - s.x) / (1 - s.a)))]
 
 
 class DoublingMapElement(Element):
-    """Doubling map element."""
+    """Doubling map `x' = 2 x (mod 1)` on the grid of the fractions of denominator `q`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value, between 0 and 1.
+
+        q:
+            The denominator of the grid.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.dynamical_systems import DoublingMapElement
+        >>> DoublingMapElement('point', q=1024.0).q
+        1024.0
+    """
 
     def __init__(
         self,
@@ -83,7 +161,16 @@ class DoublingMapElement(Element):
         self.q = q
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the doubling map element."""
+        """Return the next value, rounded to the grid.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [UpdateLaw(s.x, mod(2 * floor(s.q * s.x + 1 / 2), s.q) / s.q)]
 
 

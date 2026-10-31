@@ -3,13 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, EmissionLaw, TransitionLaw
+from ....core.interactions import TransitionInteraction
 from ....core.system import System
 from ....specs import StateSpec, VisualSpec
 from ..._catalog import register_model
@@ -20,7 +19,7 @@ EMISSION = ((0.7, 0.3), (0.2, 0.8))
 
 
 class MarkovSourceElement(Element):
-    """Source of symbols `0` to `n - 1` that follow a discrete-time Markov chain.
+    """Source of symbols `0` to `n - 1`, whose symbol a transition matrix steps in discrete time.
 
     Args:
         label:
@@ -32,13 +31,10 @@ class MarkovSourceElement(Element):
         symbol:
             The initial symbol.
 
-        transition:
-            The transition matrix, whose entry `(i, j)` is the probability that symbol `j` follows symbol `i`.
-
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import MarkovSourceElement
-        >>> MarkovSourceElement('source').transition
-        ((0.9, 0.1), (0.4, 0.6))
+        >>> MarkovSourceElement('source', symbol=1).symbol
+        1
     """
 
     def __init__(
@@ -47,24 +43,9 @@ class MarkovSourceElement(Element):
         visual: VisualSpec | None = None,
         *,
         symbol: Annotated[float, StateSpec(domain=NN)] = 0,
-        transition: Matrix = CHAIN,
     ) -> None:
         super().__init__(label, visual=visual)
         self.symbol = symbol
-        self.transition = transition
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the step of the chain.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [TransitionLaw(s.symbol, self.transition)]
 
 
 class HiddenMarkovSourceElement(Element):
@@ -83,16 +64,10 @@ class HiddenMarkovSourceElement(Element):
         symbol:
             The initial symbol.
 
-        transition:
-            The transition matrix of the hidden chain.
-
-        emission:
-            The emission matrix, whose entry `(i, j)` is the probability that hidden state `i` emits symbol `j`.
-
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import HiddenMarkovSourceElement
-        >>> HiddenMarkovSourceElement('source').emission
-        ((0.7, 0.3), (0.2, 0.8))
+        >>> HiddenMarkovSourceElement('source', hidden=1).hidden
+        1
     """
 
     def __init__(
@@ -102,27 +77,10 @@ class HiddenMarkovSourceElement(Element):
         *,
         hidden: Annotated[float, StateSpec(domain=NN)] = 0,
         symbol: Annotated[float, StateSpec(domain=NN)] = 0,
-        transition: Matrix = CHAIN,
-        emission: Matrix = EMISSION,
     ) -> None:
         super().__init__(label, visual=visual)
         self.hidden = hidden
         self.symbol = symbol
-        self.transition = transition
-        self.emission = emission
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the step of the hidden chain and the emission of the symbol.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [TransitionLaw(s.hidden, self.transition), EmissionLaw(s.symbol, s.hidden, self.emission)]
 
 
 @register_model(
@@ -151,10 +109,11 @@ def markov_source(transition: Matrix = CHAIN, *, symbol: int = 0) -> System:
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import markov_source
-        >>> markov_source().elements[0].transition
-        ((0.9, 0.1), (0.4, 0.6))
+        >>> markov_source().interactions[0].state
+        'symbol'
     """
-    return System(elements=[MarkovSourceElement('source', symbol=symbol, transition=transition)])
+    chain = TransitionInteraction('chain', target='source', state='symbol', matrix=lambda s: transition)
+    return System(elements=[MarkovSourceElement('source', symbol=symbol)], interactions=[chain])
 
 
 @register_model(
@@ -183,7 +142,15 @@ def hidden_markov_source(transition: Matrix = CHAIN, emission: Matrix = EMISSION
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import hidden_markov_source
-        >>> hidden_markov_source().elements[0].transition
-        ((0.9, 0.1), (0.4, 0.6))
+        >>> hidden_markov_source().interactions[0].observed
+        'symbol'
     """
-    return System(elements=[HiddenMarkovSourceElement('source', transition=transition, emission=emission)])
+    chain = TransitionInteraction(
+        'chain',
+        target='source',
+        state='hidden',
+        matrix=lambda s: transition,
+        emission=lambda s: emission,
+        observed='symbol',
+    )
+    return System(elements=[HiddenMarkovSourceElement('source')], interactions=[chain])

@@ -3,19 +3,20 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
 from functools import cache
-from types import SimpleNamespace
 from typing import Annotated
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
 from ....core.system import System
-from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....specs import StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.flows import LorenzElement
+from ._oscillator import OscillatorElement
+from ._relaxation import RelaxationElement
+from ._van_der_pol import VanDerPolElement
 
 
-def _published(element_type: type[Element], name: str) -> type[Element]:
+def _published[ElementT: Element](element_type: type[ElementT], name: str) -> type[ElementT]:
     """Return an element type after naming it and binding it to its name in this module, so it pickles by reference."""
     element_type.__name__ = element_type.__qualname__ = name
     globals()[name] = element_type
@@ -28,7 +29,7 @@ def _type_name(prefix: str, order: float) -> str:
 
 
 @cache
-def relaxation_type(order: float) -> Callable[..., Element]:
+def relaxation_type(order: float) -> type[RelaxationElement]:
     """Return the element type of fractional relaxation `D^alpha x = -lambda x` of an order.
 
     Args:
@@ -37,7 +38,7 @@ def relaxation_type(order: float) -> Callable[..., Element]:
 
     Returns:
         element_type:
-            The element type, the same for equal orders.
+            The subclass of `RelaxationElement` whose state has the order, the same for equal orders.
 
     Examples:
         >>> from skcomplex.models.mathematics.fractional_dynamics import relaxation_type
@@ -45,27 +46,22 @@ def relaxation_type(order: float) -> Callable[..., Element]:
         'FractionalRelaxation_0p5'
     """
 
-    class FractionalElement(Element):
+    class FractionalElement(RelaxationElement):
         def __init__(
             self,
             label: str,
             visual: VisualSpec | None = None,
             *,
             x: Annotated[float, StateSpec(order=order)] = 1.0,
-            lam: Annotated[float, ParameterSpec()] = 1.0,
+            lam: float = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
-            self.x = x
-            self.lam = lam
-
-        def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-            return [RateLaw(s.x, -s.lam * s.x)]
+            super().__init__(label, visual=visual, x=x, lam=lam)
 
     return _published(FractionalElement, _type_name('FractionalRelaxation', order))
 
 
 @cache
-def oscillator_type(order: float) -> Callable[..., Element]:
+def oscillator_type(order: float) -> type[OscillatorElement]:
     """Return the element type of the fractional oscillator `D^alpha x = v`, `D^alpha v = -omega^2 x - 2 gamma v`.
 
     Args:
@@ -74,7 +70,7 @@ def oscillator_type(order: float) -> Callable[..., Element]:
 
     Returns:
         element_type:
-            The element type, the same for equal orders.
+            The subclass of `OscillatorElement` whose states have the order, the same for equal orders.
 
     Examples:
         >>> from skcomplex.models.mathematics.fractional_dynamics import oscillator_type
@@ -82,7 +78,7 @@ def oscillator_type(order: float) -> Callable[..., Element]:
         'FractionalOscillator_0p8'
     """
 
-    class FractionalElement(Element):
+    class FractionalElement(OscillatorElement):
         def __init__(
             self,
             label: str,
@@ -90,23 +86,16 @@ def oscillator_type(order: float) -> Callable[..., Element]:
             *,
             x: Annotated[float, StateSpec(order=order)] = 1.0,
             v: Annotated[float, StateSpec(order=order)] = 0.0,
-            omega: Annotated[float, ParameterSpec()] = 1.0,
-            gamma: Annotated[float, ParameterSpec()] = 0.0,
+            omega: float = 1.0,
+            gamma: float = 0.0,
         ) -> None:
-            super().__init__(label, visual=visual)
-            self.x = x
-            self.v = v
-            self.omega = omega
-            self.gamma = gamma
-
-        def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-            return [RateLaw(s.x, s.v), RateLaw(s.v, -(s.omega**2) * s.x - 2 * s.gamma * s.v)]
+            super().__init__(label, visual=visual, x=x, v=v, omega=omega, gamma=gamma)
 
     return _published(FractionalElement, _type_name('FractionalOscillator', order))
 
 
 @cache
-def van_der_pol_type(order: float) -> Callable[..., Element]:
+def van_der_pol_type(order: float) -> type[VanDerPolElement]:
     """Return the element type of the fractional Van der Pol system `D^alpha x = y`, `D^alpha y = mu (1 - x^2) y - x`.
 
     Args:
@@ -115,7 +104,7 @@ def van_der_pol_type(order: float) -> Callable[..., Element]:
 
     Returns:
         element_type:
-            The element type, the same for equal orders.
+            The subclass of `VanDerPolElement` whose states have the order, the same for equal orders.
 
     Examples:
         >>> from skcomplex.models.mathematics.fractional_dynamics import van_der_pol_type
@@ -123,7 +112,7 @@ def van_der_pol_type(order: float) -> Callable[..., Element]:
         'FractionalVanDerPol_0p9'
     """
 
-    class FractionalElement(Element):
+    class FractionalElement(VanDerPolElement):
         def __init__(
             self,
             label: str,
@@ -131,21 +120,15 @@ def van_der_pol_type(order: float) -> Callable[..., Element]:
             *,
             x: Annotated[float, StateSpec(order=order)] = 2.0,
             y: Annotated[float, StateSpec(order=order)] = 0.0,
-            mu: Annotated[float, ParameterSpec()] = 1.0,
+            mu: float = 1.0,
         ) -> None:
-            super().__init__(label, visual=visual)
-            self.x = x
-            self.y = y
-            self.mu = mu
-
-        def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-            return [RateLaw(s.x, s.y), RateLaw(s.y, s.mu * (1 - s.x**2) * s.y - s.x)]
+            super().__init__(label, visual=visual, x=x, y=y, mu=mu)
 
     return _published(FractionalElement, _type_name('FractionalVanDerPol', order))
 
 
 @cache
-def lorenz_type(order: float) -> Callable[..., Element]:
+def lorenz_type(order: float) -> type[LorenzElement]:
     """Return the element type of the fractional Lorenz flow, the Lorenz equations with Caputo derivatives of an order.
 
     Args:
@@ -154,7 +137,7 @@ def lorenz_type(order: float) -> Callable[..., Element]:
 
     Returns:
         element_type:
-            The element type, the same for equal orders.
+            The subclass of `LorenzElement` whose states have the order, the same for equal orders.
 
     Examples:
         >>> from skcomplex.models.mathematics.fractional_dynamics import lorenz_type
@@ -162,7 +145,7 @@ def lorenz_type(order: float) -> Callable[..., Element]:
         'FractionalLorenz_0p99'
     """
 
-    class FractionalElement(Element):
+    class FractionalElement(LorenzElement):
         def __init__(
             self,
             label: str,
@@ -171,24 +154,11 @@ def lorenz_type(order: float) -> Callable[..., Element]:
             x: Annotated[float, StateSpec(order=order)] = 1.0,
             y: Annotated[float, StateSpec(order=order)] = 1.0,
             z: Annotated[float, StateSpec(order=order)] = 1.0,
-            sigma: Annotated[float, ParameterSpec()] = 10.0,
-            rho: Annotated[float, ParameterSpec()] = 28.0,
-            beta: Annotated[float, ParameterSpec()] = 8 / 3,
+            sigma: float = 10.0,
+            rho: float = 28.0,
+            beta: float = 8 / 3,
         ) -> None:
-            super().__init__(label, visual=visual)
-            self.x = x
-            self.y = y
-            self.z = z
-            self.sigma = sigma
-            self.rho = rho
-            self.beta = beta
-
-        def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-            return [
-                RateLaw(s.x, s.sigma * (s.y - s.x)),
-                RateLaw(s.y, s.x * (s.rho - s.z) - s.y),
-                RateLaw(s.z, s.x * s.y - s.beta * s.z),
-            ]
+            super().__init__(label, visual=visual, x=x, y=y, z=z, sigma=sigma, rho=rho, beta=beta)
 
     return _published(FractionalElement, _type_name('FractionalLorenz', order))
 

@@ -3,18 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 import scipy.sparse
-from sage.all__sagemath_symbolics import ZZ, Expression, exp, oo
+from sage.all__sagemath_symbolics import ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, UpdateLaw
-from ....core.laws.utils import total, uniform, where
+from ....core.interactions import ChoiceInteraction
+from ....core.laws.utils import total
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
@@ -35,11 +35,16 @@ def _couplings(patterns: np.ndarray, connectivity: float, rng: np.random.Generat
     return scipy.sparse.csr_array((values, (rows, columns)), shape=(size, size))
 
 
+def _alignment(s: SimpleNamespace, option: float, *, couplings: scipy.sparse.csr_array) -> Expression:
+    """Return the utility `β s h` of a value `s` of a neuron in its local field `h = Σ_j J_ij s_j`."""
+    return s.target.beta * option * total(s.target.spin, weights=couplings)
+
+
 class DilutedNeuronElement(Element):
     """Binary neuron of an asymmetric diluted Hopfield network, updated in parallel with the others at every step.
 
-    The neuron takes the value `s = ±1` with probability `1 / (1 + exp(-2 s β h))`, where `h = Σ_j J_ij s_j` is its
-    local field, so its mean is `tanh(β h)`.
+    The logit choice of `diluted_hopfield` draws the value `s = ±1` of the neuron with probability
+    `1 / (1 + exp(-2 s β h))`, where `h = Σ_j J_ij s_j` is its local field, so its mean is `tanh(β h)`.
 
     Args:
         label:
@@ -57,9 +62,6 @@ class DilutedNeuronElement(Element):
         beta:
             The inverse temperature `β`.
 
-        couplings:
-            The coupling matrix `J`, one row and one column per neuron.
-
     Examples:
         >>> from skcomplex.models.computer_science.neural_networks import DilutedNeuronElement
         >>> DilutedNeuronElement('neuron').beta
@@ -74,28 +76,11 @@ class DilutedNeuronElement(Element):
         spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
         pattern: Annotated[float, ParameterSpec()] = 1.0,
         beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.06,
-        couplings: npt.ArrayLike | None = None,
     ) -> None:
         super().__init__(label, visual=visual)
         self.spin = spin
         self.pattern = pattern
         self.beta = beta
-        self.couplings = couplings
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the parallel stochastic update of the neuron.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        field = total(s.spin, weights=self.couplings)
-        up = 1 / (1 + exp(-2 * s.beta * field))
-        return [UpdateLaw(s.spin, where(uniform('u') < up, 1, -1))]
 
 
 @register_model(
@@ -162,7 +147,13 @@ def diluted_hopfield(
             'spin': spins,
             'pattern': patterns[0],
             'beta': temperature_scale / connectivity,
-            'couplings': _couplings(patterns, connectivity, rng),
         },
     )
-    return System(elements=[neurons])
+    glauber = ChoiceInteraction(
+        'glauber',
+        target='neurons',
+        state='spin',
+        options=(-1.0, 1.0),
+        utility=functools.partial(_alignment, couplings=_couplings(patterns, connectivity, rng)),
+    )
+    return System(elements=[neurons], interactions=[glauber])

@@ -10,12 +10,12 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement
+from ....core.interactions import CouplingInteraction
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import laplacian
 from ....core.spaces import ContinuousTime, NetworkSpace
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -24,14 +24,18 @@ from ..._catalog import register_model
 FOLD = math.sqrt(4 / 27)
 
 
+def _push(s: SimpleNamespace) -> Expression:
+    """Return the push `d (x_j + 1)` of a neighbour `j` on a member, about `2 d` from a tipped neighbour."""
+    return s.member.d * (s.other.x + 1)
+
+
 class TippingElementElement(Element):
     """Tipping element in the normal form of a fold, pushed toward its upper state by tipped neighbours.
 
     The state follows `dx_i/dt = -x_i^3 + x_i + sqrt(4/27) c_i + d Σ_j A_ij (x_j + 1)`. Alone, the element has a
     lower and an upper stable state for `|c| < 1` and only the upper one beyond the critical value `c = 1`. A neighbour
     in its lower state `x_j ≈ -1` adds almost nothing, while a tipped neighbour at `x_j ≈ 1` adds about `2 d`. The
-    coupling sum is written with the graph Laplacian as `laplacian(x) + k_i (x_i + 1)`, where `k_i` is the degree of
-    the node.
+    element carries the fold, and the coupling of `tipping_cascade_network` adds the pushes of the neighbours.
 
     Args:
         label:
@@ -49,9 +53,6 @@ class TippingElementElement(Element):
         d:
             The coupling strength of every link.
 
-        degree:
-            The number of neighbours of the node.
-
     Examples:
         >>> from skcomplex.models.earth.climate import TippingElementElement
         >>> TippingElementElement('ice sheet').x
@@ -66,16 +67,14 @@ class TippingElementElement(Element):
         x: Annotated[float, StateSpec()] = -1.0,
         c: Annotated[float, ParameterSpec()] = 0.0,
         d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        degree: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
         self.c = c
         self.d = d
-        self.degree = degree
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the fold with its coupling to the neighbours.
+        """Return the fold of the element.
 
         Args:
             s:
@@ -83,10 +82,9 @@ class TippingElementElement(Element):
 
         Returns:
             laws:
-                The laws of the component.
+                The rate law of the fold.
         """
-        coupling = laplacian(s.x) + s.degree * (s.x + 1)
-        return [RateLaw(s.x, -(s.x**3) + s.x + FOLD * s.c + s.d * coupling)]
+        return [RateLaw(s.x, -(s.x**3) + s.x + FOLD * s.c)]
 
 
 @register_model(
@@ -137,7 +135,7 @@ def tipping_cascade_network(
         'x': np.broadcast_to(np.asarray(x, dtype=float), size).copy(),
         'c': np.broadcast_to(np.asarray(c, dtype=float), size).copy(),
         'd': d,
-        'degree': np.array([graph.degree[node] for node in graph.nodes], dtype=float),
     }
     elements = FieldElement('elements', element=TippingElementElement, space=NetworkSpace(graph), values=values)
-    return System(elements=[elements], time=ContinuousTime())
+    coupling = CouplingInteraction('coupling', target='elements', function=_push)
+    return System(elements=[elements], interactions=[coupling], time=ContinuousTime())

@@ -3,86 +3,117 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, oo, sqrt
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw
-from ....core.laws.utils import where
+from ....core.elements import CompartmentElement, Element
+from ....core.interactions import ReactionInteraction
 from ....core.system import System
 from ....engine.solvers import EulerMaruyamaSolver
-from ....errors import ValidationError
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
-
-def _langevin_laws(propensity: Expression, changes: Mapping[Expression, int]) -> list[BaseLaw]:
-    """Return the drift and the noise of one reaction channel, one Wiener process driving every species it changes."""
-    amplitude = sqrt(where(propensity > 0, propensity, 0))
-    rates: list[BaseLaw] = [RateLaw(target, change * propensity) for target, change in changes.items()]
-    return rates + [NoiseLaw(target, change * amplitude, process='channel') for target, change in changes.items()]
+X = ('reactor', 'x')
 
 
-def _reaction_laws(
-    label: str,
-    propensity: Expression,
-    changes: Mapping[Expression, int],
-    *,
-    stochastic: bool,
-    langevin: bool,
-) -> list[BaseLaw]:
-    """Return the laws of one reaction channel, as rates of mass action, a random event, or a Langevin equation."""
-    if stochastic and langevin:
-        error_msg = (
-            f'Reaction {label} is both stochastic and in Langevin mode. Set at most one of `stochastic` and '
-            '`langevin`.'
-        )
-        raise ValidationError(error_msg)
-    if stochastic:
-        return [JumpLaw(propensity, dict(changes))]
-    if langevin:
-        return _langevin_laws(propensity, changes)
-    return [RateLaw(target, change * propensity) for target, change in changes.items()]
-
-
-def _schlogl_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the drift and the independent noise of the four channels of the Schlögl reaction."""
-    x = s.x
-    increments = [
-        s.c1 / 2 * s.A * x * (x - 1),
-        s.c3 * s.B,
+def _get_enzyme_reactions(
+    k_binding: float,
+    k_unbinding: float,
+    k_catalysis: float,
+    mode: str,
+) -> list[ReactionInteraction]:
+    """Return the binding, unbinding, and catalysis of the enzyme reaction `E + S <-> C -> E + P` in a mode."""
+    enzyme, substrate, complex_, product = ('E', 'n'), ('S', 'n'), ('C', 'n'), ('P', 'n')
+    return [
+        ReactionInteraction(
+            'binding',
+            reactants={enzyme: 1, substrate: 1},
+            products={complex_: 1},
+            k=k_binding,
+            mode=mode,
+        ),
+        ReactionInteraction(
+            'unbinding',
+            reactants={complex_: 1},
+            products={enzyme: 1, substrate: 1},
+            k=k_unbinding,
+            mode=mode,
+        ),
+        ReactionInteraction(
+            'catalysis',
+            reactants={complex_: 1},
+            products={enzyme: 1, product: 1},
+            k=k_catalysis,
+            mode=mode,
+        ),
     ]
-    decrements = [
-        s.c2 / 6 * x * (x - 1) * (x - 2),
-        s.c4 * x,
-    ]
-    drift = sum(increments) - sum(decrements)
-    noises = [NoiseLaw(x, sqrt(where(propensity > 0, propensity, 0))) for propensity in [*increments, *decrements]]
-    return [RateLaw(x, drift), *noises]
 
 
-class SpeciesElement(Element):
-    """Amount of one chemical species, a concentration or a number of molecules.
+def _get_autocatalysis(s: SimpleNamespace) -> Expression:
+    """Return the propensity `c1 A x (x - 1) / 2` of `A + 2X -> 3X`."""
+    reactor = s.reactants[0]
+    return reactor.c1 / 2 * reactor.A * reactor.x * (reactor.x - 1)
+
+
+def _get_reversal(s: SimpleNamespace) -> Expression:
+    """Return the propensity `c2 x (x - 1) (x - 2) / 6` of `3X -> A + 2X`."""
+    reactor = s.reactants[0]
+    return reactor.c2 / 6 * reactor.x * (reactor.x - 1) * (reactor.x - 2)
+
+
+def _get_production(s: SimpleNamespace) -> Expression:
+    """Return the propensity `c3 B` of `B -> X`."""
+    reactor = s.products[0]
+    return reactor.c3 * reactor.B
+
+
+def _get_conversion(s: SimpleNamespace) -> Expression:
+    """Return the propensity `c4 x` of `X -> B`."""
+    reactor = s.reactants[0]
+    return reactor.c4 * reactor.x
+
+
+class SchloglElement(Element):
+    """Reactor of Schlögl's reaction, the number of molecules of `X` with the buffered species `A` and `B`.
+
+    The reactions of `chemical_langevin_equation` change `x` and read the rate constants and the constant numbers of
+    molecules of `A` and `B` from the reactor.
 
     Args:
         label:
-            The label of the species.
+            The label of the reactor.
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
 
-        n:
-            The initial amount.
+        x:
+            The initial number of molecules of `X`.
+
+        c1:
+            The rate constant of the autocatalytic production.
+
+        c2:
+            The rate constant of the reverse of the autocatalytic production.
+
+        c3:
+            The rate constant of the production from `B`.
+
+        c4:
+            The rate constant of the conversion into `B`.
+
+        A:
+            The constant number of molecules of `A`.
+
+        B:
+            The constant number of molecules of `B`.
 
     Examples:
-        >>> from skcomplex.models.chemistry.kinetics import SpeciesElement
-        >>> SpeciesElement('substrate', n=300.0).n
-        300.0
+        >>> from skcomplex.models.chemistry.kinetics import SchloglElement
+        >>> SchloglElement('reactor').x
+        50.0
     """
 
     def __init__(
@@ -90,175 +121,13 @@ class SpeciesElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        n: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.n = n
-
-
-class BindingInteraction(Interaction):
-    """Second-order reaction `first + second -> product` with the mass-action rate `k * first * second`.
-
-    In stochastic mode every reaction is a random event that changes the amounts by one molecule. In Langevin mode
-    the reaction is a chemical Langevin equation: one Wiener process with the amplitude the square root of the rate
-    drives every species the reaction changes.
-
-    Args:
-        label:
-            The label of the reaction.
-
-        first:
-            The path of the first reactant.
-
-        second:
-            The path of the second reactant.
-
-        product:
-            The path of the product.
-
-        k:
-            The rate constant.
-
-        stochastic:
-            Whether reactions are random events.
-
-        langevin:
-            Whether the reaction is a chemical Langevin equation.
-
-    Examples:
-        >>> from skcomplex.models.chemistry.kinetics import BindingInteraction
-        >>> BindingInteraction('binding', first='E', second='S', product='C', k=0.01).k
-        0.01
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        product: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        stochastic: bool = False,
-        langevin: bool = False,
-    ) -> None:
-        super().__init__(label)
-        self.first = first
-        self.second = second
-        self.product = product
-        self.k = k
-        self.stochastic = stochastic
-        self.langevin = langevin
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the reaction at the rate `k * first * second`.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-
-        Raises:
-            ValidationError:
-                The reaction is both stochastic and in Langevin mode.
-        """
-        changes = {s.first.n: -1, s.second.n: -1, s.product.n: 1}
-        propensity = s.k * s.first.n * s.second.n
-        return _reaction_laws(self.label, propensity, changes, stochastic=self.stochastic, langevin=self.langevin)
-
-
-class DissociationInteraction(Interaction):
-    """First-order reaction `reactant -> first + second` with the mass-action rate `k * reactant`.
-
-    In stochastic mode every reaction is a random event that changes the amounts by one molecule. In Langevin mode
-    the reaction is a chemical Langevin equation: one Wiener process with the amplitude the square root of the rate
-    drives every species the reaction changes.
-
-    Args:
-        label:
-            The label of the reaction.
-
-        reactant:
-            The path of the dissociating complex.
-
-        first:
-            The path of the first product.
-
-        second:
-            The path of the second product.
-
-        k:
-            The rate constant.
-
-        stochastic:
-            Whether reactions are random events.
-
-        langevin:
-            Whether the reaction is a chemical Langevin equation.
-
-    Examples:
-        >>> from skcomplex.models.chemistry.kinetics import DissociationInteraction
-        >>> DissociationInteraction('catalysis', reactant='C', first='E', second='P', k=0.1).second
-        'P'
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        reactant: Annotated[str, RoleSpec()],
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        stochastic: bool = False,
-        langevin: bool = False,
-    ) -> None:
-        super().__init__(label)
-        self.reactant = reactant
-        self.first = first
-        self.second = second
-        self.k = k
-        self.stochastic = stochastic
-        self.langevin = langevin
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the reaction at the rate `k * reactant`.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-
-        Raises:
-            ValidationError:
-                The reaction is both stochastic and in Langevin mode.
-        """
-        changes = {s.reactant.n: -1, s.first.n: 1, s.second.n: 1}
-        propensity = s.k * s.reactant.n
-        return _reaction_laws(self.label, propensity, changes, stochastic=self.stochastic, langevin=self.langevin)
-
-
-class SchloglElement(Element):
-    """Schlogl element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 50.0,
-        c1: Annotated[object, ParameterSpec()] = 1.5e-06,
-        c2: Annotated[object, ParameterSpec()] = 0.0025,
-        c3: Annotated[object, ParameterSpec()] = 0.0002,
-        c4: Annotated[object, ParameterSpec()] = 3.5,
-        A: Annotated[object, ParameterSpec()] = 100000.0,
-        B: Annotated[object, ParameterSpec()] = 200000.0,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
+        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5e-06,
+        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0025,
+        c3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0002,
+        c4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.5,
+        A: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 100000.0,
+        B: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 200000.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
@@ -268,10 +137,6 @@ class SchloglElement(Element):
         self.c4 = c4
         self.A = A
         self.B = B
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the schlogl element."""
-        return _schlogl_laws(s)
 
 
 @register_model(
@@ -324,30 +189,12 @@ def michaelis_menten(
     """
     return System(
         elements=[
-            SpeciesElement('E', n=enzyme),
-            SpeciesElement('S', n=substrate),
-            SpeciesElement('C'),
-            SpeciesElement('P'),
+            CompartmentElement('E', n=enzyme),
+            CompartmentElement('S', n=substrate),
+            CompartmentElement('C'),
+            CompartmentElement('P'),
         ],
-        interactions=[
-            BindingInteraction('binding', first='E', second='S', product='C', k=k_binding, stochastic=stochastic),
-            DissociationInteraction(
-                'unbinding',
-                reactant='C',
-                first='E',
-                second='S',
-                k=k_unbinding,
-                stochastic=stochastic,
-            ),
-            DissociationInteraction(
-                'catalysis',
-                reactant='C',
-                first='E',
-                second='P',
-                k=k_catalysis,
-                stochastic=stochastic,
-            ),
-        ],
+        interactions=_get_enzyme_reactions(k_binding, k_unbinding, k_catalysis, 'jump' if stochastic else 'rate'),
     )
 
 
@@ -406,7 +253,27 @@ def chemical_langevin_equation(
         >>> chemical_langevin_equation(c4=3.0).elements[0].c4
         3.0
     """
-    return System(elements=[SchloglElement('reactor', x=x, c1=c1, c2=c2, c3=c3, c4=c4, A=A, B=B)])
+    return System(
+        elements=[SchloglElement('reactor', x=x, c1=c1, c2=c2, c3=c3, c4=c4, A=A, B=B)],
+        interactions=[
+            ReactionInteraction(
+                'autocatalysis',
+                reactants={X: 2},
+                products={X: 3},
+                propensity=_get_autocatalysis,
+                mode='langevin',
+            ),
+            ReactionInteraction(
+                'reversal',
+                reactants={X: 3},
+                products={X: 2},
+                propensity=_get_reversal,
+                mode='langevin',
+            ),
+            ReactionInteraction('production', products={X: 1}, propensity=_get_production, mode='langevin'),
+            ReactionInteraction('conversion', reactants={X: 1}, propensity=_get_conversion, mode='langevin'),
+        ],
+    )
 
 
 @register_model(
@@ -451,19 +318,15 @@ def chemical_langevin_network(
 
     Examples:
         >>> from skcomplex.models.chemistry.kinetics import chemical_langevin_network
-        >>> [reaction.langevin for reaction in chemical_langevin_network().interactions]
-        [True, True, True]
+        >>> [reaction.mode for reaction in chemical_langevin_network().interactions]
+        ['langevin', 'langevin', 'langevin']
     """
     return System(
         elements=[
-            SpeciesElement('E', n=enzyme),
-            SpeciesElement('S', n=substrate),
-            SpeciesElement('C'),
-            SpeciesElement('P'),
+            CompartmentElement('E', n=enzyme),
+            CompartmentElement('S', n=substrate),
+            CompartmentElement('C'),
+            CompartmentElement('P'),
         ],
-        interactions=[
-            BindingInteraction('binding', first='E', second='S', product='C', k=k_binding, langevin=True),
-            DissociationInteraction('unbinding', reactant='C', first='E', second='S', k=k_unbinding, langevin=True),
-            DissociationInteraction('catalysis', reactant='C', first='E', second='P', k=k_catalysis, langevin=True),
-        ],
+        interactions=_get_enzyme_reactions(k_binding, k_unbinding, k_catalysis, 'langevin'),
     )

@@ -5,10 +5,11 @@
 
 from collections.abc import Sequence
 
+from ....core.elements import CompartmentElement
+from ....core.interactions import ReactionInteraction
 from ....core.system import System
 from ....engine.solvers import ScipyODESolver
 from ..._catalog import register_model
-from ._reactions import BindingInteraction, DissociationInteraction, SpeciesElement
 
 PROTEINS = ('albumin', 'lipoprotein', 'fibrinogen')
 LITRES_PER_NANOMOLE = 1e-9
@@ -78,15 +79,25 @@ def nanoparticle_corona(
         >>> round(nanoparticle_corona().interactions[0].k, 7)
         0.0006144
     """
-    elements = [SpeciesElement('nanoparticle', n=nanoparticle)]
-    interactions: list[BindingInteraction | DissociationInteraction] = []
+    elements = [CompartmentElement('nanoparticle', n=nanoparticle)]
+    interactions: list[ReactionInteraction] = []
     rows = zip(PROTEINS, proteins, corona, protein_radii, association, dissociation, strict=True)
     for name, free, bound, protein_radius, alpha, delta in rows:
         complex_ = f'{name}_corona'
-        elements += [SpeciesElement(name, n=free), SpeciesElement(complex_, n=bound)]
+        elements += [CompartmentElement(name, n=free), CompartmentElement(complex_, n=bound)]
         k = _count_binding_sites(radius, protein_radius) * alpha * LITRES_PER_NANOMOLE
         interactions += [
-            BindingInteraction(f'{name}_binding', first='nanoparticle', second=name, product=complex_, k=k),
-            DissociationInteraction(f'{name}_release', reactant=complex_, first='nanoparticle', second=name, k=delta),
+            ReactionInteraction(
+                f'{name}_binding',
+                reactants={('nanoparticle', 'n'): 1, (name, 'n'): 1},
+                products={(complex_, 'n'): 1},
+                k=k,
+            ),
+            ReactionInteraction(
+                f'{name}_release',
+                reactants={(complex_, 'n'): 1},
+                products={('nanoparticle', 'n'): 1, (name, 'n'): 1},
+                k=delta,
+            ),
         ]
     return System(elements=elements, interactions=interactions)

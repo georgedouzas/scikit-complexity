@@ -3,14 +3,14 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.elements import CompartmentElement
+from skcomplex.core.interactions import ReactionInteraction
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.solvers import EulerMaruyamaSolver
 from skcomplex.errors import ValidationError
 from skcomplex.models import describe
 from skcomplex.models.chemistry.kinetics import (
-    BindingInteraction,
-    SpeciesElement,
     chemical_langevin_equation,
     chemical_langevin_network,
     michaelis_menten,
@@ -66,17 +66,21 @@ def test_chemical_langevin_equation_switches_by_noise():
 
 def test_langevin_binding_conserves_difference():
     """Test that `A + B -> C` as a chemical Langevin equation keeps `A - B` while `A` fluctuates."""
+    species = [CompartmentElement('A', n=200.0), CompartmentElement('B', n=150.0), CompartmentElement('C')]
+    reactants, products = {('A', 'n'): 1, ('B', 'n'): 1}, {('C', 'n'): 1}
     system = System(
-        elements=[SpeciesElement('A', n=200.0), SpeciesElement('B', n=150.0), SpeciesElement('C')],
-        interactions=[BindingInteraction('binding', first='A', second='B', product='C', k=0.001, langevin=True)],
+        elements=species,
+        interactions=[
+            ReactionInteraction('binding', reactants=reactants, products=products, k=0.001, mode='langevin'),
+        ],
     )
     trajectory = _run(system, 5.0, 0.05, solver=EulerMaruyamaSolver(dt=1e-3))
     difference = trajectory.values('A.n') - trajectory.values('B.n')
     np.testing.assert_allclose(difference, 50.0, rtol=1e-9)
     deterministic = _run(
         System(
-            elements=[SpeciesElement('A', n=200.0), SpeciesElement('B', n=150.0), SpeciesElement('C')],
-            interactions=[BindingInteraction('binding', first='A', second='B', product='C', k=0.001)],
+            elements=species,
+            interactions=[ReactionInteraction('binding', reactants=reactants, products=products, k=0.001)],
         ),
         5.0,
         0.05,
@@ -84,12 +88,17 @@ def test_langevin_binding_conserves_difference():
     assert np.max(np.abs(trajectory.values('A.n') - deterministic.values('A.n'))) > 0.5
 
 
-def test_langevin_and_stochastic_reaction_is_rejected():
-    """Test that a reaction both stochastic and in Langevin mode raises an error that names it."""
+def test_reaction_of_unknown_mode_is_rejected():
+    """Test that a reaction of an unknown mode raises an error that names it."""
     system = System(
-        elements=[SpeciesElement('A', n=10.0), SpeciesElement('B', n=10.0), SpeciesElement('C')],
+        elements=[CompartmentElement('A', n=10.0), CompartmentElement('B', n=10.0), CompartmentElement('C')],
         interactions=[
-            BindingInteraction('binding', first='A', second='B', product='C', stochastic=True, langevin=True),
+            ReactionInteraction(
+                'binding',
+                reactants={('A', 'n'): 1, ('B', 'n'): 1},
+                products={('C', 'n'): 1},
+                mode='stochastic',
+            ),
         ],
     )
     with pytest.raises(ValidationError, match='binding'):

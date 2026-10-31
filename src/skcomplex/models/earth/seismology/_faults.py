@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -12,21 +11,28 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, CascadeLaw, DriveLaw, LocalRuleLaw
+from ....core.interactions import CascadeInteraction
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
-from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....specs import StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
 
-NEAREST = VonNeumannNeighborhood(center=True)
+THRESHOLD = 1.0
+
+
+def _load(force: Array, *, random: np.random.Generator) -> Array:
+    """Return the forces after the uniform loading that brings the most loaded block to the threshold."""
+    following = force + (THRESHOLD - force.max())
+    following[np.unravel_index(np.argmax(force), force.shape)] = THRESHOLD
+    return following
 
 
 class FaultElement(Element):
-    """Block of the Olami-Feder-Christensen earthquake model, loaded uniformly and slipping at a threshold force.
+    """Block of the Olami-Feder-Christensen earthquake model, the force on it.
 
-    A slipping block passes the fraction `alpha` of its force to each of its four neighbours and drops to zero. With
-    `alpha` below 1/4 the model is dissipative and its earthquake sizes still follow a power law.
+    The cascade of `earthquakes` loads every block uniformly until one reaches the threshold force, and a slipping block
+    passes a fraction of its force to each of its four neighbours and drops to zero.
 
     Args:
         label:
@@ -38,16 +44,10 @@ class FaultElement(Element):
         force:
             The initial force.
 
-        alpha:
-            The fraction of force passed to each neighbour.
-
-        threshold:
-            The force at which a block slips.
-
     Examples:
         >>> from skcomplex.models.earth.seismology import FaultElement
-        >>> FaultElement('block').alpha
-        0.2
+        >>> FaultElement('block').force
+        0.0
     """
 
     def __init__(
@@ -56,45 +56,9 @@ class FaultElement(Element):
         visual: VisualSpec | None = None,
         *,
         force: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        threshold: float = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.force = force
-        self.alpha = alpha
-        self.threshold = threshold
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the uniform loading and the slipping relaxation.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        threshold = self.threshold
-
-        def load(force: Array, *, random: np.random.Generator) -> Array:
-            following = force + (threshold - force.max())
-            following[np.unravel_index(np.argmax(force), force.shape)] = threshold
-            return following
-
-        def slip(force: Array, *around: Array, alpha: float | Array) -> Array:
-            passed = sum(np.where(item >= threshold, item, 0.0) for item in around)
-            return np.where(force >= threshold, 0.0, force) + alpha * passed
-
-        return [
-            CascadeLaw(
-                drive=[DriveLaw(s.force, load)],
-                relax=[LocalRuleLaw(s.force, NEAREST, slip)],
-                stable=lambda force: bool((force < threshold).all()),
-                activity=lambda force: force >= threshold,
-                label='earthquake',
-            ),
-        ]
 
 
 @register_model(
@@ -111,8 +75,10 @@ def earthquakes(
 ) -> System:
     """Return the Olami-Feder-Christensen earthquake model with open edges, started from random forces.
 
-    Its earthquakes are recorded as `earthquake` events with their sizes, the number of slips, their durations, and
-    their areas.
+    The fault is a cascade that resets a slipping block to zero and passes the fraction `alpha` of its force to each of
+    its four neighbours. With `alpha` below 1/4 the model is dissipative and its earthquake sizes still follow a power
+    law. Its earthquakes are recorded as `earthquake` events with their sizes, the number of slips, their durations,
+    and their areas.
 
     Args:
         shape:
@@ -130,13 +96,23 @@ def earthquakes(
 
     Examples:
         >>> from skcomplex.models.earth.seismology import earthquakes
-        >>> earthquakes((10, 10), alpha=0.15).elements[0].values['alpha']
+        >>> earthquakes((10, 10), alpha=0.15).interactions[0].share
         0.15
     """
     forces = np.random.default_rng(random_state).random(tuple(shape))
     space = LatticeSpace(tuple(shape), boundary='fixed')
     return System(
-        elements=[
-            LatticeElement('fault', element=FaultElement, space=space, values={'force': forces, 'alpha': alpha}),
+        elements=[LatticeElement('fault', element=FaultElement, space=space, values={'force': forces})],
+        interactions=[
+            CascadeInteraction(
+                'earthquake',
+                target='fault',
+                state='force',
+                threshold=THRESHOLD,
+                share=alpha,
+                mode='reset',
+                drive=_load,
+                neighborhood=VonNeumannNeighborhood(center=True),
+            ),
         ],
     )

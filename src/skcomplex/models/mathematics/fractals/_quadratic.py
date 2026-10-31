@@ -27,7 +27,32 @@ JULIA_WINDOW: Window = (-1.6, 1.6, -1.2, 1.2)
 
 
 class QuadraticMapElement(Element):
-    """Quadratic map element."""
+    """Complex quadratic map `z' = z^2 + c` while `|z|` stays within the escape radius, with a count of its steps.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        z:
+            The initial point.
+
+        n:
+            The initial number of steps within the escape radius.
+
+        c:
+            The constant of the map.
+
+        radius:
+            The escape radius.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.fractals import QuadraticMapElement
+        >>> QuadraticMapElement('point', c=0.25).c
+        0.25
+    """
 
     def __init__(
         self,
@@ -46,7 +71,16 @@ class QuadraticMapElement(Element):
         self.radius = radius
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the quadratic map element."""
+        """Return the next point, which stays once it escaped, and the next count.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
         return [
             UpdateLaw(s.z, where(abs(s.z) <= s.radius, s.z**2 + s.c, s.z)),
             UpdateLaw(s.n, s.n + where(abs(s.z) <= s.radius, 1, 0)),

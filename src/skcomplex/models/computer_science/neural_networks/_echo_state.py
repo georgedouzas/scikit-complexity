@@ -3,17 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
 import scipy.sparse
-from sage.all__sagemath_symbolics import oo, sin, tanh
+from sage.all__sagemath_symbolics import Expression, oo, sin, tanh
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, UpdateLaw
+from ....core.interactions import MapInteraction
 from ....core.laws.utils import total
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -38,10 +38,18 @@ def _recurrent_weights(
     return scipy.sparse.csr_array(weights * (spectral_radius / radius))
 
 
-class ReservoirUnitElement(Element):
-    """Leaky tanh unit of an echo state network, driven by the other units and by a sine input.
+def _leaky_tanh(s: SimpleNamespace, *, weights: scipy.sparse.csr_array) -> Expression:
+    """Return the next activity `(1 - a) r + a tanh(sum_j W_ij r_j + w A sin(f t))` of a unit."""
+    unit = s.target
+    drive = total(unit.r, weights=weights) + unit.w_in * unit.amplitude * sin(unit.frequency * s.t)
+    return (1 - unit.leak) * unit.r + unit.leak * tanh(drive)
 
-    The unit follows `r(t + 1) = (1 - a) r + a tanh(sum_j W_ij r_j + w u(t))` with the input `u(t) = A sin(f t)`.
+
+class ReservoirUnitElement(Element):
+    """Leaky tanh unit of an echo state network, with its activity and the weight, leak, and sine of its input.
+
+    The map of `echo_state_network` sets `r(t + 1) = (1 - a) r + a tanh(sum_j W_ij r_j + w u(t))` with the input
+    `u(t) = A sin(f t)`.
 
     Args:
         label:
@@ -65,9 +73,6 @@ class ReservoirUnitElement(Element):
         frequency:
             The angular frequency `f` of the input, per step.
 
-        weights:
-            The recurrent weights `W`, one row and one column per unit.
-
     Examples:
         >>> from skcomplex.models.computer_science.neural_networks import ReservoirUnitElement
         >>> ReservoirUnitElement('unit').leak
@@ -84,7 +89,6 @@ class ReservoirUnitElement(Element):
         leak: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
         amplitude: Annotated[float, ParameterSpec()] = 1.0,
         frequency: Annotated[float, ParameterSpec()] = 0.2,
-        weights: npt.ArrayLike | None = None,
     ) -> None:
         super().__init__(label, visual=visual)
         self.r = r
@@ -92,21 +96,6 @@ class ReservoirUnitElement(Element):
         self.leak = leak
         self.amplitude = amplitude
         self.frequency = frequency
-        self.weights = weights
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the leaky update of the activity.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        drive = total(s.r, weights=self.weights) + s.w_in * s.amplitude * sin(s.frequency * s.t)
-        return [UpdateLaw(s.r, (1 - s.leak) * s.r + s.leak * tanh(drive))]
 
 
 @register_model(
@@ -179,7 +168,12 @@ def echo_state_network(
             'leak': leak,
             'amplitude': amplitude,
             'frequency': frequency,
-            'weights': weights,
         },
     )
-    return System(elements=[units])
+    reservoir = MapInteraction(
+        'reservoir',
+        target='units',
+        state='r',
+        function=functools.partial(_leaky_tanh, weights=weights),
+    )
+    return System(elements=[units], interactions=[reservoir])

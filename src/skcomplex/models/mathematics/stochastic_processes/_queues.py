@@ -3,14 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, JumpLaw
+from ....core.interactions import JumpInteraction
 from ....core.laws.utils import where
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -18,9 +17,10 @@ from ..._catalog import register_model
 
 
 class QueueElement(Element):
-    """Queue at a desk, a birth-death process whose length grows by arrivals and shrinks by departures.
+    """Queue at a desk, the number of customers waiting, with the rates of their arrivals and departures.
 
-    Customers arrive at rate `arrival_rate` and leave at rate `service_rate` while the queue is not empty.
+    The jumps of the model read the rates: customers arrive at rate `arrival_rate` and leave at rate `service_rate`
+    while the queue is not empty.
 
     Args:
         label:
@@ -57,22 +57,6 @@ class QueueElement(Element):
         self.n = n
         self.arrival_rate = arrival_rate
         self.service_rate = service_rate
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the arrivals and the departures.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            JumpLaw(s.arrival_rate, {s.n: 1}),
-            JumpLaw(where(s.n > 0, s.service_rate, 0), {s.n: -1}),
-        ]
 
 
 @register_model(
@@ -123,4 +107,11 @@ def birth_death_queue(
         size=n_queues,
         values={'n': n, 'arrival_rate': arrival_rate, 'service_rate': service_rate},
     )
-    return System(elements=[queue])
+    arrivals = JumpInteraction('arrivals', target='queues', changes={'n': 1}, rate=lambda s: s.target.arrival_rate)
+    departures = JumpInteraction(
+        'departures',
+        target='queues',
+        changes={'n': -1},
+        rate=lambda s: where(s.target.n > 0, s.target.service_rate, 0),
+    )
+    return System(elements=[queue], interactions=[arrivals, departures])
