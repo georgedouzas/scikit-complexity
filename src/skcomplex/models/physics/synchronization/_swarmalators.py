@@ -8,71 +8,18 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
-from sage.all__sagemath_symbolics import cos, oo, pi, sin, sqrt
+from sage.all__sagemath_symbolics import cos, oo, sin, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement
+from ....core.elements import GroupElement
 from ....core.interactions import PairInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.solvers import RK4Solver
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, RoleSpec, VisualSpec
 from ..._catalog import register_model
-
-
-class SwarmalatorElement(Element):
-    """Oscillator in the plane with a position `x` and a phase `theta` that turns at the natural frequency `omega`.
-
-    Args:
-        label:
-            The label of the swarmalator or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial position.
-
-        theta:
-            The initial phase.
-
-        omega:
-            The natural frequency.
-
-    Examples:
-        >>> from skcomplex.models.physics.synchronization import SwarmalatorElement
-        >>> SwarmalatorElement('unit').omega
-        0.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('points', {'position': 'x', 'color_by': 'theta', 'radius': 0.03}),
-        *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True)] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
-        omega: Annotated[float, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.theta = theta
-        self.omega = omega
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the turning of the phase at the natural frequency.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.theta, s.omega)]
+from ..common.oscillators import SitedOscillatorElement
 
 
 class SwarmalatorCouplingInteraction(PairInteraction):
@@ -223,9 +170,10 @@ def swarmalators(
     rng = np.random.default_rng(random_state)
     units = GroupElement(
         'units',
-        element=SwarmalatorElement,
+        element=SitedOscillatorElement,
         size=n_units,
-        values={'x': rng.uniform(-1.0, 1.0, (n_units, 2)), 'theta': rng.uniform(-np.pi, np.pi, n_units)},
+        values={'x': rng.uniform(-1.0, 1.0, (n_units, 2)), 'theta': rng.uniform(-np.pi, np.pi, n_units), 'omega': 0.0},
+        visual=VisualSpec('points', {'position': 'x', 'color_by': 'theta', 'radius': 0.03}),
     )
     coupling = SwarmalatorCouplingInteraction(
         'coupling',

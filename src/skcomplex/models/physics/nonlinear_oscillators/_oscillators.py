@@ -6,8 +6,7 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import cos, oo, sin
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import cos, sin
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
@@ -15,23 +14,65 @@ from ....core.laws.utils import derivative
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.oscillators import StuartLandauElement, VanDerPolElement
 
 
 class DuffingElement(Element):
-    """Duffing element."""
+    """Forced Duffing oscillator `x'' = -delta x' - alpha x - beta x^3 + gamma cos(omega t)`.
+
+    For `alpha < 0 < beta` the potential has two wells, and a strong enough forcing drives the oscillator chaotically
+    between them.
+
+    Args:
+        label:
+            The label of the oscillator.
+
+        visual:
+            How the oscillator is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial displacement.
+
+        x_d1:
+            The initial velocity.
+
+        delta:
+            The damping.
+
+        alpha:
+            The linear stiffness.
+
+        beta:
+            The cubic stiffness.
+
+        gamma:
+            The amplitude of the forcing.
+
+        omega:
+            The frequency of the forcing.
+
+    Attributes:
+        default_visual_:
+            The visual of the oscillator when it sets none.
+
+    Examples:
+        >>> from skcomplex.models.physics.nonlinear_oscillators import DuffingElement
+        >>> DuffingElement('duffing').alpha
+        -1.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec(order=2)] = 1.0,
+        x: Annotated[float, StateSpec(order=2)] = 1.0,
         x_d1: float = 0.0,
-        delta: Annotated[object, ParameterSpec()] = 0.3,
-        alpha: Annotated[object, ParameterSpec()] = -1.0,
-        beta: Annotated[object, ParameterSpec()] = 1.0,
-        gamma: Annotated[object, ParameterSpec()] = 0.5,
-        omega: Annotated[object, ParameterSpec()] = 1.2,
+        delta: Annotated[float, ParameterSpec()] = 0.3,
+        alpha: Annotated[float, ParameterSpec()] = -1.0,
+        beta: Annotated[float, ParameterSpec()] = 1.0,
+        gamma: Annotated[float, ParameterSpec()] = 0.5,
+        omega: Annotated[float, ParameterSpec()] = 1.2,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
@@ -42,51 +83,64 @@ class DuffingElement(Element):
         self.gamma = gamma
         self.omega = omega
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the duffing element."""
-        return [
-            RateLaw(
-                s.x,
-                -s.delta * derivative(s.x, 1) - s.alpha * s.x - s.beta * s.x**3 + s.gamma * cos(s.omega * s.t),
-            ),
-        ]
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the acceleration of the oscillator.
 
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
 
-class VanDerPolElement(Element):
-    """Van der pol element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec(order=2)] = 2.0,
-        x_d1: float = 0.0,
-        mu: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.x_d1 = x_d1
-        self.mu = mu
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the van der pol element."""
-        return [RateLaw(s.x, s.mu * (1 - s.x**2) * derivative(s.x, 1) - s.x)]
+        Returns:
+            laws:
+                The rate of the second derivative of `x`.
+        """
+        s = namespace
+        forcing = s.gamma * cos(s.omega * s.t)
+        return [RateLaw(s.x, -s.delta * derivative(s.x, 1) - s.alpha * s.x - s.beta * s.x**3 + forcing)]
 
 
 class HenonHeilesElement(Element):
-    """Henon heiles element."""
+    """Star in the Hénon-Heiles potential `V = (x^2 + y^2) / 2 + x^2 y - y^3 / 3`, with `x'' = -dV/dx`, `y'' = -dV/dy`.
 
-    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None})
+    Below the escape energy `1 / 6` the motion is regular for small energies and mostly chaotic near the escape energy.
+
+    Args:
+        label:
+            The label of the star.
+
+        visual:
+            How the star is drawn.
+
+        x:
+            The initial first coordinate.
+
+        x_d1:
+            The initial first momentum.
+
+        y:
+            The initial second coordinate.
+
+        y_d1:
+            The initial second momentum.
+
+    Attributes:
+        default_visual_:
+            The visual of the star when it sets none.
+
+    Examples:
+        >>> from skcomplex.models.physics.nonlinear_oscillators import HenonHeilesElement
+        >>> HenonHeilesElement('star').x_d1
+        0.35
+    """
 
     def __init__(
         self,
         label: str,
-        visual: VisualSpec | None = None,
+        visual: VisualSpec | None = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None}),
         *,
-        x: Annotated[object, StateSpec(order=2, initial=(0.35,))] = 0.0,
+        x: Annotated[float, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.35,
-        y: Annotated[object, StateSpec(order=2)] = 0.1,
+        y: Annotated[float, StateSpec(order=2)] = 0.1,
         y_d1: float = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
@@ -95,86 +149,79 @@ class HenonHeilesElement(Element):
         self.y = y
         self.y_d1 = y_d1
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the henon heiles element."""
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the accelerations of the two coordinates.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rates of the second derivatives of `x` and `y`.
+        """
+        s = namespace
         return [RateLaw(s.x, -s.x - 2 * s.x * s.y), RateLaw(s.y, -s.y - s.x**2 + s.y**2)]
 
 
-class StuartLandauElement(Element):
-    """Stuart landau element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 1.0,
-        y: Annotated[object, StateSpec()] = 0.0,
-        mu: Annotated[object, ParameterSpec()] = 1.0,
-        omega: Annotated[object, ParameterSpec()] = 1.0,
-        beta: Annotated[object, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.mu = mu
-        self.omega = omega
-        self.beta = beta
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the stuart landau element."""
-        return [
-            RateLaw(s.x, s.mu * s.x - s.omega * s.y - (s.x**2 + s.y**2) * (s.x - s.beta * s.y)),
-            RateLaw(s.y, s.mu * s.y + s.omega * s.x - (s.x**2 + s.y**2) * (s.y + s.beta * s.x)),
-        ]
-
-
-class ForcedVanDerPolElement(Element):
-    """Forced van der pol element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec(order=2)] = 2.0,
-        x_d1: float = 0.0,
-        mu: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        A: Annotated[object, ParameterSpec()] = 1.0,
-        omega: Annotated[object, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.x_d1 = x_d1
-        self.mu = mu
-        self.A = A
-        self.omega = omega
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the forced van der pol element."""
-        return [RateLaw(s.x, s.mu * (1 - s.x**2) * derivative(s.x, 1) - s.x + s.A * cos(s.omega * s.t))]
-
-
 class AdlerPhaseElement(Element):
-    """Adler phase element."""
+    """Phase difference of a forced oscillator, `phi' = detuning + epsilon sin(phi)`, the Adler equation.
+
+    The phase locks at a fixed point when `|detuning| <= epsilon`, and slips with the period
+    `2 pi / sqrt(detuning^2 - epsilon^2)` otherwise.
+
+    Args:
+        label:
+            The label of the phase difference.
+
+        visual:
+            How the phase difference is drawn, or `None` for `default_visual_`.
+
+        phi:
+            The initial phase difference.
+
+        detuning:
+            The detuning of the natural frequency from the forcing.
+
+        epsilon:
+            The strength of the forcing.
+
+    Attributes:
+        default_visual_:
+            The visual of the phase difference when it sets none.
+
+    Examples:
+        >>> from skcomplex.models.physics.nonlinear_oscillators import AdlerPhaseElement
+        >>> AdlerPhaseElement('difference').detuning
+        0.5
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        phi: Annotated[object, StateSpec()] = 0.0,
-        detuning: Annotated[object, ParameterSpec()] = 0.5,
-        epsilon: Annotated[object, ParameterSpec()] = 1.0,
+        phi: Annotated[float, StateSpec()] = 0.0,
+        detuning: Annotated[float, ParameterSpec()] = 0.5,
+        epsilon: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.phi = phi
         self.detuning = detuning
         self.epsilon = epsilon
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the adler phase element."""
-        return [RateLaw(s.phi, s.detuning + s.epsilon * sin(s.phi))]
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rate of the phase difference.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate of `phi`.
+        """
+        return [RateLaw(namespace.phi, namespace.detuning + namespace.epsilon * sin(namespace.phi))]
 
 
 @register_model(
@@ -390,7 +437,7 @@ def forced_van_der_pol(
         >>> forced_van_der_pol(A=0.5).elements[0].A
         0.5
     """
-    return System(elements=[ForcedVanDerPolElement('oscillator', x=x, x_d1=v, mu=mu, A=A, omega=omega)])
+    return System(elements=[VanDerPolElement('oscillator', x=x, x_d1=v, mu=mu, A=A, omega=omega)])
 
 
 @register_model(

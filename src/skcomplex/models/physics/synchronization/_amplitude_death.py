@@ -11,75 +11,70 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import mean
+from ....core.elements import GroupElement
+from ....core.interactions import CouplingInteraction
 from ....core.system import System
 from ....errors import ValidationError
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec, ParameterSpec, RoleSpec
 from ..._catalog import register_model
+from ..common.oscillators import StuartLandauElement
 
 QUANTILE_GRID_SIZE = 20001
 DISTRIBUTIONS = ('lorentzian', 'quartic')
 
 
-def _stuart_landau_rates(s: SimpleNamespace) -> tuple[Expression, Expression]:
-    """Return the real and imaginary parts of `τ ((β + iω) z - |z|² z)` for `z = x + iy`."""
-    growth = s.beta - s.x**2 - s.y**2
-    return s.tau * (growth * s.x - s.omega * s.y), s.tau * (growth * s.y + s.omega * s.x)
+class GlobalCouplingInteraction(CouplingInteraction):
+    """Diffusive coupling of one state of every member to the mean of the group, `x_i' += K (mean_j x_j - x_i)`.
 
+    The mean runs over every member, the member itself included.
 
-class StuartLandauElement(Element):
-    """Stuart landau element."""
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
 
-    visual = VisualSpec('points', {'position': 'x', 'states': ()})
+        target:
+            The path of the group.
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec()] = 1.0,
-        y: Annotated[object, StateSpec()] = 0.0,
-        beta: Annotated[object, ParameterSpec()] = 1.0,
-        omega: Annotated[object, ParameterSpec()] = 0.0,
-        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.beta = beta
-        self.omega = omega
-        self.tau = tau
+        state:
+            The name of the coupled state.
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the stuart landau element."""
-        return [RateLaw(s.x, _stuart_landau_rates(s)[0]), RateLaw(s.y, _stuart_landau_rates(s)[1])]
+        K:
+            The coupling strength.
 
-
-class GlobalCouplingInteraction(Interaction):
-    """Global coupling interaction."""
+    Examples:
+        >>> from types import SimpleNamespace
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.models.physics.synchronization import GlobalCouplingInteraction
+        >>> coupling = GlobalCouplingInteraction('coupling', target='oscillators', state='y').check().prepare()
+        >>> member, other = SimpleNamespace(y=var('y')), SimpleNamespace(y=var('z'))
+        >>> coupling.function(SimpleNamespace(K=var('K'), member=member, other=other))
+        -K*(y - z)
+    """
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[object, RoleSpec()],
-        source: Annotated[object, RoleSpec()],
-        K: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        target: Annotated[str, RoleSpec()],
+        state: str = 'x',
+        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.source = source
+        super().__init__(
+            label,
+            target=target,
+            read=state,
+            write=state,
+            function=self._pull,
+            reduce='mean',
+            mode='group',
+            include_self=True,
+        )
+        self.state = state
         self.K = K
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the global coupling interaction."""
-        return [
-            RateLaw(s.target.x, s.K * (mean(s.source.x) - s.target.x)),
-            RateLaw(s.target.y, s.K * (mean(s.source.y) - s.target.y)),
-        ]
+    def _pull(self, namespace: SimpleNamespace) -> Expression:
+        """Return the pull `K (x_j - x_i)` of one other member."""
+        return namespace.K * (getattr(namespace.other, self.state) - getattr(namespace.member, self.state))
 
 
 def _amplitude(member: SimpleNamespace) -> Expression:
@@ -194,11 +189,13 @@ def oscillator_death(
         'oscillators',
         element=StuartLandauElement,
         size=n_oscillators,
-        values={'x': x, 'y': y, 'beta': 1.0, 'omega': omegas, 'tau': 1.0},
+        values={'x': x, 'y': y, 'mu': 1.0, 'omega': omegas, 'tau': 1.0},
     )
     return System(
         elements=[oscillators],
-        interactions=[GlobalCouplingInteraction('coupling', target='oscillators', source='oscillators', K=K)],
+        interactions=[
+            GlobalCouplingInteraction(f'coupling_{state}', target='oscillators', state=state, K=K) for state in 'xy'
+        ],
     )
 
 
@@ -270,9 +267,11 @@ def heterogeneous_global_coupling(
         'systems',
         element=StuartLandauElement,
         size=n_systems,
-        values={'x': radius * x, 'y': radius * y, 'beta': beta, 'omega': gamma, 'tau': taus},
+        values={'x': radius * x, 'y': radius * y, 'mu': beta, 'omega': gamma, 'tau': taus},
     )
     return System(
         elements=[systems],
-        interactions=[GlobalCouplingInteraction('coupling', target='systems', source='systems', K=k)],
+        interactions=[
+            GlobalCouplingInteraction(f'coupling_{state}', target='systems', state=state, K=k) for state in 'xy'
+        ],
     )
