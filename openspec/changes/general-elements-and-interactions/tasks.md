@@ -54,7 +54,7 @@ Each task rewrites the classes of one cluster in `inventory.md` to the core clas
 
 ## 5. Group mechanisms on hyperedges
 
-- [ ] 5.1 Check whether a run can change a network's hyperedges through the model view, as reshuffled groups need, and record the answer in design.md; verify with a test that redraws the hyperedges of a small network between rounds, or report the gap.
+- [x] 5.1 Check whether a run can change a network's hyperedges through the model view, as reshuffled groups need, and record the answer in design.md; verify with a test that redraws the hyperedges of a small network between rounds, or report the gap.
 - [ ] 5.2 Port the Galam discussions, public-goods groups, Kolkata restaurants, minority game, and El Farol bar of section H to `HyperedgeInteraction` subclasses; verify their tests, including the Galam majority rule, and keep any model that needs reshuffling on `RuleLaw` only if 5.1 reported the gap.
 
 ## 6. Specs, docs, and integration

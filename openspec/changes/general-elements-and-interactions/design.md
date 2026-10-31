@@ -148,4 +148,7 @@ soon as the agent reports and its tests pass. Moved public names are not kept as
 ## Open Questions
 
 - Whether compilation supports changing a network's hyperedges during a run, which the reshuffled group mechanisms
-  need. The task that ports them checks this first and reports if it does not.
+  need. Answered by task 5.1: the engine validates that a hyperedge interaction binds members of a network with
+  hyperedges, but compiles its laws as those of a plain interaction, once per member, and ignores the hyperedges. Laws
+  run once per hyperedge are the scope of the pending `add-higher-order-interactions` change, so the group mechanisms
+  of section H are blocked by it, whether or not their groups are reshuffled.
