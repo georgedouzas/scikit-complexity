@@ -9,18 +9,20 @@ from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ, oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
+from ....core.interactions import ChoiceInteraction, Interaction
 from ....core.laws import BaseLaw, RuleLaw
+from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import IntArray
 from ..._catalog import register_model
 from ._game_state_spec import _GameStateSpec
-from ._speculator_view import SpeculatorView
+from ._minority_player_view import MinorityPlayerView
 
 MAX_SEED = 2**31
 
@@ -50,8 +52,8 @@ def strategy_table(code: float, memory: int) -> IntArray:
     return np.random.default_rng(int(code)).integers(0, 2, 2**memory)
 
 
-class SpeculatorElement(Element):
-    """Agent of the minority game, who holds two strategies and plays the one with the higher virtual score.
+class MinorityPlayerElement(Element):
+    """Agent of the minority game, who holds two strategies and plays the one it chose.
 
     Args:
         label:
@@ -72,6 +74,9 @@ class SpeculatorElement(Element):
         second_score:
             The virtual score of the second strategy.
 
+        strategy:
+            The strategy played, 0 for the first and 1 for the second.
+
         action:
             The last action, `+1` or `-1`.
 
@@ -79,8 +84,8 @@ class SpeculatorElement(Element):
             The net number of times the agent was in the minority.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import SpeculatorElement
-        >>> GroupElement('players', element=SpeculatorElement, size=11, values={'first': 3, 'second': 5}).size
+        >>> from skcomplex.models.economics.econophysics import MinorityPlayerElement
+        >>> GroupElement('players', element=MinorityPlayerElement, size=11, values={'first': 3, 'second': 5}).size
         11
     """
 
@@ -93,6 +98,7 @@ class SpeculatorElement(Element):
         second: Annotated[float, StateSpec(domain=NN)] = 1,
         first_score: Annotated[float, StateSpec()] = 0.0,
         second_score: Annotated[float, StateSpec()] = 0.0,
+        strategy: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         action: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
         wealth: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
@@ -101,24 +107,26 @@ class SpeculatorElement(Element):
         self.second = second
         self.first_score = first_score
         self.second_score = second_score
+        self.strategy = strategy
         self.action = action
         self.wealth = wealth
 
     @classmethod
-    def _get_view(cls) -> type[SpeculatorView]:
+    def _get_view(cls) -> type[MinorityPlayerView]:
         """Return the view of the agents of the element."""
-        return SpeculatorView
+        return MinorityPlayerView
 
 
 class MinorityGameInteraction(Interaction):
     """Rounds of the minority game of Challet and Zhang, where the agents on the minority side win.
 
-    Every round each agent plays the action, `+1` or `-1`, that its best strategy assigns to the last `m` winning
-    sides. The side with fewer agents wins, every agent on it gains one point and every other loses one, and every
-    strategy gains one virtual point when it would have played the winning side. The volatility `sigma^2 / N` of the
-    attendance `A = sum_i a_i` has a minimum below the value of random play near `alpha = 2^m / N ~ 0.34`. In the
-    evolutionary version, every `period` rounds the poorest fraction of the agents replace their strategies by new
-    random ones and restart with no wealth.
+    Every round each agent plays the action, `+1` or `-1`, that its chosen strategy assigns to the last `m` winning
+    sides, the strategy of higher virtual score that a `ChoiceInteraction` of rule `'best'` chooses before. The side
+    with fewer agents wins, every agent on it gains one point and every other loses one, and every strategy gains one
+    virtual point when it would have played the winning side. The volatility `sigma^2 / N` of the attendance
+    `A = sum_i a_i` has a minimum below the value of random play near `alpha = 2^m / N ~ 0.34`. In the evolutionary
+    version, every `period` rounds the poorest fraction of the agents replace their strategies by new random ones and
+    restart with no wealth.
 
     Args:
         label:
@@ -136,6 +144,9 @@ class MinorityGameInteraction(Interaction):
         period:
             The number of rounds between two evolutions, or 0 for no evolution.
 
+        phase:
+            The phase the rounds run in, or `None` for the default phase.
+
     Examples:
         >>> from skcomplex.models.economics.econophysics import MinorityGameInteraction
         >>> MinorityGameInteraction('game', players='players', memory=4).memory
@@ -152,12 +163,14 @@ class MinorityGameInteraction(Interaction):
         fraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         memory: int = 3,
         period: int = 0,
+        phase: str | None = None,
     ) -> None:
         super().__init__(label)
         self.players = players
         self.fraction = fraction
         self.memory = memory
         self.period = period
+        self.phase = phase
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of a round.
@@ -170,7 +183,7 @@ class MinorityGameInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        return [RuleLaw(self.play)]
+        return [RuleLaw(self.play, phase=self.phase)]
 
     def _table(self, code: float, model: ModelView) -> IntArray:
         """Return the table of a strategy, cached for the run in the state of the game."""
@@ -188,15 +201,13 @@ class MinorityGameInteraction(Interaction):
             model.storage['game'] = state
         return state
 
-    def _choose(self, agent: SpeculatorView, history: int, model: ModelView) -> tuple[int, int]:
-        """Set the action of an agent and return the actions of its two strategies."""
+    def _get_actions(self, agent: MinorityPlayerView, history: int, model: ModelView) -> tuple[int, int]:
+        """Set the action of an agent by its chosen strategy and return the actions of its two strategies."""
         actions = (
             2 * int(self._table(agent.first, model)[history]) - 1,
             2 * int(self._table(agent.second, model)[history]) - 1,
         )
-        difference = agent.first_score - agent.second_score
-        best = int(model.rng.integers(2)) if difference == 0 else int(difference < 0)
-        agent.action = float(actions[best])
+        agent.action = float(actions[int(agent.strategy)])
         return actions
 
     def play(self, model: ModelView) -> None:
@@ -206,14 +217,14 @@ class MinorityGameInteraction(Interaction):
             model:
                 The model.
         """
-        agents = model.agents('players', SpeculatorView)
+        agents = model.agents('players', MinorityPlayerView)
         n_histories = 2**self.memory
         drawn = int(model.rng.integers(n_histories))
         state = model.storage.get('game')
         if not isinstance(state, _GameStateSpec):
             model.storage['game'] = _GameStateSpec(drawn)
         history = self._state(model).history
-        strategies = [self._choose(agent, history, model) for agent in agents]
+        strategies = [self._get_actions(agent, history, model) for agent in agents]
         attendance = sum(agent.action for agent in agents)
         winner = -1 if attendance > 0 else 1
         for agent, (first, second) in zip(agents, strategies, strict=True):
@@ -227,7 +238,7 @@ class MinorityGameInteraction(Interaction):
         if self.period and state.round % self.period == 0:
             self._evolve(agents, model)
 
-    def _evolve(self, agents: list[SpeculatorView], model: ModelView) -> None:
+    def _evolve(self, agents: list[MinorityPlayerView], model: ModelView) -> None:
         """Give the poorest agents new random strategies and no wealth."""
         wealth = np.array([agent.wealth for agent in agents], dtype=float)
         count = round(model.parameter('fraction') * len(agents))
@@ -275,7 +286,8 @@ def minority_game(
 
     Returns:
         system:
-            The model, with the group `players` and the interaction `game`, which reports the attendance
+            The model, with the group `players`, the choice `choice` of the strategy of higher virtual score, and the
+            interaction `game`, which reports the attendance
             `game.attendance`.
 
     Raises:
@@ -284,7 +296,7 @@ def minority_game(
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import minority_game
-        >>> minority_game(11, memory=2).interactions[0].memory
+        >>> minority_game(11, memory=2).interactions[1].memory
         2
     """
     if n_agents % 2 == 0:
@@ -293,10 +305,31 @@ def minority_game(
     codes = np.random.default_rng(random_state).integers(MAX_SEED, size=(2, n_agents)).astype(float)
     players = GroupElement(
         'players',
-        element=SpeculatorElement,
+        element=MinorityPlayerElement,
         size=n_agents,
         values={'first': codes[0], 'second': codes[1]},
     )
     period = period if evolutionary else 0
-    game = MinorityGameInteraction('game', players='players', memory=memory, period=period, fraction=fraction)
-    return System(elements=[players], interactions=[game])
+    choice = ChoiceInteraction(
+        'choice',
+        target='players',
+        state='strategy',
+        options=(0.0, 1.0),
+        utility=lambda agent, model, option: agent.second_score if option else agent.first_score,
+        rule='best',
+        form='agent',
+        phase='choose',
+    )
+    game = MinorityGameInteraction(
+        'game',
+        players='players',
+        memory=memory,
+        period=period,
+        fraction=fraction,
+        phase='play',
+    )
+    return System(
+        elements=[players],
+        interactions=[choice, game],
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('choose'), PhaseSpec('play')])),
+    )
