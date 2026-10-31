@@ -11,14 +11,18 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
+from ....core.interactions import (
+    FeedbackInteraction,
+    MatchingInteraction,
+    PriceTimePriorityProtocol,
+    UniformPriceProtocol,
+)
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
-from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....specs import MatchSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.institutions import InstitutionInteraction
-from ..common.markets import CallAuctionProtocol, MarketInteraction, OrderBookProtocol, Trade
 from ._zero_intelligence_buyer_view import ZeroIntelligenceBuyerView
 from ._zero_intelligence_seller_view import ZeroIntelligenceSellerView
 
@@ -50,10 +54,10 @@ def maximum_surplus(values: np.ndarray, costs: np.ndarray) -> float:
     return float(np.maximum(demand[:size] - supply[:size], 0).sum())
 
 
-def _book_profit(trade: Trade, model: ModelView) -> None:
+def _book_profit(trade: MatchSpec, model: ModelView) -> None:
     """Add the surplus of a trade to the profits of the buyer and the seller."""
     del model
-    buyer, seller = trade.buyer, trade.seller
+    buyer, seller = trade.requester, trade.provider
     if not isinstance(buyer, ZeroIntelligenceBuyerView) or not isinstance(seller, ZeroIntelligenceSellerView):
         return
     buyer.profit += trade.quantity * (buyer.value - trade.price)
@@ -238,7 +242,7 @@ class ZeroIntelligenceSellerElement(Element):
         agent.ask = float(model.rng.uniform(bottom, max(bottom, model.parameter('ceiling'))))
 
 
-class AuctionLedgerInteraction(InstitutionInteraction):
+class AuctionLedgerInteraction(FeedbackInteraction[ModelView]):
     """Ledger that closes every trading period: it measures its surplus and gives every trader a new unit.
 
     The realised surplus is the value of the units bought minus the cost of the units sold, and the allocative
@@ -360,15 +364,15 @@ def double_auction(
         size=n_sellers,
         values={'value': costs, 'ceiling': ceiling, 'constrained': limit},
     )
-    market = MarketInteraction(
+    market = MatchingInteraction(
         'auction',
-        buyers='buyers',
-        sellers='sellers',
-        protocol=OrderBookProtocol() if protocol == 'order_book' else CallAuctionProtocol(),
+        requesters='buyers',
+        providers='sellers',
+        protocol=PriceTimePriorityProtocol() if protocol == 'order_book' else UniformPriceProtocol(),
+        limit=('bid', 'ask'),
+        quantity=('demand', 'supply'),
         phase='trade',
-        money=None,
-        goods=None,
-        on_trade=_book_profit,
+        on_match=_book_profit,
     )
     return System(
         elements=[buyers, sellers],

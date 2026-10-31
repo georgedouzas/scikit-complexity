@@ -28,6 +28,7 @@ from ._layout_spec import LayoutSpec
 from ._local_operator_spec import LocalOperatorSpec
 from ._lookup_spec import LookupSpec
 from ._lowered_functions_spec import LoweredFunctionsSpec
+from ._match_spec import MatchSpec
 from ._matrix_law_spec import MatrixLawSpec
 from ._move_spec import MOVES, MoveSpec
 from ._neighbor_read_spec import NeighborReadSpec
@@ -108,6 +109,7 @@ __all__ = [
     'LocalOperatorSpec',
     'LookupSpec',
     'LoweredFunctionsSpec',
+    'MatchSpec',
     'MatrixLawSpec',
     'MoveSpec',
     'NeighborReadSpec',

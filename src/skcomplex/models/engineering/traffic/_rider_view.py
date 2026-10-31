@@ -12,5 +12,5 @@ class RiderView(AgentView):
     destination_x: float
     destination_y: float
     waited: float
-    assigned: float
+    seats: float
     money: float

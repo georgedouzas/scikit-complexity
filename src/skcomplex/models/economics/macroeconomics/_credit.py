@@ -12,21 +12,21 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
+from ....core.interactions import MatchingInteraction, PartnerSwitchProtocol
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
-from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....specs import MatchSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.markets import MarketInteraction, SampleAndSwitchProtocol, Trade
 from ._bank_view import BankView
 from ._firm_view import FirmView
 
 
-def _lend(trade: Trade, model: ModelView) -> None:
+def _lend(trade: MatchSpec, model: ModelView) -> None:
     """Record a loan on the books of the firm and of the bank."""
     del model
-    firm, bank = trade.buyer, trade.seller
+    firm, bank = trade.requester, trade.provider
     if not isinstance(firm, FirmView) or not isinstance(bank, BankView):
         error_msg = 'A loan is a trade of a firm with a bank.'
         raise TypeError(error_msg)
@@ -300,67 +300,70 @@ class BankElement(Element):
         agent.lent, agent.losses = 0.0, 0.0
 
 
-class CreditMarketInteraction(MarketInteraction):
+class CreditMarketInteraction(MatchingInteraction[ModelView]):
     """Credit market that also reports the spread of the rates firms pay over the cheapest bank's rate.
 
-    The spread is the mean of `r_i / r_min - 1` over the borrowing firms, the dispersion of rates that a market
-    with costly search leaves and that switching to cheaper lenders erodes.
+    The firms request loans and the banks provide them. The spread is the mean of `r_i / r_min - 1` over the borrowing
+    firms, the dispersion of rates that a market with costly search leaves and that switching to cheaper lenders
+    erodes.
 
     Args:
         label:
             The label of the market.
 
-        buyers:
+        requesters:
             The path of the group of firms.
 
-        sellers:
+        providers:
             The path of the group of banks.
 
         protocol:
-            The protocol that matches firms with banks, such as `SampleAndSwitchProtocol()`.
+            The protocol that matches firms with banks, such as `PartnerSwitchProtocol()`, or `None` for
+            `RandomSearchProtocol()`.
+
+        limit:
+            The state with the rate of both sides, or a pair of the firms' and the banks' states.
+
+        quantity:
+            The state with the loan of both sides, or a pair of the firms' and the banks' states.
+
+        budget:
+            The state of a firm with what it can spend.
+
+        transfers:
+            The states every loan moves, each with the sign `-1` for a payment of the firm or `1` for a delivery to
+            it.
 
         phase:
             The phase the market clears in, or `None` for the default phase.
 
-        bid:
-            The state of a firm with the highest rate it pays.
-
-        ask:
-            The state of a bank with the rate it asks.
-
-        demand:
-            The state of a firm with the loan it wants.
-
-        supply:
-            The state of a bank with the loans it can grant.
-
-        money:
-            The state that pays for trades, or `None` for no payment.
-
-        goods:
-            The state that holds the traded goods, or `None` for no delivery.
-
-        on_trade:
-            A function of every trade and the model view, run after the transfers, or `None`.
+        on_match:
+            A function of every loan and the model view, run after the transfers, or `None`.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import CreditMarketInteraction
-        >>> CreditMarketInteraction('credit', buyers='firms', sellers='banks').reports[-1]
+        >>> CreditMarketInteraction('credit', requesters='firms', providers='banks').reports[-1]
         'spread'
     """
 
-    reports: ClassVar[tuple[str, ...]] = (*MarketInteraction.reports, 'spread')
+    reports: ClassVar[tuple[str, ...]] = (*MatchingInteraction.reports, 'spread')
 
-    def clear(self, model: ModelView) -> None:
-        """Clear the market and report the spread of the rates paid over the cheapest rate.
+    def _report_matches(self, matches: list[MatchSpec], unmatched: float, model: ModelView) -> None:
+        """Report the price, the volume, the unmatched quantity, and the spread of the rates over the cheapest rate.
 
         Args:
+            matches:
+                The loans of the clearing.
+
+            unmatched:
+                The quantity of both sides left after the clearing.
+
             model:
                 The model view of the market.
         """
-        super().clear(model)
-        cheapest = min((bank.ask for bank in model.agents('sellers', BankView) if bank.ask > 0), default=0.0)
-        paid = [firm.rate for firm in model.agents('buyers', FirmView) if firm.loan > 0]
+        super()._report_matches(matches, unmatched, model)
+        cheapest = min((bank.ask for bank in model.agents('providers', BankView) if bank.ask > 0), default=0.0)
+        paid = [firm.rate for firm in model.agents('requesters', FirmView) if firm.loan > 0]
         spread = float(np.mean(paid) / cheapest - 1) if paid and cheapest > 0 else float('nan')
         model.report('spread', spread)
 
@@ -478,13 +481,13 @@ def credit_networks(
     )
     market = CreditMarketInteraction(
         'credit',
-        buyers='firms',
-        sellers='banks',
-        protocol=SampleAndSwitchProtocol(sample=sample, intensity=intensity),
+        requesters='firms',
+        providers='banks',
+        protocol=PartnerSwitchProtocol(sample=sample, intensity=intensity),
+        limit=('bid', 'ask'),
+        quantity=('demand', 'supply'),
         phase='credit',
-        money=None,
-        goods=None,
-        on_trade=_lend,
+        on_match=_lend,
     )
     return System(
         elements=[borrowers, lenders],

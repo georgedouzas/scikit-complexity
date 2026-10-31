@@ -12,14 +12,22 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
+from ....core.interactions import FeedbackInteraction, MatchingInteraction, StableMatchingProtocol
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
-from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import (
+    MatchSpec,
+    ObservableSpec,
+    ParameterSpec,
+    PhaseSpec,
+    PhasesScheduleSpec,
+    RoleSpec,
+    StateSpec,
+    VisualSpec,
+)
 from ..._catalog import register_model
-from ..common.institutions import InstitutionInteraction
-from ..common.markets import DeferredAcceptanceProtocol, MarketInteraction, Trade
 from ._employer_view import EmployerView
 from ._jobseeker_view import JobseekerView
 
@@ -228,24 +236,24 @@ class JobseekerElement(Element):
         agent.duration += 1
 
 
-def hire(trade: Trade, model: ModelView) -> None:
+def hire(trade: MatchSpec, model: ModelView) -> None:
     """Record the employer, the wage, and the steps of the hire and of its offer on the hired worker.
 
     Args:
         trade:
-            The match of a firm, the buyer of labour, with a worker, the seller.
+            The match of a firm, the requester of labour, with a worker, its provider.
 
         model:
             The model view of the market.
     """
-    worker, firm = trade.seller, trade.buyer
+    worker, firm = trade.provider, trade.requester
     if not isinstance(worker, JobseekerView) or not isinstance(firm, EmployerView):
         return
     worker.employer, worker.wage, worker.duration = float(firm.id), trade.price, 0.0
     worker.hired, worker.offer = model.time, firm.posted
 
 
-class SearchCountInteraction(InstitutionInteraction):
+class SearchCountInteraction(FeedbackInteraction[ModelView]):
     """Statistics office that counts the workers searching in a step before the labour market clears.
 
     Args:
@@ -390,15 +398,15 @@ def labour_market(
             'decline': decline,
         },
     )
-    market = MarketInteraction(
+    market = MatchingInteraction(
         'labour',
-        buyers='firms',
-        sellers='workers',
-        protocol=DeferredAcceptanceProtocol(pricing='bid'),
+        requesters='firms',
+        providers='workers',
+        protocol=StableMatchingProtocol(pricing='requester'),
+        limit=('bid', 'ask'),
+        quantity=('demand', 'supply'),
         phase='matching',
-        money=None,
-        goods=None,
-        on_trade=hire,
+        on_match=hire,
     )
     return System(
         elements=[firms, workers],

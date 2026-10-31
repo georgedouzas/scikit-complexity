@@ -1,4 +1,4 @@
-"""Define the types of the core: the targets of laws, the pairings of matches, and the protocols of the core."""
+"""Define the types of the core: the targets of laws, the pairings and preferences of matches, and the protocols."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,6 +22,7 @@ type Target = Expression | FreeModuleElement
 type Process = str | tuple[str, ...] | Expression | FreeModuleElement | None
 type Pairing = Callable[[Sequence[object], Sequence[object], np.random.Generator, int], list[tuple[object, object]]]
 type Reach = LatticeNeighborhood | MemoryNeighborhood
+type Preference = Callable[[object, object], float]
 
 
 @runtime_checkable
@@ -87,7 +88,11 @@ class SubshiftProtocol(Protocol):
 
 @runtime_checkable
 class AgentViewProtocol(Protocol):
-    """Agent as agent rules read it, such as `AgentView` of the agent stepper: its location, moves, and life."""
+    """Agent as agent rules read it, such as `AgentView` of the agent stepper: its id, location, moves, and life."""
+
+    @property
+    def id(self) -> int:
+        """Unique id of the agent."""
 
     @property
     def location(self) -> object:
@@ -127,3 +132,6 @@ class ModelViewProtocol(Protocol):
 
     def parameter(self, name: str) -> float:
         """Return the current value of a parameter of the owner."""
+
+    def report(self, name: str, value: float) -> None:
+        """Publish a value of the owner as the reporter `<owner>.<name>`."""

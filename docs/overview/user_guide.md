@@ -3366,20 +3366,22 @@ agents learn from their past.
   writes apply at its end. `RuleLaw(function, phase=name)` puts a rule in a phase. Rules without a phase run in the
   phase `'default'`, which runs first unless the system lists it, so systems without phases keep one random activation
   per step.
-- `MarketInteraction(label, buyers=..., sellers=..., protocol=...)`, from
-  `skcomplex.models.economics.common.markets`, matches two groups. Buyers state their limit `bid` and
-  `demand`, and sellers their `ask` and `supply`. The protocols are `BilateralSearchProtocol`, the default,
-  `SampleAndSwitchProtocol` (partner choice with switching), `RationedQueueProtocol`, `WalrasianProtocol`
-  (tâtonnement), `OrderBookProtocol` (price-time priority), `CallAuctionProtocol` (one uniform price), and
-  `DeferredAcceptanceProtocol` (stable matching by the `matching` library). A protocol is a configurable object:
-  `protocol.check().prepare().run(ClearingSpec(buyers, sellers, rng, storage))` sets its `trades_`. Every trade moves
-  `money` to the seller and `goods` to the buyer at once, within the buyer's budget. The market reports
-  `<market>.price`, `<market>.volume`, and `<market>.unmatched`.
-- An `InstitutionInteraction`, from `skcomplex.models.economics.common.institutions`, acts once per round of its
-  phase with its method `act`. It reads `model.observable(name)`, reporters through `model.history(name, window)`, and
-  agents, and it sets parameters of any element or interaction with `model.set_parameter(name, value)`. Rules see the
-  change at once, and the trajectory records it. A subclass that declares its own parameters takes them as annotated
-  arguments of its `__init__` next to `rule` and `phase`.
+- `MatchingInteraction(label, requesters=..., providers=..., protocol=...)`, from `skcomplex.core.interactions`,
+  matches two groups. Requesters state the highest price they accept in their `limit` state, the quantity they want
+  in `quantity`, and what they can spend in `budget`, and providers their lowest price and the quantity they offer. A
+  name given as a pair, such as `limit=('bid', 'ask')`, names the state of the requesters and of the providers. The
+  protocols are `RandomSearchProtocol`, the default, `PartnerSwitchProtocol` (partner choice with switching),
+  `QueueProtocol`, `PriceAdjustmentProtocol` (tâtonnement), `PriceTimePriorityProtocol`, `UniformPriceProtocol`, and
+  `StableMatchingProtocol` (stable matching by the `matching` library). A protocol is a configurable object:
+  `protocol.check().prepare().run(ClearingSpec(requesters, providers, rng, storage))` sets its `trades_`, a list of
+  `MatchSpec`. Every match lowers the quantities of both sides and moves the states of `transfers`, `('money', -1)`
+  paid by the requester and `('goods', 1)` delivered to it. The matching reports `<label>.price`, `<label>.volume`,
+  and `<label>.unmatched`.
+- A `FeedbackInteraction`, from `skcomplex.core.interactions`, acts once per round of its phase with its method `act`.
+  It reads `model.observable(name)`, reporters through `model.history(name, window)`, and agents, and it sets
+  parameters of any element or interaction with `model.set_parameter(name, value)`. Rules see the change at once, and
+  the trajectory records it. A subclass that declares its own parameters takes them as annotated arguments of its
+  `__init__` next to `rule` and `phase`.
 - Elements and interactions declare the values they publish in the class variable `reports` and publish them with
   `model.report(name, value)`. `model.storage` keeps private values of an element or an interaction across the steps of
   a run.
@@ -3395,13 +3397,12 @@ from typing import Annotated, ClassVar
 import numpy as np
 
 from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import FeedbackInteraction, MatchingInteraction, UniformPriceProtocol
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.economics.common.institutions import InstitutionInteraction
-from skcomplex.models.economics.common.markets import CallAuctionProtocol, MarketInteraction
 
 
 class TraderElement(Element):
@@ -3434,7 +3435,7 @@ class TraderElement(Element):
         agent.ask = model.rng.uniform(agent.value, 2.0) if agent.supply else 2.0
 
 
-class ClerkInteraction(InstitutionInteraction):
+class ClerkInteraction(FeedbackInteraction):
     reports: ClassVar[tuple[str, ...]] = ('traded',)
 
     def __init__(self, label, *, rule=None, phase=None, fee: Annotated[float, ParameterSpec()] = 0.0):
@@ -3456,7 +3457,17 @@ auction = System(
         GroupElement('sellers', element=TraderElement, size=20, values=sellers),
     ],
     interactions=[
-        MarketInteraction('auction', buyers='buyers', sellers='sellers', protocol=CallAuctionProtocol(), phase='trade'),
+        MatchingInteraction(
+            'auction',
+            requesters='buyers',
+            providers='sellers',
+            protocol=UniformPriceProtocol(),
+            limit=('bid', 'ask'),
+            quantity=('demand', 'supply'),
+            budget='money',
+            transfers=(('money', -1), ('goods', 1)),
+            phase='trade',
+        ),
         ClerkInteraction('clerk', phase='trade'),
     ],
     time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('quote'), PhaseSpec('trade')])),

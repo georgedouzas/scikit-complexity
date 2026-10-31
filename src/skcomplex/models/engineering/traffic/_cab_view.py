@@ -15,6 +15,7 @@ class CabView(AgentView):
     destination_x: float
     destination_y: float
     rider: float
+    seats: float
     money: float
     base_fare: float
     block_fare: float

@@ -1,3 +1,3 @@
-"""Realizations shared by several economics packages, by family: institutions, learning, and markets."""
+"""Realizations shared by several economics packages, by family: learning."""
 
 __all__: list[str] = []
