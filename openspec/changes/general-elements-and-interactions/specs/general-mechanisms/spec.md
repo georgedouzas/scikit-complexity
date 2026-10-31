@@ -143,8 +143,8 @@ rewire nodes and edges.
 - **THEN** it uses `GroupingInteraction`, and the majority of every group wins as before the change
 
 ### Requirement: Agent and symbolic lowering
-A general class whose operation agent models use SHALL lower to agent rules when its role binds an agent group, with
-functions of the agent and the model view, and to symbolic laws otherwise.
+A general class whose operation agent models use SHALL lower to agent rules in its agent form, with functions of the
+agent and the model view, and to symbolic laws in its symbolic form, chosen by a `form` argument.
 
 #### Scenario: Choice reading history
 - **WHEN** an agent model's logit choice reads the payoffs the model recorded in earlier rounds

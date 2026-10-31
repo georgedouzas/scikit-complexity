@@ -50,10 +50,12 @@ field.
 - A variant is a string argument checked in `_check` against a module constant, or a configurable class when it carries
   its own algorithm, such as a matching protocol.
 
-### Two lowerings, chosen by the bound group
-A class whose operation agent models use lowers to an agent `RuleLaw` when its role binds an agent group, and to its
-symbolic laws otherwise. Its functions then take the agent and the model view, so they can read the model's history
-and storage and the agent's neighbours and cell.
+### Two lowerings, chosen by an argument
+A class whose operation agent models use takes `form='symbolic'` or `form='agent'`. In the agent form it lowers to an
+agent `RuleLaw` in its `phase`, and its functions take the agent and the model view, so they can read the model's
+history and storage and the agent's neighbours and cell. The form is an argument because the engine probes laws with
+empty namespaces and cannot tell an agent group from a symbolic one, and a rule found at probe time would turn a
+symbolic group into agents.
 
 ### The catalog of general interactions
 
