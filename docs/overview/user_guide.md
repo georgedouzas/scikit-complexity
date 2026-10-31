@@ -3386,10 +3386,13 @@ agents learn from their past.
   `model.report(name, value)`. `model.storage` keeps private values of an element or an interaction across the steps of
   a run.
 - Learning blocks: `agent.lags(state, window)`, a method of the agent view a rule receives, returns the past values of a
-  state declared with lags, `StateSpec(lags=m)`. In `skcomplex.models.economics.common.learning`, `heuristics` has
-  adaptive, trend-following, anchoring, and fundamentalist forecasts, and `logit_choice` picks a strategy by past
-  performance. `EvolutionInteraction`, in `skcomplex.core.interactions`, breeds the next generation of strategies with
-  the model's random stream. `imitate`, in `skcomplex.models.social.cooperation`, copies the best neighbour.
+  state declared with lags, `StateSpec(lags=m)`. In `skcomplex.models.economics.common.forecasting`, `heuristics` has
+  adaptive, trend-following, anchoring, and fundamentalist forecasts. In `skcomplex.core.interactions`,
+  `ChoiceInteraction(form='agent')` draws an option by the logit, Metropolis, Fermi, or best rule from a utility
+  `utility(agent, model, option)` that can read `model.history` and `model.storage`, `ReinforcementInteraction` moves
+  the scores of options towards their realized payoffs, and `EvolutionInteraction` replaces strategies by selection,
+  crossover, and mutation with the model's random stream. `imitate`, in `skcomplex.models.social.cooperation`, copies
+  the best neighbour.
 
 ```python
 from typing import Annotated, ClassVar

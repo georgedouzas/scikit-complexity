@@ -16,6 +16,24 @@ from skcomplex.engine.solvers import AgentView, ModelView
 from skcomplex.errors import ValidationError
 from skcomplex.specs import PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 
+NEUTRAL_RUNS = 100
+
+
+class TypeElement(Element):
+    """Member with a strategy and a fitness that no rule of its own changes."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        strategy: Annotated[object, StateSpec()] = 0.0,
+        fitness: Annotated[float, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.strategy = strategy
+        self.fitness = fitness
+
 
 class BitStringView(AgentView):
     """View of a member with a strategy and a fitness."""
@@ -66,18 +84,70 @@ def _strategies(trajectory: Trajectory, frame: int) -> np.ndarray:
     return np.array(trajectory.agents('agents', frame).values['strategy'].tolist(), dtype=float)
 
 
-@pytest.mark.parametrize('selection', ['tournament', 'roulette'])
+@pytest.mark.parametrize('selection', ['tournament', 'roulette', 'rank'])
 def test_evolution_interaction_raises_fitness_of_count_of_ones(selection):
     """Test that bit strings evolving on the count of ones for 50 generations raise their mean fitness."""
-    evolution = EvolutionInteraction('evolution', members='agents', selection=selection, phase='evolution')
+    evolution = EvolutionInteraction('evolution', target='agents', selection=selection, phase='evolution')
     initial = np.random.default_rng(0).integers(0, 2, size=(40, 20)).astype(float)
     trajectory = _run_evolution(evolution, initial, 50, 0)
     assert _strategies(trajectory, 50).sum(axis=1).mean() > initial.sum(axis=1).mean() + 4
 
 
+@pytest.mark.parametrize('replacement', ['moran', 'death-birth'])
+def test_evolution_interaction_overlapping_replacements_raise_fitness(replacement):
+    """Test that bit strings under Moran or death-birth replacement raise their mean fitness."""
+    evolution = EvolutionInteraction(
+        'evolution',
+        target='agents',
+        selection='rank',
+        replacement=replacement,
+        death=0.5,
+        phase='evolution',
+    )
+    initial = np.random.default_rng(0).integers(0, 2, size=(40, 20)).astype(float)
+    trajectory = _run_evolution(evolution, initial, 50, 0)
+    assert _strategies(trajectory, 50).sum(axis=1).mean() > initial.sum(axis=1).mean() + 4
+
+
+@pytest.mark.parametrize('replacement', ['moran', 'death-birth'])
+def test_evolution_interaction_neutral_fixation_has_the_initial_fraction_as_probability(replacement):
+    """Test that a neutral type fixes under Moran or death-birth replacement with the probability of its fraction."""
+    evolution = EvolutionInteraction(
+        'evolution',
+        target='agents',
+        selection='roulette',
+        replacement=replacement,
+        mutation=0.0,
+        death=0.3,
+    )
+    initial = (np.arange(10) < 3).astype(float)[:, None]
+    finals = []
+    for seed in range(NEUTRAL_RUNS):
+        group = GroupElement('agents', element=TypeElement, size=10, values={'strategy': initial})
+        system = System(elements=[group], interactions=[evolution], time=DiscreteTime())
+        trajectory = Simulation(system, random_state=seed).check().prepare().run(until=200).trajectory_
+        finals.append(_strategies(trajectory, 200).ravel())
+    assert all(np.ptp(final) == 0.0 for final in finals)
+    wins = np.mean([final[0] for final in finals])
+    assert wins == pytest.approx(0.3, abs=3 * np.sqrt(0.3 * 0.7 / NEUTRAL_RUNS))
+
+
+def test_evolution_interaction_mutates_by_a_function():
+    """Test that a mutation function that sets one gene to one gives every child exactly one such gene."""
+
+    def flip(strategy: np.ndarray, rng: np.random.Generator) -> np.ndarray:
+        """Return the strategy with one gene drawn at random set to one."""
+        strategy[rng.integers(len(strategy))] = 1.0
+        return strategy
+
+    evolution = EvolutionInteraction('evolution', target='agents', phase='evolution', mutation=flip, crossover=0.0)
+    children = _strategies(_run_evolution(evolution, np.zeros((30, 8)), 1, 0), 1)
+    assert children.sum(axis=1).tolist() == [1.0] * 30
+
+
 def test_evolution_interaction_repeats_with_one_seed():
     """Test that two runs with the same seed give the same strategies."""
-    evolution = EvolutionInteraction('evolution', members='agents', phase='evolution', mutation=0.05)
+    evolution = EvolutionInteraction('evolution', target='agents', phase='evolution', mutation=0.05)
     initial = np.random.default_rng(1).integers(0, 2, size=(10, 8)).astype(float)
     first, second = (_strategies(_run_evolution(evolution, initial, 20, 3), 20) for _ in range(2))
     assert np.array_equal(first, second)
@@ -87,7 +157,7 @@ def test_evolution_interaction_mutates_real_strategies_by_gaussian_noise():
     """Test that real strategies with full mutation change by Gaussian noise of the given scale."""
     evolution = EvolutionInteraction(
         'evolution',
-        members='agents',
+        target='agents',
         phase='evolution',
         alphabet=None,
         mutation=1.0,
@@ -100,7 +170,7 @@ def test_evolution_interaction_mutates_real_strategies_by_gaussian_noise():
 
 def test_evolution_interaction_keeps_the_elite():
     """Test that the fittest strategy passes unchanged into the next generation."""
-    evolution = EvolutionInteraction('evolution', members='agents', phase='evolution', mutation=1.0, elite=1)
+    evolution = EvolutionInteraction('evolution', target='agents', phase='evolution', mutation=1.0, elite=1)
     initial = np.zeros((6, 4))
     initial[3] = 1.0
     assert _strategies(_run_evolution(evolution, initial, 1, 0), 1)[0].tolist() == [1.0, 1.0, 1.0, 1.0]
@@ -110,7 +180,10 @@ def test_evolution_interaction_keeps_the_elite():
     ('arguments', 'message'),
     [
         ({'selection': 'lottery'}, 'Unknown selection'),
+        ({'replacement': 'steady'}, 'Unknown replacement'),
         ({'mutation': 1.5}, 'mutation probability'),
+        ({'mutation': 'flip'}, 'mutation probability'),
+        ({'death': 2.0}, 'death probability'),
         ({'crossover': -0.1}, 'crossover probability'),
         ({'elite': -1}, 'elite'),
         ({'tournament': 0}, 'tournament'),
@@ -120,4 +193,4 @@ def test_evolution_interaction_keeps_the_elite():
 def test_check_rejects_invalid_arguments(arguments, message):
     """Test that an unknown selection, a probability outside `[0, 1]`, or an invalid count is rejected."""
     with pytest.raises(ValidationError, match=message):
-        EvolutionInteraction('evolution', members='agents', **arguments).check()
+        EvolutionInteraction('evolution', target='agents', **arguments).check()
