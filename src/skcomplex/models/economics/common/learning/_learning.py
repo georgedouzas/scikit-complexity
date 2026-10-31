@@ -1,4 +1,4 @@
-"""Learning blocks of agent rules: forecasting heuristics, logit choice, and evolution."""
+"""Learning blocks of agent rules: forecasting heuristics and logit choice."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,7 +12,6 @@ from scipy.special import softmax
 
 from .....types import Array
 
-SELECTIONS = ('tournament', 'roulette', 'truncation')
 # The values a trend or an anchor reads, the last two.
 TREND_LENGTH = 2
 
@@ -107,106 +106,3 @@ def logit_choice(utilities: npt.ArrayLike, intensity: float, rng: np.random.Gene
     """
     probabilities = logit_probabilities(utilities, intensity)
     return int(rng.choice(len(probabilities), p=probabilities))
-
-
-def _select(fitness: Array, count: int, select: str, rng: np.random.Generator, size: int) -> npt.NDArray[np.intp]:
-    """Return the indices of the selected parents."""
-    if select == 'tournament':
-        entrants = rng.integers(len(fitness), size=(count, size))
-        return entrants[np.arange(count), np.argmax(fitness[entrants], axis=1)]
-    if select == 'roulette':
-        weights = fitness - fitness.min()
-        weights = np.ones_like(weights) if not weights.sum() else weights
-        return rng.choice(len(fitness), size=count, p=weights / weights.sum())
-    best = np.argsort(-fitness, kind='stable')[: max(1, len(fitness) // 2)]
-    return best[rng.integers(len(best), size=count)]
-
-
-def evolve(
-    genomes: npt.ArrayLike,
-    fitness: npt.ArrayLike,
-    rng: np.random.Generator,
-    *,
-    select: str = 'tournament',
-    crossover: float = 0.7,
-    mutation: float = 0.01,
-    elite: int = 0,
-    tournament: int = 2,
-    alphabet: int | None = 2,
-    scale: float = 0.1,
-) -> Array:
-    """Return the next generation of strategies by selection, one-point crossover, and mutation.
-
-    The operators draw from the model's random stream, so runs are reproducible. Discrete genomes over an alphabet,
-    such as bit strings, mutate to a random other symbol, and real genomes, with `alphabet=None`, take Gaussian noise.
-
-    Args:
-        genomes:
-            One row per agent, the strategy states of a group.
-
-        fitness:
-            The fitness of every agent.
-
-        rng:
-            The random generator, such as `model.rng`.
-
-        select:
-            The parent selection: `'tournament'`, `'roulette'`, or `'truncation'` to the better half.
-
-        crossover:
-            The probability that a pair of parents exchanges the tails after a random cut.
-
-        mutation:
-            The probability that each gene mutates.
-
-        elite:
-            The number of best genomes copied unchanged.
-
-        tournament:
-            The number of entrants of every tournament.
-
-        alphabet:
-            The number of symbols of a discrete genome, or `None` for a real genome.
-
-        scale:
-            The standard deviation of the mutation of a real genome.
-
-    Returns:
-        genomes:
-            The genomes of the next generation, one row per agent.
-
-    Raises:
-        ValueError:
-            The selection is unknown.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.models.economics.common.learning import evolve
-        >>> genomes = np.array([[0, 0, 0, 0], [1, 1, 1, 1]])
-        >>> evolve(genomes, [0.0, 1.0], np.random.default_rng(0), select='truncation', mutation=0.0).tolist()
-        [[1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0]]
-    """
-    if select not in SELECTIONS:
-        error_msg = f'Unknown selection {select!r}. Use one of {SELECTIONS}.'
-        raise ValueError(error_msg)
-    population = np.asarray(genomes, dtype=float)
-    flat = population.reshape(len(population), -1)
-    scores = np.asarray(fitness, dtype=float)
-    n, length = flat.shape
-    parents = flat[_select(scores, n, select, rng, tournament)].copy()
-    for first in range(0, n - 1, 2):
-        if length > 1 and rng.random() < crossover:
-            cut = int(rng.integers(1, length))
-            tail = parents[first, cut:].copy()
-            parents[first, cut:] = parents[first + 1, cut:]
-            parents[first + 1, cut:] = tail
-    mutated = rng.random(parents.shape) < mutation
-    if alphabet is None:
-        parents = parents + mutated * rng.normal(0.0, scale, parents.shape)
-    else:
-        shift = rng.integers(1, max(alphabet, 2), parents.shape)
-        parents = np.where(mutated, (parents + shift) % alphabet, parents)
-    if elite:
-        best = np.argsort(-scores, kind='stable')[:elite]
-        parents[:elite] = flat[best]
-    return parents.reshape(population.shape)
