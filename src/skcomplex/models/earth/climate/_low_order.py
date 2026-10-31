@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, vector
 
 from ....core.elements import Element
@@ -17,29 +18,58 @@ from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
-def _lorenz_96_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the advection, damping, and forcing of every site of the Lorenz-96 ring."""
-    x = s.x
-    n_sites = len(x)
-    rates = [(x[(i + 1) % n_sites] - x[i - 2]) * x[i - 1] - x[i] + s.F for i in range(n_sites)]
-    return [RateLaw(s.x, vector(SR, rates))]
-
-
 class Lorenz84Element(Element):
-    """Lorenz84 element."""
+    """Atmosphere of Lorenz-84, the general circulation reduced to a westerly jet and a travelling wave of eddies.
+
+    The jet `x` and the cosine and sine phases `y` and `z` of the eddies follow `dx/dt = -y^2 - z^2 - a x + a F`,
+    `dy/dt = x y - b x z - y + G`, and `dz/dt = b x y + x z - z`.
+
+    Args:
+        label:
+            The label of the atmosphere.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial strength of the westerly jet.
+
+        y:
+            The initial cosine phase of the eddies.
+
+        z:
+            The initial sine phase of the eddies.
+
+        a:
+            The damping of the jet relative to the eddies.
+
+        b:
+            The displacement of the eddies by the jet.
+
+        F:
+            The forcing of the jet by the equator-to-pole temperature contrast.
+
+        G:
+            The forcing of the eddies by the land-sea contrast.
+
+    Examples:
+        >>> from skcomplex.models.earth.climate import Lorenz84Element
+        >>> Lorenz84Element('atmosphere').F
+        8.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec()] = 1.0,
-        y: Annotated[object, StateSpec()] = 1.0,
-        z: Annotated[object, StateSpec()] = 1.0,
-        a: Annotated[object, ParameterSpec()] = 0.25,
-        b: Annotated[object, ParameterSpec()] = 4.0,
-        F: Annotated[object, ParameterSpec()] = 8.0,
-        G: Annotated[object, ParameterSpec()] = 1.0,
+        x: Annotated[float, StateSpec()] = 1.0,
+        y: Annotated[float, StateSpec()] = 1.0,
+        z: Annotated[float, StateSpec()] = 1.0,
+        a: Annotated[float, ParameterSpec()] = 0.25,
+        b: Annotated[float, ParameterSpec()] = 4.0,
+        F: Annotated[float, ParameterSpec()] = 8.0,
+        G: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
@@ -51,7 +81,16 @@ class Lorenz84Element(Element):
         self.G = G
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the lorenz84 element."""
+        """Return the forcing and damping of the jet and its exchange with the eddies.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate laws of the jet and of both phases of the eddies.
+        """
         return [
             RateLaw(s.x, -(s.y**2) - s.z**2 - s.a * s.x + s.a * s.F),
             RateLaw(s.y, s.x * s.y - s.b * s.x * s.z - s.y + s.G),
@@ -60,39 +99,106 @@ class Lorenz84Element(Element):
 
 
 class Lorenz96Element(Element):
-    """Lorenz96 element."""
+    """Ring of Lorenz-96 sites around a latitude circle, advected by their neighbours, damped, and forced.
+
+    Every site follows `dx_i/dt = (x_{i+1} - x_{i-2}) x_{i-1} - x_i + F`, with the indices taken around the ring.
+
+    Args:
+        label:
+            The label of the ring.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial values of all sites.
+
+        F:
+            The constant forcing.
+
+    Examples:
+        >>> from skcomplex.models.earth.climate import Lorenz96Element
+        >>> Lorenz96Element('ring').F
+        8.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec(vector=True)] = 8.0,
-        F: Annotated[object, ParameterSpec()] = 8.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 8.0,
+        F: Annotated[float, ParameterSpec()] = 8.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
         self.F = F
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the lorenz96 element."""
-        return _lorenz_96_laws(s)
+        """Return the advection, damping, and forcing of every site of the ring.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate law of the values of all sites.
+        """
+        x = s.x
+        n_sites = len(x)
+        rates = [(x[(i + 1) % n_sites] - x[i - 2]) * x[i - 1] - x[i] + s.F for i in range(n_sites)]
+        return [RateLaw(s.x, vector(SR, rates))]
 
 
 class GeodynamoElement(Element):
-    """Geodynamo element."""
+    """Dynamo of Gissinger's geodynamo, its quadrupolar and dipolar fields and the velocity of the flow.
+
+    The quadrupolar field `Q`, the dipolar field `D`, and the velocity `V` follow `dQ/dt = mu Q - V D`,
+    `dD/dt = -nu D + V Q`, and `dV/dt = Gamma - V + Q D`.
+
+    Args:
+        label:
+            The label of the dynamo.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        Q:
+            The initial quadrupolar field.
+
+        D:
+            The initial dipolar field.
+
+        V:
+            The initial velocity.
+
+        mu:
+            The growth rate of the quadrupole.
+
+        nu:
+            The damping rate of the dipole.
+
+        Gamma:
+            The forcing of the flow.
+
+    Examples:
+        >>> from skcomplex.models.earth.climate import GeodynamoElement
+        >>> GeodynamoElement('dynamo').Gamma
+        0.9
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        Q: Annotated[object, StateSpec()] = 0.1,
-        D: Annotated[object, StateSpec()] = 0.1,
-        V: Annotated[object, StateSpec()] = 0.1,
-        mu: Annotated[object, ParameterSpec()] = 0.119,
-        nu: Annotated[object, ParameterSpec()] = 0.1,
-        Gamma: Annotated[object, ParameterSpec()] = 0.9,
+        Q: Annotated[float, StateSpec()] = 0.1,
+        D: Annotated[float, StateSpec()] = 0.1,
+        V: Annotated[float, StateSpec()] = 0.1,
+        mu: Annotated[float, ParameterSpec()] = 0.119,
+        nu: Annotated[float, ParameterSpec()] = 0.1,
+        Gamma: Annotated[float, ParameterSpec()] = 0.9,
     ) -> None:
         super().__init__(label, visual=visual)
         self.Q = Q
@@ -103,7 +209,16 @@ class GeodynamoElement(Element):
         self.Gamma = Gamma
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the geodynamo element."""
+        """Return the growth and damping of both fields and the forcing of the flow.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate laws of the quadrupolar field, the dipolar field, and the velocity.
+        """
         return [
             RateLaw(s.Q, s.mu * s.Q - s.V * s.D),
             RateLaw(s.D, -s.nu * s.D + s.V * s.Q),
