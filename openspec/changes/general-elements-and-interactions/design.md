@@ -40,6 +40,11 @@ Alternative considered: one core class per recurring mechanism, such as `Constan
 `ForagingInteraction`. Rejected, because each is a special case of a more general operation and binds the core to a
 field.
 
+### What enters the core
+A class enters the core when it is a fundamental paradigm, such as a variational principle, a conservation law, a
+Markov jump process, a reaction network, or imitation dynamics, and when it applies in principle to other domains than
+the one that first needs it. How many fields use it today does not decide it.
+
 ### Arguments: roles, state names, functions, divisor, variants
 - Roles bind groups: `target` is the role whose states the laws change, `sources` are roles they only read.
 - State arguments name the states read and written, so one class serves any meaning.
