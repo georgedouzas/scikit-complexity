@@ -4,6 +4,7 @@
 # License: MIT
 
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -12,6 +13,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
+from ....core.interactions import BaseInteraction, MapInteraction, TopologyInteraction
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import neighbors, total, where
 from ....core.spaces import DiscreteTime, NetworkSpace
@@ -47,7 +49,8 @@ class LinkElement(Element):
 class VertexElement(Element):
     """Node of a growing network, with its age in steps and its degree.
 
-    New nodes start with age 0, and the degree is read from the edges at the start of every step.
+    New nodes start with age 0, and the maps of the model age the node and read its degree from the edges at the start
+    of every step.
 
     Args:
         label:
@@ -80,25 +83,12 @@ class VertexElement(Element):
         self.age = age
         self.degree = degree
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the ageing and the degree of the node.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [UpdateLaw(s.age, s.age + 1), UpdateLaw(s.degree, neighbors(1))]
-
 
 class TriadVertexElement(VertexElement):
     """Node of a Holme-Kim network, which closes triangles with the neighbours of its first contact when it joins.
 
-    One step after a node joins with one edge by preferential attachment, it adds `extra` edges. Each new end is a
-    neighbour of its first contact with probability `triad`, the triad formation step, and a node drawn by
+    One step after a node joins with one edge by preferential attachment, the triad formation of the model adds
+    `extra` edges to it. Each new end is a neighbour of its first contact with probability `triad`, and a node drawn by
     preferential attachment otherwise. The state `near` marks the nodes next to the newest node.
 
     Args:
@@ -145,34 +135,6 @@ class TriadVertexElement(VertexElement):
         self.triad = triad
         self.extra = extra
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the ageing, the degree, the marks next to the newest node, and the edges of triad formation.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        triad = s.triad
-
-        def weight(node: SimpleNamespace) -> object:
-            """Return the mixture of triad formation and preferential attachment for a candidate node."""
-            closing = neighbors(node.other.near)
-            attaching = neighbors(1)
-            return triad * closing / (total(closing) + SMALLEST_TOTAL) + (1 - triad) * attaching / total(attaching)
-
-        return [
-            *super()._get_laws(s),
-            UpdateLaw(s.near, neighbors(where(s.other.age < JOINING_AGE, 1, 0))),
-            UpdateLaw(
-                TopologyRequestSpec('add-edge', edges=int(self.extra), toward=weight),
-                where(s.age < JOINING_AGE, 1, 0),
-            ),
-        ]
-
 
 class CopyingVertexElement(VertexElement):
     """Node of a vertex-copying network, which holds the inverse of its degree for the copying of its edges.
@@ -210,19 +172,6 @@ class CopyingVertexElement(VertexElement):
     ) -> None:
         super().__init__(label, visual=visual, age=age, degree=degree)
         self.inverse = inverse
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the ageing, the degree, and its inverse.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [*super()._get_laws(s), UpdateLaw(s.inverse, 1 / (neighbors(1) + SMALLEST_DEGREE))]
 
 
 class AttachmentElement(Element):
@@ -326,6 +275,21 @@ class CopyingElement(Element):
         return [UpdateLaw(TopologyRequestSpec('add-node', edges=int(self.edges), toward=weight), 1)]
 
 
+def _get_bookkeeping() -> list[MapInteraction]:
+    """Return the maps that age every node and read its degree from the edges at the start of a step."""
+    return [
+        MapInteraction('ageing', target='nodes', state='age', function=lambda s: 1, form='increment'),
+        MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1)),
+    ]
+
+
+def _get_triad_weight(node: SimpleNamespace) -> object:
+    """Return the mixture of triad formation and preferential attachment for a candidate node."""
+    closing = neighbors(node.other.near)
+    attaching = neighbors(1)
+    return node.triad * closing / (total(closing) + SMALLEST_TOTAL) + (1 - node.triad) * attaching / total(attaching)
+
+
 def _nodes(element: type[VertexElement], capacity: int, **values: object) -> GroupElement:
     """Return the variable group on the nodes of a growing network, whose seed nodes start at age 1."""
     return GroupElement(
@@ -339,10 +303,21 @@ def _nodes(element: type[VertexElement], capacity: int, **values: object) -> Gro
     )
 
 
-def _grown(nodes: GroupElement, growth: Element, space: NetworkSpace, capacity: int) -> System:
-    """Return a growing network of a group on its nodes, a variable edge group, and the arrival of nodes."""
+def _grown(
+    nodes: GroupElement,
+    growth: Element,
+    space: NetworkSpace,
+    capacity: int,
+    interactions: Sequence[BaseInteraction] = (),
+) -> System:
+    """Return a growing network of a group on its nodes, a variable edge group, the arrival of nodes, and its maps."""
     links = GroupElement('links', element=LinkElement, on='edges', variable=True, capacity=capacity)
-    return System(elements=[nodes, links, growth], space=space, time=DiscreteTime())
+    return System(
+        elements=[nodes, links, growth],
+        interactions=[*_get_bookkeeping(), *interactions],
+        space=space,
+        time=DiscreteTime(),
+    )
 
 
 @register_model(
@@ -420,7 +395,22 @@ def holme_kim(n_nodes: int = 304, *, edges: int = 3, triad: float = 0.8, seed_no
     """
     space = NetworkSpace(nx.complete_graph(seed_nodes))
     nodes = _nodes(TriadVertexElement, n_nodes, triad=triad, extra=edges - 1)
-    return _grown(nodes, AttachmentElement('growth', edges=1), space, edges * n_nodes + seed_nodes**2)
+    near = MapInteraction(
+        'near',
+        target='nodes',
+        state='near',
+        function=lambda s: neighbors(where(s.target.other.age < JOINING_AGE, 1, 0)),
+    )
+    closure = TopologyInteraction(
+        'closure',
+        target='nodes',
+        action='add-edge',
+        condition=lambda s: s.source.age < JOINING_AGE,
+        toward=_get_triad_weight,
+        edges=edges - 1,
+    )
+    growth = AttachmentElement('growth', edges=1)
+    return _grown(nodes, growth, space, edges * n_nodes + seed_nodes**2, [near, closure])
 
 
 @register_model(
@@ -460,4 +450,10 @@ def vertex_copying(n_nodes: int = 304, *, edges: int = 3, randomness: float = 0.
     space = NetworkSpace(nx.complete_graph(seed_nodes))
     nodes = _nodes(CopyingVertexElement, n_nodes)
     growth = CopyingElement('growth', edges=edges, randomness=randomness)
-    return _grown(nodes, growth, space, edges * n_nodes + seed_nodes**2)
+    inverse = MapInteraction(
+        'inverse',
+        target='nodes',
+        state='inverse',
+        function=lambda s: 1 / (neighbors(1) + SMALLEST_DEGREE),
+    )
+    return _grown(nodes, growth, space, edges * n_nodes + seed_nodes**2, [inverse])

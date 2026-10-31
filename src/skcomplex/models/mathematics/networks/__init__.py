@@ -3,7 +3,6 @@
 from ._ensembles import (
     EnsembleNodeElement,
     FailingElement,
-    RewiringInteraction,
     network_attack,
     random_graph_ensembles,
 )
@@ -40,7 +39,6 @@ __all__: list[str] = [
     'NetworkWalkerElement',
     'NodeContentElement',
     'NodeRankElement',
-    'RewiringInteraction',
     'TriadVertexElement',
     'VertexElement',
     'barabasi_albert',

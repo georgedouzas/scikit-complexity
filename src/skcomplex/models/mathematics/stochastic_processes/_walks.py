@@ -8,11 +8,12 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, ZZ, oo
+from sage.all__sagemath_symbolics import NN, ZZ, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
+from ....core.interactions import JumpInteraction, MapInteraction, RateInteraction
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.laws.utils import bernoulli, normal
 from ....core.system import System
 from ....engine.solvers import ModelView
@@ -22,42 +23,82 @@ from ._ageing_walker_view import AgeingWalkerView
 
 
 class PersistentWalkerElement(Element):
-    """Persistent walker element."""
+    """Walker on the integers with a direction `d = ±1`, which it keeps with the probability `persistence`.
+
+    Args:
+        label:
+            The label of the walker or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        d:
+            The initial direction, 1 or -1.
+
+        x:
+            The initial position.
+
+        persistence:
+            The probability of keeping the direction at a step.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.stochastic_processes import PersistentWalkerElement
+        >>> PersistentWalkerElement('walker', persistence=0.9).persistence
+        0.9
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        d: Annotated[object, StateSpec(domain=ZZ)] = 1.0,
-        x: Annotated[object, StateSpec(domain=ZZ)] = 0.0,
-        persistence: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        d: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
+        x: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
+        persistence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
     ) -> None:
         super().__init__(label, visual=visual)
         self.d = d
         self.x = x
         self.persistence = persistence
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the persistent walker element."""
-        return [
-            UpdateLaw(s.d, s.d * (1 - 2 * bernoulli('turn', 1 - s.persistence))),
-            UpdateLaw(s.x, s.x + s.d * (1 - 2 * bernoulli('turn', 1 - s.persistence))),
-        ]
-
 
 class MemoryWalkerElement(Element):
-    """Memory walker element."""
+    """Walker on the real line whose velocity is an autoregressive process of memory `alpha` and noise `sigma`.
+
+    Args:
+        label:
+            The label of the walker or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial position.
+
+        v:
+            The initial velocity.
+
+        alpha:
+            The memory of the velocity.
+
+        sigma:
+            The deviation of the noise of the velocity.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.stochastic_processes import MemoryWalkerElement
+        >>> MemoryWalkerElement('walker', alpha=0.3).alpha
+        0.3
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec()] = 0.0,
-        v: Annotated[object, StateSpec()] = 0.0,
-        alpha: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        sigma: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        x: Annotated[float, StateSpec()] = 0.0,
+        v: Annotated[float, StateSpec()] = 0.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
@@ -65,55 +106,90 @@ class MemoryWalkerElement(Element):
         self.alpha = alpha
         self.sigma = sigma
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the memory walker element."""
-        return [UpdateLaw(s.x, s.x + s.v), UpdateLaw(s.v, s.alpha * s.v + normal('xi', 0, s.sigma))]
-
 
 class RandomWalkerElement(Element):
-    """Random walker element."""
+    """Walker on the integers that steps at the rate `rate`, up with the probability `bias`.
+
+    Args:
+        label:
+            The label of the walker or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial position.
+
+        rate:
+            The rate of steps.
+
+        bias:
+            The probability that a step goes up.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.stochastic_processes import RandomWalkerElement
+        >>> RandomWalkerElement('walker', bias=0.7).bias
+        0.7
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec(domain=ZZ)] = 0.0,
-        rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        bias: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        x: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
+        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        bias: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
         self.rate = rate
         self.bias = bias
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the random walker element."""
-        return [JumpLaw(s.rate * s.bias, {s.x: 1}), JumpLaw(s.rate * (1 - s.bias), {s.x: -1})]
-
 
 class WeakeningParticleElement(Element):
-    """Weakening particle element."""
+    """Brownian particle on the real line held by a restoring force of stiffness `k` that weakens beyond `ell`.
+
+    Args:
+        label:
+            The label of the particle or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial position.
+
+        k:
+            The stiffness of the force near the origin.
+
+        ell:
+            The distance where the force starts to weaken.
+
+        D:
+            The diffusion coefficient.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.stochastic_processes import WeakeningParticleElement
+        >>> WeakeningParticleElement('particle', D=0.5).D
+        0.5
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec()] = 0.0,
-        k: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        ell: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        D: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.25,
+        x: Annotated[float, StateSpec()] = 0.0,
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        ell: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.25,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
         self.k = k
         self.ell = ell
         self.D = D
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the weakening particle element."""
-        return [RateLaw(s.x, -s.k * s.x / (1 + (s.x / s.ell) ** 2)), NoiseLaw(s.x, (2 * s.D) ** (1 / 2))]
 
 
 class AgeingWalkerElement(Element):
@@ -229,11 +305,15 @@ def random_walk(n_walkers: int = 100, *, rate: float = 1.0, bias: float = 0.5) -
         >>> random_walk(20).elements[0].check().prepare().size_
         20
     """
-    return System(
-        elements=[
-            GroupElement('walkers', element=RandomWalkerElement, size=n_walkers, values={'rate': rate, 'bias': bias}),
-        ],
+    walkers = GroupElement('walkers', element=RandomWalkerElement, size=n_walkers, values={'rate': rate, 'bias': bias})
+    up = JumpInteraction('up', target='walkers', changes={'x': 1}, rate=lambda s: s.target.rate * s.target.bias)
+    down = JumpInteraction(
+        'down',
+        target='walkers',
+        changes={'x': -1},
+        rate=lambda s: s.target.rate * (1 - s.target.bias),
     )
+    return System(elements=[walkers], interactions=[up, down])
 
 
 @register_model(
@@ -277,16 +357,20 @@ def weakening_ornstein_uhlenbeck(
         >>> weakening_ornstein_uhlenbeck(10).elements[0].check().prepare().size_
         10
     """
-    return System(
-        elements=[
-            GroupElement(
-                'particles',
-                element=WeakeningParticleElement,
-                size=n_particles,
-                values={'k': k, 'ell': ell, 'D': D},
-            ),
-        ],
+    particles = GroupElement(
+        'particles',
+        element=WeakeningParticleElement,
+        size=n_particles,
+        values={'k': k, 'ell': ell, 'D': D},
     )
+    restoring = RateInteraction(
+        'restoring',
+        target='particles',
+        state='x',
+        rate=lambda s: -s.target.k * s.target.x / (1 + (s.target.x / s.target.ell) ** 2),
+        noise=lambda s: sqrt(2 * s.target.D),
+    )
+    return System(elements=[particles], interactions=[restoring])
 
 
 @register_model(
@@ -339,9 +423,9 @@ def persistent_random_walk(
 ) -> System:
     """Return walkers on the integers that keep the direction of their last step with a probability.
 
-    At every step a walker keeps its direction `d = ±1` with probability `q` and reverses it otherwise, then moves by
-    `d`. Successive steps are correlated with `rho = 2 q - 1`, so the walk diffuses faster than a simple random walk for
-    `q > 1/2`, with a mean squared displacement that grows as `t (1 + rho) / (1 - rho)` at long times.
+    At every step a walker moves by its direction `d = ±1`, and keeps the direction with probability `q` and reverses
+    it otherwise. Successive steps are correlated with `rho = 2 q - 1`, so the walk diffuses faster than a simple
+    random walk for `q > 1/2`, with a mean squared displacement that grows as `t (1 + rho) / (1 - rho)` at long times.
 
     Args:
         n_walkers:
@@ -363,16 +447,26 @@ def persistent_random_walk(
         10
     """
     directions = np.random.default_rng(random_state).choice([-1.0, 1.0], size=n_walkers)
-    return System(
-        elements=[
-            GroupElement(
-                'walkers',
-                element=PersistentWalkerElement,
-                size=n_walkers,
-                values={'d': directions, 'persistence': persistence},
-            ),
-        ],
+    walkers = GroupElement(
+        'walkers',
+        element=PersistentWalkerElement,
+        size=n_walkers,
+        values={'d': directions, 'persistence': persistence},
     )
+    turn = MapInteraction(
+        'turn',
+        target='walkers',
+        state='d',
+        function=lambda s: s.target.d * (1 - 2 * bernoulli('turn', 1 - s.target.persistence)),
+    )
+    step = MapInteraction(
+        'step',
+        target='walkers',
+        state='x',
+        function=lambda s: s.target.d,
+        form='increment',
+    )
+    return System(elements=[walkers], interactions=[turn, step])
 
 
 @register_model(
@@ -408,13 +502,17 @@ def random_walk_with_memory(n_walkers: int = 2000, *, alpha: float = 0.5, sigma:
         >>> random_walk_with_memory(10).elements[0].check().prepare().size_
         10
     """
-    return System(
-        elements=[
-            GroupElement(
-                'walkers',
-                element=MemoryWalkerElement,
-                size=n_walkers,
-                values={'alpha': alpha, 'sigma': sigma},
-            ),
-        ],
+    walkers = GroupElement(
+        'walkers',
+        element=MemoryWalkerElement,
+        size=n_walkers,
+        values={'alpha': alpha, 'sigma': sigma},
     )
+    step = MapInteraction('step', target='walkers', state='x', function=lambda s: s.target.v, form='increment')
+    velocity = MapInteraction(
+        'velocity',
+        target='walkers',
+        state='v',
+        function=lambda s: s.target.alpha * s.target.v + normal('xi', 0, s.target.sigma),
+    )
+    return System(elements=[walkers], interactions=[step, velocity])

@@ -4,23 +4,22 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, JumpLaw
+from ....core.interactions import JumpInteraction
 from ....core.system import System
 from ....specs import StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
 class PolyaUrnElement(Element):
-    """Urn of red and blue balls, from which a drawn ball returns with extra balls of its color.
+    """Urn of red and blue balls, from which a drawn ball returns with `added` extra balls of its color.
 
-    Draws happen at rate 1, and a draw picks a color with probability proportional to its number of balls, so the
-    sequence of draws is that of Pólya's urn in discrete time.
+    The jumps of the model draw at rate 1, and a draw picks a color with probability proportional to its number of
+    balls, so the sequence of draws is that of Pólya's urn in discrete time.
 
     Args:
         label:
@@ -58,20 +57,6 @@ class PolyaUrnElement(Element):
         self.blue = blue
         self.added = added
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the draws of a red and of a blue ball.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        total = s.red + s.blue
-        return [JumpLaw(s.red / total, {s.red: self.added}), JumpLaw(s.blue / total, {s.blue: self.added})]
-
 
 @register_model(
     field='mathematics/stochastic_processes',
@@ -106,13 +91,22 @@ def polya_urn(n_urns: int = 10, *, red: int = 1, blue: int = 1, added: int = 1) 
         >>> polya_urn(3).elements[0].check().prepare().size_
         3
     """
-    return System(
-        elements=[
-            GroupElement(
-                'urns',
-                element=PolyaUrnElement,
-                size=n_urns,
-                values={'red': float(red), 'blue': float(blue), 'added': added},
-            ),
-        ],
+    urns = GroupElement(
+        'urns',
+        element=PolyaUrnElement,
+        size=n_urns,
+        values={'red': float(red), 'blue': float(blue), 'added': added},
     )
+    red_draws = JumpInteraction(
+        'red_draws',
+        target='urns',
+        changes={'red': added},
+        rate=lambda s: s.target.red / (s.target.red + s.target.blue),
+    )
+    blue_draws = JumpInteraction(
+        'blue_draws',
+        target='urns',
+        changes={'blue': added},
+        rate=lambda s: s.target.blue / (s.target.red + s.target.blue),
+    )
+    return System(elements=[urns], interactions=[red_draws, blue_draws])
