@@ -86,6 +86,31 @@ class SubshiftProtocol(Protocol):
 
 
 @runtime_checkable
+class AgentViewProtocol(Protocol):
+    """Agent as agent rules read it, such as `AgentView` of the agent stepper: its location, moves, and life."""
+
+    @property
+    def location(self) -> object:
+        """Grid coordinates, network node, or position of the agent."""
+
+    @property
+    def alive(self) -> bool:
+        """Whether the agent has not been removed."""
+
+    def neighbor_cells(self) -> list[object]:
+        """Return the coordinates of the cells or nodes around the agent's cell or node."""
+
+    def move_to(self, location: object) -> None:
+        """Move the agent to a cell, a node, or a position."""
+
+    def remove(self) -> None:
+        """Remove the agent from the model."""
+
+    def create(self, group: str | None = None, location: object = None, **values: object) -> AgentViewProtocol:
+        """Create an agent of a group, by default the agent's own group at the agent's location."""
+
+
+@runtime_checkable
 class ModelViewProtocol(Protocol):
     """Model as agent rules read it, such as `ModelView` of the agent stepper: its agents, storage, and randomness."""
 
@@ -97,5 +122,8 @@ class ModelViewProtocol(Protocol):
     def storage(self) -> MutableMapping[str, object]:
         """Mutable mapping private to the owner of the rule that persists across the steps of one run."""
 
-    def agents(self, name: str) -> Sequence[object]:
+    def agents(self, name: str) -> Sequence[AgentViewProtocol]:
         """Return the agents of a group bound to a role of the owner, or of a group by path."""
+
+    def parameter(self, name: str) -> float:
+        """Return the current value of a parameter of the owner."""

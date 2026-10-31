@@ -10,6 +10,7 @@ from ._neighbor import NeighborInteraction
 from ._pair import PairInteraction
 from ._pair_potential import PairPotentialInteraction
 from ._potential import PotentialInteraction
+from ._random_walk import RandomWalkInteraction
 
 __all__: list[str] = [
     'BaseInteraction',
@@ -19,4 +20,5 @@ __all__: list[str] = [
     'PairInteraction',
     'PairPotentialInteraction',
     'PotentialInteraction',
+    'RandomWalkInteraction',
 ]
