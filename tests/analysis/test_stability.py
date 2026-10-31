@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import SR
 
 from skcomplex.analysis import StabilityAnalysis
 from skcomplex.core.elements import Element, FieldElement, GroupElement
-from skcomplex.core.interactions import Interaction
+from skcomplex.core.interactions import DiffusionInteraction, Interaction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import total
 from skcomplex.core.spaces import LatticeSpace
@@ -32,7 +32,11 @@ def _brusselator(b, *, discretization='spectral', boundary='periodic'):
     values = {'u': 1.0, 'v': b, 'a': 1.0, 'b': b, 'Du': 1.0, 'Dv': 8.0}
     space = LatticeSpace((128,), spacing=0.5, boundary=boundary)
     cells = FieldElement('cells', element=BrusselatorElement, space=space, values=values, discretization=discretization)
-    return System(elements=[cells])
+    diffusions = [
+        DiffusionInteraction('u_diffusion', target='cells', state='u', coefficient=lambda s: s.target.Du),
+        DiffusionInteraction('v_diffusion', target='cells', state='v', coefficient=lambda s: s.target.Dv),
+    ]
+    return System(elements=[cells], interactions=diffusions)
 
 
 def test_lotka_volterra_centre():
@@ -194,6 +198,16 @@ def test_dispersion_relation_of_finite_differences_and_below_threshold():
     long = spectral.magnitudes_ < 0.3
     assert stencil.growth_rates_[long] == pytest.approx(spectral.growth_rates_[long], abs=1e-2)
     assert _stability(_brusselator(1.7), kind='dispersion').band_.size == 0
+
+
+def test_dispersion_relation_rejects_an_interaction_on_another_part():
+    """Test that an interaction binding a part other than the field has no place in the dispersion relation."""
+    system = _brusselator(1.9)
+    system.interactions.append(
+        DiffusionInteraction('elsewhere', target='other', state='u', coefficient=lambda s: s.target.Du),
+    )
+    with pytest.raises(AnalysisError, match='other than the field'):
+        _stability(system, kind='dispersion')
 
 
 def test_dispersion_relation_rejects_non_periodic_fields_and_data():

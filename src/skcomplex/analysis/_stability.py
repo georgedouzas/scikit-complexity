@@ -13,6 +13,7 @@ from sage.all__sagemath_symbolics import SR, Expression, matrix, solve
 from scipy import optimize
 
 from ..core.elements import FieldElement
+from ..core.interactions import BaseInteraction
 from ..core.laws import RateLaw
 from ..core.spaces import LatticeSpace
 from ..core.system import System
@@ -418,23 +419,50 @@ class StabilityAnalysis(BaseAnalysis):
         return np.sum((2 * np.cos(waves * spacings) - 2) / spacings**2, axis=1)
 
     @staticmethod
-    def _single_field(system: System) -> tuple[FieldElement, LatticeSpace]:
-        """Return the one field of a system and its periodic lattice, or raise an error."""
+    def _bound_interactions(system: System, field: FieldElement) -> list[BaseInteraction]:
+        """Return the interactions of a system whose every role binds one field, or raise an error for another."""
+        bound = []
+        for interaction in system.interactions:
+            roles = declarations_of(type(interaction), VariableKind.ROLE)
+            if not roles or any(getattr(interaction, name) != field.label for name in roles):
+                error_msg = f'The interaction {interaction.label} binds a part other than the field {field.label}.'
+                raise AnalysisError(error_msg)
+            bound.append(interaction)
+        return bound
+
+    @staticmethod
+    def _single_field(system: System) -> tuple[FieldElement, LatticeSpace, list[BaseInteraction]]:
+        """Return the one field of a system, its periodic lattice, and its bound interactions, or raise an error."""
         fields = [element for element in system.elements if isinstance(element, FieldElement)]
-        if len(fields) != 1 or len(system.elements) != 1 or system.interactions or system.systems:
+        if len(fields) != 1 or len(system.elements) != 1 or system.systems:
             error_msg = 'The dispersion relation takes a system of one field on a lattice.'
             raise AnalysisError(error_msg)
         field = fields[0]
         if not isinstance(field.space, LatticeSpace) or field.space.boundary != 'periodic':
             error_msg = f'The field {field.label} is not on a periodic lattice, so its modes are not Fourier modes.'
             raise AnalysisError(error_msg)
-        return field, field.space.check().prepare()
+        interactions = StabilityAnalysis._bound_interactions(system, field)
+        return field, field.space.check().prepare(), interactions
+
+    @staticmethod
+    def _add_rate(rates: dict[str, Expression], names: dict[str, Expression], law: object, label: str) -> None:
+        """Add a rate law of a state of a field to the rates, with its Laplacians as eigenvalues, or raise an error."""
+        targets = law.check()._get_targets() if isinstance(law, RateLaw) else ()
+        target = next((name for name, item in names.items() if targets and targets[0] is item), None)
+        if not isinstance(law, RateLaw) or target is None:
+            error_msg = f'The dispersion relation takes rate laws of the states of {label}, but got {law!r}.'
+            raise AnalysisError(error_msg)
+        rates[target] = SR(rates.get(target, 0) + StabilityAnalysis._with_eigenvalue(SR(law.value), EIGENVALUE))
 
     @staticmethod
     def _linearised_rates(
         field: FieldElement,
+        interactions: Sequence[BaseInteraction],
     ) -> tuple[dict[str, Expression], dict[str, Expression], dict[str, npt.ArrayLike]]:
-        """Return the rate of each state with its Laplacians as eigenvalues, the state symbols, and the field values."""
+        """Return the rate of each state with its Laplacians as eigenvalues, the state symbols, and the field values.
+
+        The rates add the laws of the field's element and of the interactions bound to the field.
+        """
         states = list(declarations_of(field.element, VariableKind.STATE))
         member = field.element(field.label)
         values = {name: getattr(member, name) for name in states} | dict(field.values or {})
@@ -447,13 +475,19 @@ class StabilityAnalysis(BaseAnalysis):
             parameters[name] = float(value)
         names = {name: symbol(f'_{name}_') for name in states}
         rates: dict[str, Expression] = {}
-        for law in member.check()._get_laws(SimpleNamespace(**names, **parameters, t=symbol('t'))):
-            targets = law.check()._get_targets() if isinstance(law, RateLaw) else ()
-            target = next((name for name, item in names.items() if targets and targets[0] is item), None)
-            if not isinstance(law, RateLaw) or target is None:
-                error_msg = f'The dispersion relation takes rate laws of the states of {field.label}, but got {law!r}.'
-                raise AnalysisError(error_msg)
-            rates[target] = SR(rates.get(target, 0) + StabilityAnalysis._with_eigenvalue(SR(law.value), EIGENVALUE))
+        time = symbol('t')
+        for law in member.check()._get_laws(SimpleNamespace(**names, **parameters, t=time)):
+            StabilityAnalysis._add_rate(rates, names, law, field.label)
+        for interaction in interactions:
+            own = {
+                name: getattr(interaction, name) for name in declarations_of(type(interaction), VariableKind.PARAMETER)
+            }
+            roles = {
+                name: SimpleNamespace(**names, **parameters)
+                for name in declarations_of(type(interaction), VariableKind.ROLE)
+            }
+            for law in interaction.check().prepare().run(SimpleNamespace(**roles, **own, t=time)).laws_:
+                StabilityAnalysis._add_rate(rates, names, law, field.label)
         return {name: rates[name] for name in states if name in rates}, names, values
 
     @staticmethod
@@ -485,8 +519,8 @@ class StabilityAnalysis(BaseAnalysis):
         at: Mapping[str, float] | None = None,
     ) -> tuple[Array, Array, Array, Array, dict[str, float]]:
         """Return the wave vectors, their lengths, growth rates, and frequencies, and the uniform state of a field."""
-        field, lattice = StabilityAnalysis._single_field(system)
-        rates, names, values = StabilityAnalysis._linearised_rates(field)
+        field, lattice, interactions = StabilityAnalysis._single_field(system)
+        rates, names, values = StabilityAnalysis._linearised_rates(field, interactions)
         order = list(rates)
         variables = [names[name] for name in order]
         given: dict[str, npt.ArrayLike] = {**values, **(at or {})}
