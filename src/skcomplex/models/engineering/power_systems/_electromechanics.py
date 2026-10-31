@@ -15,6 +15,7 @@ from ....core.laws.utils import derivative, pulse_train, sign
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.mechanics import SpringDamperInteraction
 
 
 def _wheel_load(s: SimpleNamespace) -> Expression:
@@ -141,7 +142,11 @@ class FaradayDiskElement(Element):
 
 
 class RailSegmentElement(Element):
-    """Rail segment on a sleeper, two masses joined by a spring and a damper and loaded by passing wheels."""
+    """Rail segment on a sleeper, two masses joined by a spring and a damper and loaded by passing wheels.
+
+    The element holds the wheel load and the ballast under the sleeper, and the model joins the rail and the sleeper
+    by a `SpringDamperInteraction` of the stiffness `kr` and the damping `br`.
+    """
 
     def __init__(
         self,
@@ -186,22 +191,12 @@ class RailSegmentElement(Element):
         self.spacing = spacing
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the accelerations of the rail and of the sleeper."""
+        """Return the accelerations of the rail by the wheels and of the sleeper by the ballast, the pad apart."""
         return [
-            RateLaw(
-                s.z,
-                (_wheel_load(s) - s.br * (derivative(s.z, 1) - derivative(s.zs, 1)) - s.kr * (s.z - s.zs)) / s.Mr,
-            ),
+            RateLaw(s.z, _wheel_load(s) / s.Mr),
             RateLaw(
                 s.zs,
-                (
-                    s.br * (derivative(s.z, 1) - derivative(s.zs, 1))
-                    + s.kr * (s.z - s.zs)
-                    - s.bs * derivative(s.zs, 1)
-                    - s.ks * s.zs
-                    - s.k2 * (s.alpha * s.zs**2 + s.beta * s.zs**3)
-                )
-                / s.Ms,
+                (-s.bs * derivative(s.zs, 1) - s.ks * s.zs - s.k2 * (s.alpha * s.zs**2 + s.beta * s.zs**3)) / s.Ms,
             ),
         ]
 
@@ -407,4 +402,12 @@ def wheel_rail_contact(
         500.0
     """
     rail = RailSegmentElement('rail', F=F, T=T, width=width, spacing=spacing, k2=k2, Mr=Mr, Ms=Ms)
-    return System(elements=[rail])
+    pad = SpringDamperInteraction(
+        'pad',
+        target='rail',
+        states=('z', 'zs'),
+        stiffness='kr',
+        damping='br',
+        divisor={'z': 'Mr', 'zs': 'Ms'},
+    )
+    return System(elements=[rail], interactions=[pad])
