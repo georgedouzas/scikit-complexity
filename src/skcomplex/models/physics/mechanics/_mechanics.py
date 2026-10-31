@@ -7,23 +7,31 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import cos, oo, pi, sin
+from sage.all__sagemath_symbolics import Expression, cos, oo, pi
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import BaseInteraction, Interaction
-from ....core.laws import BaseLaw, CrossingLaw, EquationLaw, RateLaw
+from ....core.interactions import (
+    BaseInteraction,
+    EulerLagrangeInteraction,
+    GradientInteraction,
+    Interaction,
+    RateInteraction,
+)
+from ....core.laws import BaseLaw, CrossingLaw, RateLaw
 from ....core.laws.utils import derivative
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.mechanics import ReflectionInteraction
 from ..common.particles import (
     ConstantForceInteraction,
     DampingInteraction,
     HarmonicPotentialInteraction,
     MassPointElement,
 )
+from ._springs import HarmonicForceInteraction
 
 GRAVITY = 9.81
 WALL_POINTS = 200
@@ -137,7 +145,38 @@ def harmonic_oscillator(
 
 
 class PendulumElement(Element):
-    """Pendulum element."""
+    """Pendulum, a bob of mass `m` on a rigid rod of length `l` that swings by the angle `theta` under gravity `g`.
+
+    The angle has order 2 and its first derivative `theta_d1` is the angular velocity. The motion comes from an
+    interaction such as `PendulumInteraction`.
+
+    Args:
+        label:
+            The label of the pendulum.
+
+        visual:
+            How the pendulum is drawn, or `None` for its class visual.
+
+        theta:
+            The initial angle from the vertical, in radians.
+
+        theta_d1:
+            The initial angular velocity.
+
+        m:
+            The mass of the bob.
+
+        g:
+            The gravitational acceleration.
+
+        l:
+            The length of the rod.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import PendulumElement
+        >>> PendulumElement('bob', theta=0.2, l=2.0).l
+        2.0
+    """
 
     visual = VisualSpec('bodies', {'positions': _pendulum_bob, 'pivot': (0.0, 0.0), 'rods': True})
 
@@ -146,11 +185,11 @@ class PendulumElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        theta: Annotated[object, StateSpec(period=2 * pi, order=2)] = 0.5,
+        theta: Annotated[float, StateSpec(period=2 * pi, order=2)] = 0.5,
         theta_d1: float = 0.0,
-        m: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        g: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
-        l: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
+        l: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.theta = theta
@@ -159,39 +198,42 @@ class PendulumElement(Element):
         self.g = g
         self.l = l
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the pendulum element."""
-        return [EquationLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))]
 
+class PendulumInteraction(EulerLagrangeInteraction):
+    """Motion of a pendulum, the Euler-Lagrange equation of `L = m l² θ'² / 2 + m g l cos θ`.
 
-class OscillatorElement(Element):
-    """Oscillator element."""
+    The equation is Newton's law `m l² θ'' = -m g l sin θ` for the angle `θ` of the target, whose mass `m`, length
+    `l`, and gravity `g` are parameters of the target.
 
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec(order=2)] = 1.0,
-        x_d1: float = 0.0,
-        m: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        k: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        c: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        F: Annotated[object, ParameterSpec()] = 0.0,
-        omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.x_d1 = x_d1
-        self.m = m
-        self.k = k
-        self.c = c
-        self.F = F
-        self.omega = omega
+    Args:
+        label:
+            The label of the interaction.
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the oscillator element."""
-        return [RateLaw(s.x, (-s.k * s.x - s.c * derivative(s.x, 1) + s.F * cos(s.omega * s.t)) / s.m)]
+        target:
+            The path of the pendulum.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import PendulumInteraction
+        >>> PendulumInteraction('swing', target='bob').states
+        'theta'
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label, target=target, states='theta')
+
+    def _get_lagrangian(self, namespace: SimpleNamespace) -> Expression:
+        """Return the Lagrangian `m l² θ'² / 2 + m g l cos θ` of the pendulum.
+
+        Args:
+            namespace:
+                The namespace of the symbols the Lagrangian can use.
+
+        Returns:
+            lagrangian:
+                The Lagrangian.
+        """
+        bob = namespace.target
+        return bob.m * bob.l**2 * derivative(bob.theta, 1) ** 2 / 2 + bob.m * bob.g * bob.l * cos(bob.theta)
 
 
 @register_model(
@@ -208,7 +250,7 @@ def pendulum(
     g: float = 9.81,
     l: float = 1.0,
 ) -> System:
-    """Return a pendulum written as Newton's second law, `m l θ'' = -m g sin θ`.
+    """Return a pendulum, whose angle follows Newton's second law `m l θ'' = -m g sin θ`.
 
     Args:
         theta:
@@ -235,7 +277,10 @@ def pendulum(
         >>> pendulum(theta=0.1).elements[0].theta_d1
         0.0
     """
-    return System(elements=[PendulumElement('bob', theta=theta, theta_d1=omega, m=m, g=g, l=l)])
+    return System(
+        elements=[PendulumElement('bob', theta=theta, theta_d1=omega, m=m, g=g, l=l)],
+        interactions=[PendulumInteraction('swing', target='bob')],
+    )
 
 
 @register_model(
@@ -280,56 +325,110 @@ def driven_damped_oscillator(
 
     Returns:
         system:
-            The model, with the oscillator `mass`, whose displacement has order 2.
+            The model, with the mass `mass` in one dimension, whose displacement `mass.x` has order 2.
 
     Examples:
         >>> from skcomplex.models.physics.mechanics import driven_damped_oscillator
-        >>> driven_damped_oscillator(F=0.5).elements[0].F
+        >>> driven_damped_oscillator(F=0.5).interactions[2].F
         0.5
     """
-    return System(elements=[OscillatorElement('mass', x=x, x_d1=v, m=m, k=k, c=c, F=F, omega=omega)])
+    return System(
+        elements=[MassPointElement('mass', x=x, x_d1=v, m=m)],
+        interactions=[
+            HarmonicPotentialInteraction('spring', target='mass', k=k),
+            DampingInteraction('damping', target='mass', gamma=c),
+            HarmonicForceInteraction('drive', target='mass', F=F, omega=omega),
+        ],
+        space=ContinuousSpace(n_dim=1),
+    )
 
 
 class BouncingBallElement(Element):
-    """Bouncing ball element."""
+    """Ball at the height `h` above a floor, falling under the gravitational acceleration `g`.
+
+    The height has order 2 and its first derivative `h_d1` is the vertical velocity.
+
+    Args:
+        label:
+            The label of the ball.
+
+        visual:
+            How the ball is drawn, or `None` for none.
+
+        h:
+            The initial height.
+
+        h_d1:
+            The initial vertical velocity.
+
+        g:
+            The gravitational acceleration.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import BouncingBallElement
+        >>> BouncingBallElement('ball', h=2.0).h
+        2.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        h: Annotated[object, StateSpec(order=2)] = 1.0,
+        h: Annotated[float, StateSpec(order=2)] = 1.0,
         h_d1: float = 0.0,
-        g: Annotated[object, ParameterSpec()] = 9.81,
-        e: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        g: Annotated[float, ParameterSpec()] = 9.81,
     ) -> None:
         super().__init__(label, visual=visual)
         self.h = h
         self.h_d1 = h_d1
         self.g = g
-        self.e = e
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the bouncing ball element."""
-        return [
-            RateLaw(s.h, -s.g),
-            CrossingLaw(s.h, {derivative(s.h, 1): -s.e * derivative(s.h, 1)}, direction=-1, label='impact'),
-        ]
 
 
 class HangingBallElement(Element):
-    """Hanging ball element."""
+    """Ball hanging on a string of length `length`, which swings with small amplitude about its rest position.
+
+    The horizontal position `x` has order 2, and its first derivative `x_d1` is the velocity. For small amplitudes
+    the ball moves in the potential `g (x - rest)² / (2 length)`.
+
+    Args:
+        label:
+            The label of the ball.
+
+        visual:
+            How the ball is drawn, or `None` for none.
+
+        x:
+            The initial horizontal position.
+
+        x_d1:
+            The initial horizontal velocity.
+
+        rest:
+            The rest position.
+
+        g:
+            The gravitational acceleration.
+
+        length:
+            The length of the string.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import HangingBallElement
+        >>> HangingBallElement('ball', rest=0.5).rest
+        0.5
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec(order=2)] = 0.0,
+        x: Annotated[float, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.0,
-        rest: Annotated[object, ParameterSpec()] = 0.0,
-        g: Annotated[object, ParameterSpec()] = 9.81,
-        length: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        rest: Annotated[float, ParameterSpec()] = 0.0,
+        g: Annotated[float, ParameterSpec()] = 9.81,
+        length: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
@@ -338,21 +437,39 @@ class HangingBallElement(Element):
         self.g = g
         self.length = length
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the hanging ball element."""
-        return [RateLaw(s.x, -s.g / s.length * (s.x - s.rest))]
-
 
 class ElasticCollisionInteraction(Interaction):
-    """Elastic collision interaction."""
+    """Elastic collision of two equal masses in a row, which exchange their velocities when they touch.
+
+    The collision is the event at which the gap `x_right - x_left - diameter` between the balls falls to zero, and
+    equal masses swap their velocities in an elastic collision.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        left:
+            The path of the left ball, with a position `x` of order 2.
+
+        right:
+            The path of the right ball, with a position `x` of order 2.
+
+        diameter:
+            The diameter of the balls.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import ElasticCollisionInteraction
+        >>> ElasticCollisionInteraction('collision', left='a', right='b', diameter=0.2).diameter
+        0.2
+    """
 
     def __init__(
         self,
         label: str,
         *,
-        left: Annotated[object, RoleSpec()],
-        right: Annotated[object, RoleSpec()],
-        diameter: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        left: Annotated[str, RoleSpec()],
+        right: Annotated[str, RoleSpec()],
+        diameter: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
     ) -> None:
         super().__init__(label)
         self.left = left
@@ -360,7 +477,16 @@ class ElasticCollisionInteraction(Interaction):
         self.diameter = diameter
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the elastic collision interaction."""
+        """Return the crossing law of the contact, which swaps the velocities of the balls.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use, with `s.left` and `s.right`.
+
+        Returns:
+            laws:
+                The crossing law.
+        """
         return [
             CrossingLaw(
                 s.right.x - s.left.x - s.diameter,
@@ -374,7 +500,37 @@ class ElasticCollisionInteraction(Interaction):
 
 
 class DiscBilliardElement(Element):
-    """Disc billiard element."""
+    """Particle moving freely in the plane with the position `(x, y)` and the velocity `(vx, vy)`, inside a disc.
+
+    The position changes at the velocity, which changes only at the reflections off the wall of the disc.
+
+    Args:
+        label:
+            The label of the particle.
+
+        visual:
+            How the particle is drawn, or `None` for its class visual.
+
+        x:
+            The initial horizontal position.
+
+        y:
+            The initial vertical position.
+
+        vx:
+            The initial horizontal velocity.
+
+        vy:
+            The initial vertical velocity.
+
+        radius:
+            The radius of the disc.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import DiscBilliardElement
+        >>> DiscBilliardElement('particle', radius=2.0).radius
+        2.0
+    """
 
     visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _disc_wall})
 
@@ -383,11 +539,11 @@ class DiscBilliardElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec()] = 0.3,
-        y: Annotated[object, StateSpec()] = 0.0,
-        vx: Annotated[object, StateSpec()] = 0.4,
-        vy: Annotated[object, StateSpec()] = 1.0,
-        radius: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        x: Annotated[float, StateSpec()] = 0.3,
+        y: Annotated[float, StateSpec()] = 0.0,
+        vx: Annotated[float, StateSpec()] = 0.4,
+        vy: Annotated[float, StateSpec()] = 1.0,
+        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
@@ -397,20 +553,17 @@ class DiscBilliardElement(Element):
         self.radius = radius
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the disc billiard element."""
-        return [
-            RateLaw(s.x, s.vx),
-            RateLaw(s.y, s.vy),
-            CrossingLaw(
-                s.x**2 + s.y**2 - s.radius**2,
-                {
-                    s.vx: s.vx - 2 * (s.vx * s.x + s.vy * s.y) * s.x / (s.x**2 + s.y**2),
-                    s.vy: s.vy - 2 * (s.vx * s.x + s.vy * s.y) * s.y / (s.x**2 + s.y**2),
-                },
-                direction=1,
-                label='bounce',
-            ),
-        ]
+        """Return the free flight `x' = vx`, `y' = vy` of the particle.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate laws of the position.
+        """
+        return [RateLaw(s.x, s.vx), RateLaw(s.y, s.vy)]
 
 
 @register_model(
@@ -449,7 +602,21 @@ def bouncing_ball(h: float = 1.0, v: float = 0.0, *, g: float = 9.81, e: float =
         >>> round(trajectory.events[0].time, 6)
         0.451524
     """
-    return System(elements=[BouncingBallElement('ball', h=h, h_d1=v, g=g, e=e)])
+    return System(
+        elements=[BouncingBallElement('ball', h=h, h_d1=v, g=g)],
+        interactions=[
+            RateInteraction('gravity', target='ball', state='h', rate=lambda s: -s.target.g),
+            ReflectionInteraction(
+                'impact',
+                target='ball',
+                guard=lambda s: s.target.h,
+                positions=('h',),
+                velocities=('h_d1',),
+                direction=-1,
+                restitution=e,
+            ),
+        ],
+    )
 
 
 @register_model(
@@ -499,7 +666,7 @@ def newtons_cradle(
     Examples:
         >>> from skcomplex.models.physics.mechanics import newtons_cradle
         >>> len(newtons_cradle(n_balls=3).interactions)
-        2
+        5
     """
     spacing = diameter + gap
     elements = [
@@ -513,7 +680,15 @@ def newtons_cradle(
         )
         for index in range(n_balls)
     ]
-    interactions = [
+    swings: list[BaseInteraction] = [
+        GradientInteraction(
+            f'swing_{index}',
+            target=f'ball_{index}',
+            potential=lambda s: s.target.g * (s.target.x - s.target.rest) ** 2 / (2 * s.target.length),
+        )
+        for index in range(n_balls)
+    ]
+    collisions: list[BaseInteraction] = [
         ElasticCollisionInteraction(
             f'collision_{index}',
             left=f'ball_{index}',
@@ -522,7 +697,7 @@ def newtons_cradle(
         )
         for index in range(n_balls - 1)
     ]
-    return System(elements=elements, interactions=interactions)
+    return System(elements=elements, interactions=[*swings, *collisions])
 
 
 @register_model(
@@ -568,4 +743,15 @@ def circular_billiard(
         >>> circular_billiard(radius=2.0).elements[0].radius
         2.0
     """
-    return System(elements=[DiscBilliardElement('particle', x=x, y=y, vx=vx, vy=vy, radius=radius)])
+    wall = ReflectionInteraction(
+        'bounce',
+        target='particle',
+        guard=lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2,
+        positions=('x', 'y'),
+        velocities=('vx', 'vy'),
+        direction=1,
+    )
+    return System(
+        elements=[DiscBilliardElement('particle', x=x, y=y, vx=vx, vy=vy, radius=radius)],
+        interactions=[wall],
+    )

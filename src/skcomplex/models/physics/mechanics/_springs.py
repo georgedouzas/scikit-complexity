@@ -9,8 +9,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import cos, oo
 from sage.sets.real_set import RealSet
 
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import RateInteraction
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec
@@ -18,25 +17,62 @@ from ..._catalog import register_model
 from ..common.particles import DampingInteraction, HarmonicPotentialInteraction, MassPointElement, SpringInteraction
 
 
-class HarmonicForceInteraction(Interaction):
-    """Harmonic force interaction."""
+class HarmonicForceInteraction(RateInteraction):
+    """Periodic force `F cos(omega t)` on a target, the second derivative `F cos(omega t) / m` of its position.
+
+    It is the rate `F cos(omega t)` with the mass as divisor, applied to every component of the position.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element or group the force acts on.
+
+        F:
+            The amplitude of the force.
+
+        omega:
+            The angular frequency of the force.
+
+        state:
+            The name of the state of order 2 that holds the position of the target.
+
+        divisor:
+            The name of the state or parameter that holds the mass of the target.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import HarmonicForceInteraction
+        >>> HarmonicForceInteraction('drive', target='mass', F=0.5, omega=2.0).omega
+        2.0
+    """
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[object, RoleSpec()],
-        F: Annotated[object, ParameterSpec()] = 0.0,
-        omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        target: Annotated[str, RoleSpec()],
+        F: Annotated[float, ParameterSpec()] = 0.0,
+        omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        state: str = 'x',
+        divisor: str = 'm',
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, state=state, divisor=divisor)
         self.F = F
         self.omega = omega
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the harmonic force interaction."""
-        return [RateLaw(s.target.x, s.F * cos(s.omega * s.t) / s.target.m)]
+    def _get_rate(self, namespace: SimpleNamespace) -> object:
+        """Return the force `F cos(omega t)`.
+
+        Args:
+            namespace:
+                The namespace of the symbols the rate can use.
+
+        Returns:
+            rate:
+                The force, before the division by the mass.
+        """
+        return namespace.F * cos(namespace.omega * namespace.t)
 
 
 @register_model(
