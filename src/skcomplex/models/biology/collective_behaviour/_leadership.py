@@ -21,21 +21,6 @@ from ..._catalog import register_model
 from ._shoal_member_view import ShoalMemberView
 
 
-def _unit(vector: np.ndarray) -> np.ndarray:
-    """Return a vector scaled to unit length, or the vector itself when it is zero."""
-    norm = float(np.hypot(*vector))
-    return vector / norm if norm > 0 else vector
-
-
-def _turned(heading: np.ndarray, desired: np.ndarray, max_turn: float) -> np.ndarray:
-    """Return the heading turned toward a desired direction by at most an angle."""
-    angle = math.atan2(desired[1], desired[0]) - math.atan2(heading[1], heading[0])
-    angle = (angle + math.pi) % (2 * math.pi) - math.pi
-    angle = max(-max_turn, min(max_turn, angle))
-    cosine, sine = math.cos(angle), math.sin(angle)
-    return np.array([cosine * heading[0] - sine * heading[1], sine * heading[0] + cosine * heading[1]])
-
-
 class ShoalMemberElement(Element):
     """Fish of a Couzin shoal that avoids close neighbours, follows farther ones, and may know a preferred direction.
 
@@ -121,6 +106,21 @@ class ShoalMemberElement(Element):
         """Return the view of a member of a shoal, `ShoalMemberView`."""
         return ShoalMemberView
 
+    @staticmethod
+    def _unit(vector: np.ndarray) -> np.ndarray:
+        """Return a vector scaled to unit length, or the vector itself when it is zero."""
+        norm = float(np.hypot(*vector))
+        return vector / norm if norm > 0 else vector
+
+    @staticmethod
+    def _turn(heading: np.ndarray, desired: np.ndarray, max_turn: float) -> np.ndarray:
+        """Return the heading turned toward a desired direction by at most an angle."""
+        angle = math.atan2(desired[1], desired[0]) - math.atan2(heading[1], heading[0])
+        angle = (angle + math.pi) % (2 * math.pi) - math.pi
+        angle = max(-max_turn, min(max_turn, angle))
+        cosine, sine = math.cos(angle), math.sin(angle)
+        return np.array([cosine * heading[0] - sine * heading[1], sine * heading[0] + cosine * heading[1]])
+
     def _desired(self, agent: ShoalMemberView) -> np.ndarray:
         """Return the desired direction from repulsion, or from attraction and alignment."""
         heading = np.array([agent.vx, agent.vy])
@@ -135,11 +135,11 @@ class ShoalMemberElement(Element):
         directions = offsets / distances[:, None]
         close = distances < agent.alpha
         if close.any():
-            return _unit(-directions[close].sum(axis=0))
+            return self._unit(-directions[close].sum(axis=0))
         headings = np.array([(other.vx, other.vy) for other in neighbours])
         social = heading + directions.sum(axis=0) + headings.sum(axis=0)
         goal = np.array([math.cos(agent.preferred), math.sin(agent.preferred)])
-        return _unit(_unit(social) + agent.omega * goal)
+        return self._unit(self._unit(social) + agent.omega * goal)
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the simultaneous turning and the swimming of the fish.
@@ -167,7 +167,7 @@ class ShoalMemberElement(Element):
         heading = np.array([agent.vx, agent.vy])
         desired = self._desired(agent)
         if float(np.hypot(*desired)) > 0:
-            heading = _turned(heading, desired, agent.max_turn)
+            heading = self._turn(heading, desired, agent.max_turn)
         angle = math.atan2(heading[1], heading[0]) + float(model.rng.normal(0.0, agent.noise))
         agent.vx, agent.vy = math.cos(angle), math.sin(angle)
 

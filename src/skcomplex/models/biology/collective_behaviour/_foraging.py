@@ -7,25 +7,57 @@ from types import SimpleNamespace
 from typing import Annotated, cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement, GroupElement
-from ....core.laws import BaseLaw, RateLaw, RuleLaw
-from ....core.laws.utils import laplacian
+from ....core.interactions import DiffusionInteraction
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.stigmergy import EvaporationInteraction
 from ._ant_view import AntView
 
 PHEROMONE = 'ground/pheromone.level'
 
 
+def _get_diffusion(namespace: SimpleNamespace) -> Expression:
+    """Return the diffusion coefficient `D` of the pheromone."""
+    coefficient: Expression = namespace.target.D
+    return coefficient
+
+
 class PheromoneElement(Element):
-    """Pheromone element."""
+    """Pheromone of one cell of the ground, a level that diffuses to the neighbouring cells and evaporates.
+
+    The element holds the level and its parameters. The model adds the diffusion `D laplacian(level)` and the
+    evaporation `-evaporation level` as interactions.
+
+    Args:
+        label:
+            The label of the element or the lattice field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        level:
+            The initial level of pheromone.
+
+        D:
+            The diffusion coefficient of the pheromone.
+
+        evaporation:
+            The rate at which the pheromone evaporates.
+
+    Examples:
+        >>> from skcomplex.models.biology.collective_behaviour import PheromoneElement
+        >>> PheromoneElement('pheromone').evaporation
+        0.05
+    """
 
     def __init__(
         self,
@@ -40,10 +72,6 @@ class PheromoneElement(Element):
         self.level = level
         self.D = D
         self.evaporation = evaporation
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the pheromone element."""
-        return [RateLaw(s.level, s.D * laplacian(s.level) - s.evaporation * s.level)]
 
 
 class AntElement(Element):
@@ -244,6 +272,13 @@ def pheromone_foraging(
     return System(
         systems=[
             System('colony', elements=[ants], space=LatticeSpace((width, height), boundary='fixed')),
-            System('ground', elements=[pheromone]),
+            System(
+                'ground',
+                elements=[pheromone],
+                interactions=[
+                    DiffusionInteraction('diffusion', target='pheromone', state='level', coefficient=_get_diffusion),
+                    EvaporationInteraction('evaporation', target='pheromone', state='level'),
+                ],
+            ),
         ],
     )

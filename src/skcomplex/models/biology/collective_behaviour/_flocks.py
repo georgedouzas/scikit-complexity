@@ -12,27 +12,14 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, PointElement
-from ....core.interactions import Interaction, PairCouplingInteraction
-from ....core.laws import BaseLaw, RateLaw, RuleLaw
+from ....core.interactions import PairCouplingInteraction, RateInteraction
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._boid_view import BoidView
-
-
-def _wrapped(offset: np.ndarray, size: np.ndarray) -> np.ndarray:
-    """Return the shortest offset between two points of a torus."""
-    return (offset + size / 2) % size - size / 2
-
-
-def _limited(velocity: np.ndarray, low: float, high: float) -> np.ndarray:
-    """Return a velocity whose speed is clipped between two bounds."""
-    speed = float(np.hypot(*velocity))
-    if speed == 0.0:
-        return velocity
-    return velocity * min(max(speed, low), high) / speed
 
 
 class BoidElement(Element):
@@ -123,10 +110,23 @@ class BoidElement(Element):
         """Return the view of a boid, `BoidView`."""
         return BoidView
 
+    @staticmethod
+    def _wrap(offset: np.ndarray, size: np.ndarray) -> np.ndarray:
+        """Return the shortest offset between two points of a torus."""
+        return (offset + size / 2) % size - size / 2
+
+    @staticmethod
+    def _limit(velocity: np.ndarray, low: float, high: float) -> np.ndarray:
+        """Return a velocity whose speed is clipped between two bounds."""
+        speed = float(np.hypot(*velocity))
+        if speed == 0.0:
+            return velocity
+        return velocity * min(max(speed, low), high) / speed
+
     def _steering(self, agent: BoidView, neighbours: list[BoidView], size: np.ndarray) -> np.ndarray:
         """Return the change of velocity from cohesion, separation, and alignment."""
         here = np.asarray(agent.location, dtype=float)
-        offsets = np.array([_wrapped(np.asarray(other.location) - here, size) for other in neighbours])
+        offsets = np.array([self._wrap(np.asarray(other.location) - here, size) for other in neighbours])
         velocities = np.array([(other.vx, other.vy) for other in neighbours])
         distances = np.hypot(offsets[:, 0], offsets[:, 1])
         close = offsets[distances < agent.separation_radius]
@@ -164,15 +164,15 @@ class BoidElement(Element):
         neighbours = [other for other in agent.neighbors(radius=agent.radius) if isinstance(other, BoidView)]
         if neighbours:
             velocity = velocity + self._steering(agent, neighbours, size)
-        velocity = _limited(velocity, agent.min_speed, agent.max_speed)
+        velocity = self._limit(velocity, agent.min_speed, agent.max_speed)
         agent.vx, agent.vy = float(velocity[0]), float(velocity[1])
         agent.move_to(tuple(np.mod(np.asarray(cast('tuple[float, float]', agent.location)) + velocity, size)))
 
 
-class SelfPropulsionInteraction(Interaction):
+class SelfPropulsionInteraction(RateInteraction):
     """Rayleigh self-propulsion, `v' = (alpha - beta |v|²) v`, which drives points to the speed `sqrt(alpha / beta)`.
 
-    The velocity `v` is the first derivative `x_d1` of the position `x` of order 2.
+    It is a rate on the position `x`, a state of order 2, whose velocity `v` is the first derivative `x_d1`.
 
     Args:
         label:
@@ -201,24 +201,23 @@ class SelfPropulsionInteraction(Interaction):
         alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, state='x')
         self.alpha = alpha
         self.beta = beta
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+    def _get_rate(self, namespace: SimpleNamespace) -> object:
         """Return the velocity change `(alpha - beta |v|²) v`.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the rate can use, with the namespace of the target.
 
         Returns:
-            laws:
-                The laws of the component.
+            rate:
+                The change of the velocity.
         """
-        velocity = s.target.x_d1
-        return [RateLaw(s.target.x, (s.alpha - s.beta * velocity.dot_product(velocity)) * velocity)]
+        velocity = namespace.target.x_d1
+        return (namespace.alpha - namespace.beta * velocity.dot_product(velocity)) * velocity
 
 
 class MorsePotentialInteraction(PairCouplingInteraction):

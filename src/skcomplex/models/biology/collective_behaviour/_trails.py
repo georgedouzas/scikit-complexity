@@ -7,12 +7,12 @@ from types import SimpleNamespace
 from typing import Annotated, cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement, GroupElement
-from ....core.laws import BaseLaw, RateLaw, RuleLaw
-from ....core.laws.utils import laplacian
+from ....core.interactions import DiffusionInteraction, RelaxationInteraction
+from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.solvers import ModelView
@@ -29,12 +29,37 @@ def _corners(width: int, height: int) -> list[tuple[int, int]]:
     return [(0, 0), (width - 1, 0), (0, height - 1), (width - 1, height - 1)]
 
 
+def _get_durability(namespace: SimpleNamespace) -> Expression:
+    """Return the durability `T` of trails, the time over which the structure fades to bare ground."""
+    durability: Expression = namespace.target.T
+    return durability
+
+
+def _get_diffusion(namespace: SimpleNamespace) -> Expression:
+    """Return the diffusion coefficient `D` of the trail potential."""
+    coefficient: Expression = namespace.target.D
+    return coefficient
+
+
+def _get_structure(namespace: SimpleNamespace) -> Expression:
+    """Return the ground structure `G`, the goal of the trail potential."""
+    structure: Expression = namespace.target.G
+    return structure
+
+
+def _get_relaxation(namespace: SimpleNamespace) -> Expression:
+    """Return the relaxation time `tau` of the trail potential."""
+    time: Expression = namespace.target.tau
+    return time
+
+
 class GroundElement(Element):
     """Ground whose structure `G` is raised by footprints and recovers, with a trail potential `V` that smooths it.
 
     The structure relaxes back to bare ground as `G' = -G / T`, and walkers add footprints. The trail potential
     follows `V' = D ΔV + (G - V) / tau`, so it settles to the structure smoothed over a length `sqrt(D tau)`, the
-    distance from which walkers notice a trail.
+    distance from which walkers notice a trail. The element holds the states and their parameters, and the model adds
+    the fading, the diffusion, and the relaxation as interactions.
 
     Args:
         label:
@@ -81,19 +106,6 @@ class GroundElement(Element):
         self.T = T
         self.D = D
         self.tau = tau
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the fading of the structure and the smoothing of the trail potential.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.G, -s.G / s.T), RateLaw(s.V, s.D * laplacian(s.V) + (s.G - s.V) / s.tau)]
 
 
 class WalkerElement(Element):
@@ -292,6 +304,20 @@ def active_walkers(
     return System(
         systems=[
             System('people', elements=[walkers], space=LatticeSpace((size, size), boundary='fixed')),
-            System('land', elements=[ground]),
+            System(
+                'land',
+                elements=[ground],
+                interactions=[
+                    RelaxationInteraction('fading', target='ground', state='G', time=_get_durability),
+                    DiffusionInteraction('spreading', target='ground', state='V', coefficient=_get_diffusion),
+                    RelaxationInteraction(
+                        'smoothing',
+                        target='ground',
+                        state='V',
+                        goal=_get_structure,
+                        time=_get_relaxation,
+                    ),
+                ],
+            ),
         ],
     )
