@@ -122,15 +122,16 @@ The matching protocols are `RandomSearchProtocol`, `PartnerSwitchProtocol`, `Que
 `GreedyProtocol`, with `MatchingRoundSpec` for one round.
 
 ### Elements, laws, and utilities
-- Elements: `Element`, `GroupElement`, `FieldElement`, `LatticeElement`, `CompartmentElement` with the name of its
-  state, `DensityElement`, and `PointElement`, which replaces `ParticleElement`: a member with a vector state of order 2
+- Elements: `Element`, `GroupElement`, `FieldElement`, `LatticeElement`, `CompartmentElement`, whose state `n` a model renames by a
+  thin subclass, since states are declared per class, `DensityElement`, and `PointElement`, which replaces `ParticleElement`: a member with a vector state of order 2
   in a continuous space. LAMMPS accepts an element by its declared states, and reads the velocity as the first
   derivative of the position.
 - Laws: `RelaxationLaw` becomes `CascadeLaw`, so relaxation means relaxation towards a goal. `DriveLaw`, `FluxLaw`,
   `EncounterLaw`, `DestructionLaw`, and `ProliferationLaw` keep their names and lose their field wording.
   `StateSpec.velocity_of` is removed.
 - Utilities of the law namespace: `hill`, `logistic`, `pulse_train` with a count, `clip`, `minimum`, `maximum`, `sign`,
-  the stock-and-flow delays `delay1`, `delay3`, and `smooth`, reductions keyed by a state (`by=`), and a circular mean.
+  the stock-and-flow delays `delay1`, `delay3`, and `smooth`, sums, means, and counts keyed by a state (`by=`), and a
+  circular mean.
 
 ### What leaves the core
 - `PotentialInteraction` and `PairPotentialInteraction` become `GradientInteraction` and `PairCouplingInteraction`.
