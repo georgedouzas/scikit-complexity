@@ -1,7 +1,7 @@
 """Neuroscience: spiking and conductance-based neurons, populations, networks, excitable networks, and synapses."""
 
 from ._conductances import FitzHughNagumoNeuronElement, HodgkinHuxleyElement, fitzhugh_nagumo_ode, hodgkin_huxley
-from ._excitable import ExcitableElementElement, kinouchi_copelli
+from ._excitable import ExcitableElement, kinouchi_copelli
 from ._networks import (
     DelayedSynapseInteraction,
     GlobalInhibitionInteraction,
@@ -24,12 +24,13 @@ from ._populations import (
     wilson_cowan,
     winners_take_all,
 )
+from ._spike_reset import SpikeResetInteraction
 from ._synapses import AdaptrodeElement, adaptrode
 
 __all__: list[str] = [
     'AdaptrodeElement',
     'DelayedSynapseInteraction',
-    'ExcitableElementElement',
+    'ExcitableElement',
     'FitzHughNagumoNeuronElement',
     'GlobalInhibitionInteraction',
     'HodgkinHuxleyElement',
@@ -40,6 +41,7 @@ __all__: list[str] = [
     'PolyhomeostaticNeuronElement',
     'PulseCouplingInteraction',
     'RateUnitElement',
+    'SpikeResetInteraction',
     'SpikingNeuronElement',
     'TermanWangElement',
     'ThetaNeuronElement',

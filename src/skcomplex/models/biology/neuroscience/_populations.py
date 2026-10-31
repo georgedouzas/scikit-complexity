@@ -9,26 +9,16 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, cos, exp, oo, pi, sin
+from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import mean, total
+from ....core.laws.utils import logistic, mean, total
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-
-
-def _sigmoid(x: Expression, gain: Expression, threshold: Expression) -> Expression:
-    """Return the Wilson-Cowan response `1 / (1 + exp(-gain (x - threshold))) - 1 / (1 + exp(gain threshold))`."""
-    return 1 / (1 + exp(-gain * (x - threshold))) - 1 / (1 + exp(gain * threshold))
-
-
-def _saturation(gain: Expression, threshold: Expression) -> Expression:
-    """Return the largest value of the Wilson-Cowan response."""
-    return 1 - 1 / (1 + exp(gain * threshold))
 
 
 def _lorentzian_quantiles(center: float, width: float, size: int) -> list[float]:
@@ -144,6 +134,14 @@ class WilsonCowanElement(Element):
         self.tau_e = tau_e
         self.tau_i = tau_i
 
+    def _get_response(self, x: Expression, gain: Expression, threshold: Expression) -> Expression:
+        """Return the response `logistic(x) - logistic(0)` of a sigmoid of a gain and a threshold, 0 at no input."""
+        return logistic(x, threshold, 1 / gain) - logistic(0, threshold, 1 / gain)
+
+    def _get_saturation(self, gain: Expression, threshold: Expression) -> Expression:
+        """Return the largest value of the response."""
+        return 1 - logistic(0, threshold, 1 / gain)
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the relaxation of both activities toward their responses.
 
@@ -155,12 +153,12 @@ class WilsonCowanElement(Element):
             laws:
                 The laws of the component.
         """
-        excitation = (_saturation(s.a_e, s.theta_e) - s.r_e * s.E) * _sigmoid(
+        excitation = (self._get_saturation(s.a_e, s.theta_e) - s.r_e * s.E) * self._get_response(
             s.c1 * s.E - s.c2 * s.I + s.P,
             s.a_e,
             s.theta_e,
         )
-        inhibition = (_saturation(s.a_i, s.theta_i) - s.r_i * s.I) * _sigmoid(
+        inhibition = (self._get_saturation(s.a_i, s.theta_i) - s.r_i * s.I) * self._get_response(
             s.c3 * s.E - s.c4 * s.I + s.Q,
             s.a_i,
             s.theta_i,
@@ -464,7 +462,7 @@ class PolyhomeostaticNeuronElement(Element):
             laws:
                 The laws of the component.
         """
-        rate = 1 / (1 + exp(s.a * (s.b - s.x)))
+        rate = logistic(s.x, s.b, 1 / s.a)
         gradient = 1 - (2 + 1 / s.mu) * rate + rate**2 / s.mu
         return [
             RateLaw(s.x, s.Gamma * (s.I0 + s.A * sin(s.omega * s.t) - s.x)),
