@@ -3,24 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
-import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import TransferInteraction
 from ....core.system import System
-from ....engine.solvers import ModelView
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.types import ModelViewProtocol
+from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ._saver_view import SaverView
+from ._saving_trader_view import SavingTraderView
 
 
-class SaverElement(Element):
+class SavingTraderElement(Element):
     """Agent of the kinetic wealth exchange models, whose wealth changes only in pairwise trades.
 
     Args:
@@ -34,10 +31,10 @@ class SaverElement(Element):
             The initial wealth, negative down to the debt limit.
 
     Examples:
-        >>> from skcomplex.models.economics.econophysics import SaverElement
-        >>> group = GroupElement('savers', element=SaverElement, size=10, values={'wealth': 2.0})
+        >>> from skcomplex.models.economics.econophysics import SavingTraderElement
+        >>> group = GroupElement('traders', element=SavingTraderElement, size=10, values={'wealth': 2.0})
         >>> group.label, group.element.__name__, group.size
-        ('savers', 'SaverElement', 10)
+        ('traders', 'SavingTraderElement', 10)
     """
 
     def __init__(
@@ -51,32 +48,39 @@ class SaverElement(Element):
         self.wealth = wealth
 
     @classmethod
-    def _get_view(cls) -> type[SaverView]:
-        """Return the view of a saver, with its wealth."""
-        return SaverView
+    def _get_view(cls) -> type[SavingTraderView]:
+        """Return the view of a trader, with its wealth."""
+        return SavingTraderView
 
 
-class SavingExchangeInteraction(Interaction):
+class SavingExchangeInteraction(TransferInteraction):
     """Random pairwise trades of Chakraborti and Chakrabarti, where every agent saves a fraction of its wealth.
 
     A trade between agents `i` and `j` keeps total wealth and gives `w_i' = lambda w_i + eps (1 - lambda) (w_i + w_j)`
-    and `w_j' = lambda w_j + (1 - eps) (1 - lambda) (w_i + w_j)` with `eps` uniform on `[0, 1]`. Every step makes as
-    many trades as there are agents. Without saving the stationary wealth distribution is exponential, and with
-    saving propensity `lambda` it is close to a Gamma distribution of shape `n = 1 + 3 lambda / (1 - lambda)`.
+    and `w_j' = lambda w_j + (1 - eps) (1 - lambda) (w_i + w_j)` with `eps` uniform on `[0, 1]`, so `i` transfers
+    `(1 - lambda) (w_i - eps (w_i + w_j))` to `j`, an amount of either sign. Every step, every agent trades once with
+    another agent drawn at random, in random order. Without saving the stationary wealth distribution is exponential,
+    and with saving propensity `lambda` it is close to a Gamma distribution of shape `n = 1 + 3 lambda / (1 - lambda)`.
 
     Args:
         label:
             The label of the interaction.
 
-        traders:
+        source:
             The path of the group of traders.
+
+        target:
+            The path of the group of traders, the source again.
 
         saving:
             The saving propensity `lambda`, the fraction of its wealth that an agent keeps out of a trade.
 
+        phase:
+            The phase the trades run in, or `None` for the default phase.
+
     Examples:
         >>> from skcomplex.models.economics.econophysics import SavingExchangeInteraction
-        >>> SavingExchangeInteraction('trades', traders='savers').saving
+        >>> SavingExchangeInteraction('trades', source='traders', target='traders').check().saving
         0.0
     """
 
@@ -84,61 +88,46 @@ class SavingExchangeInteraction(Interaction):
         self,
         label: str,
         *,
-        traders: Annotated[str, RoleSpec()],
+        source: str,
+        target: str,
         saving: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        phase: str | None = None,
     ) -> None:
-        super().__init__(label)
-        self.traders = traders
+        super().__init__(
+            label,
+            source=source,
+            target=target,
+            state='wealth',
+            amount=self._get_amount,
+            pairing='random',
+            form='agent',
+            phase=phase,
+        )
         self.saving = saving
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the trading rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.trade)]
-
-    def trade(self, model: ModelView) -> None:
-        """Make one random trade per agent.
-
-        Args:
-            model:
-                The model.
-        """
-        agents = model.agents('traders', SaverView)
-        wealth = np.array([agent.wealth for agent in agents], dtype=float)
+    def _get_amount(self, first: SavingTraderView, second: SavingTraderView, model: ModelViewProtocol) -> float:
+        """Return the wealth the first trader transfers to the second, of either sign."""
         saving = model.parameter('saving')
-        pairs = model.rng.integers(len(agents), size=(len(agents), 2))
-        shares = model.rng.random(len(agents))
-        for (first, second), share in zip(pairs, shares, strict=True):
-            if first == second:
-                continue
-            pool = (1 - saving) * (wealth[first] + wealth[second])
-            wealth[first] = saving * wealth[first] + share * pool
-            wealth[second] = saving * wealth[second] + (1 - share) * pool
-        for agent, value in zip(agents, wealth, strict=True):
-            agent.wealth = float(value)
+        share = float(model.rng.random())
+        return (1 - saving) * (first.wealth - share * (first.wealth + second.wealth))
 
 
-class DebtExchangeInteraction(Interaction):
+class DebtExchangeInteraction(TransferInteraction):
     """Random pairwise trades of Dragulescu and Yakovenko of a fixed amount, allowing debt down to a limit.
 
-    In every trade a random agent pays a fixed amount to another random agent, unless its wealth would fall below
-    minus the debt limit. Every step makes as many trades as there are agents. The stationary wealth distribution is
+    In every trade an agent pays a fixed amount to another agent drawn at random, unless its wealth would fall below
+    minus the debt limit. Every step, every agent pays once, in random order. The stationary wealth distribution is
     the exponential `P(w) = exp(-(w + d) / T) / T` shifted to the debt limit `d`, with temperature `T = <w> + d`.
 
     Args:
         label:
             The label of the interaction.
 
-        traders:
+        source:
             The path of the group of traders.
+
+        target:
+            The path of the group of traders, the source again.
 
         debt:
             The debt limit `d`, the largest debt an agent can have.
@@ -146,9 +135,12 @@ class DebtExchangeInteraction(Interaction):
         amount:
             The amount paid in every trade.
 
+        phase:
+            The phase the trades run in, or `None` for the default phase.
+
     Examples:
         >>> from skcomplex.models.economics.econophysics import DebtExchangeInteraction
-        >>> DebtExchangeInteraction('trades', traders='savers', debt=5.0).debt
+        >>> DebtExchangeInteraction('trades', source='traders', target='traders', debt=5.0).check().debt
         5.0
     """
 
@@ -156,44 +148,28 @@ class DebtExchangeInteraction(Interaction):
         self,
         label: str,
         *,
-        traders: Annotated[str, RoleSpec()],
+        source: str,
+        target: str,
         debt: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         amount: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        phase: str | None = None,
     ) -> None:
-        super().__init__(label)
-        self.traders = traders
+        super().__init__(
+            label,
+            source=source,
+            target=target,
+            state='wealth',
+            amount=amount,
+            pairing='random',
+            guard=self._is_solvent,
+            form='agent',
+            phase=phase,
+        )
         self.debt = debt
-        self.amount = amount
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the trading rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.trade)]
-
-    def trade(self, model: ModelView) -> None:
-        """Make one random trade per agent.
-
-        Args:
-            model:
-                The model.
-        """
-        agents = model.agents('traders', SaverView)
-        wealth = np.array([agent.wealth for agent in agents], dtype=float)
-        floor, amount = -model.parameter('debt'), model.parameter('amount')
-        for payer, payee in model.rng.integers(len(agents), size=(len(agents), 2)):
-            if payer != payee and wealth[payer] - amount >= floor:
-                wealth[payer] -= amount
-                wealth[payee] += amount
-        for agent, value in zip(agents, wealth, strict=True):
-            agent.wealth = float(value)
+    def _is_solvent(self, payer: SavingTraderView, payee: SavingTraderView, model: ModelViewProtocol) -> bool:
+        """Return whether the payer stays above minus the debt limit after paying."""
+        return bool(payer.wealth - model.parameter('amount') >= -model.parameter('debt'))
 
 
 @register_model(
@@ -253,11 +229,11 @@ def kinetic_wealth_exchange(
         error_msg = f'The saving propensity must lie in [0, 1), got {saving}.'
         raise ValueError(error_msg)
     trades = (
-        SavingExchangeInteraction('trades', traders='traders', saving=saving)
+        SavingExchangeInteraction('trades', source='traders', target='traders', saving=saving)
         if debt is None
-        else DebtExchangeInteraction('trades', traders='traders', debt=debt, amount=amount)
+        else DebtExchangeInteraction('trades', source='traders', target='traders', debt=debt, amount=amount)
     )
     return System(
-        elements=[GroupElement('traders', element=SaverElement, size=n_agents, values={'wealth': wealth})],
+        elements=[GroupElement('traders', element=SavingTraderElement, size=n_agents, values={'wealth': wealth})],
         interactions=[trades],
     )
