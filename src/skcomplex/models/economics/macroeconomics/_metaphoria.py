@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....analysis import DistributionAnalysis
 from ....core.elements import Element, GroupElement
-from ....core.interactions import BaseInteraction, Interaction, MatchingInteraction
+from ....core.interactions import BaseInteraction, Interaction, MatchingInteraction, TransferInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.laws.utils import transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
@@ -265,8 +265,8 @@ class SettlerElement(Element):
         money: Annotated[float, StateSpec(quantity='money')] = 0.0,
         loans: Annotated[float, StateSpec(quantity='credit')] = 0.0,
         age: Annotated[float, StateSpec(domain=NN)] = 20.0,
-        parent: Annotated[float, StateSpec()] = -1.0,
-        employer: Annotated[float, StateSpec()] = -1.0,
+        parent: Annotated[float, StateSpec(reference='people')] = -1.0,
+        employer: Annotated[float, StateSpec(reference='businesses')] = -1.0,
         harvested: Annotated[float, StateSpec()] = 0.0,
         born: Annotated[float, StateSpec()] = -100.0,
         fate: Annotated[float, StateSpec()] = ALIVE,
@@ -330,8 +330,8 @@ class SettlerElement(Element):
 
     def _feed_child(self, agent: SettlerView, model: ModelView) -> None:
         """Take food from the living parent and follow it."""
-        parent = _people_by_id(model).get(int(agent.parent))
-        if parent is None:
+        parent = agent.referenced('parent')
+        if not isinstance(parent, SettlerView):
             return
         given = min(agent.need, max(parent.food - parent.need, 0.0))
         parent.food -= given
@@ -468,7 +468,7 @@ class BusinessElement(Element):
         stock: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         wage: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
         price: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        owner: Annotated[float, StateSpec()] = -1.0,
+        owner: Annotated[float, StateSpec(reference='people')] = -1.0,
         workers: Annotated[float, StateSpec(domain=NN)] = 1.0,
         vacancies: Annotated[float, StateSpec(domain=NN)] = 1.0,
         revenue: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -571,16 +571,18 @@ class BusinessElement(Element):
         self._service(agent, bank)
         self._adjust(agent, workers, patch, sold_out)
         agent.workers, agent.revenue = float(len(workers)), 0.0
-        owner = people.get(int(agent.owner))
-        if owner is None and workers:
+        owner = agent.referenced('owner')
+        if not isinstance(owner, SettlerView) and workers:
             owner = workers[0]
             agent.owner = float(owner.id)
-        if owner is not None and agent.money > 2 * bill:
+        if isinstance(owner, SettlerView) and agent.money > 2 * bill:
             transfer(agent, owner, agent.money - 2 * bill, 'money')
 
 
 class CentralBankElement(Element):
     """Bank that creates money as loans and pays its interest income to a random person as a dividend.
+
+    The transfer `dividends` of the model pays the income to a random person, or to a random firm when nobody lives.
 
     The money it issued, a negative holding, and the loans it holds sum to zero after every step, so every unit of
     money in the economy is matched by a loan.
@@ -621,33 +623,25 @@ class CentralBankElement(Element):
         """Return the view of the bank, with its money and loans."""
         return CentralBankView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the dividend rule in the phase of banking.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.distribute, phase='banking')]
-
-    def distribute(self, agent: CentralBankView, model: ModelView) -> None:
-        """Pay the income of the step to a random person, or to a random firm when nobody lives.
+    @staticmethod
+    def get_income(agent: CentralBankView, holder: AgentView, model: ModelView) -> float:
+        """Return the income of the step that the bank pays as a dividend, its money plus its loans.
 
         Args:
             agent:
                 The bank.
 
+            holder:
+                The person, or the firm when nobody lives, that receives the dividend.
+
             model:
-                The model.
+                The model view of the dividends.
+
+        Returns:
+            income:
+                The income.
         """
-        income = agent.money + agent.loans
-        holders: list[AgentView] = [*_people_by_id(model).values()] or [*model.agents('businesses', BusinessView)]
-        if income > 0 and holders:
-            transfer(agent, holders[int(model.rng.integers(len(holders)))], income, 'money')
+        return agent.money + agent.loans
 
 
 class CommonsInteraction(Interaction):
@@ -1049,8 +1043,20 @@ def metaphoria(
         phase='market',
         on_match=FoodMarketInteraction.sell,
     )
+    dividends = TransferInteraction(
+        'dividends',
+        source='bank',
+        target='people',
+        state='money',
+        amount=CentralBankElement.get_income,
+        pairing='random',
+        fallback='businesses',
+        guard=lambda agent, holder, model: CentralBankElement.get_income(agent, holder, model) > 0,
+        form='agent',
+        phase='banking',
+    )
     exchange: list[BaseInteraction] = (
-        [CommonsInteraction('commons', people='people')] if mode == 'hunter_gatherer' else [jobs, shops]
+        [CommonsInteraction('commons', people='people')] if mode == 'hunter_gatherer' else [jobs, dividends, shops]
     )
     return System(
         elements=[patches, people, *economy],
