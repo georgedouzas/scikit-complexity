@@ -11,8 +11,8 @@ from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.interactions import RelaxationInteraction
+from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import divergence, laplacian
 from ....core.spaces import LatticeSpace
 from ....core.system import System
@@ -27,43 +27,79 @@ def _target_speed(density: Expression, s: SimpleNamespace) -> Expression:
     return s.u0 * (1 - density / s.rho_max)
 
 
-def _local_density(s: SimpleNamespace) -> Expression:
+def _local_density(x: Expression, road_length: Expression) -> Expression:
     """Return the density seen by every car of a ring road, the inverse of its headway."""
-    return 1 / _headway(s.cars.x, s.road_length)
+    return 1 / _headway(x, road_length)
 
 
-class LangevinDrivingInteraction(Interaction):
-    """Langevin driving interaction."""
+class LangevinDrivingInteraction(RelaxationInteraction):
+    """Relaxation of the speed of every car of a ring road towards the speed of its local density, with noise.
+
+    The speed follows `dv = -gamma (v - u(rho)) dt + sqrt(2 D1 rho) dW`, with the desired speed
+    `u(rho) = u0 (1 - rho / rho_max)` of the density `rho`, the inverse of the headway to the next car, an
+    Ornstein-Uhlenbeck relaxation over the time `1 / gamma` with a noise that grows with the density.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of cars, in the order they drive.
+
+        gamma:
+            The relaxation rate.
+
+        u0:
+            The desired speed on an empty road.
+
+        rho_max:
+            The jam density.
+
+        D1:
+            The strength of the noise.
+
+        road_length:
+            The length of the ring road.
+
+    Examples:
+        >>> from skcomplex.models.engineering.traffic import LangevinDrivingInteraction
+        >>> LangevinDrivingInteraction('drive', target='cars', gamma=2.0).state
+        'v'
+    """
 
     def __init__(
         self,
         label: str,
         *,
-        cars: Annotated[object, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
         gamma: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
         u0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         D1: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
         road_length: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
     ) -> None:
-        super().__init__(label)
-        self.cars = cars
+        super().__init__(label, target=target, state='v')
         self.gamma = gamma
         self.u0 = u0
         self.rho_max = rho_max
         self.D1 = D1
         self.road_length = road_length
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the langevin driving interaction."""
-        return [
-            RateLaw(s.cars.v, -s.gamma * (s.cars.v - _target_speed(_local_density(s), s))),
-            NoiseLaw(s.cars.v, sqrt(2 * s.D1 * _local_density(s))),
-        ]
+    def _get_goal(self, namespace: SimpleNamespace) -> object:
+        """Return the desired speed of the local density of every car."""
+        return _target_speed(_local_density(namespace.target.x, namespace.road_length), namespace)
+
+    def _get_time(self, namespace: SimpleNamespace) -> object:
+        """Return the relaxation time `1 / gamma`."""
+        return 1 / namespace.gamma
+
+    def _get_noise(self, namespace: SimpleNamespace) -> object:
+        """Return the amplitude `sqrt(2 D1 rho)` of the noise of the local density."""
+        return sqrt(2 * namespace.D1 * _local_density(namespace.target.x, namespace.road_length))
 
 
 class TrafficMomentsElement(Element):
-    """Traffic moments element."""
+    """Density `rho` and flow `w` of Langevin traffic on a road, the first two moments of its speeds."""
 
     def __init__(
         self,
@@ -86,7 +122,7 @@ class TrafficMomentsElement(Element):
         self.D1 = D1
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the traffic moments element."""
+        """Return the closed moment equations of the density and the flow."""
         return [
             RateLaw(s.rho, -divergence([s.w]) + laplacian(s.D1 * s.rho**2 / 2)),
             RateLaw(
@@ -161,7 +197,7 @@ def langevin_traffic(
     )
     driving = LangevinDrivingInteraction(
         'drive',
-        cars='cars',
+        target='cars',
         gamma=gamma,
         u0=u0,
         rho_max=rho_max,
