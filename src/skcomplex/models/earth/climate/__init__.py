@@ -18,7 +18,7 @@ from ._ice_ages import (
     van_der_pol_ice_ages,
 )
 from ._low_order import GeodynamoElement, Lorenz84Element, Lorenz96Element, geodynamo, lorenz_84, lorenz_96
-from ._net_energy import energy_return
+from ._net_energy import EnergySectorElement, energy_return
 from ._soil import SoilTemperatureElement, soil_temperature
 from ._tipping import TippingElementElement, tipping_cascade_network
 from ._tipping_types import (
@@ -35,6 +35,7 @@ __all__: list[str] = [
     'DaisyworldElement',
     'DelayedOscillatorElement',
     'EarlyWarningAnalysis',
+    'EnergySectorElement',
     'GeodynamoElement',
     'IceAlbedoClimateElement',
     'LatitudeBandElement',

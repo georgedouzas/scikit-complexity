@@ -83,7 +83,7 @@ class EnergySectorElement(Element):
             The relative death rate of the population per year.
 
     Examples:
-        >>> from skcomplex.models.earth.climate._net_energy import EnergySectorElement
+        >>> from skcomplex.models.earth.climate import EnergySectorElement
         >>> EnergySectorElement('energy').initial_eroi
         20.0
     """
