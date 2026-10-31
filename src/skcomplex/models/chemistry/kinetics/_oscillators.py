@@ -17,76 +17,12 @@ from ....core.system import System
 from ....engine.solvers import ScipyODESolver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-
-
-def _get_feed(s: SimpleNamespace) -> Expression:
-    """Return the propensity `a` of `A -> U`, the constant supply of the first reactant."""
-    return s.products[0].a
-
-
-def _get_conversion(s: SimpleNamespace) -> Expression:
-    """Return the propensity `b u` of `B + U -> V + D`."""
-    reactor = s.reactants[0]
-    return reactor.b * reactor.u
-
-
-def _get_decay(s: SimpleNamespace) -> Expression:
-    """Return the propensity `k b` of the decay `B -> C` of the autocatalyst."""
-    reactor = s.reactants[0]
-    return reactor.k * reactor.b
+from ..common.kinetics import BrusselatorReactionElement, CubicAutocatalysisInteraction
 
 
 def _get_residence(s: SimpleNamespace) -> Expression:
     """Return the residence time `1 / F` of the continuously fed reactor."""
     return 1 / s.target.F
-
-
-class BrusselatorReactionElement(Element):
-    """Well-mixed reactor of the Brusselator, the concentrations `u` and `v` of its two intermediates.
-
-    The four reactions of `brusselator_ode` change the concentrations and read the supplies `a` and `b` of the two
-    reactants from the reactor.
-
-    Args:
-        label:
-            The label of the reactor.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        u:
-            The initial concentration of the autocatalytic intermediate.
-
-        v:
-            The initial concentration of the second intermediate.
-
-        a:
-            The constant supply of the first reactant.
-
-        b:
-            The constant supply of the second reactant.
-
-    Examples:
-        >>> from skcomplex.models.chemistry.kinetics import BrusselatorReactionElement
-        >>> BrusselatorReactionElement('reactor').b
-        3.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        u: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        v: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.u = u
-        self.v = v
-        self.a = a
-        self.b = b
 
 
 class OregonatorElement(Element):
@@ -252,23 +188,19 @@ def brusselator_ode(u: float = 1.0, v: float = 1.0, *, a: float = 1.0, b: float 
         >>> brusselator_ode(b=1.5).elements[0].b
         1.5
     """
-    concentration_u, concentration_v = ('reactor', 'u'), ('reactor', 'v')
     return System(
         elements=[BrusselatorReactionElement('reactor', u=u, v=v, a=a, b=b)],
         interactions=[
-            ReactionInteraction('feed', products={concentration_u: 1}, propensity=_get_feed),
+            ReactionInteraction('feed', target='reactor', products={'u': 1}, modifiers={'a': 1}),
             ReactionInteraction(
                 'conversion',
-                reactants={concentration_u: 1},
-                products={concentration_v: 1},
-                propensity=_get_conversion,
+                target='reactor',
+                reactants={'u': 1},
+                products={'v': 1},
+                modifiers={'b': 1},
             ),
-            ReactionInteraction(
-                'autocatalysis',
-                reactants={concentration_u: 2, concentration_v: 1},
-                products={concentration_u: 3},
-            ),
-            ReactionInteraction('decay', reactants={concentration_u: 1}),
+            CubicAutocatalysisInteraction('autocatalysis', target='reactor', substrate='v', autocatalyst='u'),
+            ReactionInteraction('decay', target='reactor', reactants={'u': 1}),
         ],
     )
 
@@ -365,12 +297,11 @@ def cubic_autocatalysis(a: float = 0.5, b: float = 0.5, *, F: float = 0.04, k: f
         >>> cubic_autocatalysis(k=0.06).elements[0].k
         0.06
     """
-    reactant, autocatalyst = ('reactor', 'a'), ('reactor', 'b')
     return System(
         elements=[CubicAutocatalysisElement('reactor', a=a, b=b, F=F, k=k)],
         interactions=[
-            ReactionInteraction('autocatalysis', reactants={reactant: 1, autocatalyst: 2}, products={autocatalyst: 3}),
-            ReactionInteraction('decay', reactants={autocatalyst: 1}, propensity=_get_decay),
+            CubicAutocatalysisInteraction('autocatalysis', target='reactor', substrate='a', autocatalyst='b'),
+            ReactionInteraction('decay', target='reactor', reactants={'b': 1}, modifiers={'k': 1}),
             RelaxationInteraction('feed', target='reactor', state='a', goal=1.0, time=_get_residence),
             RelaxationInteraction('outflow', target='reactor', state='b', goal=0.0, time=_get_residence),
         ],

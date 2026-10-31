@@ -82,7 +82,7 @@ class JumpInteraction(Interaction):
         reset: Mapping[str, Callable[[SimpleNamespace], object]] | None = None,
     ) -> None:
         super().__init__(label)
-        self.target = target
+        self.target: str | None = target
         self.changes = changes
         self.rate = rate
         self.probability = probability

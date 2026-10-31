@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,8 +13,7 @@ from sage.sets.real_set import RealSet
 from ....core.interactions import ReactionInteraction
 from ....core.laws.utils import hill
 from ....specs import ParameterSpec, RoleSpec
-
-type Entries = Mapping[tuple[str, str], float]
+from ....types import Stoichiometry
 
 
 class RepressionInteraction(ReactionInteraction):
@@ -74,9 +73,9 @@ class RepressionInteraction(ReactionInteraction):
         self,
         label: str,
         *,
-        reactants: Annotated[Entries | None, RoleSpec(variadic=True)] = None,
-        products: Annotated[Entries | None, RoleSpec(variadic=True)] = None,
-        modifiers: Annotated[Entries | None, RoleSpec(variadic=True)] = None,
+        reactants: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
+        products: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
+        modifiers: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         alpha0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
@@ -101,6 +100,5 @@ class RepressionInteraction(ReactionInteraction):
                 The propensity of the synthesis.
         """
         s = namespace
-        ((_, state),) = (self.modifiers or {}).keys()
-        repressor = getattr(s.modifiers[0], state)
+        ((repressor, _),) = self._get_terms(self._get_modifiers(), s, 'modifiers')
         return s.alpha0 + s.alpha * (1 - hill(repressor, s.K, s.n))

@@ -8,13 +8,14 @@ import pytest
 from sage.all__sagemath_symbolics import oo, var
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.elements import CompartmentElement, Element
+from skcomplex.core.elements import CompartmentElement, Element, FieldElement, GroupElement
 from skcomplex.core.interactions import JumpInteraction, ReactionInteraction
 from skcomplex.core.laws import JumpLaw, NoiseLaw, RateLaw
+from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 UNITS = 100_000
 SEEDS = range(4)
@@ -178,9 +179,76 @@ def test_reaction_takes_a_propensity_function():
         ({'reactants': ['A']}, 'Map pairs of a path and a state name'),
         ({'reactants': {('A', 'not a name'): 1}}, 'Map pairs of a path and a state name'),
         ({'reactants': {('A', 'n'): -1}}, 'positive coefficients'),
+        ({'reactants': {'n': 1}}, 'state names of the target'),
     ],
 )
 def test_reaction_rejects_invalid_arguments(arguments, message):
     """Test that a reaction rejects an unknown mode, no species, and entries or coefficients it cannot take."""
     with pytest.raises(ValidationError, match=message):
         ReactionInteraction('reaction', **arguments).check()
+
+
+class ConversionInteraction(ReactionInteraction):
+    """Conversion `A -> B` at the rate `c A` between the states `n` of the elements of its roles `source` and `sink`."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        source: Annotated[str, RoleSpec()],
+        sink: Annotated[str, RoleSpec()],
+        c: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.source = source
+        self.sink = sink
+        self.c = c
+
+    def _get_reactants(self):
+        """Return the state `n` of the source."""
+        return {(self.source, 'n'): 1}
+
+    def _get_products(self):
+        """Return the state `n` of the sink."""
+        return {(self.sink, 'n'): 1}
+
+    def _get_rate(self, namespace):
+        """Return the mass action at the rate constant `c`."""
+        return self._get_mass_action(namespace, namespace.c)
+
+
+def test_reaction_runs_at_every_site_of_a_field():
+    """Test that a reaction on state names of a field target reacts at every site with the states of the site."""
+    values = {'x': np.array([1.0, 2.0, 4.0])}
+    cells = FieldElement('cells', element=ConcentrationElement, space=LatticeSpace((3,)), values=values)
+    dimerization = ReactionInteraction('dimerization', target='cells', reactants={'x': 2}, products={'y': 1.5}, k=0.5)
+    trajectory = Simulation(System(elements=[cells], interactions=[dimerization]), dt=0.5).check().prepare()
+    trajectory = trajectory.run(until=4).trajectory_
+    x, y = trajectory.lattice('cells.x')[-1], trajectory.lattice('cells.y')[-1]
+    np.testing.assert_allclose(x, values['x'] / (1 + values['x'] * 4), rtol=1e-4)
+    np.testing.assert_allclose(y, 0.75 * (values['x'] - x), rtol=1e-4)
+
+
+def test_reaction_jumps_in_every_member_of_a_group():
+    """Test that jumps on a group target move whole units in every member on its own and keep each member's total."""
+    values = {'x': np.array([50.0, 100.0])}
+    group = GroupElement('cells', element=ConcentrationElement, size=2, values=values)
+    conversion = ReactionInteraction('conversion', target='cells', reactants={'x': 1}, products={'y': 1}, mode='jump')
+    simulation = Simulation(System(elements=[group], interactions=[conversion]), dt=0.5, random_state=0)
+    states = simulation.check().prepare().run(until=1).trajectory_.states
+    totals = states[:, :2] + states[:, 2:]
+    assert np.all(totals == values['x'])
+    assert np.all(states == np.round(states))
+    assert np.all(states[-1, :2] < values['x'])
+
+
+def test_reaction_subclass_reads_species_under_its_own_roles():
+    """Test that a subclass binding its species under roles of its own names follows its mass action."""
+    system = System(
+        elements=[CompartmentElement('A', n=8.0), CompartmentElement('B')],
+        interactions=[ConversionInteraction('conversion', source='A', sink='B', c=0.5)],
+    )
+    trajectory = Simulation(system, dt=0.5).check().prepare().run(until=2).trajectory_
+    times = np.asarray(trajectory.times)
+    np.testing.assert_allclose(trajectory.values('A.n'), 8 * np.exp(-0.5 * times), rtol=1e-4)
+    np.testing.assert_allclose(trajectory.values('A.n') + trajectory.values('B.n'), 8.0)

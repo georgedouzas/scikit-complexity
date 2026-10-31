@@ -3,23 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.interactions import Interaction, ReactionInteraction
-from ....core.laws import BaseLaw
+from ....core.interactions import ReactionInteraction
 from ....specs import ParameterSpec, RoleSpec
+from ....types import Stoichiometry
 
 MODES = {False: 'rate', True: 'jump'}
 
 
-class InfectionInteraction(Interaction):
+class InfectionInteraction(ReactionInteraction):
     """Mass-action infection, the reaction `S + I -> 2 I` at the rate `beta S I` from susceptible to infected.
 
-    Its laws are those of a `ReactionInteraction` between the states `n` of the two compartments, a rate equation, or
+    It is a `ReactionInteraction` between the states `n` of the two compartments its roles bind, a rate equation, or
     in stochastic mode a random event that moves one individual.
 
     Args:
@@ -67,36 +68,36 @@ class InfectionInteraction(Interaction):
         self.beta = beta
         self.stochastic = stochastic
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the reaction `S + I -> 2 I` at the rate constant `beta`.
+    def _get_reactants(self) -> Stoichiometry:
+        """Return the states `n` of the compartments the reaction consumes."""
+        return {(self.susceptible, 'n'): 1, (self.infected, 'n'): 1}
+
+    def _get_products(self) -> Stoichiometry:
+        """Return the states `n` of the compartments the reaction produces."""
+        return {(self.infected, 'n'): 2}
+
+    def _get_mode(self) -> str:
+        """Return the mode of the reaction, random events when stochastic and a rate equation otherwise."""
+        return MODES[self.stochastic]
+
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
+        """Return the mass action of the reaction at the rate constant `beta`.
 
         Args:
             namespace:
-                The namespace of the symbols the laws can use, with the susceptible and infected compartments.
+                The namespace of the symbols the rate can use, with the compartments.
 
         Returns:
-            laws:
-                The rate laws, or the jump law, of the reaction.
+            rate:
+                The propensity of the reaction.
         """
-        reaction = ReactionInteraction(
-            self.label,
-            reactants={(self.susceptible, 'n'): 1, (self.infected, 'n'): 1},
-            products={(self.infected, 'n'): 2},
-            mode=MODES[self.stochastic],
-        )
-        species = SimpleNamespace(
-            reactants=(namespace.susceptible, namespace.infected),
-            products=(namespace.infected,),
-            modifiers=(),
-            k=namespace.beta,
-        )
-        return list(reaction.check().prepare().run(species).laws_)
+        return self._get_mass_action(namespace, namespace.beta)
 
 
-class RecoveryInteraction(Interaction):
+class RecoveryInteraction(ReactionInteraction):
     """Recovery, the reaction `I -> R` at the rate `gamma I` from infected to recovered.
 
-    Its laws are those of a `ReactionInteraction` between the states `n` of the two compartments, a rate equation, or
+    It is a `ReactionInteraction` between the states `n` of the two compartments its roles bind, a rate equation, or
     in stochastic mode a random event that moves one individual.
 
     Args:
@@ -144,36 +145,36 @@ class RecoveryInteraction(Interaction):
         self.gamma = gamma
         self.stochastic = stochastic
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the reaction `I -> R` at the rate constant `gamma`.
+    def _get_reactants(self) -> Stoichiometry:
+        """Return the states `n` of the compartments the reaction consumes."""
+        return {(self.infected, 'n'): 1}
+
+    def _get_products(self) -> Stoichiometry:
+        """Return the states `n` of the compartments the reaction produces."""
+        return {(self.recovered, 'n'): 1}
+
+    def _get_mode(self) -> str:
+        """Return the mode of the reaction, random events when stochastic and a rate equation otherwise."""
+        return MODES[self.stochastic]
+
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
+        """Return the mass action of the reaction at the rate constant `gamma`.
 
         Args:
             namespace:
-                The namespace of the symbols the laws can use, with the infected and recovered compartments.
+                The namespace of the symbols the rate can use, with the compartments.
 
         Returns:
-            laws:
-                The rate laws, or the jump law, of the reaction.
+            rate:
+                The propensity of the reaction.
         """
-        reaction = ReactionInteraction(
-            self.label,
-            reactants={(self.infected, 'n'): 1},
-            products={(self.recovered, 'n'): 1},
-            mode=MODES[self.stochastic],
-        )
-        species = SimpleNamespace(
-            reactants=(namespace.infected,),
-            products=(namespace.recovered,),
-            modifiers=(),
-            k=namespace.gamma,
-        )
-        return list(reaction.check().prepare().run(species).laws_)
+        return self._get_mass_action(namespace, namespace.gamma)
 
 
-class ImmunityLossInteraction(Interaction):
+class ImmunityLossInteraction(ReactionInteraction):
     """Loss of immunity, the reaction `R -> S` at the rate `xi R` from recovered back to susceptible.
 
-    Its laws are those of a `ReactionInteraction` between the states `n` of the two compartments, a rate equation, or
+    It is a `ReactionInteraction` between the states `n` of the two compartments its roles bind, a rate equation, or
     in stochastic mode a random event that moves one individual.
 
     Args:
@@ -213,27 +214,27 @@ class ImmunityLossInteraction(Interaction):
         self.xi = xi
         self.stochastic = stochastic
 
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the reaction `R -> S` at the rate constant `xi`.
+    def _get_reactants(self) -> Stoichiometry:
+        """Return the states `n` of the compartments the reaction consumes."""
+        return {(self.recovered, 'n'): 1}
+
+    def _get_products(self) -> Stoichiometry:
+        """Return the states `n` of the compartments the reaction produces."""
+        return {(self.susceptible, 'n'): 1}
+
+    def _get_mode(self) -> str:
+        """Return the mode of the reaction, random events when stochastic and a rate equation otherwise."""
+        return MODES[self.stochastic]
+
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
+        """Return the mass action of the reaction at the rate constant `xi`.
 
         Args:
             namespace:
-                The namespace of the symbols the laws can use, with the recovered and susceptible compartments.
+                The namespace of the symbols the rate can use, with the compartments.
 
         Returns:
-            laws:
-                The rate laws, or the jump law, of the reaction.
+            rate:
+                The propensity of the reaction.
         """
-        reaction = ReactionInteraction(
-            self.label,
-            reactants={(self.recovered, 'n'): 1},
-            products={(self.susceptible, 'n'): 1},
-            mode=MODES[self.stochastic],
-        )
-        species = SimpleNamespace(
-            reactants=(namespace.recovered,),
-            products=(namespace.susceptible,),
-            modifiers=(),
-            k=namespace.xi,
-        )
-        return list(reaction.check().prepare().run(species).laws_)
+        return self._get_mass_action(namespace, namespace.xi)

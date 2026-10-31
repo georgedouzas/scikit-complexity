@@ -4,7 +4,6 @@ from ._cyclic import CyclicCellElement, cyclic_cellular_automaton
 from ._hodgepodge import HodgepodgeCellElement, hodgepodge
 from ._nanoparticles import nanoparticle_corona
 from ._oscillators import (
-    BrusselatorReactionElement,
     CubicAutocatalysisElement,
     OregonatorElement,
     brusselator_ode,
@@ -25,7 +24,6 @@ from ._reactors import (
 )
 
 __all__: list[str] = [
-    'BrusselatorReactionElement',
     'CatalystPelletElement',
     'CubicAutocatalysisElement',
     'CyclicCellElement',

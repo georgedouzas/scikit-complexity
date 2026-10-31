@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -12,14 +12,13 @@ from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
 from ...specs import ParameterSpec, RoleSpec
+from ...types import Stoichiometry
 from ..laws import BaseLaw, NoiseLaw, RateLaw
 from ..laws.utils import where
 from ._jump import JumpInteraction
 
 MODES = ('rate', 'jump', 'langevin')
 ENTRY_SIZE = 2
-
-type Entries = Mapping[tuple[str, str], float]
 
 
 class ReactionInteraction(JumpInteraction):
@@ -28,11 +27,18 @@ class ReactionInteraction(JumpInteraction):
     A reactant, a product, or a modifier is a pair of the path of an element, or of a member of a group such as
     `cells[0]`, and the name of its state that holds the units, mapped to its stoichiometric coefficient, a real number.
     So `S + I -> 2 I` has the reactants `{('S', 'n'): 1, ('I', 'n'): 1}` and the products `{('I', 'n'): 2}`, and two
-    states of one element are `('cell', 'u')` and `('cell', 'v')`. The propensity is `k` times the product of every
-    reactant and modifier state to the power of its coefficient, or the expression the `propensity` function returns.
-    The reaction changes every state by its coefficient among the products minus its coefficient among the reactants,
-    so it conserves the total of the states whose changes sum to zero, and modifiers enter the propensity but do not
-    change.
+    states of one element are `('cell', 'u')` and `('cell', 'v')`. A species may also be the name of a state of the
+    `target` alone, such as `{'u': 1, 'v': 2}`. A target that is a group or a field reacts in every member, with the
+    species of every member its own states, as the reactions at every site of a reaction-diffusion field.
+
+    A subclass may bind its species under roles of its own names, such as `susceptible` and `infected`: it returns its
+    entries from `_get_reactants`, `_get_products`, and `_get_modifiers`, pairs of the path a role binds and a state
+    name, and the reaction reads every pair from the namespace of the role that binds its path.
+
+    The propensity is `k` times the product of every reactant and modifier state to the power of its coefficient, or the
+    expression the `propensity` function returns. The reaction changes every state by its coefficient among the products
+    minus its coefficient among the reactants, so it conserves the total of the states whose changes sum to zero, and
+    modifiers enter the propensity but do not change.
 
     In the mode `'rate'` the reaction is a rate equation. In the mode `'jump'` it is the random event of a
     `JumpInteraction` at the propensity that moves the units of the coefficients. In the mode `'langevin'` it is the
@@ -42,6 +48,9 @@ class ReactionInteraction(JumpInteraction):
     Args:
         label:
             The label of the reaction, unique among the parts of its system.
+
+        target:
+            The path of the element, group, or field whose states the species named by a state alone are, or `None`.
 
         reactants:
             The coefficients of the reactants, or `None` for a source.
@@ -54,8 +63,9 @@ class ReactionInteraction(JumpInteraction):
 
         propensity:
             A function of the namespace of the reaction that returns the propensity, or `None` for mass action. The
-            namespace holds the tuples `reactants`, `products`, and `modifiers` of the namespaces of the bound elements,
-            in the order of their entries, and the symbol `k`.
+            namespace holds the tuples `reactants`, `products`, and `modifiers` of the namespaces of the elements their
+            pairs bind, in the order of their entries, `target`, the namespace of the target or of one of its members,
+            and the symbol `k`.
 
         modifiers:
             The coefficients of the modifiers, whose states the propensity reads but the reaction does not change, or
@@ -66,8 +76,8 @@ class ReactionInteraction(JumpInteraction):
 
     Raises:
         ValidationError:
-            The mode is unknown, the reaction has neither reactants nor products, an entry is not a pair of a path and a
-            state name, or a coefficient is not a positive number.
+            The mode is unknown, the reaction has neither reactants nor products, an entry is neither a pair of a path
+            and a state name nor a state name of a given target, or a coefficient is not a positive number.
 
     Examples:
         >>> from skcomplex.core.elements import CompartmentElement
@@ -85,20 +95,34 @@ class ReactionInteraction(JumpInteraction):
         >>> states = Simulation(system, dt=1.0).check().prepare().run(until=50).trajectory_.states
         >>> round(float(states[-1].sum()), 6)
         1000.0
+
+        The decay `n -> 0` at every site of a field, at the rate `k n` of the site:
+
+        >>> import numpy as np
+        >>> from skcomplex.core.elements import FieldElement
+        >>> from skcomplex.core.spaces import LatticeSpace
+        >>> decay = ReactionInteraction('decay', target='cells', reactants={'n': 1}, k=1.0)
+        >>> values = {'n': np.arange(3.0)}
+        >>> cells = FieldElement('cells', element=CompartmentElement, space=LatticeSpace((3,)), values=values)
+        >>> simulation = Simulation(System(elements=[cells], interactions=[decay]), dt=1.0).check().prepare()
+        >>> np.round(simulation.run(until=1).trajectory_.lattice('cells.n')[-1], 3).tolist()
+        [0.0, 0.368, 0.736]
     """
 
     def __init__(
         self,
         label: str,
         *,
-        reactants: Annotated[Entries | None, RoleSpec(variadic=True)] = None,
-        products: Annotated[Entries | None, RoleSpec(variadic=True)] = None,
+        target: Annotated[str | None, RoleSpec()] = None,
+        reactants: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
+        products: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
         k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         propensity: Callable[[SimpleNamespace], Expression] | None = None,
-        modifiers: Annotated[Entries | None, RoleSpec(variadic=True)] = None,
+        modifiers: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
         mode: str = 'rate',
     ) -> None:
         super().__init__(label, target='')
+        self.target = target
         self.reactants = reactants
         self.products = products
         self.k = k
@@ -106,38 +130,90 @@ class ReactionInteraction(JumpInteraction):
         self.modifiers = modifiers
         self.mode = mode
 
+    def _get_reactants(self) -> Stoichiometry | None:
+        """Return the coefficients of the reactants, which a subclass with roles of its own names returns."""
+        return self.reactants
+
+    def _get_products(self) -> Stoichiometry | None:
+        """Return the coefficients of the products, which a subclass with roles of its own names returns."""
+        return self.products
+
+    def _get_modifiers(self) -> Stoichiometry | None:
+        """Return the coefficients of the modifiers, which a subclass with roles of its own names returns."""
+        return self.modifiers
+
+    def _get_mode(self) -> str:
+        """Return the form of the laws, which a subclass that sets it by another argument returns."""
+        return self.mode
+
+    def _get_bound(self, namespace: SimpleNamespace) -> dict[str, SimpleNamespace]:
+        """Return the namespace of every path the plain roles of the reaction bind, by path."""
+        roles = [
+            name
+            for name, spec in self._get_specs().items()
+            if isinstance(spec, RoleSpec) and not spec.variadic and not spec.noise
+        ]
+        return {
+            getattr(self, name): getattr(namespace, name)
+            for name in roles
+            if isinstance(getattr(self, name), str) and hasattr(namespace, name)
+        }
+
     def _get_terms(
         self,
-        entries: Entries | None,
-        namespaces: Sequence[SimpleNamespace],
+        entries: Stoichiometry | None,
+        namespace: SimpleNamespace,
+        name: str,
     ) -> list[tuple[Expression, float]]:
-        """Return the state symbol and the coefficient of every entry, read from the namespaces of its elements."""
-        items = list((entries or {}).items())
+        """Return the state symbol and the coefficient of every entry of a kind of species.
+
+        A state name alone is a state of the target. A pair reads the namespace of the plain role that binds its path,
+        or else the namespace of its variadic role `name`, in the order of the pairs.
+        """
+        entries = entries or {}
+        pairs = [entry for entry in entries if not isinstance(entry, str)]
+        sources: dict[object, SimpleNamespace] = {}
+        if pairs and name in self._get_specs():
+            sources = dict(zip(pairs, getattr(namespace, name), strict=True))
+        elif pairs:
+            bound = self._get_bound(namespace)
+            sources = {pair: bound[pair[0]] for pair in pairs}
         return [
-            (getattr(namespace, state), coefficient)
-            for ((_, state), coefficient), namespace in zip(items, namespaces, strict=True)
+            (
+                getattr(namespace.target if isinstance(entry, str) else sources[entry], self._get_state(entry)),
+                coefficient,
+            )
+            for entry, coefficient in entries.items()
         ]
+
+    def _get_state(self, entry: tuple[str, str] | str) -> str:
+        """Return the name of the state of an entry, a state name alone or the second item of a pair."""
+        return entry if isinstance(entry, str) else entry[1]
 
     def _get_changes(self, namespace: SimpleNamespace) -> dict[Expression, float]:
         """Return the net change of every state the reaction changes, products minus reactants."""
         changes: dict[Expression, float] = {}
-        for sign, entries, namespaces in (
-            (-1, self.reactants, namespace.reactants),
-            (1, self.products, namespace.products),
+        for sign, entries, name in (
+            (-1, self._get_reactants(), 'reactants'),
+            (1, self._get_products(), 'products'),
         ):
-            for state, coefficient in self._get_terms(entries, namespaces):
+            for state, coefficient in self._get_terms(entries, namespace, name):
                 changes[state] = changes.get(state, 0) + sign * coefficient
         return {state: change for state, change in changes.items() if change}
 
-    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the propensity of the reaction, by the user's function or by mass action."""
-        if self.propensity is not None:
-            return SR(self.propensity(namespace))
-        propensity = SR(namespace.k)
-        for entries, namespaces in ((self.reactants, namespace.reactants), (self.modifiers, namespace.modifiers)):
-            for state, coefficient in self._get_terms(entries, namespaces):
+    def _get_mass_action(self, namespace: SimpleNamespace, constant: Expression) -> Expression:
+        """Return the mass action of a rate constant, times every reactant and modifier to its coefficient."""
+        propensity = SR(constant)
+        for entries, name in ((self._get_reactants(), 'reactants'), (self._get_modifiers(), 'modifiers')):
+            for state, coefficient in self._get_terms(entries, namespace, name):
                 propensity *= state**coefficient
         return propensity
+
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
+        """Return the propensity of the reaction, by the user's function or by mass action at the rate constant `k`."""
+        if self.propensity is not None:
+            return SR(self.propensity(namespace))
+        return self._get_mass_action(namespace, namespace.k)
 
     def _get_langevin_laws(self, propensity: Expression, changes: dict[Expression, float]) -> list[BaseLaw]:
         """Return the drift of the reaction and the noise of its one Wiener process on every state it changes."""
@@ -148,24 +224,29 @@ class ReactionInteraction(JumpInteraction):
         ]
         return rates + noises
 
-    def _check_entries(self, name: str) -> None:
-        """Raise an error for entries that are not pairs of a path and a state name with positive coefficients."""
-        entries = getattr(self, name)
-        if entries is None:
-            return
-        valid = isinstance(entries, Mapping) and all(
+    def _is_entry(self, entry: object) -> bool:
+        """Check whether an entry is a pair of a path and a state name, or a state name of a given target."""
+        if isinstance(entry, str):
+            return self.target is not None and entry.isidentifier()
+        return (
             isinstance(entry, tuple)
             and len(entry) == ENTRY_SIZE
             and all(isinstance(item, str) for item in entry)
             and entry[1].isidentifier()
-            and isinstance(coefficient, int | float)
-            and coefficient > 0
+        )
+
+    def _check_entries(self, name: str, entries: Stoichiometry | None) -> None:
+        """Raise an error for entries that are neither pairs nor state names of the target, or not positive."""
+        if entries is None:
+            return
+        valid = isinstance(entries, Mapping) and all(
+            self._is_entry(entry) and isinstance(coefficient, int | float) and coefficient > 0
             for entry, coefficient in entries.items()
         )
         if not valid:
             error_msg = (
-                f'The {name} of reaction {self.label!r} are {entries!r}. Map pairs of a path and a state name to '
-                'positive coefficients, such as {("S", "n"): 1}.'
+                f'The {name} of reaction {self.label!r} are {entries!r}. Map pairs of a path and a state name, or '
+                'state names of the target, to positive coefficients, such as {("S", "n"): 1} or {"n": 1}.'
             )
             raise ValidationError(error_msg)
 
@@ -174,34 +255,37 @@ class ReactionInteraction(JumpInteraction):
 
         Raises:
             ValidationError:
-                The mode is unknown, the reaction has neither reactants nor products, an entry is not a pair of a path
-                and a state name, or a coefficient is not a positive number.
+                The mode is unknown, the reaction has neither reactants nor products, an entry is neither a pair of a
+                path and a state name nor a state name of a given target, or a coefficient is not a positive number.
         """
-        if self.mode not in MODES:
-            error_msg = f'Reaction {self.label!r} has the mode {self.mode!r}. Use one of {", ".join(MODES)}.'
+        mode = self._get_mode()
+        if mode not in MODES:
+            error_msg = f'Reaction {self.label!r} has the mode {mode!r}. Use one of {", ".join(MODES)}.'
             raise ValidationError(error_msg)
-        if not self.reactants and not self.products:
+        reactants, products = self._get_reactants(), self._get_products()
+        if not reactants and not products:
             error_msg = f'Reaction {self.label!r} has neither reactants nor products. Give at least one of them.'
             raise ValidationError(error_msg)
-        for name in ('reactants', 'products', 'modifiers'):
-            self._check_entries(name)
+        for name, entries in (('reactants', reactants), ('products', products), ('modifiers', self._get_modifiers())):
+            self._check_entries(name, entries)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the laws of the reaction in its mode.
 
         Args:
             namespace:
-                The namespace of the symbols the laws can use, with the namespaces of the reactants, the products, and
-                the modifiers.
+                The namespace of the symbols the laws can use, with the namespaces of the target, the reactants, the
+                products, and the modifiers.
 
         Returns:
             laws:
                 The rate laws, the jump law, or the rate and noise laws of the reaction.
         """
-        if self.mode == 'jump':
+        mode = self._get_mode()
+        if mode == 'jump':
             return super()._get_laws(namespace)
         propensity = self._get_rate(namespace)
         changes = self._get_changes(namespace)
-        if self.mode == 'langevin':
+        if mode == 'langevin':
             return self._get_langevin_laws(propensity, changes)
         return [RateLaw(state, change * propensity) for state, change in changes.items()]
