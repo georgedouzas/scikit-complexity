@@ -3,9 +3,11 @@
 from ._diluted import DilutedNeuronElement, diluted_hopfield
 from ._echo_state import ReservoirUnitElement, echo_state_network
 from ._hopfield import NeuronElement, hopfield
+from ._hopfield_update import HopfieldUpdateInteraction
 
 __all__: list[str] = [
     'DilutedNeuronElement',
+    'HopfieldUpdateInteraction',
     'NeuronElement',
     'ReservoirUnitElement',
     'diluted_hopfield',
