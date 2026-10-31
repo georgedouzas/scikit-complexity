@@ -98,7 +98,7 @@ Events and discrete states:
 | Class | Operation | Lowers to |
 | --- | --- | --- |
 | `JumpInteraction(target, changes, rate=None, probability=None, waiting=None, reset=None)` | stochastic events that change states by signed amounts, at a rate, with a probability per step, or after drawn waiting times | `JumpLaw` |
-| `ReactionInteraction(JumpInteraction)(reactants, products, k, propensity=None, modifiers=(), mode='rate')` | mass action between species given as role and state, with real stoichiometry and modifiers that the propensity reads but the reaction does not consume, as rates, jumps, or Langevin noise | `RateLaw`, `JumpLaw`, `NoiseLaw` |
+| `ReactionInteraction(JumpInteraction)(target=None, reactants=None, products=None, k=1.0, propensity=None, modifiers=None, mode='rate')` | mass action between species given as a pair of a path and a state, or as a state name of the `target` alone, with real stoichiometry and modifiers that the propensity reads but the reaction does not consume (a parameter of the target as a modifier is a buffered species), as rates, jumps, or Langevin noise; a group or field target reacts in every member | `RateLaw`, `JumpLaw`, `NoiseLaw` |
 | `TransitionInteraction(target, state, source, destination, rate=None, probability=None, condition=None, matrix=None, emission=None, observed=None, over='member', neighborhood=None, after=None, form='symbolic', phase=None)` | a discrete state moves between values at a rate, with a probability per step (combined over neighbours as `1 - prod(1 - p)`), when a condition holds, by a transition matrix, or by an emission matrix given another state, after a residence time (`residence(x)`) | `JumpLaw`, `UpdateLaw` with a `source`, `TransitionLaw`, `EmissionLaw`, or an agent `RuleLaw` |
 | `SpreadingInteraction(TransitionInteraction)` | the active value of a state spreads along edges, with recovery and return | edge and member laws |
 | `EncounterInteraction(candidate, field, kernel, outcome)` | bilinear encounters over a density on activity classes, conservative, destructive, or proliferative | `EncounterLaw`, `DestructionLaw`, `ProliferationLaw` |
@@ -157,6 +157,20 @@ exists.
 - `AlignmentInteraction` becomes a `CouplingInteraction` in the map form in physics.
 - `RandomWalkInteraction` becomes the steps of `MovementInteraction`.
 - `ThresholdInteraction` becomes `CascadeInteraction`.
+
+### Per-member reactions and renamed roles
+A reaction whose species are states of one element or of every member names them alone, against its `target`: the
+cubic autocatalysis of a reactor is `ReactionInteraction(target='reactor', reactants={'a': 1, 'b': 2},
+products={'b': 3})`, and the same reaction with `target='cells'` on a field reacts at every site, which is how the
+reaction-diffusion models run their kinetics beside their diffusions. The engine reads a mapping key that is a name alone
+as a state of another role, so it binds no path. A subclass that names its species by roles of its own, such as
+`InfectionInteraction(susceptible, infected, beta, stochastic)`, returns its entries from `_get_reactants`,
+`_get_products`, and `_get_modifiers` as pairs of the paths its roles bind, sets its mode in `_get_mode`, and its rate
+constant through `_get_mass_action(namespace, constant)` in `_get_rate`; the reaction reads each pair from the
+namespace of the role that binds its path. The chemistry kinetics both a reactor and the sites of a field run live in
+`chemistry/common/kinetics` (`BrusselatorReactionElement`, `CubicAutocatalysisInteraction`). The scaled Oregonator keeps
+its own laws: its time scales divide the change of every state by a parameter, a symbolic stoichiometry the
+coefficients, real numbers, do not hold.
 
 ### What stays in the models
 A mechanism that one field alone uses keeps its own laws on the general laws, with no core class: quantum generators

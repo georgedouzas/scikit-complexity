@@ -1,4 +1,4 @@
-"""Pattern formation models: amplitude equations and rolls."""
+"""Pattern formation models: reaction-diffusion fields whose sites react and whose states diffuse."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,21 +11,22 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.elements import Element, FieldElement
-from ....core.interactions import DiffusionInteraction
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import DiffusionInteraction, ReactionInteraction
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.solvers import RK4Solver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ..common.kinetics import BrusselatorReactionElement, CubicAutocatalysisInteraction
 
 
 class GrayScottElement(Element):
-    """Site of the Gray-Scott model, the substrate `u` and the activator `v` with their reactions.
+    """Site of the Gray-Scott model, the substrate `u` and the activator `v`.
 
-    The site carries the cubic autocatalysis of the activator on the substrate, the feed `F` of the substrate, and the
-    removal `F + k` of the activator. The diffusions of `gray_scott` read `Du` and `Dv`.
+    The reactions of `gray_scott` at every site, the cubic autocatalysis of the activator on the substrate, the feed
+    `F` of the substrate, and the removal `F + k` of the activator, read `F` and `k`, and its diffusions read `Du` and
+    `Dv`.
 
     Args:
         label:
@@ -78,28 +79,11 @@ class GrayScottElement(Element):
         self.F = F
         self.k = k
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the cubic autocatalysis `U + 2V -> 3V` with the feed of `u` and the removal of `v` at a site.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class BrusselatorElement(BrusselatorReactionElement):
+    """Site of the Brusselator, the reactor of the Brusselator with the diffusion coefficients of its intermediates.
 
-        Returns:
-            laws:
-                The reaction rates of `u` and `v`.
-        """
-        return [
-            RateLaw(s.u, -s.u * s.v**2 + s.F * (1 - s.u)),
-            RateLaw(s.v, s.u * s.v**2 - (s.F + s.k) * s.v),
-        ]
-
-
-class BrusselatorElement(Element):
-    """Site of the Brusselator, the concentrations `u` and `v` with their reactions.
-
-    The site carries the reactions `A -> U`, `B + U -> V + D`, `2U + V -> 3U`, and `U -> E`. The diffusions of
-    `brusselator` read `Du` and `Dv`.
+    The four reactions of `brusselator` run at every site, and its diffusions read `Du` and `Dv`.
 
     Args:
         label:
@@ -137,43 +121,23 @@ class BrusselatorElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        u: Annotated[object, StateSpec()] = 1.0,
-        v: Annotated[object, StateSpec()] = 3.0,
-        a: Annotated[object, ParameterSpec()] = 1.0,
-        b: Annotated[object, ParameterSpec()] = 3.0,
+        u: float = 1.0,
+        v: float = 3.0,
+        a: float = 1.0,
+        b: float = 3.0,
         Du: Annotated[object, ParameterSpec()] = 1.0,
         Dv: Annotated[object, ParameterSpec()] = 8.0,
     ) -> None:
-        super().__init__(label, visual=visual)
-        self.u = u
-        self.v = v
-        self.a = a
-        self.b = b
+        super().__init__(label, visual=visual, u=u, v=v, a=a, b=b)
         self.Du = Du
         self.Dv = Dv
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the reactions of the Brusselator at a site.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The reaction rates of `u` and `v`.
-        """
-        return [
-            RateLaw(s.u, s.a - (s.b + 1) * s.u + s.u**2 * s.v),
-            RateLaw(s.v, s.b * s.u - s.u**2 * s.v),
-        ]
-
 
 class SchnakenbergElement(Element):
-    """Site of the Schnakenberg model, the activator `u` and the inhibitor `v` with their reactions.
+    """Site of the Schnakenberg model, the activator `u` and the inhibitor `v`.
 
-    The site carries the productions `a` of `u` and `b` of `v`, the decay of `u`, and the autocatalysis
-    `2U + V -> 3U`. The diffusions of `schnakenberg` read `Du` and `Dv`.
+    The reactions of `schnakenberg` at every site, the productions `a` of `u` and `b` of `v`, the decay of `u`, and
+    the autocatalysis `2U + V -> 3U`, read `a` and `b`, and its diffusions read `Du` and `Dv`.
 
     Args:
         label:
@@ -226,22 +190,6 @@ class SchnakenbergElement(Element):
         self.Du = Du
         self.Dv = Dv
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the reactions of the Schnakenberg model at a site.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The reaction rates of `u` and `v`.
-        """
-        return [
-            RateLaw(s.u, s.a - s.u + s.u**2 * s.v),
-            RateLaw(s.v, s.b - s.u**2 * s.v),
-        ]
-
 
 def _get_u_diffusion(s: SimpleNamespace) -> Expression:
     """Return the diffusion coefficient `Du` of the sites."""
@@ -258,6 +206,37 @@ def _get_diffusions() -> list[DiffusionInteraction]:
     return [
         DiffusionInteraction('u_diffusion', target='cells', state='u', coefficient=_get_u_diffusion),
         DiffusionInteraction('v_diffusion', target='cells', state='v', coefficient=_get_v_diffusion),
+    ]
+
+
+def _get_gray_scott_reactions() -> list[ReactionInteraction]:
+    """Return the reactions of the Gray-Scott model at every site of `cells`, the kinetics of `cubic_autocatalysis`."""
+    return [
+        CubicAutocatalysisInteraction('autocatalysis', target='cells', substrate='u', autocatalyst='v'),
+        ReactionInteraction('feed', target='cells', products={'u': 1}, modifiers={'F': 1}),
+        ReactionInteraction('washout', target='cells', reactants={'u': 1}, modifiers={'F': 1}),
+        ReactionInteraction('outflow', target='cells', reactants={'v': 1}, modifiers={'F': 1}),
+        ReactionInteraction('decay', target='cells', reactants={'v': 1}, modifiers={'k': 1}),
+    ]
+
+
+def _get_brusselator_reactions() -> list[ReactionInteraction]:
+    """Return the reactions of the Brusselator at every site of `cells`, the kinetics of `brusselator_ode`."""
+    return [
+        ReactionInteraction('feed', target='cells', products={'u': 1}, modifiers={'a': 1}),
+        ReactionInteraction('conversion', target='cells', reactants={'u': 1}, products={'v': 1}, modifiers={'b': 1}),
+        CubicAutocatalysisInteraction('autocatalysis', target='cells', substrate='v', autocatalyst='u'),
+        ReactionInteraction('decay', target='cells', reactants={'u': 1}),
+    ]
+
+
+def _get_schnakenberg_reactions() -> list[ReactionInteraction]:
+    """Return the reactions of the Schnakenberg model at every site of `cells`."""
+    return [
+        ReactionInteraction('production_u', target='cells', products={'u': 1}, modifiers={'a': 1}),
+        ReactionInteraction('decay', target='cells', reactants={'u': 1}),
+        CubicAutocatalysisInteraction('autocatalysis', target='cells', substrate='v', autocatalyst='u'),
+        ReactionInteraction('production_v', target='cells', products={'v': 1}, modifiers={'b': 1}),
     ]
 
 
@@ -319,7 +298,7 @@ def gray_scott(
     values = {'u': u + noise, 'v': v + np.abs(noise), 'Du': Du, 'Dv': Dv, 'F': F, 'k': k}
     return System(
         elements=[FieldElement('cells', element=GrayScottElement, space=LatticeSpace(shape), values=values)],
-        interactions=_get_diffusions(),
+        interactions=[*_get_gray_scott_reactions(), *_get_diffusions()],
     )
 
 
@@ -379,7 +358,7 @@ def brusselator(
     }
     return System(
         elements=[FieldElement('cells', element=BrusselatorElement, space=LatticeSpace(shape), values=values)],
-        interactions=_get_diffusions(),
+        interactions=[*_get_brusselator_reactions(), *_get_diffusions()],
     )
 
 
@@ -454,5 +433,5 @@ def schnakenberg(
                 values=values,
             ),
         ],
-        interactions=_get_diffusions(),
+        interactions=[*_get_schnakenberg_reactions(), *_get_diffusions()],
     )

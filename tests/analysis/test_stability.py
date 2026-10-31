@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import SR
 
 from skcomplex.analysis import StabilityAnalysis
 from skcomplex.core.elements import Element, FieldElement, GroupElement
-from skcomplex.core.interactions import DiffusionInteraction, Interaction
+from skcomplex.core.interactions import DiffusionInteraction, Interaction, ReactionInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import total
 from skcomplex.core.spaces import LatticeSpace
@@ -16,6 +16,7 @@ from skcomplex.core.system import System
 from skcomplex.errors import AnalysisError
 from skcomplex.models.biology.ecology import lotka_volterra
 from skcomplex.models.biology.epidemiology import sir
+from skcomplex.models.chemistry.common.kinetics import CubicAutocatalysisInteraction
 from skcomplex.models.chemistry.pattern_formation import BrusselatorElement
 from skcomplex.models.mathematics.dynamical_systems import logistic_map, lorenz
 from skcomplex.models.physics.mechanics import harmonic_oscillator
@@ -32,11 +33,17 @@ def _brusselator(b, *, discretization='spectral', boundary='periodic'):
     values = {'u': 1.0, 'v': b, 'a': 1.0, 'b': b, 'Du': 1.0, 'Dv': 8.0}
     space = LatticeSpace((128,), spacing=0.5, boundary=boundary)
     cells = FieldElement('cells', element=BrusselatorElement, space=space, values=values, discretization=discretization)
+    reactions = [
+        ReactionInteraction('feed', target='cells', products={'u': 1}, modifiers={'a': 1}),
+        ReactionInteraction('conversion', target='cells', reactants={'u': 1}, products={'v': 1}, modifiers={'b': 1}),
+        CubicAutocatalysisInteraction('autocatalysis', target='cells', substrate='v', autocatalyst='u'),
+        ReactionInteraction('decay', target='cells', reactants={'u': 1}),
+    ]
     diffusions = [
         DiffusionInteraction('u_diffusion', target='cells', state='u', coefficient=lambda s: s.target.Du),
         DiffusionInteraction('v_diffusion', target='cells', state='v', coefficient=lambda s: s.target.Dv),
     ]
-    return System(elements=[cells], interactions=diffusions)
+    return System(elements=[cells], interactions=[*reactions, *diffusions])
 
 
 def test_lotka_volterra_centre():

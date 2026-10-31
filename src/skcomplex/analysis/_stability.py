@@ -17,7 +17,7 @@ from ..core.interactions import BaseInteraction
 from ..core.laws import RateLaw
 from ..core.spaces import LatticeSpace
 from ..core.system import System
-from ..engine._utils import components_of, declarations_of, symbol
+from ..engine._utils import bound_labels, components_of, declarations_of, symbol
 from ..engine.problems import ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..errors import AnalysisError
@@ -423,12 +423,12 @@ class StabilityAnalysis(BaseAnalysis):
         """Return the interactions of a system whose every role binds one field, or raise an error for another."""
         bound = []
         for interaction in system.interactions:
-            roles = [
-                name
+            labels = [
+                label
                 for name in declarations_of(type(interaction), VariableKind.ROLE)
-                if getattr(interaction, name) is not None
+                for label in bound_labels(getattr(interaction, name) or ())
             ]
-            if not roles or any(getattr(interaction, name) != field.label for name in roles):
+            if not labels or any(label != field.label for label in labels):
                 error_msg = f'The interaction {interaction.label} binds a part other than the field {field.label}.'
                 raise AnalysisError(error_msg)
             bound.append(interaction)

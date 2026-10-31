@@ -95,6 +95,19 @@ emission matrix, after an optional residence time, and `SpreadingInteraction` SH
 - **WHEN** a contact process runs on a square lattice below and above its critical spreading rate
 - **THEN** the active fraction dies out below it and stays positive above it
 
+### Requirement: Per-member reactions and renamed roles
+`ReactionInteraction` SHALL take species as state names of its `target` alone and react in every member when the
+target is a group or a field, and a subclass SHALL be able to bind its species under roles of its own names.
+
+#### Scenario: Reactions at every site of a field
+- **WHEN** the Gray-Scott model runs its cubic autocatalysis, feed, and removal as reactions on the state names of its
+  field beside its two diffusions
+- **THEN** its trajectory equals the one of sites that carry the same rate laws of their own, up to round-off
+
+#### Scenario: A reaction under renamed roles
+- **WHEN** a subclass binds its species under the roles `susceptible` and `infected` and returns their pairs
+- **THEN** it follows the mass action of `S + I -> 2 I` at its own rate constant, as a rate equation or as jumps
+
 ### Requirement: Encounters, crossings, impulses, and sampling
 `EncounterInteraction` SHALL run conservative, destructive, or proliferative encounters over densities on activity
 classes. `CrossingInteraction` SHALL reset states or end the run when a guard crosses zero. `ImpulseInteraction` SHALL
