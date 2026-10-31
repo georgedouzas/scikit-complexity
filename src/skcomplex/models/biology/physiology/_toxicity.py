@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import pulse_train, step
+from ....core.laws.utils import pulse_train
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
@@ -96,7 +96,7 @@ class DrugToxicityElement(Element):
             laws:
                 The laws of the component.
         """
-        infusion = pulse_train(s.t, self.period, self.width) * (1 - step(s.t, self.doses * self.period))
+        infusion = pulse_train(s.t, self.period, self.width, count=self.doses)
         return [RateLaw(s.c, s.dose * infusion - s.k * s.c), RateLaw(s.T, s.c - s.eta * s.T)]
 
 

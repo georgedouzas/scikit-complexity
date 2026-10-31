@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import pulse
+from ....core.laws.utils import hill, pulse
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
@@ -154,7 +154,7 @@ class GlucoseControlElement(Element):
             self.exercise_time,
             self.duration,
         )
-        high = s.G**s.n / (s.G**s.n + s.K**s.n)
+        high = hill(s.G, s.K, s.n)
         return [
             RateLaw(s.G, s.R - (s.k0 + s.k_i * s.I) * s.G + s.k_n * s.N + intake),
             RateLaw(s.I, s.s_i * high - s.d_i * s.I),
@@ -288,7 +288,7 @@ class CoagulationElement(Element):
                 The laws of the component.
         """
         trigger = s.injury * pulse(s.t, self.injury_time, self.duration)
-        feedback = s.ka * s.T**2 / (s.k_half**2 + s.T**2)
+        feedback = s.ka * hill(s.T, s.k_half, 2)
         return [
             RateLaw(s.T, trigger + feedback - (s.d_t + s.k_c * s.C) * s.T),
             RateLaw(s.C, s.s_c * s.T - s.d_c * s.C),

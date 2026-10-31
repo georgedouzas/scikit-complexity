@@ -12,8 +12,8 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement
+from ....core.interactions import DiffusionInteraction
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.solvers import RK4Solver
@@ -24,9 +24,10 @@ from ..._catalog import register_model
 class AlievPanfilovElement(Element):
     """Cardiac tissue of Aliev and Panfilov, an excitable medium with the restitution of heart muscle.
 
-    The potential follows `u' = D Δu - k u (u - a) (u - 1) - u v` and the recovery `v' = (epsilon0 + mu1 v / (u +
-    mu2)) (-v - k u (u - a - 1))`. The recovery rate depends on the state, so the action potential lasts longer than
-    in the FitzHugh-Nagumo medium and its duration adapts to the pacing rate.
+    The potential follows `u' = -k u (u - a) (u - 1) - u v` and the recovery `v' = (epsilon0 + mu1 v / (u + mu2))
+    (-v - k u (u - a - 1))`, and a diffusion of the potential couples the cells of the tissue. The recovery rate
+    depends on the state, so the action potential lasts longer than in the FitzHugh-Nagumo medium and its duration
+    adapts to the pacing rate.
 
     Args:
         label:
@@ -40,9 +41,6 @@ class AlievPanfilovElement(Element):
 
         v:
             The initial recovery.
-
-        D:
-            The diffusion of the potential.
 
         k:
             The strength of the excitation.
@@ -72,7 +70,6 @@ class AlievPanfilovElement(Element):
         *,
         u: Annotated[float, StateSpec()] = 0.0,
         v: Annotated[float, StateSpec()] = 0.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 8.0,
         a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.15,
         epsilon0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.002,
@@ -82,7 +79,6 @@ class AlievPanfilovElement(Element):
         super().__init__(label, visual=visual)
         self.u = u
         self.v = v
-        self.D = D
         self.k = k
         self.a = a
         self.epsilon0 = epsilon0
@@ -102,7 +98,7 @@ class AlievPanfilovElement(Element):
         """
         recovery_rate = s.epsilon0 + s.mu1 * s.v / (s.u + s.mu2)
         return [
-            RateLaw(s.u, s.D * laplacian(s.u) - s.k * s.u * (s.u - s.a) * (s.u - 1) - s.u * s.v),
+            RateLaw(s.u, -s.k * s.u * (s.u - s.a) * (s.u - 1) - s.u * s.v),
             RateLaw(s.v, recovery_rate * (-s.v - s.k * s.u * (s.u - s.a - 1))),
         ]
 
@@ -164,6 +160,8 @@ def aliev_panfilov(
     u, v = np.zeros(shape), np.zeros(shape)
     u[: rows // 2, :] = 1.0
     v[:, : columns // 2] = 2.0
-    values = {'u': u, 'v': v, 'D': D, 'k': k, 'a': a, 'epsilon0': epsilon0, 'mu1': mu1, 'mu2': mu2}
+    values = {'u': u, 'v': v, 'k': k, 'a': a, 'epsilon0': epsilon0, 'mu1': mu1, 'mu2': mu2}
     space = LatticeSpace((rows, columns), boundary='reflecting')
-    return System(elements=[FieldElement('tissue', element=AlievPanfilovElement, space=space, values=values)])
+    tissue = FieldElement('tissue', element=AlievPanfilovElement, space=space, values=values)
+    diffusion = DiffusionInteraction('diffusion', target='tissue', state='u', coefficient=D)
+    return System(elements=[tissue], interactions=[diffusion])

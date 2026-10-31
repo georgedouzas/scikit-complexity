@@ -11,19 +11,11 @@ from sage.all__sagemath_symbolics import Expression, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import TransferInteraction
 from ....core.laws.utils import mod, where
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-
-
-def _pressure(chamber: SimpleNamespace, t: Expression) -> Expression:
-    """Return the pressure of a chamber, its elastance times its volume above the unstressed volume."""
-    phase = mod(t, chamber.period)
-    activation = where(phase < chamber.systole, sin(math.pi * phase / chamber.systole), 0)
-    return (chamber.E_min + (chamber.E_max - chamber.E_min) * activation) * (chamber.V - chamber.V0)
 
 
 class ChamberElement(Element):
@@ -85,19 +77,19 @@ class ChamberElement(Element):
         self.systole = systole
 
 
-class TransferInteraction(Interaction):
-    """Transfer of blood from one chamber to another through a resistance, `Q = (P_up - P_down) / R`.
+class ResistiveFlowInteraction(TransferInteraction):
+    """Flow of blood from one chamber to another through a resistance, `Q = (P_source - P_target) / R`.
 
-    A valve lets blood pass forward only, so the flow is zero when the downstream pressure is higher.
+    A valve lets blood pass forward only, so the flow is zero when the target pressure is higher.
 
     Args:
         label:
             The label of the interaction.
 
-        upstream:
+        source:
             The path of the chamber the blood leaves.
 
-        downstream:
+        target:
             The path of the chamber the blood enters.
 
         R:
@@ -107,8 +99,8 @@ class TransferInteraction(Interaction):
             Whether a valve prevents backward flow.
 
     Examples:
-        >>> from skcomplex.models.biology.physiology import TransferInteraction
-        >>> TransferInteraction('aortic_valve', upstream='ventricle', downstream='arteries', valve=True).valve
+        >>> from skcomplex.models.biology.physiology import ResistiveFlowInteraction
+        >>> ResistiveFlowInteraction('aortic_valve', source='ventricle', target='arteries', valve=True).valve
         True
     """
 
@@ -116,31 +108,25 @@ class TransferInteraction(Interaction):
         self,
         label: str,
         *,
-        upstream: Annotated[str, RoleSpec()],
-        downstream: Annotated[str, RoleSpec()],
+        source: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
         R: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         valve: bool = False,
     ) -> None:
-        super().__init__(label)
-        self.upstream = upstream
-        self.downstream = downstream
+        super().__init__(label, source=source, target=target, state='V', amount=self._get_flow)
         self.R = R
         self.valve = valve
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the transfer of volume from the upstream to the downstream chamber.
+    def _get_pressure(self, chamber: SimpleNamespace, t: Expression) -> Expression:
+        """Return the pressure of a chamber, its elastance times its volume above the unstressed volume."""
+        phase = mod(t, chamber.period)
+        activation = where(phase < chamber.systole, sin(math.pi * phase / chamber.systole), 0)
+        return (chamber.E_min + (chamber.E_max - chamber.E_min) * activation) * (chamber.V - chamber.V0)
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        drop = _pressure(s.upstream, s.t) - _pressure(s.downstream, s.t)
-        flow = where(drop > 0, drop / s.R, 0) if self.valve else drop / s.R
-        return [RateLaw(s.upstream.V, -flow), RateLaw(s.downstream.V, flow)]
+    def _get_flow(self, s: SimpleNamespace) -> Expression:
+        """Return the flow of the pressure drop through the resistance, zero backwards through a valve."""
+        drop = self._get_pressure(s.source, s.t) - self._get_pressure(s.target, s.t)
+        return where(drop > 0, drop / s.R, 0) if self.valve else drop / s.R
 
 
 @register_model(
@@ -223,8 +209,8 @@ def cardiovascular(
         systole=systole,
     )
     flows = [
-        TransferInteraction('aortic_valve', upstream='ventricle', downstream='arteries', R=0.02, valve=True),
-        TransferInteraction('systemic', upstream='arteries', downstream='veins', R=R_systemic),
-        TransferInteraction('mitral_valve', upstream='veins', downstream='ventricle', R=0.02, valve=True),
+        ResistiveFlowInteraction('aortic_valve', source='ventricle', target='arteries', R=0.02, valve=True),
+        ResistiveFlowInteraction('systemic', source='arteries', target='veins', R=R_systemic),
+        ResistiveFlowInteraction('mitral_valve', source='veins', target='ventricle', R=0.02, valve=True),
     ]
     return System(elements=[ventricle, arteries, veins], interactions=flows)

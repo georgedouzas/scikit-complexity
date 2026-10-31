@@ -2,7 +2,7 @@
 
 from ._adaptivity import AdaptiveResponderElement, adaptive_response_costs
 from ._cardiac import AlievPanfilovElement, aliev_panfilov
-from ._circulation import ChamberElement, TransferInteraction, cardiovascular
+from ._circulation import ChamberElement, ResistiveFlowInteraction, cardiovascular
 from ._exchange import (
     ContourCellElement,
     ExchangingCellElement,
@@ -30,7 +30,7 @@ __all__: list[str] = [
     'FitzHughNagumoElement',
     'GlucoseControlElement',
     'MackeyGlassElement',
-    'TransferInteraction',
+    'ResistiveFlowInteraction',
     'TwoCompartmentElement',
     'adaptive_response_costs',
     'aliev_panfilov',

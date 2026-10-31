@@ -14,6 +14,7 @@ from ....core.laws import BaseLaw, CrossingLaw, RateLaw
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.excitable import FitzHughNagumoInteraction
 from .types import GateRates
 
 
@@ -139,9 +140,9 @@ class HodgkinHuxleyElement(Element):
 
 
 class FitzHughNagumoNeuronElement(Element):
-    """FitzHugh-Nagumo neuron, a fast potential with a cubic nullcline and a slow linear recovery.
+    """FitzHugh-Nagumo neuron, with a fast potential `v` and a slow recovery `w`.
 
-    The potential follows `v' = v - v³/3 - w + I` and the recovery `w' = epsilon (v + a - b w)`.
+    The neuron has no laws of its own. FitzHugh-Nagumo kinetics change it.
 
     Args:
         label:
@@ -156,22 +157,10 @@ class FitzHughNagumoNeuronElement(Element):
         w:
             The initial recovery.
 
-        a:
-            The offset of the recovery.
-
-        b:
-            The damping of the recovery.
-
-        epsilon:
-            The time scale of the recovery.
-
-        I:
-            The applied current.
-
     Examples:
         >>> from skcomplex.models.biology.neuroscience import FitzHughNagumoNeuronElement
-        >>> FitzHughNagumoNeuronElement('neuron').epsilon
-        0.08
+        >>> FitzHughNagumoNeuronElement('neuron').w
+        -0.6
     """
 
     def __init__(
@@ -181,31 +170,10 @@ class FitzHughNagumoNeuronElement(Element):
         *,
         v: Annotated[float, StateSpec()] = -1.2,
         w: Annotated[float, StateSpec()] = -0.6,
-        a: Annotated[float, ParameterSpec()] = 0.7,
-        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.08,
-        I: Annotated[float, ParameterSpec()] = 0.5,
     ) -> None:
         super().__init__(label, visual=visual)
         self.v = v
         self.w = w
-        self.a = a
-        self.b = b
-        self.epsilon = epsilon
-        self.I = I
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the fast potential and the slow recovery.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.v, s.v - s.v**3 / 3 - s.w + s.I), RateLaw(s.w, s.epsilon * (s.v + s.a - s.b * s.w))]
 
 
 @register_model(
@@ -322,7 +290,8 @@ def fitzhugh_nagumo_ode(
 
     Examples:
         >>> from skcomplex.models.biology.neuroscience import fitzhugh_nagumo_ode
-        >>> fitzhugh_nagumo_ode(I=0.0).elements[0].I
+        >>> fitzhugh_nagumo_ode(I=0.0).interactions[0].I
         0.0
     """
-    return System(elements=[FitzHughNagumoNeuronElement('neuron', v=v, w=w, a=a, b=b, epsilon=epsilon, I=I)])
+    kinetics = FitzHughNagumoInteraction('kinetics', target='neuron', a=a, b=b, epsilon=epsilon, I=I)
+    return System(elements=[FitzHughNagumoNeuronElement('neuron', v=v, w=w)], interactions=[kinetics])

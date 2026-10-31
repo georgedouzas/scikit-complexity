@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement, GroupElement
 from ....core.laws import BaseLaw, RateLaw, UpdateLaw
-from ....core.laws.utils import laplacian, shift_member
+from ....core.laws.utils import hill, laplacian, shift_member
 from ....core.spaces import ContinuousTime, DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -154,7 +154,7 @@ class ExchangingCellElement(Element):
                 The laws of the component.
         """
         exchange = (s.g + s.xi) * laplacian(s.x) + s.xi * s.degree * s.x
-        return [RateLaw(s.x, -s.alpha * s.x / (s.beta + s.x) + exchange)]
+        return [RateLaw(s.x, -s.alpha * hill(s.x, s.beta) + exchange)]
 
 
 @register_model(

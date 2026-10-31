@@ -3,24 +3,22 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import ReactionInteraction
 from ....core.system import System
-from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....specs import StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
 class TwoCompartmentElement(Element):
-    """Drug in a central compartment, where it is eliminated, exchanged with a peripheral compartment.
+    """Drug concentrations of a patient in a central compartment `Uc` and a peripheral compartment `Up`.
 
-    The central concentration follows `dUc/dt = k21 Up - (k10 + k12) Uc` and the peripheral one
-    `dUp/dt = k12 Uc - k21 Up`.
+    The compartments have no laws of their own. Reactions exchange the drug between them and eliminate it.
 
     Args:
         label:
@@ -35,19 +33,10 @@ class TwoCompartmentElement(Element):
         Up:
             The initial peripheral concentration.
 
-        k10:
-            The elimination rate from the central compartment.
-
-        k12:
-            The transfer rate from the central to the peripheral compartment.
-
-        k21:
-            The transfer rate from the peripheral to the central compartment.
-
     Examples:
         >>> from skcomplex.models.biology.physiology import TwoCompartmentElement
-        >>> TwoCompartmentElement('patient').k12
-        0.0475
+        >>> TwoCompartmentElement('patient').Up
+        0.0
     """
 
     def __init__(
@@ -57,30 +46,10 @@ class TwoCompartmentElement(Element):
         *,
         Uc: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         Up: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        k10: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.082,
-        k12: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0475,
-        k21: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00125,
     ) -> None:
         super().__init__(label, visual=visual)
         self.Uc = Uc
         self.Up = Up
-        self.k10 = k10
-        self.k12 = k12
-        self.k21 = k21
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the exchange between the compartments and the elimination from the central one.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        transfer = s.k12 * s.Uc - s.k21 * s.Up
-        return [RateLaw(s.Uc, -transfer - s.k10 * s.Uc), RateLaw(s.Up, transfer)]
 
 
 @register_model(
@@ -127,4 +96,9 @@ def two_compartment_pharmacokinetics(
         >>> two_compartment_pharmacokinetics(c0=5.0).elements[0].Uc
         5.0
     """
-    return System(elements=[TwoCompartmentElement('patient', Uc=c0, k10=k10, k12=k12, k21=k21)])
+    reactions = [
+        ReactionInteraction('distribution', reactants={('patient', 'Uc'): 1}, products={('patient', 'Up'): 1}, k=k12),
+        ReactionInteraction('redistribution', reactants={('patient', 'Up'): 1}, products={('patient', 'Uc'): 1}, k=k21),
+        ReactionInteraction('elimination', reactants={('patient', 'Uc'): 1}, k=k10),
+    ]
+    return System(elements=[TwoCompartmentElement('patient', Uc=c0)], interactions=reactions)
