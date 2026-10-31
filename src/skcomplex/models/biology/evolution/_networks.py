@@ -14,13 +14,14 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction, NeighborInteraction
+from ....core.interactions import Interaction, MapInteraction, TopologyInteraction
 from ....core.laws import BaseLaw, UpdateLaw
-from ....core.laws.utils import both, minimum, mod, neighbors, normal, total, uniform, where
+from ....core.laws.utils import both, minimum, mod, neighbors, total, uniform, where
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
 
 HIDDEN = VisualSpec('sites', {'states': []})
 
@@ -31,10 +32,9 @@ def _initial_stream(seed: int | None) -> np.random.Generator:
 
 
 class TaxonElement(Element):
-    """Species of an ecosystem that survives while the sum of the influences of the species it depends on is positive.
+    """Species of an ecosystem with its field, the sum of the couplings of the species it depends on, and its age.
 
-    The field `h` of the species is the sum of the couplings of its edges to the species it depends on. A species whose
-    field is negative goes extinct, and a new species with `k` random dependencies takes its niche.
+    A species whose field is negative goes extinct, and a new species takes its niche.
 
     Args:
         label:
@@ -49,13 +49,10 @@ class TaxonElement(Element):
         age:
             The number of steps since the species appeared.
 
-        k:
-            The number of dependencies of a new species.
-
     Examples:
         >>> from skcomplex.models.biology.evolution import TaxonElement
-        >>> TaxonElement('species').k
-        5
+        >>> TaxonElement('species').h
+        1.0
     """
 
     def __init__(
@@ -65,124 +62,14 @@ class TaxonElement(Element):
         *,
         h: Annotated[float, StateSpec()] = 1.0,
         age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        k: int = 5,
     ) -> None:
         super().__init__(label, visual=visual)
         self.h = h
         self.age = age
-        self.k = k
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the ageing, and the extinction and replacement of a species whose field is negative.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        extinct = where(s.h < 0, 1, 0)
-        return [
-            UpdateLaw(s.age, s.age + 1),
-            UpdateLaw(TopologyRequestSpec('add-node', edges=self.k), extinct),
-            UpdateLaw(TopologyRequestSpec('remove-node'), extinct),
-        ]
-
-
-class CouplingElement(Element):
-    """Edge from a species to a species it depends on, with the coupling `J` between them.
-
-    A new edge, marked `fresh`, draws its coupling uniformly from `[-1, 1]` at its first step.
-
-    Args:
-        label:
-            The label of the edge or of the group of edges.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        J:
-            The coupling.
-
-        fresh:
-            Whether the edge has not drawn its coupling yet.
-
-    Examples:
-        >>> from skcomplex.models.biology.evolution import CouplingElement
-        >>> CouplingElement('edge').fresh
-        1.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        J: Annotated[float, StateSpec()] = 0.0,
-        fresh: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.J = J
-        self.fresh = fresh
-
-
-class CouplingDriftInteraction(NeighborInteraction):
-    """Random drift of the couplings of an ecosystem, and the first coupling of every new edge.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        species:
-            The path of the group of species on the nodes.
-
-        couplings:
-            The path of the variable group on the edges.
-
-        noise:
-            The standard deviation of the change of every coupling at a step.
-
-    Examples:
-        >>> from skcomplex.models.biology.evolution import CouplingDriftInteraction
-        >>> CouplingDriftInteraction('drift', species='species', couplings='couplings').noise
-        0.05
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        species: Annotated[str, RoleSpec()],
-        couplings: Annotated[str, RoleSpec()],
-        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-    ) -> None:
-        super().__init__(label)
-        self.species = species
-        self.couplings = couplings
-        self.noise = noise
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the drift of the coupling of an edge, or its first draw.
-
-        Args:
-            s:
-                The namespace of the edge, with `s.source`, `s.target`, and `s.edge`.
-
-        Returns:
-            laws:
-                The updates of the coupling and of the mark of new edges.
-        """
-        drifted = s.edge.J + s.noise * normal('drift')
-        return [
-            UpdateLaw(s.edge.J, where(s.edge.fresh > 1 / 2, uniform('coupling', -1, 1), drifted)),
-            UpdateLaw(s.edge.fresh, 0),
-        ]
 
 
 class DependencyFieldInteraction(Interaction):
-    """Field of every species, the sum of the couplings of its edges to the species it depends on.
+    """Field of every species, the sum of the couplings `w` of its edges to the species it depends on.
 
     Args:
         label:
@@ -222,7 +109,7 @@ class DependencyFieldInteraction(Interaction):
             laws:
                 The update of the field.
         """
-        return [UpdateLaw(s.species.h, neighbors(1, weight=s.couplings.J))]
+        return [UpdateLaw(s.species.h, neighbors(1, weight=s.couplings.w))]
 
 
 class ChemicalElement(Element):
@@ -370,7 +257,7 @@ def sole_manrubia(
     Returns:
         system:
             The model, with the fields `species.h` and ages `species.age` of the variable group `species` and the
-            couplings `couplings.J` of the variable group `couplings` on the edges.
+            couplings `couplings.w` of the variable group `couplings` on the edges.
 
     Examples:
         >>> from skcomplex.models.biology.evolution import sole_manrubia
@@ -395,24 +282,32 @@ def sole_manrubia(
         on='sites',
         variable=True,
         capacity=2 * n,
-        values={'h': fields, 'k': k},
+        values={'h': fields},
         visual=VisualSpec('sites', {'states': ['age']}),
     )
     edge_group = GroupElement(
         'couplings',
-        element=CouplingElement,
+        element=WeightedEdgeElement,
         space=space,
         on='edges',
         variable=True,
         capacity=4 * edges,
-        values={'J': couplings, 'fresh': 0.0},
+        values={'w': couplings, 'fresh': 0.0},
         visual=HIDDEN,
     )
     return System(
         elements=[species, edge_group],
         interactions=[
             DependencyFieldInteraction('field', species='species', couplings='couplings'),
-            CouplingDriftInteraction('drift', species='species', couplings='couplings', noise=noise),
+            EdgeDrawInteraction('drift', target='species', edges='couplings', noise=noise),
+            MapInteraction('ageing', target='species', state='age', function=lambda s: 1, form='increment'),
+            TopologyInteraction(
+                'extinction',
+                target='species',
+                action='replace-node',
+                condition=lambda s: s.source.h < 0,
+                edges=k,
+            ),
         ],
         time=DiscreteTime(),
     )

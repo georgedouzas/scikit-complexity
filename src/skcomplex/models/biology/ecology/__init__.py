@@ -34,13 +34,7 @@ from ._predation import (
     rosenzweig_macarthur,
     stochastic_predator_prey,
 )
-from ._sequential import (
-    AbundanceElement,
-    InfluenceDrawInteraction,
-    InfluenceElement,
-    LinearGrowthInteraction,
-    sequentially_linear_ecosystem,
-)
+from ._sequential import AbundanceElement, LinearGrowthInteraction, sequentially_linear_ecosystem
 from ._speciation import NeutralReplacementInteraction, OrganismElement, neutral_biodiversity
 from ._stigmergy import (
     EmotionMarksElement,
@@ -67,8 +61,6 @@ __all__: list[str] = [
     'HabitatPatchElement',
     'HerdingInteraction',
     'HoppingInteraction',
-    'InfluenceDrawInteraction',
-    'InfluenceElement',
     'LinearGrowthInteraction',
     'LogisticGrowthInteraction',
     'MicrobeElement',

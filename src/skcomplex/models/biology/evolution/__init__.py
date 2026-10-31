@@ -22,8 +22,6 @@ from ._games import (
 from ._networks import (
     CatalyticLinkElement,
     ChemicalElement,
-    CouplingDriftInteraction,
-    CouplingElement,
     DependencyFieldInteraction,
     TaxonElement,
     jain_krishna,
@@ -46,8 +44,6 @@ __all__: list[str] = [
     'CatalyticLinkElement',
     'ChemicalElement',
     'ClimberElement',
-    'CouplingDriftInteraction',
-    'CouplingElement',
     'CyclicSpeciesElement',
     'DependencyFieldInteraction',
     'GenotypeClassElement',

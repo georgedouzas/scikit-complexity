@@ -3,33 +3,29 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
 import numpy as np
 from sage.all__sagemath_symbolics import oo
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction, NeighborInteraction
+from ....core.interactions import Interaction, MapInteraction, TopologyInteraction
 from ....core.laws import BaseLaw, UpdateLaw
-from ....core.laws.utils import neighbors, total, uniform, where
+from ....core.laws.utils import neighbors, total, where
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
 
 HIDDEN = VisualSpec('sites', {'states': []})
 
 
 class AbundanceElement(Element):
-    """Species of an ecosystem with its relative abundance, which goes extinct below a threshold.
-
-    A species whose abundance falls below `threshold` goes extinct, and a new species with `k` random interactions
-    and the abundance `seed` takes its niche.
+    """Species of an ecosystem with its relative abundance and its age, which goes extinct below a threshold.
 
     Args:
         label:
@@ -47,9 +43,6 @@ class AbundanceElement(Element):
         threshold:
             The abundance below which the species goes extinct.
 
-        k:
-            The number of interactions of a new species.
-
     Examples:
         >>> from skcomplex.models.biology.ecology import AbundanceElement
         >>> AbundanceElement('species').threshold
@@ -64,120 +57,18 @@ class AbundanceElement(Element):
         x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
         age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
-        k: int = 4,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
         self.age = age
         self.threshold = threshold
-        self.k = k
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the ageing, and the extinction and replacement of a species below the threshold.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        extinct = where(s.x < s.threshold, 1, 0)
-        return [
-            UpdateLaw(s.age, s.age + 1),
-            UpdateLaw(TopologyRequestSpec('add-node', edges=self.k), extinct),
-            UpdateLaw(TopologyRequestSpec('remove-node'), extinct),
-        ]
-
-
-class InfluenceElement(Element):
-    """Edge from a species to a species that changes its growth, with the strength `a` of the influence.
-
-    A new edge, marked `fresh`, draws its strength uniformly from `[-1, 1]` at its first step.
-
-    Args:
-        label:
-            The label of the edge or of the group of edges.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        a:
-            The strength of the influence.
-
-        fresh:
-            Whether the edge has not drawn its strength yet.
-
-    Examples:
-        >>> from skcomplex.models.biology.ecology import InfluenceElement
-        >>> InfluenceElement('edge').a
-        0.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        a: Annotated[float, StateSpec()] = 0.0,
-        fresh: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.a = a
-        self.fresh = fresh
-
-
-class InfluenceDrawInteraction(NeighborInteraction):
-    """First draw of the strength of every new influence of an ecosystem.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        species:
-            The path of the group of species on the nodes.
-
-        influences:
-            The path of the variable group on the edges.
-
-    Examples:
-        >>> from skcomplex.models.biology.ecology import InfluenceDrawInteraction
-        >>> InfluenceDrawInteraction('draw', species='species', influences='influences').influences
-        'influences'
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        species: Annotated[str, RoleSpec()],
-        influences: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(label)
-        self.species = species
-        self.influences = influences
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the draw of the strength of a new edge.
-
-        Args:
-            s:
-                The namespace of the edge, with `s.source`, `s.target`, and `s.edge`.
-
-        Returns:
-            laws:
-                The updates of the strength and of the mark of new edges.
-        """
-        drawn = uniform('strength', -1, 1)
-        return [UpdateLaw(s.edge.a, where(s.edge.fresh > 1 / 2, drawn, s.edge.a)), UpdateLaw(s.edge.fresh, 0)]
 
 
 class LinearGrowthInteraction(Interaction):
     """Linear growth of every species by the abundances of the species that influence it, normalised to one.
 
-    Every species grows by `rate` times the sum of the abundances of the species it reads weighted by the strengths of
-    the influences, its abundance stays nonnegative, and the abundances are normalised to sum to one.
+    Every species grows by `rate` times the sum of the abundances of the species it reads weighted by the strengths `w`
+    of the influences, its abundance stays nonnegative, and the abundances are normalised to sum to one.
 
     Args:
         label:
@@ -211,19 +102,19 @@ class LinearGrowthInteraction(Interaction):
         self.influences = influences
         self.rate = rate
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the linear growth and the normalisation of the abundances.
 
         Args:
-            s:
-                The namespace with `s.species` and `s.influences`.
+            namespace:
+                The namespace with `namespace.species` and `namespace.influences`.
 
         Returns:
             laws:
                 The update of the abundance.
         """
-        species = s.species
-        grown = species.x + s.rate * neighbors(species.other.x, weight=s.influences.a)
+        species = namespace.species
+        grown = species.x + namespace.rate * neighbors(species.other.x, weight=namespace.influences.w)
         kept = where(grown > 0, grown, 0)
         return [UpdateLaw(species.x, kept / total(kept))]
 
@@ -247,7 +138,7 @@ def sequentially_linear_ecosystem(
     Every species reads `k` random species through influences of random sign and strength, and grows linearly with
     their abundances. Between extinctions the dynamics is linear, so the abundances approach the dominant eigenvector
     of the current network. A species whose abundance falls below `threshold` goes extinct with its influences, and a
-    new species with random influences takes its place, which changes the network and starts a new linear stretch.
+    new species with `k` random influences takes its place, which changes the network and starts a new linear stretch.
     Extinctions come in bursts separated by quiet periods.
 
     Args:
@@ -269,7 +160,7 @@ def sequentially_linear_ecosystem(
     Returns:
         system:
             The model, with the abundances `species.x` and ages `species.age` of the variable group `species` and the
-            strengths `influences.a` of the variable group `influences` on the edges.
+            strengths `influences.w` of the variable group `influences` on the edges.
 
     Examples:
         >>> from skcomplex.models.biology.ecology import sequentially_linear_ecosystem
@@ -291,24 +182,32 @@ def sequentially_linear_ecosystem(
         on='sites',
         variable=True,
         capacity=2 * n,
-        values={'x': np.full(n, 1 / n), 'threshold': threshold, 'k': k},
+        values={'x': np.full(n, 1 / n), 'threshold': threshold},
         visual=VisualSpec('sites', {'states': ['x']}),
     )
     influences = GroupElement(
         'influences',
-        element=InfluenceElement,
+        element=WeightedEdgeElement,
         space=space,
         on='edges',
         variable=True,
         capacity=4 * edges,
-        values={'a': rng.uniform(-1, 1, edges), 'fresh': 0.0},
+        values={'w': rng.uniform(-1, 1, edges), 'fresh': 0.0},
         visual=HIDDEN,
     )
     return System(
         elements=[species, influences],
         interactions=[
             LinearGrowthInteraction('growth', species='species', influences='influences', rate=rate),
-            InfluenceDrawInteraction('draw', species='species', influences='influences'),
+            EdgeDrawInteraction('draw', target='species', edges='influences'),
+            MapInteraction('ageing', target='species', state='age', function=lambda s: 1, form='increment'),
+            TopologyInteraction(
+                'extinction',
+                target='species',
+                action='replace-node',
+                condition=lambda s: s.source.x < s.source.threshold,
+                edges=k,
+            ),
         ],
         time=DiscreteTime(),
     )
