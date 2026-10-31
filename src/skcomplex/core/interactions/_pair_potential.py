@@ -24,7 +24,7 @@ class PairPotentialInteraction(PairInteraction):
 
     A subclass returns the energy of one pair at a distance from `_get_pair_energy`. The force on each particle of a
     pair is minus the derivative of the energy along their separation, derived symbolically, and changes its velocity
-    `v` by the force divided by its mass `m`.
+    state by the force divided by its mass.
 
     Args:
         label:
@@ -41,6 +41,12 @@ class PairPotentialInteraction(PairInteraction):
 
         position:
             The name of the vector state that holds the positions of the members.
+
+        velocity:
+            The name of the vector state that holds the velocities of the members.
+
+        mass:
+            The name of the state or parameter that holds the masses of the members.
 
         period:
             The side of a periodic box, for minimum image distances, or `None` for an open space.
@@ -67,9 +73,13 @@ class PairPotentialInteraction(PairInteraction):
         cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         position: str = 'x',
         *,
+        velocity: str = 'v',
+        mass: str = 'm',
         period: float | None = None,
     ) -> None:
         super().__init__(label, first, second, cutoff=cutoff, position=position)
+        self.velocity = velocity
+        self.mass = mass
         self.period = period
 
     @abstractmethod
@@ -93,4 +103,7 @@ class PairPotentialInteraction(PairInteraction):
         r = sqrt(separation.dot_product(separation))
         slope = SR(self._get_pair_energy(namespace, distance)).diff(distance).subs({distance: r})
         force = -slope * separation / r
-        return [RateLaw(first.v, force / first.m), RateLaw(second.v, -force / second.m)]
+        return [
+            RateLaw(getattr(first, self.velocity), force / getattr(first, self.mass)),
+            RateLaw(getattr(second, self.velocity), -force / getattr(second, self.mass)),
+        ]

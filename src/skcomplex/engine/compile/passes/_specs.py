@@ -489,7 +489,7 @@ class SpecsPass(BasePass):
             SpecsPass._resolve_role(node, 'first', elements),
             SpecsPass._resolve_role(node, 'second', elements),
         )
-        position = getattr(type(interaction), 'position', 'x')
+        position = getattr(interaction, 'position', 'x')
         for bound in (first, second):
             entry = bound.entries.get(position)
             if entry is None or not entry.member_shape:

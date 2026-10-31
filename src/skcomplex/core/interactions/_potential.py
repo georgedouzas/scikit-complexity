@@ -17,12 +17,21 @@ class PotentialInteraction(Interaction):
     """Base class of interactions between particles defined by a potential energy of their positions.
 
     A subclass takes one role per particle and returns the energy from `_get_energy`. The force on each particle is
-    minus the gradient of the energy with respect to its position `x`, derived symbolically, and changes its velocity
-    `v` by the force divided by its mass `m`.
+    minus the gradient of the energy with respect to its position state, derived symbolically, and changes its velocity
+    state by the force divided by its mass.
 
     Args:
         label:
             The label of the interaction, unique among the parts of its system.
+
+        position:
+            The name of the vector state that holds the position of every particle.
+
+        velocity:
+            The name of the vector state that holds the velocity of every particle.
+
+        mass:
+            The name of the state or parameter that holds the mass of every particle.
 
     Examples:
         >>> from typing import Annotated
@@ -46,6 +55,12 @@ class PotentialInteraction(Interaction):
         [(-xa + xb), (xa - xb)]
     """
 
+    def __init__(self, label: str, *, position: str = 'x', velocity: str = 'v', mass: str = 'm') -> None:
+        super().__init__(label)
+        self.position = position
+        self.velocity = velocity
+        self.mass = mass
+
     @abstractmethod
     def _get_energy(self, namespace: SimpleNamespace) -> Expression:
         """Return the potential energy as a symbolic expression of the positions of the particles of the roles."""
@@ -66,6 +81,7 @@ class PotentialInteraction(Interaction):
         for name, spec in self._get_specs().items():
             if isinstance(spec, RoleSpec):
                 particle = getattr(namespace, name)
-                gradient = vector(SR, [energy.diff(component) for component in particle.x])
-                laws.append(RateLaw(particle.v, -gradient / particle.m))
+                position = getattr(particle, self.position)
+                gradient = vector(SR, [energy.diff(component) for component in position])
+                laws.append(RateLaw(getattr(particle, self.velocity), -gradient / getattr(particle, self.mass)))
         return laws
