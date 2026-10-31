@@ -1,15 +1,15 @@
 """Macroeconomics: growth, business cycles, investment, international trade, and mortal monetary economies."""
 
-from ._banking import DepositorElement, RegulatorInteraction, ReserveBankElement, fractional_reserve_banking
+from ._banking import DepositorElement, PolicySwitchInteraction, ReserveBankElement, fractional_reserve_banking
 from ._capital import CapitalStockElement, capital_stock
-from ._credit import BankElement, CreditMarketInteraction, FirmElement, credit_networks
+from ._credit import CreditMarketInteraction, FirmElement, LenderElement, credit_networks
 from ._firms import InvestingFirmElement, toy_firm_investment
 from ._growth import EconomyElement, IncomeElement, SolowGrowthInteraction, multiplier_accelerator, solow
 from ._metaphoria import (
     BusinessElement,
-    CensusInteraction,
     CentralBankElement,
     CommonsInteraction,
+    EstateInteraction,
     FoodMarketInteraction,
     LabourMarketInteraction,
     PlotElement,
@@ -27,16 +27,15 @@ from ._optimal_growth import RamseyEconomyElement, optimal_consumption
 from ._trade import TradingEconomyElement, exchange_rates
 
 __all__: list[str] = [
-    'BankElement',
     'BusinessElement',
     'CapitalStockElement',
-    'CensusInteraction',
     'CentralBankElement',
     'CircuitInteraction',
     'CommonsInteraction',
     'CreditMarketInteraction',
     'DepositorElement',
     'EconomyElement',
+    'EstateInteraction',
     'FirmElement',
     'FirmsElement',
     'FoodMarketInteraction',
@@ -44,10 +43,11 @@ __all__: list[str] = [
     'IncomeElement',
     'InvestingFirmElement',
     'LabourMarketInteraction',
+    'LenderElement',
     'MonetaryBankElement',
     'PlotElement',
+    'PolicySwitchInteraction',
     'RamseyEconomyElement',
-    'RegulatorInteraction',
     'ReserveBankElement',
     'SettlerElement',
     'SolowGrowthInteraction',

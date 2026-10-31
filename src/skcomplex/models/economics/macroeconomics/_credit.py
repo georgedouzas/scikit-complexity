@@ -19,15 +19,15 @@ from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import MatchSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ._bank_view import BankView
 from ._firm_view import FirmView
+from ._lender_view import LenderView
 
 
 def _lend(trade: MatchSpec, model: ModelView) -> None:
     """Record a loan on the books of the firm and of the bank."""
     del model
     firm, bank = trade.requester, trade.provider
-    if not isinstance(firm, FirmView) or not isinstance(bank, BankView):
+    if not isinstance(firm, FirmView) or not isinstance(bank, LenderView):
         error_msg = 'A loan is a trade of a firm with a bank.'
         raise TypeError(error_msg)
     firm.loan += trade.quantity
@@ -194,7 +194,7 @@ class FirmElement(Element):
         interest = agent.loan * agent.rate
         worth = agent.net_worth + agent.gross_return - interest
         if agent.loan > 0:
-            bank = next(bank for bank in model.agents(self.lenders, BankView) if bank.id == int(agent.partner))
+            bank = next(bank for bank in model.agents(self.lenders, LenderView) if bank.id == int(agent.partner))
             bank.equity += interest + min(worth, 0.0)
             bank.losses += max(-worth, 0.0)
         if worth >= 0:
@@ -204,7 +204,7 @@ class FirmElement(Element):
         agent.defaulted, agent.partner = 1, -1
 
 
-class BankElement(Element):
+class LenderElement(Element):
     """Bank that lends up to a multiple of its equity at a rate that falls with its equity.
 
     The bank asks the rate `alpha * equity ** -alpha` of Delli Gatti et al. (2010), so better capitalised banks lend
@@ -239,8 +239,8 @@ class BankElement(Element):
             The smallest ratio of equity to loans.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import BankElement
-        >>> GroupElement('banks', element=BankElement, size=5, values={'equity': 100.0}).size
+        >>> from skcomplex.models.economics.macroeconomics import LenderElement
+        >>> GroupElement('banks', element=LenderElement, size=5, values={'equity': 100.0}).size
         5
     """
 
@@ -267,9 +267,9 @@ class BankElement(Element):
         self.capital_ratio = capital_ratio
 
     @classmethod
-    def _get_view(cls) -> type[BankView]:
+    def _get_view(cls) -> type[LenderView]:
         """Return the view of a bank, with its equity, quote, and loans."""
-        return BankView
+        return LenderView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the quoting rule.
@@ -284,7 +284,7 @@ class BankElement(Element):
         """
         return [RuleLaw(self.quote, phase='plan')]
 
-    def quote(self, agent: BankView, model: ModelView) -> None:
+    def quote(self, agent: LenderView, model: ModelView) -> None:
         """Set the interest rate and the lending capacity from the equity.
 
         Args:
@@ -362,7 +362,7 @@ class CreditMarketInteraction(MatchingInteraction[ModelView]):
                 The model view of the market.
         """
         super()._report_matches(matches, unmatched, model)
-        cheapest = min((bank.ask for bank in model.agents('providers', BankView) if bank.ask > 0), default=0.0)
+        cheapest = min((bank.ask for bank in model.agents('providers', LenderView) if bank.ask > 0), default=0.0)
         paid = [firm.rate for firm in model.agents('requesters', FirmView) if firm.loan > 0]
         spread = float(np.mean(paid) / cheapest - 1) if paid and cheapest > 0 else float('nan')
         model.report('spread', spread)
@@ -463,7 +463,7 @@ def credit_networks(
     rng = np.random.default_rng(random_state)
     lenders = GroupElement(
         'banks',
-        element=BankElement,
+        element=LenderElement,
         size=banks,
         values={'equity': equity * rng.uniform(0.5, 1.5, banks), 'alpha': alpha, 'capital_ratio': capital_ratio},
     )

@@ -6,18 +6,43 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import RateInteraction
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
 class CapitalStockElement(Element):
-    """Capital stock element."""
+    """Capital stock that reinvests a fraction of its output and depreciates over its lifetime.
+
+    Args:
+        label:
+            The label of the stock.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        K:
+            The capital stock.
+
+        investment_fraction:
+            The fraction of the output that is reinvested.
+
+        output_per_capital:
+            The output per unit of capital and unit time.
+
+        lifetime:
+            The average lifetime of the capital.
+
+    Examples:
+        >>> from skcomplex.models.economics.macroeconomics import CapitalStockElement
+        >>> CapitalStockElement('economy', lifetime=20.0).lifetime
+        20.0
+    """
 
     def __init__(
         self,
@@ -35,9 +60,12 @@ class CapitalStockElement(Element):
         self.output_per_capital = output_per_capital
         self.lifetime = lifetime
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the capital stock element."""
-        return [RateLaw(s.K, s.investment_fraction * s.output_per_capital * s.K - s.K / s.lifetime)]
+
+def _net_investment(s: SimpleNamespace) -> Expression:
+    """Return the reinvested output minus the depreciation of the capital stock."""
+    stock = s.target
+    rate: Expression = stock.investment_fraction * stock.output_per_capital * stock.K - stock.K / stock.lifetime
+    return rate
 
 
 @register_model(
@@ -88,4 +116,7 @@ def capital_stock(
         output_per_capital=output_per_capital,
         lifetime=lifetime,
     )
-    return System(elements=[economy])
+    return System(
+        elements=[economy],
+        interactions=[RateInteraction('investment', target='economy', state='K', rate=_net_investment)],
+    )

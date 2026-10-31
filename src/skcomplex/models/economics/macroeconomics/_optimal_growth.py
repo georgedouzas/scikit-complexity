@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import Expression, exp, log, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import RateInteraction
 from ....core.system import System
 from ....engine.solvers import CollocationSolver
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -44,11 +44,11 @@ def _capital_value(s: SimpleNamespace) -> Expression:
 class RamseyEconomyElement(Element):
     """Economy that splits its output between consumption and capital, after Ramsey, Cass, and Koopmans.
 
-    Capital follows `k' = A k^alpha - delta k - c` under the consumption `c`, a bounded control input. The planner
-    maximises the discounted utility `∫ exp(-rho t) log(c) dt` plus the discounted value `exp(-rho T) v k(T)` of the
-    capital left at the horizon `T`. Pontryagin's principle gives the Euler equation `c' / c = alpha A k^(alpha - 1) -
-    delta - rho`, so capital approaches the modified golden rule `alpha A k*^(alpha - 1) = delta + rho` along the
-    saddle path.
+    Capital follows `k' = A k^alpha - delta k - c`, a rate interaction of the factory, under the consumption `c`, a
+    bounded control input. The planner maximises the discounted utility `∫ exp(-rho t) log(c) dt` plus the discounted
+    value `exp(-rho T) v k(T)` of the capital left at the horizon `T`. Pontryagin's principle gives the Euler
+    equation `c' / c = alpha A k^(alpha - 1) - delta - rho`, so capital approaches the modified golden rule
+    `alpha A k*^(alpha - 1) = delta + rho` along the saddle path.
 
     Args:
         label:
@@ -106,18 +106,12 @@ class RamseyEconomyElement(Element):
         self.rho = rho
         self.v = v
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the accumulation of capital.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.k, s.A * s.k**s.alpha - s.delta * s.k - s.c)]
+def _net_saving(s: SimpleNamespace) -> Expression:
+    """Return the output not consumed minus depreciation, `A k^alpha - delta k - c`."""
+    economy = s.target
+    rate: Expression = economy.A * economy.k**economy.alpha - economy.delta * economy.k - economy.c
+    return rate
 
 
 @register_model(
@@ -173,4 +167,7 @@ def optimal_consumption(
         >>> optimal_consumption(rho=0.05).elements[0].rho
         0.05
     """
-    return System(elements=[RamseyEconomyElement('economy', k=k, A=A, alpha=alpha, delta=delta, rho=rho, v=v)])
+    return System(
+        elements=[RamseyEconomyElement('economy', k=k, A=A, alpha=alpha, delta=delta, rho=rho, v=v)],
+        interactions=[RateInteraction('accumulation', target='economy', state='k', rate=_net_saving)],
+    )

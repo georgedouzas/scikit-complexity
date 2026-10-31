@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, UpdateLaw
+from ....core.interactions import MapInteraction
 from ....core.laws.utils import where
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -18,7 +18,75 @@ from ..._catalog import register_model
 
 
 class TradingEconomyElement(Element):
-    """Trading economy element."""
+    """Open economy that trades with the World at an exchange rate, floating or fixed.
+
+    Its states are the exchange rate `E` in World currency per unit of home currency, the export and import volumes
+    `X` and `M`, and the home price `PH`; its parameters are the prices, volumes, and elasticities of the balanced
+    start, the rise `inflation` of home prices, whether the rate floats, and the shares of the output.
+
+    Args:
+        label:
+            The label of the economy.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        E:
+            The exchange rate.
+
+        X:
+            The export volume.
+
+        M:
+            The import volume.
+
+        PH:
+            The home price of home-produced goods.
+
+        home_price:
+            The home price before the rise.
+
+        inflation:
+            The relative rise of the home prices.
+
+        world_price:
+            The world price level.
+
+        exports:
+            The export volume of the balanced start.
+
+        imports:
+            The import volume of the balanced start.
+
+        export_price:
+            The World price of the exports at the start.
+
+        import_price:
+            The home price of the imports at the start.
+
+        export_elasticity:
+            The price elasticity of the exports.
+
+        import_elasticity:
+            The price elasticity of the imports.
+
+        floating:
+            1 when the exchange rate floats, 0 when it is fixed.
+
+        import_share:
+            The share of the imports in the output.
+
+        demand:
+            The private domestic demand.
+
+        government:
+            The government spending.
+
+    Examples:
+        >>> from skcomplex.models.economics.macroeconomics import TradingEconomyElement
+        >>> TradingEconomyElement('home').floating
+        1.0
+    """
 
     def __init__(
         self,
@@ -62,14 +130,44 @@ class TradingEconomyElement(Element):
         self.demand = demand
         self.government = government
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the trading economy element."""
-        return [
-            UpdateLaw(s.PH, s.home_price * (1 + s.inflation)),
-            UpdateLaw(s.E, where(s.floating > 0, s.M * s.world_price / (s.X * s.home_price * (1 + s.inflation)), s.E)),
-            UpdateLaw(s.X, s.exports * (1 + s.export_elasticity * (s.PH * s.E / s.export_price - 1))),
-            UpdateLaw(s.M, s.imports * (1 + s.import_elasticity * (s.world_price / (s.E * s.import_price) - 1))),
-        ]
+
+def _home_price(s: SimpleNamespace) -> Expression:
+    """Return the home price after the rise."""
+    home = s.target
+    price: Expression = home.home_price * (1 + home.inflation)
+    return price
+
+
+def _exchange_rate(s: SimpleNamespace) -> Expression:
+    """Return the rate that balances the currency market at the current volumes when it floats, else the rate."""
+    home = s.target
+    balancing = home.M * home.world_price / (home.X * home.home_price * (1 + home.inflation))
+    rate: Expression = where(home.floating > 0, balancing, home.E)
+    return rate
+
+
+def _exports(s: SimpleNamespace) -> Expression:
+    """Return the export volume, which responds to the World price of the exports with a constant elasticity."""
+    home = s.target
+    volume: Expression = home.exports * (1 + home.export_elasticity * (home.PH * home.E / home.export_price - 1))
+    return volume
+
+
+def _imports(s: SimpleNamespace) -> Expression:
+    """Return the import volume, which responds to the home price of the imports with a constant elasticity."""
+    home = s.target
+    volume: Expression = home.imports * (
+        1 + home.import_elasticity * (home.world_price / (home.E * home.import_price) - 1)
+    )
+    return volume
+
+
+def _adjustments() -> list[MapInteraction]:
+    """Return the maps of the home price, the exchange rate, and the trade volumes at every stage."""
+    return [
+        MapInteraction(f'{state}_adjustment', target='home', state=state, function=function)
+        for state, function in (('PH', _home_price), ('E', _exchange_rate), ('X', _exports), ('M', _imports))
+    ]
 
 
 def _balance(s: SimpleNamespace) -> Expression:
@@ -188,4 +286,4 @@ def exchange_rates(
         demand=demand,
         government=government,
     )
-    return System(elements=[home])
+    return System(elements=[home], interactions=_adjustments())

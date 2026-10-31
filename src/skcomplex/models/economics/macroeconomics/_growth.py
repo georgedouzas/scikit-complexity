@@ -6,12 +6,11 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.interactions import MapInteraction, RateInteraction
 from ....core.laws.utils import lag
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -56,7 +55,35 @@ def solow(k: float = 1.0, *, s: float = 0.2, alpha: float = 0.3, delta: float = 
 
 
 class IncomeElement(Element):
-    """Income element."""
+    """Economy described by its national income, which keeps the income of the previous period.
+
+    Args:
+        label:
+            The label of the economy.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        Y:
+            The income of the current period.
+
+        Y_lag1:
+            The income of the previous period.
+
+        c:
+            The marginal propensity to consume.
+
+        v:
+            The accelerator, the investment response to the change in consumption.
+
+        G:
+            The government spending.
+
+    Examples:
+        >>> from skcomplex.models.economics.macroeconomics import IncomeElement
+        >>> IncomeElement('economy', c=0.5).c
+        0.5
+    """
 
     def __init__(
         self,
@@ -76,9 +103,12 @@ class IncomeElement(Element):
         self.v = v
         self.G = G
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the income element."""
-        return [UpdateLaw(s.Y, s.c * (1 + s.v) * s.Y - s.c * s.v * lag(s.Y, 1) + s.G)]
+
+def _next_income(s: SimpleNamespace) -> Expression:
+    """Return the income of the next period, `c (1 + v) Y_t - c v Y_{t-1} + G`."""
+    economy = s.target
+    income: Expression = economy.c * (1 + economy.v) * economy.Y - economy.c * economy.v * lag(economy.Y, 1) + economy.G
+    return income
 
 
 @register_model(
@@ -124,7 +154,10 @@ def multiplier_accelerator(
         >>> multiplier_accelerator(v=0.5).elements[0].v
         0.5
     """
-    return System(elements=[IncomeElement('economy', Y=income, Y_lag1=previous, c=c, v=v, G=G)])
+    return System(
+        elements=[IncomeElement('economy', Y=income, Y_lag1=previous, c=c, v=v, G=G)],
+        interactions=[MapInteraction('cycle', target='economy', state='Y', function=_next_income)],
+    )
 
 
 class EconomyElement(Element):
@@ -157,8 +190,10 @@ class EconomyElement(Element):
         self.k = k
 
 
-class SolowGrowthInteraction(Interaction):
-    """Solow growth, `dk/dt = s * k**alpha - delta * k`.
+class SolowGrowthInteraction(RateInteraction):
+    """Solow growth of the capital per worker `k` of a target, `dk/dt = s * k**alpha - delta * k`.
+
+    A rate interaction on the state `k` whose rate is the saving of a Cobb-Douglas output minus depreciation.
 
     Args:
         label:
@@ -191,21 +226,22 @@ class SolowGrowthInteraction(Interaction):
         alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
         delta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, state='k')
         self.s = s
         self.alpha = alpha
         self.delta = delta
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the rate `s * k**alpha - delta * k`.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            namespace:
+                The namespace of the symbols the rate can use, with the namespace of the target.
 
         Returns:
-            laws:
-                The laws of the component.
+            rate:
+                The rate of the capital per worker.
         """
-        return [RateLaw(s.target.k, s.s * s.target.k**s.alpha - s.delta * s.target.k)]
+        k = namespace.target.k
+        rate: Expression = namespace.s * k**namespace.alpha - namespace.delta * k
+        return rate

@@ -248,8 +248,10 @@ class ReserveBankElement(Element):
         bank.reserves += excess
 
 
-class RegulatorInteraction(FeedbackInteraction[ModelView]):
-    """Central bank that sets the reserve ratio of the banks, changing it from `ratio` to `new_ratio` at `change_at`.
+class PolicySwitchInteraction(FeedbackInteraction[ModelView]):
+    """Policy switch of a central bank, which moves the reserve ratio of the banks from `ratio` to `new_ratio`.
+
+    The ratio switches at the time `change_at`.
 
     Args:
         label:
@@ -274,8 +276,8 @@ class RegulatorInteraction(FeedbackInteraction[ModelView]):
             The path of the group of banks.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import RegulatorInteraction
-        >>> RegulatorInteraction('regulator', ratio=0.1, new_ratio=0.2, change_at=100.0).new_ratio
+        >>> from skcomplex.models.economics.macroeconomics import PolicySwitchInteraction
+        >>> PolicySwitchInteraction('regulator', ratio=0.1, new_ratio=0.2, change_at=100.0).new_ratio
         0.2
     """
 
@@ -396,7 +398,7 @@ def fractional_reserve_banking(
         size=banks,
         values={'index': np.arange(banks), 'reserves': holdings, 'deposits': holdings, 'reserve_ratio': ratio},
     )
-    regulator = RegulatorInteraction(
+    regulator = PolicySwitchInteraction(
         'regulator',
         phase='regulate',
         ratio=ratio,

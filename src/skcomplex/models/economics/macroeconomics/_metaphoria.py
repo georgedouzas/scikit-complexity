@@ -14,13 +14,22 @@ from sage.sets.real_set import RealSet
 
 from ....analysis import DistributionAnalysis
 from ....core.elements import Element, GroupElement
-from ....core.interactions import BaseInteraction, Interaction
-from ....core.laws import BaseLaw, MatchLaw, RuleLaw
-from ....core.laws.utils import matches, transfer
+from ....core.interactions import BaseInteraction, GreedyProtocol, Interaction, MatchingInteraction
+from ....core.laws import BaseLaw, RuleLaw
+from ....core.laws.utils import transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import AgentView, ModelView
-from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import (
+    MatchSpec,
+    ObservableSpec,
+    ParameterSpec,
+    PhaseSpec,
+    PhasesScheduleSpec,
+    RoleSpec,
+    StateSpec,
+    VisualSpec,
+)
 from ....types import Array
 from ..._catalog import register_model
 from ._business_view import BusinessView
@@ -34,6 +43,7 @@ PHASES = ('growth', 'work', 'banking', 'hiring', 'market', 'living', 'census')
 PROPENSITIES = {'fertility': 0.3, 'exploration': 1.0, 'enterprise': 0.3, 'restlessness': 0.1}
 ALIVE, STARVED, AGED = 0.0, 1.0, 2.0
 OLD_AGE_DEATH = 1 / 7
+SIGHT = 5.0
 
 
 def _bank_balance(bank: SimpleNamespace) -> float:
@@ -97,51 +107,6 @@ def _wander(agent: SettlerView, model: ModelView, sight: float) -> None:
         return
     cells = agent.neighbor_cells()
     agent.move_to(cells[int(model.rng.integers(len(cells)))])
-
-
-def _offers(
-    left: Sequence[object],
-    right: Sequence[object],
-    rng: np.random.Generator,
-    capacity: int,
-) -> list[tuple[object, object]]:
-    """Return unemployed adults, in random order, paired with the best-paying firm with a vacancy within their sight."""
-    firms = [firm for firm in left if isinstance(firm, BusinessView)]
-    people = [person for person in right if isinstance(person, SettlerView)]
-    open_firms = {firm: int(firm.vacancies) for firm in firms if firm.vacancies > 0}
-    pairs: list[tuple[object, object]] = []
-    for index in rng.permutation(len(people)):
-        person = people[int(index)]
-        if person.employer >= 0 or person.age < person.maturity or not open_firms:
-            continue
-        near = [firm for firm in open_firms if person.distance_to(firm) <= person.sight]
-        if near:
-            firm = max(near, key=lambda item: item.wage)
-            pairs.append((firm, person))
-            open_firms[firm] -= 1
-            if open_firms[firm] == 0:
-                del open_firms[firm]
-    return pairs
-
-
-def _shops(
-    left: Sequence[object],
-    right: Sequence[object],
-    rng: np.random.Generator,
-    capacity: int,
-) -> list[tuple[object, object]]:
-    """Return people short of food, in random order, paired with the cheapest stocked firm within their sight."""
-    people = [person for person in left if isinstance(person, SettlerView)]
-    stocked = [firm for firm in right if isinstance(firm, BusinessView) and firm.stock > 0]
-    pairs: list[tuple[object, object]] = []
-    for index in rng.permutation(len(people)):
-        person = people[int(index)]
-        if person.money <= 0 or person.food >= person.reserve * person.need:
-            continue
-        near = [firm for firm in stocked if person.distance_to(firm) <= person.sight]
-        if near:
-            pairs.append((person, min(near, key=lambda item: item.price)))
-    return pairs
 
 
 class PlotElement(Element):
@@ -767,113 +732,118 @@ class CommonsInteraction(Interaction):
                 person.harvested = harvest / len(group)
 
 
-class LabourMarketInteraction(Interaction):
-    """Labour market in which unemployed adults take the best-paying vacancy within their sight.
+class LabourMarketInteraction(MatchingInteraction[ModelView]):
+    """Labour market in which unemployed adults, in random order, take the best-paying vacancy within their sight.
 
-    Args:
-        label:
-            The label of the interaction.
+    A greedy matching of the people, who request a job, with the firms, which provide their vacancies: a person whose
+    `hireable` limit admits a job takes the firm of the highest wage within its sight that still has a vacancy, and
+    moves to it. Build it with `GreedyProtocol(score=LabourMarketInteraction.score, candidates=sight)`.
 
     Examples:
+        >>> from skcomplex.core.interactions import GreedyProtocol
         >>> from skcomplex.models.economics.macroeconomics import LabourMarketInteraction
-        >>> LabourMarketInteraction('jobs').label
-        'jobs'
+        >>> LabourMarketInteraction(
+        ...     'jobs',
+        ...     requesters='people',
+        ...     providers='businesses',
+        ...     protocol=GreedyProtocol(score=LabourMarketInteraction.score, candidates=5.0),
+        ...     limit=('hireable', 'limit'),
+        ...     quantity=('quantity', 'vacancies'),
+        ...     on_match=LabourMarketInteraction.hire,
+        ... ).check().providers
+        'businesses'
     """
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the matching of vacancies with workers and the rule that hires along the pairs.
+    @staticmethod
+    def score(person: object, firm: object) -> float:
+        """Return the wage of a firm, the score by which a person prefers it.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            person:
+                The person who seeks a job.
+
+            firm:
+                The firm with a vacancy.
 
         Returns:
-            laws:
-                The laws of the component.
+            score:
+                The wage of the firm.
         """
-        return [
-            MatchLaw('businesses', 'people', pairing=_offers, label='hires', phase='hiring'),
-            RuleLaw(self.hire, 'hiring'),
-        ]
+        del person
+        return float(firm.wage) if isinstance(firm, BusinessView) else -math.inf
 
-    def hire(self, model: ModelView) -> None:
-        """Employ every matched worker at its firm.
+    @staticmethod
+    def hire(match: MatchSpec, model: ModelView) -> None:
+        """Employ a matched person at its firm and move it there.
 
         Args:
+            match:
+                The match of a person with a firm.
+
             model:
-                The model view of the interaction.
+                The model view of the market.
         """
-        hires = [
-            (firm, person)
-            for firm, person in matches(model, 'hires')
-            if isinstance(firm, BusinessView) and isinstance(person, SettlerView)
-        ]
-        for firm, person in hires:
+        del model
+        person, firm = match.requester, match.provider
+        if isinstance(person, SettlerView) and isinstance(firm, BusinessView):
             person.employer = float(firm.id)
             person.move_to(firm.location)
-            firm.vacancies = max(firm.vacancies - 1, 0.0)
 
 
-class FoodMarketInteraction(Interaction):
-    """Food market in which people short of food buy from the cheapest stocked shop within their sight.
+class FoodMarketInteraction(MatchingInteraction[ModelView]):
+    """Food market in which people short of food, in random order, buy from the cheapest stocked shop within sight.
 
-    A buyer takes the food it lacks for `reserve` steps, as much as the stock and its money allow, and pays the price
-    to the firm. The reporter `gdp` sums the value of the sales of a step.
-
-    Args:
-        label:
-            The label of the interaction.
+    A greedy matching of the people, who request their `shortfall` of food for `reserve` steps within the budget of
+    their money, with the firms, which provide their stock at their price. Every purchase moves the money to the firm,
+    which books it as revenue, and the food to the buyer. Build it with `GreedyProtocol(candidates=sight)`, whose
+    default score prefers the lowest price. Besides the reporters of a matching, the reporter `gdp` sums the value of
+    the sales of a step.
 
     Examples:
+        >>> from skcomplex.core.interactions import GreedyProtocol
         >>> from skcomplex.models.economics.macroeconomics import FoodMarketInteraction
-        >>> FoodMarketInteraction('shops').reports
-        ('gdp',)
+        >>> FoodMarketInteraction(
+        ...     'shops', requesters='people', providers='businesses', protocol=GreedyProtocol(candidates=5.0)
+        ... ).reports[-1]
+        'gdp'
     """
 
-    reports: ClassVar[tuple[str, ...]] = ('gdp',)
+    reports: ClassVar[tuple[str, ...]] = (*MatchingInteraction.reports, 'gdp')
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the matching of buyers with shops and the rule that trades along the pairs.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            MatchLaw('people', 'businesses', pairing=_shops, label='purchases', phase='market'),
-            RuleLaw(self.sell, 'market'),
-        ]
-
-    def sell(self, model: ModelView) -> None:
-        """Sell food along every pair of the step and report the value of the sales.
+    @staticmethod
+    def sell(match: MatchSpec, model: ModelView) -> None:
+        """Book the value of a sale as revenue of the firm.
 
         Args:
+            match:
+                The match of a buyer with a firm.
+
             model:
-                The model view of the interaction.
+                The model view of the market.
         """
-        value = 0.0
-        purchases = [
-            (person, firm)
-            for person, firm in matches(model, 'purchases')
-            if isinstance(person, SettlerView) and isinstance(firm, BusinessView)
-        ]
-        for person, firm in purchases:
-            wanted = person.reserve * person.need - person.food
-            quantity = max(min(wanted, firm.stock, person.money / firm.price), 0.0)
-            transfer(person, firm, quantity * firm.price, 'money')
-            firm.stock -= quantity
-            firm.revenue += quantity * firm.price
-            person.food += quantity
-            value += quantity * firm.price
-        model.report('gdp', value)
+        del model
+        if isinstance(match.provider, BusinessView):
+            match.provider.revenue += match.quantity * match.price
+
+    def _report_matches(self, matches: list[MatchSpec], unmatched: float, model: ModelView) -> None:
+        """Report the price, the volume, the unmatched quantity, and the value of the sales of the step.
+
+        Args:
+            matches:
+                The sales of the step.
+
+            unmatched:
+                The quantity of both sides left after the sales.
+
+            model:
+                The model view of the market.
+        """
+        super()._report_matches(matches, unmatched, model)
+        model.report('gdp', sum(match.quantity * match.price for match in matches))
 
 
-class CensusInteraction(Interaction):
-    """Census that counts births and deaths and settles the estate of the dead before removing them.
+class EstateInteraction(Interaction):
+    """Settlement of the estates of the dead, who leave their money and loans to an heir, with a census of the step.
 
     The money and the loans of a dead person go to a random living person of its patch, or of anywhere. When nobody
     lives to inherit them, the dead person stays as an estate that holds them. The reporters `births`, `starvations`,
@@ -887,8 +857,8 @@ class CensusInteraction(Interaction):
             The path of the group of people.
 
     Examples:
-        >>> from skcomplex.models.economics.macroeconomics import CensusInteraction
-        >>> CensusInteraction('census', people='people').reports
+        >>> from skcomplex.models.economics.macroeconomics import EstateInteraction
+        >>> EstateInteraction('census', people='people').reports
         ('births', 'starvations', 'old_age')
     """
 
@@ -1061,6 +1031,7 @@ def metaphoria(
             'need': need,
             'labour': labour,
             'monetary': float(mode == 'monetary'),
+            'sight': SIGHT,
             **traits,
         },
         variable=True,
@@ -1077,14 +1048,34 @@ def metaphoria(
     )
     bank = GroupElement('bank', element=CentralBankElement, size=1, location=(0,) * len(shape))
     economy = [businesses, bank] if mode == 'monetary' else []
+    jobs = LabourMarketInteraction(
+        'jobs',
+        requesters='people',
+        providers='businesses',
+        protocol=GreedyProtocol(score=LabourMarketInteraction.score, candidates=SIGHT),
+        limit=('hireable', 'limit'),
+        quantity=('quantity', 'vacancies'),
+        phase='hiring',
+        on_match=LabourMarketInteraction.hire,
+    )
+    shops = FoodMarketInteraction(
+        'shops',
+        requesters='people',
+        providers='businesses',
+        protocol=GreedyProtocol(candidates=SIGHT),
+        limit=('limit', 'price'),
+        quantity=('shortfall', 'stock'),
+        budget='money',
+        transfers=(('money', -1),),
+        phase='market',
+        on_match=FoodMarketInteraction.sell,
+    )
     exchange: list[BaseInteraction] = (
-        [CommonsInteraction('commons', people='people')]
-        if mode == 'hunter_gatherer'
-        else [LabourMarketInteraction('jobs'), FoodMarketInteraction('shops')]
+        [CommonsInteraction('commons', people='people')] if mode == 'hunter_gatherer' else [jobs, shops]
     )
     return System(
         elements=[patches, people, *economy],
-        interactions=[*exchange, CensusInteraction('census', people='people')],
+        interactions=[*exchange, EstateInteraction('census', people='people')],
         space=space,
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec(name) for name in PHASES])),
     )

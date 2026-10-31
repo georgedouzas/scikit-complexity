@@ -19,7 +19,23 @@ from ..._catalog import register_model
 
 
 class HouseholdsElement(Element):
-    """Households element."""
+    """Households sector, whose deposits are money.
+
+    Args:
+        label:
+            The label of the sector.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        deposits:
+            The deposits of the households.
+
+    Examples:
+        >>> from skcomplex.models.economics.macroeconomics import HouseholdsElement
+        >>> HouseholdsElement('households').deposits
+        60.0
+    """
 
     def __init__(
         self,
@@ -33,7 +49,29 @@ class HouseholdsElement(Element):
 
 
 class FirmsElement(Element):
-    """Firms element."""
+    """Firms sector, with its deposits, its loans, and the sales of the last period.
+
+    Args:
+        label:
+            The label of the sector.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        deposits:
+            The deposits of the firms, which are money.
+
+        loans:
+            The loans of the firms.
+
+        sales:
+            The sales of the last period.
+
+    Examples:
+        >>> from skcomplex.models.economics.macroeconomics import FirmsElement
+        >>> FirmsElement('firms').loans
+        50.0
+    """
 
     def __init__(
         self,
@@ -51,7 +89,23 @@ class FirmsElement(Element):
 
 
 class MonetaryBankElement(Element):
-    """Monetary bank element."""
+    """Bank of a stock-flow consistent economy, whose own funds are money.
+
+    Args:
+        label:
+            The label of the bank.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        deposits:
+            The own funds of the bank.
+
+    Examples:
+        >>> from skcomplex.models.economics.macroeconomics import MonetaryBankElement
+        >>> MonetaryBankElement('bank').deposits
+        10.0
+    """
 
     def __init__(
         self,
@@ -64,26 +118,55 @@ class MonetaryBankElement(Element):
         self.deposits = deposits
 
 
-def _circuit(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the transactions of one period between households, firms, and the bank."""
-    households, firms, bank = s.households, s.firms, s.bank
-    consumption = s.alpha_income * s.wage_share * firms.sales + s.alpha_wealth * households.deposits
-    lending = s.credit * firms.sales
-    return [
-        TransferLaw(households.deposits, firms.deposits, consumption, label='consumption'),
-        TransferLaw(firms.deposits, households.deposits, s.wage_share * firms.sales, label='wages'),
-        TransferLaw(firms.deposits, bank.deposits, s.interest * firms.loans, label='interest'),
-        TransferLaw(bank.deposits, households.deposits, s.payout * bank.deposits, label='dividends'),
-        TransferLaw(firms.deposits, households.deposits, s.distribution * firms.deposits, label='profits'),
-        TransferLaw(Source('lending'), firms.deposits, lending, label='lending'),
-        TransferLaw(firms.deposits, Sink('repayment'), s.repayment * firms.loans, label='repayments'),
-        UpdateLaw(firms.loans, firms.loans + lending - s.repayment * firms.loans),
-        UpdateLaw(firms.sales, consumption),
-    ]
-
-
 class CircuitInteraction(Interaction):
-    """Circuit interaction."""
+    """Circuit of money between households, firms, and a bank, one period per step.
+
+    The flows of a period are the transfers consumption, wages, interest, dividends, and profits between the deposits
+    of the sectors, lending from the environment, and repayments to it, while the loans and the sales of the firms
+    follow as maps. Every flow is a transfer law labelled by its name, so the reporters `<label>.<flow>` record it.
+
+    Args:
+        label:
+            The label of the circuit.
+
+        households:
+            The path of the households.
+
+        firms:
+            The path of the firms.
+
+        bank:
+            The path of the bank.
+
+        alpha_income:
+            The propensity to consume out of wages.
+
+        alpha_wealth:
+            The propensity to consume out of deposits.
+
+        wage_share:
+            The share of sales paid as wages.
+
+        interest:
+            The interest rate on loans per period.
+
+        payout:
+            The share of the bank's funds paid out as dividends per period.
+
+        distribution:
+            The share of the firms' deposits distributed as profits per period.
+
+        credit:
+            The new loans per unit of sales.
+
+        repayment:
+            The share of loans repaid per period.
+
+    Examples:
+        >>> from skcomplex.models.economics.macroeconomics import CircuitInteraction
+        >>> CircuitInteraction('circuit', households='households', firms='firms', bank='bank').credit
+        0.1
+    """
 
     def __init__(
         self,
@@ -114,9 +197,35 @@ class CircuitInteraction(Interaction):
         self.credit = credit
         self.repayment = repayment
 
+    def _get_flows(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the transactions of one period between households, firms, and the bank."""
+        households, firms, bank = s.households, s.firms, s.bank
+        consumption = s.alpha_income * s.wage_share * firms.sales + s.alpha_wealth * households.deposits
+        lending = s.credit * firms.sales
+        return [
+            TransferLaw(households.deposits, firms.deposits, consumption, label='consumption'),
+            TransferLaw(firms.deposits, households.deposits, s.wage_share * firms.sales, label='wages'),
+            TransferLaw(firms.deposits, bank.deposits, s.interest * firms.loans, label='interest'),
+            TransferLaw(bank.deposits, households.deposits, s.payout * bank.deposits, label='dividends'),
+            TransferLaw(firms.deposits, households.deposits, s.distribution * firms.deposits, label='profits'),
+            TransferLaw(Source('lending'), firms.deposits, lending, label='lending'),
+            TransferLaw(firms.deposits, Sink('repayment'), s.repayment * firms.loans, label='repayments'),
+            UpdateLaw(firms.loans, firms.loans + lending - s.repayment * firms.loans),
+            UpdateLaw(firms.sales, consumption),
+        ]
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the circuit interaction."""
-        return _circuit(s)
+        """Return the transfers of one period and the maps of the loans and the sales.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the circuit.
+        """
+        return self._get_flows(s)
 
 
 @register_model(
