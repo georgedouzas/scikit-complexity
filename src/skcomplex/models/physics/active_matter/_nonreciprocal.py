@@ -9,7 +9,7 @@ from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression, I, atan2, cos, exp, oo, pi, sin, vector
+from sage.all__sagemath_symbolics import Expression, I, exp, oo, pi
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
@@ -20,19 +20,9 @@ from ....core.spaces import ContinuousSpace, DiscreteTime, RadiusNeighborhood
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.active import PropulsionStepInteraction
 
 SPECIES = VisualSpec('points', {'position': 'x', 'radius': 0.04, 'color_by': 'species', 'color_range': (0.0, 1.0)})
-
-
-def _coupling(s: SimpleNamespace) -> Expression:
-    """Return the alignment of a member with a neighbour, by the species of both."""
-    first, second = s.species, s.other.species
-    return (
-        s.J_aa * (1 - first) * (1 - second)
-        + s.J_ab * (1 - first) * second
-        + s.J_ba * first * (1 - second)
-        + s.J_bb * first * second
-    )
 
 
 def _heading_a(member: SimpleNamespace) -> Expression:
@@ -49,7 +39,7 @@ class NonreciprocalMoverElement(Element):
     """Vicsek mover of species A (0) or B (1), which aligns with the neighbours within `radius` by species couplings.
 
     Every step the heading becomes the direction of `sum_j J(species_i, species_j) exp(i theta_j)` over the movers
-    within the radius, itself included, plus uniform noise of width `eta`, and the mover advances by `v0` along it.
+    within the radius, itself included, plus uniform noise of width `eta`. A propulsion step moves the mover along it.
     `J_aa` and `J_bb` align a species with itself, and `J_ab` and `J_ba` align A with B and B with A, so
     `J_ab != J_ba` makes the alignment nonreciprocal.
 
@@ -68,9 +58,6 @@ class NonreciprocalMoverElement(Element):
 
         species:
             The species, 0 for A or 1 for B.
-
-        v0:
-            The speed.
 
         eta:
             The width of the uniform noise of the heading.
@@ -104,7 +91,6 @@ class NonreciprocalMoverElement(Element):
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True)] = 0.0,
         theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
         species: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        v0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         J_aa: Annotated[float, ParameterSpec()] = 1.0,
         J_ab: Annotated[float, ParameterSpec()] = 1.0,
@@ -116,7 +102,6 @@ class NonreciprocalMoverElement(Element):
         self.x = x
         self.theta = theta
         self.species = species
-        self.v0 = v0
         self.eta = eta
         self.J_aa = J_aa
         self.J_ab = J_ab
@@ -124,27 +109,32 @@ class NonreciprocalMoverElement(Element):
         self.J_bb = J_bb
         self.radius = radius
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the alignment of the heading with the species-weighted neighbours and the step along it.
+    def _coupling(self, namespace: SimpleNamespace) -> Expression:
+        """Return the alignment of a member with a neighbour, by the species of both."""
+        s = namespace
+        first, second = s.species, s.other.species
+        return (
+            s.J_aa * (1 - first) * (1 - second)
+            + s.J_ab * (1 - first) * second
+            + s.J_ba * first * (1 - second)
+            + s.J_bb * first * second
+        )
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the alignment of the heading with the species-weighted neighbours, plus noise.
 
         Args:
-            s:
+            namespace:
                 The namespace of the symbols the laws can use.
 
         Returns:
             laws:
-                The laws of the component.
+                The update of the heading.
         """
+        s = namespace
         over = RadiusNeighborhood(self.radius, center=True)
-        weight = _coupling(s)
-        direction = atan2(
-            neighbors(weight * sin(s.other.theta), over=over),
-            neighbors(weight * cos(s.other.theta), over=over),
-        )
-        return [
-            UpdateLaw(s.theta, direction + uniform('noise', -s.eta / 2, s.eta / 2)),
-            UpdateLaw(s.x, s.x + s.v0 * vector(SR, [cos(s.theta), sin(s.theta)])),
-        ]
+        direction = neighbors(s.other.theta, over=over, reduce='circular-mean', weight=self._coupling(s))
+        return [UpdateLaw(s.theta, direction + uniform('noise', -s.eta / 2, s.eta / 2))]
 
 
 @register_model(
@@ -218,6 +208,7 @@ def nonreciprocal_vicsek(
     )
     return System(
         elements=[movers],
+        interactions=[PropulsionStepInteraction('propulsion', target='movers', speed=0.05)],
         space=ContinuousSpace(extent=(size, size), boundary='periodic'),
         time=DiscreteTime(),
     )

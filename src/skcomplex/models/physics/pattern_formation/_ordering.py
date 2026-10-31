@@ -3,111 +3,61 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 from collections.abc import Sequence
-from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import sqrt
 
-from ....core.elements import Element, FieldElement
-from ....core.laws import BaseLaw, NoiseLaw, RateLaw
-from ....core.laws.utils import laplacian
+from ....core.elements import FieldElement
+from ....core.interactions import BaseInteraction, RateInteraction
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.solvers import ETDRK4Solver
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.fields import LandauEnergyInteraction, PhaseFieldElement
 
 REFERENCES = ('Brauns and Marchetti 2024', 'Allen and Cahn 1979', 'Cahn and Hilliard 1958', 'Bray 1994')
 
 
-class AllenCahnElement(Element):
-    """Allen cahn element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        phi: Annotated[object, StateSpec()] = 0.0,
-        kappa: Annotated[object, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.phi = phi
-        self.kappa = kappa
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the allen cahn element."""
-        return [RateLaw(s.phi, s.phi - s.phi**3 + s.kappa * laplacian(s.phi))]
-
-
-class CahnHilliardElement(Element):
-    """Cahn hilliard element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        phi: Annotated[object, StateSpec()] = 0.0,
-        kappa: Annotated[object, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.phi = phi
-        self.kappa = kappa
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the cahn hilliard element."""
-        return [RateLaw(s.phi, -laplacian(s.phi) - s.kappa * laplacian(laplacian(s.phi)) + laplacian(s.phi**3))]
-
-
-class ThermalCahnHilliardElement(Element):
-    """Thermal cahn hilliard element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        phi: Annotated[object, StateSpec()] = 0.0,
-        kappa: Annotated[object, ParameterSpec()] = 1.0,
-        temperature: Annotated[object, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.phi = phi
-        self.kappa = kappa
-        self.temperature = temperature
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the thermal cahn hilliard element."""
-        return [
-            RateLaw(s.phi, -laplacian(s.phi) - s.kappa * laplacian(laplacian(s.phi)) + laplacian(s.phi**3)),
-            NoiseLaw(s.phi, sqrt(2 * s.temperature), conserved=True),
-        ]
-
-
 def _ordering(
-    element: type[Element],
     *,
     shape: Sequence[int],
     length: float,
     mean: float,
     kappa: float,
     random_state: int | np.random.Generator | None,
+    conserved: bool,
     temperature: float = 0.0,
 ) -> System:
-    """Return a field of the order parameter that starts from small noise around a mean, with conserved noise."""
+    """Return a phase field that starts from small noise around a mean and relaxes in the Landau free energy.
+
+    A positive temperature adds the conserved thermal noise, on finite differences instead of the spectral lattice.
+    """
     shape = tuple(shape)
     rng = np.random.default_rng(random_state)
-    values = {'phi': mean + 0.05 * rng.uniform(-1.0, 1.0, shape), 'kappa': kappa}
+    values = {'phi': mean + 0.05 * rng.uniform(-1.0, 1.0, shape)}
     space = LatticeSpace(shape, spacing=length / shape[0])
-    if not temperature:
-        return System(
-            elements=[FieldElement('mixture', element=element, space=space, values=values, discretization='spectral')],
+    interactions: list[BaseInteraction] = [
+        LandauEnergyInteraction('energy', target='mixture', kappa=kappa, conserved=conserved),
+    ]
+    if temperature:
+        noise = RateInteraction(
+            'noise',
+            target='mixture',
+            state='phi',
+            noise=math.sqrt(2 * temperature),
+            conserved=True,
         )
-    values['temperature'] = temperature
-    return System(elements=[FieldElement('mixture', element=ThermalCahnHilliardElement, space=space, values=values)])
+        interactions.append(noise)
+    discretization = 'finite-difference' if temperature else 'spectral'
+    field = FieldElement(
+        'mixture',
+        element=PhaseFieldElement,
+        space=space,
+        values=values,
+        discretization=discretization,
+    )
+    return System(elements=[field], interactions=interactions)
 
 
 @register_model(
@@ -153,10 +103,17 @@ def allen_cahn(
 
     Examples:
         >>> from skcomplex.models.physics.pattern_formation import allen_cahn
-        >>> allen_cahn((8, 8), kappa=2.0).elements[0].values['kappa']
+        >>> allen_cahn((8, 8), kappa=2.0).interactions[0].kappa
         2.0
     """
-    return _ordering(AllenCahnElement, shape=shape, length=length, mean=mean, kappa=kappa, random_state=random_state)
+    return _ordering(
+        shape=shape,
+        length=length,
+        mean=mean,
+        kappa=kappa,
+        random_state=random_state,
+        conserved=False,
+    )
 
 
 @register_model(
@@ -210,17 +167,17 @@ def cahn_hilliard(
 
     Examples:
         >>> from skcomplex.models.physics.pattern_formation import cahn_hilliard
-        >>> cahn_hilliard((8, 8), mean=0.3).elements[0].values['kappa']
-        1.0
-        >>> cahn_hilliard((8, 8), temperature=0.1).elements[0].element.__name__
-        'ThermalCahnHilliardElement'
+        >>> cahn_hilliard((8, 8), mean=0.3).interactions[0].conserved
+        True
+        >>> [interaction.label for interaction in cahn_hilliard((8, 8), temperature=0.1).interactions]
+        ['energy', 'noise']
     """
     return _ordering(
-        CahnHilliardElement,
         shape=shape,
         length=length,
         mean=mean,
         kappa=kappa,
         random_state=random_state,
+        conserved=True,
         temperature=temperature,
     )
