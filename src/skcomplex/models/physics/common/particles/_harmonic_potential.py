@@ -58,6 +58,10 @@ class HarmonicPotentialInteraction(PotentialEnergyInteraction):
         self.k = k
         self.center = center
 
+    def _get_center(self, s: SimpleNamespace) -> object:
+        """Return the center, the hook a subclass overrides to move it."""
+        return s.center
+
     def _get_potential(self, s: SimpleNamespace) -> Expression:
         """Return `k * |x - center|**2 / 2`.
 
@@ -69,5 +73,5 @@ class HarmonicPotentialInteraction(PotentialEnergyInteraction):
             energy:
                 The potential energy as a symbolic expression.
         """
-        displacement = getattr(s.target, self._get_names()[0]) - s.center
+        displacement = getattr(s.target, self._get_names()[0]) - self._get_center(s)
         return s.k * displacement.dot_product(displacement) / 2

@@ -14,6 +14,7 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement
+from ....core.interactions import ConservationInteraction
 from ....core.laws import BaseLaw, FluxLaw, RateLaw
 from ....core.laws.utils import divergence, gradient, inverse_laplacian, laplacian
 from ....core.spaces import LatticeSpace
@@ -25,20 +26,45 @@ from ..._catalog import register_model
 
 
 class KuramotoSivashinskyElement(Element):
-    """Kuramoto sivashinsky element."""
+    """Site of a flame front or a thin film, `du/dt = -d(u^2 / 2)/dx - laplacian(u) - laplacian(laplacian(u))`.
+
+    Args:
+        label:
+            The label of the site.
+
+        visual:
+            How the site is drawn, or `None` for none.
+
+        u:
+            The initial height of the front.
+
+    Examples:
+        >>> from skcomplex.models.physics.fluids import KuramotoSivashinskyElement
+        >>> KuramotoSivashinskyElement('site', u=0.5).u
+        0.5
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        u: Annotated[object, StateSpec()] = 0.0,
+        u: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.u = u
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the kuramoto sivashinsky element."""
+        """Return the Kuramoto-Sivashinsky equation of the height.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate law of the height.
+        """
         return [RateLaw(s.u, -divergence([s.u**2 / 2]) - laplacian(s.u) - laplacian(laplacian(s.u)))]
 
 
@@ -227,34 +253,68 @@ class BoussinesqElement(Element):
 
 
 class BurgersElement(Element):
-    """Burgers element."""
+    """Site of a field `u` that the Burgers equation `du/dt + d(u^2 / 2)/dx = 0` carries.
+
+    Args:
+        label:
+            The label of the site.
+
+        visual:
+            How the site is drawn, or `None` for none.
+
+        u:
+            The initial value.
+
+    Examples:
+        >>> from skcomplex.models.physics.fluids import BurgersElement
+        >>> BurgersElement('site', u=1.5).u
+        1.5
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        u: Annotated[object, StateSpec()] = 0.0,
+        u: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.u = u
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the burgers element."""
-        return [FluxLaw(s.u, s.u**2 / 2)]
-
 
 class ShallowWaterElement(Element):
-    """Shallow water element."""
+    """Site of a channel of shallow water, with the depth `h` and the discharge `q` per unit width.
+
+    Args:
+        label:
+            The label of the site.
+
+        visual:
+            How the site is drawn, or `None` for none.
+
+        h:
+            The initial depth.
+
+        q:
+            The initial discharge.
+
+        g:
+            The gravitational acceleration.
+
+    Examples:
+        >>> from skcomplex.models.physics.fluids import ShallowWaterElement
+        >>> ShallowWaterElement('site', h=2.0).h
+        2.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        h: Annotated[object, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
-        q: Annotated[object, StateSpec()] = 0.0,
-        g: Annotated[object, ParameterSpec()] = 9.81,
+        h: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+        q: Annotated[float, StateSpec()] = 0.0,
+        g: Annotated[float, ParameterSpec()] = 9.81,
     ) -> None:
         super().__init__(label, visual=visual)
         self.h = h
@@ -262,7 +322,16 @@ class ShallowWaterElement(Element):
         self.g = g
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the shallow water element."""
+        """Return the conservation of the mass and the momentum of the water.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The flux laws of the depth and the discharge.
+        """
         return [FluxLaw(s.h, s.q), FluxLaw(s.q, s.q**2 / s.h + s.g * s.h**2 / 2)]
 
 
@@ -496,6 +565,7 @@ def burgers(n: int = 200, *, mean: float = 1.5, amplitude: float = 1.0) -> Syste
         elements=[
             FieldElement('line', element=BurgersElement, space=space, values=values, discretization='finite-volume'),
         ],
+        interactions=[ConservationInteraction('transport', target='line', state='u', flux=lambda s: s.target.u**2 / 2)],
     )
 
 

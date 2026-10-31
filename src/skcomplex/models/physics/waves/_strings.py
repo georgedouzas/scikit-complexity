@@ -13,36 +13,54 @@ from sage.all__sagemath_symbolics import SR, Expression, oo, sin, vector
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import RateInteraction
 from ....core.laws.utils import laplacian
 from ....core.spaces import ContinuousSpace, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import VelocityVerletSolver
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.particles import MassPointElement, PotentialEnergyInteraction, SpringInteraction
+from ..common.particles import HarmonicPotentialInteraction, MassPointElement, SpringInteraction
 
 
 class WaveStringElement(Element):
-    """Wave string element."""
+    """Site of a string, with the transverse displacement `u` of order 2 and the wave speed `c`.
+
+    Args:
+        label:
+            The label of the site.
+
+        visual:
+            How the site is drawn, or `None` for none.
+
+        u:
+            The initial displacement.
+
+        u_d1:
+            The initial transverse velocity.
+
+        c:
+            The wave speed.
+
+    Examples:
+        >>> from skcomplex.models.physics.waves import WaveStringElement
+        >>> WaveStringElement('site', c=2.0).c
+        2.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        u: Annotated[object, StateSpec()] = 0.0,
-        v: Annotated[object, StateSpec()] = 0.0,
-        c: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        u: Annotated[float, StateSpec(order=2)] = 0.0,
+        u_d1: float = 0.0,
+        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.u = u
-        self.v = v
+        self.u_d1 = u_d1
         self.c = c
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the wave string element."""
-        return [RateLaw(s.u, s.v), RateLaw(s.v, s.c**2 * laplacian(s.u))]
 
 
 def _pluck(positions: np.ndarray, length: float, height: float, at: float) -> np.ndarray:
@@ -51,7 +69,7 @@ def _pluck(positions: np.ndarray, length: float, height: float, at: float) -> np
     return np.where(positions <= peak, height * positions / peak, height * (length - positions) / (length - peak))
 
 
-class DrivenAnchorInteraction(PotentialEnergyInteraction):
+class DrivenAnchorInteraction(HarmonicPotentialInteraction):
     """Spring that ties a particle to an anchor point, which oscillates transversally as `amplitude sin(omega t)`.
 
     The energy is `k |x - center - (0, amplitude sin(omega t))|² / 2`, and a zero amplitude gives a fixed anchor.
@@ -91,26 +109,13 @@ class DrivenAnchorInteraction(PotentialEnergyInteraction):
         amplitude: Annotated[float, ParameterSpec()] = 0.0,
         omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
-        super().__init__(label, target=target)
-        self.k = k
-        self.center = center
+        super().__init__(label, target=target, k=k, center=center)
         self.amplitude = amplitude
         self.omega = omega
 
-    def _get_potential(self, s: SimpleNamespace) -> Expression:
-        """Return `k |x - center - (0, amplitude sin(omega t))|² / 2`.
-
-        Args:
-            s:
-                The namespace of the symbols the energy can use.
-
-        Returns:
-            energy:
-                The potential energy as a symbolic expression.
-        """
-        anchor = s.center + vector(SR, [0, s.amplitude * sin(s.omega * s.t)])
-        displacement = s.target.x - anchor
-        return s.k * displacement.dot_product(displacement) / 2
+    def _get_center(self, s: SimpleNamespace) -> Expression:
+        """Return the position `center + (0, amplitude sin(omega t))` of the anchor."""
+        return s.center + vector(SR, [0, s.amplitude * sin(s.omega * s.t)])
 
 
 @register_model(
@@ -245,7 +250,13 @@ def standing_waves(
         'string',
         element=WaveStringElement,
         space=space,
-        boundary={'u': edges, 'v': edges},
+        boundary={'u': edges},
         values={'u': shape, 'c': c},
     )
-    return System(elements=[string])
+    tension = RateInteraction(
+        'tension',
+        target='string',
+        state='u',
+        rate=lambda s: s.target.c**2 * laplacian(s.target.u),
+    )
+    return System(elements=[string], interactions=[tension])

@@ -8,16 +8,21 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import oo, sqrt
+from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement
-from ....core.laws import BaseLaw, FluxLaw, RateLaw
+from ....core.interactions import ConservationInteraction
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.solvers import SSPRKSolver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+
+
+def _get_collisions(s: SimpleNamespace) -> Expression:
+    """Return the net rate `kappa (f_minus^2 - f_plus^2)` at which collisions turn left movers into right movers."""
+    return s.target.kappa * (s.target.f_minus**2 - s.target.f_plus**2)
 
 
 class WaveNumberElement(Element):
@@ -56,19 +61,6 @@ class WaveNumberElement(Element):
         super().__init__(label, visual=visual)
         self.k = k
         self.g = g
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the conservation of waves, with the frequency as the flux of the wave number.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [FluxLaw(s.k, sqrt(s.g * s.k))]
 
 
 class CarlemanGasElement(Element):
@@ -119,25 +111,6 @@ class CarlemanGasElement(Element):
         self.c = c
         self.kappa = kappa
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the transport of both densities and their collisions.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        collisions = s.kappa * (s.f_minus**2 - s.f_plus**2)
-        return [
-            FluxLaw(s.f_plus, s.c * s.f_plus),
-            FluxLaw(s.f_minus, -s.c * s.f_minus),
-            RateLaw(s.f_plus, collisions),
-            RateLaw(s.f_minus, -collisions),
-        ]
-
 
 @register_model(
     field='physics/fluids',
@@ -187,6 +160,9 @@ def wave_breaking(n: int = 200, *, k0: float = 1.0, amplitude: float = 0.5, g: f
                 values=values,
                 discretization='finite-volume',
             ),
+        ],
+        interactions=[
+            ConservationInteraction('action', target='train', state='k', flux=lambda s: sqrt(s.target.g * s.target.k)),
         ],
     )
 
@@ -239,5 +215,21 @@ def discrete_velocity_boltzmann(
     return System(
         elements=[
             FieldElement('gas', element=CarlemanGasElement, space=space, values=values, discretization='finite-volume'),
+        ],
+        interactions=[
+            ConservationInteraction(
+                'right_movers',
+                target='gas',
+                state='f_plus',
+                flux=lambda s: s.target.c * s.target.f_plus,
+                source=_get_collisions,
+            ),
+            ConservationInteraction(
+                'left_movers',
+                target='gas',
+                state='f_minus',
+                flux=lambda s: -s.target.c * s.target.f_minus,
+                source=lambda s: -_get_collisions(s),
+            ),
         ],
     )

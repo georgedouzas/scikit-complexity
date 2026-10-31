@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -13,8 +12,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement
-from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import laplacian
+from ....core.interactions import DiffusionInteraction
 from ....core.spaces import LatticeSpace, MeshSpace
 from ....core.system import System
 from ....engine.solvers import IMEXEulerSolver
@@ -24,23 +22,38 @@ from ..._catalog import register_model
 
 
 class HeatElement(Element):
-    """Heat element."""
+    """Site of a plate, with the temperature `u` and the diffusion coefficient `D` of heat.
+
+    Args:
+        label:
+            The label of the site.
+
+        visual:
+            How the site is drawn, or `None` for none.
+
+        u:
+            The initial temperature.
+
+        D:
+            The diffusion coefficient.
+
+    Examples:
+        >>> from skcomplex.models.physics.heat import HeatElement
+        >>> HeatElement('site', D=0.5).D
+        0.5
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        u: Annotated[object, StateSpec()] = 0.0,
-        D: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        u: Annotated[float, StateSpec()] = 0.0,
+        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.u = u
         self.D = D
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the heat element."""
-        return [RateLaw(s.u, s.D * laplacian(s.u))]
 
 
 @register_model(
@@ -90,6 +103,7 @@ def heat_diffusion(
         elements=[
             FieldElement('plate', element=HeatElement, space=space, boundary={'u': condition}, values={'u': u, 'D': D}),
         ],
+        interactions=[DiffusionInteraction('conduction', target='plate', state='u', coefficient=lambda s: s.target.D)],
     )
 
 
@@ -164,4 +178,5 @@ def heat_l_shape(
                 discretization='finite-element',
             ),
         ],
+        interactions=[DiffusionInteraction('conduction', target='plate', state='u', coefficient=lambda s: s.target.D)],
     )

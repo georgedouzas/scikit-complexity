@@ -7,41 +7,78 @@ import math
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import cos, oo, sqrt
+from sage.all__sagemath_symbolics import Expression, cos, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
+from ....core.interactions import BaseInteraction, GradientInteraction, RateInteraction
+from ....core.laws import BaseLaw, BoundaryLaw
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
+def _get_double_well_drive(s: SimpleNamespace) -> Expression:
+    """Return the periodic forcing `A cos(2 pi f t)` of a particle in a double well."""
+    return s.target.amplitude * cos(2 * math.pi * s.target.frequency * s.t)
+
+
+def _get_double_well_interactions(target: str) -> list[BaseInteraction]:
+    """Return the interactions of particles in a double well, the gradient of the well and the noisy forcing."""
+    return [
+        GradientInteraction('well', target=target, potential=lambda s: s.target.x**4 / 4 - s.target.x**2 / 2),
+        RateInteraction(
+            'drive',
+            target=target,
+            rate=_get_double_well_drive,
+            noise=lambda s: sqrt(2 * s.target.D),
+        ),
+    ]
+
+
 class DoubleWellElement(Element):
-    """Double well element."""
+    """Particle at the position `x` in the double well `x^4 / 4 - x^2 / 2`, forced periodically and by noise.
+
+    Args:
+        label:
+            The label of the particle.
+
+        visual:
+            How the particle is drawn, or `None` for none.
+
+        x:
+            The initial position.
+
+        amplitude:
+            The amplitude of the periodic forcing.
+
+        frequency:
+            The frequency of the forcing.
+
+        D:
+            The noise intensity.
+
+    Examples:
+        >>> from skcomplex.models.physics.soft_matter import DoubleWellElement
+        >>> DoubleWellElement('particle', D=0.2).D
+        0.2
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec()] = -1.0,
-        amplitude: Annotated[object, ParameterSpec()] = 0.1,
-        frequency: Annotated[object, ParameterSpec()] = 0.01,
-        D: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.12,
+        x: Annotated[float, StateSpec()] = -1.0,
+        amplitude: Annotated[float, ParameterSpec()] = 0.1,
+        frequency: Annotated[float, ParameterSpec()] = 0.01,
+        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.12,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
         self.amplitude = amplitude
         self.frequency = frequency
         self.D = D
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the double well element."""
-        return [
-            RateLaw(s.x, s.x - s.x**3 + s.amplitude * cos(2 * math.pi * s.frequency * s.t)),
-            NoiseLaw(s.x, sqrt(2 * s.D)),
-        ]
 
 
 @register_model(
@@ -84,11 +121,14 @@ def stochastic_resonance(
         >>> stochastic_resonance(D=0.2).elements[0].D
         0.2
     """
-    return System(elements=[DoubleWellElement('particle', x=x, amplitude=amplitude, frequency=frequency, D=D)])
+    return System(
+        elements=[DoubleWellElement('particle', x=x, amplitude=amplitude, frequency=frequency, D=D)],
+        interactions=_get_double_well_interactions('particle'),
+    )
 
 
 class WallParticleElement(Element):
-    """Brownian particle whose diffusion slows near a wall, with multiplicative noise of a chosen convention.
+    """Brownian particle at the distance `z` from a wall, which reflects it, and whose diffusion slows near the wall.
 
     Args:
         label:
@@ -109,13 +149,10 @@ class WallParticleElement(Element):
         drift:
             The settling velocity far from the wall.
 
-        convention:
-            The convention of the noise, `'ito'`, `'stratonovich'`, or `'anti-ito'`.
-
     Examples:
         >>> from skcomplex.models.physics.soft_matter import WallParticleElement
-        >>> WallParticleElement('bead').convention
-        'anti-ito'
+        >>> WallParticleElement('bead').a
+        1.0
     """
 
     def __init__(
@@ -127,17 +164,15 @@ class WallParticleElement(Element):
         D0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         drift: Annotated[float, ParameterSpec()] = 0.2,
-        convention: str = 'anti-ito',
     ) -> None:
         super().__init__(label, visual=visual)
         self.z = z
         self.D0 = D0
         self.a = a
         self.drift = drift
-        self.convention = convention
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the settling drift, the hindered noise, and the reflection at the wall.
+        """Return the reflection at the wall.
 
         Args:
             s:
@@ -147,11 +182,7 @@ class WallParticleElement(Element):
             laws:
                 The laws of the component.
         """
-        return [
-            RateLaw(s.z, -s.drift * s.z * abs(s.z) / (s.z**2 + s.a**2)),
-            NoiseLaw(s.z, sqrt(2 * s.D0) * s.z / sqrt(s.z**2 + s.a**2), convention=self.convention),
-            BoundaryLaw(s.z, abs(s.z)),
-        ]
+        return [BoundaryLaw(s.z, abs(s.z))]
 
 
 @register_model(
@@ -197,8 +228,16 @@ def brownian_near_wall(
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import brownian_near_wall
-        >>> brownian_near_wall(convention='ito').elements[0].convention
+        >>> brownian_near_wall(convention='ito').interactions[0].convention
         'ito'
     """
-    particle = WallParticleElement('particle', z=z, D0=D0, a=a, drift=drift, convention=convention)
-    return System(elements=[particle])
+    mobility = RateInteraction(
+        'mobility',
+        target='particle',
+        state='z',
+        rate=lambda s: -s.target.drift * s.target.z * abs(s.target.z) / (s.target.z**2 + s.target.a**2),
+        noise=lambda s: sqrt(2 * s.target.D0) * s.target.z / sqrt(s.target.z**2 + s.target.a**2),
+        convention=convention,
+    )
+    particle = WallParticleElement('particle', z=z, D0=D0, a=a, drift=drift)
+    return System(elements=[particle], interactions=[mobility])

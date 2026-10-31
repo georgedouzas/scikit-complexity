@@ -13,7 +13,8 @@ from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt, vector
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, FractionalNoiseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.interactions import JumpInteraction, MapInteraction, RateInteraction
+from ....core.laws import BaseLaw, JumpLaw, RateLaw
 from ....core.laws.utils import draw, normal
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
@@ -22,6 +23,13 @@ from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 POINTS = VisualSpec('points', {'position': 'x'})
+
+
+def _get_flight(s: SimpleNamespace) -> object:
+    """Return the position after a jump of power-law length `l0 r^(-1 / mu)` in a random direction."""
+    length = draw('length', 'pareto', b=s.target.mu, scale=s.target.l0)
+    steps = _direction('direction', len(list(s.target.x)))
+    return vector(SR, [item + length * step for item, step in zip(s.target.x, steps, strict=True)])
 
 
 def _direction(name: str, size: int) -> list[Expression]:
@@ -214,23 +222,6 @@ class TransientWalkerElement(Element):
         self.sigma = sigma
         self.gamma = gamma
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the diffusion and the renewals of the diffusion coefficient.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        waiting = draw('wait', 'expon', scale=s.D ** (-s.gamma))
-        return [
-            NoiseLaw(s.x, sqrt(2 * s.D)),
-            JumpLaw(waiting=waiting, reset={s.D: draw('coefficient', 'beta', a=s.sigma, b=1)}, label='changes'),
-        ]
-
 
 class FractionalWalkerElement(Element):
     """Walker driven by fractional Brownian motion, `dx = sqrt(2 D) dB_H`, whose increments are correlated in time.
@@ -248,13 +239,10 @@ class FractionalWalkerElement(Element):
         D:
             The diffusion coefficient.
 
-        H:
-            The Hurst index, below 1/2 for anticorrelated and above 1/2 for correlated increments.
-
     Examples:
         >>> from skcomplex.models.physics.soft_matter import FractionalWalkerElement
-        >>> FractionalWalkerElement('walker', H=0.3).H
-        0.3
+        >>> FractionalWalkerElement('walker', D=0.5).D
+        0.5
     """
 
     def __init__(
@@ -264,25 +252,10 @@ class FractionalWalkerElement(Element):
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
         D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        H: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
         self.D = D
-        self.H = H
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the fractional noise.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [FractionalNoiseLaw(s.x, sqrt(2 * s.D), hurst=s.H)]
 
 
 class LevyFlierElement(Element):
@@ -323,21 +296,6 @@ class LevyFlierElement(Element):
         self.x = x
         self.mu = mu
         self.l0 = l0
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the jumps of power-law lengths.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        length = draw('length', 'pareto', b=s.mu, scale=s.l0)
-        jumps = [item + length * step for item, step in zip(s.x, _direction('direction', len(list(s.x))), strict=True)]
-        return [UpdateLaw(s.x, vector(SR, jumps))]
 
 
 @register_model(
@@ -505,7 +463,14 @@ def annealed_transient_time_motion(
         size=n_walkers,
         values={'x': np.zeros((n_walkers, n_dim)), 'D': coefficients, 'sigma': sigma, 'gamma': gamma},
     )
-    return System(elements=[walkers], space=ContinuousSpace(n_dim=n_dim))
+    noise = RateInteraction('noise', target='walkers', noise=lambda s: sqrt(2 * s.target.D))
+    changes = JumpInteraction(
+        'changes',
+        target='walkers',
+        waiting=lambda s: draw('wait', 'expon', scale=s.target.D ** (-s.target.gamma)),
+        reset={'D': lambda s: draw('coefficient', 'beta', a=s.target.sigma, b=1)},
+    )
+    return System(elements=[walkers], interactions=[noise, changes], space=ContinuousSpace(n_dim=n_dim))
 
 
 @register_model(
@@ -545,16 +510,17 @@ def fractional_brownian_motion(
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import fractional_brownian_motion
-        >>> fractional_brownian_motion(10, H=0.7).elements[0].values['H']
+        >>> fractional_brownian_motion(10, H=0.7).interactions[0].hurst
         0.7
     """
     walkers = GroupElement(
         'walkers',
         element=FractionalWalkerElement,
         size=n_walkers,
-        values={'x': np.zeros((n_walkers, n_dim)), 'D': D, 'H': H},
+        values={'x': np.zeros((n_walkers, n_dim)), 'D': D},
     )
-    return System(elements=[walkers], space=ContinuousSpace(n_dim=n_dim))
+    noise = RateInteraction('noise', target='walkers', noise=lambda s: sqrt(2 * s.target.D), hurst=H)
+    return System(elements=[walkers], interactions=[noise], space=ContinuousSpace(n_dim=n_dim))
 
 
 @register_model(
@@ -603,4 +569,5 @@ def levy_flight(
         size=n_walkers,
         values={'x': np.zeros((n_walkers, n_dim)), 'mu': mu, 'l0': l0},
     )
-    return System(elements=[walkers], space=ContinuousSpace(n_dim=n_dim))
+    flights = MapInteraction('flights', target='walkers', state='x', function=_get_flight)
+    return System(elements=[walkers], interactions=[flights], space=ContinuousSpace(n_dim=n_dim))

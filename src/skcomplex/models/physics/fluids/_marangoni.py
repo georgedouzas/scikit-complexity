@@ -9,9 +9,10 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import Expression
 
 from ....core.elements import Element, FieldElement
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import GradientInteraction
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
 from ....core.system import System
@@ -20,28 +21,52 @@ from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
+def _get_marangoni_density(s: SimpleNamespace) -> Expression:
+    """Return the density of the Swift-Hohenberg functional with the quadratic term of the free surface."""
+    layer = s.target
+    u = layer.u
+    potential = -(layer.r - 1) * u**2 / 2 - layer.g * u**3 / 3 + u**4 / 4
+    return potential + u * laplacian(u) + laplacian(u) ** 2 / 2
+
+
 class MarangoniLayerElement(Element):
-    """Marangoni layer element."""
+    """Site of a convecting layer with a free surface, with the order parameter `u`.
+
+    Args:
+        label:
+            The label of the site.
+
+        visual:
+            How the site is drawn, or `None` for none.
+
+        u:
+            The initial order parameter.
+
+        r:
+            The distance from the onset of convection.
+
+        g:
+            The strength of the quadratic term that the free surface adds.
+
+    Examples:
+        >>> from skcomplex.models.physics.fluids import MarangoniLayerElement
+        >>> MarangoniLayerElement('site', g=0.5).g
+        0.5
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        u: Annotated[object, StateSpec()] = 0.0,
-        r: Annotated[object, ParameterSpec()] = 0.1,
-        g: Annotated[object, ParameterSpec()] = 1.0,
+        u: Annotated[float, StateSpec()] = 0.0,
+        r: Annotated[float, ParameterSpec()] = 0.1,
+        g: Annotated[float, ParameterSpec()] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.u = u
         self.r = r
         self.g = g
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the marangoni layer element."""
-        return [
-            RateLaw(s.u, (s.r - 1) * s.u - 2 * laplacian(s.u) - laplacian(laplacian(s.u)) + s.g * s.u**2 - s.u**3),
-        ]
 
 
 @register_model(
@@ -98,5 +123,14 @@ def benard_marangoni(
     return System(
         elements=[
             FieldElement('layer', element=MarangoniLayerElement, space=space, values=values, discretization='spectral'),
+        ],
+        interactions=[
+            GradientInteraction(
+                'relaxation',
+                target='layer',
+                states='u',
+                potential=_get_marangoni_density,
+                variational=True,
+            ),
         ],
     )

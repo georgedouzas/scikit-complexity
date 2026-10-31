@@ -13,8 +13,8 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sign, sin, sqr
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, CrossingLaw, EquationLaw, RateLaw
+from ....core.interactions import CrossingInteraction, EulerLagrangeInteraction, Interaction
+from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import derivative
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
@@ -26,7 +26,7 @@ from ..common.particles import (
     MassPointElement,
     PotentialEnergyInteraction,
 )
-from ._mechanics import PendulumElement
+from ._mechanics import PendulumElement, PendulumInteraction
 
 
 def _double_bobs(theta1: float, theta2: float, l1: float, l2: float, **_: float) -> np.ndarray:
@@ -41,7 +41,50 @@ def _cart_and_bob(y: float, theta: float, l: float, **_: float) -> np.ndarray:
 
 
 class DoublePendulumElement(Element):
-    """Double pendulum element."""
+    """Double pendulum, a bob of mass `m2` on a rod of length `l2` hanging from a bob of mass `m1` on a rod `l1`.
+
+    The angles `theta1` and `theta2` of the rods from the vertical have order 2. The motion comes from
+    `DoublePendulumInteraction`.
+
+    Args:
+        label:
+            The label of the double pendulum.
+
+        visual:
+            How the double pendulum is drawn, or `None` for its class visual.
+
+        theta1:
+            The initial angle of the upper rod.
+
+        theta1_d1:
+            The initial angular velocity of the upper rod.
+
+        theta2:
+            The initial angle of the lower rod.
+
+        theta2_d1:
+            The initial angular velocity of the lower rod.
+
+        m1:
+            The mass of the upper bob.
+
+        m2:
+            The mass of the lower bob.
+
+        l1:
+            The length of the upper rod.
+
+        l2:
+            The length of the lower rod.
+
+        g:
+            The gravitational acceleration.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import DoublePendulumElement
+        >>> DoublePendulumElement('pendulum', m2=2.0).m2
+        2.0
+    """
 
     visual = VisualSpec('bodies', {'positions': _double_bobs, 'pivot': (0.0, 0.0), 'rods': True, 'traced': [1]})
 
@@ -50,15 +93,15 @@ class DoublePendulumElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        theta1: Annotated[object, StateSpec(period=2 * pi, order=2)] = math.pi / 2,
+        theta1: Annotated[float, StateSpec(period=2 * pi, order=2)] = math.pi / 2,
         theta1_d1: float = 0.0,
-        theta2: Annotated[object, StateSpec(period=2 * pi, order=2)] = math.pi / 2,
+        theta2: Annotated[float, StateSpec(period=2 * pi, order=2)] = math.pi / 2,
         theta2_d1: float = 0.0,
-        m1: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        m2: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        l1: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        l2: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        g: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
+        m1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        m2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        l1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        l2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
     ) -> None:
         super().__init__(label, visual=visual)
         self.theta1 = theta1
@@ -71,36 +114,79 @@ class DoublePendulumElement(Element):
         self.l2 = l2
         self.g = g
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the double pendulum element."""
-        return [
-            EquationLaw(
-                (s.m1 + s.m2) * s.l1 * derivative(s.theta1, 2)
-                + s.m2 * s.l2 * derivative(s.theta2, 2) * cos(s.theta1 - s.theta2)
-                + s.m2 * s.l2 * derivative(s.theta2, 1) ** 2 * sin(s.theta1 - s.theta2)
-                + (s.m1 + s.m2) * s.g * sin(s.theta1)
-                == 0,
-            ),
-            EquationLaw(
-                s.l2 * derivative(s.theta2, 2)
-                + s.l1 * derivative(s.theta1, 2) * cos(s.theta1 - s.theta2)
-                - s.l1 * derivative(s.theta1, 1) ** 2 * sin(s.theta1 - s.theta2)
-                + s.g * sin(s.theta2)
-                == 0,
-            ),
-        ]
+
+class DoublePendulumInteraction(EulerLagrangeInteraction):
+    """Motion of a double pendulum, the Euler-Lagrange equations of its kinetic energy and gravity.
+
+    The Lagrangian is `(m1 + m2) l1² θ1'² / 2 + m2 l2² θ2'² / 2 + m2 l1 l2 θ1' θ2' cos(θ1 - θ2) + (m1 + m2) g l1 cos θ1
+    + m2 g l2 cos θ2`, with the masses, lengths, and gravity of the target.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the double pendulum.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import DoublePendulumInteraction
+        >>> DoublePendulumInteraction('motion', target='pendulum').states
+        ('theta1', 'theta2')
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label, target=target, states=('theta1', 'theta2'))
+
+    def _get_lagrangian(self, namespace: SimpleNamespace) -> Expression:
+        """Return the Lagrangian of the double pendulum.
+
+        Args:
+            namespace:
+                The namespace of the symbols the Lagrangian can use.
+
+        Returns:
+            lagrangian:
+                The Lagrangian.
+        """
+        p = namespace.target
+        w1, w2 = derivative(p.theta1, 1), derivative(p.theta2, 1)
+        kinetic = (p.m1 + p.m2) * p.l1**2 * w1**2 / 2 + p.m2 * p.l2**2 * w2**2 / 2
+        kinetic += p.m2 * p.l1 * p.l2 * w1 * w2 * cos(p.theta1 - p.theta2)
+        return kinetic + (p.m1 + p.m2) * p.g * p.l1 * cos(p.theta1) + p.m2 * p.g * p.l2 * cos(p.theta2)
 
 
 class PendulumSpringInteraction(Interaction):
-    """Pendulum spring interaction."""
+    """Spring between the bobs of two pendulums, which stretches with the horizontal distance of the bobs.
+
+    The spring of stiffness `k` has the energy `k (l2 sin θ2 - l1 sin θ1)² / 2`, whose torque on every pendulum,
+    divided by its moment of inertia `m l²`, adds to its angular acceleration.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        first:
+            The path of the first pendulum, with the angle `theta`, the mass `m`, and the length `l`.
+
+        second:
+            The path of the second pendulum.
+
+        k:
+            The stiffness of the spring.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import PendulumSpringInteraction
+        >>> PendulumSpringInteraction('spring', first='left', second='right', k=2.0).k
+        2.0
+    """
 
     def __init__(
         self,
         label: str,
         *,
-        first: Annotated[object, RoleSpec()],
-        second: Annotated[object, RoleSpec()],
-        k: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label)
         self.first = first
@@ -108,27 +194,67 @@ class PendulumSpringInteraction(Interaction):
         self.k = k
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the pendulum spring interaction."""
+        """Return the angular accelerations the spring gives the two pendulums.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use, with `s.first` and `s.second`.
+
+        Returns:
+            laws:
+                The rate laws of the two angles.
+        """
+        stretch = s.second.l * sin(s.second.theta) - s.first.l * sin(s.first.theta)
         return [
-            RateLaw(
-                s.first.theta,
-                s.k
-                * (s.second.l * sin(s.second.theta) - s.first.l * sin(s.first.theta))
-                * cos(s.first.theta)
-                / (s.first.m * s.first.l),
-            ),
-            RateLaw(
-                s.second.theta,
-                -s.k
-                * (s.second.l * sin(s.second.theta) - s.first.l * sin(s.first.theta))
-                * cos(s.second.theta)
-                / (s.second.m * s.second.l),
-            ),
+            RateLaw(s.first.theta, s.k * stretch * cos(s.first.theta) / (s.first.m * s.first.l)),
+            RateLaw(s.second.theta, -s.k * stretch * cos(s.second.theta) / (s.second.m * s.second.l)),
         ]
 
 
 class CartPendulumElement(Element):
-    """Cart pendulum element."""
+    """Cart on a horizontal track at the position `y`, with a pendulum of angle `theta` hanging from it.
+
+    The position and the angle have order 2. The motion comes from `CartPendulumInteraction`.
+
+    Args:
+        label:
+            The label of the cart and pendulum.
+
+        visual:
+            How the cart and pendulum are drawn, or `None` for its class visual.
+
+        y:
+            The initial position of the cart.
+
+        y_d1:
+            The initial velocity of the cart.
+
+        theta:
+            The initial angle of the pendulum.
+
+        theta_d1:
+            The initial angular velocity of the pendulum.
+
+        m1:
+            The mass of the cart.
+
+        m2:
+            The mass of the bob.
+
+        l:
+            The length of the rod.
+
+        g:
+            The gravitational acceleration.
+
+        F:
+            A constant horizontal force on the cart.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import CartPendulumElement
+        >>> CartPendulumElement('cart', m1=5.0).m1
+        5.0
+    """
 
     visual = VisualSpec('bodies', {'positions': _cart_and_bob, 'rods': True, 'traced': [1]})
 
@@ -137,15 +263,15 @@ class CartPendulumElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        y: Annotated[object, StateSpec(order=2)] = 0.0,
+        y: Annotated[float, StateSpec(order=2)] = 0.0,
         y_d1: float = 0.0,
-        theta: Annotated[object, StateSpec(period=2 * pi, order=2)] = 0.5,
+        theta: Annotated[float, StateSpec(period=2 * pi, order=2)] = 0.5,
         theta_d1: float = 0.0,
-        m1: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        m2: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        l: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        g: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
-        F: Annotated[object, ParameterSpec()] = 0.0,
+        m1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        m2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        l: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
+        F: Annotated[float, ParameterSpec()] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.y = y
@@ -158,34 +284,102 @@ class CartPendulumElement(Element):
         self.g = g
         self.F = F
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the cart pendulum element."""
-        return [
-            EquationLaw(
-                (s.m1 + s.m2) * derivative(s.y, 2)
-                + s.m2 * s.l * derivative(s.theta, 2) * cos(s.theta)
-                - s.m2 * s.l * derivative(s.theta, 1) ** 2 * sin(s.theta)
-                == s.F,
-            ),
-            EquationLaw(s.l * derivative(s.theta, 2) + derivative(s.y, 2) * cos(s.theta) + s.g * sin(s.theta) == 0),
-        ]
+
+class CartPendulumInteraction(EulerLagrangeInteraction):
+    """Motion of a cart and the pendulum that hangs from it, the Euler-Lagrange equations with a force on the cart.
+
+    The Lagrangian is `(m1 + m2) y'² / 2 + m2 l y' θ' cos θ + m2 l² θ'² / 2 + m2 g l cos θ`, and the force `F` of the
+    target drives the position `y` of the cart.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the cart and pendulum.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import CartPendulumInteraction
+        >>> CartPendulumInteraction('motion', target='cart').states
+        ('y', 'theta')
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label, target=target, states=('y', 'theta'), forcing=self._get_forces_on_coordinates)
+
+    @staticmethod
+    def _get_forces_on_coordinates(namespace: SimpleNamespace) -> list[Expression]:
+        """Return the generalized forces, the force `F` on the cart and none on the angle."""
+        return [namespace.target.F, 0]
+
+    def _get_lagrangian(self, namespace: SimpleNamespace) -> Expression:
+        """Return the Lagrangian of the cart and pendulum.
+
+        Args:
+            namespace:
+                The namespace of the symbols the Lagrangian can use.
+
+        Returns:
+            lagrangian:
+                The Lagrangian.
+        """
+        p = namespace.target
+        v, w = derivative(p.y, 1), derivative(p.theta, 1)
+        kinetic = (p.m1 + p.m2) * v**2 / 2 + p.m2 * p.l * v * w * cos(p.theta) + p.m2 * p.l**2 * w**2 / 2
+        return kinetic + p.m2 * p.g * p.l * cos(p.theta)
 
 
 class ParametricPendulumElement(Element):
-    """Parametric pendulum element."""
+    """Pendulum whose suspension point oscillates vertically, with the angle `theta` of order 2.
+
+    The motion comes from `ParametricPendulumInteraction`.
+
+    Args:
+        label:
+            The label of the pendulum.
+
+        visual:
+            How the pendulum is drawn, or `None` for none.
+
+        theta:
+            The initial angle.
+
+        theta_d1:
+            The initial angular velocity.
+
+        g:
+            The gravitational acceleration.
+
+        l:
+            The length of the rod.
+
+        epsilon:
+            The amplitude of the acceleration of the suspension point, relative to `g`.
+
+        Omega:
+            The angular frequency of the suspension point.
+
+        c:
+            The friction coefficient.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import ParametricPendulumElement
+        >>> ParametricPendulumElement('swing', epsilon=0.5).epsilon
+        0.5
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        theta: Annotated[object, StateSpec(period=2 * pi, order=2)] = 0.1,
+        theta: Annotated[float, StateSpec(period=2 * pi, order=2)] = 0.1,
         theta_d1: float = 0.0,
-        g: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
-        l: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        epsilon: Annotated[object, ParameterSpec()] = 0.2,
-        Omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2 * math.sqrt(9.81),
-        c: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
+        l: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        epsilon: Annotated[float, ParameterSpec()] = 0.2,
+        Omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2 * math.sqrt(9.81),
+        c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.theta = theta
@@ -196,34 +390,106 @@ class ParametricPendulumElement(Element):
         self.Omega = Omega
         self.c = c
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the parametric pendulum element."""
-        return [
-            EquationLaw(
-                derivative(s.theta, 2)
-                + s.c * derivative(s.theta, 1)
-                + s.g / s.l * (1 + s.epsilon * cos(s.Omega * s.t)) * sin(s.theta)
-                == 0,
-            ),
-        ]
+
+class ParametricPendulumInteraction(EulerLagrangeInteraction):
+    """Motion of a parametric pendulum, the Euler-Lagrange equation of `θ'² / 2 + (g / l)(1 + ε cos Ω t) cos θ`.
+
+    The Rayleigh dissipation `c θ'² / 2` adds the friction, so the angle follows
+    `θ'' + c θ' + (g / l)(1 + ε cos Ω t) sin θ = 0`, with the parameters of the target.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the pendulum.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import ParametricPendulumInteraction
+        >>> ParametricPendulumInteraction('swing', target='pendulum').states
+        'theta'
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label, target=target, states='theta', dissipation=self._get_friction)
+
+    @staticmethod
+    def _get_friction(namespace: SimpleNamespace) -> Expression:
+        """Return the Rayleigh dissipation `c θ'² / 2` of the friction."""
+        return namespace.target.c * derivative(namespace.target.theta, 1) ** 2 / 2
+
+    def _get_lagrangian(self, namespace: SimpleNamespace) -> Expression:
+        """Return the Lagrangian of the parametric pendulum per moment of inertia.
+
+        Args:
+            namespace:
+                The namespace of the symbols the Lagrangian can use.
+
+        Returns:
+            lagrangian:
+                The Lagrangian.
+        """
+        p = namespace.target
+        gravity = p.g / p.l * (1 + p.epsilon * cos(p.Omega * namespace.t))
+        return derivative(p.theta, 1) ** 2 / 2 + gravity * cos(p.theta)
 
 
 class BallisticPendulumElement(Element):
-    """Ballistic pendulum element."""
+    """Bullet of mass `m` at the position `x` flying towards the block of mass `M` of a pendulum with the angle `theta`.
+
+    The position and the angle have order 2. The bullet flies freely, the pendulum swings, and the impact transfers
+    the momentum of the bullet to the pendulum.
+
+    Args:
+        label:
+            The label of the bullet and pendulum.
+
+        visual:
+            How the bullet and pendulum are drawn, or `None` for none.
+
+        x:
+            The initial position of the bullet, negative before the block.
+
+        x_d1:
+            The initial velocity of the bullet.
+
+        theta:
+            The initial angle of the pendulum.
+
+        theta_d1:
+            The initial angular velocity of the pendulum.
+
+        m:
+            The mass of the bullet.
+
+        M:
+            The mass of the block.
+
+        l:
+            The length of the rod.
+
+        g:
+            The gravitational acceleration.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import BallisticPendulumElement
+        >>> BallisticPendulumElement('pendulum', M=2.0).M
+        2.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec(order=2)] = -1.0,
+        x: Annotated[float, StateSpec(order=2)] = -1.0,
         x_d1: float = 0.0,
-        theta: Annotated[object, StateSpec(period=2 * pi, order=2)] = 0.0,
+        theta: Annotated[float, StateSpec(period=2 * pi, order=2)] = 0.0,
         theta_d1: float = 0.0,
-        m: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-        M: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        l: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        g: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
+        m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        M: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        l: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 9.81,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x
@@ -235,42 +501,74 @@ class BallisticPendulumElement(Element):
         self.l = l
         self.g = g
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the ballistic pendulum element."""
-        return [
-            RateLaw(s.x, 0),
-            EquationLaw(s.l * derivative(s.theta, 2) == -s.g * sin(s.theta)),
-            CrossingLaw(
-                s.x,
-                {
-                    derivative(s.x, 1): 0,
-                    derivative(s.theta, 1): s.m * derivative(s.x, 1) / ((s.m + s.M) * s.l),
-                },
-                direction=1,
-                label='impact',
-            ),
-        ]
-
 
 class ClockPendulumElement(Element):
-    """Clock pendulum element."""
+    """Pendulum clock, a pendulum of angle `theta` hanging from a support at the horizontal position `x`.
+
+    The angle and the position have order 2. The motion comes from `ClockPendulumInteraction`.
+
+    Args:
+        label:
+            The label of the clock.
+
+        visual:
+            How the clock is drawn, or `None` for none.
+
+        theta:
+            The initial angle of the pendulum.
+
+        theta_d1:
+            The initial angular velocity of the pendulum.
+
+        x:
+            The initial position of the support.
+
+        x_d1:
+            The initial velocity of the support.
+
+        m:
+            The mass of the bob.
+
+        l:
+            The length of the pendulum.
+
+        M:
+            The mass of the support.
+
+        g:
+            The gravitational acceleration.
+
+        rho:
+            The damping of the support.
+
+        lam:
+            The strength of the escapement.
+
+        theta_c:
+            The angle below which the escapement pumps energy in.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import ClockPendulumElement
+        >>> ClockPendulumElement('clock', lam=0.2).lam
+        0.2
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        theta: Annotated[object, StateSpec(order=2)] = 0.2,
+        theta: Annotated[float, StateSpec(order=2)] = 0.2,
         theta_d1: float = 0.0,
-        x: Annotated[object, StateSpec(order=2)] = 0.0,
+        x: Annotated[float, StateSpec(order=2)] = 0.0,
         x_d1: float = 0.0,
-        m: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        l: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        M: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        g: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 9.8,
-        rho: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        lam: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        theta_c: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        l: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        M: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 9.8,
+        rho: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        theta_c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
     ) -> None:
         super().__init__(label, visual=visual)
         self.theta = theta
@@ -285,55 +583,113 @@ class ClockPendulumElement(Element):
         self.lam = lam
         self.theta_c = theta_c
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the clock pendulum element."""
-        return [
-            EquationLaw(
-                s.m * s.l * derivative(s.theta, 2)
-                + 2 * s.lam * sign(abs(s.theta) - s.theta_c) * derivative(s.theta, 1)
-                + s.m * s.g * sin(s.theta)
-                == -s.m * derivative(s.x, 2) * cos(s.theta),
-            ),
-            EquationLaw(
-                (s.M + s.m) * derivative(s.x, 2)
-                + 2 * s.rho * derivative(s.x, 1)
-                + s.m * s.l * derivative(s.theta, 2) * cos(s.theta)
-                == s.m * s.l * derivative(s.theta, 1) ** 2 * sin(s.theta),
-            ),
-        ]
 
+class ClockPendulumInteraction(EulerLagrangeInteraction):
+    """Motion of a pendulum clock on a moving support, the Euler-Lagrange equations with the escapement.
 
-def _support_response(pendulum: SimpleNamespace, force: Expression) -> list[RateLaw]:
-    """Return the accelerations of a supported pendulum and its support under a horizontal force on the support."""
-    inertia = pendulum.M + pendulum.m * sin(pendulum.theta) ** 2
-    return [
-        RateLaw(pendulum.x, force / inertia),
-        RateLaw(pendulum.theta, -cos(pendulum.theta) * force / (pendulum.l * inertia)),
-    ]
+    The Lagrangian is `(M + m) x'² / 2 + m l x' θ' cos θ + m l² θ'² / 2 + m g l cos θ`. The Rayleigh dissipation
+    `λ l sgn(|θ| - θ_c) θ'² + rho x'²` damps the support and gives the escapement `2 λ l sgn(|θ| - θ_c) θ'`, which pumps
+    energy into the pendulum below the angle `θ_c` and takes it out beyond.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the clock.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import ClockPendulumInteraction
+        >>> ClockPendulumInteraction('motion', target='clock').states
+        ('theta', 'x')
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label, target=target, states=('theta', 'x'), dissipation=self._get_escapement)
+
+    @staticmethod
+    def _get_escapement(namespace: SimpleNamespace) -> Expression:
+        """Return the Rayleigh dissipation of the escapement and of the damping of the support."""
+        p = namespace.target
+        escapement = p.lam * p.l * sign(abs(p.theta) - p.theta_c) * derivative(p.theta, 1) ** 2
+        return escapement + p.rho * derivative(p.x, 1) ** 2
+
+    def _get_lagrangian(self, namespace: SimpleNamespace) -> Expression:
+        """Return the Lagrangian of the pendulum and its support.
+
+        Args:
+            namespace:
+                The namespace of the symbols the Lagrangian can use.
+
+        Returns:
+            lagrangian:
+                The Lagrangian.
+        """
+        p = namespace.target
+        v, w = derivative(p.x, 1), derivative(p.theta, 1)
+        kinetic = (p.M + p.m) * v**2 / 2 + p.m * p.l * v * w * cos(p.theta) + p.m * p.l**2 * w**2 / 2
+        return kinetic + p.m * p.g * p.l * cos(p.theta)
 
 
 class SupportSpringInteraction(Interaction):
-    """Support spring interaction."""
+    """Spring of stiffness `k` between the supports of two pendulum clocks.
+
+    The spring pulls the supports by the force `k (x2 - x1)`, and every clock answers with the accelerations of its
+    support and its pendulum, through the inverse of its mass matrix.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        first:
+            The path of the first clock.
+
+        second:
+            The path of the second clock.
+
+        k:
+            The stiffness of the spring.
+
+    Examples:
+        >>> from skcomplex.models.physics.mechanics import SupportSpringInteraction
+        >>> SupportSpringInteraction('spring', first='clock_0', second='clock_1', k=2.0).k
+        2.0
+    """
 
     def __init__(
         self,
         label: str,
         *,
-        first: Annotated[object, RoleSpec()],
-        second: Annotated[object, RoleSpec()],
-        k: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label)
         self.first = first
         self.second = second
         self.k = k
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the support spring interaction."""
+    def _get_response(self, clock: SimpleNamespace, force: Expression) -> list[BaseLaw]:
+        """Return the accelerations of a clock's support and pendulum under a horizontal force on the support."""
+        inertia = clock.M + clock.m * sin(clock.theta) ** 2
         return [
-            *_support_response(s.first, s.k * (s.second.x - s.first.x)),
-            *_support_response(s.second, -s.k * (s.second.x - s.first.x)),
+            RateLaw(clock.x, force / inertia),
+            RateLaw(clock.theta, -cos(clock.theta) * force / (clock.l * inertia)),
         ]
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the accelerations the spring gives the supports and pendulums of both clocks.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use, with `s.first` and `s.second`.
+
+        Returns:
+            laws:
+                The rate laws of the positions and angles of both clocks.
+        """
+        force = s.k * (s.second.x - s.first.x)
+        return [*self._get_response(s.first, force), *self._get_response(s.second, -force)]
 
 
 class MagnetInteraction(PotentialEnergyInteraction):
@@ -466,6 +822,7 @@ def double_pendulum(
                 g=g,
             ),
         ],
+        interactions=[DoublePendulumInteraction('motion', target='pendulum')],
     )
 
 
@@ -531,7 +888,11 @@ def coupled_pendulums(
             PendulumElement('left', theta=theta1, m=m1, l=l1, g=g),
             PendulumElement('right', theta=theta2, m=m2, l=l2, g=g),
         ],
-        interactions=[PendulumSpringInteraction('spring', first='left', second='right', k=k)],
+        interactions=[
+            PendulumSpringInteraction('spring', first='left', second='right', k=k),
+            PendulumInteraction('left_swing', target='left'),
+            PendulumInteraction('right_swing', target='right'),
+        ],
     )
 
 
@@ -588,7 +949,10 @@ def cart_pendulum(
         >>> cart_pendulum(m1=5.0).elements[0].m1
         5.0
     """
-    return System(elements=[CartPendulumElement('cart', y=y, theta=theta, m1=m1, m2=m2, l=l, g=g, F=F)])
+    return System(
+        elements=[CartPendulumElement('cart', y=y, theta=theta, m1=m1, m2=m2, l=l, g=g, F=F)],
+        interactions=[CartPendulumInteraction('motion', target='cart')],
+    )
 
 
 @register_model(
@@ -656,6 +1020,7 @@ def parametric_pendulum(
                 c=c,
             ),
         ],
+        interactions=[ParametricPendulumInteraction('motion', target='swing')],
     )
 
 
@@ -782,7 +1147,26 @@ def ballistic_pendulum(
         >>> ballistic_pendulum(distance=2.0).elements[0].x
         -2.0
     """
-    return System(elements=[BallisticPendulumElement('pendulum', x=-distance, x_d1=speed, m=m, M=M, l=l, g=g)])
+    swing = EulerLagrangeInteraction(
+        'swing',
+        target='pendulum',
+        states='theta',
+        lagrangian=lambda s: s.target.l * derivative(s.target.theta, 1) ** 2 / 2 + s.target.g * cos(s.target.theta),
+    )
+    impact = CrossingInteraction(
+        'impact',
+        target='pendulum',
+        guard=lambda s: s.target.x,
+        reset={
+            'x_d1': lambda s: 0,
+            'theta_d1': lambda s: s.target.m * s.target.x_d1 / ((s.target.m + s.target.M) * s.target.l),
+        },
+        direction=1,
+    )
+    return System(
+        elements=[BallisticPendulumElement('pendulum', x=-distance, x_d1=speed, m=m, M=M, l=l, g=g)],
+        interactions=[swing, impact],
+    )
 
 
 @register_model(
@@ -851,7 +1235,7 @@ def huygens_clocks(
     Examples:
         >>> from skcomplex.models.physics.mechanics import huygens_clocks
         >>> len(huygens_clocks(3).interactions)
-        2
+        5
     """
     clocks = [
         ClockPendulumElement(
@@ -871,4 +1255,5 @@ def huygens_clocks(
         SupportSpringInteraction(f'spring_{index}', first=f'clock_{index}', second=f'clock_{index + 1}', k=k)
         for index in range(n_clocks - 1)
     ]
-    return System(elements=clocks, interactions=springs)
+    motions = [ClockPendulumInteraction(f'motion_{index}', target=f'clock_{index}') for index in range(n_clocks)]
+    return System(elements=clocks, interactions=[*springs, *motions])

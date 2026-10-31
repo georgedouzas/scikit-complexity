@@ -7,31 +7,67 @@ import math
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, EquationLaw
-from ....core.laws.utils import derivative
+from ....core.interactions import GradientInteraction
 from ....core.system import System
 from ....errors import ValidationError
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
+def _get_expansion_potential(s: SimpleNamespace) -> Expression:
+    """Return the potential `-omega_matter H0² / (2 a) - omega_lambda H0² a² / 2` of the acceleration equation."""
+    universe = s.target
+    return (
+        -universe.omega_matter * universe.H0**2 / (2 * universe.a)
+        - universe.omega_lambda * universe.H0**2 * universe.a**2 / 2
+    )
+
+
 class ScaleFactorElement(Element):
-    """Scale factor element."""
+    """Homogeneous universe whose size is the scale factor `a`, a state of order 2 with the expansion rate `a_d1`.
+
+    Args:
+        label:
+            The label of the universe.
+
+        visual:
+            How the universe is drawn, or `None` for none.
+
+        a:
+            The initial scale factor.
+
+        a_d1:
+            The initial rate of change of the scale factor.
+
+        H0:
+            The Hubble constant.
+
+        omega_matter:
+            The density parameter of matter.
+
+        omega_lambda:
+            The density parameter of dark energy.
+
+    Examples:
+        >>> from skcomplex.models.physics.cosmology import ScaleFactorElement
+        >>> ScaleFactorElement('universe', H0=2.0).H0
+        2.0
+    """
 
     def __init__(
         self,
         label: str,
         visual: VisualSpec | None = None,
         *,
-        a: Annotated[object, StateSpec(domain=RealSet.open(0, oo), order=2)] = 1.0,
+        a: Annotated[float, StateSpec(domain=RealSet.open(0, oo), order=2)] = 1.0,
         a_d1: float = 0.0,
-        H0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        omega_matter: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        omega_lambda: Annotated[object, ParameterSpec()] = 0.7,
+        H0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        omega_matter: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        omega_lambda: Annotated[float, ParameterSpec()] = 0.7,
     ) -> None:
         super().__init__(label, visual=visual)
         self.a = a
@@ -39,14 +75,6 @@ class ScaleFactorElement(Element):
         self.H0 = H0
         self.omega_matter = omega_matter
         self.omega_lambda = omega_lambda
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the scale factor element."""
-        return [
-            EquationLaw(
-                s.a**2 * derivative(s.a, 2) == -s.omega_matter * s.H0**2 / 2 + s.omega_lambda * s.H0**2 * s.a**3,
-            ),
-        ]
 
 
 @register_model(
@@ -111,4 +139,10 @@ def friedmann_expansion(
         omega_matter=omega_matter,
         omega_lambda=omega_lambda,
     )
-    return System(elements=[universe])
+    acceleration = GradientInteraction(
+        'acceleration',
+        target='universe',
+        states='a',
+        potential=_get_expansion_potential,
+    )
+    return System(elements=[universe], interactions=[acceleration])
