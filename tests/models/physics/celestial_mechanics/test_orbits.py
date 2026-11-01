@@ -5,6 +5,10 @@ import math
 import numpy as np
 import pytest
 
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.solvers import Yoshida4Solver
+from skcomplex.errors import SolverError
+from skcomplex.models import run
 from skcomplex.models.physics.celestial_mechanics import (
     n_body,
     restricted_three_body,
@@ -19,23 +23,25 @@ def test_kepler_orbit_conserves_energy_and_momentum_and_follows_the_third_law():
     """Test that the Kepler orbit keeps its energy and angular momentum for ten periods with Kepler's period."""
     eccentricity, G_, mass, radius = 0.5, 1.0, 1000.0, 10.0
     axis = radius / (1 - eccentricity)
-    period = 2 * math.pi * math.sqrt(axis**3 / (G_ * (mass + 1e-6)))
-    trajectory = _run(two_body_orbit(eccentricity, G=G_, mass=mass, radius=radius), 10 * period, period / 100)
-    star, planet = _series(trajectory, 'star.x', 'planet.x')
-    star_v, planet_v = _series(trajectory, 'star.x_d1', 'planet.x_d1')
-    relative, velocity = planet - star, planet_v - star_v
-    distance = np.linalg.norm(relative, axis=1)
-    energy = 0.5 * mass * (star_v**2).sum(1) + 0.5 * 1e-6 * (planet_v**2).sum(1) - G_ * mass * 1e-6 / distance
-    momentum = sum(
-        weight * (position[:, 0] * speed[:, 1] - position[:, 1] * speed[:, 0])
-        for weight, position, speed in ((mass, star, star_v), (1e-6, planet, planet_v))
-    )
-    assert _relative_spread(energy) < 1e-7
-    assert _relative_spread(momentum) < 1e-7
-    crossings = _upward_crossings(trajectory.times, relative[:, 1])
+    period = 2 * math.pi * math.sqrt(axis**3 / (G_ * mass))
+    system = two_body_orbit(eccentricity, G=G_, mass=mass, radius=radius)
+    trajectory = _run(system, 10 * period, period / 100, solver=Yoshida4Solver(dt=period / 4000))
+    x, y, px, py = _series(trajectory, 'planet.x', 'planet.y', 'planet.px', 'planet.py')
+    energy = (px**2 + py**2) / 2 - G_ * mass / np.hypot(x, y)
+    momentum = x * py - y * px
+    assert _relative_spread(energy) < 1e-8
+    assert _relative_spread(momentum) < 1e-8
+    assert np.hypot(x[-1] - x[0], y[-1] - y[0]) / radius < 1e-6
+    crossings = _upward_crossings(trajectory.times, y)
     assert len(crossings) >= 9
-    assert np.diff(crossings).mean() == pytest.approx(period, rel=1e-3)
-    assert np.ptp(np.linalg.norm(velocity, axis=1)) > 0
+    assert np.diff(crossings).mean() == pytest.approx(period, rel=1e-6)
+
+
+def test_kepler_orbit_records_its_energy_within_its_invariant_tolerance():
+    """Test that the default run of the Kepler problem records its energy and passes its invariant check."""
+    trajectory = run('two_body_orbit').trajectory_
+    energy = np.asarray(trajectory.values('planet.energy'), dtype=float)
+    assert np.ptp(energy) < 1e-6
 
 
 def test_figure_eight_returns_after_its_period():
@@ -60,9 +66,22 @@ def test_restricted_three_body_conserves_the_jacobi_constant():
     """Test that the light body in the rotating frame keeps its Jacobi constant."""
     mu = 0.01215
     trajectory = _run(restricted_three_body(mu=mu), 20.0, 0.02)
-    x, y, vx, vy = _series(trajectory, 'body.x', 'body.y', 'body.x_d1', 'body.y_d1')
+    x, y, px, py = _series(trajectory, 'body.x', 'body.y', 'body.px', 'body.py')
+    vx, vy = px + y, py - x
     jacobi = x**2 + y**2 + 2 * (1 - mu) / np.hypot(x + mu, y) + 2 * mu / np.hypot(x - 1 + mu, y) - vx**2 - vy**2
     assert np.ptp(jacobi) < 1e-8
+
+
+def test_restricted_three_body_records_its_hamiltonian_within_its_invariant_tolerance():
+    """Test that the default run of the restricted three-body problem passes its invariant check."""
+    trajectory = run('restricted_three_body').trajectory_
+    assert np.ptp(np.asarray(trajectory.values('body.energy'), dtype=float)) < 1e-6
+
+
+def test_restricted_three_body_admits_no_split_of_the_yoshida_solver():
+    """Test that the Coriolis terms of the rotating frame make the Yoshida solver name a momentum and RK4Solver."""
+    with pytest.raises(SolverError, match=r'rate of body\.p[xy] reads .*body\.p[xy].*RK4Solver'):
+        Yoshida4Solver().check().prepare(compile_system(restricted_three_body()))
 
 
 def test_restricted_three_body_defaults_are_chaotic():

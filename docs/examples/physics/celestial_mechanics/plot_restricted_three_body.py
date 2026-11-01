@@ -8,8 +8,8 @@ quantity of the rotating frame, although at this energy a narrow neck towards th
 
 # %%
 # The mass ratio is that of the Earth and the Moon, `μ = 0.01215`, with the Earth at `x = -μ` and the Moon at
-# `x = 1 - μ`. The default blueprint draws the two primaries
-# and the whole path of the spacecraft in the plane.
+# `x = 1 - μ`. The spacecraft moves under the Hamiltonian of the rotating frame, whose momenta are `p_x = x' - y` and
+# `p_y = y' + x`. The default blueprint draws the two primaries and the whole path of the spacecraft in the plane.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -40,7 +40,8 @@ def effective(x, y):
 
 
 x, y = np.ravel(simulation.trajectory_.values('body.x')), np.ravel(simulation.trajectory_.values('body.y'))
-vx, vy = np.ravel(simulation.trajectory_.values('body.x_d1')), np.ravel(simulation.trajectory_.values('body.y_d1'))
+px, py = np.ravel(simulation.trajectory_.values('body.px')), np.ravel(simulation.trajectory_.values('body.py'))
+vx, vy = px + y, py - x
 jacobi = effective(x, y) - vx**2 - vy**2
 grid_x, grid_y = np.meshgrid(np.linspace(-1.6, 1.6, 400), np.linspace(-1.6, 1.6, 400))
 fig, (plane, drift) = plt.subplots(1, 2, figsize=(10, 4.5))

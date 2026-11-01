@@ -22,7 +22,7 @@
 
 ## 4. Models
 
-- [ ] 4.1 Rebuild `two_body_orbit` and `restricted_three_body` in `models/physics/celestial_mechanics/_orbits.py` on
+- [x] 4.1 Rebuild `two_body_orbit` and `restricted_three_body` in `models/physics/celestial_mechanics/_orbits.py` on
   `HamiltonianInteraction`, with their Hamiltonian observables and `invariants` defaults, keeping `n_body` and the
   Sitnikov problem as they are; verify the Kepler scenario and the model tests
 - [ ] 4.2 Rebuild `henon_heiles` on `HamiltonianInteraction`, with `HenonHeilesElement` declaring `x`, `y`, `px`, and
