@@ -51,6 +51,16 @@ counting only the radii of the highest priority that hold a neighbour, then a `C
 norm; `combine(agent, model, reduction, priority)` defaults to `v + reduction`. Winners take all, LEGION, the power
 grid lines, the contour cell, boids, and the Couzin model run on it.
 
+### Transfers along edges (1.3)
+
+`TransferInteraction` gains `offset` (every member transfers to the member `offset` places along the group order),
+`boundary` (`'periodic'` or `'fixed'`), and `reverse_rate` (jumps back, reported as `<flow>_reverse`); a symbolic leg
+end `'<role>.<state>'` names a state of any role, and subclasses with other role names give their pairs through
+`_get_holders`. A draw inside `shift_member` reads the draw of the member at the offset, so both ends of an edge share
+one draw. Flow reporters of drawn amounts record the expected amount. The zero-range, exclusion, reservoir, and TASEP
+processes, the beer game, and the stock-flow consistent economy run on it; the economics subclasses still add their
+own rate and update laws next to their transfer legs.
+
 ### Gallery budget (2.7)
 
 Pair reductions that factor into member and other-member parts lower to one linear reduction per part, and class
