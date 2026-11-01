@@ -221,13 +221,19 @@ class VectorElement(Element):
 
 
 @pytest.mark.parametrize(
-    ('mode', 'expected'), [('replace', [[2.0, 4.0], [6.0, 8.0]]), ('increment', [[3.0, 6.0], [9.0, 12.0]])]
+    ('mode', 'expected'),
+    [('replace', [[2.0, 4.0], [6.0, 8.0]]), ('increment', [[3.0, 6.0], [9.0, 12.0]])],
 )
 def test_agent_map_sets_a_vector_state(mode, expected):
     """Test that an agent map whose function returns an array replaces or increments a vector state."""
     group = GroupElement('vectors', element=VectorElement, size=2, values={'w': [[1.0, 2.0], [3.0, 4.0]]})
     doubling = MapInteraction(
-        'map', target='vectors', state='w', function=lambda a, m: 2 * np.asarray(a.w), mode=mode, form='agent'
+        'map',
+        target='vectors',
+        state='w',
+        function=lambda a, m: 2 * np.asarray(a.w),
+        mode=mode,
+        form='agent',
     )
     system = System(elements=[group], interactions=[doubling], time=DiscreteTime())
     trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
