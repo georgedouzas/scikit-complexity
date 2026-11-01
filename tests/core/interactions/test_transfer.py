@@ -521,7 +521,7 @@ def test_transfer_offset_moves_nothing_past_a_fixed_boundary():
 
 
 def test_transfer_offset_shares_one_draw_per_edge():
-    """Test that the two ends of every edge read one draw, so every unit that leaves a member enters the next."""
+    """Test that both ends of an edge read one draw, so units are kept and hop at the current of a parallel TASEP."""
     cells = GroupElement('cells', element=StockElement, size=50, values={'level': np.tile([1.0, 0.0], 25)})
     hops = TransferInteraction(
         'hops',
@@ -537,7 +537,8 @@ def test_transfer_offset_shares_one_draw_per_edge():
     levels = np.asarray(trajectory.values('cells.level'))
     assert set(np.unique(levels)) == {0.0, 1.0}
     assert set(levels.sum(axis=1)) == {25.0}
-    assert np.asarray(trajectory.values('cells.hops')).mean() == pytest.approx(0.25 * 0.5, rel=0.3)
+    current = (1 - np.sqrt(1 - 4 * 0.5 * 0.5 * 0.5)) / 2
+    assert np.asarray(trajectory.values('cells.hops'))[25:].mean() == pytest.approx(current, rel=0.2)
 
 
 def test_transfer_reverse_rate_returns_units_to_the_environment():

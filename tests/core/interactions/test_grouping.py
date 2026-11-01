@@ -205,6 +205,11 @@ def _weighted(group: SimpleNamespace) -> object:
     return group.member.s * total(group.members.s, over=group.members)
 
 
+def _stream(seed: int = 0) -> np.random.Generator:
+    """Return the generator a simulation with a seed hands its solver."""
+    return np.random.default_rng(np.random.SeedSequence(seed).spawn(1)[0])
+
+
 def _symbolic_run(system: System, until: int, backend: BaseBackend, seed: int = 0) -> np.ndarray:
     """Return the opinions of the voters at every frame of a run of a symbolic grouping."""
     simulation = Simulation(system, random_state=seed, backend=backend).check().prepare().run(until=until)
@@ -217,7 +222,7 @@ def test_get_laws_symbolic_partitions_set_every_group_to_its_majority(backend):
     opinions = np.random.default_rng(1).integers(0, 2, 30).astype(float)
     galam = _symbolic('partition', _majority, size=3)
     values = _symbolic_run(System(elements=[_voters({'s': opinions}, 30)], interactions=[galam]), 1, backend)
-    groups = np.random.default_rng(0).permutation(30).reshape(10, 3)
+    groups = _stream().permutation(30).reshape(10, 3)
     expected = np.repeat((opinions[groups].sum(axis=1) >= 2).astype(float), 3)
     assert values[1][groups.ravel()].tolist() == expected.tolist()
 
@@ -237,7 +242,7 @@ def test_get_laws_symbolic_pairs_leave_an_odd_member_unchanged(backend):
     """Test that the members of a pair take the total of the pair and the odd member out keeps its value."""
     voters = _voters({'s': [1.0, 2.0, 3.0, 4.0, 5.0]}, 5)
     values = _symbolic_run(System(elements=[voters], interactions=[_symbolic('pairs', _total)]), 1, backend)
-    order = np.random.default_rng(0).permutation(5)
+    order = _stream().permutation(5)
     expected = np.arange(1.0, 6.0)
     for first, second in order[:4].reshape(2, 2):
         expected[[first, second]] = first + second + 2

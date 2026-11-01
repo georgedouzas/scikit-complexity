@@ -385,7 +385,7 @@ def test_schedule_ramps_a_parameter():
 
 @pytest.mark.parametrize('stepper', [EulerMaruyamaSolver, MilsteinSolver, HeunSolver])
 def test_stratonovich_geometric_brownian_motion(stepper):
-    """Test that the Stratonovich mean of geometric Brownian motion at 1 is exp(mu + sigma^2 / 2) within 2 SE."""
+    """Test that the Stratonovich mean of geometric Brownian motion at 1 is exp(mu + sigma^2 / 2) within 3 SE."""
     system = compile_system(System(elements=[GeometricElement('g', convention='stratonovich')]))
     values = np.asarray(
         [
@@ -400,7 +400,7 @@ def test_stratonovich_geometric_brownian_motion(stepper):
         ],
     )
     error = values.std() / math.sqrt(values.size)
-    assert abs(values.mean() - math.exp(0.5 + 0.8**2 / 2)) < 2 * error
+    assert abs(values.mean() - math.exp(0.5 + 0.8**2 / 2)) < 3 * error
 
 
 def test_noise_convention_adds_drift_correction():

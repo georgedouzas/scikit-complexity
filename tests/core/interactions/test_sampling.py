@@ -76,15 +76,24 @@ def test_gaussian_moves_sample_the_boltzmann_distribution():
 
 
 def test_function_moves_propose_the_values_it_returns():
-    """Test that a function move that proposes random spins samples the ordered Ising phase too."""
+    """Test that a function move that proposes random spins keeps the ordered Ising phase and melts it above Tc."""
 
     def redraw(values, rng):
         return rng.choice([-1.0, 1.0], values.size)
 
-    sampling = SamplingInteraction('ising', target='sites', state='s', energy=_ising, move=redraw, temperature=1.0)
-    final = _final(sampling, 300, _spins())
-    assert set(np.unique(final)) <= {-1.0, 1.0}
-    assert abs(final.mean()) > 0.9
+    cold, hot = (
+        _final(
+            SamplingInteraction(
+                'ising', target='sites', state='s', energy=_ising, move=redraw, temperature=temperature
+            ),
+            100,
+            np.ones(SIDE * SIDE),
+        )
+        for temperature in (1.0, 5.0)
+    )
+    assert set(np.unique(cold)) | set(np.unique(hot)) <= {-1.0, 1.0}
+    assert abs(cold.mean()) > 0.9
+    assert abs(hot.mean()) < 0.3
 
 
 def _magnetization(move, temperature, seed):

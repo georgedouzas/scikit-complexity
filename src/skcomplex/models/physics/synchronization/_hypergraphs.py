@@ -148,7 +148,7 @@ def hypergraph_kuramoto(
     mean_links = max(PAIR * sizes.count(PAIR) / n_oscillators, 1.0)
     mean_triangles = max(3 * sizes.count(3) / n_oscillators, 1.0)
     rng = np.random.default_rng(seed + 1)
-    omega = stats.cauchy.ppf(rng.uniform(size=n_oscillators), scale=width)
+    omega = width * stats.cauchy.ppf(rng.uniform(size=n_oscillators))
     theta = rng.uniform(0, 2 * math.pi, n_oscillators) if phases is None else np.asarray(phases, dtype=float)
     oscillators = LatticeElement(
         'oscillators',

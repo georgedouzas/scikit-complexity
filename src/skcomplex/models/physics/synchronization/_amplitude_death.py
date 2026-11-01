@@ -111,7 +111,7 @@ def _frequency_quantiles(size: int, width: float, distribution: str) -> np.ndarr
     """Return the midpoint quantiles of a Lorentzian or quartic density of frequencies of a given width."""
     levels = (np.arange(size) + 1 / 2) / size
     if distribution == 'lorentzian':
-        return np.asarray(stats.cauchy.ppf(levels, scale=width))
+        return width * stats.cauchy.ppf(levels)
     if distribution == 'quartic':
         grid = np.tan(np.linspace(-math.pi / 2, math.pi / 2, QUANTILE_GRID_SIZE)[1:-1])
         return width * np.interp(levels, _quartic_cumulative(grid), grid)

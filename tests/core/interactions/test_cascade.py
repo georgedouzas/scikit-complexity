@@ -23,6 +23,7 @@ from skcomplex.specs import StateSpec, VisualSpec
 SIDE = 50
 STEPS = 12000
 TRANSIENT = 4000
+RUNS = 100
 
 
 class SiteElement(Element):
@@ -46,14 +47,14 @@ def _drop(values, *, random):
     return following
 
 
-def _run(space, heights, threshold, until, **arguments):
+def _run(space, heights, threshold, until, seed=0, **arguments):
     """Return a simulation of a cascade over the sites of a space, run for some steps."""
     system = System(
         elements=[LatticeElement('sites', element=SiteElement, space=space, values={'height': heights})],
         interactions=[CascadeInteraction('cascade', target='sites', state='height', threshold=threshold, **arguments)],
         time=DiscreteTime(),
     )
-    return Simulation(system, dt=until, random_state=0).check().prepare().run(until=until)
+    return Simulation(system, dt=until, random_state=seed).check().prepare().run(until=until)
 
 
 def test_sandpile_avalanches_follow_a_power_law_over_two_decades():
@@ -107,17 +108,20 @@ def test_reset_passes_a_fraction_of_the_relaxed_state_to_the_neighbours():
 
 
 def test_random_mode_passes_parcels_to_random_neighbours():
-    """Test that in the mode random a relaxing site sends its parcels to random neighbours, keeping them inside."""
+    """Test that in the mode random a relaxing site sends each parcel to a random neighbour, keeping them inside."""
     heights = np.zeros((9, 9))
     heights[4, 4] = 2.0
-    simulation = _run(LatticeSpace((9, 9), boundary='fixed'), heights.ravel(), 2, 1, share=1, mode='random')
-    following = simulation.state_.reshape(9, 9)
-    neighbours = following[[3, 5, 4, 4], [4, 4, 3, 5]]
-    assert following.sum() == 2.0
-    assert following[4, 4] == 0.0
-    assert neighbours.sum() == 2.0
-    (event,) = simulation.trajectory_.events
-    assert (event.size, event.duration) == (1, 1)
+    single = 0
+    for seed in range(RUNS):
+        simulation = _run(LatticeSpace((9, 9), boundary='fixed'), heights.ravel(), 2, 1, seed, share=1, mode='random')
+        following = simulation.state_.reshape(9, 9)
+        (event,) = simulation.trajectory_.events
+        assert following.sum() == 2.0
+        if event.size == 1:
+            single += 1
+            assert following[4, 4] == 0.0
+            assert sorted(following[[3, 5, 4, 4], [4, 4, 3, 5]].tolist()) == [0.0, 0.0, 1.0, 1.0]
+    assert single / RUNS == pytest.approx(3 / 4, abs=3 * np.sqrt(3 / 16 / RUNS))
 
 
 def test_random_mode_drives_a_stochastic_sandpile_to_a_stationary_density():

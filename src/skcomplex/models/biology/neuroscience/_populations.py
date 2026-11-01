@@ -26,7 +26,7 @@ from ..._catalog import register_model
 def _lorentzian_quantiles(center: float, width: float, size: int) -> list[float]:
     """Return evenly spaced quantiles of a Lorentzian distribution."""
     levels = (np.arange(size) + 0.5) / size
-    return [float(value) for value in stats.cauchy.ppf(levels, loc=center, scale=width)]
+    return [float(value) for value in center + width * stats.cauchy.ppf(levels)]
 
 
 def _response(x: Expression, gain: Expression, threshold: Expression) -> Expression:
