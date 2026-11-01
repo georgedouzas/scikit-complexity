@@ -8,7 +8,7 @@
 - [ ] 1.4 Add phases of N visits drawn with replacement to the agent forms, with reinforcement of the chosen option only, and births whose probability reads the composition; rebuild the perishables market and tangled nature; verify each over 20 seeds.
 - [ ] 1.5 Add the agent form of `CouplingInteraction` over several radii with priorities and clamps; rebuild boids and the Couzin model; verify each over 20 seeds.
 - [ ] 1.6 Let agent rules read observable history; remove the reporter-only feedback interactions of El Farol and the other models that only report; verify their tests.
-- [ ] 1.7 Let experiments replicate systems that hold interactions; rebuild the named maps and flows of the orbit diagrams on `MapInteraction` and `RateInteraction`; verify the orbit-diagram tests and docs.
+- [x] 1.7 Let experiments replicate systems that hold interactions; rebuild the named maps and flows of the orbit diagrams on `MapInteraction` and `RateInteraction`; verify the orbit-diagram tests and docs.
 
 ## 2. Rebuilds the core already allows
 

@@ -42,6 +42,13 @@ A model whose draws change is compared over 20 seeds against its previous trajec
   hand-kept clock. The model docstring states the convention and its tests take the new trajectory; the agent model
   still matches its compartment model within the existing tolerance.
 
+### Experiments replicate interactions (1.7)
+
+`BaseExperiment._replicate` accepts plain single elements with their interactions: the replicated system holds shallow
+copies of the interactions, which bind members by index. Per-member values apply to element states and parameters
+only, so sweeping a parameter that lives on an interaction keeps the non-vectorized path. `Trajectory.member` copies
+entries whose size is the same in the replicated and the original problem.
+
 ## Migration Plan
 
 Work on `development`, with parallel agents on disjoint packages merging back as they report.
