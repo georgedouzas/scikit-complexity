@@ -17,7 +17,7 @@ from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.errors import ValidationError
-from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class MassPointElement(PointElement):
@@ -50,6 +50,26 @@ class WalkerElement(Element):
         super().__init__(label, visual=visual)
         self.y = y
         self.phase = phase
+
+
+class BondPairInteraction(PairCouplingInteraction):
+    """Pair coupling that binds its members as `left` and `right`."""
+
+    def __init__(
+        self,
+        label: str,
+        left: Annotated[str, RoleSpec()],
+        right: Annotated[str, RoleSpec()],
+        cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        **arguments: object,
+    ) -> None:
+        super().__init__(label, left, right, cutoff=cutoff, **arguments)
+        self.left = left
+        self.right = right
+
+    def _get_role(self, role: str) -> str:
+        """Return `left` for the first member and `right` for the second."""
+        return {'first': 'left', 'second': 'right'}.get(role, role)
 
 
 def _morse(namespace, r):
@@ -206,3 +226,48 @@ def test_check_rejects_a_potential_of_several_states():
     """Test that `check` rejects a potential with several states to write."""
     with pytest.raises(ValidationError, match='one state'):
         PairCouplingInteraction('pair', 'gas', 'gas', write=('x', 'v'), potential=_soft).check()
+
+
+def test_get_laws_reads_renamed_pair_members():
+    """Test that a pair coupling that binds `left` and `right` gives the rates of the plain pair coupling."""
+    group = GroupElement(
+        'pair',
+        element=MassPointElement,
+        size=2,
+        values={'x': [[0.0, 0.0], [1.2, 0.9]], 'm': [1.0, 2.0]},
+    )
+    walkers = GroupElement(
+        'walkers',
+        element=WalkerElement,
+        size=2,
+        values={'y': [[0.0, 0.0], [0.5, 0.0]], 'phase': [0.0, 1.0]},
+    )
+    rates = []
+    for interactions in (
+        [
+            PairCouplingInteraction('morse', 'pair', 'pair', cutoff=3.0, potential=_morse, divisor='m'),
+            PairCouplingInteraction(
+                'sync',
+                'walkers',
+                'walkers',
+                position='y',
+                write='phase',
+                function=lambda s: sin(s.second.phase - s.first.phase),
+            ),
+        ],
+        [
+            BondPairInteraction('morse', 'pair', 'pair', cutoff=3.0, potential=_morse, divisor='m'),
+            BondPairInteraction(
+                'sync',
+                'walkers',
+                'walkers',
+                position='y',
+                write='phase',
+                function=lambda s: sin(s.right.phase - s.left.phase),
+            ),
+        ],
+    ):
+        system = System(elements=[group, walkers], interactions=interactions, space=ContinuousSpace(n_dim=2))
+        rates.append(np.concatenate([_rates(system, 'pair.x_d1').ravel(), _rates(system, 'walkers.phase').ravel()]))
+    np.testing.assert_allclose(rates[1], rates[0])
+    assert np.abs(rates[0]).sum() > 0

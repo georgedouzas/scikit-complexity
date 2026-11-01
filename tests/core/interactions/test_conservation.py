@@ -12,7 +12,7 @@ from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
-from skcomplex.specs import ParameterSpec, StateSpec
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
 
 CELLS = 64
 
@@ -31,6 +31,18 @@ class BurgersElement(CellElement):
     def _get_laws(self, s):
         """Return the Burgers flux."""
         return [FluxLaw(s.u, s.u**2 / 2)]
+
+
+class WireConservationInteraction(ConservationInteraction):
+    """Conservation law that binds its field as `wire`."""
+
+    def __init__(self, label: str, *, wire: Annotated[str, RoleSpec()], **arguments: object) -> None:
+        super().__init__(label, target=wire, **arguments)
+        self.wire = wire
+
+    def _get_role(self, role: str) -> str:
+        """Return `wire` for the target."""
+        return 'wire' if role == 'target' else role
 
 
 def _run(element, *interactions):
@@ -160,3 +172,22 @@ def test_run_without_numerical_flux_takes_the_divergence_on_a_spectral_field():
     trajectory = simulation.run(until=1.0).trajectory_.values('line.u')
     assert trajectory[-1].sum() == pytest.approx(trajectory[0].sum(), abs=1e-9)
     assert not np.allclose(trajectory[-1], trajectory[0])
+
+
+def test_get_laws_reads_a_renamed_target():
+    """Test that a conservation law that binds its field as `wire` gives the trajectory of the plain one."""
+    plain = ConservationInteraction(
+        'burgers',
+        target='line',
+        state='u',
+        flux=lambda s: s.target.u**2 / 2,
+        source=lambda s: 0.1,
+    )
+    renamed = WireConservationInteraction(
+        'burgers',
+        wire='line',
+        state='u',
+        flux=lambda s: s.wire.u**2 / 2,
+        source=lambda s: 0.1,
+    )
+    np.testing.assert_allclose(_run(CellElement, renamed), _run(CellElement, plain))

@@ -1,5 +1,7 @@
 """Test the `_encounter` module of `skcomplex.core.interactions`."""
 
+from typing import Annotated
+
 import numpy as np
 import pytest
 
@@ -9,8 +11,29 @@ from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
+from skcomplex.specs import RoleSpec
 
 CLASSES = 3
+
+
+class MeetingInteraction(EncounterInteraction):
+    """Encounter that binds its candidates as `walkers` and its field as `medium`."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        walkers: Annotated[str, RoleSpec()],
+        medium: Annotated[str, RoleSpec()],
+        **arguments: object,
+    ) -> None:
+        super().__init__(label, candidate=walkers, field=medium, **arguments)
+        self.walkers = walkers
+        self.medium = medium
+
+    def _get_role(self, role: str) -> str:
+        """Return `walkers` for the candidate and `medium` for the field."""
+        return {'candidate': 'walkers', 'field': 'medium'}.get(role, role)
 
 
 def _densities(encounter, until, initial=(0.2, 0.3, 0.5)):
@@ -81,3 +104,13 @@ def test_check_rejects_outcomes_and_functions_it_cannot_take(arguments, match):
     """Test that an unknown outcome, a rate that is not callable, or a conservative move without kernel raise errors."""
     with pytest.raises(ValidationError, match=match):
         EncounterInteraction('encounter', candidate='candidates', field='field', **arguments).check()
+
+
+def test_get_laws_reads_renamed_candidate_and_field():
+    """Test that an encounter that binds `walkers` and `medium` gives the densities of the plain encounter."""
+    kernel = np.zeros((CLASSES, 1, CLASSES))
+    kernel[:, :, 0] = 1.0
+    arguments = {'rate': lambda s: 1.0, 'kernel': lambda s: kernel}
+    _, plain = _densities(EncounterInteraction('gather', candidate='candidates', field='field', **arguments), 2.0)
+    _, renamed = _densities(MeetingInteraction('gather', walkers='candidates', medium='field', **arguments), 2.0)
+    np.testing.assert_allclose(renamed, plain)

@@ -11,7 +11,7 @@ from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
-from skcomplex.specs import StateSpec
+from skcomplex.specs import RoleSpec, StateSpec
 
 CELLS, SPACING, COEFFICIENT, WIDTH, UNTIL = 200, 0.1, 0.5, 1.0, 2.0
 
@@ -22,6 +22,18 @@ class CellElement(Element):
     def __init__(self, label: str, *, u: Annotated[object, StateSpec()] = 0.0) -> None:
         super().__init__(label)
         self.u = u
+
+
+class RodDiffusionInteraction(DiffusionInteraction):
+    """Diffusion that binds its field as `rod`."""
+
+    def __init__(self, label: str, *, rod: Annotated[str, RoleSpec()], **arguments: object) -> None:
+        super().__init__(label, target=rod, **arguments)
+        self.rod = rod
+
+    def _get_role(self, role: str) -> str:
+        """Return `rod` for the target."""
+        return 'rod' if role == 'target' else role
 
 
 def _gaussian(positions, variance):
@@ -46,3 +58,18 @@ def test_check_rejects_a_coefficient_that_is_not_a_function():
     """Test that `check` rejects a coefficient that is neither callable nor a number."""
     with pytest.raises(ValidationError, match='coefficient'):
         DiffusionInteraction('heat', target='rod', coefficient='fast').check()
+
+
+def test_get_laws_reads_a_renamed_target():
+    """Test that a diffusion that binds its field as `rod` gives the trajectory of the plain diffusion."""
+    positions = np.arange(CELLS) * SPACING
+    space = LatticeSpace((CELLS,), spacing=SPACING, boundary='periodic')
+    field = FieldElement('bar', element=CellElement, space=space, values={'u': _gaussian(positions, WIDTH**2)})
+    values = []
+    for heat in (
+        DiffusionInteraction('heat', target='bar', state='u', coefficient=lambda s: COEFFICIENT),
+        RodDiffusionInteraction('heat', rod='bar', state='u', coefficient=lambda s: COEFFICIENT),
+    ):
+        simulation = Simulation(System(elements=[field], interactions=[heat]), dt=0.5)
+        values.append(simulation.check().prepare().run(until=1.0).trajectory_.values('bar.u'))
+    np.testing.assert_allclose(values[1], values[0])

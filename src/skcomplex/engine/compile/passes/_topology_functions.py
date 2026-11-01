@@ -245,7 +245,7 @@ class TopologyFunctionsPass(BasePass):
     def _request_network(spec: KernelSpec, declarations: DeclarationsSpec) -> tuple[object, str]:
         """Return the network a request of a spec changes and the rows the spec runs on."""
         if isinstance(spec.pairs, EdgeSearch):
-            source = spec.roles['source']
+            source = spec.roles[declarations.blocks[spec.owner].node.component._get_role('source')]
             if not isinstance(source, str):
                 error_msg = f'The source role of {spec.owner} binds several groups, not the nodes of one network.'
                 raise ValidationError(error_msg)

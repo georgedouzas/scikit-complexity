@@ -10,6 +10,7 @@ from skcomplex.core.elements import GroupElement, LatticeElement
 from skcomplex.core.interactions import (
     BaseInteraction,
     ChoiceInteraction,
+    CouplingInteraction,
     CrossingInteraction,
     ImitationInteraction,
     ImpulseInteraction,
@@ -81,6 +82,22 @@ AGENTS = {
     'imitation': (ImitationInteraction, {'state': 'x', 'payoff': 'x', 'probability': 0.5}),
 }
 
+AGENT_ALIASES = {
+    'choice-intensity': ('choice', 'intensity', 2.0),
+    'choice-activity': ('choice', 'activity', 0.5),
+    'reinforcement-rate': ('reinforcement', 'rate', 0.3),
+    'reaction-k': ('reaction', 'k', 0.4),
+    'imitation-probability': ('imitation', 'probability', 0.5),
+}
+SYMBOLIC_ALIASES = {
+    'choice-intensity': (ChoiceInteraction, 'intensity', 2.0, RENAMED['choice'][1]('target'), True),
+    'choice-activity': (ChoiceInteraction, 'activity', 0.5, RENAMED['choice'][1]('target'), True),
+    'reinforcement-rate': (ReinforcementInteraction, 'rate', 0.3, RENAMED['reinforcement'][1]('target'), True),
+    'sampling-temperature': (SamplingInteraction, 'temperature', 2.0, RENAMED['sampling'][1]('target'), True),
+    'reaction-k': (ReactionInteraction, 'k', 0.4, {'reactants': {'x': 1}, 'products': {}}, False),
+    'coupling-lag': (CouplingInteraction, 'lag', 0.3, {'read': 'x', 'write': 'x'}, False),
+}
+
 
 class GrowthInteraction(BaseInteraction):
     """Interaction with a role and a parameter."""
@@ -105,6 +122,32 @@ def _get_fixed(interaction):
             super().__init__(label, target=target, **arguments)
 
     return FixedInteraction
+
+
+def _get_aliased(interaction):
+    """Return a subclass of a general interaction that reads one parameter under the parameter `alias`."""
+
+    class AliasInteraction(interaction):
+        """Interaction that reads a renamed parameter as `alias`."""
+
+        def __init__(
+            self,
+            label,
+            *,
+            target: Annotated[str, RoleSpec()],
+            renamed: str,
+            alias: Annotated[float, ParameterSpec()],
+            **arguments,
+        ):
+            super().__init__(label, target=target, **arguments)
+            self.renamed = renamed
+            self.alias = alias
+
+        def _get_parameter(self, name):
+            """Return `alias` for the renamed parameter."""
+            return 'alias' if name == self.renamed else name
+
+    return AliasInteraction
 
 
 def _run_agents(interaction):
@@ -218,3 +261,22 @@ def test_get_parameter_value_reads_the_attributes_of_undeclared_parameters(name)
     plain = _run_agents(interaction(name, target='nodes', form='agent', **arguments))
     fixed = _run_agents(_get_fixed(interaction)(name, target='nodes', form='agent', **arguments))
     np.testing.assert_array_equal(fixed, plain)
+
+
+@pytest.mark.parametrize('case', AGENT_ALIASES)
+def test_get_parameter_value_reads_a_renamed_parameter_in_the_agent_form(case):
+    """Test that the agent form of a subclass that reads a parameter as `alias` runs as the plain interaction."""
+    name, parameter, value = AGENT_ALIASES[case]
+    interaction, arguments = AGENTS[name]
+    plain = _run_agents(interaction(name, target='nodes', form='agent', **{**arguments, parameter: value}))
+    aliased = _get_aliased(interaction)(name, target='nodes', form='agent', renamed=parameter, alias=value, **arguments)
+    np.testing.assert_array_equal(_run_agents(aliased), plain)
+
+
+@pytest.mark.parametrize('case', SYMBOLIC_ALIASES)
+def test_get_parameter_symbol_reads_a_renamed_parameter_in_the_symbolic_form(case):
+    """Test that the symbolic form of a subclass that reads a parameter as `alias` gives the plain trajectory."""
+    interaction, parameter, value, arguments, discrete = SYMBOLIC_ALIASES[case]
+    plain = _run_nodes(interaction(case, target='nodes', **{**arguments, parameter: value}), discrete)
+    aliased = _get_aliased(interaction)(case, target='nodes', renamed=parameter, alias=value, **arguments)
+    np.testing.assert_allclose(_run_nodes(aliased, discrete), plain)

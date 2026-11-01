@@ -364,7 +364,7 @@ class TransferInteraction(Interaction):
     def _get_owner(self) -> str:
         """Return the path of the element or group the source and target roles both bind, or the empty string."""
         roles = self._get_specs()
-        bound = isinstance(roles.get('source'), RoleSpec) and isinstance(roles.get('target'), RoleSpec)
+        bound = all(isinstance(roles.get(self._get_role(role)), RoleSpec) for role in ('source', 'target'))
         return self.source if bound and self.source == self.target else ''
 
     def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:

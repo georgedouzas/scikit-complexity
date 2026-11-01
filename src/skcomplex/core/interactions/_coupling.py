@@ -289,7 +289,7 @@ class CouplingInteraction(NeighborInteraction):
                 f'the mode is {self.mode!r}.'
             )
             raise ValidationError(error_msg)
-        if self.mode == 'hyperedges' and (self.include_self or self.delay != 0 or self.form == 'agent'):
+        if self.mode == 'hyperedges' and (self.include_self or self._is_nonzero('delay') or self.form == 'agent'):
             error_msg = (
                 'The coupling over hyperedges takes no include_self, no delay, and no agent form. Couple the member '
                 'to itself with another interaction.'
@@ -355,14 +355,18 @@ class CouplingInteraction(NeighborInteraction):
         """Return whether a reduction over the own group leaves the member out."""
         return self.source is None and not self.include_self
 
+    def _is_nonzero(self, name: str) -> bool:
+        """Return whether a parameter, read under the name `_get_parameter` returns, has a value other than 0."""
+        return bool(getattr(self, self._get_parameter(name)) != 0)
+
     def _is_per_edge(self) -> bool:
         """Return whether the coupling is a rate written once per edge of a lattice or network."""
         return self.mode == 'edges' and self.form == 'rate' and self.neighborhood is None and self.reduce in SUMS
 
-    @staticmethod
-    def _parameters(namespace: SimpleNamespace) -> dict[str, object]:
+    def _parameters(self, namespace: SimpleNamespace) -> dict[str, object]:
         """Return the parameters and the time of a namespace, without the ends and the edge."""
-        return {name: value for name, value in vars(namespace).items() if name not in {*ENDS, 'edge'}}
+        ends = {self._get_role(end) for end in (*ENDS, 'edge')}
+        return {name: value for name, value in vars(namespace).items() if name not in ends}
 
     def _get_term(
         self,
@@ -373,9 +377,9 @@ class CouplingInteraction(NeighborInteraction):
     ) -> Target:
         """Return the term of one other member, with the delay and the lag applied to the read state."""
         member_values, other_values = dict(vars(member)), dict(vars(other))
-        if self.delay != 0:
+        if self._is_nonzero('delay'):
             other_values[self.read] = delayed(other_values[self.read], self._get_parameter_symbol('delay', namespace))
-        if self.lag != 0:
+        if self._is_nonzero('lag'):
             member_values[self.read] = member_values[self.read] + self._get_parameter_symbol('lag', namespace)
         if self.function is None:
             return other_values[self.read] - member_values[self.read]
@@ -459,7 +463,7 @@ class CouplingInteraction(NeighborInteraction):
 
     def _get_group_total(self, namespace: SimpleNamespace, part: Part) -> Target:
         """Return the sum of a part of the weighted term over the other members of the group."""
-        source, target = namespace.source, namespace.target
+        source, target = getattr(namespace, self._get_role('source')), self._get_member(namespace, 'target')
         matrix = self._get_matrix(namespace)
         value, weight = self._get_term(namespace, target, source), self._get_weight(namespace, target, source)
         reduction = self._map(part(value, weight), lambda item: total(item, over=source, weights=matrix))
@@ -494,8 +498,8 @@ class CouplingInteraction(NeighborInteraction):
                 'A matrix of weights of coupling needs groups. Give the weights of separate elements as a callable.'
             )
             raise ValidationError(error_msg)
-        target = namespace.target
-        others = [*namespace.source, *([target] if self.include_self else [])]
+        target = self._get_member(namespace, 'target')
+        others = [*getattr(namespace, self._get_role('source')), *([target] if self.include_self else [])]
         pairs = [
             (self._get_term(namespace, target, other), self._get_weight(namespace, target, other)) for other in others
         ]
@@ -509,7 +513,7 @@ class CouplingInteraction(NeighborInteraction):
 
     def _get_group_reduction(self, namespace: SimpleNamespace) -> Target:
         """Return the reduction over every other member of the group, or every member of the source group."""
-        source, target = namespace.source, namespace.target
+        source, target = getattr(namespace, self._get_role('source')), self._get_member(namespace, 'target')
         if isinstance(source, tuple):
             return self._get_separate_reduction(namespace)
         if self.reduce in EXTREMES:
@@ -521,7 +525,7 @@ class CouplingInteraction(NeighborInteraction):
 
     def _get_next_reduction(self, namespace: SimpleNamespace) -> Target:
         """Return the reduction over the next member of the group."""
-        target = namespace.target
+        target = self._get_member(namespace, 'target')
         shifted = self._shifted(target)
         reduction = self._get_term(namespace, target, shifted) * self._get_weight(namespace, target, shifted)
         if self.include_self:
@@ -531,14 +535,14 @@ class CouplingInteraction(NeighborInteraction):
 
     def _get_neighbor_total(self, namespace: SimpleNamespace, part: Part) -> Target:
         """Return the sum of a part of the weighted term over the neighbours and the member itself."""
-        source, target = namespace.source, namespace.target
+        source, target = getattr(namespace, self._get_role('source')), self._get_member(namespace, 'target')
         value, weight = self._get_term(namespace, target, source), self._get_weight(namespace, target, source)
         reduction = self._map(part(value, weight), lambda item: neighbors(item, over=self.neighborhood))
         return reduction + part(self._get_term(namespace, target, target), self._get_weight(namespace, target, target))
 
     def _get_neighbor_reduction(self, namespace: SimpleNamespace) -> Target:
         """Return the reduction over the neighbours of the member."""
-        source, target = namespace.source, namespace.target
+        source, target = getattr(namespace, self._get_role('source')), self._get_member(namespace, 'target')
         term = self._get_term(namespace, target, source)
         weight = self._get_weight(namespace, target, source) if callable(self.weights) else None
         if not self.include_self:
@@ -557,7 +561,7 @@ class CouplingInteraction(NeighborInteraction):
     def _get_hyperedge_term(self, namespace: SimpleNamespace, around: SimpleNamespace) -> Target:
         """Return the term of one hyperedge around a member, with the lag applied to the read state of the member."""
         member = around.member
-        if self.lag != 0:
+        if self._is_nonzero('lag'):
             lag = self._get_parameter_symbol('lag', namespace)
             member = SimpleNamespace(**{**vars(member), self.read: getattr(member, self.read) + lag})
         if self.function is None:
@@ -582,7 +586,7 @@ class CouplingInteraction(NeighborInteraction):
             ValidationError:
                 The members live on no network with hyperedges.
         """
-        target = namespace.target
+        target = self._get_member(namespace, 'target')
         others, members = getattr(target, 'others', None), getattr(target, 'members', None)
         if others is None or members is None:
             error_msg = (
@@ -611,7 +615,7 @@ class CouplingInteraction(NeighborInteraction):
 
     def _get_edge_term(self, namespace: SimpleNamespace, member: SimpleNamespace, other: SimpleNamespace) -> Target:
         """Return the term one end of an edge gets from the other end, weighted and divided for a mean."""
-        edge = getattr(namespace, 'edge', None)
+        edge = getattr(namespace, self._get_role('edge'), None)
         term = self._get_term(namespace, member, other, edge)
         if isinstance(self.weights, str):
             term = term * getattr(edge, self.weights)
@@ -623,7 +627,7 @@ class CouplingInteraction(NeighborInteraction):
 
     def _get_edge_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rates of both ends of an edge, with the rate of the member itself when it is included."""
-        source, target = namespace.source, namespace.target
+        source, target = getattr(namespace, self._get_role('source')), self._get_member(namespace, 'target')
         laws: list[BaseLaw] = [
             RateLaw(getattr(target, self._get_written()), self._get_edge_term(namespace, target, source)),
             RateLaw(getattr(source, self._get_written()), self._get_edge_term(namespace, source, target)),
@@ -724,7 +728,7 @@ class CouplingInteraction(NeighborInteraction):
             return [RuleLaw(self._update_member, phase=self.phase, members=self._get_role('target'))]
         if self._is_per_edge():
             return self._get_edge_laws(namespace)
-        target = namespace.target
+        target = self._get_member(namespace, 'target')
         reduction = self._get_reduction(namespace)
         if self.form == 'rate':
             return [RateLaw(getattr(target, self._get_written()), reduction)]

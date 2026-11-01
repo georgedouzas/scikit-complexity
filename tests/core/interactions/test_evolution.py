@@ -14,7 +14,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.engine.solvers import AgentView, ModelView
 from skcomplex.errors import ValidationError
-from skcomplex.specs import PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 
 NEUTRAL_RUNS = 100
 
@@ -69,6 +69,27 @@ class BitStringElement(Element):
     def score(self, agent: BitStringView, model: ModelView) -> None:
         """Set the fitness to the count of ones."""
         agent.fitness = float(np.sum(agent.strategy))
+
+
+class AliasEvolutionInteraction(EvolutionInteraction):
+    """Evolution that reads one of its probabilities under the parameter `alias`."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        renamed: str,
+        alias: Annotated[float, ParameterSpec()],
+        **arguments: object,
+    ) -> None:
+        super().__init__(label, target=target, **arguments)
+        self.renamed = renamed
+        self.alias = alias
+
+    def _get_parameter(self, name: str) -> str:
+        """Return `alias` for the renamed probability."""
+        return 'alias' if name == self.renamed else name
 
 
 def _run_evolution(evolution: EvolutionInteraction, strategies: np.ndarray, until: int, seed: int) -> Trajectory:
@@ -282,3 +303,17 @@ def test_check_rejects_invalid_arguments(arguments, message):
     """Test that an unknown selection, a probability outside `[0, 1]`, or an invalid count is rejected."""
     with pytest.raises(ValidationError, match=message):
         EvolutionInteraction('evolution', target='agents', **arguments).check()
+
+
+@pytest.mark.parametrize(
+    ('replacement', 'name'),
+    [('generational', 'crossover'), ('death-birth', 'death'), ('truncation', 'fraction')],
+)
+def test_value_reads_a_renamed_probability(replacement, name):
+    """Test that an evolution that reads a probability under the parameter `alias` evolves as the plain evolution."""
+    initial = np.random.default_rng(1).integers(0, 2, size=(10, 8)).astype(float)
+    arguments = {'phase': 'evolution', 'replacement': replacement, 'mutation': 0.05}
+    plain = EvolutionInteraction('evolution', target='agents', **{name: 0.5}, **arguments)
+    renamed = AliasEvolutionInteraction('evolution', target='agents', renamed=name, alias=0.5, **arguments)
+    first, second = (_strategies(_run_evolution(item, initial, 10, 3), 10) for item in (plain, renamed))
+    np.testing.assert_array_equal(second, first)

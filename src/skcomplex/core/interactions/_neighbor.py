@@ -40,6 +40,9 @@ class NeighborInteraction(BaseInteraction):
     its members inside reductions, and otherwise `namespace.source` is the tuple of the namespaces of the elements the
     second role binds, or of the other elements of the list the first role binds.
 
+    The laws read every end under the name `_get_role` returns for `'source'`, `'target'`, and `'edge'`, the end
+    itself by default, so a subclass that names its roles otherwise reads the ends under its own names.
+
     Args:
         label:
             The label of the interaction, unique among the parts of its system.

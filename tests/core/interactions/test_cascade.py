@@ -18,7 +18,7 @@ from skcomplex.core.spaces import (
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import RoleSpec, StateSpec, VisualSpec
 
 SIDE = 50
 STEPS = 12000
@@ -38,6 +38,18 @@ class SiteElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.height = height
+
+
+class PileInteraction(CascadeInteraction):
+    """Cascade that binds its sites as `pile`."""
+
+    def __init__(self, label: str, *, pile: Annotated[str, RoleSpec()], **arguments: object) -> None:
+        super().__init__(label, target=pile, **arguments)
+        self.pile = pile
+
+    def _get_role(self, role: str) -> str:
+        """Return `pile` for the target."""
+        return 'pile' if role == 'target' else role
 
 
 def _drop(values, *, random):
@@ -148,3 +160,19 @@ def test_check_rejects_unknown_modes_drives_and_neighbourhoods(arguments, match)
     """Test that unknown modes, drives, neighbourhoods, and parcels that do not divide the threshold raise errors."""
     with pytest.raises(ValidationError, match=match):
         CascadeInteraction('cascade', target='sites', **arguments).check()
+
+
+def test_get_laws_reads_a_renamed_target():
+    """Test that a cascade that binds its sites as `pile` relaxes as the plain cascade."""
+    heights = np.zeros((9, 9))
+    heights[4, 4] = 5.0
+    elements = [LatticeElement('sites', element=SiteElement, space=LatticeSpace((9, 9)), values={'height': heights})]
+    finals = []
+    for cascade in (
+        CascadeInteraction('cascade', target='sites', state='height', threshold=4, share=1),
+        PileInteraction('cascade', pile='sites', state='height', threshold=4, share=1),
+    ):
+        system = System(elements=elements, interactions=[cascade], time=DiscreteTime())
+        finals.append(Simulation(system, dt=1, random_state=0).check().prepare().run(until=1).state_)
+    np.testing.assert_array_equal(finals[1], finals[0])
+    assert finals[0].max() < 4.0

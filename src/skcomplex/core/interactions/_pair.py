@@ -21,7 +21,8 @@ class PairInteraction(BaseInteraction):
     """Base class of interactions whose laws run once for every pair of members closer than a cutoff.
 
     The laws are written for one pair and read `namespace.first` and `namespace.second`, the members of the pair, and
-    the parameters. A subclass adds its own roles and parameters to the ones of every pair interaction.
+    the parameters. A subclass adds its own roles and parameters to the ones of every pair interaction, and a subclass
+    that names the members otherwise returns their names from `_get_role`, which the laws read them under.
 
     Args:
         label:

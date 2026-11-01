@@ -176,7 +176,7 @@ class CascadeInteraction(NeighborInteraction):
             laws:
                 The cascade of the state.
         """
-        value = getattr(namespace.target, self.state)
+        value = getattr(self._get_member(namespace, 'target'), self.state)
         threshold, share = self.threshold, self.share
         drive = [] if self.drive is None else [DriveLaw(value, self.drive)]
         neighborhood = VonNeumannNeighborhood(center=True) if self.neighborhood is None else self.neighborhood

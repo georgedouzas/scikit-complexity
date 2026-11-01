@@ -153,7 +153,7 @@ class ImitationInteraction(NeighborInteraction):
 
     def _get_counts(self, namespace: SimpleNamespace) -> dict[float, Expression]:
         """Return the number of the neighbours of the target that hold every option."""
-        source, over = namespace.source, self._get_neighborhood()
+        source, over = self._get_member(namespace, 'source'), self._get_neighborhood()
         return {
             option: neighbors(where(getattr(source, self.state) == option, 1, 0), over=over) for option in self.options
         }
@@ -172,11 +172,11 @@ class ImitationInteraction(NeighborInteraction):
 
     def _get_best(self, namespace: SimpleNamespace) -> tuple[Expression, Expression]:
         """Return the option of the neighbour of largest payoff and whether that payoff is larger than the target's."""
-        source, over = namespace.source, self._get_neighborhood()
+        source, over = self._get_member(namespace, 'source'), self._get_neighborhood()
         payoff = getattr(source, self.payoff)
         best = neighbors(getattr(source, self.state), over=over, reduce='argmax', weight=payoff)
         largest = neighbors(payoff, over=over, reduce='max')
-        return best, where(largest > getattr(namespace.target, self.payoff), 1, 0)
+        return best, where(largest > getattr(self._get_member(namespace, 'target'), self.payoff), 1, 0)
 
     def _switches(self, value: Expression, rate: Expression, chosen: Expression) -> list[BaseLaw]:
         """Return the jumps of a state from every option to the chosen option, at a rate when it is chosen."""
@@ -194,7 +194,7 @@ class ImitationInteraction(NeighborInteraction):
 
     def _get_jumps(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the jumps of the state at the rate of imitation, in continuous time."""
-        value = getattr(namespace.target, self.state)
+        value = getattr(self._get_member(namespace, 'target'), self.state)
         if self.rule == 'majority':
             leads = self._get_majority(namespace)
             return [
@@ -207,12 +207,13 @@ class ImitationInteraction(NeighborInteraction):
         if self.rule == 'best':
             best, better = self._get_best(namespace)
             return self._switches(value, self._get_parameter_symbol('rate', namespace) * better, best)
-        source, target = namespace.source, namespace.target
+        source, target = self._get_member(namespace, 'source'), self._get_member(namespace, 'target')
         return [*self._copies(target, source, namespace), *self._copies(source, target, namespace)]
 
     def _draw_copy(self, namespace: SimpleNamespace) -> Expression:
         """Return the next state of the target by the random or the Fermi rule, from the option it copies or its own."""
-        source, target, value = namespace.source, namespace.target, getattr(namespace.target, self.state)
+        source, target = self._get_member(namespace, 'source'), self._get_member(namespace, 'target')
+        value = getattr(target, self.state)
         probability, over = self._get_parameter_symbol('probability', namespace), self._get_neighborhood()
         counts = self._get_counts(namespace)
         degree = sum(counts.values(), SR(0))
@@ -233,7 +234,7 @@ class ImitationInteraction(NeighborInteraction):
 
     def _get_update(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the update of the state of the target with the probability of imitation, in discrete time."""
-        value = getattr(namespace.target, self.state)
+        value = getattr(self._get_member(namespace, 'target'), self.state)
         if self.rule in ('random', 'fermi'):
             return [UpdateLaw(value, self._draw_copy(namespace), phase=self.phase)]
         if self.rule == 'majority':

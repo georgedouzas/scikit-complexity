@@ -66,6 +66,18 @@ class AgeingInteraction(HyperedgeInteraction):
         return [UpdateLaw(s.hyperedge.age, s.hyperedge.age + 1)]
 
 
+class WebInteraction(TopologyInteraction):
+    """Topology change that binds its nodes as `web`."""
+
+    def __init__(self, label: str, *, web: Annotated[str, RoleSpec()], **arguments: object) -> None:
+        super().__init__(label, target=web, **arguments)
+        self.web = web
+
+    def _get_role(self, role: str) -> str:
+        """Return `web` for the target."""
+        return 'web' if role == 'target' else role
+
+
 def _triangles(*interactions: BaseInteraction, capacity: int = 60) -> System:
     """Return a network of one triangle whose groups on nodes, edges, and triangles are variable."""
     nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=capacity)
@@ -245,3 +257,25 @@ def test_check_rejects_invalid_arguments(arguments):
     """Test that an unknown action or end, a rate with a probability, bad functions, and bad edges are rejected."""
     with pytest.raises(ValidationError):
         TopologyInteraction('change', target='nodes', **arguments).check()
+
+
+def test_get_laws_reads_a_renamed_target_end():
+    """Test that a rewiring that binds its nodes as `web` reads the target end as `web` and rewires as the plain one."""
+    marks = [1.0] * 5 + [0.0] * 15
+    arguments = {'action': 'rewire', 'probability': 0.5, 'toward': lambda node: node.mark, 'keep': 'source'}
+    plain = TopologyInteraction(
+        'rewiring',
+        target='nodes',
+        condition=lambda s: (1 - s.source.mark) * (1 - s.target.mark) > 0,
+        **arguments,
+    )
+    renamed = WebInteraction(
+        'rewiring',
+        web='nodes',
+        condition=lambda s: (1 - s.source.mark) * (1 - s.web.mark) > 0,
+        **arguments,
+    )
+    graphs = [
+        sorted(_run(nx.cycle_graph(20), change, 5, mark=marks).network(5).graph().edges) for change in (plain, renamed)
+    ]
+    assert graphs[1] == graphs[0]

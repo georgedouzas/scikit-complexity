@@ -273,8 +273,8 @@ class LammpsSolver(ExternalSolver):
             largest = max(largest, cutoff)
             first, second = sorted(
                 (
-                    self.atom_numbers_[self._role_path(item, 'first')],
-                    self.atom_numbers_[self._role_path(item, 'second')],
+                    self.atom_numbers_[self._role_path(item, item.interaction._get_role('first'))],
+                    self.atom_numbers_[self._role_path(item, item.interaction._get_role('second'))],
                 ),
             )
             native = self._native(self.pairs or {}, item.interaction)
@@ -309,7 +309,8 @@ class LammpsSolver(ExternalSolver):
             command = self._native(self.fixes or {}, item.interaction)
             if command is None:
                 continue
-            target = self._role_path(item, 'target') if 'target' in item.roles else None
+            role = item.interaction._get_role('target')
+            target = self._role_path(item, role) if role in item.roles else None
             fix = LammpsFixSpec(
                 name=f'fix{index}',
                 group=f'group{self.atom_numbers_[target]}' if target is not None else 'all',

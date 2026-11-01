@@ -15,7 +15,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.backends import BaseBackend, NumbaBackend, NumpyBackend
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.errors import ValidationError
-from skcomplex.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 
@@ -138,6 +138,18 @@ def test_check_rejects_invalid_arguments(arguments):
     """Test that unknown groups, a small size, a missing state, a capacity below one, and a bad action are rejected."""
     with pytest.raises(ValidationError):
         GroupingInteraction('groups', target='voters', **arguments).check()
+
+
+class CouncilInteraction(GroupingInteraction):
+    """Grouping that binds its members as `council`."""
+
+    def __init__(self, label: str, *, council: Annotated[str, RoleSpec()], **arguments: object) -> None:
+        super().__init__(label, target=council, **arguments)
+        self.council = council
+
+    def _get_role(self, role: str) -> str:
+        """Return `council` for the target."""
+        return 'council' if role == 'target' else role
 
 
 def _symbolic(
@@ -347,3 +359,17 @@ def test_get_laws_symbolic_phases_imitate_the_payoffs_of_the_same_step(backend):
         )
         assert np.allclose(simulation.trajectory_.values('players.payoff')[step], payoff, atol=1e-12)
         assert simulation.trajectory_.values('players.state')[step].tolist() == state.tolist()
+
+
+@pytest.mark.parametrize('groups', ['partition', 'neighborhood'])
+def test_get_laws_symbolic_reads_a_renamed_target(groups):
+    """Test that a symbolic grouping that binds its members as `council` writes the values of the plain grouping."""
+    space = LatticeSpace((4, 4), neighborhood='von_neumann', boundary='fixed')
+    grid = LatticeElement('voters', element=OpinionElement, space=space, values={'s': np.arange(16.0) % 3})
+    arguments = {'groups': groups, 'size': 2, 'form': 'symbolic', 'write': 's', 'function': _weighted}
+    plain = GroupingInteraction('groups', target='voters', **arguments)
+    renamed = CouncilInteraction('groups', council='voters', **arguments)
+    values = [
+        _symbolic_run(System(elements=[grid], interactions=[item]), 2, NumpyBackend()) for item in (plain, renamed)
+    ]
+    np.testing.assert_allclose(values[1], values[0])

@@ -11,7 +11,7 @@ from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
-from skcomplex.specs import StateSpec
+from skcomplex.specs import RoleSpec, StateSpec
 
 CELLS = 64
 
@@ -29,6 +29,18 @@ class TracerElement(Element):
         super().__init__(label)
         self.u = u
         self.v = v
+
+
+class PipeAdvectionInteraction(AdvectionInteraction):
+    """Advection that binds its field as `pipe`."""
+
+    def __init__(self, label: str, *, pipe: Annotated[str, RoleSpec()], **arguments: object) -> None:
+        super().__init__(label, target=pipe, **arguments)
+        self.pipe = pipe
+
+    def _get_role(self, role: str) -> str:
+        """Return `pipe` for the target."""
+        return 'pipe' if role == 'target' else role
 
 
 def _run(*interactions, discretization='finite-volume'):
@@ -63,3 +75,10 @@ def test_check_rejects_a_drift_that_is_not_callable():
     """Test that `check` rejects a drift that is not a function."""
     with pytest.raises(ValidationError, match='drift'):
         AdvectionInteraction('drift', target='tube', drift=1.0).check()
+
+
+def test_get_laws_reads_a_renamed_target():
+    """Test that an advection that binds its field as `pipe` gives the trajectory of the plain advection."""
+    plain = AdvectionInteraction('drift', target='tube', state='u', drift=lambda s: s.target.v)
+    renamed = PipeAdvectionInteraction('drift', pipe='tube', state='u', drift=lambda s: s.pipe.v)
+    np.testing.assert_allclose(_run(renamed), _run(plain))

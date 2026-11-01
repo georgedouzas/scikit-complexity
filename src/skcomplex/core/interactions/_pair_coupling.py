@@ -124,7 +124,8 @@ class PairCouplingInteraction(PairInteraction):
         """Return minus the gradient of the pair potential with respect to the position of the first member."""
         assert self.potential is not None
         distance = SR.var('r', domain='positive')
-        separation = getattr(namespace.first, self.position) - getattr(namespace.second, self.position)
+        first, second = self._get_member(namespace, 'first'), self._get_member(namespace, 'second')
+        separation = getattr(first, self.position) - getattr(second, self.position)
         r = sqrt(separation.dot_product(separation))
         slope = SR(self.potential(namespace, distance)).diff(distance).subs({distance: r})
         return -slope * separation / r
@@ -139,7 +140,7 @@ class PairCouplingInteraction(PairInteraction):
             values = list(cast(Sequence[Target], self.function(namespace)))
         if self.divisor is None:
             return values
-        return [value / getattr(namespace.first, self.divisor) for value in values]
+        return [value / getattr(self._get_member(namespace, 'first'), self.divisor) for value in values]
 
     def _get_names(self) -> list[str]:
         """Return the names of the states the coupling writes."""
@@ -156,10 +157,13 @@ class PairCouplingInteraction(PairInteraction):
             laws:
                 The rate laws of the written states of the two members.
         """
-        swapped = SimpleNamespace(**{**vars(namespace), 'first': namespace.second, 'second': namespace.first})
+        first, second = self._get_member(namespace, 'first'), self._get_member(namespace, 'second')
+        swapped = SimpleNamespace(
+            **{**vars(namespace), self._get_role('first'): second, self._get_role('second'): first},
+        )
         names = self._get_names()
         laws: list[BaseLaw] = []
-        for member, pair in ((namespace.first, namespace), (namespace.second, swapped)):
+        for member, pair in ((first, namespace), (second, swapped)):
             values = self._get_values(pair)
             laws += [RateLaw(getattr(member, name), value) for name, value in zip(names, values, strict=True)]
         return laws

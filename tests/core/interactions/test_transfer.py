@@ -43,6 +43,25 @@ class MortalElement(StockElement):
         return [RuleLaw(lambda agent, model: agent.remove(), phase='die')]
 
 
+class DrainInteraction(TransferInteraction):
+    """Transfer that declares its source and binds its target as `drain`."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        source: Annotated[str, RoleSpec()],
+        drain: Annotated[str, RoleSpec()],
+        **arguments: object,
+    ) -> None:
+        super().__init__(label, source=source, target=drain, **arguments)
+        self.drain = drain
+
+    def _get_role(self, role: str) -> str:
+        """Return `drain` for the target."""
+        return 'drain' if role == 'target' else role
+
+
 def _run(system: System, until: float) -> Trajectory:
     """Return the trajectory of a system run to a time."""
     return Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
@@ -611,3 +630,23 @@ def test_transfer_subclass_resolves_its_own_role_names_in_both_forms(form, pairi
     else:
         assert np.asarray(trajectory.values('givers.level'))[-1] == pytest.approx([3.0])
         assert np.asarray(trajectory.values('takers.level'))[-1] == pytest.approx([1.0])
+
+
+def test_transfer_symbolic_reads_a_renamed_target():
+    """Test that a symbolic transfer that declares its source and binds `drain` gives the plain trajectory."""
+    trajectories = []
+    for exchange in (
+        TransferInteraction(
+            'exchange',
+            source='upper',
+            target='lower',
+            state='level',
+            amount=lambda s: s.source.level / 2,
+        ),
+        DrainInteraction('exchange', source='upper', drain='lower', state='level', amount=lambda s: s.source.level / 2),
+    ):
+        system = System(elements=[StockElement('upper', level=4.0), StockElement('lower')], interactions=[exchange])
+        trajectories.append(_run(system, 2.0).states)
+    np.testing.assert_allclose(trajectories[1], trajectories[0])
+    assert trajectories[0][-1][0] < 4.0
+

@@ -94,6 +94,26 @@ class WeightedCouplingInteraction(CouplingInteraction):
         self.links = links
 
 
+class BondInteraction(CouplingInteraction):
+    """Coupling that binds its target as `bonded` and its source as `drivers`."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        bonded: Annotated[str | list[str], RoleSpec()],
+        drivers: Annotated[str | None, RoleSpec(optional=True)] = None,
+        **arguments: object,
+    ) -> None:
+        super().__init__(label, target=bonded, source=drivers, **arguments)
+        self.bonded = bonded
+        self.drivers = drivers
+
+    def _get_role(self, role: str) -> str:
+        """Return `bonded` for the target and `drivers` for the source."""
+        return {'target': 'bonded', 'source': 'drivers'}.get(role, role)
+
+
 def _sine(s):
     """Return the sine of the phase difference."""
     return sin(s.other.theta - s.member.theta)
@@ -717,3 +737,38 @@ def test_coupling_over_hyperedges_needs_a_network_with_hyperedges():
     coupling = CouplingInteraction('pull', target='oscillators', read='theta', write='theta', mode='hyperedges')
     with pytest.raises(ValidationError, match='network with hyperedges'):
         _hyperedge_drift(coupling, np.zeros(4), NumpyBackend(), LatticeSpace(4))
+
+
+def _bonded_drift(case: str, renamed: bool) -> np.ndarray:
+    """Return the initial rates of the phases of a coupling case, bound by the plain or the renamed roles."""
+    theta, phi = np.array([0.0, 1.0, 2.5, 4.0]), np.array([0.5, 3.0, -1.0])
+    elements = {
+        'edges': [LatticeElement('a', element=OscillatorElement, space=LatticeSpace(4), values={'theta': theta})],
+        'group': [GroupElement('a', element=OscillatorElement, size=4, values={'theta': theta})],
+        'source': [
+            GroupElement('a', element=OscillatorElement, size=4, values={'theta': theta}),
+            GroupElement('b', element=OscillatorElement, size=3, values={'theta': phi}),
+        ],
+        'separate': [OscillatorElement(f'o{index}', theta=value) for index, value in enumerate(phi)],
+    }[case]
+    target = ['o0', 'o1', 'o2'] if case == 'separate' else 'a'
+    source = 'b' if case == 'source' else None
+    arguments = {'read': 'theta', 'write': 'theta', 'function': _sine, 'lag': 0.3}
+    if case != 'edges':
+        arguments['mode'] = 'group'
+    coupling = (
+        BondInteraction('coupling', bonded=target, drivers=source, **arguments)
+        if renamed
+        else CouplingInteraction('coupling', target=target, source=source, **arguments)
+    )
+    system = System(elements=elements, interactions=[coupling])
+    paths = [f'o{index}.theta' for index in range(3)] if case == 'separate' else ['a.theta']
+    return np.concatenate([np.atleast_1d(_drift(system, path)) for path in paths])
+
+
+@pytest.mark.parametrize('case', ['edges', 'group', 'source', 'separate'])
+def test_get_laws_reads_renamed_target_and_source(case):
+    """Test that a coupling that binds `bonded` and `drivers` gives the rates of the plain coupling."""
+    renamed = _bonded_drift(case, renamed=True)
+    np.testing.assert_allclose(renamed, _bonded_drift(case, renamed=False))
+    assert np.abs(renamed).sum() > 0

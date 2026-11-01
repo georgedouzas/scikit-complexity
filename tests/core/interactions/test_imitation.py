@@ -13,7 +13,7 @@ from skcomplex.core.spaces import ContinuousTime, DiscreteTime, LatticeSpace, Ne
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 SIZE = 50
 RUNS = 200
@@ -37,6 +37,38 @@ class PlayerElement(Element):
         super().__init__(label, visual=visual)
         self.state = state
         self.payoff = payoff
+
+
+class PeerImitationInteraction(ImitationInteraction):
+    """Imitation that binds its players as `peers` and calls its probability of imitation `openness`."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        peers: Annotated[str, RoleSpec()],
+        openness: Annotated[float, ParameterSpec()] = 1.0,
+        **arguments: object,
+    ) -> None:
+        super().__init__(label, target=peers, **arguments)
+        self.peers = peers
+        self.openness = openness
+
+    def _get_role(self, role: str) -> str:
+        """Return `peers` for the target."""
+        return 'peers' if role == 'target' else role
+
+    def _get_parameter(self, name: str) -> str:
+        """Return `openness` for the probability of imitation."""
+        return 'openness' if name == 'probability' else name
+
+
+def _grid_players() -> GroupElement:
+    """Return players on a 3 by 3 grid whose middle player holds option 1 with the largest payoff."""
+    cells = [(x, y) for x in range(3) for y in range(3)]
+    payoffs = np.array([4.0 if cell == (1, 1) else 0.0 for cell in cells])
+    values = {'state': (payoffs > 0).astype(float), 'payoff': payoffs}
+    return GroupElement('players', element=PlayerElement, size=len(cells), values=values, location=cells)
 
 
 def _final(space, values, rule, until, seed=0, **arguments):
@@ -231,3 +263,39 @@ def test_check_rejects_unknown_rules_and_equal_options(arguments, match):
     """Test that an unknown rule or options that are not distinct raise an error."""
     with pytest.raises(ValidationError, match=match):
         ImitationInteraction('imitation', target='players', **arguments).check()
+
+
+@pytest.mark.parametrize(('rule', 'form'), [('random', 'rate'), ('best', 'rate'), ('fermi', 'probability')])
+def test_get_laws_reads_a_renamed_target_and_probability(rule, form):
+    """Test that an imitation that binds `peers` and calls its probability `openness` gives the plain trajectory."""
+    discrete = form == 'probability'
+    finals = []
+    for imitation in (
+        ImitationInteraction('imitation', target='players', rule=rule, form=form, probability=0.5),
+        PeerImitationInteraction('imitation', peers='players', rule=rule, form=form, openness=0.5),
+    ):
+        system = System(
+            elements=[
+                LatticeElement('players', element=PlayerElement, space=LatticeSpace(10), values=_alternating(10)),
+            ],
+            interactions=[imitation],
+            time=DiscreteTime() if discrete else ContinuousTime(),
+        )
+        simulation = Simulation(system, dt=1.0, random_state=SEED).check().prepare().run(until=5)
+        finals.append(simulation.trajectory_.values('players.state'))
+    np.testing.assert_array_equal(finals[1], finals[0])
+
+
+@pytest.mark.parametrize('rule', ['random', 'best', 'fermi'])
+def test_imitate_reads_a_renamed_target_and_probability_in_the_agent_form(rule):
+    """Test that agent imitation that binds `peers` and names its probability `openness` runs as the plain one."""
+    space = LatticeSpace((3, 3), boundary='periodic', neighborhood='von_neumann')
+    finals = []
+    for imitation in (
+        ImitationInteraction('imitation', target='players', rule=rule, form='agent', probability=0.5),
+        PeerImitationInteraction('imitation', peers='players', rule=rule, form='agent', openness=0.5),
+    ):
+        system = System(elements=[_grid_players()], interactions=[imitation], space=space, time=DiscreteTime())
+        trajectory = Simulation(system, random_state=SEED).check().prepare().run(until=10).trajectory_
+        finals.append(trajectory.agents('players', 10).values['state'])
+    np.testing.assert_array_equal(finals[1], finals[0])

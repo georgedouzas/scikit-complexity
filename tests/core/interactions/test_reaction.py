@@ -221,6 +221,18 @@ class ConversionInteraction(ReactionInteraction):
         return self._get_mass_action(namespace, namespace.c)
 
 
+class SiteReactionInteraction(ReactionInteraction):
+    """Reaction that binds its field as `sites` and declares no parameter."""
+
+    def __init__(self, label: str, *, sites: Annotated[str, RoleSpec()], **arguments: object) -> None:
+        super().__init__(label, target=sites, **arguments)
+        self.sites = sites
+
+    def _get_role(self, role: str) -> str:
+        """Return `sites` for the target."""
+        return 'sites' if role == 'target' else role
+
+
 def test_reaction_runs_at_every_site_of_a_field():
     """Test that a reaction on state names of a field target reacts at every site with the states of the site."""
     values = {'x': np.array([1.0, 2.0, 4.0])}
@@ -314,3 +326,20 @@ def test_reaction_agent_form_jumps_whole_units_at_the_step_probability():
     counts = trajectory.agents('cells', 1).values['n']
     assert set(counts.tolist()) <= {2.0, 3.0}
     assert np.mean(counts == 2.0) == pytest.approx(1 - np.exp(-0.3), abs=0.03)
+
+
+@pytest.mark.parametrize('mode', ['rate', 'jump'])
+def test_get_laws_reads_a_renamed_target(mode):
+    """Test that a reaction that binds its field as `sites` gives the trajectory of the plain reaction."""
+    values = {'x': np.array([10.0, 20.0, 40.0])}
+    cells = FieldElement('cells', element=ConcentrationElement, space=LatticeSpace((3,)), values=values)
+    arguments = {'reactants': {'x': 2}, 'products': {'y': 1}, 'k': 0.05, 'mode': mode}
+    states = []
+    for dimerization in (
+        ReactionInteraction('dimerization', target='cells', **arguments),
+        SiteReactionInteraction('dimerization', sites='cells', **arguments),
+    ):
+        simulation = Simulation(System(elements=[cells], interactions=[dimerization]), dt=0.5, random_state=0)
+        states.append(simulation.check().prepare().run(until=2).trajectory_.states)
+    np.testing.assert_allclose(states[1], states[0])
+    assert not np.allclose(states[0][-1], states[0][0])
