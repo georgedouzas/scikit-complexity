@@ -11,8 +11,8 @@ ordering.
 # The model is created by name from the catalog with `H = 50` configurations without the characteristic, the couplings
 # `K = 10` and `J = 1`, and every agent standardized at the start, with a random spin. A schedule holds the
 # temperature at 0.4 for 600 units of time, raises it linearly to 2.4 over 900 units, lowers it back to 0.4 over the
-# next 900, and holds it again for 600. The observer saves every twelfth frame with the default blueprint, whose
-# primary view is the time series of `q` and `m`.
+# next 900, and holds it again for 600, through the intensity of choice, its inverse. The observer saves every
+# twelfth frame with the default blueprint, whose primary view is the time series of `q` and `m`.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -34,7 +34,7 @@ def temperature_at(time):
 
 system = create(MODEL, agents=100, K=K, J=J, H=H, T=LOW, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=12)
-schedule = {'standardization.T': temperature_at}
+schedule = {'standardization.intensity': lambda time: 1 / temperature_at(time)}
 simulation = (
     Simulation(
         system,
