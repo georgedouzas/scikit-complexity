@@ -5,7 +5,6 @@
 
 
 import math
-from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
@@ -15,7 +14,6 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
 from ....core.interactions import MovementInteraction, TransitionInteraction
-from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace, NetworkSpace
 from ....core.system import System
 from ....core.types import AgentViewProtocol, ModelViewProtocol
@@ -73,6 +71,117 @@ def _is_due(agent: AgentViewProtocol, model: ModelViewProtocol) -> bool:
     return True
 
 
+def _is_spreading(agent: PersonView, model: ModelView) -> bool:
+    """Return whether an infectious person spreads in this step, drawn once per step with probability `beta`.
+
+    The infection keeps the draw in its storage for the step, so the person infects every susceptible person of its
+    cell or none of them.
+    """
+    record = model.storage.get(f'spreading.{agent.id}')
+    if isinstance(record, tuple) and record[0] == model.time:
+        return bool(record[1])
+    spreads = bool(model.rng.random() < agent.beta)
+    model.storage[f'spreading.{agent.id}'] = (model.time, spreads)
+    return spreads
+
+
+def _is_person_infected(agent: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return whether an infectious person of the cell of a susceptible person spreads to it in this step."""
+    if not isinstance(agent, PersonView) or not isinstance(model, ModelView):
+        return False
+    return any(
+        isinstance(other, PersonView) and other.health == INFECTED and _is_spreading(other, model)
+        for other in agent.agents_here(agent.group)
+    )
+
+
+def _get_person_recovery(agent: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return the probability `gamma` that an infectious person recovers in a step."""
+    return float(agent.gamma) if isinstance(agent, PersonView) else 0.0
+
+
+def _get_person_death(agent: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return the probability `mu / (1 - gamma)` that an infectious person who has not recovered in a step dies.
+
+    The death follows the recovery in the step, so this conditional probability makes the death `mu` of the step.
+    """
+    if not isinstance(agent, PersonView) or agent.gamma >= 1:
+        return 0.0
+    return float(agent.mu / (1 - agent.gamma))
+
+
+def _get_person_waning(agent: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return the probability `alpha` that a recovered person loses immunity in a step."""
+    return float(agent.alpha) if isinstance(agent, PersonView) else 0.0
+
+
+def _is_incubated(agent: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return true, so an exposed person becomes infectious as soon as its incubation is over."""
+    return True
+
+
+def _get_person_transitions(incubation: float) -> list[TransitionInteraction]:
+    """Return the infection, waning immunity, recovery, death, and incubation of the people of the agent-based SIR."""
+    exposed = EXPOSED if incubation > 0 else INFECTED
+    transitions = [
+        TransitionInteraction(
+            'infection',
+            target='people',
+            state='health',
+            schedule='member',
+            form='agent',
+            source=SUSCEPTIBLE,
+            destination=exposed,
+            condition=_is_person_infected,
+        ),
+        TransitionInteraction(
+            'waning',
+            target='people',
+            state='health',
+            schedule='member',
+            form='agent',
+            source=RECOVERED,
+            destination=SUSCEPTIBLE,
+            probability=_get_person_waning,
+        ),
+        TransitionInteraction(
+            'recovery',
+            target='people',
+            state='health',
+            schedule='member',
+            form='agent',
+            source=INFECTED,
+            destination=RECOVERED,
+            probability=_get_person_recovery,
+        ),
+        TransitionInteraction(
+            'death',
+            target='people',
+            state='health',
+            schedule='member',
+            form='agent',
+            source=INFECTED,
+            destination=DEAD,
+            probability=_get_person_death,
+        ),
+    ]
+    if incubation > 0:
+        transitions.append(
+            TransitionInteraction(
+                'incubation',
+                target='people',
+                state='health',
+                schedule='member',
+                form='agent',
+                source=EXPOSED,
+                destination=INFECTED,
+                condition=_is_incubated,
+                after=incubation,
+            ),
+        )
+    return transitions
+
+
 def _initial_health(size: int, sick: int, rng: np.random.Generator, value: float) -> np.ndarray:
     """Return the health of a group with a number of randomly chosen sick members."""
     health = np.zeros(size)
@@ -84,10 +193,16 @@ class PersonElement(Element):
     """Person of the agent-based SIR model, with incubation, mortality, waning immunity, and lockdown.
 
     A `MovementInteraction` walks a living person to a neighbouring cell with probability `d`, or `lockdown_d` during
-    the lockdown, which lasts `lockdown_length` steps from `lockdown_start`. An infectious person infects, with
-    probability `beta`, every susceptible person in its cell, who incubates the disease for `incubation` steps. An
-    infectious person recovers with probability `gamma` or dies with probability `mu`, and a recovered person loses
-    immunity with probability `alpha`. Health is 0 susceptible, 1 exposed, 2 infected, 3 recovered, or 4 dead.
+    the lockdown, which lasts `lockdown_length` steps from `lockdown_start`. Transitions of the agent form, which
+    `agent_based_sir` adds, move the health of the person. An infectious person infects, with probability `beta`,
+    every susceptible person in its cell, who becomes exposed. An infectious person recovers with probability `gamma`
+    or dies with probability `mu`, and a recovered person loses immunity with probability `alpha`. Health is 0
+    susceptible, 1 exposed, 2 infected, 3 recovered, or 4 dead.
+
+    The incubation follows the convention of the residence time `after` of `TransitionInteraction`: the step of the
+    exposure counts as the first step in the exposed state, so a person exposed in step `n` becomes infectious at the
+    end of step `n + incubation - 1`. The clock that the person kept before counted the step of the exposure only when
+    the person acted after its infector in that step, so the onset now comes half a step earlier on average.
 
     Args:
         label:
@@ -98,9 +213,6 @@ class PersonElement(Element):
 
         health:
             The health state.
-
-        clock:
-            The steps since infection.
 
         d:
             The probability of moving at every step.
@@ -116,9 +228,6 @@ class PersonElement(Element):
 
         alpha:
             The probability of losing immunity at every step.
-
-        incubation:
-            The number of steps before an infected person becomes infectious.
 
         lockdown_start:
             The step at which the lockdown starts.
@@ -141,26 +250,22 @@ class PersonElement(Element):
         visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 4.0)}),
         *,
         health: Annotated[float, StateSpec(domain=NN)] = SUSCEPTIBLE,
-        clock: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
         beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
         gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
         mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        incubation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         lockdown_start: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         lockdown_length: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         lockdown_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
         super().__init__(label, visual=visual)
         self.health = health
-        self.clock = clock
         self.d = d
         self.beta = beta
         self.gamma = gamma
         self.mu = mu
         self.alpha = alpha
-        self.incubation = incubation
         self.lockdown_start = lockdown_start
         self.lockdown_length = lockdown_length
         self.lockdown_d = lockdown_d
@@ -169,57 +274,6 @@ class PersonElement(Element):
     def _get_view(cls) -> type[PersonView]:
         """Return the view of a person, `PersonView`."""
         return PersonView
-
-    def _infect(self, agent: PersonView, model: ModelView) -> None:
-        """Infect every susceptible person of the cell with probability `beta`."""
-        if model.rng.random() >= agent.beta:
-            return
-        for other in agent.agents_here(agent.group):
-            if isinstance(other, PersonView) and other.health == SUSCEPTIBLE:
-                other.health = EXPOSED if agent.incubation > 0 else INFECTED
-                other.clock = 0.0
-
-    def _progress(self, agent: PersonView, model: ModelView) -> None:
-        """Advance the course of the disease of an exposed, infected, or recovered person."""
-        if agent.health == EXPOSED:
-            agent.clock += 1
-            if agent.clock >= agent.incubation:
-                agent.health = INFECTED
-        elif agent.health == INFECTED:
-            draw = model.rng.random()
-            if draw < agent.gamma:
-                agent.health = RECOVERED
-            elif draw < agent.gamma + agent.mu:
-                agent.health = DEAD
-        elif agent.health == RECOVERED and model.rng.random() < agent.alpha:
-            agent.health = SUSCEPTIBLE
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the life rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.live)]
-
-    def live(self, agent: PersonView, model: ModelView) -> None:
-        """Infect the cell when infectious, and advance the disease.
-
-        Args:
-            agent:
-                The person.
-
-            model:
-                The model.
-        """
-        if agent.health == INFECTED:
-            self._infect(agent, model)
-        self._progress(agent, model)
 
 
 class WalkerElement(Element):
@@ -381,7 +435,8 @@ def agent_based_sir(
             The probability of losing immunity at every step.
 
         incubation:
-            The number of steps before an infected person becomes infectious.
+            The number of steps an infected person stays exposed before it becomes infectious, counting the step of
+            the exposure, as the residence time of `TransitionInteraction` counts them.
 
         lockdown_start:
             The step at which the lockdown starts.
@@ -417,7 +472,6 @@ def agent_based_sir(
             'gamma': gamma,
             'mu': mu,
             'alpha': alpha,
-            'incubation': incubation,
             'lockdown_start': lockdown_start,
             'lockdown_length': lockdown_length,
             'lockdown_d': lockdown_d,
@@ -426,7 +480,7 @@ def agent_based_sir(
     )
     walk = MovementInteraction('walk', target='people', condition=_is_living_person, accept=_get_person_step)
     space = LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann')
-    return System(elements=[group], interactions=[walk], space=space)
+    return System(elements=[group], interactions=[walk, *_get_person_transitions(incubation)], space=space)
 
 
 @register_model(

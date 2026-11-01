@@ -188,11 +188,28 @@ def heterogeneous_mean_field_sir(
         size=len(degrees),
         values={'s': 1.0 - infected, 'i': infected, 'r': 0.0, 'beta': beta, 'mu': mu, 'k': degrees, 'P': weights},
     )
-    infection = {'mode': 'group', 'reduce': 'normalized-mean', 'weights': _edge_weight, 'include_self': True}
     interactions = [
-        CouplingInteraction('infection', target='network', read='i', write='i', function=_infection, **infection),
         CouplingInteraction(
-            'contagion', target='network', read='s', write='s', function=_susceptible_loss, **infection
+            'infection',
+            target='network',
+            read='i',
+            write='i',
+            function=_infection,
+            reduce='normalized-mean',
+            mode='group',
+            weights=_edge_weight,
+            include_self=True,
+        ),
+        CouplingInteraction(
+            'contagion',
+            target='network',
+            read='s',
+            write='s',
+            function=_susceptible_loss,
+            reduce='normalized-mean',
+            mode='group',
+            weights=_edge_weight,
+            include_self=True,
         ),
         TransferInteraction('recovery', source='network', target='network', state='i', into='r', amount=_recovery),
     ]
