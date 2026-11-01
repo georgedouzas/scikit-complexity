@@ -141,10 +141,11 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
 
         Returns:
             symbol:
-                The symbol of the parameter, or the value of the attribute of the interaction.
+                The symbol of the parameter in the namespace, read also when a part other than the interaction
+                declares it, or else the value of the attribute of the interaction.
         """
         parameter = self._get_parameter(name)
-        if self._declares(parameter):
+        if self._declares(parameter) or hasattr(namespace, parameter):
             return getattr(namespace, parameter)
         return getattr(self, parameter)
 
