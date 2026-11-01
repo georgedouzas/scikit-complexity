@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().
 # and every bird should approach the preferred speed `sqrt(alpha / beta) = sqrt(2)`.
 
 trajectory = simulation.trajectory_
-positions, velocities = trajectory.values('birds.x'), trajectory.values('birds.v')
+positions, velocities = trajectory.values('birds.x'), trajectory.values('birds.x_d1')
 fig, (order, path) = plt.subplots(1, 2, figsize=(11, 4))
 polar = AlignmentAnalysis('mean-vector').check().prepare(trajectory).run().order_
 milling = AlignmentAnalysis('mean-rotation').check().prepare(trajectory).run().order_

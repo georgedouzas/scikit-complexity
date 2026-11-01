@@ -78,8 +78,8 @@ def test_gaussian_moves_sample_the_boltzmann_distribution():
 def test_function_moves_propose_the_values_it_returns():
     """Test that a function move that proposes random spins samples the ordered Ising phase too."""
 
-    def redraw(values, random):
-        return random.choice([-1.0, 1.0], values.size)
+    def redraw(values, rng):
+        return rng.choice([-1.0, 1.0], values.size)
 
     sampling = SamplingInteraction('ising', target='sites', state='s', energy=_ising, move=redraw, temperature=1.0)
     final = _final(sampling, 300, _spins())

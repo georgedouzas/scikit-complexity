@@ -80,12 +80,12 @@ A predator and prey model assembles from ready-made interactions:
 
 ```python
 from skcomplex.core.system import System
-from skcomplex.models.biology.ecology import (
+from skcomplex.models.biology.common.populations import (
     LogisticGrowthInteraction,
     MortalityInteraction,
     PopulationElement,
-    PredationInteraction,
 )
+from skcomplex.models.biology.ecology import PredationInteraction
 
 system = System(
     elements=[PopulationElement('rabbits', n=40), PopulationElement('foxes', n=9)],
@@ -109,7 +109,7 @@ simulation = Simulation(
     dt=0.05,
     clock=RealTimeClock(speed=20.0),
     observers=[RerunObserver('lotka-volterra', spawn=True)],
-).check()
+).check().prepare()
 trajectory = simulation.run(until=30).trajectory_
 print(round(float(trajectory.values('rabbits.n').max())))
 ```
@@ -119,7 +119,7 @@ A simulation started with `start` runs in the background, and its parameters can
 ```python continuation
 from skcomplex.engine.runtime import RealTimeClock, Simulation
 
-simulation = Simulation(system, dt=0.05, clock=RealTimeClock(speed=20.0)).check().start(until=30)
+simulation = Simulation(system, dt=0.05, clock=RealTimeClock(speed=20.0)).check().prepare().start(until=30)
 simulation.update_parameters({'hunt.a': 0.2})
 simulation.wait()
 ```
@@ -139,7 +139,7 @@ from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
 from skcomplex.specs import ParameterSpec, RoleSpec
 from skcomplex.core.system import System
-from skcomplex.models.biology.ecology import LogisticGrowthInteraction, PopulationElement
+from skcomplex.models.biology.common.populations import LogisticGrowthInteraction, PopulationElement
 
 
 class HarvestInteraction(Interaction):

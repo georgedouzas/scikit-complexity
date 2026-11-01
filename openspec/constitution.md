@@ -271,46 +271,58 @@ to fill in as the project takes shape.
   `playwright` 1.50 or later for the web capture backend in headless Chromium, next to `mkdocs-gallery` in the `docs`
   group. The gallery tooling lives in `docs/gallery_tools`, and `nox -s gallery` runs the examples, captures their
   screenshots, and builds the documentation with them.
-- Dependency placement: a library that `skcomplex.core`, `skcomplex.engine`, or `skcomplex.formalisms` uses MUST be a
-  runtime dependency, whatever its licence, including copyleft licences such as that of `passagemath-symbolics`. An
-  optional extra MUST hold only libraries that a model of `skcomplex.models` alone needs, and a model that needs one
-  MUST raise a named error naming the extra.
+- Dependency placement: a library that `skcomplex.core` or `skcomplex.engine` uses MUST be a runtime dependency,
+  whatever its licence, including copyleft licences such as that of `passagemath-symbolics`. An optional extra MUST
+  hold only libraries that a model of `skcomplex.models` alone needs, and a model that needs one MUST raise a named
+  error naming the extra.
 - Symbolic layer: Sage is imported only through `sage.all__sagemath_symbolics` and the modules it loads, and the
   framework prints expressions to NumPy, Numba, and Lepton code itself. SymPy is installed as a dependency of
   passagemath, but importing it is banned by a `ruff` rule, and laws reject SymPy values.
 - LAMMPS: `lammps` is a runtime dependency, with `mpich`, because the LAMMPS wheel links an MPI library it does not
   bundle.
-- Layout: library. The importable package under `src/skcomplex` is distributed to others and holds exactly four
-  packages. `skcomplex.core` holds what a system is and what it compiles to, in the order `base`, `space`,
-  `laws`, `components`, `system`, and `problems`. `core.base` holds only the bases of a system's mandatory parts, `BaseElement`, `BaseInteraction`, and `BaseLaw`, one
-  per module; the base of any other concept lives in its package. What every package shares lives in the root modules
+- Layout: library. The importable package under `src/skcomplex` is distributed to others and holds five packages.
+  `skcomplex.core` holds what a system is, in the order `base`, `spaces`, `laws`, `elements` and `interactions`,
+  `system`, and `specs`, and nothing about how it runs. `skcomplex.engine` holds what runs a system, in the order
+  `types`, `problems`, `backends`, `compile`, `solvers`, `runtime`, and `viz`. `skcomplex.analysis` builds on the
+  engine, and `skcomplex.experiments` on the analysis. What every package shares lives in the root modules
   `skcomplex.base` (`BaseConfig`, the root of every configurable class), `skcomplex.types`, `skcomplex.specs`, and
-  `skcomplex.errors`, which import no package. `skcomplex.engine` holds what works on a system, in the order `compile`, `solvers`,
-  `backends`, `runtime`, `viz`, `experiments`, and `analysis`. `skcomplex.formalisms` holds one package per
-  domain-agnostic formalism, `agents`, `lattices`, `groups`, `rewriting`, `quantum`, `fields`, `kinetics`,
-  `fractional`, `topology`, `particles`, and `control`, each with its laws, components, compilation passes, solvers,
-  backends, visuals, and checks. `skcomplex.models` holds the model library. Within `core` and within `engine`, a
-  package imports only the packages listed before it. `core` imports no other package of `skcomplex`, `engine`
-  imports only `core`, and a formalism imports `core`, `engine`, and the formalisms it declares. Every name of `core`,
-  `engine`, and `formalisms` is a mathematical, modelling, or engineering term, and none of them imports
-  `skcomplex.models`. The test tree mirrors the source tree with no exceptions, so every test module tests one module
-  of `skcomplex`, and no test module checks repository conventions, documentation tooling, or documentation data.
+  `skcomplex.errors`, which import no package. Within `core` and within `engine`, a package imports only the packages
+  listed before it. Every kind of dynamics, such as agents, lattices, fields, kinetics, quantum, or particles, is no
+  package of its own: its laws, elements, and spaces are parts of the core, and its passes, solvers, and visuals parts
+  of the engine. Every name of `core` and `engine` is a mathematical, modelling, or engineering term, and none of
+  them imports `skcomplex.models`. The test tree mirrors the source tree with no exceptions, so every test module
+  tests one module of `skcomplex`, and no test module checks repository conventions, documentation tooling, or
+  documentation data.
+- General core: a core element or interaction class names a mathematical operation, configured by the roles it binds,
+  the names of the states it reads and writes, and functions the user passes, and MUST NOT name a field quantity such
+  as a force, a position, a price, an infection, or a harvest. A class enters the core only when it is a fundamental
+  paradigm, such as a variational principle, a conservation law, a Markov jump process, a reaction network, or
+  imitation dynamics, that applies in principle to other domains than the one that first needs it. A class whose
+  operation agent models use takes `form='symbolic'` or `form='agent'`, and a matching algorithm is a frozen rule spec
+  of `skcomplex.specs`.
 - Model library: `skcomplex.models` is organised by scientific field and subfield, as
   `skcomplex.models.<field>.<subfield>`, and every model registers under the field path `<field>/<subfield>`. Models
-  are examples built only from the public names of `core`, `engine`, and `formalisms`. Every model package is self-contained, so no model
-  package imports another, except that the packages of one field may import the code they share from
-  `skcomplex.models.<field>.common`, grouped in family packages such as named potentials or market protocols, which
-  never live in the core. Code that one model package uses lives in that package, next to its models. A model the core cannot express MUST be recorded as blocked by an OpenSpec change for the
-  missing general capability, never worked around inside the model package. Models exist first to probe the core: a
-  survey MUST record the primitives each model exercises and MUST implement models that exercise new primitives or
-  combinations before models that repeat covered patterns. The import contracts enforce the import rules.
+  are examples built only from the public names of `core`, `engine`, `analysis`, and `experiments`. Every model
+  package is self-contained, so no model package imports another, except that the packages of one field may import
+  the code they share from `skcomplex.models.<field>.common.<family>`, such as `physics.common.particles` or
+  `biology.common.populations`, which never lives in the core. A case of one field of a general core class is a thin
+  subclass of it, even a pure renaming, which lives with the one model package that uses it, or in the `common`
+  family of its field when several packages of the field use it. A model the core cannot express MUST be recorded as
+  blocked by an OpenSpec change for the missing general capability, never worked around inside the model package.
+  Models exist first to probe the core: a survey MUST record the primitives each model exercises and MUST implement
+  models that exercise new primitives or combinations before models that repeat covered patterns. The import
+  contracts enforce the import rules.
 - Surface: the top-level package, `skcomplex.core`, and `skcomplex.engine` re-export nothing, so every public name is
-  imported from the subpackage that owns it. `skcomplex.formalisms` re-exports only `Formalism`, `register`, and
-  `registered_formalisms`.
-- Extension points: a formalism declares everything it contributes in one `Formalism` and registers it with
-  `register`, which adds its laws, compilation passes, system compilers, checks, stepwise forms, combined laws, owner
-  rules, bindings, solvers, default solvers, backends, and visuals to the registry of the concept that owns each. Law
-  kinds, forms, space kinds, and traits are open vocabularies. Classes users subclass are `ElementComponent`,
-  `BaseInteraction`, `BaseLaw`, `PotentialInteraction`, `PairPotentialInteraction`, `BaseBackend`, `BaseSolver`,
-  `Solver`, `ExternalSolver`, `BaseSystemCompiler`, `BaseClock`, `BaseObserver`, and `BaseVisual`.
-**Version**: 1.12.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-10-25
+  imported from the subpackage that owns it.
+- Extension points: classes users subclass are the bases `BaseElement`, `Element`, `BaseInteraction`, `Interaction`,
+  `NeighborInteraction`, `PairInteraction`, `HyperedgeInteraction`, and `BaseLaw`; the general interactions, such as
+  `RateInteraction`, `GradientInteraction`, `EulerLagrangeInteraction`, `ConservationInteraction`,
+  `CouplingInteraction`, `PairCouplingInteraction`, `MapInteraction`, `JumpInteraction`, `ReactionInteraction`,
+  `TransitionInteraction`, and `SamplingInteraction`, and the agent interactions `ChoiceInteraction`,
+  `ImitationInteraction`, `ReinforcementInteraction`, `EvolutionInteraction`, `MovementInteraction`,
+  `TransferInteraction`, `LifeCycleInteraction`, `GroupingInteraction`, `MatchingInteraction`, `FeedbackInteraction`,
+  and `TopologyInteraction`, whose field cases override a private hook; and in the engine `BaseBackend`,
+  `BaseSolver`, `Solver`, `ExternalSolver`, `BaseCompiler`, `BaseClock`, `BaseObserver`, and `BaseVisual`. Law
+  kinds, forms, space kinds, and traits are open vocabularies.
+
+**Version**: 1.13.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-11-01

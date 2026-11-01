@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare()
 
 times = np.asarray(simulation.trajectory_.times)
 position = np.ravel(simulation.trajectory_.values('mass.x'))
-velocity = np.ravel(simulation.trajectory_.values('mass.v'))
+velocity = np.ravel(simulation.trajectory_.values('mass.x_d1'))
 energy = velocity**2 / 2 + position**2 / 2
 fig, (motion, drift) = plt.subplots(1, 2, figsize=(10, 4))
 motion.plot(times, position, label='simulated')

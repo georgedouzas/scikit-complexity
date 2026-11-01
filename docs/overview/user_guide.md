@@ -633,7 +633,7 @@ class StockElement(Element):
         self.n = n
 
 
-class MarketInteraction(Interaction):
+class CorrelatedNoiseInteraction(Interaction):
     def __init__(
         self,
         label,
@@ -654,7 +654,7 @@ class MarketInteraction(Interaction):
 processes = WienerProcessSpec('market', dimension=2, covariance=[[1.0, 0.8], [0.8, 1.0]])
 market = System(
     elements=[StockElement('a'), StockElement('b')],
-    interactions=[MarketInteraction('drive', first='a', second='b', noise=processes)],
+    interactions=[CorrelatedNoiseInteraction('drive', first='a', second='b', noise=processes)],
 )
 solver = EulerMaruyamaSolver(dt=1.0)
 trajectory = Simulation(market, solver=solver, dt=1.0, random_state=0).check().prepare().run(until=2000).trajectory_
@@ -1499,8 +1499,9 @@ order, so a module imports only the modules above it.
 - `spaces`: the continuous, lattice, network, mesh, and Cayley spaces, their neighbourhoods, and the kinds of time.
 - `laws`: the `BaseLaw` base and every law, and in `laws.utils` what laws are written with besides Sage, such as
   `where`, reductions, draws, delays, and drivers.
-- `elements` and `interactions`: `Element`, `GroupElement`, `FieldElement`, and the other elements, and `Interaction`,
-  `PairInteraction`, and the other interactions.
+- `elements` and `interactions`: `Element`, `GroupElement`, `FieldElement`, and the other elements, and the binding
+  bases `Interaction`, `NeighborInteraction`, `PairInteraction`, and `HyperedgeInteraction` with the general
+  interactions built on them.
 - `system`: `System`.
 
 ### The engine
@@ -1609,6 +1610,884 @@ print([issue.code for issue in report.errors])
 The passes and the system compilers are fixed lists of the engine, so a law of a new class
 checks, prepares, and runs on its own, but no form takes it in a system. The compiler reports it with the code
 `laws-mixed`, and a new kind of dynamics is a change to the engine.
+
+## General interactions
+
+`skcomplex.core.interactions` holds one general class per mathematical operation: a rate, a gradient, a map, a
+coupling, a jump, a transition, a choice, a movement, a transfer, a grouping. A class names what it does, never what
+a state means, so no core class or argument names a force, a position, a price, an infection, or a harvest. It is
+configured by the roles it binds, the names of the states it reads and writes, and functions the user passes.
+
+- `target` is the role whose states the laws change, and `sources` are roles the laws only read.
+- `state`, `states`, `read`, and `write` name the states, so one class serves any meaning. A force is a rate on a
+  state of order 2, and a mass is its `divisor`.
+- Functions are callables of the namespace `s` that return symbolic expressions, such as
+  `rate=lambda s: -s.k * s.target.n`. A number stands for a constant function where an argument allows it.
+- `divisor` divides what a rate, a gradient, or a pair coupling adds to the highest derivative, such as a mass, a
+  friction, or a capacitance. It is a named argument, not part of the function, so a backend such as LAMMPS reads it.
+- A variant is a string checked against the constants of its module, such as `mode='increment'`, or a frozen spec
+  when it carries an algorithm of its own, such as the rule of a matching.
+
+### What enters the core
+
+A class enters the core when it is a fundamental paradigm, such as a variational principle, a conservation law, a
+Markov jump process, a reaction network, or imitation dynamics, and when it applies in principle to other domains than
+the one that first needs it. How many fields use it today does not decide it.
+
+A case of one field is a thin subclass of a general class in `skcomplex.models`, even when it only renames arguments.
+It lives with the one model package that uses it, or in `skcomplex.models.<field>.common.<family>` when several
+packages of the field share it, such as `physics.common.particles` or `biology.common.populations`. These subclasses
+are also the examples of how to build a part of your own.
+
+```python
+from skcomplex.core.interactions import RateInteraction
+from skcomplex.models.biology.common.populations import GrowthInteraction
+from skcomplex.models.physics.common.particles import ConstantForceInteraction, DampingInteraction
+
+print(all(issubclass(cls, RateInteraction) for cls in (GrowthInteraction, ConstantForceInteraction, DampingInteraction)))
+```
+
+### Elements
+
+- `Element` declares states and parameters, `GroupElement` holds many identical members as arrays, and `FieldElement`
+  and `LatticeElement` place one member at every site of a space.
+- `CompartmentElement` is a stock with one state `n`, such as a species, a compartment, or a queue. A model renames
+  `n` by a thin subclass, since states are declared per class.
+- `DensityElement` is the density `f` of one activity class of a kinetic model.
+- `PointElement` is a member with a vector state `x` of order 2 in a continuous space. Its first derivative is
+  `x_d1`, so a backend such as LAMMPS reads the velocity of a point from its declared states.
+
+```python
+from skcomplex.core.elements import CompartmentElement, PointElement
+from skcomplex.core.spaces import ContinuousSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
+system = System(
+    elements=[CompartmentElement('stock', n=5.0), PointElement('point', x_d1=[1.0, 0.0])],
+    space=ContinuousSpace(n_dim=2),
+)
+trajectory = Simulation(system, dt=1.0).check().prepare().run(until=2.0).trajectory_
+print(trajectory.values('stock.n')[-1], trajectory.values('point.x')[-1].tolist())
+```
+
+### Continuous time
+
+`RateInteraction(target, state, rate, sources=(), noise=None, divisor=None, hurst=None)` adds `rate(s)`, and
+`noise(s) dW`, to the highest derivative of a state of any order. The Hurst index makes the noise fractional.
+
+```python
+from skcomplex.core.elements import CompartmentElement
+from skcomplex.core.interactions import RateInteraction
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
+decay = RateInteraction('decay', target='stock', state='n', rate=lambda s: -0.5 * s.target.n)
+system = System(elements=[CompartmentElement('stock', n=8.0)], interactions=[decay])
+print(round(float(Simulation(system, dt=0.01).check().prepare().run(until=2.0).trajectory_.values('stock.n')[-1]), 3))
+```
+
+`RelaxationInteraction(target, state, goal, time, noise=None)` relaxes a state towards a goal, `(goal - x) / time`,
+and with noise it is an Ornstein-Uhlenbeck process.
+
+```python
+from skcomplex.core.elements import CompartmentElement
+from skcomplex.core.interactions import RelaxationInteraction
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
+smoothing = RelaxationInteraction('smoothing', target='belief', state='n', goal=10.0, time=0.5)
+system = System(elements=[CompartmentElement('belief', n=0.0)], interactions=[smoothing])
+print(round(float(Simulation(system, dt=0.01).check().prepare().run(until=5.0).trajectory_.values('belief.n')[-1]), 3))
+```
+
+`GradientInteraction(target, states, potential, sources=(), divisor=None, variational=False, conserved=False)` moves
+states down the gradient of a potential: a gradient flow on a state of order 1, Newton's equations on a state of
+order 2, and the variational or conserved dynamics of a field. The divisor is a name, a function of the member, or a
+mapping of one divisor per state.
+
+```python
+from skcomplex.core.elements import CompartmentElement, PointElement
+from skcomplex.core.interactions import GradientInteraction
+from skcomplex.core.spaces import ContinuousSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
+well = GradientInteraction('well', target='walker', states='n', potential=lambda s: s.target.n**2 / 2)
+flow = System(elements=[CompartmentElement('walker', n=1.0)], interactions=[well])
+print(round(float(Simulation(flow, dt=0.01).check().prepare().run(until=1.0).trajectory_.values('walker.n')[-1]), 4))
+
+spring = GradientInteraction('spring', target='point', states='x', potential=lambda s: s.target.x * s.target.x / 2)
+newton = System(elements=[PointElement('point', x=[1.0])], interactions=[spring], space=ContinuousSpace(n_dim=1))
+print(round(float(Simulation(newton, dt=0.01).check().prepare().run(until=3.1416).trajectory_.values('point.x')[-1][0]), 3))
+```
+
+`EulerLagrangeInteraction(target, states, lagrangian, dissipation=None, forcing=None)` writes the equations of motion
+of a Lagrangian, with a Rayleigh dissipation and a generalized forcing. The equations of one coordinate from several
+interactions add, so a coupling is an interaction whose Lagrangian holds only the coupling energy.
+
+```python
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import cos
+
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import EulerLagrangeInteraction
+from skcomplex.core.laws.utils import derivative
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class AngleElement(Element):
+    def __init__(self, label, *, q: Annotated[float, StateSpec(order=2)] = 0.1, q_d1: float = 0.0):
+        super().__init__(label)
+        self.q = q
+        self.q_d1 = q_d1
+
+
+lagrangian = lambda s: derivative(s.target.q, 1) ** 2 / 2 + cos(s.target.q)
+swing = EulerLagrangeInteraction('swing', target='bob', states='q', lagrangian=lagrangian)
+system = System(elements=[AngleElement('bob')], interactions=[swing])
+print(round(float(Simulation(system, dt=0.01).check().prepare().run(until=3.2).trajectory_.values('bob.q')[-1]), 2))
+```
+
+`ConservationInteraction(target, state, flux, source=None, limiter='minmod', riemann='rusanov')` conserves a state of
+a finite-volume field under a flux and a source. The flux laws of one field form one system, and `riemann=None`
+lowers to the divergence of the flux on spectral and finite-difference fields. `AdvectionInteraction(target, state,
+drift)` carries a state by a drift `a`, the flux `a u`, and `DiffusionInteraction(target, state, coefficient)` is the
+flux minus a coefficient times the gradient.
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.elements import Element, FieldElement
+from skcomplex.core.interactions import AdvectionInteraction, ConservationInteraction, DiffusionInteraction
+from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class CellElement(Element):
+    def __init__(self, label, *, u: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.u = u
+
+
+space = LatticeSpace((50,), spacing=0.1, boundary='periodic')
+values = {'u': 1.0 + np.sin(2 * np.pi * np.arange(50) / 50)}
+interactions = {
+    'burgers': ConservationInteraction('burgers', target='wave', state='u', flux=lambda s: s.target.u**2 / 2),
+    'drift': AdvectionInteraction('drift', target='wave', state='u', drift=lambda s: 1.0),
+    'heat': DiffusionInteraction('heat', target='wave', state='u', coefficient=0.1),
+}
+for label, interaction in interactions.items():
+    field = FieldElement('wave', element=CellElement, space=space, values=values, discretization='finite-volume')
+    system = System(elements=[field], interactions=[interaction])
+    total = Simulation(system, dt=0.01).check().prepare().run(until=0.5).trajectory_.values('wave.u')[-1].sum()
+    print(label, round(float(total), 6))
+```
+
+### Discrete time
+
+`MapInteraction(target, state, function, sources=(), mode='replace', schedule='synchronous', form='symbolic')` sets
+`x(t+1) = f(s)`, or `x + f(s)` with `mode='increment'`, for all members at once, one after the other
+(`'sequential'`), in random order (`'random-sequential'`), or in the activation of every member (`'member'`, agent
+form).
+
+```python
+from typing import Annotated
+
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import MapInteraction
+from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class ValueElement(Element):
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.5):
+        super().__init__(label)
+        self.x = x
+
+
+logistic = MapInteraction('map', target='value', state='x', function=lambda s: 3 * s.target.x * (1 - s.target.x))
+system = System(elements=[ValueElement('value')], interactions=[logistic], time=DiscreteTime())
+print(Simulation(system).check().prepare().run(until=2).trajectory_.values('value.x').tolist())
+```
+
+`SignAdjustmentInteraction(target, state, signal, step=0.1, mode='multiplicative', lower=None, upper=None)` searches
+by trial and error: `x (1 + step sign(signal))`, or `x + step sign(signal)` with `mode='additive'`, kept within
+`[lower, upper]`.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import SignAdjustmentInteraction
+from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class QuoteElement(Element):
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
+        self.x = x
+
+
+signal = lambda s: 2 - s.target.x
+search = SignAdjustmentInteraction('search', target='quote', state='x', signal=signal, step=0.5, upper=2.0)
+system = System(elements=[QuoteElement('quote')], interactions=[search], time=DiscreteTime())
+print(Simulation(system).check().prepare().run(until=3).trajectory_.values('quote.x').tolist())
+```
+
+`LocalRuleInteraction(target, state, rule, neighborhood)` runs a cellular automaton from a rule table, a totalistic
+rule, or a function of the ordered neighbourhood, and `CascadeInteraction(target, state, threshold, share, mode,
+drive=None, neighborhood=None)` drives the members, then relaxes every member at or above a threshold by a reset, a
+redistribution, or a random share, and records each cascade as an event.
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.elements import Element, LatticeElement
+from skcomplex.core.interactions import CascadeInteraction, LocalRuleInteraction
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec, TotalisticSpec
+
+
+class CellElement(Element):
+    def __init__(self, label, *, c: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.c = c
+
+
+def run(interaction, values, until):
+    cells = LatticeElement('cells', element=CellElement, space=LatticeSpace(5), values={'c': values})
+    system = System(elements=[cells], interactions=[interaction], time=DiscreteTime())
+    return Simulation(system, dt=until, random_state=0).check().prepare().run(until=until)
+
+
+parity = LocalRuleInteraction(
+    'parity', target='cells', state='c', rule=TotalisticSpec({1: 1}), neighborhood=VonNeumannNeighborhood(n_dim=1)
+)
+print(run(parity, np.eye(5)[2], 1).state_.tolist())
+around = VonNeumannNeighborhood(n_dim=1, center=True)
+toppling = CascadeInteraction('toppling', target='cells', state='c', threshold=2, share=1, neighborhood=around)
+simulation = run(toppling, [0.0, 1.0, 3.0, 1.0, 0.0], 1)
+print(simulation.state_.tolist(), [event.size for event in simulation.trajectory_.events])
+```
+
+### Coupling over a structure
+
+`CouplingInteraction(target, source=None, read, write, function, reduce='sum', mode='edges', ...)` gives member `i` a
+reduction over `j` of `function(s)`, where `s.member` reads `i`, `s.other` reads `j`, and `s.edge` the edge. It works
+over the edges of a lattice or a network, over the whole group or a separate `source` group (`mode='group'`), or over
+the next member of an ordered group. The reductions are sum, mean, max, min, normalized mean, and circular mean, and
+the weights are an edge state, a matrix, or a function. It adds to a rate (`form='rate'`) or sets the next value with
+`combine(s, reduction)` (`form='map'`).
+
+```python
+from typing import Annotated
+
+import numpy as np
+from sage.all__sagemath_symbolics import sin
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import CouplingInteraction
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import ParameterSpec, StateSpec
+
+
+class OscillatorElement(Element):
+    def __init__(
+        self,
+        label,
+        *,
+        theta: Annotated[float, StateSpec()] = 0.0,
+        omega: Annotated[float, ParameterSpec()] = 0.0,
+    ):
+        super().__init__(label)
+        self.theta = theta
+        self.omega = omega
+
+    def _get_laws(self, s):
+        return [RateLaw(s.theta, s.omega)]
+
+
+rng = np.random.default_rng(0)
+values = {'theta': rng.uniform(-np.pi, np.pi, 50), 'omega': rng.normal(0.0, 0.5, 50)}
+oscillators = GroupElement('oscillators', element=OscillatorElement, size=50, values=values)
+kuramoto = CouplingInteraction(
+    'kuramoto',
+    target='oscillators',
+    read='theta',
+    write='theta',
+    function=lambda s: 2.0 * sin(s.other.theta - s.member.theta),
+    reduce='mean',
+    mode='group',
+)
+system = System(elements=[oscillators], interactions=[kuramoto])
+phases = Simulation(system, dt=1.0).check().prepare().run(until=10).trajectory_.values('oscillators.theta')[-1]
+print(round(float(np.abs(np.exp(1j * phases).mean())), 2))
+```
+
+`PairCouplingInteraction(first, second, cutoff, read, write, function=None, potential=None, divisor=None,
+period=None)` adds to both members of every pair within a cutoff `function(s)`, or minus the gradient of
+`potential(s, r)` at their distance `r`. With several states in `write`, the function returns one value per state.
+
+```python
+import numpy as np
+from sage.all__sagemath_symbolics import exp
+
+from skcomplex.core.elements import GroupElement, PointElement
+from skcomplex.core.interactions import PairCouplingInteraction
+from skcomplex.core.spaces import ContinuousSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
+morse = PairCouplingInteraction('morse', 'pair', 'pair', cutoff=3.0, potential=lambda s, r: 2 * (1 - exp(1 - r)) ** 2)
+pair = GroupElement('pair', element=PointElement, size=2, values={'x': [[0.0, 0.0], [1.5, 0.0]]})
+system = System(elements=[pair], interactions=[morse], space=ContinuousSpace(n_dim=2))
+positions = Simulation(system, dt=0.1).check().prepare().run(until=5).trajectory_.values('pair.x')
+distances = np.linalg.norm(positions[:, 1] - positions[:, 0], axis=1)
+print(round(float(distances.min()), 2), round(float(distances.max()), 2))
+```
+
+### Events and discrete states
+
+`JumpInteraction(target, changes, rate=None, probability=None, waiting=None, reset=None)` fires stochastic events that
+change states by signed amounts, at a rate, with a probability per step, or after drawn waiting times.
+`ReactionInteraction(target=None, reactants, products, k, propensity=None, modifiers=None, mode='rate')` is mass
+action between species, as rates, jumps (`mode='jump'`), or Langevin noise. A species is a pair of a path and a
+state, or a state name of the `target` alone, so a reaction with a group or field target reacts in every member.
+
+```python
+from skcomplex.core.elements import CompartmentElement
+from skcomplex.core.interactions import JumpInteraction, ReactionInteraction
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
+arrivals = JumpInteraction('arrivals', target='queue', changes={'n': 1}, rate=lambda s: 2.0)
+queue = System(elements=[CompartmentElement('queue')], interactions=[arrivals])
+counts = Simulation(queue, dt=1.0, random_state=0).check().prepare().run(until=5).trajectory_.values('queue.n')
+print(all(count == round(count) for count in counts))
+
+infection = ReactionInteraction('infection', reactants={('S', 'n'): 1, ('I', 'n'): 1}, products={('I', 'n'): 2}, k=5e-4)
+recovery = ReactionInteraction('recovery', reactants={('I', 'n'): 1}, products={('R', 'n'): 1}, k=0.1)
+sir = System(
+    elements=[CompartmentElement('S', n=990), CompartmentElement('I', n=10), CompartmentElement('R')],
+    interactions=[infection, recovery],
+)
+print(round(float(Simulation(sir, dt=1.0).check().prepare().run(until=50).trajectory_.states[-1].sum()), 6))
+```
+
+`TransitionInteraction(target, state, source, destination, rate=None, probability=None, condition=None, matrix=None,
+...)` moves a discrete state from a value, a set of values, or the values a function accepts, to another value: at a
+rate, with a probability per step, when a condition holds, by a transition or an emission matrix, and after a
+residence time (`after`). `SpreadingInteraction(target, state, beta, gamma, omega)` is the transition of an active
+value along edges, with recovery and return.
+
+```python
+from typing import Annotated
+
+import numpy as np
+from sage.all__sagemath_symbolics import NN
+
+from skcomplex.core.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.interactions import SpreadingInteraction, TransitionInteraction
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class HolderElement(Element):
+    def __init__(self, label, *, state: Annotated[int, StateSpec(domain=NN)] = 1):
+        super().__init__(label)
+        self.state = state
+
+
+move = TransitionInteraction('move', target='holders', state='state', source=1, destination=2, probability=lambda s: 0.2)
+holders = GroupElement('holders', element=HolderElement, size=1000)
+system = System(elements=[holders], interactions=[move], time=DiscreteTime())
+values = Simulation(system, random_state=0).check().prepare().run(until=3).trajectory_.values('holders.state')
+print(round(float((values[-1] == 1).mean()), 1))
+
+contact = SpreadingInteraction('contact', target='sites', beta=4.0, gamma=1.0, form='fraction')
+sites = LatticeElement('sites', element=HolderElement, space=LatticeSpace((20, 20)))
+system = System(elements=[sites], interactions=[contact])
+values = Simulation(system, dt=1.0, random_state=0).check().prepare().run(until=10).trajectory_.values('sites.state')
+print(values[-1].mean() > 0.3)
+```
+
+`EncounterInteraction(candidate, field, rate, kernel, outcome)` gives the bilinear encounters of a kinetic model over
+densities on activity classes, conservative, destructive, or proliferative.
+
+```python
+import numpy as np
+
+from skcomplex.core.elements import DensityElement, GroupElement
+from skcomplex.core.interactions import EncounterInteraction
+from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
+kernel = np.zeros((3, 1, 3))
+kernel[:, :, 0] = 1.0
+gather = EncounterInteraction('gather', candidate='candidates', field='field', rate=lambda s: 1.0, kernel=lambda s: kernel)
+system = System(
+    elements=[
+        GroupElement('candidates', element=DensityElement, size=3, on='sites', values={'f': [0.2, 0.3, 0.5]}),
+        GroupElement('field', element=DensityElement, size=1, values={'f': 1.0}),
+    ],
+    interactions=[gather],
+    space=LatticeSpace(3, boundary='fixed'),
+)
+densities = Simulation(system, dt=0.5).check().prepare().run(until=4.0).trajectory_.values('candidates.f')
+print(np.round(densities[-1], 2).tolist())
+```
+
+`CrossingInteraction(target, guard, reset=None, direction=0, terminal=False)` fires an event when a guard crosses
+zero, which resets states or ends the run, and `ImpulseInteraction(target, reset, times=(), period=None, count=None)`
+resets states at given or periodic times.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import CrossingInteraction, ImpulseInteraction
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class ClockElement(Element):
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.x = x
+
+    def _get_laws(self, s):
+        return [RateLaw(s.x, 1.0)]
+
+
+wrap = CrossingInteraction('wrap', target='clock', guard=lambda s: s.target.x - 1, reset={'x': lambda s: 0}, direction=1)
+kick = ImpulseInteraction('kick', target='clock', reset={'x': lambda s: s.target.x + 0.25}, times=(1.5,))
+system = System(elements=[ClockElement('clock')], interactions=[wrap, kick])
+events = Simulation(system, dt=0.5).check().prepare().run(until=2.2).trajectory_.events
+print([(event.label, round(event.time, 3)) for event in events])
+```
+
+`SamplingInteraction(target, state, energy, move='flip', temperature=1.0)` runs Monte Carlo sweeps whose moves are
+accepted from the change of an energy, or Wolff cluster flips with `move='cluster'`.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.elements import Element, LatticeElement
+from skcomplex.core.interactions import SamplingInteraction
+from skcomplex.core.laws.utils import neighbors
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class SpinElement(Element):
+    def __init__(self, label, *, s: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
+        self.s = s
+
+
+energy = lambda n: -n.target.s * neighbors(n.target.other.s)
+ising = SamplingInteraction('ising', target='spins', state='s', energy=energy, temperature=1.0)
+spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((8, 8)))
+system = System(elements=[spins], interactions=[ising], time=DiscreteTime())
+print(abs(Simulation(system, random_state=0).check().prepare().run(until=20).trajectory_.states[-1].mean()) > 0.9)
+```
+
+### Agent and symbolic forms
+
+A class whose operation agent models also use takes `form='symbolic'` or `form='agent'`. The symbolic form lowers to
+symbolic laws, which every solver compiles. The agent form lowers to an agent `RuleLaw` in its `phase`, and its
+functions take the agent and the model view, `f(agent, model)`, so they read the model's history and storage and the
+agent's neighbours and cell. The form is an argument, not a guess, because the engine probes laws with empty namespaces
+and cannot tell an agent group from a symbolic one.
+
+```python
+from types import SimpleNamespace
+
+from skcomplex.core.interactions import MapInteraction
+
+symbolic = MapInteraction('map', target='walkers', state='x', function=lambda s: s.target.x + 1)
+agent = MapInteraction('map', target='walkers', state='x', function=lambda agent, model: agent.x + 1, form='agent')
+print(type(agent.check().prepare().run(SimpleNamespace()).laws_[0]).__name__, symbolic.check().form)
+```
+
+**The member schedule.** An agent rule may name the role whose members run it, `RuleLaw(function,
+members='target')`. The Mesa solver runs it in the activation of every member of that role, after the rules of the
+member's element and the member rules of the interactions listed before it. `MapInteraction`,
+`TransitionInteraction`, `MovementInteraction`, `TransferInteraction`, and `LifeCycleInteraction` take
+`schedule='member'` for it, so the movement, transfers, transitions, and life cycle of one agent run together as one
+step of that agent, in the order of the system's interactions.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import MapInteraction, MovementInteraction
+from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class WalkerElement(Element):
+    def __init__(self, label, *, steps: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.steps = steps
+
+
+walk = MovementInteraction('walk', target='walkers', step='neighbor', schedule='member')
+count = MapInteraction(
+    'count', target='walkers', state='steps', function=lambda a, m: a.steps + 1, schedule='member', form='agent'
+)
+walkers = GroupElement('walkers', element=WalkerElement, size=3)
+system = System(elements=[walkers], interactions=[walk, count], space=LatticeSpace((5, 5)))
+print(Simulation(system, random_state=0).check().prepare().run(until=4).trajectory_.agents('walkers', 4).values['steps'].tolist())
+```
+
+### Choice and learning
+
+`ChoiceInteraction(target, state, options, utility, rule='logit', intensity=1.0)` draws an option for every member by
+the logit, Metropolis, Fermi, or best rule from `utility(s, option)`, or `utility(agent, model, option)` in the agent
+form.
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import ChoiceInteraction
+from skcomplex.core.laws.utils import mean
+from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class ChooserElement(Element):
+    def __init__(self, label, *, option: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
+        self.option = option
+
+
+utility = lambda s, option: 2.0 * option * mean(s.target.option)
+choice = ChoiceInteraction('choice', target='members', state='option', options=(-1, 1), utility=utility)
+members = GroupElement('members', element=ChooserElement, size=500)
+system = System(elements=[members], interactions=[choice], time=DiscreteTime())
+values = Simulation(system, random_state=0).check().prepare().run(until=10).trajectory_.values('members.option')
+print(round(float(np.mean(values[-1])), 1))
+```
+
+`ImitationInteraction(target, state, payoff, options, rate, rule='random', form='rate')` copies a neighbour's state at
+random, by majority, from the best, from a random better neighbour, or by the Fermi rule, as jumps, as updates with a
+probability per step (`form='probability'`), or as an agent rule.
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.elements import Element, LatticeElement
+from skcomplex.core.interactions import ImitationInteraction
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class VoterElement(Element):
+    def __init__(self, label, *, state: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.state = state
+
+
+initial = np.array([1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0], dtype=float)
+majority = ImitationInteraction('majority', target='voters', rule='majority', form='probability')
+voters = LatticeElement('voters', element=VoterElement, space=LatticeSpace(12), values={'state': initial})
+system = System(elements=[voters], interactions=[majority], time=DiscreteTime())
+print(Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_.values('voters.state')[-1].tolist())
+```
+
+`ReinforcementInteraction(target, scores, payoff, rate=0.1, rule='average')` moves the score of every option towards
+its realized payoff, or adds the payoff with `rule='cumulative'`.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import ReinforcementInteraction
+from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class LearnerElement(Element):
+    def __init__(
+        self,
+        label,
+        *,
+        first: Annotated[float, StateSpec()] = 0.0,
+        second: Annotated[float, StateSpec()] = 0.0,
+    ):
+        super().__init__(label)
+        self.first = first
+        self.second = second
+
+
+learning = ReinforcementInteraction(
+    'learning', target='learners', scores=('first', 'second'), payoff=lambda s, k: float(k + 1), rate=0.5
+)
+learners = GroupElement('learners', element=LearnerElement, size=2)
+system = System(elements=[learners], interactions=[learning], time=DiscreteTime())
+trajectory = Simulation(system, random_state=0).check().prepare().run(until=10).trajectory_
+print(round(float(trajectory.values('learners.first')[-1][0]), 2), round(float(trajectory.values('learners.second')[-1][0]), 2))
+```
+
+`EvolutionInteraction(target, strategy, fitness, selection='tournament', replacement='generational', crossover,
+mutation, ...)` replaces strategies by selection, crossover, and mutation every `period` steps. The selection is by
+tournament, roulette, proportional, or rank, and the replacement replaces the generation, or replaces by Moran,
+death-birth, truncation, or the best mutant.
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import EvolutionInteraction
+from skcomplex.core.laws import RuleLaw
+from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import PhaseSpec, PhasesScheduleSpec, StateSpec
+
+
+class BitStringElement(Element):
+    def __init__(
+        self,
+        label,
+        *,
+        strategy: Annotated[object, StateSpec()] = 0.0,
+        fitness: Annotated[float, StateSpec()] = 0.0,
+    ):
+        super().__init__(label)
+        self.strategy = strategy
+        self.fitness = fitness
+
+    def _get_laws(self, s):
+        return [RuleLaw(self.score, phase='scoring')]
+
+    def score(self, agent, model):
+        agent.fitness = float(np.sum(agent.strategy))
+
+
+initial = np.random.default_rng(0).integers(0, 2, size=(40, 20)).astype(float)
+agents = GroupElement('agents', element=BitStringElement, size=40, values={'strategy': initial})
+evolution = EvolutionInteraction('evolution', target='agents', phase='evolution')
+schedule = PhasesScheduleSpec([PhaseSpec('scoring'), PhaseSpec('evolution')])
+system = System(elements=[agents], interactions=[evolution], time=DiscreteTime(schedule=schedule))
+trajectory = Simulation(system, random_state=0).check().prepare().run(until=30).trajectory_
+final = np.array(trajectory.agents('agents', 30).values['strategy'].tolist())
+print(final.sum(axis=1).mean() > initial.sum(axis=1).mean() + 4)
+```
+
+### Agents, groups, and exchange
+
+`MovementInteraction(target, step='neighbor', ...)` moves agents by a neighbour, Gaussian, Lévy, best-cell, or user
+step, with a condition, an acceptance, exclusion, and a cost.
+
+```python
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import MovementInteraction
+from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
+walkers = GroupElement('walkers', element=Element, size=2, location=[(2, 2), (2, 2)])
+walk = MovementInteraction('walk', target='walkers', step='neighbor')
+system = System(elements=[walkers], interactions=[walk], space=LatticeSpace((5, 5), neighborhood='von_neumann'))
+trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+print([int(abs(cell - 2).sum()) for cell in trajectory.agents('walkers', 1).locations])
+```
+
+`TransferInteraction(source, target, state, into=None, amount, ...)` moves amounts of states between members, the
+agents of one cell, a `Source()`, and a `Sink()`, as transfer laws in the symbolic form, which the trajectory records
+as named flows, or between paired agents in the agent form.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import TransferInteraction
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class TankElement(Element):
+    def __init__(self, label, *, level: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.level = level
+
+
+flow = TransferInteraction('flow', source='upper', target='lower', state='level', amount=lambda s: s.source.level / 2)
+system = System(elements=[TankElement('upper', level=4.0), TankElement('lower')], interactions=[flow])
+trajectory = Simulation(system).check().prepare().run(until=1.0).trajectory_
+print(round(float(trajectory.values('upper.level')[-1] + trajectory.values('lower.level')[-1]), 6))
+```
+
+`LifeCycleInteraction(target, birth, death, rate=None, offspring=1, placement='here', inherit=(), split=(), ...)`
+creates offspring by a condition, a probability, or a rate, with inherited, given, split, and mutated values, and
+removes or renews agents.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import LifeCycleInteraction
+from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class CellElement(Element):
+    def __init__(self, label, *, size: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.size = size
+
+
+cells = GroupElement('cells', element=CellElement, size=1, values={'size': 8.0}, variable=True)
+division = LifeCycleInteraction('division', target='cells', birth=1.0, split=('size',))
+system = System(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
+print(Simulation(system, random_state=0).check().prepare().run(until=2).trajectory_.agents('cells', 2).values['size'].tolist())
+```
+
+`GroupingInteraction(target, groups='pairs', act, size=2)` draws pairs, a random partition, neighbourhoods, or groups
+by a state every step, then calls `act(members, model)` on every group.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import GroupingInteraction
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class VoterElement(Element):
+    def __init__(self, label, *, s: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.s = s
+
+
+def adopt_majority(members, model):
+    majority = float(2 * sum(member.s for member in members) > len(members))
+    for member in members:
+        member.s = majority
+
+
+voters = GroupElement('voters', element=VoterElement, size=3, values={'s': [1.0, 1.0, 0.0]})
+galam = GroupingInteraction('galam', target='voters', groups='partition', size=3, act=adopt_majority)
+trajectory = Simulation(System(elements=[voters], interactions=[galam])).check().prepare().run(until=1).trajectory_
+print(trajectory.agents('voters', 1).values['s'].tolist())
+```
+
+`MatchingInteraction(requesters, providers, rule, limit, quantity, budget, transfers, on_match)` pairs requesters with
+providers by the algorithm its rule names, then moves the states of `transfers`. The rules are frozen specs of
+`skcomplex.specs` that hold only the settings of their algorithm: `RandomSearchSpec(tries, clearing)`, the default,
+`PartnerSwitchSpec(sample, intensity, partner)`, `QueueSpec(order)`, `IterativeClearingSpec(adjustment, iterations,
+tolerance)`, `ContinuousClearingSpec(arrival)`, `BatchClearingSpec()`, `StableMatchingSpec(requester_preference,
+provider_preference, clearing)`, and `GreedyMatchingSpec(score, candidates, capacity, clearing)`. The matching runs
+each algorithm as its own method, chosen by the type of its rule, so a new algorithm is a new spec and a method. A
+`FeedbackInteraction(rule)` reads observables once per round of its phase and sets parameters. The section on phases,
+markets, institutions, and learning below runs both.
+
+```python
+from skcomplex.core.interactions import FeedbackInteraction, MatchingInteraction
+from skcomplex.specs import QueueSpec, StableMatchingSpec
+
+queue = MatchingInteraction('queue', requesters='buyers', providers='sellers', rule=QueueSpec())
+stable = MatchingInteraction('stable', requesters='buyers', providers='sellers', rule=StableMatchingSpec())
+controller = FeedbackInteraction('controller', rule=lambda model: None, phase='policy')
+print(queue.check().reports, type(stable.check().rule).__name__, controller.check().phase)
+```
+
+`TopologyInteraction(target=None, action='add-edge', rate=None, probability=None, toward=None, ...)` adds or removes
+nodes and edges of a network and rewires edges, preferentially towards a weight. Without a target, it adds one node
+per step from outside the network.
+
+```python
+import networkx as nx
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import TopologyInteraction
+from skcomplex.core.spaces import NetworkSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
+nodes = GroupElement('nodes', element=Element, on='sites', variable=True, capacity=20)
+links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
+expiry = TopologyInteraction('expiry', target='nodes', action='remove-edge')
+system = System(elements=[nodes, links], interactions=[expiry], space=NetworkSpace(nx.cycle_graph(5)))
+trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+print(len(trajectory.network(0).sources), len(trajectory.network(1).sources))
+```
+
+The binding bases stay the classes to subclass for an operation the general classes do not cover: `Interaction` for
+laws of its own over any roles, `NeighborInteraction` over the edges of a lattice or a network, `PairInteraction` over
+the pairs within a cutoff, and `HyperedgeInteraction` over the members of hyperedges. The sections on groups, networks,
+and pair interactions below show them.
+
+### Law utilities
+
+Besides `where`, `either`, `both`, and `mod`, `skcomplex.core.laws.utils` gives the functions laws are commonly written
+with, which every backend lowers.
+
+- `hill(x, half, n)`, `logistic(x, center, width)`, `clip(x, low, high)`, and `sign(x)` are pointwise functions.
+- `minimum` and `maximum` of several expressions compare them, and of one expression reduce it over a group.
+- `total`, `mean`, `count`, and `circular_mean` reduce over a group, and with `by=` over the members that share the
+  value of a state, such as the members of one household or one cell.
+- `delay1`, `delay3`, and `smooth` are the first- and third-order delays and the smoothing of stock-and-flow models.
+- `pulse_train(t, period, width, height, start, count=None)` is a train of rectangular pulses, finite with a count.
+
+```python
+from sage.all__sagemath_symbolics import var
+
+from skcomplex.core.laws.utils import circular_mean, clip, hill, logistic, pulse_train, sign
+
+x, t, theta = var('x t theta')
+print(float(hill(x, 2, 3).subs(x=2)), float(logistic(x, 1, 2).subs(x=1)))
+print([clip(x, 0, 1).subs(x=value) for value in (-2, 0.5, 3)], [sign(x).subs(x=value) for value in (-2, 0, 3)])
+print([float(pulse_train(t, 10, 1, count=2).subs({t: time})) for time in (10.5, 20.5)], circular_mean(theta))
+```
 
 ## The model library
 

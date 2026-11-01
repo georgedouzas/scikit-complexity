@@ -12,7 +12,7 @@ import mkdocs_gen_files
 from gallery_tools import Example, build_from_environment, find_examples
 from inventory_checks import InventoryError, inventory_problems
 
-from skcomplex.analysis import equations_of
+from skcomplex.analysis import SymbolicAnalysis
 from skcomplex.core.system import System
 from skcomplex.models import catalog, create, describe
 
@@ -251,7 +251,8 @@ def _equations(name: str) -> str | None:
     """Return the equations of a model as the symbolic layer shows them, or `None` for forms without equations."""
     if describe(name).formalism not in EQUATION_FORMS:
         return None
-    return '\n'.join(f'{target}: {equation}' for target, equation in equations_of(create(name)).items())
+    equations = SymbolicAnalysis().check().prepare(create(name)).run().equations_
+    return '\n'.join(f'{target}: {equation}' for target, equation in equations.items())
 
 
 def model_section(name: str, examples: dict[str, Example]) -> str:
@@ -291,8 +292,8 @@ def field_page(field: str) -> str:
         f'# {_title(field)}',
         '',
         f'The registered models of `skcomplex.models.{field}`. Each shows its factory, its component types with their',
-        'states, parameters, and laws as written, and, for the forms that have them, its equations as `equations_of`',
-        'returns them, so it serves as the pattern for a model of your own.',
+        'states, parameters, and laws as written, and, for the forms that have them, its equations as',
+        '`SymbolicAnalysis` returns them, so it serves as the pattern for a model of your own.',
     ]
     for subfield in sorted({entry.field for entry in entries}):
         lines += ['', f'# {subfield}', '']

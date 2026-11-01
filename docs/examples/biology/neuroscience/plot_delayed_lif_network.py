@@ -36,7 +36,7 @@ def spikes_of(trajectory):
     """Return the time and the neuron of every spike."""
     times, neurons = [], []
     for event in trajectory.events:
-        if event.label == 'spike':
+        if event.label.startswith('spike'):
             potentials_before, potentials_after = event.before[::2], event.after[::2]
             for neuron in np.nonzero(potentials_after < potentials_before - 1)[0]:
                 times.append(event.time)

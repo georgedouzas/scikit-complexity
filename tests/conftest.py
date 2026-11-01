@@ -154,8 +154,8 @@ class WeightedSumInteraction(Interaction):
         label: str,
         *,
         target: Annotated[str, RoleSpec()],
-        inputs: Annotated[list[str], RoleSpec(variadic=True)],
-        weights: Annotated[list[float], ParameterSpec(per='inputs')] = 1.0,
+        inputs: Annotated[str | Sequence[str], RoleSpec(variadic=True)],
+        weights: Annotated[float | Sequence[float], ParameterSpec(per='inputs')] = 1.0,
     ) -> None:
         super().__init__(label)
         self.target = target
