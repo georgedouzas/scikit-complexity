@@ -23,7 +23,7 @@
 
 ## 3. JAX backend
 
-- [ ] 3.1 Add `JaxBackend` in `engine/backends/_jax.py` with its `DialectSpec`, for discrete maps and ODEs with
+- [x] 3.1 Add `JaxBackend` in `engine/backends/_jax.py` with its `DialectSpec`, for discrete maps and ODEs with
   reductions and shaped parameters, and its `SupportSpec`; verify the weighted input and coupling scenarios on JAX and
   forward agreement with NumPy within 1e-10 on `logistic_map` and `lotka_volterra`, and the contraction against NumPy
   scenario on JAX

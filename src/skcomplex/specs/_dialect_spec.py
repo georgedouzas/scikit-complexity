@@ -191,4 +191,17 @@ _LEPTON_DIALECT = DialectSpec(
 )
 
 
-DIALECTS = {'numpy': _NUMPY_DIALECT, 'scalar': _SCALAR_DIALECT, 'lepton': _LEPTON_DIALECT}
+_JAX_DIALECT = DialectSpec(
+    'JAX',
+    {
+        **{name: template.replace('np.', 'jnp.') for name, template in _NUMPY_DIALECT.functions.items()},
+        'erf': 'jsp.erf({0})',
+        'erfc': 'jsp.erfc({0})',
+        'gamma': 'jsp.gamma({0})',
+    },
+    _PYTHON_RELATIONS,
+    error=BackendError,
+)
+
+
+DIALECTS = {'numpy': _NUMPY_DIALECT, 'scalar': _SCALAR_DIALECT, 'lepton': _LEPTON_DIALECT, 'jax': _JAX_DIALECT}

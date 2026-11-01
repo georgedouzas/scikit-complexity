@@ -17,6 +17,6 @@ def test_public_names_are_classes_under_the_bases():
 
 def test_backends_name_themselves_and_their_support():
     """Every concrete backend answers the hooks of its name and of what it supports."""
-    for backend in (package.NumpyBackend, package.NumbaBackend):
+    for backend in (package.NumpyBackend, package.NumbaBackend, package.JaxBackend):
         assert isinstance(backend._get_name(), str)
         assert backend._get_support().laws

@@ -17,7 +17,7 @@ from skcomplex.core.laws import BaseLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import count, uniform, where
 from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.system import System
-from skcomplex.engine.backends import NumbaBackend, NumpyBackend
+from skcomplex.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
@@ -230,7 +230,7 @@ def _matrix_group(theta, matrix, **arguments):
     return System(elements=[group], interactions=[coupling])
 
 
-@BACKENDS
+@pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend(), JaxBackend()], ids=['numpy', 'numba', 'jax'])
 def test_coupling_over_the_group_reads_a_shaped_parameter_with_terms_of_both_members(backend):
     """Test that a shaped parameter `a` and the term `x_i x_j` give the generalized Lotka-Volterra rate `x_i (ax)_i`."""
     x = np.random.default_rng(0).uniform(0.5, 1.5, 5)

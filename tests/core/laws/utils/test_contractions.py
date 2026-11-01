@@ -12,14 +12,14 @@ from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import BaseLaw, RateLaw
 from skcomplex.core.laws.utils import contraction, contractions_in
 from skcomplex.core.system import System
-from skcomplex.engine.backends import NumbaBackend, NumpyBackend
+from skcomplex.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.errors import ParameterError, ValidationError
 from skcomplex.specs import ParameterSpec, RoleSpec
 
 from ....conftest import NodeElement
 
-BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend], ids=['numpy', 'numba'])
+BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend, JaxBackend], ids=['numpy', 'numba', 'jax'])
 
 
 class CubicInteraction(Interaction):

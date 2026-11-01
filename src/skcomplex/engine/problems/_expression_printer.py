@@ -36,7 +36,10 @@ _CONDITION = 'np.where('
 _QUIET_ERRORS = "with np.errstate(divide='ignore', invalid='ignore', over='ignore'):"
 
 
-_IMPORTS = 'import numpy as np\nfrom scipy.special import erf, erfc, gamma\n\n\n'
+IMPORTS = {
+    'numpy': 'import numpy as np\nfrom scipy.special import erf, erfc, gamma\n\n\n',
+    'jax': 'import jax.numpy as jnp\nimport jax.scipy.special as jsp\n\n\n',
+}
 
 
 class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]]):
@@ -44,14 +47,15 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
 
     `prepare(symbols)` takes the symbols the code reads, in order, and `run(expressions)` keeps in `code_` the
     assignments of the repeated compound subexpressions, bound to numbered names, and the code of every expression. A
-    compiled printer keeps instead the NumPy function `f(t, *symbols)` of the expressions, which runs in a NumPy error
-    state that ignores division, invalid, and overflow warnings when the expressions hold conditions.
+    compiled printer keeps instead the NumPy or JAX function `f(t, *symbols)` of the expressions. A NumPy function runs
+    in a NumPy error state that ignores division, invalid, and overflow warnings when the expressions hold conditions.
 
     Lepton has neither comparisons nor a remainder, so conditions become `step` and `select` and remainders `floor`.
 
     Args:
         dialect:
-            The target language, `'numpy'`, `'scalar'` for the scalar Python of compiled Numba loops, or `'lepton'`.
+            The target language, `'numpy'`, `'scalar'` for the scalar Python of compiled Numba loops, `'lepton'`, or
+            `'jax'` for JAX's NumPy, whose functions return new arrays.
 
         time:
             The time symbol, the first argument of a compiled function.
@@ -66,7 +70,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             Whether repeated subexpressions are bound to names, false for languages without assignments.
 
         compiled:
-            Whether `run` keeps a NumPy function of time and the symbols instead of code.
+            Whether `run` keeps a NumPy or JAX function of time and the symbols instead of code.
 
     Attributes:
         code_:
@@ -105,17 +109,17 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         self.compiled = compiled
 
     def _check(self) -> None:
-        """Raise an error for an unknown dialect, or a compiled printer of another dialect than NumPy or without time.
+        """Raise an error for an unknown dialect, or a compiled printer of a dialect without functions or of no time.
 
         Raises:
             ValidationError:
-                The dialect is unknown, or a compiled printer is not a NumPy printer with a time symbol.
+                The dialect is unknown, or a compiled printer is not a NumPy or JAX printer with a time symbol.
         """
         if self.dialect not in DIALECTS:
             error_msg = f'The dialect {self.dialect!r} is unknown. Use one of {", ".join(DIALECTS)}.'
             raise ValidationError(error_msg)
-        if self.compiled and (self.dialect != 'numpy' or self.time is None):
-            error_msg = 'A compiled printer prints NumPy code and needs the time symbol, `time=...`.'
+        if self.compiled and (self.dialect not in IMPORTS or self.time is None):
+            error_msg = 'A compiled printer prints NumPy or JAX code and needs the time symbol, `time=...`.'
             raise ValidationError(error_msg)
 
     def _prepare(self, context: Sequence[Expression] | None) -> None:
@@ -211,14 +215,16 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         return computed
 
     def _function(self, assignments: list[tuple[str, str]], codes: list[str]) -> Callable[..., list[npt.ArrayLike]]:
-        """Return the NumPy function `f(t, *symbols)` that runs printed assignments and returns the printed codes."""
+        """Return the NumPy or JAX function `f(t, *symbols)` that runs printed assignments and returns the codes."""
         body = [*(f'{name} = {code}' for name, code in assignments), f'return [{", ".join(codes)}]']
-        if any(_CONDITION in code for _, code in assignments) or any(_CONDITION in code for code in codes):
+        conditions = any(_CONDITION in code for _, code in assignments) or any(_CONDITION in code for code in codes)
+        if self.dialect == 'numpy' and conditions:
             body = [_QUIET_ERRORS, *(f'    {line}' for line in body)]
         arguments = ', '.join(self.names_(item) for item in self.symbols_)
         lines = [f'def _function(t, {arguments}):', *(f'    {line}' for line in body)]
         loader = SourceLoader('skcomplex_functions').check().prepare()
-        function: Callable[..., list[npt.ArrayLike]] = loader.run(_IMPORTS + '\n'.join(lines) + '\n').module_._function
+        source = IMPORTS[self.dialect] + '\n'.join(lines) + '\n'
+        function: Callable[..., list[npt.ArrayLike]] = loader.run(source).module_._function
         return function
 
     def _wrap(self, printed: PrintedSpec, precedence: int) -> str:
