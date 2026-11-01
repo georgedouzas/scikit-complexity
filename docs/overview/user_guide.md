@@ -3309,6 +3309,72 @@ trajectory = Simulation(system, dt=0.5).check().prepare().run(until=1.0).traject
 print(np.round(trajectory.values('synapses.w')[-1], 3).tolist())
 ```
 
+### Hypergraphs and laws per hyperedge
+
+A network space holds hyperedges beside its edges: `NetworkSpace(graph, hyperedges=...)` takes sequences of at least
+two nodes, an XGI `Hypergraph`, or an XGI `SimplicialComplex`, whose faces of at least two nodes are its hyperedges.
+The members of an XGI hyperedge follow the order of the nodes of the graph. The prepared space holds `hyperedges_`,
+the node indices of every hyperedge, `incidence_`, the sparse incidence matrix of nodes and hyperedges, and
+`memberships_`, the hyperedges around every node.
+
+A `HyperedgeInteraction` binds a group on the nodes and runs its laws once per hyperedge, on the hyperedges of its
+`size` or of every size when the size is `None`. The laws read `s.member`, the focal member, `s.others`, the other
+members in hyperedge order, and `s.members`, which `total`, `mean`, `count`, `maximum`, and `minimum` reduce with
+`over=s.members`. A law of the focal member runs once per member of every hyperedge and adds into that member. The
+compiler builds one gather table per size of hyperedge, so the laws run as gathers and scatter-adds on the NumPy and
+Numba backends. A second role may bind a group on the hyperedges, read as `s.hyperedge`, or a group on the edges, read
+as `s.edge`, the edge that joins the first two members of the hyperedge. A law that targets either runs once per
+hyperedge. Three-body phase coupling over the triangles of a hypergraph:
+
+```python
+from typing import Annotated
+
+import itertools
+import networkx as nx
+import numpy as np
+import xgi
+from sage.all__sagemath_symbolics import sin
+
+from skcomplex.core.elements import Element, LatticeElement
+from skcomplex.core.interactions import HyperedgeInteraction
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.spaces import NetworkSpace
+from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
+
+
+class PhaseElement(Element):
+    def __init__(self, label, *, theta: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.theta = theta
+
+
+class TriadInteraction(HyperedgeInteraction):
+    def __init__(self, label, *, phases: Annotated[str, RoleSpec()], K: Annotated[float, ParameterSpec()] = 1.0):
+        super().__init__(label, size=3)
+        self.phases = phases
+        self.K = K
+
+    def _get_laws(self, s):
+        first, second = (other.theta for other in s.others)
+        return [RateLaw(s.member.theta, s.K * sin(first + second - 2 * s.member.theta))]
+
+
+triangles = xgi.Hypergraph([list(nodes) for nodes in itertools.combinations(range(5), 3)])
+space = NetworkSpace(nx.complete_graph(5), hyperedges=triangles)
+system = System(
+    elements=[LatticeElement('phases', element=PhaseElement, space=space, values={'theta': np.linspace(0, 1, 5)})],
+    interactions=[TriadInteraction('triads', phases='phases')],
+)
+problem = compile_system(system)
+drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+print(len(space.check().prepare().hyperedges_), np.round(drift, 3).tolist())
+```
+
+The compiler reports an interaction whose size no hyperedge of the network has, and an edge group whose edge does not
+join the first two members of a hyperedge, with the issue code `binding`.
+
 ### Reductions over neighbourhoods
 
 `neighbors(expression, over=..., reduce=..., weight=...)` reduces an expression written for one neighbour, through

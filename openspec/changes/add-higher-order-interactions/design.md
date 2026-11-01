@@ -37,9 +37,27 @@
 XGI (CompleXGroupInteractions) is the maintained library for hypergraphs and simplicial complexes, with generators,
 statistics, and incidence matrices. `NetworkSpace(graph, hyperedges=...)` takes an XGI `Hypergraph` or
 `SimplicialComplex` as well as sequences of nodes, stored unmodified, and its `prepare` derives `incidence_`, the
-sparse incidence matrix, and `memberships_`, the hyperedges around every node. A simplicial complex gives its maximal
-faces and their faces of size at least two. HyperNetX is the alternative the survey compares, and the survey is
-recorded here before XGI becomes a runtime dependency.
+sparse incidence matrix, and `memberships_`, the hyperedges around every node. A simplicial complex gives its faces
+of size at least two. An XGI hyperedge is a set, so its members follow the order of the nodes of the graph, and
+`prepare` also derives `hyperedges_`, the node indices of every hyperedge in order, which the incidence matrix does not
+keep and the gather tables read. Sequences of nodes keep their own order.
+
+Survey (November 2026):
+
+| | XGI 0.10.2 | HyperNetX 2.4.3 |
+|---|---|---|
+| Licence | BSD-3-Clause | BSD-3-Clause |
+| Wheels | pure Python `py3-none-any`, every platform | pure Python `py3-none-any`, every platform |
+| Python | 3.10 or later | 3.10 to 3.x |
+| Maturity | 47 releases since 2021, last release May 2026, CompleX Group Interactions team | 50 releases, last release July 2026, PNNL |
+| Simplicial complexes | `SimplicialComplex`, a subclass of `Hypergraph` | none, homology behind an optional extra |
+| Incidence and generators | `incidence_matrix`, random and simplicial generators, dynamics such as the simplicial Kuramoto | incidence matrix, few generators |
+| Dependencies | `numpy`, `scipy`, `pandas`, `networkx`, `matplotlib`, `requests`, `xopen` | `igraph`, `pandas<3`, `concepts`, `bitsets`, `scikit-learn`, `matplotlib`, and more |
+
+XGI is chosen. Both are mature and installable everywhere, but HyperNetX pins `pandas<3`, which conflicts with the
+pandas 3 the project already locks, adds `igraph` and two lattice libraries the core does not use, and has no
+simplicial complex. XGI is a runtime dependency, since `skcomplex.core.spaces` imports it, locked with its new
+dependencies `xopen` and `backports-zstd` and no other change to the lock.
 
 ### Laws per hyperedge
 
@@ -53,9 +71,16 @@ are written for one hyperedge and read:
   hyperedge, when the second role binds an edge group.
 
 A law of the focal member runs once per member of every hyperedge and scatter-adds into that member, the pattern pair
-interactions already use. A law of the hyperedge or edge member runs once per hyperedge. The new pass
-`engine/compile/passes/_hyperedges.py` builds one index table per size, and the NumPy and Numba backends lower the
-laws to gathers over it.
+interactions already use. A law of the hyperedge or edge member runs once per hyperedge, with the first member of the
+hyperedge as the focal member. `engine/compile/passes/_hyperedges.py` holds `HyperedgeTables`, which builds the
+tables of every size and expands the reductions over `namespace.members`, and `SpecsPass` builds two kernel specs per
+size from them, the laws of the focal member over `size * E` rows and the laws of the hyperedge over `E` rows, marked
+by the field `hyperedge` of `KernelSpec`. Every symbol of a slot is a gather reference, `ReadKind.NEIGHBOR` with a
+`NeighborReadSpec` whose table holds the member of every row and no fill value, so the existing readers of the NumPy
+backend gather it and `_add_into` and the update writers scatter into it. The Numba printer prints a gather table as
+integer data of the layout, `x[start + L[table + row] * columns + column]`, and runs such kernels in one thread, since
+their scatter-adds share members. A reduction over `namespace.members` of a hyperedge of size `k` is written out as a
+sum, a mean, a count, or an extremum over the focal member and the `k - 1` other members before lowering.
 
 Issues: an interaction whose `size` no hyperedge of the space has gets the existing code `binding`, naming the size and
 the sizes the space has. An edge role whose first two members are not joined by an edge of the bound group gets

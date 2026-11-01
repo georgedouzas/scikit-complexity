@@ -9,7 +9,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.laws.utils import maximum, minimum, reductions_in
+from ....core.laws.utils import maximum, minimum, reductions_in, where
 from ....core.spaces import NetworkSpace
 from ....core.specs import NodeSpec
 from ....errors import RoleError, ValidationError
@@ -227,10 +227,11 @@ class HyperedgeTables:
                 error_msg = f'The extremum {reduction.call} over the members of a hyperedge takes no condition.'
                 raise ValidationError(error_msg)
             return maximum(*arguments) if reduction.kind == 'max' else minimum(*arguments)
-        counted = sum(conditions, SR(0))
+        counted = sum((SR(where(condition, 1, 0)) for condition in conditions), SR(0))
         if reduction.kind == 'count':
             return counted
-        summed = sum((argument * condition for argument, condition in zip(arguments, conditions, strict=True)), SR(0))
+        selected = zip(arguments, conditions, strict=True)
+        summed = sum((SR(where(condition, argument, 0)) for argument, condition in selected), SR(0))
         return summed if reduction.kind == 'sum' else summed / counted
 
     @staticmethod
