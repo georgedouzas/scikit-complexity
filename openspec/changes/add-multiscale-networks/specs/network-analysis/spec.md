@@ -3,15 +3,14 @@
 ## ADDED Requirements
 
 ### Requirement: Networks renormalize across scales
-The analysis SHALL renormalize a network by its Laplacian or by its geometry, returning the network at each scale with its degree distribution and clustering.
+`RenormalizationAnalysis` SHALL coarse-grain a graph, or the network of a trajectory, by its Laplacian (`'laplacian'`)
+or by the angles of its nodes (`'geometric'`), and SHALL set the network at every scale with its degree distribution,
+degree exponent, and clustering.
 
 #### Scenario: Self-similar network
 - **WHEN** a popularity-similarity network is renormalized geometrically three times
-- **THEN** its degree distribution exponent stays within 0.2 of the original at every scale
+- **THEN** its degree exponent stays within 0.2 of the original at every scale
 
-### Requirement: Scaling laws across sizes
-The analysis SHALL fit a quantity against system size across a sweep of runs, returning the exponent with a bootstrap confidence interval.
-
-#### Scenario: Known exponent
-- **WHEN** a quantity generated as `N^1.15` times lognormal noise across 50 sizes is fitted
-- **THEN** the confidence interval contains 1.15
+#### Scenario: Laplacian blocks
+- **WHEN** two complete graphs of 20 nodes joined by one edge are renormalized by the Laplacian once
+- **THEN** the network at the next scale has two nodes joined by one edge
