@@ -124,6 +124,7 @@ class FormKind(StrEnum):
     RENEWAL = 'renewal process'
     COUPLED = 'co-simulation'
     QUANTUM = 'quantum dynamics'
+    LEARNING = 'learning by gradient steps'
 
 
 class ElementKind(StrEnum):

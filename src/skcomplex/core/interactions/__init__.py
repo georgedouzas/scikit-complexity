@@ -39,10 +39,12 @@ from ._sampling import SamplingInteraction
 from ._sign_adjustment import SignAdjustmentInteraction
 from ._spreading import SpreadingInteraction
 from ._topology import TopologyInteraction
+from ._training import OPTIMIZERS, TrainingInteraction
 from ._transfer import TransferInteraction
 from ._transition import TransitionInteraction
 
 __all__: list[str] = [
+    'OPTIMIZERS',
     'AdvectionInteraction',
     'BaseInteraction',
     'CascadeInteraction',
@@ -79,6 +81,7 @@ __all__: list[str] = [
     'SignAdjustmentInteraction',
     'SpreadingInteraction',
     'TopologyInteraction',
+    'TrainingInteraction',
     'TransferInteraction',
     'TransitionInteraction',
 ]

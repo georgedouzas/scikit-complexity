@@ -173,3 +173,44 @@ def test_run_reads_the_hurst_index_from_a_parameter():
     simulation = Simulation(system, solver=solver, dt=2.0, random_state=0).check().prepare()
     final = simulation.run(until=2.0).trajectory_.values('walkers.n')[-1]
     assert final.var() == pytest.approx(2.0**1.4, rel=0.05)
+
+
+class SynapsesElement(Element):
+    """Neuron with two synaptic weights."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        w1: Annotated[float, StateSpec()] = 0.3,
+        w2: Annotated[float, StateSpec()] = -0.8,
+    ) -> None:
+        super().__init__(label)
+        self.w1 = w1
+        self.w2 = w2
+
+
+def _oja(first, second):
+    """Return Oja's rule of one weight, averaged over inputs of covariance [[2, 1], [1, 2]]."""
+
+    def rate(s):
+        w = (s.target.w1, s.target.w2)
+        drive = (2 * w[0] + w[1], w[0] + 2 * w[1])
+        variance = w[0] * drive[0] + w[1] * drive[1]
+        return drive[first] - variance * w[second]
+
+    return rate
+
+
+def test_run_oja_rule_as_rate_laws():
+    """Test that Oja's rule as rate laws on weight states converges to the principal direction of the inputs."""
+    system = System(
+        elements=[SynapsesElement('neuron')],
+        interactions=[
+            RateInteraction('first', target='neuron', state='w1', rate=_oja(0, 0)),
+            RateInteraction('second', target='neuron', state='w2', rate=_oja(1, 1)),
+        ],
+    )
+    trajectory = Simulation(system).check().prepare().run(until=20.0).trajectory_
+    weights = np.array([trajectory.values('neuron.w1')[-1], trajectory.values('neuron.w2')[-1]])
+    np.testing.assert_allclose(np.abs(weights), np.full(2, 1 / np.sqrt(2)), atol=1e-2)

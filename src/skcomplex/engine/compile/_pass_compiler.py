@@ -61,6 +61,7 @@ from ..problems._topology_kernel import TopologyKernel
 from ._base import _FIXES, BaseCompiler, BasePass
 from ._compilation import Compilation
 from ._field_lowering import FieldLowering
+from ._learning_compiler import _LearningCompiler
 from ._observables import _check_held_reads, _held_observables, _with_held_observables, _with_held_reductions
 from .passes._compile_encounters import CompileEncountersPass
 from .passes._conserved_noise import ConservedNoisePass
@@ -135,7 +136,12 @@ class PassCompiler(BaseCompiler):
             The copies of the passes the compiler runs.
 
         compilation_:
-            The compilation planned so far, or `None` when the system tree cannot be flattened.
+            The compilation planned so far, or `None` when the system tree cannot be flattened or trains a nested
+            system.
+
+        learning_:
+            The compiler of a system that holds a `TrainingInteraction`, which compiles its nested system into the
+            inner problem of a `LearningProblemSpec`, or `None` for other systems.
 
     Examples:
         >>> from skcomplex.core.system import System
@@ -154,6 +160,7 @@ class PassCompiler(BaseCompiler):
 
     passes_: tuple[BasePass, ...]
     compilation_: Compilation | None
+    learning_: _LearningCompiler | None
 
     def __init__(
         self,
@@ -195,6 +202,12 @@ class PassCompiler(BaseCompiler):
         """
         passes = self.passes if self.passes is not None else [item() for item in _PASSES]
         self.passes_ = tuple(clone(item) for item in passes)
+        self.learning_ = None
+        if _LearningCompiler._find_training(system) is not None:
+            inner = PassCompiler(passes=self.passes)
+            self.learning_ = _LearningCompiler(inner, self.backend, self.solver).check().prepare(system)
+            self.compilation_ = None
+            return list(self.learning_.report_.issues)
         self.compilation_, issues = self._counted(system)
         if self.compilation_ is None or self.compilation_.census is None:
             return issues
@@ -214,6 +227,8 @@ class PassCompiler(BaseCompiler):
             problem:
                 The compiled problem.
         """
+        if self.learning_ is not None:
+            return self.learning_.run(initial_state).problem_
         compilation = self.compilation_
         if compilation is None:
             error_msg = 'The system stopped compiling before its census. Prepare the compiler on a valid system.'

@@ -11,6 +11,7 @@ from ._external import ExternalSolver
 from ._fractional_abm import FractionalABMSolver
 from ._fractional_euler_maruyama import FractionalEulerMaruyamaSolver
 from ._gillespie import GillespieSolver
+from ._gradient_descent import GradientDescentSolver
 from ._grunwald_letnikov import GrunwaldLetnikovSolver
 from ._heun import HeunSolver
 from ._horizon_error import HorizonError
@@ -53,6 +54,7 @@ __all__: list[str] = [
     'FractionalABMSolver',
     'FractionalEulerMaruyamaSolver',
     'GillespieSolver',
+    'GradientDescentSolver',
     'GrunwaldLetnikovSolver',
     'HeunSolver',
     'HorizonError',

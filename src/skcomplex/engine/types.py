@@ -10,6 +10,7 @@ from collections.abc import Callable, Mapping, Sequence
 from enum import StrEnum
 from types import SimpleNamespace
 
+import jax
 import numpy.typing as npt
 import scipy.sparse
 from mesa.discrete_space import Network, OrthogonalMooreGrid, OrthogonalVonNeumannGrid
@@ -42,6 +43,8 @@ type ScalarsFunction = Callable[[float, Array, Array], list[float]]
 type StepFunction = Callable[[float, Array, Array, Array], Array]
 type Interpolant = Callable[[float], Array]
 type BoundaryFunction = Callable[[float, Array, Array], Array]
+type TracedArray = jax.Array
+type TracedFunction = Callable[[object, TracedArray, TracedArray], TracedArray]
 type InterpolatingStepFunction = Callable[[float, Array, float, float], tuple[Array, Interpolant]]
 type AgentsFunction = Callable[[str], Sequence[object] | None]
 type PairArguments = Callable[[Callable[[str], Array]], str]

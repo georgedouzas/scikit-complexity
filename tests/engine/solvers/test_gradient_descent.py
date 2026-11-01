@@ -1,0 +1,353 @@
+"""Test the `_gradient_descent` module of `skcomplex.engine.solvers`."""
+
+from types import SimpleNamespace
+from typing import Annotated
+
+import numpy as np
+import pytest
+from scipy.integrate import solve_ivp
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import Interaction, RateInteraction, TrainingInteraction
+from skcomplex.core.laws import BaseLaw, RateLaw
+from skcomplex.core.laws.utils import contraction
+from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.system import System
+from skcomplex.engine.backends import NumpyBackend
+from skcomplex.engine.compile import PassCompiler
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import GradientDescentSolver
+from skcomplex.errors import ValidationError
+from skcomplex.models.computer_science.neural_networks import elman_network
+from skcomplex.specs import DatasetSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec
+
+RATES = {'alpha': 1.1, 'beta': 0.4, 'gamma': 0.4, 'delta': 0.1}
+TIMES = np.linspace(0.4, 20.0, 50)
+
+
+class PairElement(Element):
+    """Prey and predators with adaptive rates and observed abundances."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: object = None,
+        *,
+        prey: Annotated[float, StateSpec()] = 10.0,
+        predator: Annotated[float, StateSpec()] = 5.0,
+        alpha: Annotated[float, ParameterSpec(adaptive=True)] = 1.0,
+        beta: Annotated[float, ParameterSpec(adaptive=True)] = 1.0,
+        gamma: Annotated[float, ParameterSpec(adaptive=True)] = 1.0,
+        delta: Annotated[float, ParameterSpec(adaptive=True)] = 1.0,
+        observed_prey: Annotated[float, ParameterSpec()] = 0.0,
+        observed_predator: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.prey = prey
+        self.predator = predator
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
+        self.delta = delta
+        self.observed_prey = observed_prey
+        self.observed_predator = observed_predator
+
+
+def _prey_rate(s):
+    """Return the rate of the prey."""
+    return s.target.alpha * s.target.prey - s.target.beta * s.target.prey * s.target.predator
+
+
+def _predator_rate(s):
+    """Return the rate of the predators."""
+    return s.target.delta * s.target.prey * s.target.predator - s.target.gamma * s.target.predator
+
+
+def _squared_error(s):
+    """Return the squared error of the abundances to the observed ones."""
+    return (s.pair.prey - s.pair.observed_prey) ** 2 + (s.pair.predator - s.pair.observed_predator) ** 2
+
+
+def _output_error(member):
+    """Return the squared error of the prediction of an output unit."""
+    return (member.y - member.target) ** 2
+
+
+def _fitting(learning_rate=0.05, optimizer='adam'):
+    """Return a system that fits the rates of a Lotka-Volterra model, started 30% off, to its series."""
+    solution = solve_ivp(
+        lambda t, z: [
+            RATES['alpha'] * z[0] - RATES['beta'] * z[0] * z[1],
+            RATES['delta'] * z[0] * z[1] - RATES['gamma'] * z[1],
+        ],
+        (0.0, 20.0),
+        [10.0, 5.0],
+        t_eval=TIMES,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+    model = System(
+        'lv',
+        elements=[PairElement('pair', **{name: 1.3 * value for name, value in RATES.items()})],
+        interactions=[
+            RateInteraction('prey_rate', target='pair', state='prey', rate=_prey_rate),
+            RateInteraction('predator_rate', target='pair', state='predator', rate=_predator_rate),
+        ],
+    )
+    data = DatasetSpec(
+        {'pair.observed_prey': solution.y[0][np.newaxis], 'pair.observed_predator': solution.y[1][np.newaxis]},
+        times=TIMES,
+    )
+    training = TrainingInteraction(
+        'fit',
+        model='lv',
+        trained=[f'pair.{name}' for name in RATES],
+        loss=ObservableSpec('error', _squared_error),
+        data=data,
+        optimizer=optimizer,
+        learning_rate=learning_rate,
+        batch_size=1,
+    )
+    return System('fitting', systems=[model], interactions=[training], time=DiscreteTime())
+
+
+def _trajectory(system, until, **arguments):
+    """Return the trajectory of a system that trains, run with the seed 0."""
+    return Simulation(system, random_state=0, **arguments).check().prepare().run(until=until).trajectory_
+
+
+def _gradient(system, rate=1.0):
+    """Return the gradient of the loss of the whole dataset, from the change of one full batch step of SGD."""
+    training = system.interactions[0]
+    training.set_params(optimizer='sgd', learning_rate=rate, batch_size=training.data.sequences)
+    trajectory = _trajectory(system, 1)
+    names = trajectory.problem.states.names
+    return {name: (trajectory.values(name)[0] - trajectory.values(name)[1]) / rate for name in names}
+
+
+def _loss(problem, values):
+    """Return the loss of the whole dataset at given trained values, the reporter of frame 0."""
+    trajectory = Simulation(problem, random_state=0, initial_state=values).check().prepare().run(until=1).trajectory_
+    return trajectory.values('training/loss')[0]
+
+
+def test_check_unknown_precision():
+    """Test that an unknown precision raises an error."""
+    with pytest.raises(ValidationError, match='float16'):
+        GradientDescentSolver(precision='float16').check()
+
+
+def test_automatic_solver():
+    """Test that a system that trains runs on the learning solver and the JAX backend without being told."""
+    simulation = Simulation(elman_network(n_bits=60)).check().prepare()
+    assert isinstance(simulation.stepper_, GradientDescentSolver)
+    assert simulation.problem_.inner.backend == 'jax'
+
+
+def test_epochs_as_frames():
+    """Test that every frame is one epoch and frame 0 holds the initial weights of the inner model."""
+    system = elman_network(n_bits=60)
+    weights = system.systems[0].interactions[2].W
+    trajectory = _trajectory(system, 5)
+    assert trajectory.times.tolist() == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+    assert trajectory.values('net/readout.W').shape == (6, 1, 4)
+    np.testing.assert_array_equal(trajectory.values('net/readout.W')[0], weights)
+
+
+def test_time_between_frames():
+    """Test that a fraction of an epoch between frames raises an error naming the value."""
+    with pytest.raises(ValidationError, match=r'0\.5.*whole number of epochs'):
+        Simulation(elman_network(n_bits=60), dt=0.5).check().prepare().run(until=2)
+
+
+def test_loss_at_the_start():
+    """Test that the loss at frame 0 is the mean of the loss over NumPy runs of the inner model on every sequence."""
+    system = elman_network(n_bits=30)
+    data, net = system.interactions[0].data, system.systems[0]
+    trajectory = _trajectory(system, 1)
+    error = ObservableSpec('error', group='outputs', reduce='sum', expression=_output_error)
+    losses = []
+    for row in range(data.sequences):
+        inputs, targets = data.values['inputs.x'][row], data.values['outputs.target'][row]
+        schedule = {
+            'inputs.x': lambda t, values=inputs: values[min(round(t), len(values) - 1)],
+            'outputs.target': lambda t, values=targets: values[max(round(t) - 1, 0)],
+        }
+        run = Simulation(net, backend=NumpyBackend(), schedule=schedule, observables=[error]).check().prepare()
+        losses.append(run.run(until=data.steps).trajectory_.values('error')[1:].mean())
+    assert trajectory.values('training/loss')[0] == pytest.approx(np.mean(losses), abs=1e-10)
+
+
+def test_masked_steps():
+    """Test that the loss and its gradient do not depend on the outputs at steps of weight 0."""
+    system, other = elman_network(n_bits=60), elman_network(n_bits=60)
+    data = system.interactions[0].data
+    weights = np.ones((data.sequences, data.steps))
+    weights[:, :3] = 0.0
+    targets = data.values['outputs.target'].copy()
+    targets[:, :3] = 1.0 - targets[:, :3]
+    system.interactions[0].set_params(data=DatasetSpec(dict(data.values), weights=weights))
+    other.interactions[0].set_params(data=DatasetSpec({**data.values, 'outputs.target': targets}, weights=weights))
+    gradient, changed = _gradient(system), _gradient(other)
+    for name, value in gradient.items():
+        np.testing.assert_allclose(changed[name], value, atol=1e-12)
+
+
+def test_same_seed():
+    """Test that two runs with the same seed record equal trajectories."""
+    first, second = _trajectory(elman_network(n_bits=60), 20), _trajectory(elman_network(n_bits=60), 20)
+    np.testing.assert_array_equal(first.states, second.states)
+    np.testing.assert_array_equal(first.values('training/loss'), second.values('training/loss'))
+
+
+def test_updates_per_epoch():
+    """Test that 996 sequences in batches of 16 give 63 updates per epoch."""
+    simulation = Simulation(elman_network(), random_state=0).check().prepare().run(until=1)
+    assert int(simulation.stepper_.optimizer_state_.inner_state[0].count) == 63
+
+
+def test_zero_learning_rate():
+    """Test that a learning rate of 0 keeps every trained parameter at its initial value."""
+    system = elman_network(n_bits=60, learning_rate=0.0)
+    states = _trajectory(system, 5).states
+    np.testing.assert_array_equal(states[-1], states[0])
+
+
+def test_learning_rate_schedule():
+    """Test that a schedule that halves the learning rate every 50 epochs halves the recorded parameter."""
+    schedule = {'training.learning_rate': lambda t: 0.05 * 0.5 ** (t // 50)}
+    values = _trajectory(elman_network(n_bits=30), 150, schedule=schedule).values('training.learning_rate')
+    assert values[[49, 50, 100, 150]].tolist() == pytest.approx([0.05, 0.025, 0.0125, 0.00625])
+
+
+def test_gradient_against_finite_differences():
+    """Test that the gradient of the loss of an Elman network agrees with central finite differences."""
+    system = elman_network(n_bits=30)
+    gradient = _gradient(system)
+    problem = PassCompiler().check().prepare(system).run().problem_
+    step = 1e-6
+    for name in problem.states.names:
+        value = np.asarray(problem.states.read(problem.initial_state, name), dtype=float)
+        index = np.unravel_index(0, value.shape) if value.shape else ()
+        up, down = value.copy(), value.copy()
+        up[index] += step
+        down[index] -= step
+        difference = (_loss(problem, {name: up}) - _loss(problem, {name: down})) / (2 * step)
+        assert gradient[name][index] == pytest.approx(difference, rel=1e-6, abs=1e-9)
+
+
+def test_full_and_truncated_gradients():
+    """Test that truncation changes the gradient of the input weights but not of the readout weights."""
+    full, truncated = _gradient(elman_network(n_bits=30)), _gradient(elman_network(n_bits=30, truncation=1))
+    assert not np.allclose(full['net/input.D'], truncated['net/input.D'])
+    np.testing.assert_allclose(full['net/readout.W'], truncated['net/readout.W'], atol=1e-12)
+
+
+def test_gradient_through_an_ode():
+    """Test that the gradient of the squared error of a Lotka-Volterra model agrees with finite differences."""
+    gradient = _gradient(_fitting(), rate=1e-6)
+    problem = PassCompiler().check().prepare(_fitting()).run().problem_
+    step = 1e-6
+    for name in problem.states.names:
+        value = float(problem.states.read(problem.initial_state, name))
+        up = Simulation(problem, random_state=0, initial_state={name: value + step}).check().prepare().run(until=1)
+        down = Simulation(problem, random_state=0, initial_state={name: value - step}).check().prepare().run(until=1)
+        loss_up, loss_down = (item.trajectory_.values('fit/loss')[0] for item in (up, down))
+        assert gradient[name] == pytest.approx((loss_up - loss_down) / (2 * step), rel=1e-5)
+
+
+def test_lotka_volterra_fit():
+    """Test that Adam fits the four rates of a Lotka-Volterra model within 1% and lowers the loss 10^4 times."""
+    trajectory = _trajectory(_fitting(), 500)
+    for name, value in RATES.items():
+        assert trajectory.values(f'lv/pair.{name}')[-1] == pytest.approx(value, rel=1e-2)
+    loss = trajectory.values('fit/loss')
+    assert loss[-1] < 1e-4 * loss[0]
+
+
+class TargetNodeElement(Element):
+    """Node with a state and a target that a dataset sets."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: object = None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.5,
+        target: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.target = target
+
+
+class AdaptiveCubicInteraction(Interaction):
+    """Rate of every member of a group, the contraction of an adaptive tensor of order 3 with the states."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        T: Annotated[object, ParameterSpec(shape=('target', 'target', 'target'), adaptive=True)] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.T = T
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the contraction of the tensor with the states."""
+        return [RateLaw(s.target.x, contraction(s.T, s.target.x, s.target.x))]
+
+
+def _node_error(member):
+    """Return the squared error of the state of a node to its target."""
+    return (member.x - member.target) ** 2
+
+
+def test_tensor_trains():
+    """Test that the gradient of an adaptive tensor of order 3 read through a contraction agrees with differences."""
+    rng = np.random.default_rng(0)
+    tensor = rng.normal(0.0, 0.3, (4, 4, 4))
+    model = System(
+        'community',
+        elements=[GroupElement('species', element=TargetNodeElement, size=4)],
+        interactions=[AdaptiveCubicInteraction('cubic', target='species', T=tensor)],
+    )
+    data = DatasetSpec({'species.target': rng.uniform(0.4, 0.8, (1, 5, 4))}, times=np.linspace(0.2, 1.0, 5))
+    loss = ObservableSpec('error', group='species', reduce='sum', expression=_node_error)
+    training = TrainingInteraction('training', model='community', trained=['cubic.T'], loss=loss, data=data)
+    system = System('fitting', systems=[model], interactions=[training], time=DiscreteTime())
+    gradient = _gradient(system, rate=1e-6)['community/cubic.T']
+    problem = PassCompiler().check().prepare(system).run().problem_
+    step = 1e-6
+    for index in [(0, 0, 0), (1, 2, 3), (3, 1, 0)]:
+        up, down = tensor.copy(), tensor.copy()
+        up[index] += step
+        down[index] -= step
+        difference = _loss(problem, {'community/cubic.T': up}) - _loss(problem, {'community/cubic.T': down})
+        assert gradient[index] == pytest.approx(difference / (2 * step), rel=1e-6)
+
+
+def test_trained_model_agrees_with_training():
+    """Test that the inner model with the trained values of the last frame records the loss the law evaluates."""
+    system = elman_network(n_bits=30)
+    data, net = system.interactions[0].data, system.systems[0]
+    trajectory = _trajectory(system, 3)
+    trained = {name: trajectory.values(name)[-1] for name in trajectory.problem.states.names}
+    single = elman_network(n_bits=30)
+    first = DatasetSpec({path: values[:1] for path, values in data.values.items()})
+    single.interactions[0].set_params(data=first, metrics=())
+    expected = _loss(PassCompiler().check().prepare(single).run().problem_, trained)
+    for interaction, name in zip(net.interactions, ('D', 'A', 'W'), strict=True):
+        interaction.set_params(**{name: trained[f'net/{interaction.label}.{name}']})
+    net.elements[1].set_params(values={'b': trained['net/hidden.b']})
+    net.elements[2].set_params(values={'c': trained['net/outputs.c']})
+    inputs, targets = data.values['inputs.x'][0], data.values['outputs.target'][0]
+    schedule = {
+        'inputs.x': lambda t: inputs[min(round(t), len(inputs) - 1)],
+        'outputs.target': lambda t: targets[max(round(t) - 1, 0)],
+    }
+    error = ObservableSpec('error', group='outputs', reduce='sum', expression=_output_error)
+    run = Simulation(net, backend=NumpyBackend(), schedule=schedule, observables=[error]).check().prepare()
+    assert run.run(until=data.steps).trajectory_.values('error')[1:].mean() == pytest.approx(expected, abs=1e-10)
