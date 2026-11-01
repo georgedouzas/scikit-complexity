@@ -62,6 +62,39 @@ one machine after a warm-up call, and records the times and L1 errors here. The 
 and the faster dam break scenario asks for at least half of the measured speed-up, so the threshold comes from a
 measurement and not from a guess.
 
+The measurements ran on 2026-11-01 on an Apple M2 with 8 cores, Python 3.13, and one thread for NumPy, BLAS, and Numba.
+Other agents shared the machine, so every time comes with the one-minute load average at the start of the run. The L1
+error of Burgers is against the entropy solution from the characteristics, and the L1 error of the dam break is the
+error of the depth against Stoker's exact solution. Each run follows a warm-up run on 64 cells.
+
+Before, on the kernel with `np.linalg.eigvals` and `np.take`:
+
+| Run | Burgers, 3200 cells | Dam break, 1600 cells |
+| --- | --- | --- |
+| Load 77 to 173 | 43.0 s, 43.3 s, 41.6 s | 37.6 s, 38.8 s, 44.1 s |
+| Load 13 to 61 | 24.3 s, 25.2 s, 24.3 s | 22.0 s, 19.9 s, 21.9 s |
+| Load 6 to 8 | 22.6 s, 23.1 s, 21.0 s | 20.3 s, 20.9 s, 21.2 s |
+| L1 error | 2.096e-3 | 6.683e-3 |
+
+The runs at the highest load differ by 17% for the dam break, so the baseline is the run at load 6 to 8, where every
+time lies within 10% of the median of its three runs: 22.6 s for Burgers and 20.9 s for the dam break.
+
+After, with closed-form speeds and slicing, interleaved with the runs before at the same loads:
+
+| Run | Burgers, 3200 cells | Dam break, 1600 cells |
+| --- | --- | --- |
+| Load 66 to 77 | 2.83 s, 2.47 s, 2.50 s | 0.65 s, 0.62 s, 0.63 s |
+| Load 9 | 3.44 s, 2.95 s, 2.64 s | 0.72 s, 0.69 s, 0.70 s |
+| L1 error | 2.096e-3 | 6.683e-3 |
+
+The errors agree to the digits shown. Against the baseline, Burgers runs about 8 times faster and the dam break about
+30 times faster, 20.9 s against 0.70 s. Burgers has one state, so its speed-up comes from slicing alone, while the dam
+break also drops `np.linalg.eigvals`, which took three quarters of its time in a profile. With slicing in both runs,
+the closed-form speeds alone run the dam break 29 to 33 times faster than the numerical eigenvalues at load 5 to 6,
+with solutions equal within 2.3e-14. The faster dam break scenario therefore asks for a speed-up of at least 15, half of
+the measured 30, and compares closed-form speeds against numerical eigenvalues through `set_params(speeds=())`,
+since the `np.take` path no longer exists.
+
 ### One symbolic source for the eigen-structure
 
 `_compile_volumes` already builds the canonical flux columns in shared symbols before printing them. The kernel keeps
@@ -72,7 +105,8 @@ speeds derive from the same flux the kernel integrates.
 
 `_compile_volumes` asks Sage for the eigenvalues of the flux Jacobian of every dimension once, from `expressions`. For
 one state the eigenvalue is the derivative, for two states the closed form from the trace and the determinant, and for
-more states Sage's symbolic eigenvalues when they come back as explicit expressions. They print to one function per
+more states Sage's symbolic eigenvalues when they come back as explicit expressions free of the imaginary unit, since
+radicals with complex intermediates turn into NaN in real floating point. They print to one function per
 dimension of the states and the per-cell values, and `_speed` takes the largest absolute value. `np.linalg.eigvals`
 stays only for Jacobians with no closed form, and the kernel records which one it uses as `closed_form`. `_sides` and
 `_run` build slice tuples per axis once and replace `np.take(values, range(...))` with basic slicing, which returns

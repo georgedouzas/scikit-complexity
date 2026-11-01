@@ -2,7 +2,7 @@
 
 ## 1. Measurement
 
-- [ ] 1.1 Time Burgers on 3200 cells to time 2 and the dam break on 1600 cells to time 0.5 with `SSPRKSolver` on the
+- [x] 1.1 Time Burgers on 3200 cells to time 2 and the dam break on 1600 cells to time 0.5 with `SSPRKSolver` on the
   current `FiniteVolumeKernel` after a warm-up call on one machine, record the times and L1 errors in design.md, and
   verify the numbers are reproducible within 10% over three runs
 
