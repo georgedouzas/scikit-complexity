@@ -24,7 +24,7 @@ from skcomplex.specs import ObservableSpec
 MODEL = 'elman_network'
 EPOCHS = 200
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', interval=1)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 system = create(MODEL)
 trajectory = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=EPOCHS).trajectory_
 
