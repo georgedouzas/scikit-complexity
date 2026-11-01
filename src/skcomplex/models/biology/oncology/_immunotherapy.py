@@ -7,16 +7,18 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import log, oo
+from sage.all__sagemath_symbolics import Expression, log, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import delayed, hill, pulse_train, where
+from ....core.interactions import RateInteraction, ReactionInteraction
+from ....core.laws.utils import delayed, hill, where
 from ....core.system import System
 from ....engine.solvers import ScipyODESolver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.kinetics import MichaelisMentenInteraction
+from ..common.pharmacokinetics import DosingInteraction
 
 BOOK_REFERENCE = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 STIFF_SOLVER = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
@@ -27,7 +29,8 @@ class KirschnerPanettaTumourElement(Element):
 
     The effector cells follow `dE/dt = alpha_a A - d1 E + a1 u1 + rho1 E C / (alpha1 + C)`, the tumour
     `dA/dt = r1 A (1 - b A) - c1 E A / (alpha2 + A)`, and the IL-2 `dC/dt = a2 u2 + rho2 E A / (alpha3 + A) - du C`,
-    with constant inputs `u1` and `u2`.
+    with constant inputs `u1` and `u2`. The element holds the states and parameters and has no laws of its own: the
+    rate and reaction interactions of `kirschner_panetta` read its parameters.
 
     Args:
         label:
@@ -140,24 +143,6 @@ class KirschnerPanettaTumourElement(Element):
         self.u1 = u1
         self.u2 = u2
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the balances of effector cells, tumour cells, and IL-2.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        E, A, C = s.E, s.A, s.C
-        return [
-            RateLaw(E, s.alpha_a * A - s.d1 * E + s.a1 * s.u1 + s.rho1 * E * hill(C, s.alpha1)),
-            RateLaw(A, s.r1 * A * (1 - s.b * A) - s.c1 * E * hill(A, s.alpha2)),
-            RateLaw(C, s.a2 * s.u2 + s.rho2 * E * hill(A, s.alpha3) - s.du * C),
-        ]
-
 
 class VaccinatedTumourElement(Element):
     """Helper T cells, cytotoxic T cells, tumour cells, dendritic cells, and IL-2 under dendritic-cell vaccination.
@@ -166,6 +151,9 @@ class VaccinatedTumourElement(Element):
     `dE/dt = s2 + rho2 C (A + ED) r2 E (1 - b2 E) - d2 E`, the tumour `dA/dt = r3 A (1 - b3 A) - c1 A E`, the
     dendritic cells `dED/dt = -c2 E ED + u(t)`, and the IL-2 `dC/dt = r4 EH ED - c3 E C - d3 C`. The vaccine `u` is
     `dose` for `width` time units every `period` from `start`, `doses` times.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of `dendritic_cell_vaccine`
+    read its parameters.
 
     Args:
         label:
@@ -323,27 +311,6 @@ class VaccinatedTumourElement(Element):
         self.start = start
         self.doses = doses
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the balances of T cells, tumour cells, dendritic cells, and IL-2.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        EH, E, A, ED, C = s.EH, s.E, s.A, s.ED, s.C
-        vaccine = s.dose * pulse_train(s.t, self.period, self.width, start=self.start, count=self.doses)
-        return [
-            RateLaw(EH, s.s1 + s.rho1 * ED * s.r1 * EH * (1 - s.b1 * EH) - s.d1 * EH),
-            RateLaw(E, s.s2 + s.rho2 * C * (A + ED) * s.r2 * E * (1 - s.b2 * E) - s.d2 * E),
-            RateLaw(A, s.r3 * A * (1 - s.b3 * A) - s.c1 * A * E),
-            RateLaw(ED, vaccine - s.c2 * E * ED),
-            RateLaw(C, s.r4 * EH * ED - s.c3 * E * C - s.d3 * C),
-        ]
-
 
 class CheckpointTumourElement(Element):
     """Activated T cells, tumour cells, and an anti-PD-1 drug that frees T cells from PD-1-PD-L1 inhibition.
@@ -353,6 +320,9 @@ class CheckpointTumourElement(Element):
     `dA/dt = r3 A (1 - b A) - a_rho A E`, and the drug `dUAP/dt = u_ap - a_rl UFP1 UAP - du2 UAP`. Free PD-1 is
     `UFP1 = max(rho_r - du1 UAP, 0) E`, free PD-L1 `UFL1 = sigma_l (E + c_l A)`, and the complex
     `UPP = sigma UFP1 UFL1`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of `anti_pd1_checkpoint`
+    read its parameters.
 
     Args:
         label:
@@ -490,29 +460,6 @@ class CheckpointTumourElement(Element):
         self.sigma = sigma
         self.u_ap = u_ap
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the balances of T cells, tumour cells, and the drug.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        E, A, UAP = s.E, s.A, s.UAP
-        expression = s.rho_r - s.du1 * UAP
-        free_receptor = where(expression > 0, expression, 0) * E
-        free_ligand = s.sigma_l * (E + s.c_l * A)
-        complex_ = s.sigma * free_receptor * free_ligand
-        activation = s.r1 * s.ENC * hill(s.C1_ss, s.C1_50) + s.r2 * E * hill(s.C2_ss, s.C2_50)
-        return [
-            RateLaw(E, activation / (1 + complex_ / s.psi_pp) - s.d1 * E),
-            RateLaw(A, s.r3 * A * (1 - s.b * A) - s.a_rho * A * E),
-            RateLaw(UAP, s.u_ap - s.a_rl * free_receptor * UAP - s.du2 * UAP),
-        ]
-
 
 class DelayedVaccinatedTumourElement(Element):
     """Tumour, natural killer cells, naive and mature CD8+ cells, dendritic cells, IL-2, regulatory, and helper cells.
@@ -522,6 +469,9 @@ class DelayedVaccinatedTumourElement(Element):
     after `2 tau3`. The tumour is killed by mature CD8+ cells through `a1 x^5 / (g1 + x^5)` with
     `x = log(E) / log(A)`. The vaccine `u` is `dose` for `width` time units every `period` from `start`, `doses`
     times.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of `delayed_dc_vaccine`
+    read its parameters.
 
     Args:
         label:
@@ -839,46 +789,6 @@ class DelayedVaccinatedTumourElement(Element):
         self.start = start
         self.doses = doses
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the delayed balances of the tumour and the eight immune populations.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        A, ENK, ENC, E, ED, C, ER, ENH, E1H = s.A, s.ENK, s.ENC, s.E, s.ED, s.C, s.ER, s.ENH, s.E1H
-        ratio = (log(E) / log(A)) ** 5
-        vaccine = s.dose * pulse_train(s.t, self.period, self.width, start=self.start, count=self.doses)
-        C1, ED2, E2, C2 = delayed(C, s.tau1), delayed(ED, s.tau2), delayed(E, s.tau2), delayed(C, s.tau2)
-        ER3, C3, A3, ED3, E3 = (delayed(x, s.tau3) for x in (ER, C, A, ED, E))
-        ED7, ENC7 = (delayed(x, 7 * s.tau2, 7 * self.tau2) for x in (ED, ENC))
-        ED6, ENH6 = (delayed(x, 2 * s.tau3, 2 * self.tau3) for x in (ED, ENH))
-        return [
-            RateLaw(A, s.r1 * A * log(s.b / A) - s.a1 * ratio / (ratio + s.g1) * A - s.a2 * ENK * A),
-            RateLaw(ENK, s.s1 - s.d1 * ENK + s.rho1 * delayed(ENK, s.tau1) * C1 / (s.g2 + C1) - s.psi1 * ENK * ER),
-            RateLaw(ENC, s.s2 - s.d2 * ENC - s.rho2 * ED * ENC / (s.g3 + ED)),
-            RateLaw(
-                E,
-                -s.d3 * E
-                + s.rho3 * ENC7 * ED7 / (s.g3 + ED7)
-                + s.m1 * ED2 * E2 / (s.g3 + ED2)
-                + s.rho4 * E2 * C2**2 / (s.g4 + C2**2)
-                - s.psi2 * E * ER,
-            ),
-            RateLaw(ED, -s.d4 * ED + s.kappa1 * A / (s.g5 + A) + vaccine),
-            RateLaw(C, s.s3 - s.d5 * C + s.rho5 * E**2 * C / (s.g6 + E**2) + s.rho6 * E1H * C / (s.g7 + E1H)),
-            RateLaw(ER, s.s4 - s.d6 * ER + s.rho7 * ER3 * A3**2 / (s.g8 + A3**2) + s.rho8 * ER3 * C3 / (s.g9 + C3)),
-            RateLaw(ENH, s.s5 - s.d7 * ENH - s.rho9 * ED * ENH / (s.g3 + ED)),
-            RateLaw(
-                E1H,
-                -s.d8 * E1H + s.m2 * ED6 * ENH6 / (s.g3 + ED6) - s.psi3 * ER * E1H + s.rho10 * ED3 * E3 / (s.g3 + ED3),
-            ),
-        ]
-
 
 class SuppressedTumourElement(Element):
     """Tumour, dendritic cells, proliferating and active T cells, IL-2, IL-10, and TGF-beta.
@@ -890,6 +800,9 @@ class SuppressedTumourElement(Element):
     memory cells license, and dendritic cells recruit the memory pools `EMC`, `EMH`, and `EMR` into proliferating
     cytotoxic, helper, and regulatory cells, which IL-2 matures. IL-10 and TGF-beta, from regulatory and tumour cells,
     suppress maturation, IL-2 production, and killing, and TGF-beta converts helper into regulatory cells.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `tumour_immune_suppression` read its parameters.
 
     Args:
         label:
@@ -1202,53 +1115,6 @@ class SuppressedTumourElement(Element):
         self.EMH = EMH
         self.EMR = EMR
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the balances of the tumour, the immune cells, and the three cytokines.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        A, EUD, ED, EPC, E, EPH, EH, EPR, ER, C1, C2, C3 = (
-            s.A,
-            s.EUD,
-            s.ED,
-            s.EPC,
-            s.E,
-            s.EPH,
-            s.EH,
-            s.EPR,
-            s.ER,
-            s.C1,
-            s.C2,
-            s.C3,
-        )
-        growth = A / ((1 / s.r1) ** s.p + (A ** (1 - s.n) / s.r2) ** s.p) ** (1 / s.p)
-        accessible = A / (1 + (A ** (1 - s.q) / s.g3) ** s.p) ** (1 / s.p)
-        kill = s.a1 * accessible * E / (E + accessible / s.g1 + ER / s.g2) / (1 + C3 / s.C3_50)
-        licensing = s.lambda_a * EUD / (1 + EUD / s.EMH)
-        memory = s.EMC + s.EMH + s.EMR
-        maturation = hill(C1, s.EC1_50) / (1 + C3 / s.EC3_50)
-        conversion = s.a6 * EH * C3 / (s.g5 + C3)
-        return [
-            RateLaw(A, growth - kill),
-            RateLaw(EUD, s.alpha_a * accessible / ((1 + C2 / s.C2_50) * (1 + ER / s.ER_50)) - licensing - s.d1 * EUD),
-            RateLaw(ED, licensing - s.d2 * ED),
-            RateLaw(EPC, s.a2 * s.EMC * ED / (ED + s.g4 * memory) - s.d3 * EPC),
-            RateLaw(E, s.a3 * EPC * maturation - s.d4 * E),
-            RateLaw(EPH, s.a4 * s.EMH * (ED + EUD) / (ED + EUD + s.g4 * memory) - s.d5 * EPH),
-            RateLaw(EH, s.a5 * EPH * maturation - conversion - s.d6 * EH),
-            RateLaw(EPR, s.a7 * s.EMR * ED / (ED + s.g4 * memory) - s.d7 * EPR),
-            RateLaw(ER, s.a8 * EPR * hill(C1, s.EC1_50) + conversion - s.d8 * ER),
-            RateLaw(C1, s.a9 * EPH / ((1 + C3 / s.CC3_50) * (1 + C2 / s.CC2_50)) - C1 / s.tau1),
-            RateLaw(C2, s.r3 * ER + s.r4 * A - C2 / s.tau2),
-            RateLaw(C3, s.r5 * ER + s.r6 * A - C3 / s.tau3),
-        ]
-
 
 @register_model(
     field='biology/oncology',
@@ -1330,7 +1196,57 @@ def kirschner_panetta(
         u1=u1,
         u2=u2,
     )
-    return System(elements=[site])
+    interactions = [
+        RateInteraction('stimulation', target='site', state='E', rate=lambda s: s.target.alpha_a * s.target.A),
+        ReactionInteraction(
+            'effector_death',
+            target='site',
+            reactants={'E': 1},
+            propensity=lambda s: s.target.d1 * s.target.E,
+        ),
+        DosingInteraction('adoptive_therapy', target='site', state='E', dose=lambda s: s.target.a1 * s.target.u1),
+        MichaelisMentenInteraction(
+            'effector_proliferation',
+            target='site',
+            products={'E': 1},
+            substrate='C',
+            vmax=lambda s: s.target.rho1,
+            km=lambda s: s.target.alpha1,
+            modifiers={'E': 1},
+        ),
+        RateInteraction(
+            'tumour_growth',
+            target='site',
+            state='A',
+            rate=lambda s: s.target.r1 * s.target.A * (1 - s.target.b * s.target.A),
+        ),
+        MichaelisMentenInteraction(
+            'kill',
+            target='site',
+            reactants={'A': 1},
+            substrate='A',
+            vmax=lambda s: s.target.c1,
+            km=lambda s: s.target.alpha2,
+            modifiers={'E': 1},
+        ),
+        DosingInteraction('il2_injection', target='site', state='C', dose=lambda s: s.target.a2 * s.target.u2),
+        MichaelisMentenInteraction(
+            'il2_production',
+            target='site',
+            products={'C': 1},
+            substrate='A',
+            vmax=lambda s: s.target.rho2,
+            km=lambda s: s.target.alpha3,
+            modifiers={'E': 1},
+        ),
+        ReactionInteraction(
+            'il2_loss',
+            target='site',
+            reactants={'C': 1},
+            propensity=lambda s: s.target.du * s.target.C,
+        ),
+    ]
+    return System(elements=[site], interactions=interactions)
 
 
 @register_model(
@@ -1405,7 +1321,89 @@ def dendritic_cell_vaccine(
         start=start,
         doses=doses,
     )
-    return System(elements=[site])
+    interactions = [
+        DosingInteraction('helper_influx', target='site', state='EH', dose=lambda s: s.target.s1),
+        RateInteraction(
+            'helper_proliferation',
+            target='site',
+            state='EH',
+            rate=lambda s: s.target.rho1 * s.target.ED * s.target.r1 * s.target.EH * (1 - s.target.b1 * s.target.EH),
+        ),
+        ReactionInteraction(
+            'helper_death',
+            target='site',
+            reactants={'EH': 1},
+            propensity=lambda s: s.target.d1 * s.target.EH,
+        ),
+        DosingInteraction('cytotoxic_influx', target='site', state='E', dose=lambda s: s.target.s2),
+        RateInteraction(
+            'cytotoxic_proliferation',
+            target='site',
+            state='E',
+            rate=lambda s: s.target.rho2
+            * s.target.C
+            * (s.target.A + s.target.ED)
+            * s.target.r2
+            * s.target.E
+            * (1 - s.target.b2 * s.target.E),
+        ),
+        ReactionInteraction(
+            'cytotoxic_death',
+            target='site',
+            reactants={'E': 1},
+            propensity=lambda s: s.target.d2 * s.target.E,
+        ),
+        RateInteraction(
+            'tumour_growth',
+            target='site',
+            state='A',
+            rate=lambda s: s.target.r3 * s.target.A * (1 - s.target.b3 * s.target.A),
+        ),
+        ReactionInteraction(
+            'kill',
+            target='site',
+            reactants={'A': 1},
+            modifiers={'E': 1},
+            propensity=lambda s: s.target.c1 * s.target.A * s.target.E,
+        ),
+        DosingInteraction(
+            'vaccine',
+            target='site',
+            state='ED',
+            dose=lambda s: s.target.dose,
+            period=period,
+            width=width,
+            start=start,
+            count=doses,
+        ),
+        ReactionInteraction(
+            'dendritic_kill',
+            target='site',
+            reactants={'ED': 1},
+            modifiers={'E': 1},
+            propensity=lambda s: s.target.c2 * s.target.E * s.target.ED,
+        ),
+        RateInteraction(
+            'il2_production',
+            target='site',
+            state='C',
+            rate=lambda s: s.target.r4 * s.target.EH * s.target.ED,
+        ),
+        ReactionInteraction(
+            'il2_consumption',
+            target='site',
+            reactants={'C': 1},
+            modifiers={'E': 1},
+            propensity=lambda s: s.target.c3 * s.target.E * s.target.C,
+        ),
+        ReactionInteraction(
+            'il2_loss',
+            target='site',
+            reactants={'C': 1},
+            propensity=lambda s: s.target.d3 * s.target.C,
+        ),
+    ]
+    return System(elements=[site], interactions=interactions)
 
 
 @register_model(
@@ -1471,7 +1469,66 @@ def anti_pd1_checkpoint(
         0.0
     """
     site = CheckpointTumourElement('site', E=E, A=A, u_ap=u_ap, sigma=sigma, ENC=ENC, r3=r3, b=b, c_l=c_l)
-    return System(elements=[site])
+
+    def free_receptor(s: SimpleNamespace) -> Expression:
+        """Return the free PD-1 on the T cells, which the drug lowers."""
+        expression = s.target.rho_r - s.target.du1 * s.target.UAP
+        receptor: Expression = where(expression > 0, expression, 0) * s.target.E
+        return receptor
+
+    interactions = [
+        RateInteraction(
+            'activation',
+            target='site',
+            state='E',
+            rate=lambda s: (
+                s.target.r1 * s.target.ENC * hill(s.target.C1_ss, s.target.C1_50)
+                + s.target.r2 * s.target.E * hill(s.target.C2_ss, s.target.C2_50)
+            )
+            / (
+                1
+                + s.target.sigma
+                * free_receptor(s)
+                * s.target.sigma_l
+                * (s.target.E + s.target.c_l * s.target.A)
+                / s.target.psi_pp
+            ),
+        ),
+        ReactionInteraction(
+            'effector_death',
+            target='site',
+            reactants={'E': 1},
+            propensity=lambda s: s.target.d1 * s.target.E,
+        ),
+        RateInteraction(
+            'tumour_growth',
+            target='site',
+            state='A',
+            rate=lambda s: s.target.r3 * s.target.A * (1 - s.target.b * s.target.A),
+        ),
+        ReactionInteraction(
+            'kill',
+            target='site',
+            reactants={'A': 1},
+            modifiers={'E': 1},
+            propensity=lambda s: s.target.a_rho * s.target.A * s.target.E,
+        ),
+        DosingInteraction('infusion', target='site', state='UAP', dose=lambda s: s.target.u_ap),
+        ReactionInteraction(
+            'binding',
+            target='site',
+            reactants={'UAP': 1},
+            modifiers={'E': 1},
+            propensity=lambda s: s.target.a_rl * free_receptor(s) * s.target.UAP,
+        ),
+        ReactionInteraction(
+            'clearance',
+            target='site',
+            reactants={'UAP': 1},
+            propensity=lambda s: s.target.du2 * s.target.UAP,
+        ),
+    ]
+    return System(elements=[site], interactions=interactions)
 
 
 @register_model(
@@ -1549,7 +1606,229 @@ def delayed_dc_vaccine(
         tau2=tau2,
         tau3=tau3,
     )
-    return System(elements=[site])
+    interactions = [
+        RateInteraction(
+            'tumour_growth',
+            target='site',
+            state='A',
+            rate=lambda s: s.target.r1 * s.target.A * log(s.target.b / s.target.A),
+        ),
+        ReactionInteraction(
+            'cytotoxic_kill',
+            target='site',
+            reactants={'A': 1},
+            modifiers={'E': 1},
+            propensity=lambda s: s.target.a1
+            * (log(s.target.E) / log(s.target.A)) ** 5
+            / ((log(s.target.E) / log(s.target.A)) ** 5 + s.target.g1)
+            * s.target.A,
+        ),
+        ReactionInteraction(
+            'nk_kill',
+            target='site',
+            reactants={'A': 1},
+            modifiers={'ENK': 1},
+            propensity=lambda s: s.target.a2 * s.target.ENK * s.target.A,
+        ),
+        DosingInteraction('nk_influx', target='site', state='ENK', dose=lambda s: s.target.s1),
+        ReactionInteraction(
+            'nk_death',
+            target='site',
+            reactants={'ENK': 1},
+            propensity=lambda s: s.target.d1 * s.target.ENK,
+        ),
+        RateInteraction(
+            'nk_proliferation',
+            target='site',
+            state='ENK',
+            rate=lambda s: s.target.rho1
+            * delayed(s.target.ENK, s.target.tau1)
+            * delayed(s.target.C, s.target.tau1)
+            / (s.target.g2 + delayed(s.target.C, s.target.tau1)),
+        ),
+        ReactionInteraction(
+            'nk_suppression',
+            target='site',
+            reactants={'ENK': 1},
+            modifiers={'ER': 1},
+            propensity=lambda s: s.target.psi1 * s.target.ENK * s.target.ER,
+        ),
+        DosingInteraction('naive_cytotoxic_influx', target='site', state='ENC', dose=lambda s: s.target.s2),
+        ReactionInteraction(
+            'naive_cytotoxic_death',
+            target='site',
+            reactants={'ENC': 1},
+            propensity=lambda s: s.target.d2 * s.target.ENC,
+        ),
+        MichaelisMentenInteraction(
+            'cytotoxic_priming',
+            target='site',
+            reactants={'ENC': 1},
+            modifiers={'ENC': 1},
+            substrate='ED',
+            vmax=lambda s: s.target.rho2,
+            km=lambda s: s.target.g3,
+        ),
+        ReactionInteraction(
+            'cytotoxic_death',
+            target='site',
+            reactants={'E': 1},
+            propensity=lambda s: s.target.d3 * s.target.E,
+        ),
+        RateInteraction(
+            'primed_expansion',
+            target='site',
+            state='E',
+            rate=lambda s: s.target.rho3
+            * delayed(s.target.ENC, 7 * s.target.tau2, 7 * tau2)
+            * delayed(s.target.ED, 7 * s.target.tau2, 7 * tau2)
+            / (s.target.g3 + delayed(s.target.ED, 7 * s.target.tau2, 7 * tau2)),
+        ),
+        RateInteraction(
+            'dendritic_expansion',
+            target='site',
+            state='E',
+            rate=lambda s: s.target.m1
+            * delayed(s.target.ED, s.target.tau2)
+            * delayed(s.target.E, s.target.tau2)
+            / (s.target.g3 + delayed(s.target.ED, s.target.tau2)),
+        ),
+        RateInteraction(
+            'il2_expansion',
+            target='site',
+            state='E',
+            rate=lambda s: s.target.rho4
+            * delayed(s.target.E, s.target.tau2)
+            * delayed(s.target.C, s.target.tau2) ** 2
+            / (s.target.g4 + delayed(s.target.C, s.target.tau2) ** 2),
+        ),
+        ReactionInteraction(
+            'cytotoxic_suppression',
+            target='site',
+            reactants={'E': 1},
+            modifiers={'ER': 1},
+            propensity=lambda s: s.target.psi2 * s.target.E * s.target.ER,
+        ),
+        ReactionInteraction(
+            'dendritic_death',
+            target='site',
+            reactants={'ED': 1},
+            propensity=lambda s: s.target.d4 * s.target.ED,
+        ),
+        MichaelisMentenInteraction(
+            'antigen_presentation',
+            target='site',
+            products={'ED': 1},
+            substrate='A',
+            vmax=lambda s: s.target.kappa1,
+            km=lambda s: s.target.g5,
+        ),
+        DosingInteraction(
+            'vaccine',
+            target='site',
+            state='ED',
+            dose=lambda s: s.target.dose,
+            period=period,
+            width=width,
+            start=start,
+            count=doses,
+        ),
+        DosingInteraction('il2_influx', target='site', state='C', dose=lambda s: s.target.s3),
+        ReactionInteraction(
+            'il2_loss',
+            target='site',
+            reactants={'C': 1},
+            propensity=lambda s: s.target.d5 * s.target.C,
+        ),
+        RateInteraction(
+            'cytotoxic_secretion',
+            target='site',
+            state='C',
+            rate=lambda s: s.target.rho5 * s.target.E**2 * s.target.C / (s.target.g6 + s.target.E**2),
+        ),
+        MichaelisMentenInteraction(
+            'helper_secretion',
+            target='site',
+            products={'C': 1},
+            modifiers={'C': 1},
+            substrate='E1H',
+            vmax=lambda s: s.target.rho6,
+            km=lambda s: s.target.g7,
+        ),
+        DosingInteraction('regulatory_influx', target='site', state='ER', dose=lambda s: s.target.s4),
+        ReactionInteraction(
+            'regulatory_death',
+            target='site',
+            reactants={'ER': 1},
+            propensity=lambda s: s.target.d6 * s.target.ER,
+        ),
+        RateInteraction(
+            'antigen_expansion',
+            target='site',
+            state='ER',
+            rate=lambda s: s.target.rho7
+            * delayed(s.target.ER, s.target.tau3)
+            * delayed(s.target.A, s.target.tau3) ** 2
+            / (s.target.g8 + delayed(s.target.A, s.target.tau3) ** 2),
+        ),
+        RateInteraction(
+            'il2_regulatory_expansion',
+            target='site',
+            state='ER',
+            rate=lambda s: s.target.rho8
+            * delayed(s.target.ER, s.target.tau3)
+            * delayed(s.target.C, s.target.tau3)
+            / (s.target.g9 + delayed(s.target.C, s.target.tau3)),
+        ),
+        DosingInteraction('naive_helper_influx', target='site', state='ENH', dose=lambda s: s.target.s5),
+        ReactionInteraction(
+            'naive_helper_death',
+            target='site',
+            reactants={'ENH': 1},
+            propensity=lambda s: s.target.d7 * s.target.ENH,
+        ),
+        MichaelisMentenInteraction(
+            'helper_priming',
+            target='site',
+            reactants={'ENH': 1},
+            modifiers={'ENH': 1},
+            substrate='ED',
+            vmax=lambda s: s.target.rho9,
+            km=lambda s: s.target.g3,
+        ),
+        ReactionInteraction(
+            'helper_death',
+            target='site',
+            reactants={'E1H': 1},
+            propensity=lambda s: s.target.d8 * s.target.E1H,
+        ),
+        RateInteraction(
+            'primed_helper_expansion',
+            target='site',
+            state='E1H',
+            rate=lambda s: s.target.m2
+            * delayed(s.target.ED, 2 * s.target.tau3, 2 * tau3)
+            * delayed(s.target.ENH, 2 * s.target.tau3, 2 * tau3)
+            / (s.target.g3 + delayed(s.target.ED, 2 * s.target.tau3, 2 * tau3)),
+        ),
+        ReactionInteraction(
+            'helper_suppression',
+            target='site',
+            reactants={'E1H': 1},
+            modifiers={'ER': 1},
+            propensity=lambda s: s.target.psi3 * s.target.ER * s.target.E1H,
+        ),
+        RateInteraction(
+            'helper_expansion',
+            target='site',
+            state='E1H',
+            rate=lambda s: s.target.rho10
+            * delayed(s.target.ED, s.target.tau3)
+            * delayed(s.target.E, s.target.tau3)
+            / (s.target.g3 + delayed(s.target.ED, s.target.tau3)),
+        ),
+    ]
+    return System(elements=[site], interactions=interactions)
 
 
 @register_model(
@@ -1609,4 +1888,204 @@ def tumour_immune_suppression(
         1.0
     """
     site = SuppressedTumourElement('site', alpha_a=alpha_a, r1=r1, r2=r2, EMC=EMC, EMH=EMH, EMR=EMR)
-    return System(elements=[site])
+
+    def accessible(s: SimpleNamespace) -> Expression:
+        """Return the fraction of the tumour accessible to the cytotoxic T cells."""
+        fraction: Expression = s.target.A / (1 + (s.target.A ** (1 - s.target.q) / s.target.g3) ** s.target.p) ** (
+            1 / s.target.p
+        )
+        return fraction
+
+    def maturation(s: SimpleNamespace) -> Expression:
+        """Return the maturation by IL-2 of proliferating T cells, which TGF-beta suppresses."""
+        factor: Expression = hill(s.target.C1, s.target.EC1_50) / (1 + s.target.C3 / s.target.EC3_50)
+        return factor
+
+    interactions = [
+        RateInteraction(
+            'tumour_growth',
+            target='site',
+            state='A',
+            rate=lambda s: s.target.A
+            / ((1 / s.target.r1) ** s.target.p + (s.target.A ** (1 - s.target.n) / s.target.r2) ** s.target.p)
+            ** (1 / s.target.p),
+        ),
+        ReactionInteraction(
+            'kill',
+            target='site',
+            reactants={'A': 1},
+            modifiers={'E': 1},
+            propensity=lambda s: s.target.a1
+            * accessible(s)
+            * s.target.E
+            / (s.target.E + accessible(s) / s.target.g1 + s.target.ER / s.target.g2)
+            / (1 + s.target.C3 / s.target.C3_50),
+        ),
+        RateInteraction(
+            'antigen_uptake',
+            target='site',
+            state='EUD',
+            rate=lambda s: s.target.alpha_a
+            * accessible(s)
+            / ((1 + s.target.C2 / s.target.C2_50) * (1 + s.target.ER / s.target.ER_50)),
+        ),
+        ReactionInteraction(
+            'licensing',
+            target='site',
+            reactants={'EUD': 1},
+            products={'ED': 1},
+            propensity=lambda s: s.target.lambda_a * s.target.EUD / (1 + s.target.EUD / s.target.EMH),
+        ),
+        ReactionInteraction(
+            'immature_death',
+            target='site',
+            reactants={'EUD': 1},
+            propensity=lambda s: s.target.d1 * s.target.EUD,
+        ),
+        ReactionInteraction(
+            'licensed_death',
+            target='site',
+            reactants={'ED': 1},
+            propensity=lambda s: s.target.d2 * s.target.ED,
+        ),
+        RateInteraction(
+            'cytotoxic_priming',
+            target='site',
+            state='EPC',
+            rate=lambda s: s.target.a2
+            * s.target.EMC
+            * s.target.ED
+            / (s.target.ED + s.target.g4 * (s.target.EMC + s.target.EMH + s.target.EMR)),
+        ),
+        ReactionInteraction(
+            'cytotoxic_precursor_death',
+            target='site',
+            reactants={'EPC': 1},
+            propensity=lambda s: s.target.d3 * s.target.EPC,
+        ),
+        RateInteraction(
+            'cytotoxic_maturation',
+            target='site',
+            state='E',
+            rate=lambda s: s.target.a3 * s.target.EPC * maturation(s),
+        ),
+        ReactionInteraction(
+            'cytotoxic_death',
+            target='site',
+            reactants={'E': 1},
+            propensity=lambda s: s.target.d4 * s.target.E,
+        ),
+        RateInteraction(
+            'helper_priming',
+            target='site',
+            state='EPH',
+            rate=lambda s: s.target.a4
+            * s.target.EMH
+            * (s.target.ED + s.target.EUD)
+            / (s.target.ED + s.target.EUD + s.target.g4 * (s.target.EMC + s.target.EMH + s.target.EMR)),
+        ),
+        ReactionInteraction(
+            'helper_precursor_death',
+            target='site',
+            reactants={'EPH': 1},
+            propensity=lambda s: s.target.d5 * s.target.EPH,
+        ),
+        RateInteraction(
+            'helper_maturation',
+            target='site',
+            state='EH',
+            rate=lambda s: s.target.a5 * s.target.EPH * maturation(s),
+        ),
+        ReactionInteraction(
+            'conversion',
+            target='site',
+            reactants={'EH': 1},
+            products={'ER': 1},
+            modifiers={'C3': 1},
+            propensity=lambda s: s.target.a6 * s.target.EH * s.target.C3 / (s.target.g5 + s.target.C3),
+        ),
+        ReactionInteraction(
+            'helper_death',
+            target='site',
+            reactants={'EH': 1},
+            propensity=lambda s: s.target.d6 * s.target.EH,
+        ),
+        RateInteraction(
+            'regulatory_priming',
+            target='site',
+            state='EPR',
+            rate=lambda s: s.target.a7
+            * s.target.EMR
+            * s.target.ED
+            / (s.target.ED + s.target.g4 * (s.target.EMC + s.target.EMH + s.target.EMR)),
+        ),
+        ReactionInteraction(
+            'regulatory_precursor_death',
+            target='site',
+            reactants={'EPR': 1},
+            propensity=lambda s: s.target.d7 * s.target.EPR,
+        ),
+        RateInteraction(
+            'regulatory_maturation',
+            target='site',
+            state='ER',
+            rate=lambda s: s.target.a8 * s.target.EPR * hill(s.target.C1, s.target.EC1_50),
+        ),
+        ReactionInteraction(
+            'regulatory_death',
+            target='site',
+            reactants={'ER': 1},
+            propensity=lambda s: s.target.d8 * s.target.ER,
+        ),
+        RateInteraction(
+            'il2_secretion',
+            target='site',
+            state='C1',
+            rate=lambda s: s.target.a9
+            * s.target.EPH
+            / ((1 + s.target.C3 / s.target.CC3_50) * (1 + s.target.C2 / s.target.CC2_50)),
+        ),
+        ReactionInteraction(
+            'il2_loss',
+            target='site',
+            reactants={'C1': 1},
+            propensity=lambda s: s.target.C1 / s.target.tau1,
+        ),
+        RateInteraction(
+            'regulatory_il10',
+            target='site',
+            state='C2',
+            rate=lambda s: s.target.r3 * s.target.ER,
+        ),
+        RateInteraction(
+            'tumour_il10',
+            target='site',
+            state='C2',
+            rate=lambda s: s.target.r4 * s.target.A,
+        ),
+        ReactionInteraction(
+            'il10_loss',
+            target='site',
+            reactants={'C2': 1},
+            propensity=lambda s: s.target.C2 / s.target.tau2,
+        ),
+        RateInteraction(
+            'regulatory_tgf_beta',
+            target='site',
+            state='C3',
+            rate=lambda s: s.target.r5 * s.target.ER,
+        ),
+        RateInteraction(
+            'tumour_tgf_beta',
+            target='site',
+            state='C3',
+            rate=lambda s: s.target.r6 * s.target.A,
+        ),
+        ReactionInteraction(
+            'tgf_beta_loss',
+            target='site',
+            reactants={'C3': 1},
+            propensity=lambda s: s.target.C3 / s.target.tau3,
+        ),
+    ]
+    return System(elements=[site], interactions=interactions)

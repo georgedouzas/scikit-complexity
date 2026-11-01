@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -12,8 +11,7 @@ from sage.sets.real_set import RealSet
 from scipy.optimize import brentq
 
 from ....core.elements import Element, FieldElement
-from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import laplacian
+from ....core.interactions import DiffusionInteraction, ReactionInteraction
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.solvers import ScipyODESolver
@@ -29,6 +27,9 @@ class MinSkeletonElement(Element):
     recruitment of MinE by membrane MinD, `k_de md ce`, the dissociation of MinDE complexes, `k_off mde`, which releases
     MinD-ADP and MinE to the cytosol, and the nucleotide exchange `lam cdd` from MinD-ADP to MinD-ATP. They conserve
     the totals of MinD, `md + mde + cdt + cdd`, and of MinE, `mde + ce`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of `min_protein_skeleton`
+    read its parameters.
 
     Args:
         label:
@@ -111,29 +112,6 @@ class MinSkeletonElement(Element):
         self.k_off = k_off
         self.lam = lam
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the reactions and the diffusion of the five species.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        attach = (s.k_d + s.k_dd * s.md) * s.cdt
-        recruit = s.k_de * s.md * s.ce
-        release = s.k_off * s.mde
-        exchange = s.lam * s.cdd
-        return [
-            RateLaw(s.md, s.Dm * laplacian(s.md) + attach - recruit),
-            RateLaw(s.mde, s.Dm * laplacian(s.mde) + recruit - release),
-            RateLaw(s.cdt, s.Dc * laplacian(s.cdt) - attach + exchange),
-            RateLaw(s.cdd, s.Dc * laplacian(s.cdd) + release - exchange),
-            RateLaw(s.ce, s.Dc * laplacian(s.ce) - recruit + release),
-        ]
-
 
 def _uniform_state(element: MinSkeletonElement, total_D: float, total_E: float) -> dict[str, float]:
     """Return the uniform steady state of the skeleton model with the totals of MinD and MinE."""
@@ -210,4 +188,43 @@ def min_protein_skeleton(
     values['md'] = values['md'] + noise
     values['cdt'] = values['cdt'] - noise
     space = LatticeSpace(n_sites, spacing=length / n_sites)
-    return System(elements=[FieldElement('cell', element=MinSkeletonElement, space=space, values=values)])
+    cell = FieldElement('cell', element=MinSkeletonElement, space=space, values=values)
+    reactions = [
+        ReactionInteraction(
+            'attachment',
+            target='cell',
+            reactants={'cdt': 1},
+            products={'md': 1},
+            propensity=lambda s: (s.target.k_d + s.target.k_dd * s.target.md) * s.target.cdt,
+        ),
+        ReactionInteraction(
+            'recruitment',
+            target='cell',
+            reactants={'md': 1, 'ce': 1},
+            products={'mde': 1},
+            propensity=lambda s: s.target.k_de * s.target.md * s.target.ce,
+        ),
+        ReactionInteraction(
+            'release',
+            target='cell',
+            reactants={'mde': 1},
+            products={'cdd': 1, 'ce': 1},
+            propensity=lambda s: s.target.k_off * s.target.mde,
+        ),
+        ReactionInteraction(
+            'exchange',
+            target='cell',
+            reactants={'cdd': 1},
+            products={'cdt': 1},
+            propensity=lambda s: s.target.lam * s.target.cdd,
+        ),
+    ]
+    membrane = [
+        DiffusionInteraction(f'diffusion_{state}', target='cell', state=state, coefficient=lambda s: s.target.Dm)
+        for state in ('md', 'mde')
+    ]
+    cytosol = [
+        DiffusionInteraction(f'diffusion_{state}', target='cell', state=state, coefficient=lambda s: s.target.Dc)
+        for state in ('cdt', 'cdd', 'ce')
+    ]
+    return System(elements=[cell], interactions=[*reactions, *membrane, *cytosol])

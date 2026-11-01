@@ -10,11 +10,13 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import RateInteraction, ReactionInteraction
 from ....core.system import System
 from ....engine.solvers import PontryaginSolver
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.kinetics import MichaelisMentenInteraction
+from ..common.pharmacokinetics import DosingInteraction
 from ._chemotherapy import BOOK, TumourImmuneChemotherapyElement
 
 MAX_DOSE = 1.0
@@ -212,6 +214,9 @@ class OptimalImmunotherapyElement(Element):
     IL-2. The adoptive therapy `u1` and the IL-2 injection `u2` are control inputs between 0 and 1, and the oncologist
     minimises `∫ (y + w1 u1^2 / 2 + w2 u2^2 / 2) dt + y(T)`.
 
+    The element holds the states and parameters and has no laws of its own: the interactions of `optimal_immunotherapy`
+    read its parameters.
+
     Args:
         label:
             The label of the tumour site.
@@ -323,24 +328,6 @@ class OptimalImmunotherapyElement(Element):
         self.w1 = w1
         self.w2 = w2
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the balances of effector cells, tumour cells, and IL-2.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        x, y, z = s.x, s.y, s.z
-        return [
-            RateLaw(x, s.alpha_a * y - s.d1 * x + s.a1 * s.u1 + s.rho1 * x * z / (1 + z)),
-            RateLaw(y, s.r1 * y * (1 - s.b * y) - s.c1 * x * y / (1 + y)),
-            RateLaw(z, s.a2 * s.u2 + s.rho2 * x * y / (s.alpha3 + y) - s.du * z),
-        ]
-
 
 @register_model(
     field='biology/oncology',
@@ -437,4 +424,55 @@ def optimal_immunotherapy(
         >>> optimal_immunotherapy(w1=0.5).elements[0].w1
         0.5
     """
-    return System(elements=[OptimalImmunotherapyElement('site', x=x, y=y, alpha_a=alpha_a, w1=w1, w2=w2)])
+    site = OptimalImmunotherapyElement('site', x=x, y=y, alpha_a=alpha_a, w1=w1, w2=w2)
+    interactions = [
+        RateInteraction('stimulation', target='site', state='x', rate=lambda s: s.target.alpha_a * s.target.y),
+        ReactionInteraction(
+            'effector_death',
+            target='site',
+            reactants={'x': 1},
+            propensity=lambda s: s.target.d1 * s.target.x,
+        ),
+        DosingInteraction('adoptive_therapy', target='site', state='x', dose=lambda s: s.target.a1 * s.target.u1),
+        MichaelisMentenInteraction(
+            'effector_proliferation',
+            target='site',
+            products={'x': 1},
+            substrate='z',
+            vmax=lambda s: s.target.rho1,
+            km=1.0,
+            modifiers={'x': 1},
+        ),
+        RateInteraction(
+            'tumour_growth',
+            target='site',
+            state='y',
+            rate=lambda s: s.target.r1 * s.target.y * (1 - s.target.b * s.target.y),
+        ),
+        MichaelisMentenInteraction(
+            'kill',
+            target='site',
+            reactants={'y': 1},
+            substrate='y',
+            vmax=lambda s: s.target.c1,
+            km=1.0,
+            modifiers={'x': 1},
+        ),
+        DosingInteraction('il2_injection', target='site', state='z', dose=lambda s: s.target.a2 * s.target.u2),
+        MichaelisMentenInteraction(
+            'il2_production',
+            target='site',
+            products={'z': 1},
+            substrate='y',
+            vmax=lambda s: s.target.rho2,
+            km=lambda s: s.target.alpha3,
+            modifiers={'x': 1},
+        ),
+        ReactionInteraction(
+            'il2_loss',
+            target='site',
+            reactants={'z': 1},
+            propensity=lambda s: s.target.du * s.target.z,
+        ),
+    ]
+    return System(elements=[site], interactions=interactions)

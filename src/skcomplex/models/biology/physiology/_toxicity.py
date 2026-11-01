@@ -4,18 +4,17 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import pulse_train
+from ....core.interactions import RateInteraction, ReactionInteraction
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.pharmacokinetics import DosingInteraction
 
 
 class DrugToxicityElement(Element):
@@ -23,6 +22,9 @@ class DrugToxicityElement(Element):
 
     The plasma concentration follows `dc/dt = u(t) - k c`, where the infusion `u` is `dose` for `width` time units
     every `period`, and the toxicity `dT/dt = c - eta T`, which the metabolism lowers at the rate `eta`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of `drug_toxicity` read its
+    parameters.
 
     Args:
         label:
@@ -85,20 +87,6 @@ class DrugToxicityElement(Element):
         self.width = width
         self.doses = doses
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the balance of the drug and the accumulation of toxicity.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        infusion = pulse_train(s.t, self.period, self.width, count=self.doses)
-        return [RateLaw(s.c, s.dose * infusion - s.k * s.c), RateLaw(s.T, s.c - s.eta * s.T)]
-
 
 @register_model(
     field='biology/physiology',
@@ -149,4 +137,28 @@ def drug_toxicity(
         0.0
     """
     patient = DrugToxicityElement('patient', k=k, eta=eta, dose=dose, period=period, width=width, doses=doses)
-    return System(elements=[patient])
+    interactions = [
+        DosingInteraction(
+            'dosing',
+            target='patient',
+            state='c',
+            dose=lambda s: s.target.dose,
+            period=period,
+            width=width,
+            count=doses,
+        ),
+        ReactionInteraction(
+            'clearance',
+            target='patient',
+            reactants={'c': 1},
+            propensity=lambda s: s.target.k * s.target.c,
+        ),
+        RateInteraction('toxicity', target='patient', state='T', rate=lambda s: s.target.c),
+        ReactionInteraction(
+            'toxicity_recovery',
+            target='patient',
+            reactants={'T': 1},
+            propensity=lambda s: s.target.eta * s.target.T,
+        ),
+    ]
+    return System(elements=[patient], interactions=interactions)

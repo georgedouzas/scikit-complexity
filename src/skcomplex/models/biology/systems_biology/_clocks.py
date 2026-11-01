@@ -3,18 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import ReactionInteraction
 from ....core.laws.utils import hill
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.kinetics import MichaelisMentenInteraction
 
 
 class PerClockElement(Element):
@@ -23,6 +23,9 @@ class PerClockElement(Element):
     The mRNA `M` is transcribed under repression by nuclear PER and degraded. Cytosolic PER is translated as `P0`,
     phosphorylated reversibly to `P1` and `P2`, and `P2` is degraded or enters the nucleus as `PN`. Concentrations are
     in µM and time in hours.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of `circadian_clock` read
+    its parameters.
 
     Args:
         label:
@@ -145,28 +148,6 @@ class PerClockElement(Element):
         self.V4 = V4
         self.K = K
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return transcription, translation, phosphorylation, degradation, and nuclear transport.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        first = s.V1 * hill(s.P0, s.K) - s.V2 * hill(s.P1, s.K)
-        second = s.V3 * hill(s.P1, s.K) - s.V4 * hill(s.P2, s.K)
-        transport = s.k1 * s.P2 - s.k2 * s.PN
-        return [
-            RateLaw(s.M, s.v_s * (1 - hill(s.PN, s.K_I, s.n)) - s.v_m * hill(s.M, s.K_m)),
-            RateLaw(s.P0, s.k_s * s.M - first),
-            RateLaw(s.P1, first - second),
-            RateLaw(s.P2, second - transport - s.v_d * hill(s.P2, s.K_d)),
-            RateLaw(s.PN, transport),
-        ]
-
 
 @register_model(
     field='biology/systems_biology',
@@ -209,4 +190,85 @@ def circadian_clock(
         >>> circadian_clock(v_d=1.2).elements[0].v_d
         1.2
     """
-    return System(elements=[PerClockElement('clock', v_s=v_s, v_d=v_d, k_s=k_s, n=n)])
+    clock = PerClockElement('clock', v_s=v_s, v_d=v_d, k_s=k_s, n=n)
+    reactions = [
+        ReactionInteraction(
+            'transcription',
+            target='clock',
+            products={'M': 1},
+            propensity=lambda s: s.target.v_s * (1 - hill(s.target.PN, s.target.K_I, s.target.n)),
+        ),
+        MichaelisMentenInteraction(
+            'mrna_degradation',
+            target='clock',
+            reactants={'M': 1},
+            substrate='M',
+            vmax=lambda s: s.target.v_m,
+            km=lambda s: s.target.K_m,
+        ),
+        ReactionInteraction(
+            'translation',
+            target='clock',
+            products={'P0': 1},
+            propensity=lambda s: s.target.k_s * s.target.M,
+        ),
+        MichaelisMentenInteraction(
+            'first_phosphorylation',
+            target='clock',
+            reactants={'P0': 1},
+            products={'P1': 1},
+            substrate='P0',
+            vmax=lambda s: s.target.V1,
+            km=lambda s: s.target.K,
+        ),
+        MichaelisMentenInteraction(
+            'first_dephosphorylation',
+            target='clock',
+            reactants={'P1': 1},
+            products={'P0': 1},
+            substrate='P1',
+            vmax=lambda s: s.target.V2,
+            km=lambda s: s.target.K,
+        ),
+        MichaelisMentenInteraction(
+            'second_phosphorylation',
+            target='clock',
+            reactants={'P1': 1},
+            products={'P2': 1},
+            substrate='P1',
+            vmax=lambda s: s.target.V3,
+            km=lambda s: s.target.K,
+        ),
+        MichaelisMentenInteraction(
+            'second_dephosphorylation',
+            target='clock',
+            reactants={'P2': 1},
+            products={'P1': 1},
+            substrate='P2',
+            vmax=lambda s: s.target.V4,
+            km=lambda s: s.target.K,
+        ),
+        ReactionInteraction(
+            'nuclear_entry',
+            target='clock',
+            reactants={'P2': 1},
+            products={'PN': 1},
+            propensity=lambda s: s.target.k1 * s.target.P2,
+        ),
+        ReactionInteraction(
+            'nuclear_exit',
+            target='clock',
+            reactants={'PN': 1},
+            products={'P2': 1},
+            propensity=lambda s: s.target.k2 * s.target.PN,
+        ),
+        MichaelisMentenInteraction(
+            'per_degradation',
+            target='clock',
+            reactants={'P2': 1},
+            substrate='P2',
+            vmax=lambda s: s.target.v_d,
+            km=lambda s: s.target.K_d,
+        ),
+    ]
+    return System(elements=[clock], interactions=reactions)

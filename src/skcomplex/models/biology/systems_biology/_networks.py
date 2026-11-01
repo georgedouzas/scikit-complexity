@@ -19,6 +19,7 @@ from ....core.system import System
 from ....errors import ValidationError
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.kinetics import MichaelisMentenInteraction
 from ._repression import RepressionInteraction
 from ._species import SpeciesElement
 
@@ -41,6 +42,9 @@ class PhosphorylationLoopElement(Element):
     - `dA/dt = kp1 u_T / (K1 + u_T) - kd1 C A / (K1 + A)`,
     - `dB/dt = kp2 A (B_T - B) / (K2 + B_T - B) - kd2 B / (K2 + B)`,
     - `dC/dt = kp3 B (C_T - C) / (K3 + C_T - C) - kd3 C / (K3 + C)`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `phosphorylation_oscillator` read its parameters.
 
     Args:
         label:
@@ -137,24 +141,6 @@ class PhosphorylationLoopElement(Element):
         self.A_T = A_T
         self.B_T = B_T
         self.C_T = C_T
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the Michaelis-Menten rates of the three proteins.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        A, B, C = s.A, s.B, s.C
-        return [
-            RateLaw(A, s.kp1 * (s.A_T - A) / (s.K1 + s.A_T - A) - s.kd1 * C * A / (s.K1 + A)),
-            RateLaw(B, s.kp2 * A * (s.B_T - B) / (s.K2 + s.B_T - B) - s.kd2 * B / (s.K2 + B)),
-            RateLaw(C, s.kp3 * B * (s.C_T - C) / (s.K3 + s.C_T - C) - s.kd3 * C / (s.K3 + C)),
-        ]
 
 
 class GeneralizedMassActionInteraction(Interaction):
@@ -421,7 +407,60 @@ def phosphorylation_oscillator(
         K2=K,
         K3=K,
     )
-    return System(elements=[loop])
+    reactions = [
+        MichaelisMentenInteraction(
+            'a_restoration',
+            target='loop',
+            products={'A': 1},
+            substrate=lambda s: s.target.A_T - s.target.A,
+            vmax=lambda s: s.target.kp1,
+            km=lambda s: s.target.K1,
+        ),
+        MichaelisMentenInteraction(
+            'a_conversion',
+            target='loop',
+            reactants={'A': 1},
+            substrate='A',
+            vmax=lambda s: s.target.kd1,
+            km=lambda s: s.target.K1,
+            modifiers={'C': 1},
+        ),
+        MichaelisMentenInteraction(
+            'b_conversion',
+            target='loop',
+            products={'B': 1},
+            substrate=lambda s: s.target.B_T - s.target.B,
+            vmax=lambda s: s.target.kp2,
+            km=lambda s: s.target.K2,
+            modifiers={'A': 1},
+        ),
+        MichaelisMentenInteraction(
+            'b_removal',
+            target='loop',
+            reactants={'B': 1},
+            substrate='B',
+            vmax=lambda s: s.target.kd2,
+            km=lambda s: s.target.K2,
+        ),
+        MichaelisMentenInteraction(
+            'c_conversion',
+            target='loop',
+            products={'C': 1},
+            substrate=lambda s: s.target.C_T - s.target.C,
+            vmax=lambda s: s.target.kp3,
+            km=lambda s: s.target.K3,
+            modifiers={'B': 1},
+        ),
+        MichaelisMentenInteraction(
+            'c_removal',
+            target='loop',
+            reactants={'C': 1},
+            substrate='C',
+            vmax=lambda s: s.target.kd3,
+            km=lambda s: s.target.K3,
+        ),
+    ]
+    return System(elements=[loop], interactions=reactions)
 
 
 @register_model(

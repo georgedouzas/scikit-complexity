@@ -53,7 +53,6 @@ from ._gene_viral_therapy import (
 from ._growth import (
     ExponentialLinearGrowthInteraction,
     LogKillInteraction,
-    TumourElement,
     VascularSupportInteraction,
     VasculatureElement,
     dynamic_carrying_capacity,
@@ -165,7 +164,6 @@ __all__: list[str] = [
     'TherapySwitchInteraction',
     'TissueElement',
     'TumourCellElement',
-    'TumourElement',
     'TumourImmuneChemotherapyElement',
     'VaccinatedTumourElement',
     'VascularSupportInteraction',

@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from scipy.ndimage import convolve
 
 from ....core.elements import Element, FieldElement
-from ....core.interactions import Interaction, RateInteraction
+from ....core.interactions import Interaction, RateInteraction, RelaxationInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import delayed, laplacian, logistic, maximum
 from ....core.spaces import LatticeSpace
@@ -52,7 +52,8 @@ class SpikingNeuronElement(Element):
 
     The potential follows `tau v' = -v + mu` plus synaptic input, and the trace decays as `s' = -s / tau_s`. A spike
     reset sets the potential back and raises the trace by `1 / tau_s`, so every spike carries a unit area of trace.
-    Units are mV and ms.
+    Units are mV and ms. The element holds the states and parameters and has no laws of its own: the leak and trace
+    interactions of `delayed_lif_network` read its parameters.
 
     Args:
         label:
@@ -99,19 +100,6 @@ class SpikingNeuronElement(Element):
         self.tau = tau
         self.mu = mu
         self.tau_s = tau_s
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the leaky membrane and the decay of the trace.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.v, (s.mu - s.v) / s.tau), RateLaw(s.s, -s.s / s.tau_s)]
 
 
 class DelayedSynapseInteraction(RateInteraction):
@@ -435,6 +423,25 @@ def delayed_lif_network(
         SpikingNeuronElement(f'neuron_{index}', v=float(potentials[index]), mu=mu, tau_s=TRACE_TIME)
         for index in range(n_neurons)
     ]
+    leaks = [
+        RelaxationInteraction(
+            f'leak_{index}',
+            target=neuron.label,
+            state='v',
+            goal=lambda s: s.target.mu,
+            time=lambda s: s.target.tau,
+        )
+        for index, neuron in enumerate(neurons)
+    ]
+    traces = [
+        RateInteraction(
+            f'trace_decay_{index}',
+            target=neuron.label,
+            state='s',
+            rate=lambda s: -s.target.s / s.target.tau_s,
+        )
+        for index, neuron in enumerate(neurons)
+    ]
     spikes = [
         SpikeResetInteraction(
             f'spike_{index}',
@@ -456,7 +463,7 @@ def delayed_lif_network(
         )
         for source, target in _random_connections(n_neurons, probability, rng)
     ]
-    return System(elements=neurons, interactions=[*spikes, *synapses])
+    return System(elements=neurons, interactions=[*leaks, *traces, *spikes, *synapses])
 
 
 @register_model(
