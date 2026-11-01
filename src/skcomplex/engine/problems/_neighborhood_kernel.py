@@ -7,7 +7,9 @@ import functools
 from collections.abc import Callable, Mapping
 
 import numpy as np
+import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
+from scipy.sparse.csgraph import connected_components
 
 from ...core.spaces import (
     AdjacencyNeighborhood,
@@ -54,10 +56,12 @@ class NeighborhoodKernel(BaseKernel):
             The placeholder symbol that kernels read instead of the reduction.
 
         kind:
-            One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, and `'argmax'`.
+            One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, `'argmax'`, and the components
+            reductions `'component-label'`, `'component-size'`, `'component-largest'`, and `'component-giant'`.
 
         argument:
-            The value of one neighbour, with nested reductions replaced by their placeholders.
+            The value of one neighbour, or the activity of one link for a components reduction, with nested reductions
+            replaced by their placeholders.
 
         weight:
             The weight of one neighbour, 1 without one.
@@ -164,7 +168,70 @@ class NeighborhoodKernel(BaseKernel):
         pairs = others.size
         argument = np.broadcast_to(np.asarray(argument, dtype=float), (pairs,))
         weight = np.broadcast_to(np.asarray(weight, dtype=float), (pairs,))
+        if self.kind.startswith('component-'):
+            active = argument != 0
+            q[self.entry.indices] = self._components_of(self.kind, readers[active], others[active], size)
+            return
         q[self.entry.indices] = self._reduce_pairs(self.kind, readers, weight, argument, counts)
+
+    @staticmethod
+    def _components_of(kind: str, readers: Indices, others: Indices, size: int) -> Array:
+        """Return the label, the size, the largest size, or the membership of the giant component of every member.
+
+        The components are those of the undirected graph of the active links. The label of a component is its smallest
+        member, and the giant component is the largest one, the one of the smallest label among components of equal
+        size.
+
+        Args:
+            kind:
+                One of `'component-label'`, `'component-size'`, `'component-largest'`, and `'component-giant'`.
+
+            readers:
+                The first member of every active link.
+
+            others:
+                The second member of every active link.
+
+            size:
+                The number of members.
+
+        Returns:
+            values:
+                One value per member.
+
+        Raises:
+            ValidationError:
+                The kind is unknown.
+
+        Examples:
+            >>> import numpy as np
+            >>> from skcomplex.engine.problems._neighborhood_kernel import NeighborhoodKernel
+            >>> readers, others = np.array([1, 3, 4]), np.array([2, 4, 5])
+            >>> NeighborhoodKernel._components_of('component-label', readers, others, 6).tolist()
+            [0.0, 1.0, 1.0, 3.0, 3.0, 3.0]
+            >>> NeighborhoodKernel._components_of('component-size', readers, others, 6).tolist()
+            [1.0, 2.0, 2.0, 3.0, 3.0, 3.0]
+            >>> NeighborhoodKernel._components_of('component-giant', readers, others, 6).tolist()
+            [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+        """
+        links = scipy.sparse.csr_array((np.ones(readers.size), (readers, others)), shape=(size, size))
+        _, found = connected_components(links, directed=False)
+        smallest = np.full(size, size, dtype=np.intp)
+        np.minimum.at(smallest, found, np.arange(size, dtype=np.intp))
+        labels = smallest[found]
+        sizes = np.bincount(labels, minlength=size)[labels]
+        if kind == 'component-label':
+            return labels.astype(float)
+        if kind == 'component-size':
+            return sizes.astype(float)
+        largest = sizes.max(initial=0)
+        if kind == 'component-largest':
+            return np.full(size, float(largest))
+        if kind == 'component-giant':
+            giant = labels[sizes == largest].min(initial=size)
+            return (labels == giant).astype(float)
+        error_msg = f'Unknown components reduction {kind!r}.'
+        raise ValidationError(error_msg)
 
     @staticmethod
     def _reduce_pairs(kind: str, readers: Indices, weight: Array, argument: Array, counts: Indices) -> Array:

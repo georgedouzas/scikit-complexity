@@ -19,7 +19,8 @@ class NeighborReductionSpec(BaseSpec):
             The unevaluated call.
 
         kind:
-            One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, and `'argmax'`.
+            One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, `'argmax'`, and the components
+            reductions `'component-label'`, `'component-size'`, `'component-largest'`, and `'component-giant'`.
 
         argument:
             The value of one neighbour.

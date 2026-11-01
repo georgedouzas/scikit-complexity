@@ -1,4 +1,4 @@
-"""Networks: growth, random graph ensembles, robustness, random walks, diffusion, PageRank, and structure."""
+"""Networks: growth, random graph ensembles, robustness, random walks, diffusion, PageRank, structure, percolation."""
 
 from ._ensembles import (
     EnsembleNodeElement,
@@ -32,21 +32,32 @@ from ._processes import (
     pagerank,
 )
 from ._structure import NetworkMeasuresElement, NetworkNodeElement, network_structure_analysis
+from ._triadic import (
+    GiantComponentInteraction,
+    RegulatedLinkElement,
+    RegulatedNodeElement,
+    TriadicRegulationInteraction,
+    triadic_percolation,
+)
 
 __all__: list[str] = [
     'CopyingVertexElement',
     'EnsembleNodeElement',
     'FailingElement',
+    'GiantComponentInteraction',
     'LinkElement',
     'NetworkMeasuresElement',
     'NetworkNodeElement',
     'NetworkWalkerElement',
     'NodeContentElement',
     'NodeRankElement',
+    'RegulatedLinkElement',
+    'RegulatedNodeElement',
     'SimplexAgeingInteraction',
     'SimplexElement',
     'SizeBiasedMoveInteraction',
     'TriadVertexElement',
+    'TriadicRegulationInteraction',
     'VertexElement',
     'WalkerDensityElement',
     'barabasi_albert',
@@ -59,5 +70,6 @@ __all__: list[str] = [
     'network_structure_analysis',
     'pagerank',
     'random_graph_ensembles',
+    'triadic_percolation',
     'vertex_copying',
 ]
