@@ -4,7 +4,7 @@
 
 - [x] 1.1 Add `_get_member(namespace, role)` to `BaseInteraction` and use it in every symbolic `_get_laws` that reads a role; add a test per general class that renames its target role and compiles with the trajectory of the plain class.
 - [x] 1.2 Add `_get_parameter(name)` to `BaseInteraction`, with the plain-attribute fallback for undeclared parameters, and use it for every parameter read in both forms; drop `probability` from `HerdingInteraction` and verify the meadow tests and a renamed-parameter test per agent class.
-- [ ] 1.3 Let every variant argument accept a spec or a callable besides its named values, with checks that keep validating the rest; verify a custom pairing, a custom movement step, a custom matching rule, and the error for an unknown name.
+- [x] 1.3 Let every variant argument accept a spec or a callable besides its named values, with checks that keep validating the rest; verify a custom pairing, a custom movement step, a custom matching rule, and the error for an unknown name.
 - [ ] 1.4 Add `schedule` to the agent forms of sign adjustment, reinforcement, imitation, and reaction, and `ties` to the best-option rules of movement, imitation, and choice; verify the member schedule and random-tie frequencies.
 - [ ] 1.5 Declare every member the agent and model views offer on `AgentViewProtocol` and `ModelViewProtocol`; verify mypy on a subclass that uses them.
 

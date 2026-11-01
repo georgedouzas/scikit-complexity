@@ -650,3 +650,57 @@ def test_transfer_symbolic_reads_a_renamed_target():
     np.testing.assert_allclose(trajectories[1], trajectories[0])
     assert trajectories[0][-1][0] < 4.0
 
+
+def _richest_pairs(sources, targets, rng, capacity):
+    """Return the richest agent of every cell paired as the source with every other agent of the cell."""
+    del targets, rng, capacity
+    pairs = []
+    for cell in {agent.location_key for agent in sources}:
+        here = [agent for agent in sources if agent.location_key == cell]
+        richest = max(here, key=lambda agent: agent.level)
+        pairs += [(richest, agent) for agent in here if agent is not richest]
+    return pairs
+
+
+def test_transfer_pairing_function_gives_the_pairs_of_the_step():
+    """Test that a pairing function makes the richest agent of each cell give one unit to every other agent there."""
+    traders = GroupElement(
+        'traders',
+        element=StockElement,
+        size=4,
+        values={'level': [1.0, 2.0, 6.0, 3.0]},
+        location=[(0, 0), (0, 0), (0, 0), (1, 1)],
+    )
+    give = TransferInteraction(
+        'give',
+        source='traders',
+        target='traders',
+        state='level',
+        amount=1.0,
+        pairing=_richest_pairs,
+        form='agent',
+    )
+    trajectory = _run(System(elements=[traders], interactions=[give], space=LatticeSpace((2, 2))), 1)
+    assert _levels(trajectory, 1, 'traders') == [2.0, 3.0, 4.0, 3.0]
+
+
+def test_check_rejects_a_pairing_function_in_the_symbolic_form():
+    """Test that a pairing function still meets the check that the symbolic form pairs members."""
+    give = TransferInteraction('give', source='a', target='b', state='level', amount=1.0, pairing=_richest_pairs)
+    with pytest.raises(ValidationError, match='pairs members'):
+        give.check()
+
+
+def test_check_rejects_an_unknown_pairing_naming_its_values_and_functions():
+    """Test that an unknown pairing raises an error that lists the named pairings and accepts a function."""
+    give = TransferInteraction(
+        'give',
+        source='a',
+        target='b',
+        state='level',
+        amount=1.0,
+        pairing='nearest',
+        form='agent',
+    )
+    with pytest.raises(ValidationError, match=r"Unknown pairing 'nearest'.*'members'.*'site', a function"):
+        give.check()

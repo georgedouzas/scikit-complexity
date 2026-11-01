@@ -138,11 +138,7 @@ class SamplingInteraction(Interaction):
                 The move, the rule, or the schedule is unknown, or the energy is not callable.
         """
         super()._check()
-        if not callable(self.move) and self.move not in MOVES:
-            error_msg = (
-                f'The move of sampling {self.label!r} is {self.move!r}. Use one of {", ".join(MOVES)}, or a function.'
-            )
-            raise ValidationError(error_msg)
+        self._check_variant('move', self.move, MOVES, functions=True)
         if not callable(self.energy):
             error_msg = f'The energy of sampling {self.label!r} must be a function of the namespace.'
             raise ValidationError(error_msg)

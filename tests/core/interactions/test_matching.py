@@ -283,10 +283,28 @@ def test_check_rejects_a_transfer_without_a_sign():
 
 @pytest.mark.parametrize(
     ('rule', 'message'),
-    [(MatchSpec('a', 'b', 1.0, 1.0), 'matching specs'), (QueueSpec(order='bid'), 'order')],
+    [(MatchSpec('a', 'b', 1.0, 1.0), 'Unknown rule'), (QueueSpec(order='bid'), 'order')],
 )
 def test_check_rejects_a_rule_that_is_not_a_valid_matching_spec(rule, message):
     """Test that a rule that is not a matching spec, or an invalid one, raises an error."""
     matching = MatchingInteraction('matching', requesters='a', providers='b', rule=rule)
     with pytest.raises(ValidationError, match=message):
         matching.check()
+
+
+def _reversed_pairs(requesters, providers, rng, capacity):
+    """Return every requester paired with the provider at the mirrored position."""
+    del rng, capacity
+    return list(zip(requesters, reversed(providers), strict=True))
+
+
+def test_match_custom_rule_settles_the_pairs_of_a_function_at_the_midpoint(clear):
+    """Test that a pairing function as the rule matches the pairs it returns at the midpoint of their limits."""
+    matches = clear(_reversed_pairs, {'limit': [10.0, 8.0]}, {'limit': [2.0, 4.0]})
+    assert sorted(matches) == [(8.0, 2.0, 0.0, 1.0, 5.0), (10.0, 4.0, 0.0, 1.0, 7.0)]
+
+
+def test_check_rejects_an_unknown_rule_naming_the_specs_and_functions():
+    """Test that a rule that is neither a matching spec nor a function raises an error naming both."""
+    with pytest.raises(ValidationError, match=r'RandomSearchSpec.*GreedyMatchingSpec, a function'):
+        MatchingInteraction('matching', requesters='a', providers='b', rule='greedy').check()

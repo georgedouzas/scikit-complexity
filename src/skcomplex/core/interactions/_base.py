@@ -149,6 +149,43 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
             return getattr(namespace, parameter)
         return getattr(self, parameter)
 
+    def _check_variant(
+        self,
+        name: str,
+        value: object,
+        values: Sequence[object],
+        kinds: tuple[type, ...] = (),
+        *,
+        functions: bool = False,
+    ) -> None:
+        """Raise an error for a variant that is none of its named values and of none of the kinds it also takes.
+
+        Args:
+            name:
+                The name of the variant argument, such as `'pairing'`.
+
+            value:
+                The value of the variant argument.
+
+            values:
+                The named values of the variant.
+
+            kinds:
+                The types the variant takes besides its named values, such as spec classes.
+
+            functions:
+                Whether the variant takes a function.
+
+        Raises:
+            ValidationError:
+                The value is none of the named values and of none of the kinds.
+        """
+        if isinstance(value, kinds) or (functions and callable(value)) or any(value == item for item in values):
+            return
+        accepted = [*map(repr, values), *(kind.__name__ for kind in kinds), *(['a function'] if functions else [])]
+        error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {", ".join(accepted)}.'
+        raise ValidationError(error_msg)
+
     def _check_states(self) -> None:
         """Raise an error for a type that declares states or adaptive parameters without a shape."""
         specs = self._get_specs()

@@ -179,9 +179,7 @@ class MovementInteraction(Interaction):
                 step `'best'` has no score.
         """
         super()._check()
-        if not callable(self.step) and self.step not in STEPS:
-            error_msg = f'Unknown step {self.step!r} of {self.label!r}. Use one of {", ".join(STEPS)}, or a function.'
-            raise ValidationError(error_msg)
+        self._check_variant('step', self.step, STEPS, functions=True)
         if self.rate is not None and (isinstance(self.rate, bool) or not self.rate > 0):
             error_msg = f'The rate of {self.label!r} is {self.rate!r}. Give a positive number, or None.'
             raise ValidationError(error_msg)

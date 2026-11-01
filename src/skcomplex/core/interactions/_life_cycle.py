@@ -206,16 +206,9 @@ class LifeCycleInteraction(Interaction):
 
     def _check_variants(self) -> None:
         """Raise an error for an unknown placement, schedule, or pick, or arrivals of a member schedule."""
-        if not callable(self.placement) and self.placement not in PLACEMENTS:
-            error_msg = (
-                f'Unknown placement {self.placement!r} of {self.label!r}. Use one of {", ".join(PLACEMENTS)}, or a '
-                'function.'
-            )
-            raise ValidationError(error_msg)
-        for name, value, variants in (('schedule', self.schedule, SCHEDULES), ('pick', self.pick, PICKS)):
-            if value not in variants:
-                error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {", ".join(variants)}.'
-                raise ValidationError(error_msg)
+        self._check_variant('placement', self.placement, PLACEMENTS, functions=True)
+        self._check_variant('schedule', self.schedule, SCHEDULES)
+        self._check_variant('pick', self.pick, PICKS)
         if self.schedule == 'member' and self.arrival is not None:
             error_msg = f'{self.label!r} runs member by member, so no agent brings arrivals. Give `arrival=None`.'
             raise ValidationError(error_msg)

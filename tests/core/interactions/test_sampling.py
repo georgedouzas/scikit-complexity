@@ -141,7 +141,7 @@ def test_cluster_moves_reject_an_energy_that_the_flip_changes():
 @pytest.mark.parametrize(
     ('arguments', 'match'),
     [
-        ({'energy': _ising, 'move': 'swap'}, 'move of sampling'),
+        ({'energy': _ising, 'move': 'swap'}, 'Unknown move'),
         ({'energy': 1.0}, 'function of the namespace'),
         ({'energy': _ising, 'rule': 'greedy'}, 'Unknown sampler'),
         ({'energy': _ising, 'schedule': 'synchronous'}, 'Unknown Monte Carlo schedule'),

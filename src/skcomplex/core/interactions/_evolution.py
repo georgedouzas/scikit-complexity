@@ -227,9 +227,7 @@ class EvolutionInteraction(Interaction):
             ('change', self.change, CHANGES),
             ('parents', self.parents, PARENTS),
         ):
-            if value not in variants:
-                error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {variants}.'
-                raise ValidationError(error_msg)
+            self._check_variant(name, value, variants)
         if (isinstance(self.strategy, str) and not self.strategy) or not isinstance(self.strategy, str | Sequence):
             error_msg = f'{self.label!r} has the strategy {self.strategy!r}. Give a state name or a sequence of them.'
             raise ValidationError(error_msg)

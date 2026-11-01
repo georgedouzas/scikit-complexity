@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
@@ -14,7 +14,7 @@ from ...errors import SimulationError, ValidationError
 from ...specs import RoleSpec
 from ..laws import BaseLaw, RuleLaw, Sink, Source, TransferLaw
 from ..laws.utils import shift_member, where
-from ..types import AgentViewProtocol, ModelViewProtocol
+from ..types import AgentViewProtocol, ModelViewProtocol, Pairing
 from ._interaction import Interaction
 
 FORMS = ('symbolic', 'agent')
@@ -105,7 +105,10 @@ class TransferInteraction(Interaction):
 
         pairing:
             How members are paired, one of `'members'`, `'random'`, `'pairs'`, `'neighbors'`, `'neighbor-pairs'`,
-            `'cell'`, or `'site'`, the agent form alone taking the others than `'members'`.
+            `'cell'`, or `'site'`, the agent form alone taking the others than `'members'`, or, in the agent form, a
+            function `pairing(sources, targets, rng, capacity)` of the source and target agents that returns their
+            pairs, whose capacity is `partners`, or 1 without it. Under the schedule `'member'` the function receives
+            the actor alone as its first sequence and the actor's partners are the second items of its pairs.
 
         legs:
             Further legs, each a tuple of a state or `Source()`, a state, `Sink()`, or `None`, an amount, and
@@ -190,7 +193,7 @@ class TransferInteraction(Interaction):
         into: str | Sink | None = None,
         amount: Amount,
         flow: str = '',
-        pairing: str = 'members',
+        pairing: str | Pairing = 'members',
         legs: Sequence[Leg] = (),
         fallback: Annotated[str | None, RoleSpec()] = None,
         guard: Callable[..., object] | None = None,
@@ -290,9 +293,7 @@ class TransferInteraction(Interaction):
         if self.form == 'symbolic' and self.pairing != 'members':
             error_msg = f'The symbolic form of {self.label!r} pairs members. Use `form="agent"` for {self.pairing!r}.'
             raise ValidationError(error_msg)
-        if self.pairing not in PAIRINGS:
-            error_msg = f'Unknown pairing {self.pairing!r} of {self.label!r}. Use one of {", ".join(PAIRINGS)}.'
-            raise ValidationError(error_msg)
+        self._check_variant('pairing', self.pairing, PAIRINGS, functions=True)
         if self.form == 'symbolic' and self.fallback is not None:
             error_msg = f'The symbolic form of {self.label!r} pairs members. Use `form="agent"` for a fallback group.'
             raise ValidationError(error_msg)
@@ -445,7 +446,12 @@ class TransferInteraction(Interaction):
         if self.fallback is not None and not any(target.alive for target in targets):
             targets = model.agents(self._get_role('fallback'))
         pairs: list[tuple[AgentViewProtocol, AgentViewProtocol]] = []
-        if self.pairing == 'members':
+        if callable(self.pairing):
+            pairs = cast(
+                list[tuple[AgentViewProtocol, AgentViewProtocol]],
+                self._get_custom_pairs(sources, targets, model),
+            )
+        elif self.pairing == 'members':
             pairs = list(zip(sources, targets, strict=False))
         elif self.pairing == 'random':
             pairs = self._get_random_pairs(sources, targets, model)
@@ -456,6 +462,16 @@ class TransferInteraction(Interaction):
         else:
             pairs = self._get_located_pairs(sources, targets)
         return [pairs[int(index)] for index in model.rng.permutation(len(pairs))]
+
+    def _get_custom_pairs(
+        self,
+        sources: Sequence[AgentViewProtocol],
+        targets: Sequence[AgentViewProtocol],
+        model: ModelViewProtocol,
+    ) -> list[tuple[object, object]]:
+        """Return the pairs a pairing function gives the source and target agents, with `partners` as capacity."""
+        pairing = cast(Pairing, self.pairing)
+        return pairing(sources, targets, model.rng, self.partners or 1)
 
     @staticmethod
     def _get_random_pairs(
@@ -569,6 +585,9 @@ class TransferInteraction(Interaction):
         if self.pairing == 'members':
             return [agent]
         role = self._get_role('source' if self.actor == 'target' else 'target')
+        if callable(self.pairing):
+            others = [other for other in model.agents(role) if other is not agent]
+            return [cast(AgentViewProtocol, partner) for _, partner in self._get_custom_pairs([agent], others, model)]
         if self.pairing == 'cell':
             groups = set(model.groups(role))
             others = [other for other in agent.agents_here() if other.group in groups]

@@ -30,7 +30,7 @@ from ...specs import (
 from ..base import BasePart
 from ..laws import RuleLaw
 from ..laws.utils import transfer
-from ..types import AgentViewProtocol, MatchingRule, ModelViewProtocol
+from ..types import AgentViewProtocol, MatchingRule, ModelViewProtocol, Pairing
 from ._interaction import Interaction
 
 SIGNS = (-1, 1)
@@ -88,7 +88,9 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
             The path of the group of providers.
 
         rule:
-            The spec of the algorithm that matches the members, such as `ContinuousClearingSpec()`.
+            The spec of the algorithm that matches the members, such as `ContinuousClearingSpec()`, or a function
+            `rule(requesters, providers, rng, capacity)` of the agents with a positive quantity that returns their
+            pairs, each matched at the midpoint of both limits.
 
         limit:
             The state with the limit of both sides, or a pair of the requesters' and the providers' states.
@@ -111,8 +113,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
 
     Raises:
         ValidationError:
-            A transfer has a sign other than `-1` or `1`, or the rule is not a matching spec or is invalid, raised by
-            `check`.
+            A transfer has a sign other than `-1` or `1`, or the rule is neither a matching spec nor a function, or
+            it is invalid, raised by `check`.
 
     Examples:
         >>> from skcomplex.core.interactions import MatchingInteraction
@@ -136,7 +138,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         *,
         requesters: Annotated[str, RoleSpec()],
         providers: Annotated[str, RoleSpec()],
-        rule: MatchingRule = RandomSearchSpec(),
+        rule: MatchingRule | Pairing = RandomSearchSpec(),
         limit: str | tuple[str, str] = 'limit',
         quantity: str | tuple[str, str] = 'quantity',
         budget: str = 'budget',
@@ -566,6 +568,22 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
                 taken[id(provider)] = taken.get(id(provider), 0) + 1
         return trades
 
+    def _match_custom(
+        self,
+        rule: Pairing,
+        requesters: list[_Offer],
+        providers: list[_Offer],
+        rng: np.random.Generator,
+    ) -> list[MatchSpec]:
+        """Return the matches of the pairs of agents a pairing function returns, each at the midpoint of the limits."""
+        offers = {id(offer.agent): offer for offer in [*requesters, *providers]}
+        trades: list[MatchSpec] = []
+        agents = rule([offer.agent for offer in requesters], [offer.agent for offer in providers], rng, 1)
+        for requester, provider in agents:
+            first, second = offers[id(requester)], offers[id(provider)]
+            self._book(trades, first, second, self._get_value(first, second, 'midpoint'))
+        return trades
+
     def _get_matches(self, requesters: list[_Offer], providers: list[_Offer], model: ModelT) -> list[MatchSpec]:
         """Return the matches of the offers by the algorithm the rule names, none when a side has no offers."""
         if not requesters or not providers:
@@ -588,6 +606,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
                 matches = self._match_stable(rule, requesters, providers)
             case GreedyMatchingSpec():
                 matches = self._match_greedy(rule, requesters, providers, rng)
+            case _:
+                matches = self._match_custom(rule, requesters, providers, rng)
         return matches
 
     def _settle(self, match: MatchSpec, model: ModelT) -> None:
@@ -627,18 +647,17 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
 
         Raises:
             ValidationError:
-                A transfer has a sign other than `-1` or `1`, the rule is not a matching spec, or it is invalid.
+                A transfer has a sign other than `-1` or `1`, the rule is neither a matching spec nor a function, or
+                it is invalid.
         """
         super()._check()
         for state, sign in self.transfers:
             if sign not in SIGNS:
                 error_msg = f'The transfer of {state!r} has the sign {sign!r}. Use one of {SIGNS}.'
                 raise ValidationError(error_msg)
-        if not isinstance(self.rule, RULES):
-            names = ', '.join(rule.__name__ for rule in RULES)
-            error_msg = f'The rule of {self.label!r} is {self.rule!r}. Give one of the matching specs {names}.'
-            raise ValidationError(error_msg)
-        self.rule.check()
+        self._check_variant('rule', self.rule, (), RULES, functions=True)
+        if isinstance(self.rule, RULES):
+            self.rule.check()
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the rule that matches the members in the matching's phase.
