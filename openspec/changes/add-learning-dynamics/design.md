@@ -49,6 +49,13 @@ loss over an unrolled run, and a law that changes the weights by that gradient.
 
 ## Decisions
 
+- **Adaptive shaped parameters on interactions** (decided on 2026-11-01): interactions accept adaptive parameters only
+  when they are shaped, so the Elman couplings learn their weights; they compile as states and are recorded with their
+  shape. The exact Jacobian treats their entries as constants, which matters only for implicit solvers.
+- **Contractions lower to weighted sums:** `contraction` becomes a weighted `sum` reduction over the product of indices,
+  with the tensor viewed as a `(rows, prod(rest))` matrix, so NumPy, Numba, JAX, and the exact Jacobian share one path;
+  it equals `einsum` within 1e-12.
+
 - **JAX, Optax, and Diffrax are runtime dependencies.** The Project Profile's platforms narrow to Linux and macOS 13
   or later on Apple silicon, since `jaxlib` publishes no wheels for macOS on Intel. Decided on 2026-11-01.
 

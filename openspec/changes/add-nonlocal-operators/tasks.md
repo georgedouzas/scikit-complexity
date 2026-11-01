@@ -42,9 +42,13 @@
 
 ## 5. Couplings on fields
 
-- [ ] 5.1 Lower `CouplingInteraction` with a `FieldElement` target in `FieldLowering`, by shifted reads on lattices, a
-  neighbour gather on networks, and `laplacian` for a linear difference; verify the function of both ends, linear
-  exchange, and diffusive coupling scenarios
+- [ ] 5.1 Lower a constant times `(other.x - member.x)` in a `CouplingInteraction` on a `FieldElement` to `laplacian`, so
+  spectral and finite-element fields keep their own operator, and make couplings on fields read a fixed boundary value
+  as `laplacian` does; verify the linear exchange and diffusive coupling scenarios, and agreement with the edge kernel
+  away from fixed edges
+- [ ] 5.2 Add the optional `boundary=` argument of `inverse_helmholtz`, cubic interpolation (`order=3`) for shifted reads,
+  and the sparse path for operands whose states have different boundary conditions, as the design describes; verify
+  each against a direct computation
 
 ## 6. Models
 

@@ -43,6 +43,13 @@
 
 ## Decisions
 
+- **Couplings on fields already lower** (found while applying 5.1): a per-edge `CouplingInteraction` on a lattice or
+  network `FieldElement` compiles through the edge kernels on NumPy and Numba and matches a direct sum. Task 5.1 adds
+  only the `laplacian` lowering of a constant times `(other.x - member.x)`, and couplings on fields read a fixed boundary
+  value as `laplacian` does, so a coupling and its lowering agree everywhere. Coupling functions read `s.member` and
+  `s.other`. Zero-flux edges interpolate with the `reflect` mode and pad with `symmetric`, matching the half-sample
+  reflection of the lattice's reflecting boundary; fixed edges use `grid-constant`. Decided on 2026-11-01.
+
 ### Library survey
 
 - SciPy (`scipy.signal.fftconvolve` and `oaconvolve`, `scipy.ndimage.convolve` and `map_coordinates`, `scipy.fft.rfftn`,
