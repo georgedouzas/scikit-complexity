@@ -17,8 +17,8 @@ from sage.all__sagemath_symbolics import Expression
 
 from ..core.elements import Element
 from ..core.laws import BaseLaw, RateLaw
-from ..core.spaces import BaseTime, ContinuousTime
 from ..core.system import System
+from ..core.times import BaseTime, ContinuousTime
 from ..engine.runtime import Simulation
 from ..errors import AnalysisError
 from ..specs import StateSpec

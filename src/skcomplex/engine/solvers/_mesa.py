@@ -18,8 +18,9 @@ from mesa.experimental.continuous_space import ContinuousSpaceAgent
 
 from ...core.elements import BaseElement, GroupElement
 from ...core.laws import BaseLaw, BoundaryLaw, MatchLaw, RuleLaw, TransferLaw
-from ...core.spaces import BaseSpace, ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
+from ...core.spaces import BaseSpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ...core.specs import CompiledAgentsSpec
+from ...core.times import DiscreteTime
 from ...errors import ConservationError, SimulationError, SpaceError, ValidationError
 from ...specs import AgentSnapshotSpec, AgentStateSpec, PhaseSpec, PhasesScheduleSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind, VariableKind

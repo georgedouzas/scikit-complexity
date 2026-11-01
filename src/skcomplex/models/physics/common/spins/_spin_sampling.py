@@ -9,7 +9,7 @@ from typing import Annotated
 
 from .....core.interactions import SamplingInteraction
 from .....core.laws import BaseLaw
-from .....core.spaces import BaseNeighborhood
+from .....core.neighborhoods import BaseNeighborhood
 from .....specs import RoleSpec
 
 

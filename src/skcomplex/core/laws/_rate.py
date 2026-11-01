@@ -5,7 +5,7 @@
 
 
 from ...specs import RequirementSpec
-from ..spaces import ContinuousTime
+from ..times import ContinuousTime
 from ..types import Target
 from ._base import BaseLaw
 

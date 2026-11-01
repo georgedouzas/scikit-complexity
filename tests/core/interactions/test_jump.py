@@ -8,8 +8,9 @@ import pytest
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import JumpInteraction
 from skcomplex.core.laws.utils import draw
-from skcomplex.core.spaces import ContinuousSpace, DiscreteTime
+from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
+from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
 from skcomplex.specs import StateSpec, VisualSpec

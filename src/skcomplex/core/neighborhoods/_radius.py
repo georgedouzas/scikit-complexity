@@ -23,7 +23,7 @@ class RadiusNeighborhood(BaseNeighborhood):
             The label of the neighbourhood.
 
     Examples:
-        >>> from skcomplex.core.spaces import RadiusNeighborhood
+        >>> from skcomplex.core.neighborhoods import RadiusNeighborhood
         >>> RadiusNeighborhood(1.5).check().radius
         1.5
     """

@@ -10,7 +10,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ....core.interactions import CouplingInteraction
 from ....core.laws.utils import where
-from ....core.spaces import AdjacencyNeighborhood
+from ....core.neighborhoods import AdjacencyNeighborhood
 from ....specs import RoleSpec
 
 
@@ -35,7 +35,8 @@ class ConfidenceCouplingInteraction(CouplingInteraction):
         >>> import networkx as nx
         >>> import numpy as np
         >>> from skcomplex.core.elements import LatticeElement
-        >>> from skcomplex.core.spaces import DiscreteTime, NetworkSpace
+        >>> from skcomplex.core.spaces import NetworkSpace
+        >>> from skcomplex.core.times import DiscreteTime
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.social.opinion_dynamics import ConfidenceCouplingInteraction, ConfidentElement

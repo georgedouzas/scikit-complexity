@@ -23,7 +23,7 @@ class TriangularNeighborhood(LatticeNeighborhood):
             The label of the neighbourhood.
 
     Examples:
-        >>> from skcomplex.core.spaces import TriangularNeighborhood
+        >>> from skcomplex.core.neighborhoods import TriangularNeighborhood
         >>> TriangularNeighborhood().check().prepare().offsets_
         ((0, 1), (1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1))
     """

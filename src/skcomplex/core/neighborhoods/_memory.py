@@ -27,7 +27,7 @@ class MemoryNeighborhood(BaseNeighborhood):
             The words of the memory set as strings.
 
     Examples:
-        >>> from skcomplex.core.spaces import MemoryNeighborhood
+        >>> from skcomplex.core.neighborhoods import MemoryNeighborhood
         >>> MemoryNeighborhood(['1', 'a', 'a^-1']).check().prepare().elements_
         ('1', 'a', 'a^-1')
     """

@@ -9,7 +9,8 @@ import numpy as np
 import numpy.typing as npt
 
 from ...errors import ValidationError
-from ._base import BaseNeighborhood, BaseSpace
+from ..neighborhoods import BaseNeighborhood
+from ._base import BaseSpace
 
 BOUNDARIES = ('open', 'periodic', 'reflecting')
 

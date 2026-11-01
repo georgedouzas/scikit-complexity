@@ -76,7 +76,7 @@ class SignAdjustmentInteraction(Interaction):
         >>> from typing import Annotated
         >>> from skcomplex.core.elements import Element
         >>> from skcomplex.core.interactions import SignAdjustmentInteraction
-        >>> from skcomplex.core.spaces import DiscreteTime
+        >>> from skcomplex.core.times import DiscreteTime
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.specs import StateSpec

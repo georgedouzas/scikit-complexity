@@ -9,8 +9,9 @@ from scipy.special import expit
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import ImitationInteraction
-from skcomplex.core.spaces import ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace
+from skcomplex.core.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
+from skcomplex.core.times import ContinuousTime, DiscreteTime
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
 from skcomplex.specs import StateSpec, VisualSpec

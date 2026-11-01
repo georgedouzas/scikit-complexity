@@ -8,11 +8,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.spatial import cKDTree
 
-from ...core.spaces import (
-    ConeNeighborhood,
-    NearestNeighborhood,
-    RadiusNeighborhood,
-)
+from ...core.neighborhoods import ConeNeighborhood, NearestNeighborhood, RadiusNeighborhood
 from ...specs import EntrySpec, HeadingSpec, RunStateSpec
 from ...types import Array, Indices
 from ..types import EdgesFound, Pairs

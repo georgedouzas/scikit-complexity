@@ -13,8 +13,9 @@ from sage.all__sagemath_symbolics import Expression
 from ....core.elements import DensityElement, GroupElement
 from ....core.interactions import EncounterInteraction
 from ....core.laws.utils import moment
-from ....core.spaces import ContinuousTime, LatticeSpace
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....core.times import ContinuousTime
 from ....specs import ObservableSpec
 from ..._catalog import register_model
 

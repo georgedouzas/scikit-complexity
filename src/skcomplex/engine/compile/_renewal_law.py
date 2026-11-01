@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from sage.all__sagemath_symbolics import Expression
 
 from ...core.laws import BaseLaw
-from ...core.spaces import ContinuousTime
+from ...core.times import ContinuousTime
 from ...specs import RequirementSpec
 
 

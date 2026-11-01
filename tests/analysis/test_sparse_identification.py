@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import SparseIdentificationAnalysis
-from skcomplex.core.spaces import ContinuousTime
 from skcomplex.core.system import System
+from skcomplex.core.times import ContinuousTime
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver

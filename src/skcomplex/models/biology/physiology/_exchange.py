@@ -15,8 +15,9 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, FieldElement, GroupElement
 from ....core.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import hill, laplacian, shift_member
-from ....core.spaces import ContinuousTime, DiscreteTime, NetworkSpace
+from ....core.spaces import NetworkSpace
 from ....core.system import System
+from ....core.times import ContinuousTime, DiscreteTime
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 

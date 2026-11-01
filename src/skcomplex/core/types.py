@@ -27,7 +27,8 @@ from ..specs import (
     StableMatchingSpec,
 )
 from ..types import Indices, IntArray
-from .spaces import BaseSpace, LatticeNeighborhood, MemoryNeighborhood
+from .neighborhoods import LatticeNeighborhood, MemoryNeighborhood
+from .spaces import BaseSpace
 
 type Target = Expression | FreeModuleElement
 type Process = str | tuple[str, ...] | Expression | FreeModuleElement | None

@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from sage.all__sagemath_symbolics import Expression
 
 from ...specs import RequirementSpec
-from ..spaces import DiscreteTime
+from ..times import DiscreteTime
 from ._base import BaseLaw
 
 

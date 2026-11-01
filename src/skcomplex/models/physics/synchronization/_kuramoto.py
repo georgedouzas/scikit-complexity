@@ -14,7 +14,8 @@ from sage.sets.real_set import RealSet
 from ....core.elements import GroupElement
 from ....core.interactions import BaseInteraction, RateInteraction
 from ....core.laws.utils import delayed
-from ....core.spaces import ContinuousSpace, RadiusNeighborhood
+from ....core.neighborhoods import RadiusNeighborhood
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, VisualSpec
 from ..._catalog import register_model

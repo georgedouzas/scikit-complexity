@@ -6,7 +6,7 @@
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
-from ..spaces import DiscreteTime
+from ..times import DiscreteTime
 from ..types import ModelViewProtocol, Pairing
 from ._base import BaseLaw
 from ._rule import RuleLaw

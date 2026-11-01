@@ -5,7 +5,8 @@
 
 
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, JumpLaw, NoiseLaw, RateLaw
-from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.times import ContinuousTime
 from ...specs import SupportSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind
 from ._solver import Solver

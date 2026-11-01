@@ -13,15 +13,9 @@ from scipy.sparse.linalg import SuperLU, splu
 
 from ...core.elements import FieldElement
 from ...core.laws import BoundaryLaw, FluxLaw, RateLaw, TransferLaw
-from ...core.spaces import (
-    CayleySpace,
-    ContinuousSpace,
-    ContinuousTime,
-    LatticeNeighborhood,
-    LatticeSpace,
-    MeshSpace,
-    NetworkSpace,
-)
+from ...core.neighborhoods import LatticeNeighborhood
+from ...core.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.times import ContinuousTime
 from ...errors import SolverError
 from ...specs import SupportSpec
 from ...types import Array, ComplexArray, FormKind, OrderKind

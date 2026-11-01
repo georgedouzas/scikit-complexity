@@ -11,7 +11,8 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, LocalRuleLaw
-from ....core.spaces import LatticeNeighborhood, LatticeSpace
+from ....core.neighborhoods import LatticeNeighborhood
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....specs import StateSpec, VisualSpec
 from ....types import Array

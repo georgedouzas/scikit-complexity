@@ -16,8 +16,9 @@ from ....core.elements import DensityElement, Element, GroupElement
 from ....core.interactions import EncounterInteraction, Interaction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import moment
-from ....core.spaces import ContinuousTime, LatticeSpace
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....core.times import ContinuousTime
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 

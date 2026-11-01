@@ -7,8 +7,8 @@ import numpy as np
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import FeedbackInteraction
 from skcomplex.core.laws import RuleLaw
-from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
+from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models import run
 from skcomplex.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec

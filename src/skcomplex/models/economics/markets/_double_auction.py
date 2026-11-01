@@ -11,8 +11,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
 from ....core.interactions import FeedbackInteraction, MapInteraction, MatchingInteraction
-from ....core.spaces import DiscreteTime
 from ....core.system import System
+from ....core.times import DiscreteTime
 from ....engine.solvers import ModelView
 from ....specs import (
     BatchClearingSpec,

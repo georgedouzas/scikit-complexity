@@ -1,6 +1,6 @@
-"""Test the `_generator` module of `skcomplex.core.spaces`."""
+"""Test the `_generator` module of `skcomplex.core.neighborhoods`."""
 
-from skcomplex.core.spaces import GeneratorNeighborhood
+from skcomplex.core.neighborhoods import GeneratorNeighborhood
 
 
 def test_generator_neighbourhood_lists_the_identity_and_inverses():

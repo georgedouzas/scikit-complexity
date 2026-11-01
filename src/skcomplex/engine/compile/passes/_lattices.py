@@ -15,15 +15,8 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.laws import BaseLaw, CascadeLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, SampleLaw
 from ....core.laws.utils import neighborhoods_in
-from ....core.spaces import (
-    AdjacencyNeighborhood,
-    BaseSpace,
-    CayleySpace,
-    LatticeNeighborhood,
-    LatticeSpace,
-    MemoryNeighborhood,
-    NetworkSpace,
-)
+from ....core.neighborhoods import AdjacencyNeighborhood, LatticeNeighborhood, MemoryNeighborhood
+from ....core.spaces import BaseSpace, CayleySpace, LatticeSpace, NetworkSpace
 from ....core.specs import LatticeContextSpec, LatticeStateSpec
 from ....errors import ValidationError
 from ....specs import (

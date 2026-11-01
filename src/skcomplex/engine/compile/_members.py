@@ -9,7 +9,8 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ...core.spaces import LatticeNeighborhood, LatticeSpace
+from ...core.neighborhoods import LatticeNeighborhood
+from ...core.spaces import LatticeSpace
 from ...core.spaces._lattice import BOUNDARIES
 from ...errors import ValidationError
 from ...specs import NeighborReadSpec

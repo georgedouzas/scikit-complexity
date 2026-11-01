@@ -14,7 +14,7 @@ class ContinuousTime(BaseTime):
             The label of the time in its system.
 
     Examples:
-        >>> from skcomplex.core.spaces import ContinuousTime
+        >>> from skcomplex.core.times import ContinuousTime
         >>> ContinuousTime().check().prepare().schedule_ is None
         True
     """

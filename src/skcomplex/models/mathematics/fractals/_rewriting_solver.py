@@ -5,7 +5,8 @@
 
 import numpy as np
 
-from ....core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
+from ....core.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
+from ....core.times import DiscreteTime
 from ....engine.solvers import BaseSolver
 from ....errors import SolverError
 from ....specs import RunStateSpec, StructureStateSpec, SupportSpec
@@ -24,7 +25,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
     sizes. Stochastic productions draw from the simulation's random stream.
 
     Examples:
-        >>> from skcomplex.core.spaces import DiscreteTime
+        >>> from skcomplex.core.times import DiscreteTime
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.mathematics.fractals import ProductionLaw

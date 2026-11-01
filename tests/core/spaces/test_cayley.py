@@ -11,7 +11,8 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import LocalRuleLaw
-from skcomplex.core.spaces import BoxNeighborhood, CayleySpace, MemoryNeighborhood
+from skcomplex.core.neighborhoods import BoxNeighborhood, MemoryNeighborhood
+from skcomplex.core.spaces import CayleySpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import SpaceTooLargeError, ValidationError

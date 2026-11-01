@@ -8,7 +8,8 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ...specs import RequirementSpec
-from ..spaces import ContinuousTime, LatticeSpace
+from ..spaces import LatticeSpace
+from ..times import ContinuousTime
 from ._base import BaseLaw
 
 

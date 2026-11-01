@@ -34,7 +34,8 @@ class Subshift:
             The number of values of a cell.
 
     Examples:
-        >>> from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
+        >>> from skcomplex.core.neighborhoods import LatticeNeighborhood
+        >>> from skcomplex.core.spaces import LatticeSpace
         >>> from skcomplex.models.computer_science.automata import Subshift
         >>> golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
         >>> golden.count(LatticeSpace(6, boundary='fixed'))

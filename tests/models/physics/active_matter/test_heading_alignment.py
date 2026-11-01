@@ -4,8 +4,9 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import GroupElement
-from skcomplex.core.spaces import ContinuousSpace, DiscreteTime
+from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
+from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.active_matter import HeadingAlignmentInteraction, VicsekParticleElement
 

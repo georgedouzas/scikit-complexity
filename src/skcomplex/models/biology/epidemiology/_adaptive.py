@@ -16,8 +16,9 @@ from ....core.elements import Element, GroupElement, LatticeElement
 from ....core.interactions import SpreadingInteraction, TopologyInteraction, TransitionInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import neighbors
-from ....core.spaces import DiscreteTime, NetworkSpace
+from ....core.spaces import NetworkSpace
 from ....core.system import System
+from ....core.times import DiscreteTime
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 

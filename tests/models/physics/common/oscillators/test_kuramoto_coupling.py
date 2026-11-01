@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import GroupElement
-from skcomplex.core.spaces import ContinuousSpace, RadiusNeighborhood
+from skcomplex.core.neighborhoods import RadiusNeighborhood
+from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.models.physics.common.oscillators import (

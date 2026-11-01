@@ -13,7 +13,8 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.elements import Element, LatticeElement
 from ....core.interactions import LocalRuleInteraction
-from ....core.spaces import LatticeNeighborhood, LatticeSpace, TriangularNeighborhood
+from ....core.neighborhoods import LatticeNeighborhood, TriangularNeighborhood
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....specs import StateSpec, VisualSpec
 from ....types import Array

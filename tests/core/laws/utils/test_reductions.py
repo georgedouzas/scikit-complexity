@@ -27,17 +27,15 @@ from skcomplex.core.laws.utils import (
     uniform,
     variance,
 )
-from skcomplex.core.spaces import (
+from skcomplex.core.neighborhoods import (
     ConeNeighborhood,
-    ContinuousSpace,
-    DiscreteTime,
-    LatticeSpace,
     NearestNeighborhood,
-    NetworkSpace,
     RadiusNeighborhood,
     VonNeumannNeighborhood,
 )
+from skcomplex.core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
+from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.problems._reduction_kernel import ReductionKernel

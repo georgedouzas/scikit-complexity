@@ -1,8 +1,8 @@
-"""Test the `_nearest` module of `skcomplex.core.spaces`."""
+"""Test the `_nearest` module of `skcomplex.core.neighborhoods`."""
 
 import pytest
 
-from skcomplex.core.spaces import NearestNeighborhood
+from skcomplex.core.neighborhoods import NearestNeighborhood
 from skcomplex.errors import ValidationError
 
 

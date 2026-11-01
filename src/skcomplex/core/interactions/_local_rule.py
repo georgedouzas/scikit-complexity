@@ -10,7 +10,7 @@ from typing import Annotated
 from ...errors import ValidationError
 from ...specs import RoleSpec
 from ..laws import BaseLaw, LocalRuleLaw
-from ..spaces import BaseNeighborhood
+from ..neighborhoods import BaseNeighborhood
 from ._interaction import Interaction
 
 
@@ -54,7 +54,7 @@ class LocalRuleInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.core.interactions import LocalRuleInteraction
-        >>> from skcomplex.core.spaces import VonNeumannNeighborhood
+        >>> from skcomplex.core.neighborhoods import VonNeumannNeighborhood
         >>> from skcomplex.specs import TotalisticSpec
         >>> parity = TotalisticSpec({1: 1, 3: 1})
         >>> around = VonNeumannNeighborhood(n_dim=1, center=True)

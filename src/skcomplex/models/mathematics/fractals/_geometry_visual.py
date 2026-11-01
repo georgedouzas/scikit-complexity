@@ -113,7 +113,7 @@ class GeometryVisual(BaseVisual):
         Examples:
             >>> from skcomplex.models.mathematics.fractals import WordElement
             >>> from skcomplex.models.mathematics.fractals import ProductionLaw
-            >>> from skcomplex.core.spaces import DiscreteTime
+            >>> from skcomplex.core.times import DiscreteTime
             >>> from skcomplex.models.mathematics.fractals import GeometrySpec
             >>> from skcomplex.core.system import System
             >>> from skcomplex.engine.compile import compile_system

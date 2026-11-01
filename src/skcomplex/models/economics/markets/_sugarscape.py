@@ -19,8 +19,9 @@ from ....core.interactions import (
     TransferInteraction,
 )
 from ....core.laws import Sink
-from ....core.spaces import DiscreteTime, LatticeSpace
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....core.times import DiscreteTime
 from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec

@@ -5,7 +5,8 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from skcomplex.core.spaces import BaseNeighborhood, BaseSpace, BaseTime
+from skcomplex.core.neighborhoods import BaseNeighborhood
+from skcomplex.core.spaces import BaseSpace
 from skcomplex.errors import NotCheckedError, SpaceError
 
 
@@ -48,17 +49,6 @@ class EmptySpace(BaseSpace):
     def _prepare(self, context=None):
         """Set no sites."""
         self.size_ = None
-
-
-class TickTime(BaseTime):
-    """Time that takes the frames of the base."""
-
-    def __init__(self, *, label='time'):
-        super().__init__(label)
-
-    def _prepare(self, context=None):
-        """Set no schedule."""
-        self.schedule_ = None
 
 
 def test_space_reads_the_neighbours_of_a_site_through_its_hooks():
@@ -104,16 +94,3 @@ def test_space_must_be_checked_before_it_is_prepared():
     """Test that preparing a space that was not checked raises an error."""
     with pytest.raises(NotCheckedError):
         RingSpace().prepare()
-
-
-def test_neighbourhood_contributes_no_laws():
-    """Test that a neighbourhood checks, prepares, and runs, contributing no laws."""
-    assert not hasattr(SidesNeighborhood().check().prepare().run(SimpleNamespace()), 'laws_')
-
-
-def test_base_time_runs_into_no_laws_and_frames_its_ends():
-    """Test that the base time contributes no laws and frames the start and the end of a run."""
-    time = TickTime().check().prepare()
-    assert time.schedule_ is None
-    assert not hasattr(time.run(SimpleNamespace()), 'laws_')
-    assert time._get_frames(2.0).tolist() == [0.0, 2.0]

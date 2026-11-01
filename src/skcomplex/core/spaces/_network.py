@@ -12,8 +12,8 @@ import numpy.typing as npt
 from ...errors import SpaceError, ValidationError
 from ...specs import LayerSpec
 from ...types import Indices
-from ._adjacency import AdjacencyNeighborhood
-from ._base import BaseNeighborhood, BaseSpace
+from ..neighborhoods import AdjacencyNeighborhood, BaseNeighborhood
+from ._base import BaseSpace
 
 MIN_HYPEREDGE_NODES = 2
 

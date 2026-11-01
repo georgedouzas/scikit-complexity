@@ -6,8 +6,9 @@ import pytest
 from skcomplex.core.elements import GroupElement
 from skcomplex.core.interactions import MatchingInteraction
 from skcomplex.core.laws import RuleLaw
-from skcomplex.core.spaces import DiscreteTime, LatticeSpace
+from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
 from skcomplex.specs import (

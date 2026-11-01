@@ -16,8 +16,9 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.interactions import MapInteraction, TopologyInteraction
 from ....core.laws.utils import maximum, neighbors, where
-from ....core.spaces import DiscreteTime, NetworkSpace
+from ....core.spaces import NetworkSpace
 from ....core.system import System
+from ....core.times import DiscreteTime
 from ....errors import ValidationError
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model

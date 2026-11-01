@@ -6,7 +6,8 @@
 import math
 
 from ...core.laws import BoundaryLaw, EmissionLaw, TransferLaw, TransitionLaw, UpdateLaw
-from ...core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.times import DiscreteTime
 from ...specs import SupportSpec
 from ...types import Array, FormKind, OrderKind
 from ..problems import ProblemSpec

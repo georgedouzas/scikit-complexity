@@ -18,7 +18,8 @@ from skfem.models.poisson import laplace, mass
 from ...core.elements import FieldElement
 from ...core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.laws.utils import where
-from ...core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.neighborhoods import AdjacencyNeighborhood, LatticeNeighborhood
+from ...core.spaces import LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import ValidationError
 from ...specs import NeighborReadSpec
 from ...types import Indices, IntTuple

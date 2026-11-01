@@ -9,7 +9,7 @@ import numpy as np
 from scipy.optimize import Bounds, minimize
 
 from ...core.laws import EquationLaw, FluxLaw, RateLaw
-from ...core.spaces import ContinuousTime
+from ...core.times import ContinuousTime
 from ...errors import SolverError, ValidationError
 from ...specs import ControlSolutionSpec, SupportSpec
 from ...types import Array, OrderKind

@@ -9,7 +9,8 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
-from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
+from ..spaces import LatticeSpace, NetworkSpace
+from ..times import DiscreteTime
 from ._base import BaseLaw
 
 

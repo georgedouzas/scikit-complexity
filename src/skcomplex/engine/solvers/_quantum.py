@@ -13,7 +13,8 @@ import scipy.sparse as sp
 from qutip.solver import solver_base
 
 from ...core.laws import DissipatorLaw, GeneratorLaw
-from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.times import ContinuousTime
 from ...errors import SolverError
 from ...specs import RunStateSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind

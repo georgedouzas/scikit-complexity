@@ -7,7 +7,7 @@ from collections.abc import Callable, Sequence
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
-from ..spaces import DiscreteTime
+from ..times import DiscreteTime
 from ._base import BaseLaw
 
 

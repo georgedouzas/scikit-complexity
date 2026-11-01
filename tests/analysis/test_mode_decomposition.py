@@ -10,8 +10,8 @@ from sklearn.preprocessing import PolynomialFeatures
 from skcomplex.analysis import ModeDecompositionAnalysis
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.spaces import ContinuousTime
 from skcomplex.core.system import System
+from skcomplex.core.times import ContinuousTime
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver

@@ -1,6 +1,6 @@
-"""Test the `_memory` module of `skcomplex.core.spaces`."""
+"""Test the `_memory` module of `skcomplex.core.neighborhoods`."""
 
-from skcomplex.core.spaces import MemoryNeighborhood
+from skcomplex.core.neighborhoods import MemoryNeighborhood
 
 
 def test_memory_neighbourhood_keeps_its_words_in_order():

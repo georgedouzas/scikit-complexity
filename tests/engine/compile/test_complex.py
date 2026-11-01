@@ -10,7 +10,8 @@ from skcomplex.analysis import SpectrumAnalysis
 from skcomplex.core.elements import Element, FieldElement, GroupElement
 from skcomplex.core.laws import CrossingLaw, EquationLaw, JumpLaw, LocalRuleLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.laws.utils import derivative, laplacian, mod, total, where
-from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
+from skcomplex.core.neighborhoods import LatticeNeighborhood
+from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system

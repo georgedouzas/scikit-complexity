@@ -9,8 +9,8 @@ from sage.all__sagemath_symbolics import sin
 from skcomplex.analysis import LinearizationAnalysis
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import RateLaw, UpdateLaw
-from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
+from skcomplex.core.times import DiscreteTime
 from skcomplex.errors import AnalysisError, ValidationError
 from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 

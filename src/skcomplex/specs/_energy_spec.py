@@ -25,7 +25,7 @@ class EnergySpec(BaseSpec):
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.spaces import VonNeumannNeighborhood
+        >>> from skcomplex.core.neighborhoods import VonNeumannNeighborhood
         >>> from skcomplex.specs import EnergySpec
         >>> spin, J = var('spin J')
         >>> EnergySpec(-J * spin, VonNeumannNeighborhood()).check().expression

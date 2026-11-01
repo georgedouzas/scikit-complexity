@@ -26,7 +26,7 @@ class BoxNeighborhood(LatticeNeighborhood):
             The label of the neighbourhood.
 
     Examples:
-        >>> from skcomplex.core.spaces import BoxNeighborhood
+        >>> from skcomplex.core.neighborhoods import BoxNeighborhood
         >>> BoxNeighborhood().check().prepare().offsets_
         ((-1,), (0,), (1,))
     """

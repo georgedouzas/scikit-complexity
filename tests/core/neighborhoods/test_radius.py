@@ -1,8 +1,8 @@
-"""Test the `_radius` module of `skcomplex.core.spaces`."""
+"""Test the `_radius` module of `skcomplex.core.neighborhoods`."""
 
 import pytest
 
-from skcomplex.core.spaces import RadiusNeighborhood
+from skcomplex.core.neighborhoods import RadiusNeighborhood
 from skcomplex.errors import ValidationError
 
 

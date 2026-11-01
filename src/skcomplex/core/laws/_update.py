@@ -6,7 +6,7 @@
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec, TopologyRequestSpec
-from ..spaces import DiscreteTime
+from ..times import DiscreteTime
 from ..types import Target
 from ._base import BaseLaw
 

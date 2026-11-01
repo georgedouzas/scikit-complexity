@@ -27,15 +27,8 @@ from ...core.laws import (
     TransitionLaw,
     UpdateLaw,
 )
-from ...core.spaces import (
-    CayleySpace,
-    ContinuousSpace,
-    ContinuousTime,
-    DiscreteTime,
-    LatticeSpace,
-    MeshSpace,
-    NetworkSpace,
-)
+from ...core.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.times import ContinuousTime, DiscreteTime
 from ...errors import SolverError, ValidationError
 from ...specs import AgentSnapshotSpec, AgentStateSpec, EntrySpec, StepSpec, SupportSpec
 from ...specs._held_reduction_spec import _HeldReductionSpec

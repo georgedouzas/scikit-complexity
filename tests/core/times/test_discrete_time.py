@@ -1,8 +1,8 @@
-"""Test the `_discrete_time` module of `skcomplex.core.spaces`."""
+"""Test the `_discrete_time` module of `skcomplex.core.times`."""
 
 import pytest
 
-from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.times import DiscreteTime
 from skcomplex.errors import ValidationError
 from skcomplex.specs import PhaseSpec, PhasesScheduleSpec, ScheduleSpec
 

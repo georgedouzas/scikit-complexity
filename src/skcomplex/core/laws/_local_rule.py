@@ -8,7 +8,9 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
-from ..spaces import BaseNeighborhood, CayleySpace, DiscreteTime, LatticeSpace, NetworkSpace
+from ..neighborhoods import BaseNeighborhood
+from ..spaces import CayleySpace, LatticeSpace, NetworkSpace
+from ..times import DiscreteTime
 from ._base import BaseLaw
 
 SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 'colored')
@@ -53,7 +55,7 @@ class LocalRuleLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import LocalRuleLaw
         >>> from skcomplex.specs import TotalisticSpec
-        >>> from skcomplex.core.spaces import BoxNeighborhood
+        >>> from skcomplex.core.neighborhoods import BoxNeighborhood
         >>> LocalRuleLaw(var('cell'), BoxNeighborhood(), TotalisticSpec({2: 1})).check().prepare().targets_
         (cell,)
     """

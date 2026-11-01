@@ -13,8 +13,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
 from ....core.laws import BaseLaw, RuleLaw
-from ....core.spaces import ContinuousSpace, DiscreteTime
+from ....core.spaces import ContinuousSpace
 from ....core.system import System
+from ....core.times import DiscreteTime
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model

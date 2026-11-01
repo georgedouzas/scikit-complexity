@@ -12,8 +12,9 @@ from sage.all__sagemath_symbolics import CC, I
 
 from skcomplex.core.elements import Element, FieldElement, GroupElement
 from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw
-from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
+from skcomplex.core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
+from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.problems import FrameSpec

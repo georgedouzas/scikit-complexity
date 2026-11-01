@@ -15,8 +15,9 @@ from sage.sets.real_set import RealSet
 from ....core.elements import DensityElement, GroupElement
 from ....core.interactions import EncounterInteraction
 from ....core.laws.utils import moment
-from ....core.spaces import ContinuousTime, LatticeSpace
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....core.times import ContinuousTime
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec
 from ..._catalog import register_model
 

@@ -13,7 +13,7 @@ from ...errors import ValidationError
 from ...specs import ParameterSpec, RoleSpec
 from ..laws import BaseLaw
 from ..laws.utils import neighbors, where
-from ..spaces import AdjacencyNeighborhood
+from ..neighborhoods import AdjacencyNeighborhood
 from ._transition import TransitionInteraction
 
 FORMS = ('number', 'fraction')

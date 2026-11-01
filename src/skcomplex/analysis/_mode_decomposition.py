@@ -11,7 +11,7 @@ import numpy.typing as npt
 from sklearn.base import TransformerMixin, clone
 
 from ..core.laws import BaseLaw, RateLaw
-from ..core.spaces import ContinuousTime
+from ..core.times import ContinuousTime
 from ..engine._utils import vector
 from ..specs import SamplesSpec
 from ..types import Array, ComplexArray, DataKind

@@ -10,8 +10,9 @@ from sage.sets.real_set import RealSet
 from skcomplex.analysis import CoarseGrainAnalysis, SpectrumAnalysis
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws.utils import moment
-from skcomplex.core.spaces import ContinuousTime, LatticeSpace
+from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.core.times import ContinuousTime
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import AnalysisError
 from skcomplex.models import run

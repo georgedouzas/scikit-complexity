@@ -7,7 +7,8 @@
 import numpy as np
 
 from ...core.laws import BoundaryLaw, JumpLaw, TransferLaw
-from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.times import ContinuousTime
 from ...errors import SolverError
 from ...specs import SupportSpec
 from ...types import Array, FormKind, OrderKind

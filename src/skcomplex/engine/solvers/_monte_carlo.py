@@ -5,7 +5,8 @@
 
 
 from ...core.laws import BoundaryLaw, SampleLaw
-from ...core.spaces import DiscreteTime, LatticeSpace, NetworkSpace
+from ...core.spaces import LatticeSpace, NetworkSpace
+from ...core.times import DiscreteTime
 from ...specs import SupportSpec
 from ...types import FormKind, OrderKind
 from ._lattice import LatticeSolver

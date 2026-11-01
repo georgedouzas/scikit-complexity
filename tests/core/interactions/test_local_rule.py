@@ -7,8 +7,10 @@ import pytest
 
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.interactions import LocalRuleInteraction
-from skcomplex.core.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
+from skcomplex.core.neighborhoods import VonNeumannNeighborhood
+from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
 from skcomplex.specs import StateSpec, TableSpec, TotalisticSpec, VisualSpec

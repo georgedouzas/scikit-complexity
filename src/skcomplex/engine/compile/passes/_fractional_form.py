@@ -5,9 +5,9 @@
 
 from __future__ import annotations
 
-from ....core.spaces import ContinuousTime
 from ....core.specs import CensusRecordSpec, NodeSpec
 from ....core.system import System
+from ....core.times import ContinuousTime
 from ....errors import BackendError, SolverError
 from ....specs import FractionalStateSpec, IssueSpec
 from ....types import FormKind, OrderKind, VariableKind

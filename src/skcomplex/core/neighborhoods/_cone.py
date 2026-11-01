@@ -35,7 +35,7 @@ class ConeNeighborhood(BaseNeighborhood):
 
     Examples:
         >>> import math
-        >>> from skcomplex.core.spaces import ConeNeighborhood
+        >>> from skcomplex.core.neighborhoods import ConeNeighborhood
         >>> ConeNeighborhood(1.0, math.pi / 2, heading='theta').check().heading
         'theta'
     """

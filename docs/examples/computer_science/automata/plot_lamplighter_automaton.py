@@ -12,7 +12,8 @@ of two elements, so a few ones spread into a growing, flickering pattern over th
 import matplotlib.pyplot as plt
 
 from skcomplex.analysis import AutomatonAnalysis
-from skcomplex.core.spaces import CayleySpace, MemoryNeighborhood
+from skcomplex.core.neighborhoods import MemoryNeighborhood
+from skcomplex.core.spaces import CayleySpace
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

@@ -14,8 +14,10 @@ from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import CouplingInteraction
 from skcomplex.core.laws import BaseLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import uniform, where
-from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace, RadiusNeighborhood
+from skcomplex.core.neighborhoods import RadiusNeighborhood
+from skcomplex.core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
+from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation

@@ -22,10 +22,10 @@ class RequirementSpec(BaseSpec):
             The space classes the part runs in, such as `(LatticeSpace,)`.
 
     Examples:
-        >>> from skcomplex.core.spaces import ContinuousTime
+        >>> from skcomplex.core.times import ContinuousTime
         >>> from skcomplex.specs import RequirementSpec
         >>> RequirementSpec(time=(ContinuousTime,)).time
-        (<class 'skcomplex.core.spaces._continuous_time.ContinuousTime'>,)
+        (<class 'skcomplex.core.times._continuous_time.ContinuousTime'>,)
     """
 
     time: tuple[type, ...] = ()

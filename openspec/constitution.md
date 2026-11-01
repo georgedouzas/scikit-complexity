@@ -281,8 +281,8 @@ to fill in as the project takes shape.
 - LAMMPS: `lammps` is a runtime dependency, with `mpich`, because the LAMMPS wheel links an MPI library it does not
   bundle.
 - Layout: library. The importable package under `src/skcomplex` is distributed to others and holds five packages.
-  `skcomplex.core` holds what a system is, in the order `base`, `spaces`, `laws`, `elements` and `interactions`,
-  `system`, and `specs`, and nothing about how it runs. `skcomplex.engine` holds what runs a system, in the order
+  `skcomplex.core` holds what a system is, in the order `base`, `times` and `neighborhoods`, `spaces`, `laws`,
+  `elements` and `interactions`, `system`, and `specs`, and nothing about how it runs. `skcomplex.engine` holds what runs a system, in the order
   `types`, `problems`, `backends`, `compile`, `solvers`, `runtime`, and `viz`. `skcomplex.analysis` builds on the
   engine, and `skcomplex.experiments` on the analysis. What every package shares lives in the root modules
   `skcomplex.base` (`BaseConfig`, the root of every configurable class), `skcomplex.types`, `skcomplex.specs`, and
@@ -325,4 +325,4 @@ to fill in as the project takes shape.
   `BaseSolver`, `Solver`, `ExternalSolver`, `BaseCompiler`, `BaseClock`, `BaseObserver`, and `BaseVisual`. Law
   kinds, forms, space kinds, and traits are open vocabularies.
 
-**Version**: 1.13.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-11-01
+**Version**: 1.13.1 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-11-01

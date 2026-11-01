@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
+from skcomplex.core.neighborhoods import BoxNeighborhood, LatticeNeighborhood
+from skcomplex.core.spaces import LatticeSpace
 from skcomplex.errors import ValidationError
 from skcomplex.models.computer_science.automata import LinearAutomaton
 

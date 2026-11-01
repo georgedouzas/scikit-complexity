@@ -11,7 +11,8 @@ from types import SimpleNamespace
 from .base import BasePart
 from .elements import BaseElement
 from .interactions import BaseInteraction
-from .spaces import BaseSpace, BaseTime
+from .spaces import BaseSpace
+from .times import BaseTime
 
 
 class System(BasePart[BaseSpace, SimpleNamespace]):

@@ -13,8 +13,10 @@ from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import HyperedgeInteraction, Interaction, NeighborInteraction
 from skcomplex.core.laws import NoiseLaw, RateLaw, RuleLaw, SampleLaw, UpdateLaw
 from skcomplex.core.laws.utils import mean, neighbors
-from skcomplex.core.spaces import CayleySpace, DiscreteTime, LatticeSpace, MemoryNeighborhood, NetworkSpace
+from skcomplex.core.neighborhoods import MemoryNeighborhood
+from skcomplex.core.spaces import CayleySpace, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
+from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.solvers import LammpsSolver, MilsteinSolver, PontryaginSolver, RK4Solver
 from skcomplex.engine.solvers._defaults import DEFAULT_SOLVERS

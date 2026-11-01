@@ -15,8 +15,9 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import Interaction, MapInteraction, TopologyInteraction
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import neighbors, total, where
-from ....core.spaces import DiscreteTime, NetworkSpace
+from ....core.spaces import NetworkSpace
 from ....core.system import System
+from ....core.times import DiscreteTime
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement

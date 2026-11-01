@@ -17,8 +17,9 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import BaseInteraction, Interaction, MatchingInteraction, TransferInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.laws.utils import transfer
-from ....core.spaces import DiscreteTime, LatticeSpace
+from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....core.times import DiscreteTime
 from ....engine.solvers import AgentView, ModelView
 from ....specs import (
     GreedyMatchingSpec,

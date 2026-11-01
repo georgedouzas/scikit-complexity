@@ -32,16 +32,8 @@ from ...core.laws import (
     TransitionLaw,
     UpdateLaw,
 )
-from ...core.spaces import (
-    CayleySpace,
-    ContinuousSpace,
-    ContinuousTime,
-    DiscreteTime,
-    LatticeSpace,
-    MeshSpace,
-    NetworkSpace,
-    StaticTime,
-)
+from ...core.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.times import ContinuousTime, DiscreteTime, StaticTime
 from ...errors import ValidationError
 from ...specs import LoweredFunctionsSpec, SupportSpec
 from ...types import FormKind, NoiseKind, OrderKind, VectorFunction

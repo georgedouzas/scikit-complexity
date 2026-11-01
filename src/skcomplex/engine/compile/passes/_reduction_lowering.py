@@ -15,7 +15,7 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import both, neighborhoods_in, reductions_in
-from ....core.spaces import (
+from ....core.neighborhoods import (
     AdjacencyNeighborhood,
     ConeNeighborhood,
     LatticeNeighborhood,

@@ -9,8 +9,9 @@ import pytest
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RuleLaw
-from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
+from skcomplex.core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
+from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.compile.passes._agents import AgentsPass
 from skcomplex.engine.compile.passes._agents_problem import AGENT_RESERVED_NAMES

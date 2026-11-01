@@ -1,4 +1,4 @@
-"""Define the bases of the space and the time of a system, and of the neighbourhoods of the members of a space."""
+"""Define the base of the spaces that systems live in."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,32 +13,7 @@ import numpy.typing as npt
 
 from ...errors import SpaceError
 from ..base import BasePart
-
-
-class BaseNeighborhood(BasePart[None, SimpleNamespace]):
-    """Base of the neighbourhoods, the parts of a system that give the members a law reads around a member of a space.
-
-    A neighbourhood is a part: it stores its arguments in its own `__init__`, `check` validates them, and `prepare`
-    derives what the engine reads, such as the offsets of a lattice neighbourhood. The space that reads it rejects a
-    neighbourhood of another kind. It contributes no laws.
-
-    Args:
-        label:
-            The label of the neighbourhood.
-    """
-
-    def _run(self, inputs: SimpleNamespace | None) -> None:
-        """Run nothing, since a neighbourhood contributes no laws to a system."""
-
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
-        """Return no laws, since a neighbourhood only tells laws which members they read."""
-        return []
-
-    def _check(self) -> None:
-        """Accept the neighbourhood, which has nothing to check besides its label by default."""
-
-    def _prepare(self, context: None = None) -> None:
-        """Leave the neighbourhood as it is, since it has nothing to prepare by default."""
+from ..neighborhoods import BaseNeighborhood
 
 
 class BaseSpace(BasePart[None, SimpleNamespace]):
@@ -176,43 +151,3 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
         reads = self._default_neighborhood() if neighborhood is None else neighborhood
         row = self._index_table(reads)[site]
         return row[row < self.size_]
-
-
-class BaseTime(BasePart[None, SimpleNamespace]):
-    """Base of the time of a system, the part that decides the laws the system may hold.
-
-    A time is a part of its system: it stores its arguments in its own `__init__`, `check` validates them, `prepare`
-    sets its schedule, and `_get_frames` returns the times of the frames of a run up to a time. It
-    contributes no laws.
-
-    Args:
-        label:
-            The label of the time in its system.
-
-    Attributes:
-        schedule_:
-            The schedule of a discrete time, or `None`.
-    """
-
-    def _run(self, inputs: SimpleNamespace | None) -> None:
-        """Run nothing, since a time contributes no laws to a system."""
-
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
-        """Return no laws, since the time decides which laws a system may hold but contributes none."""
-        return []
-
-    def _check(self) -> None:
-        """Accept the time, which has nothing to check besides its label by default."""
-
-    def _get_frames(self, until: float) -> npt.NDArray[np.float64]:
-        """Return the times of the frames of a run up to a time, its start and its end by default.
-
-        Args:
-            until:
-                The end of the run.
-
-        Returns:
-            times:
-                The times of the frames.
-        """
-        return np.array([0.0, float(until)])

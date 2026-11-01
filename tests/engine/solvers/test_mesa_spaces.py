@@ -7,8 +7,8 @@ import pytest
 
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import RuleLaw
-from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
+from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import AgentView
 from skcomplex.errors import SimulationError, ValidationError

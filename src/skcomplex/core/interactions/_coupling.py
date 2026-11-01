@@ -18,7 +18,7 @@ from ...errors import ValidationError
 from ...specs import ParameterSpec, RoleSpec
 from ..laws import BaseLaw, RateLaw, UpdateLaw
 from ..laws.utils import count, delayed, maximum, minimum, neighbors, shift_member, total
-from ..spaces import BaseNeighborhood
+from ..neighborhoods import BaseNeighborhood
 from ..types import Combination, NamespaceFunction, Target
 from ._neighbor import NeighborInteraction
 

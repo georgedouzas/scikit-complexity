@@ -5,8 +5,8 @@ from typing import Annotated
 import numpy as np
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
+from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.economics.common.resources import RegrowthInteraction
 from skcomplex.specs import ParameterSpec, StateSpec

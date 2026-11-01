@@ -7,14 +7,8 @@ from sage.all__sagemath_symbolics import GF, matrix
 from scipy.linalg import circulant
 
 from skcomplex.analysis import AutomatonAnalysis, EntropyAnalysis
-from skcomplex.core.spaces import (
-    BoxNeighborhood,
-    CayleySpace,
-    LatticeNeighborhood,
-    LatticeSpace,
-    MemoryNeighborhood,
-    MooreNeighborhood,
-)
+from skcomplex.core.neighborhoods import BoxNeighborhood, LatticeNeighborhood, MemoryNeighborhood, MooreNeighborhood
+from skcomplex.core.spaces import CayleySpace, LatticeSpace
 from skcomplex.errors import AnalysisError
 from skcomplex.models.computer_science.automata import Automaton, LinearAutomaton, Subshift
 from skcomplex.specs import OuterTotalisticSpec, TableSpec, TotalisticSpec

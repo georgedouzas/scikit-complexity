@@ -12,7 +12,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
 from ....core.interactions import LocalRuleInteraction
-from ....core.spaces import LatticeSpace, MooreNeighborhood
+from ....core.neighborhoods import MooreNeighborhood
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
