@@ -45,7 +45,7 @@ for beta, color in ((0.25, 'tab:blue'), (1.5, 'tab:orange')):
         .prepare()
         .run(until=60)
     )
-    velocities = run.trajectory_.values('birds.v')
+    velocities = run.trajectory_.values('birds.x_d1')
     spread = np.sqrt(np.mean(np.sum((velocities - velocities.mean(axis=1, keepdims=True)) ** 2, axis=-1), axis=1))
     ax.semilogy(run.trajectory_.times, spread, color=color, label=f'beta = {beta}')
 ax.set_xlabel('time t')

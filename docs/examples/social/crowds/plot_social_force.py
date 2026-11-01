@@ -72,7 +72,7 @@ for index, walkers in enumerate((20, 40, 60)):
         label=f'{walkers} each way',
     )
     velocity = (
-        trajectory.values('rightward.v')[:, :, 0].mean(axis=1) - trajectory.values('leftward.v')[:, :, 0].mean(axis=1)
+        trajectory.values('rightward.x_d1')[:, :, 0].mean(axis=1) - trajectory.values('leftward.x_d1')[:, :, 0].mean(axis=1)
     ) / 2
     speed.plot(trajectory.times, velocity, color=f'C{index}', label=f'{walkers} each way')
 order.set_xlabel('time (s)')

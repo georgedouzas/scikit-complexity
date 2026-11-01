@@ -34,7 +34,7 @@ simulation = (
         system,
         dt=0.2,
         observers=[observer],
-        schedule={'coupling.K': coupling_at},
+        schedule={'coupling_x.K': coupling_at, 'coupling_y.K': coupling_at},
         observables=describe(MODEL).observables_of(system),
     )
     .check()

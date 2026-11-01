@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.05, solver=RK4Solver(), observers=[observer
 # `|x v_y - y v_x| / 2` should stay constant along the orbit.
 
 relative = np.asarray(simulation.trajectory_.values('planet.x')) - np.asarray(simulation.trajectory_.values('star.x'))
-velocity = np.asarray(simulation.trajectory_.values('planet.v')) - np.asarray(simulation.trajectory_.values('star.v'))
+velocity = np.asarray(simulation.trajectory_.values('planet.x_d1')) - np.asarray(simulation.trajectory_.values('star.x_d1'))
 areal = np.abs(relative[:, 0] * velocity[:, 1] - relative[:, 1] * velocity[:, 0]) / 2
 angles = np.linspace(0, 2 * np.pi, 400)
 radius = 10 * 1.6 / (1 + 0.6 * np.cos(angles))

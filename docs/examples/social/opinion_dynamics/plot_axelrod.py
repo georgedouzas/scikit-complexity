@@ -17,12 +17,15 @@ import matplotlib.pyplot as plt
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
+from skcomplex.models.social.opinion_dynamics import culture_observables
 
 MODEL = 'axelrod'
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=5)
 system = create(MODEL, width=20, height=20, features=3, traits=5, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=150)
+observables = culture_observables(20, 20)
+simulation = Simulation(system, observers=[observer], observables=observables, random_state=0)
+simulation.check().prepare().run(until=150)
 
 # %%
 # Order-disorder transition
@@ -36,13 +39,17 @@ traits = [2, 4, 8, 16, 32]
 shares = []
 for q in traits:
     run = (
-        Simulation(create(MODEL, width=8, height=8, features=3, traits=q, random_state=0), random_state=0)
+        Simulation(
+            create(MODEL, width=8, height=8, features=3, traits=q, random_state=0),
+            observables=culture_observables(8, 8),
+            random_state=0,
+        )
         .check()
         .prepare()
     )
-    shares.append(run.run(until=300).trajectory_.values('census.largest_region')[-1])
+    shares.append(run.run(until=300).trajectory_.values('largest_region')[-1])
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, simulation.trajectory_.values('census.largest_region'))
+series.plot(simulation.trajectory_.times, simulation.trajectory_.values('largest_region'))
 series.set_xlabel('step')
 series.set_ylabel('share of the largest region')
 series.set_title('Growth of the largest region, F = 3, q = 5')
