@@ -734,6 +734,26 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             *(f'{INDENT * 2}{line}' for line in body),
         ]
 
+    def _shaped_weights_lines(self, reduction: ReductionKernel, weights: ReadSpec, index: int, count: str) -> list[str]:
+        """Return the lines of a reduction weighted by a shaped parameter, a product with its row-major block."""
+        entry = weights.entry if weights.entry is not None else reduction.entry
+        readers, size = entry.shape
+        vector = 'x' if weights.is_state else 'p'
+        start, block = f'_L{2 * self._slot(reduction.entry)}_', f'_L{2 * self._slot(entry)}_'
+        cnt = f'_cnt{index}_'
+        lines = [f'{INDENT}_values{index}_ = np.empty(_n{index}_)']
+        body = [f'_values{index}_[_m_] = _a_ if _c_ else 0.0', count]
+        lines += self._reduction_loop(reduction, index, body, parallel=True)
+        divisor = f' / {cnt} if {cnt} > 0.0 else 0.0' if reduction.kind == 'mean' else ''
+        return [
+            *lines,
+            f'{INDENT}for _i_ in prange({readers}):',
+            f'{INDENT * 2}_s_ = 0.0',
+            f'{INDENT * 2}for _k_ in range({size}):',
+            f'{INDENT * 3}_s_ += {vector}[{block} + _i_ * {size} + _k_] * _values{index}_[_k_]',
+            f'{INDENT * 2}p[{start} + _i_] = _s_{divisor}',
+        ]
+
     def _reduction_lines(self, reduction: ReductionKernel, index: int) -> list[str]:
         """Return the lines that compute one reduction and store it in the extended parameter vector."""
         start = f'_L{2 * self._slot(reduction.entry)}_'
@@ -747,6 +767,8 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         lines += [f'{INDENT}{acc} = 0.0', f'{INDENT}{cnt} = 0.0']
         sums = [f'{acc} += _a_ if _c_ else 0.0', f'{cnt} += 1.0 if _c_ else 0.0']
         mean = f'({acc} / {cnt} if {cnt} > 0.0 else 0.0)'
+        if isinstance(reduction.weights, ReadSpec):
+            return lines + self._shaped_weights_lines(reduction, reduction.weights, index, sums[1])
         if reduction.weights is not None:
             weights = scipy.sparse.csr_array(reduction.weights)
             for part in ('indptr', 'indices', 'data'):

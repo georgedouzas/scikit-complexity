@@ -12,6 +12,7 @@ import pytest
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
+from skcomplex.core.laws.utils import mean, total
 from skcomplex.core.system import System
 from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
 
@@ -165,3 +166,63 @@ class WeightedSumInteraction(Interaction):
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the update of the target."""
         return [UpdateLaw(s.target.x, sum((w * item.x for w, item in zip(s.weights, s.inputs, strict=True)), 0))]
+
+
+class WeightedInputInteraction(Interaction):
+    """Rate of every member of a target group, the sum or mean of a source group weighted by a matrix parameter."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        source: Annotated[str, RoleSpec()],
+        W: Annotated[object, ParameterSpec(shape=('target', 'source'))] = 0.0,
+        reduce: str = 'sum',
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.source = source
+        self.W = W
+        self.reduce = reduce
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the weighted input of the target."""
+        reduction = total if self.reduce == 'sum' else mean
+        return [RateLaw(s.target.x, reduction(s.source.x, weights=s.W))]
+
+
+class AdaptiveInputInteraction(WeightedInputInteraction):
+    """Weighted input through an adaptive matrix parameter."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        source: Annotated[str, RoleSpec()],
+        W: Annotated[object, ParameterSpec(shape=('target', 'source'), adaptive=True)] = 0.0,
+        reduce: str = 'sum',
+    ) -> None:
+        super().__init__(label, target=target, source=source, W=W, reduce=reduce)
+
+
+def _weighted(
+    weights: npt.ArrayLike,
+    inputs: npt.ArrayLike,
+    *,
+    source: str = 'inputs',
+    reduce: str = 'sum',
+    interaction: type[WeightedInputInteraction] = WeightedInputInteraction,
+) -> System:
+    """Return a hidden group whose rates read a source group through a matrix parameter."""
+    matrix, values = np.asarray(weights, dtype=float), np.asarray(inputs, dtype=float)
+    return System(
+        'net',
+        elements=[
+            GroupElement('hidden', element=NodeElement, size=matrix.shape[0]),
+            GroupElement('inputs', element=NodeElement, size=len(values), values={'x': values}),
+            NodeElement('single'),
+        ],
+        interactions=[interaction('input', target='hidden', source=source, W=matrix, reduce=reduce)],
+    )

@@ -44,7 +44,8 @@ class ReductionKernel(BaseKernel):
             The condition that selects the members, or `None` for all members.
 
         weights:
-            The constant weight matrix as a CSR array of shape `(readers, size)`, or `None`.
+            The constant weight matrix as a CSR array of shape `(readers, size)`, the read of a shaped parameter of
+            that shape, or `None`.
 
         entry:
             The hidden entry that holds the value, after the parameters in the extended parameter vector.
@@ -73,7 +74,7 @@ class ReductionKernel(BaseKernel):
         kind: str,
         argument: Expression,
         condition: Expression | None,
-        weights: scipy.sparse.csr_array | None,
+        weights: scipy.sparse.csr_array | ReadSpec | None,
         *,
         entry: EntrySpec,
         size: int,
@@ -110,6 +111,39 @@ class ReductionKernel(BaseKernel):
     def symbols(self) -> list[Expression]:
         """Symbols the argument and the condition read, in the order the compiled function takes them after time."""
         return list(self._symbols)
+
+    @property
+    def readers(self) -> int:
+        """Number of reading members of a weighted reduction, 1 without weights."""
+        if isinstance(self.weights, ReadSpec) and self.weights.entry is not None:
+            return self.weights.entry.shape[0]
+        return 1 if self.weights is None else int(self.weights.shape[0])
+
+    def weight_matrix(self, x: Array, q: Array) -> scipy.sparse.csr_array | Array:
+        """Return the weight matrix, read from the vectors for the weights of a shaped parameter.
+
+        Args:
+            x:
+                The state vector.
+
+            q:
+                The extended parameter vector.
+
+        Returns:
+            weights:
+                The weight matrix, one row per reading member and one column per reduced member.
+
+        Raises:
+            ValidationError:
+                The reduction has no weights.
+        """
+        weights = self.weights
+        if weights is None:
+            error_msg = f'The reduction {self.symbol} has no weights.'
+            raise ValidationError(error_msg)
+        if isinstance(weights, ReadSpec) and weights.entry is not None:
+            return (x if weights.is_state else q)[weights.index].reshape(weights.entry.shape)
+        return weights
 
     def gather(self, x: Array, q: Array) -> list[npt.ArrayLike]:
         """Return the values of the symbols the reduction reads.
@@ -159,7 +193,7 @@ class ReductionKernel(BaseKernel):
         if self.weights is None:
             q[self.entry.start] = self._reduce_values(argument[condition], self.kind)
             return
-        weighted = self.weights @ np.where(condition, argument, 0.0)
+        weighted = self.weight_matrix(state.x, q) @ np.where(condition, argument, 0.0)
         if self.kind == 'mean':
             selected = int(np.count_nonzero(condition))
             weighted = weighted / selected if selected else np.zeros_like(weighted)

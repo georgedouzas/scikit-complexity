@@ -192,9 +192,10 @@ class CensusPass(BasePass):
         declarations = DeclarationsSpec(time=symbol('t'))
         errors: list[tuple[str, SkcomplexError]] = []
         blocks = []
+        groups = LayoutPass._group_sizes(nodes)
         for node in nodes:
             try:
-                declarations, block = LayoutPass._declare_component(declarations, node)
+                declarations, block = LayoutPass._declare_component(declarations, node, groups)
             except SkcomplexError as error:
                 errors.append((node.path, error))
                 continue

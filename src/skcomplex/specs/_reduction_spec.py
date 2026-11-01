@@ -28,7 +28,7 @@ class ReductionSpec(BaseSpec):
             The condition that selects the members, or `None` for all members.
 
         weights:
-            The constant weight matrix, or `None`.
+            The constant weight matrix, the symbol of a shaped parameter, or `None`.
 
         over:
             A symbol of the group to reduce over, or `None` for the group the argument reads.

@@ -34,6 +34,11 @@ class ParameterSpec(BaseSpec):
         bounds:
             The lower and upper bound of an adaptive parameter that is a control input, or `None` for none.
 
+        shape:
+            The names of the roles whose group sizes give the shape of the parameter, such as `('target', 'source')`
+            for a matrix with one row per member of the target and one column per member of the source, or `None` for
+            a scalar. A role repeated k times gives a tensor of order k.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
@@ -47,14 +52,16 @@ class ParameterSpec(BaseSpec):
     per: str | None = None
     adaptive: bool = False
     bounds: tuple[float, float] | None = None
+    shape: tuple[str, ...] | None = None
 
     def _check(self) -> None:
-        """Raise an error for a parameter per role that is a vector or adaptive, or for invalid bounds.
+        """Raise an error for a parameter per role that is a vector or adaptive, for invalid bounds, or a bad shape.
 
         Raises:
             ValidationError:
-                The parameter is per entry of a role and a vector or adaptive, or has bounds without being adaptive or
-                with a lower bound above the upper one.
+                The parameter is per entry of a role and a vector or adaptive, has bounds without being adaptive or
+                with a lower bound above the upper one, or has a shape that is empty, not role names, or combined with
+                `vector` or `per`.
         """
         if self.per is not None and (self.vector or self.adaptive):
             error_msg = f'A parameter per entry of the role {self.per!r} is neither a vector nor adaptive.'
@@ -62,5 +69,13 @@ class ParameterSpec(BaseSpec):
         if self.bounds is not None and not (self.adaptive and float(self.bounds[0]) <= float(self.bounds[1])):
             error_msg = (
                 f'The bounds {self.bounds!r} need an adaptive parameter and a lower bound at most the upper one.'
+            )
+            raise ValidationError(error_msg)
+        if self.shape is not None and (
+            not self.shape or not all(isinstance(role, str) for role in self.shape) or self.vector or self.per
+        ):
+            error_msg = (
+                f'The shape {self.shape!r} of a parameter is a nonempty tuple of role names, and a shaped parameter is '
+                'neither a vector nor per entry of a role.'
             )
             raise ValidationError(error_msg)

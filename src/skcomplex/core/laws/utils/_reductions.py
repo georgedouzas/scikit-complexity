@@ -142,9 +142,11 @@ def _over_symbol(over: object) -> Expression:
 
 
 def _weights_symbol(weights: object) -> Expression:
-    """Return the symbol that stands for a constant weight matrix, or 0 for none."""
+    """Return the symbol that stands for a constant weight matrix, the symbol of a shaped parameter, or 0 for none."""
     if weights is None:
         return SR(0)
+    if isinstance(weights, Expression) and weights.is_symbol():
+        return weights
     if scipy.sparse.issparse(weights):
         matrix = scipy.sparse.csr_array(weights, dtype=float)
         parts = [np.asarray(matrix.shape), matrix.indptr, matrix.indices, matrix.data]
@@ -758,7 +760,7 @@ def reductions_in(expression: object) -> list[ReductionSpec]:
                 kind=KINDS[call.operator().name()],
                 argument=argument,
                 condition=None if _is_placeholder(condition, 1) else condition,
-                weights=None if _is_placeholder(weights, 0) else WEIGHTS[str(weights)],
+                weights=None if _is_placeholder(weights, 0) else WEIGHTS.get(str(weights), weights),
                 over=None if _is_placeholder(over, 0) else over,
             ),
         )

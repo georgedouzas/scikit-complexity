@@ -8,10 +8,10 @@
 
 ## 2. Shaped parameters
 
-- [ ] 2.1 Add the `shape` field of `ParameterSpec` with role names, the row-major block in the parameter layout,
+- [x] 2.1 Add the `shape` field of `ParameterSpec` with role names, the row-major block in the parameter layout,
   shape-aware `Trajectory.values` and `Simulation.update_parameters`, and the `parameter-shape` issue; verify the wrong
   shape and unbound roles scenarios
-- [ ] 2.2 Let the weights of `total` and `mean` read a shaped parameter on the NumPy and Numba backends; verify the
+- [x] 2.2 Let the weights of `total` and `mean` read a shaped parameter on the NumPy and Numba backends; verify the
   weighted input scenario on both
 - [ ] 2.3 Let `CouplingInteraction(mode='group')` take a shaped parameter as `weights` with a function of both members,
   lowered to a matrix product when the function factors and to a pair loop otherwise; verify the generalized

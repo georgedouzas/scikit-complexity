@@ -12,7 +12,7 @@ import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import RunStateSpec
+from ...specs import ReadSpec, RunStateSpec
 from ...types import Array, Indices
 from .._utils import symbols_of
 from ..types import ReadKind, Sparse
@@ -223,9 +223,9 @@ class JacobianKernel(BaseKernel):
         selected = float(mask.sum())
         members = self._member_gradients(reduction, t, x, q, gradients)
         if reduction.kind == 'count' or not selected:
-            return scipy.sparse.csr_array((1 if reduction.weights is None else reduction.weights.shape[0], self.size))
+            return scipy.sparse.csr_array((reduction.readers, self.size))
         if reduction.weights is not None:
-            weighted = reduction.weights @ scipy.sparse.diags_array(mask) @ members
+            weighted = reduction.weight_matrix(x, q) @ scipy.sparse.diags_array(mask) @ members
             return scipy.sparse.csr_array(weighted / selected if reduction.kind == 'mean' else weighted)
         if reduction.kind in {'max', 'min'}:
             values = np.where(condition, argument, -np.inf if reduction.kind == 'max' else np.inf)
@@ -473,7 +473,9 @@ class JacobianKernel(BaseKernel):
         if reduction.kind == 'count':
             return scipy.sparse.csr_array((1, self.size), dtype=bool)
         if reduction.weights is not None:
-            return scipy.sparse.csr_array((abs(reduction.weights) != 0).astype(float) @ support.astype(float) != 0)
+            weights = reduction.weights
+            pattern = np.ones(weights.entry.shape) if isinstance(weights, ReadSpec) and weights.entry else weights
+            return scipy.sparse.csr_array((abs(pattern) != 0).astype(float) @ support.astype(float) != 0)
         return scipy.sparse.csr_array(np.asarray(support.astype(float).sum(axis=0)).reshape(1, -1) != 0)
 
     @staticmethod

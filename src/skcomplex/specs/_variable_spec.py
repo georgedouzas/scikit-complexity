@@ -80,6 +80,9 @@ class VariableSpec(BaseSpec):
 
         reference:
             The path of the agent group a member of which a state names by its id, or `None`.
+
+        shape:
+            The names of the roles whose group sizes give the shape of a parameter, or `None`.
     """
 
     kind: VariableKind
@@ -102,6 +105,7 @@ class VariableSpec(BaseSpec):
     adaptive: bool = False
     bounds: tuple[float, float] | None = None
     reference: str | None = None
+    shape: tuple[str, ...] | None = None
 
     @property
     def is_fractional(self) -> bool:

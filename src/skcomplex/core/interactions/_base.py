@@ -74,14 +74,19 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         return role
 
     def _check_states(self) -> None:
-        """Raise an error for a type that declares states or adaptive parameters, which interactions do not hold."""
+        """Raise an error for a type that declares states or adaptive parameters without a shape."""
         specs = self._get_specs()
         states = [name for name, spec in specs.items() if isinstance(spec, StateSpec)]
-        adaptive = [name for name, spec in specs.items() if isinstance(spec, ParameterSpec) and spec.adaptive]
+        adaptive = [
+            name
+            for name, spec in specs.items()
+            if isinstance(spec, ParameterSpec) and spec.adaptive and spec.shape is None
+        ]
         if adaptive:
             error_msg = (
                 f'{type(self).__name__} declares the adaptive parameters {", ".join(adaptive)}, which laws change as '
-                'states, but interactions hold no state. Declare them on the element whose parameters they are.'
+                'states, but interactions hold no state. Declare them on the element whose parameters they are, or '
+                'give them the shape of the groups the interaction couples, `ParameterSpec(shape=...)`.'
             )
             raise ValidationError(error_msg)
         if states:

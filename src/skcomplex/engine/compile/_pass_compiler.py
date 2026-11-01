@@ -695,6 +695,27 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
+    def _shape_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+        """Return the shaped parameters whose roles are not bound to groups."""
+        groups = LayoutPass._group_sizes(nodes)
+        issues = []
+        for node in nodes:
+            declarations = {
+                **declarations_of(node.component_type, VariableKind.STATE),
+                **declarations_of(node.component_type, VariableKind.PARAMETER),
+            }
+            for name, declaration in declarations.items():
+                if declaration.shape is None:
+                    continue
+                try:
+                    LayoutPass._role_shape(node, name, declaration, groups)
+                except ValidationError as error:
+                    path = f'{node.path}.{name}'
+                    fix = f'Bind every role of the shape {declaration.shape} of {path} to a group.'
+                    issues.append(IssueSpec('parameter-shape', path, str(error), fix, error=ParameterError))
+        return issues
+
+    @staticmethod
     def _bound_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the adaptive parameters whose initial values lie outside their bounds."""
         issues = []
@@ -1163,15 +1184,17 @@ class PassCompiler(BaseCompiler):
     def _census_issues(compilation: Compilation) -> list[IssueSpec]:
         """Return the issues of the components that fail to declare or collect, unless their binding is the problem."""
         census = Compilation._required(compilation.census, 'census')
-        bindings = PassCompiler._binding_issues(Compilation._required(compilation.nodes, 'nodes'))
-        unbound = {issue.path for issue in bindings}
+        nodes = Compilation._required(compilation.nodes, 'nodes')
+        bindings = PassCompiler._binding_issues(nodes)
+        shapes = PassCompiler._shape_issues(nodes)
+        unbound = {issue.path for issue in bindings} | {issue.path.rpartition('.')[0] for issue in shapes}
         issues = []
         for path, failure in census.errors:
             if path in unbound:
                 continue
             code, fix = _FIXES.get(type(failure), ('value', 'Correct the component as the message describes.'))
             issues.append(IssueSpec(code, path, str(failure), fix, error=type(failure)))
-        return issues + bindings
+        return issues + bindings + shapes
 
     @staticmethod
     def _probability_sum(total: object) -> float | None:

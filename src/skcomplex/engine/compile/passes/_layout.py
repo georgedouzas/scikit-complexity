@@ -46,8 +46,10 @@ class LayoutPass(BasePass):
         """Declare the components of the nodes."""
         compilation = self.compilation_
         declarations = DeclarationsSpec(time=symbol('t'))
-        for node in Compilation._required(compilation.nodes, 'nodes'):
-            declarations, _ = self._declare_component(declarations, node)
+        nodes = Compilation._required(compilation.nodes, 'nodes')
+        groups = LayoutPass._group_sizes(nodes)
+        for node in nodes:
+            declarations, _ = self._declare_component(declarations, node, groups)
         self._check_symbol_names(declarations.blocks)
         compilation.layout = declarations
 
@@ -67,7 +69,16 @@ class LayoutPass(BasePass):
                 seen[name] = reference.entry.name
 
     @staticmethod
-    def _declare_component(declarations: DeclarationsSpec, node: NodeSpec) -> tuple[DeclarationsSpec, BlockSpec]:
+    def _group_sizes(nodes: list[NodeSpec]) -> dict[str, int]:
+        """Return the number of members of every group of a system tree, by path."""
+        return {node.path: node.members for node in nodes if node.members is not None and not node.interaction}
+
+    @staticmethod
+    def _declare_component(
+        declarations: DeclarationsSpec,
+        node: NodeSpec,
+        groups: Mapping[str, int],
+    ) -> tuple[DeclarationsSpec, BlockSpec]:
         """Return the declarations with the states and parameters of a component added, and the block of the component.
 
         Args:
@@ -76,6 +87,10 @@ class LayoutPass(BasePass):
 
             node:
                 The component with its place in the tree.
+
+            groups:
+                The number of members of every group of the system tree, by path, which give the shapes of shaped
+                parameters.
 
         Returns:
             declarations:
@@ -86,10 +101,17 @@ class LayoutPass(BasePass):
         """
         block = BlockSpec(node)
         states = {} if node.is_agent else declarations_of(node.component_type, VariableKind.STATE)
+        parameters = declarations_of(node.component_type, VariableKind.PARAMETER)
         for variable, declaration in states.items():
-            declarations, block = LayoutPass._declare(declarations, block, variable, declaration, is_state=True)
-        for variable, declaration in declarations_of(node.component_type, VariableKind.PARAMETER).items():
-            declarations, block = LayoutPass._declare(declarations, block, variable, declaration, is_state=False)
+            if declaration.shape is None:
+                declarations, block = LayoutPass._declare(declarations, block, variable, declaration, is_state=True)
+        for variable, declaration in parameters.items():
+            if declaration.shape is None:
+                declarations, block = LayoutPass._declare(declarations, block, variable, declaration, is_state=False)
+        for variable, declaration in {**states, **parameters}.items():
+            if declaration.shape is not None:
+                shape = LayoutPass._role_shape(node, variable, declaration, groups)
+                declarations, block = LayoutPass._declare_shaped(declarations, block, variable, shape, declaration)
         if node.is_agent:
             declarations, block = LayoutPass._declare_agents(declarations, block)
         if isinstance(node.component, BaseInteraction):
@@ -184,6 +206,77 @@ class LayoutPass(BasePass):
                 **{item: ReferenceSpec(entry, is_state, column) for column, item in enumerate(components)},
             },
             per=per,
+        )
+        return LayoutPass._with_entry(declarations, entry, value, is_state), block
+
+    @staticmethod
+    def _role_shape(
+        node: NodeSpec,
+        variable: str,
+        declaration: VariableSpec,
+        groups: Mapping[str, int],
+    ) -> tuple[int, ...]:
+        """Return the shape of a shaped parameter from the sizes of the groups its roles bind.
+
+        Args:
+            node:
+                The component with its place in the tree.
+
+            variable:
+                The name of the parameter.
+
+            declaration:
+                The declaration of the parameter.
+
+            groups:
+                The number of members of every group of the system tree, by path.
+
+        Returns:
+            shape:
+                The number of members of the group of every role of the shape.
+
+        Raises:
+            ValidationError:
+                A role of the shape is not a role of the component or is not bound to a group.
+        """
+        roles = declarations_of(node.component_type, VariableKind.ROLE)
+        shape = []
+        for role in declaration.shape or ():
+            label = getattr(node.component, role, None) if role in roles else None
+            size = groups.get(f'{node.scope}{label}') if isinstance(label, str) else None
+            if size is None:
+                error_msg = (
+                    f'{node.path}.{variable} is shaped by the role {role!r}, which binds {label!r}, not a group. Bind '
+                    f'the role {role!r} to a group, whose number of members gives the size of the parameter.'
+                )
+                raise ValidationError(error_msg)
+            shape.append(size)
+        return tuple(shape)
+
+    @staticmethod
+    def _declare_shaped(
+        declarations: DeclarationsSpec,
+        block: BlockSpec,
+        variable: str,
+        shape: tuple[int, ...],
+        declaration: VariableSpec,
+    ) -> tuple[DeclarationsSpec, BlockSpec]:
+        """Return the declarations and the block with a shaped parameter of a component added.
+
+        The parameter takes one block of the vector in row-major order, which laws read as `s.<variable>`, one symbol
+        that the reductions taking it lower to the reshaped block.
+        """
+        node = block.node
+        name = f'{node.path}.{variable}'
+        value = LayoutPass._coerce_value(name, LayoutPass._value_of(node, variable), shape, declaration.domain)
+        is_state = declaration.adaptive
+        entry = EntrySpec(name, declarations.ends[is_state], shape, declaration.domain)
+        handle = symbol(f'{variable}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}', declaration.domain)
+        block = replace(
+            block,
+            symbols={**block.symbols, variable: handle},
+            entries={**block.entries, variable: entry},
+            references={**block.references, handle: ReferenceSpec(entry, is_state, 0)},
         )
         return LayoutPass._with_entry(declarations, entry, value, is_state), block
 

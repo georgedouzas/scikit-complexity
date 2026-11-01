@@ -267,12 +267,14 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         spec: KernelSpec,
         group: str | None,
         size: int,
-    ) -> scipy.sparse.csr_array | None:
-        """Return the weights of a reduction as a CSR array after checking their shape."""
+    ) -> scipy.sparse.csr_array | ReadSpec | None:
+        """Return the weights of a reduction as a CSR array or the read of a shaped parameter, checking the shape."""
         if reduction.weights is None:
             return None
         readers = len(next(iter(spec.sets.values())).references) if spec.sets else spec.rows
         weights = reduction.weights
+        if isinstance(weights, Expression):
+            return self._weights_read(reduction, spec, weights, (readers, size))
         if not isinstance(weights, scipy.sparse.sparray | scipy.sparse.spmatrix):
             weights = np.asarray(weights, dtype=float)
             if weights.ndim == 1 and len(weights) == size:
@@ -286,6 +288,27 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             )
             raise ValidationError(error_msg)
         return scipy.sparse.csr_array(weights, dtype=float)
+
+    def _weights_read(
+        self,
+        reduction: ReductionSpec,
+        spec: KernelSpec,
+        weights: Expression,
+        shape: tuple[int, int],
+    ) -> ReadSpec:
+        """Return the read of the shaped parameter that a reduction takes as weights, after checking its shape."""
+        reference = self._reference_of(weights, spec)
+        entry = reference.entry if reference is not None else None
+        if entry is None or entry.shape != shape:
+            given = 'not a shaped parameter' if entry is None else f'of the shape {entry.shape}'
+            error_msg = (
+                f'The weights {weights} of the reduction {reduction.call} of {spec.owner} are {given}, but the '
+                f'reduction needs a shaped parameter of the shape {shape}, one row per reading member and one column '
+                'per reduced member.'
+            )
+            raise ValidationError(error_msg)
+        indices = (entry.start + np.arange(entry.size)).astype(np.intp)
+        return ReadSpec(reference.is_state if reference is not None else False, indices, entry)
 
     @staticmethod
     def _held_reduction(
@@ -601,7 +624,11 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         key = (reduction.kind, str(argument_key), str(condition_key), str(reduction.call.operands()[2]), group)
         if key not in self.found_:
             index = len(self.found_)
-            readers = weights.shape[0] if weights is not None else None
+            readers = (
+                (weights.entry.shape[0] if isinstance(weights, ReadSpec) and weights.entry else weights.shape[0])
+                if weights is not None
+                else None
+            )
             shape = (readers,) if readers is not None else ()
             members_of = readers if readers is not None and not spec.sets else None
             entry = EntrySpec(f'__reduced_{index}', self.extent_, shape, RR, members_of)

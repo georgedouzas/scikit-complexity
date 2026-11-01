@@ -155,6 +155,7 @@ def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:
             per=spec.per,
             adaptive=spec.adaptive,
             bounds=spec.bounds,
+            shape=spec.shape,
         )
     order = int(spec.order) if float(spec.order).is_integer() else float(spec.order)
     return VariableSpec(

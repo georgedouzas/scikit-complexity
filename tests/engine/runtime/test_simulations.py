@@ -29,7 +29,7 @@ from skcomplex.models.physics.common.particles import ConstantForceInteraction, 
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
 from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
-from ...conftest import _correlated, _summed
+from ...conftest import AdaptiveInputInteraction, _correlated, _summed, _weighted
 
 
 def _pushed_gas(n=500):
@@ -558,3 +558,31 @@ def test_simulation_run_takes_the_end_time():
         simulation.run()
     assert simulation.run(2) is simulation
     assert simulation.time_ == 2.0
+
+
+def test_update_parameters_shaped_parameter_of_wrong_shape_raises_error():
+    """Test that a matrix parameter set to the transposed shape names the parameter and both shapes."""
+    simulation = Simulation(_weighted(np.ones((4, 2)), [1.0, 2.0]), dt=0.1).check().prepare().run(until=0.1)
+    with pytest.raises(ValidationError, match=r'(?s)input\.W = .* of shape \(4, 2\).* has shape \(2, 4\)'):
+        simulation.update_parameters({'input.W': np.ones((2, 4))})
+
+
+def test_trajectory_values_shaped_parameter_has_its_shape():
+    """Test that a matrix parameter is read from a trajectory with its shape after a change as a whole."""
+    weights = np.arange(8.0).reshape(4, 2)
+    simulation = Simulation(_weighted(weights, [1.0, 2.0]), dt=0.1).check().prepare().run(until=0.2)
+    simulation.update_parameters({'input.W': 2 * weights})
+    simulation.run(until=0.3)
+    values = simulation.trajectory_.values('input.W')
+    assert values.shape[1:] == (4, 2)
+    np.testing.assert_array_equal(values[-1], 2 * weights)
+
+
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
+def test_trajectory_values_adaptive_shaped_parameter_of_an_interaction(backend):
+    """Test that an adaptive matrix parameter of an interaction is recorded with its shape at every frame."""
+    weights = np.arange(8.0).reshape(4, 2)
+    system = _weighted(weights, [1.0, 2.0], interaction=AdaptiveInputInteraction)
+    trajectory = Simulation(system, dt=0.1, backend=backend()).check().prepare().run(until=1.0).trajectory_
+    assert trajectory.values('input.W').shape == (11, 4, 2)
+    np.testing.assert_allclose(trajectory.values('hidden.x')[-1], weights @ [1.0, 2.0], atol=1e-12)

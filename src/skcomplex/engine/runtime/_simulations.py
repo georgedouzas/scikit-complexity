@@ -378,7 +378,7 @@ class Simulation(BaseConfig[None, float]):
         """Return a parameter value broadcast to its entry after checking its domain and shape."""
         error_msg = (
             f'{name} = {value!r} is not a value of shape {entry.shape}, or of a shape that broadcasts to it, in the '
-            f'domain {entry.domain}.'
+            f'domain {entry.domain}. The given value has shape {np.shape(value)}.'
         )
         if not entry.contains(value):
             raise ValidationError(error_msg)

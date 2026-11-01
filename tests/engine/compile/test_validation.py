@@ -4,6 +4,7 @@ import re
 from typing import Annotated
 
 import networkx as nx
+import numpy as np
 import pytest
 from sage.all__sagemath_gap import libgap
 from sage.all__sagemath_symbolics import ZZ, oo
@@ -34,7 +35,7 @@ from skcomplex.specs import (
 )
 from skcomplex.types import FormKind, NoiseKind
 
-from ...conftest import HoldingElement, NodeElement, _correlated
+from ...conftest import HoldingElement, NodeElement, _correlated, _weighted
 from .conftest import PairElement
 
 
@@ -615,3 +616,11 @@ def test_hyperedge_interaction_on_hyperedges_is_valid():
     """Test that an interaction over hyperedges of members on a network with hyperedges has no binding issue."""
     space = NetworkSpace(nx.cycle_graph(4), hyperedges=[(0, 1, 2), (1, 3)])
     assert _bindings(ConsensusInteraction('consensus', nodes='nodes'), space) == []
+
+
+def test_validate_shaped_parameter_on_an_element():
+    """Test that a parameter shaped by a role bound to a single element is one issue at the parameter."""
+    report = PassCompiler().check().prepare(_weighted(np.ones((4, 2)), [1.0, 2.0], source='single')).report_
+    (issue,) = report.errors
+    assert (issue.code, issue.path) == ('parameter-shape', 'input.W')
+    assert 'group' in issue.fix
