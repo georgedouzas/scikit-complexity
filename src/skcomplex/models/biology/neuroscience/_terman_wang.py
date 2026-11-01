@@ -1,4 +1,4 @@
-"""Relaxation oscillator of Terman and Wang, coupled to its lattice neighbours through their active phases."""
+"""Relaxation oscillator of Terman and Wang, the dynamics of one site of a LEGION lattice."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,19 +11,19 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import laplacian, logistic
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 
 SILENT = -2.0
 
 
 class TermanWangElement(Element):
-    """Relaxation oscillator of Terman and Wang, coupled to its lattice neighbours through their active phases.
+    """Relaxation oscillator of Terman and Wang, the dynamics of one site of a LEGION lattice.
 
-    The fast variable follows `x' = 3x - x³ + 2 - y + I + W m (sum_k m_k H(x_k - theta_x))`, summed over the four
-    nearest sites, and the slow one `y' = epsilon (gamma (1 + tanh(x / beta)) - y)`. `H` is a smooth step of width
-    `kappa`, and `m` marks the stimulated sites, so only stimulated neighbours excite each other. A positive input `I`
-    makes the oscillator oscillate and a negative one makes it excitable.
+    The fast variable follows `x' = 3x - x³ + 2 - y + I` and the slow one `y' = epsilon (gamma (1 + tanh(x / beta)) -
+    y)`. A positive input `I` makes the oscillator oscillate and a negative one makes it excitable. The parameters `m`,
+    `W`, `theta_x`, and `kappa` belong to the coupling of a lattice of oscillators, a `CouplingInteraction` that adds
+    `W m (sum_k m_k H(x_k - theta_x))` over the four nearest sites, where `H` is a smooth step of width `kappa` and `m`
+    marks the stimulated sites, so only stimulated neighbours excite each other.
 
     Args:
         label:
@@ -97,7 +97,7 @@ class TermanWangElement(Element):
         self.kappa = kappa
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the fast variable with its excitation by the neighbours, and the slow recovery.
+        """Return the fast variable and the slow recovery.
 
         Args:
             s:
@@ -107,9 +107,7 @@ class TermanWangElement(Element):
             laws:
                 The laws of the component.
         """
-        active = s.m * logistic(s.x - s.theta_x, 0, s.kappa)
-        excitation = s.W * s.m * (laplacian(active) + 4 * active)
         return [
-            RateLaw(s.x, 3 * s.x - s.x**3 + 2 - s.y + s.I + excitation),
+            RateLaw(s.x, 3 * s.x - s.x**3 + 2 - s.y + s.I),
             RateLaw(s.y, s.epsilon * (s.gamma * (1 + tanh(s.x / s.beta)) - s.y)),
         ]

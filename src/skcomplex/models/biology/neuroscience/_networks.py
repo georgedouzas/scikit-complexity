@@ -4,13 +4,16 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import Expression
 from scipy.ndimage import convolve
 
 from ....core.elements import FieldElement
-from ....core.interactions import RateInteraction, RelaxationInteraction
+from ....core.interactions import CouplingInteraction, RateInteraction, RelaxationInteraction
+from ....core.laws.utils import logistic
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....types import Array
@@ -36,6 +39,13 @@ RESET = 10.0
 
 
 TRACE_TIME = 2.0
+
+
+def _excitation(s: SimpleNamespace) -> Expression:
+    """Return the excitation of an oscillator by a stimulated neighbour in its active phase."""
+    active = s.other.m * logistic(s.other.x - s.other.theta_x, 0, s.other.kappa)
+    excitation: Expression = s.member.W * s.member.m * active
+    return excitation
 
 
 def _random_connections(n_neurons: int, probability: float, rng: np.random.Generator) -> list[tuple[int, int]]:
@@ -216,6 +226,10 @@ def legion(
         boundary={'x': ('fixed', SILENT), 'y': 'zero-flux'},
         values=values,
     )
+    excitation = CouplingInteraction('excitation', target='oscillators', read='x', write='x', function=_excitation)
     drive = InhibitorDriveInteraction('drive', inhibitor='inhibitor', oscillators='oscillators')
     inhibition = GlobalInhibitionInteraction('inhibition', inhibitor='inhibitor', oscillators='oscillators', W_z=W_z)
-    return System(elements=[oscillators, InhibitorElement('inhibitor')], interactions=[drive, inhibition])
+    return System(
+        elements=[oscillators, InhibitorElement('inhibitor')],
+        interactions=[excitation, drive, inhibition],
+    )
