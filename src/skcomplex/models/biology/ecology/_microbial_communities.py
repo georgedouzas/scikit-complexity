@@ -4,8 +4,10 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
 
 from ....core.elements import GroupElement
+from ....core.interactions import RateInteraction
 from ....core.system import System
 from ....errors import ValidationError
 from ..._catalog import register_model
@@ -16,6 +18,11 @@ COMMUNITY_GROWTH = (1.0, 0.8, 0.6)
 
 
 COMMUNITY_INTERACTIONS = ((-1.0, -0.3, 0.2), (-0.2, -1.0, -0.3), (0.1, -0.2, -1.0))
+
+
+def _growth(namespace: SimpleNamespace) -> object:
+    """Return the intrinsic growth `b x` of a species."""
+    return namespace.target.b * namespace.target.x
 
 
 @register_model(
@@ -50,7 +57,8 @@ def generalized_lotka_volterra(
 
     Returns:
         system:
-            The model, with the abundances `species.x` of the members of the group `species`.
+            The model, with the abundances `species.x` of the members of the group `species`, the growth `growth`, and
+            the interactions `glv`, whose matrix is the parameter `glv.a`.
 
     Raises:
         ValidationError:
@@ -75,5 +83,8 @@ def generalized_lotka_volterra(
     matrix = tuple(tuple(float(value) for value in row) for row in a)
     return System(
         elements=[species],
-        interactions=[GeneralizedLotkaVolterraInteraction('glv', target='species', weights=matrix)],
+        interactions=[
+            RateInteraction('growth', target='species', rate=_growth),
+            GeneralizedLotkaVolterraInteraction('glv', target='species', a=matrix),
+        ],
     )

@@ -58,7 +58,7 @@
   and the inventory check
 - [ ] 6.2 Add `docs/examples/computer_science/neural_networks/plot_elman_network.py` with the loss thumbnail and the
   error-by-position figure; verify the gallery example scenario and the gallery checks
-- [ ] 6.3 Rebuild `GeneralizedLotkaVolterraInteraction` on `CouplingInteraction(mode='group')` with a shaped matrix
+- [x] 6.3 Rebuild `GeneralizedLotkaVolterraInteraction` on `CouplingInteraction(mode='group')` with a shaped matrix
   parameter and the growth as a `RateInteraction`; verify the rebuilt community and matrix swept scenarios
 - [ ] 6.4 Add `higher_order_random_lotka_volterra` to `biology/ecology` on a shaped tensor parameter and `contraction`,
   with a curated gallery example, and mark its inventory entry implemented in place of `pending

@@ -1,26 +1,23 @@
-"""Growth of the species of a group, `dx_i/dt = x_i (b_i + sum_j a_ij x_j)`, with an interaction matrix `a`."""
+"""Interactions of the species of a group, `x_i sum_j a_ij x_j`, through an interaction matrix parameter `a`."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-import numpy as np
-from sage.all__sagemath_symbolics import Expression
-
-from ....core.interactions import RateInteraction
-from ....core.laws.utils import total
-from ....specs import RoleSpec
+from ....core.interactions import CouplingInteraction
+from ....specs import ParameterSpec, RoleSpec
 
 
-class GeneralizedLotkaVolterraInteraction(RateInteraction):
-    """Growth of the species of a group, `dx_i/dt = x_i (b_i + sum_j a_ij x_j)`, with an interaction matrix `a`.
+class GeneralizedLotkaVolterraInteraction(CouplingInteraction):
+    """Interactions of the species of a group, `dx_i/dt += x_i sum_j a_ij x_j`, through an interaction matrix `a`.
 
-    The rate of a species is its intrinsic growth rate `b`, a parameter of the species, plus the total over the group
-    weighted by row `i` of the matrix, times its abundance. The diagonal entries are the interactions of a species with
-    itself, negative for self-limitation.
+    Every species `i` couples to every species `j` of the group, itself included, through the term `x_i x_j` weighted
+    by the entry `a_ij` of the interaction matrix, a parameter with one row and one column per species, so a schedule or
+    an experiment changes it. The diagonal entries are the interactions of a species with itself, negative for
+    self-limitation. With the growth `b_i x_i` as a rate, it gives the generalized Lotka-Volterra equations
+    `dx_i/dt = x_i (b_i + sum_j a_ij x_j)`.
 
     Args:
         label:
@@ -29,8 +26,9 @@ class GeneralizedLotkaVolterraInteraction(RateInteraction):
         target:
             The path of the group of species.
 
-        weights:
-            The interaction matrix, where `a_ij` is the effect of species `j` on the growth of species `i`.
+        a:
+            The interaction matrix, where `a_ij` is the effect of species `j` on the growth of species `i`, or a number
+            for every entry.
 
         state:
             The name of the state that holds the abundance of a species.
@@ -38,7 +36,7 @@ class GeneralizedLotkaVolterraInteraction(RateInteraction):
     Examples:
         >>> from skcomplex.models.biology.ecology import GeneralizedLotkaVolterraInteraction
         >>> matrix = ((-1.0, 0.5), (0.5, -1.0))
-        >>> GeneralizedLotkaVolterraInteraction('glv', target='species', weights=matrix).check().weights
+        >>> GeneralizedLotkaVolterraInteraction('glv', target='species', a=matrix).check().a
         ((-1.0, 0.5), (0.5, -1.0))
     """
 
@@ -47,24 +45,22 @@ class GeneralizedLotkaVolterraInteraction(RateInteraction):
         label: str,
         *,
         target: Annotated[str, RoleSpec()],
-        weights: Sequence[Sequence[float]] = ((-1.0,),),
+        a: Annotated[object, ParameterSpec(shape=('target', 'target'))] = -1.0,
         state: str = 'x',
     ) -> None:
-        super().__init__(label, target=target, state=state)
-        self.weights = weights
+        super().__init__(
+            label,
+            target=target,
+            read=state,
+            write=state,
+            function=self._product,
+            mode='group',
+            weights='a',
+            include_self=True,
+        )
+        self.a = a
+        self.state = state
 
-    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the rate `x_i (b_i + sum_j a_ij x_j)` of a species.
-
-        Args:
-            namespace:
-                The namespace of the symbols the rate can use, with the namespace of the group.
-
-        Returns:
-            rate:
-                The rate of the abundance.
-        """
-        species = namespace.target
-        x = getattr(species, self.state)
-        rate: Expression = x * (species.b + total(x, weights=np.asarray(self.weights, dtype=float)))
-        return rate
+    def _product(self, namespace: SimpleNamespace) -> object:
+        """Return the product `x_i x_j` of the abundances of the species and the other species."""
+        return getattr(namespace.member, self.state) * getattr(namespace.other, self.state)
