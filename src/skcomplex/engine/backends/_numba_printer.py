@@ -26,8 +26,15 @@ from ..problems._reduction_kernel import ReductionKernel
 from ..problems._static_search import StaticSearch
 from ..types import ReadKind
 from ._base import _AUTO_MEMBERS
+from ._numba_components import GIANT, LABEL, LARGEST, SIZE
 
 INDENT = '    '
+COMPONENT_KINDS = {
+    'component-label': LABEL,
+    'component-size': SIZE,
+    'component-largest': LARGEST,
+    'component-giant': GIANT,
+}
 
 
 class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, list[LawKernel], bool]]]):
@@ -827,6 +834,38 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         del index
         return f'{own} - (({own} - {value}) - {period} * np.rint(({own} - {value}) / {period}))'
 
+    def _component_lines(
+        self,
+        reduction: NeighborhoodKernel,
+        index: int,
+        assignments: Sequence[tuple[str, str]],
+        active: str,
+    ) -> list[str]:
+        """Return the lines that collect the active pairs of every member and write the values of their components."""
+        sides = {item: reduction.reads[item].side for item in reduction.symbols}
+        readers = [item for item in reduction.symbols if sides[item] == 'reader']
+        others = [item for item in reduction.symbols if sides[item] in {'other', 'edge'}]
+        firsts, seconds, count = f'_cf{index}_', f'_cs{index}_', f'_cn{index}_'
+        target = f'_L{2 * self._slot(reduction.entry)}_'
+        size = reduction.size
+        call = f'_component_values({size}, {firsts}, {seconds}, {count}, {COMPONENT_KINDS[reduction.kind]})'
+        return [
+            f'{INDENT}{firsts} = np.empty(_ip{index}_[{size}], dtype=np.int64)',
+            f'{INDENT}{seconds} = np.empty(_ip{index}_[{size}], dtype=np.int64)',
+            f'{INDENT}{count} = 0',
+            f'{INDENT}for _i_ in range({size}):',
+            *(f'{INDENT * 2}{item} = {self._pair_read_code(reduction, item, index)}' for item in readers),
+            f'{INDENT * 2}for _e_ in range(_ip{index}_[_i_], _ip{index}_[_i_ + 1]):',
+            f'{INDENT * 3}_j_ = _ix{index}_[_e_]',
+            *(f'{INDENT * 3}{item} = {self._pair_read_code(reduction, item, index)}' for item in others),
+            *(f'{INDENT * 3}{name} = {code}' for name, code in assignments),
+            f'{INDENT * 3}if {active} != 0.0:',
+            f'{INDENT * 4}{firsts}[{count}] = _i_',
+            f'{INDENT * 4}{seconds}[{count}] = _j_',
+            f'{INDENT * 4}{count} += 1',
+            f'{INDENT}p[{target} : {target} + {size}] = {call}',
+        ]
+
     def _neighborhood_lines(self, reduction: NeighborhoodKernel, index: int) -> list[str]:
         """Return the lines that compute a neighbourhood reduction of every member into the extended parameters."""
         lines = self._search_lines(reduction, index)
@@ -837,8 +876,10 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         lines += [f'{INDENT}{item} = {self._pair_read_code(reduction, item, index)}' for item in shared]
         printer = ExpressionPrinter('scalar', prefix=f'_n{index}cse').check().prepare()
         assignments, codes = self._printed(printer, [reduction.argument, reduction.weight])
-        acc, weights, found = f'_acc{index}_', f'_ws{index}_', f'_found{index}_'
         kind = reduction.kind
+        if kind in COMPONENT_KINDS:
+            return lines + self._component_lines(reduction, index, assignments, codes[0])
+        acc, weights, found = f'_acc{index}_', f'_ws{index}_', f'_found{index}_'
         if kind == 'argmax':
             accumulate = [
                 f'if not {found} or _w_ > {weights}:',

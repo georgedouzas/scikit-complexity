@@ -5,6 +5,7 @@
 
 from ....specs._draw_spec import bernoulli, categorical, draw, draws_in, normal, uniform
 from ._agents import matches, random_pairing, transfer
+from ._components import components
 from ._conditions import both, either, mod, where
 from ._delays import delay1, delay3, delay_parts, distributed_delay, smooth
 from ._history import delayed, derivative, lag, residence
@@ -37,6 +38,7 @@ __all__: list[str] = [
     'categorical',
     'circular_mean',
     'clip',
+    'components',
     'count',
     'dagger',
     'delay1',

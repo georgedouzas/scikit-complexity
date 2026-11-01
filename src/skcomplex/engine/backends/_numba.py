@@ -63,7 +63,7 @@ from ..problems._law_kernel import LawKernel
 from ..problems._metric_search import MetricSearch
 from ..problems._steps import step_count
 from ..types import ReadKind
-from . import _numba_neighbours, _numba_stencils
+from . import _numba_components, _numba_neighbours, _numba_stencils
 from ._base import BaseBackend
 from ._numba_loops import LOOPS, NO_BOUNDARY
 from ._numba_printer import NumbaPrinter
@@ -81,6 +81,7 @@ _HEADER = """import math
 import numpy as np
 from numba import njit, prange
 
+from skcomplex.engine.backends._numba_components import _component_values
 from skcomplex.engine.backends._numba_neighbours import (
     _build_grid,
     _cell_coordinate,
@@ -523,7 +524,7 @@ class NumbaBackend(BaseBackend):
         digest keys the cached kernels on the helpers too, and on the module of the step count that the stepper loops
         call.
         """
-        modules = (_numba_neighbours, _numba_stencils, sys.modules[step_count.__module__])
+        modules = (_numba_components, _numba_neighbours, _numba_stencils, sys.modules[step_count.__module__])
         sources = [inspect.getsource(module).encode() for module in modules]
         return hashlib.sha256(b''.join([numba.__version__.encode(), *sources])).hexdigest()
 
