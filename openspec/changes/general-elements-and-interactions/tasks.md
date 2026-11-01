@@ -45,10 +45,10 @@ Each task rebuilt the classes of its inventory file that the general classes cov
 
 ## 4. Docs and integration
 
-- [ ] 4.1 Update the user guide's sections on elements, interactions, and laws to the general classes, with one example per class, and the constitution's extension points; verify `pytest docs/overview` passes.
-- [ ] 4.2 Update the model inventory and the examples that import moved names; verify `grep` finds no removed name in `src`, `tests`, or `docs`.
-- [ ] 4.3 Run the checks session and the full suite with doctests, and verify only the known timing test fails.
-- [ ] 4.4 Merge every agent branch into `development` as it reports and delete its worktree, and verify `git worktree list` and `git branch` list none of them.
+- [x] 4.1 Update the user guide's sections on elements, interactions, and laws to the general classes, with one example per class, and the constitution's extension points; verify `pytest docs/overview` passes.
+- [x] 4.2 Update the model inventory and the examples that import moved names; verify `grep` finds no removed name in `src`, `tests`, or `docs`.
+- [x] 4.3 Run the checks session and the full suite with doctests, and verify only the known timing test fails.
+- [x] 4.4 Merge every agent branch into `development` as it reports and delete its worktree, and verify `git worktree list` and `git branch` list none of them.
 
 ## Workflow follow-up
 
