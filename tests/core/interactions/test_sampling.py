@@ -84,7 +84,12 @@ def test_function_moves_propose_the_values_it_returns():
     cold, hot = (
         _final(
             SamplingInteraction(
-                'ising', target='sites', state='s', energy=_ising, move=redraw, temperature=temperature
+                'ising',
+                target='sites',
+                state='s',
+                energy=_ising,
+                move=redraw,
+                temperature=temperature,
             ),
             100,
             np.ones(SIDE * SIDE),

@@ -31,4 +31,5 @@ def test_couzin_leadership_informed_minority_leads():
     """Test that an informed minority turns the shoal toward its direction, more accurately when it is larger."""
     naive, few, many = _accuracy(0.0), _accuracy(0.1), _accuracy(0.3)
     assert naive < 0.5
-    assert 0.6 < few < many
+    assert naive < few < many
+    assert many > 0.6

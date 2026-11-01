@@ -26,11 +26,6 @@ from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
 HIDDEN = VisualSpec('sites', {'states': []})
 
 
-def _initial_stream(seed: int | None) -> np.random.Generator:
-    """Return a random stream of initial values that differs from the run's stream of the same seed."""
-    return np.random.default_rng(np.random.SeedSequence(seed).spawn(1)[0])
-
-
 class TaxonElement(Element):
     """Species of an ecosystem with its field, the sum of the couplings of the species it depends on, and its age.
 
@@ -264,7 +259,7 @@ def sole_manrubia(
         >>> [component.label for component in sole_manrubia(n=20).elements]
         ['species', 'couplings']
     """
-    rng = _initial_stream(seed)
+    rng = np.random.default_rng(seed)
     graph = nx.DiGraph()
     graph.add_nodes_from(range(n))
     for node in range(n):
@@ -360,7 +355,7 @@ def jain_krishna(
         >>> round(float(jain_krishna(n=10).elements[0].values['x'].sum()), 6)
         1.0
     """
-    rng = _initial_stream(seed)
+    rng = np.random.default_rng(seed)
     graph = nx.gnp_random_graph(n, p, seed=int(rng.integers(2**31)), directed=True)
     space = NetworkSpace(graph)
     species = GroupElement(

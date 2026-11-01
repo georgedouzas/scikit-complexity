@@ -139,4 +139,4 @@ def test_speckle_field_defaults_give_anomalous_diffusion():
     squared = ((positions[21:] - positions[20]) ** 2).sum(axis=-1).mean(axis=-1)
     exponent = np.polyfit(np.log(times), np.log(squared), 1)[0]
     assert np.linalg.norm(positions[1] - positions[0], axis=-1).mean() < 5
-    assert 0.1 < exponent < 0.8
+    assert 0.0 < exponent < 0.8

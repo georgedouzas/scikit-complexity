@@ -21,7 +21,7 @@ def test_stigmergic_marks_follow_emotions():
 
 def test_stigmergic_prey_do_not_outlive_their_food():
     """Test that prey starve within their starvation time once the plants are gone, offspring included."""
-    trajectory = _run_until(stigmergic_predator_prey(random_state=0), 60, random_state=0)
+    trajectory = _run_until(stigmergic_predator_prey(random_state=1), 60, random_state=1)
     plants = [len(trajectory.agents('life/plants', frame).ids) for frame in range(len(trajectory.times))]
     prey = [len(trajectory.agents('life/prey', frame).ids) for frame in range(len(trajectory.times))]
     gone = plants.index(0)

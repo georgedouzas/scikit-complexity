@@ -167,7 +167,7 @@ def sequentially_linear_ecosystem(
         >>> [component.label for component in sequentially_linear_ecosystem(n=10).elements]
         ['species', 'influences']
     """
-    rng = np.random.default_rng(np.random.SeedSequence(seed).spawn(1)[0])
+    rng = np.random.default_rng(seed)
     graph = nx.DiGraph()
     graph.add_nodes_from(range(n))
     for node in range(n):

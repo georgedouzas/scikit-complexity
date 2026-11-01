@@ -202,11 +202,6 @@ def _get_recovery(s: SimpleNamespace) -> Expression:
     return probability
 
 
-def _initial_stream(seed: int | None) -> np.random.Generator:
-    """Return a random stream of initial values that differs from the run's stream of the same seed."""
-    return np.random.default_rng(np.random.SeedSequence(seed).spawn(1)[0])
-
-
 def _random_network(n: int, k: float, seed: int | None) -> NetworkSpace:
     """Return an Erdős-Rényi network of `n` nodes with mean degree `k`."""
     return NetworkSpace(nx.gnp_random_graph(n, k / (n - 1), seed=seed))
@@ -322,7 +317,7 @@ def adaptive_sis(
         ['hosts', 'contacts']
     """
     space = _random_network(n, k, seed)
-    initial = (_initial_stream(seed).random(n) < infected).astype(float)
+    initial = (np.random.default_rng(seed).random(n) < infected).astype(float)
     hosts = GroupElement(
         'hosts',
         element=HostElement,
@@ -409,7 +404,7 @@ def activity_driven_epidemics(
         >>> float(activity_driven_epidemics(n=10, seed=0).elements[0].values['a'].min()) >= 0.01
         True
     """
-    rng = _initial_stream(seed)
+    rng = np.random.default_rng(seed)
     activities = np.minimum(least * (1 - rng.random(n)) ** (-1 / (exponent - 1)), 1.0)
     initial = (rng.random(n) < infected).astype(float)
     space = NetworkSpace(nx.empty_graph(n))
