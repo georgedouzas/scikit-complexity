@@ -531,7 +531,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
         A sum or mean over the other members `j` of `sum_k a_k(i) b_k(j)` is `sum_k a_k(i)` times the sum or mean of
         `b_k(j)`, so it runs as one reduction per `b_k` over the members, at a cost linear in their number instead of
-        one value per pair.
+        one value per pair. With at least as many parts `b_k` as members, the pairs cost less, and it returns `None`.
         """
         if reduction.kind not in {'sum', 'mean'} or reduction.weights is not None:
             return None
@@ -552,6 +552,8 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             key = str(other)
             total = parts.get(key, (other, SR(0)))[1]
             parts[key] = (other, total + reader)
+        if len(parts) >= self.declarations_.blocks[self._reduced_group(reduction, spec, others)].rows:
+            return None
         reduced = [
             reader * self._compiled(replace(reduction, argument=other), spec) for other, reader in parts.values()
         ]
