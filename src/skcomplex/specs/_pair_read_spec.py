@@ -20,8 +20,9 @@ class PairReadSpec(BaseSpec):
 
         side:
             `'shared'` for one value, `'reader'` for the value of the member that reads the reduction, `'other'`
-            for the value of the neighbour, or `'edge'` for the value of the member of a group on the edges of a
-            network layer that joins them.
+            for the value of the neighbour, `'edge'` for the value of the member of a group on the edges of a
+            network layer that joins them, or `'pair'` for the value of the pair itself, the entry of a shaped
+            parameter at the position of the pair among the pairs of every member and every other member.
 
         image:
             Whether the symbol is a position component of the neighbour, read by its minimum image from the reader.

@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import replace
 from typing import cast
@@ -16,7 +17,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....core.laws.utils import both, hyperedges_in, maximum, neighborhoods_in, reductions_in
+from ....core.laws.utils import both, contractions_in, hyperedges_in, maximum, neighborhoods_in, reductions_in
 from ....core.spaces import (
     AdjacencyNeighborhood,
     ConeNeighborhood,
@@ -165,9 +166,11 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         found = reductions_in(value)
         local = neighborhoods_in(value)
         around = hyperedges_in(value)
-        if not found and not local and not around:
+        contracted = contractions_in(value)
+        if not found and not local and not around and not contracted:
             return value
-        placeholders = {item.call: self._placeholder(item, spec) for item in found}
+        placeholders = {call: self._contraction(call, spec) for call in contracted}
+        placeholders.update({item.call: self._placeholder(item, spec) for item in found})
         placeholders.update({item.call: self._neighborhood(item, spec) for item in local})
         placeholders.update({item.call: self._hyperedges(item, spec) for item in around})
         lowered: Expression = value
@@ -473,6 +476,43 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         indices = (entry.start + np.arange(entry.rows) * entry.columns + reference.column).astype(np.intp)
         return PairReadSpec(ReadSpec(reference.is_state, indices, entry, reference.column, entry.columns), side)
 
+    def _weighted_pairwise_form(
+        self,
+        reduction: ReductionSpec,
+        spec: KernelSpec,
+        argument: Expression,
+        selected: Expression,
+        condition: Expression | None,
+    ) -> tuple[str, Expression, Expression]:
+        """Return the kind, the argument, and the weight of every pair of a reduction weighted by a shaped parameter."""
+        weights = reduction.weights
+        if (
+            not isinstance(weights, Expression)
+            or reduction.kind not in {'sum', 'mean'}
+            or (reduction.kind == 'mean' and condition is not None)
+        ):
+            error_msg = (
+                f'The reduction {reduction.call} of {spec.owner} reads `other` with weights, which only a sum, or a '
+                'mean that selects no members, reads from a shaped parameter. Give the weights as a shaped parameter, '
+                'or write the term so that it factors into a part of the member and a part of the other member.'
+            )
+            raise ValidationError(error_msg)
+        return reduction.kind, argument, selected * weights
+
+    def _pair_weights_read(
+        self,
+        reduction: ReductionSpec,
+        spec: KernelSpec,
+        group: str,
+    ) -> dict[Expression, PairReadSpec]:
+        """Return the read of the shaped parameter that weights every pair of a reduction, or no read without one."""
+        weights = reduction.weights
+        if not isinstance(weights, Expression):
+            return {}
+        readers = self.declarations_.blocks[spec.group].rows if spec.group is not None else 1
+        read = self._weights_read(reduction, spec, weights, (readers, self.declarations_.blocks[group].rows))
+        return {weights: PairReadSpec(read, 'pair')}
+
     def _pairwise_form(
         self,
         reduction: ReductionSpec,
@@ -481,13 +521,15 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         condition: Expression | None,
     ) -> tuple[str, Expression, Expression]:
         """Return the kind, the argument, and the weight of every pair of a reduction that reads `other`."""
-        if reduction.weights is not None or reduction.kind not in PAIRWISE_KINDS:
+        if reduction.kind not in PAIRWISE_KINDS:
             error_msg = (
                 f'The reduction {reduction.call} of {spec.owner} reads `other`, which the reductions '
-                f'{", ".join(PAIRWISE_KINDS)} read without weights. Write it as one of them.'
+                f'{", ".join(PAIRWISE_KINDS)} read. Write it as one of them.'
             )
             raise ValidationError(error_msg)
         selected = SR(1) if condition is None else SR(condition)
+        if reduction.weights is not None:
+            return self._weighted_pairwise_form(reduction, spec, argument, selected, condition)
         if reduction.kind == 'count':
             return 'sum', selected, SR(1)
         if reduction.kind == 'mean' and condition is not None:
@@ -521,7 +563,8 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             )
             raise ValidationError(error_msg)
         kind, argument, weight = self._pairwise_form(reduction, spec, argument, condition)
-        symbols = symbols_of([argument, weight]) - {self.declarations_.time}
+        weighted = self._pair_weights_read(reduction, spec, group)
+        symbols = symbols_of([argument, weight]) - {self.declarations_.time, *weighted}
         readers = spec.group
         rows = self.declarations_.blocks[readers].rows if readers is not None else 1
         size = self.declarations_.blocks[group].rows
@@ -529,7 +572,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         if key not in self.neighbourhoods_:
             indptr = (np.arange(rows + 1) * size).astype(np.intp)
             search = StaticSearch(indptr, np.tile(np.arange(size, dtype=np.intp), rows)).check().prepare()
-            reads = {item: self._pairwise_read(item, spec, readers) for item in sorted(symbols, key=str)}
+            reads = {item: self._pairwise_read(item, spec, readers) for item in sorted(symbols, key=str)} | weighted
             index = len(self.neighbourhoods_)
             shape, members = ((rows,), rows) if readers is not None else ((), None)
             entry = EntrySpec(f'__neighbours_{index}', self.extent_, shape, RR, members)
@@ -565,11 +608,12 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     ) -> Expression | None:
         """Return a sum or mean over pairs whose terms factor into a reader part and an other part, else `None`.
 
-        A sum or mean over the other members `j` of `sum_k a_k(i) b_k(j)` is `sum_k a_k(i)` times the sum or mean of
-        `b_k(j)`, so it runs as one reduction per `b_k` over the members, at a cost linear in their number instead of
-        one value per pair. With at least as many parts `b_k` as members, the pairs cost less, and it returns `None`.
+        A sum or mean over the other members `j` of `sum_k a_k(i) b_k(j)`, weighted by `W_ij` or not, is `sum_k a_k(i)`
+        times the weighted sum or mean of `b_k(j)`, so it runs as one reduction per `b_k` over the members, at a cost
+        linear in their number instead of one value per pair. With at least as many parts `b_k` as members, the pairs
+        cost less, and it returns `None`.
         """
-        if reduction.kind not in {'sum', 'mean'} or reduction.weights is not None:
+        if reduction.kind not in {'sum', 'mean'}:
             return None
         expanded = argument.expand()
         terms = expanded.operands() if expanded.operator() is add_vararg else [expanded]
@@ -661,6 +705,104 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         compiled = self.found_[key]
         column = spec.set_index if compiled.weights is not None and spec.sets else 0
         self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, column, ReadKind.REDUCED))
+        return compiled.symbol
+
+    def _tensor_entry(self, call: Expression, spec: KernelSpec) -> tuple[ReferenceSpec, EntrySpec]:
+        """Return the reference and the entry of the tensor of a contraction, after checking its order and readers."""
+        tensor, *factors = call.operands()
+        reference = self._reference_of(tensor, spec)
+        block = self.declarations_.blocks.get(spec.group) if spec.group is not None else None
+        rows = block.rows if block is not None else None
+        entry = reference.entry if reference is not None else None
+        if entry is None or len(entry.shape) != len(factors) + 1 or entry.shape[0] != rows:
+            given = 'not a shaped parameter' if entry is None else f'of the shape {entry.shape}'
+            error_msg = (
+                f'The tensor {tensor} of the contraction {call} of {spec.owner} is {given}, but the contraction needs '
+                f'a shaped parameter of order {len(factors) + 1} whose first index runs over the {rows or "no"} '
+                'members of the reading group. Declare it `ParameterSpec(shape=(role,) * k)` on a role bound to a '
+                'group.'
+            )
+            raise ValidationError(error_msg)
+        return cast(ReferenceSpec, reference), entry
+
+    def _axis_reads(
+        self,
+        factor: Expression,
+        axis: int,
+        sizes: tuple[int, ...],
+        spec: KernelSpec,
+    ) -> tuple[Expression, dict[Expression, ReadSpec]]:
+        """Return the expression of one index of a contraction over the product of its indices, with its reads.
+
+        Every symbol of one member reads its value at the member of the index `axis` of every combination of members.
+        """
+        symbols = sorted(symbols_of([factor]) - {self.declarations_.time}, key=str)
+        group = self._group(ReductionSpec(factor, 'sum', factor, None, None, None), spec, set(symbols))
+        if group is not None and group in self.declarations_.capacity:
+            error_msg = (
+                f'A contraction of {spec.owner} reads the variable group {group}, whose members come and go. '
+                'Contract over a group of fixed members.'
+            )
+            raise ValidationError(error_msg)
+        renamed: dict[Expression, Expression] = {}
+        reads: dict[Expression, ReadSpec] = {}
+        for item in symbols:
+            read = self._read(item, spec, group, sizes[axis])
+            if read.per_member and len(cast(Indices, read.index)) != sizes[axis]:
+                error_msg = (
+                    f'The expression {factor} of index {axis + 1} of a contraction of {spec.owner} reads '
+                    f'{len(cast(Indices, read.index))} members, but the tensor has {sizes[axis]} along that index.'
+                )
+                raise ValidationError(error_msg)
+            name = symbol(f'_contracted_{axis}_{item}')
+            renamed[item] = name
+            if not read.per_member:
+                reads[name] = read
+                continue
+            shape = [1] * len(sizes)
+            shape[axis] = sizes[axis]
+            index = np.broadcast_to(np.asarray(read.index, dtype=np.intp).reshape(shape), sizes).ravel()
+            reads[name] = ReadSpec(read.is_state, np.ascontiguousarray(index))
+        return SR(factor).subs(renamed), reads
+
+    def _contraction(self, call: Expression, spec: KernelSpec) -> Expression:
+        """Return the placeholder of a contraction, a sum over every combination of members weighted by the tensor."""
+        reference, entry = self._tensor_entry(call, spec)
+        key = ('contraction', str(call), spec.group)
+        if key not in self.found_:
+            factors = [SR(self._lower(item, spec)) for item in call.operands()[1:]]
+            rows, sizes = entry.shape[0], tuple(entry.shape[1:])
+            argument, reads = SR(1), dict[Expression, ReadSpec]()
+            for axis, factor in enumerate(factors):
+                expression, axis_reads = self._axis_reads(factor, axis, sizes, spec)
+                argument, reads = argument * expression, reads | axis_reads
+            size = math.prod(sizes)
+            matrix = replace(entry, shape=(rows, size))
+            weights = ReadSpec(reference.is_state, (entry.start + np.arange(entry.size)).astype(np.intp), matrix)
+            index = len(self.found_)
+            placeholder = symbol(f'_reduced_{index}')
+            compiled = (
+                ReductionKernel(
+                    placeholder,
+                    'sum',
+                    argument,
+                    None,
+                    weights,
+                    entry=EntrySpec(f'__reduced_{index}', self.extent_, (rows,), RR, rows),
+                    size=size,
+                    group=spec.group,
+                    reads=reads,
+                    time=self.declarations_.time,
+                )
+                .check()
+                .prepare()
+            )
+            self.found_[key] = compiled
+            self.sequence_.append(compiled)
+            self.by_symbol_[placeholder] = compiled
+            self.readers_[placeholder] = spec.group
+        compiled = self.found_[key]
+        self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, 0, ReadKind.REDUCED))
         return compiled.symbol
 
     def _neighbor_group(

@@ -13,11 +13,11 @@
   shape and unbound roles scenarios
 - [x] 2.2 Let the weights of `total` and `mean` read a shaped parameter on the NumPy and Numba backends; verify the
   weighted input scenario on both
-- [ ] 2.3 Let `CouplingInteraction(mode='group')` take a shaped parameter as `weights` with a function of both members,
+- [x] 2.3 Let `CouplingInteraction(mode='group')` take a shaped parameter as `weights` with a function of both members,
   lowered to a matrix product when the function factors and to a pair loop otherwise; verify the generalized
   Lotka-Volterra coupling scenario on NumPy and Numba
 
-- [ ] 2.4 Add the reduction `contraction` to `skcomplex.core.laws.utils` with its NumPy and Numba lowering, and the
+- [x] 2.4 Add the reduction `contraction` to `skcomplex.core.laws.utils` with its NumPy and Numba lowering, and the
   `parameter-shape` issue of a tensor on an element; verify the contraction against NumPy and tensor on an element
   scenarios on NumPy and Numba
 

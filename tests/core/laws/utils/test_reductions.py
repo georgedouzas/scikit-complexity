@@ -795,10 +795,18 @@ def test_reduction_of_the_other_member_alone_is_the_group_reduction():
     assert drift.tolist() == [2.0] * 4
 
 
-def test_reduction_of_the_other_member_rejects_weights():
-    """Test that a reduction that reads the other and the reading member with weights raises an error."""
-    with pytest.raises(ValidationError, match='without weights'):
-        _pairwise_drift([0.0, 1.0], lambda g: total(g.other.x - g.x, weights=np.eye(2)), NumpyBackend())
+def test_reduction_of_the_other_member_rejects_constant_weights_of_pairs():
+    """Test that a term of both members that does not factor, with a constant weight matrix, raises an error."""
+    with pytest.raises(ValidationError, match='shaped parameter'):
+        _pairwise_drift([0.0, 1.0], lambda g: total(sin(g.other.x - g.x), weights=np.eye(2)), NumpyBackend())
+
+
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
+def test_reduction_of_the_other_member_weights_terms_that_factor(backend):
+    """Test that a weighted term of both members that factors gives `sum_j W_ij (x_j - x_i)`."""
+    x, weights = np.array([0.0, 1.0, 3.0]), np.arange(9.0).reshape(3, 3)
+    drift = _pairwise_drift(x, lambda g: total(g.other.x - g.x, weights=weights), backend)
+    np.testing.assert_allclose(drift, weights @ x - x * weights.sum(axis=1), atol=1e-12)
 
 
 class ImitatingElement(Element):

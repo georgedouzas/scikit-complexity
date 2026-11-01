@@ -7,6 +7,7 @@ from ....specs._draw_spec import bernoulli, categorical, draw, draws_in, normal,
 from ._agents import matches, random_pairing, transfer
 from ._components import components
 from ._conditions import both, either, mod, where
+from ._contractions import contraction, contractions_in
 from ._delays import delay1, delay3, delay_parts, distributed_delay, smooth
 from ._history import delayed, derivative, lag, residence
 from ._lookups import lookup
@@ -41,6 +42,8 @@ __all__: list[str] = [
     'circular_mean',
     'clip',
     'components',
+    'contraction',
+    'contractions_in',
     'count',
     'dagger',
     'delay1',
