@@ -6,6 +6,7 @@ from ._bodies import BodiesVisual
 from ._cayley import CayleyVisual
 from ._histograms import HistogramVisual
 from ._images import ImageVisual
+from ._matrices import MatrixVisual
 from ._meshes import MeshVisual
 from ._points import PointsVisual
 from ._quantum import ExpectationVisual
@@ -22,6 +23,7 @@ __all__: list[str] = [
     'ExpectationVisual',
     'HistogramVisual',
     'ImageVisual',
+    'MatrixVisual',
     'MeshVisual',
     'PhaseRingVisual',
     'PointsVisual',

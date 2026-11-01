@@ -19,7 +19,7 @@ from ...core.spaces import NetworkSpace
 from ...core.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
 from ...specs import RenewalRecordSpec
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, FrameSpec, LearningProblemSpec
 from ..runtime import BaseObserver
 from ._agents import AgentsVisual
 from ._base import BaseVisual
@@ -27,6 +27,7 @@ from ._bodies import BodiesVisual
 from ._cayley import CayleyVisual
 from ._histograms import HistogramVisual
 from ._images import ImageVisual
+from ._matrices import MATRIX_RANK, MatrixVisual
 from ._meshes import MeshVisual
 from ._points import PointsVisual
 from ._quantum import ExpectationVisual
@@ -52,6 +53,7 @@ _VISUALS: dict[str, type[BaseVisual]] = {
     'expectations': ExpectationVisual,
     'histograms': HistogramVisual,
     'image': ImageVisual,
+    'matrix': MatrixVisual,
     'mesh': MeshVisual,
     'phase_ring': PhaseRingVisual,
     'points': PointsVisual,
@@ -212,6 +214,7 @@ class RerunObserver(BaseObserver):
         self.visuals_: list[BaseVisual] = [
             *(self._visual_of(element).check().prepare(problem) for element in problem.elements),
             *(self._agents_visual_of(group, problem).check().prepare(problem) for group in agents),
+            *self._matrix_visuals(problem),
         ]
         spatial, series = self._ordered_views(problem)
         rows = [spatial, series] if self.primary is None else self._with_primary(spatial, series, self.primary)
@@ -316,8 +319,30 @@ class RerunObserver(BaseObserver):
             views.append(self._series_view([rrb.TimeSeriesView(origin='/parameters')], 'parameters'))
         return views
 
+    def _matrix_visuals(self, problem: BaseProblemSpec) -> list[BaseVisual]:
+        """Return the heat maps of the trained matrices of a system that trains, none for other problems."""
+        if not isinstance(problem, LearningProblemSpec):
+            return []
+        matrices = [entry.name for entry in problem.states.entries if len(entry.shape) == MATRIX_RANK]
+        return [
+            MatrixVisual(name.rpartition('.')[2], path=name.rpartition('.')[0], recording=self.recording_)
+            .check()
+            .prepare(problem)
+            for name in matrices
+        ]
+
+    def _learning_views(self, problem: LearningProblemSpec) -> list[rrb.View]:
+        """Return the time series view of the loss and the metrics over epochs, then the heat maps of the matrices."""
+        loss = rrb.TimeSeriesView(origin=f'/reporters/{problem.training}', name='loss')
+        return [loss, *(view for visual in self.visuals_ for view in visual.views_)]
+
     def _ordered_views(self, problem: BaseProblemSpec) -> tuple[list[rrb.View], list[rrb.View]]:
-        """Return the spatial views and the time series views of a problem, each in order of importance."""
+        """Return the spatial views and the time series views of a problem, each in order of importance.
+
+        A system that trains has no spatial view of its own, and its loss leads the heat maps of its matrices.
+        """
+        if isinstance(problem, LearningProblemSpec):
+            return [], [self._whole_run(view) for view in self._learning_views(problem)]
         spatial, series = self._element_views()
         spatial = [*spatial, *self._agent_views(problem)]
         series = [*self._scalar_views(problem), *series, *self._summary_views(problem)]

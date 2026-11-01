@@ -47,7 +47,7 @@
 
 ## 5. Visualization
 
-- [ ] 5.1 Add `MatrixVisual` in `engine/viz/_matrices.py`, chosen by `VisualSpec('matrix')`, the visual of a system
+- [x] 5.1 Add `MatrixVisual` in `engine/viz/_matrices.py`, chosen by `VisualSpec('matrix')`, the visual of a system
   that trains, and its place first in the default blueprint of `RerunObserver`; verify the recurrent weights, first
   view, and default blueprint scenarios
 
