@@ -20,5 +20,5 @@
 
 ## 3. Documentation and gate
 
-- [ ] 3.1 Add the changelog entry, and verify the finite-volume models' tests pass
+- [x] 3.1 Add the changelog entry, and verify the finite-volume models' tests pass
 - [ ] 3.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
