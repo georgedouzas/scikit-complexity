@@ -56,13 +56,19 @@ Linux and macOS on Python 3.12 and 3.13, maintenance, and an interface the compi
 | PyDEC | discrete exterior calculus on simplicial and cubical complexes | rejected: not installable from PyPI under its name |
 | `fdtd`, MEEP | finite-difference time-domain electromagnetics | rejected: own grid model, no graphs, MEEP is GPL and conda only |
 | GUDHI, Ripser | persistent homology of filtrations | rejected: a different task, the Betti numbers of one complex are a rank computation |
+| XGI 0.10.2 | simplicial complexes, `xgi.linalg.hodge_matrix.boundary_matrix` and `hodge_laplacian` of every order | wrapped: incidence of simplicial faces; already a runtime dependency |
+| TopoNetX 0.4.0 | cell, simplicial, and combinatorial complexes with signed incidence and Hodge Laplacians | test oracle only: MIT, but heavy dependencies such as `pyarrow`, `trimesh`, and `requests`, modest use, 617 downloads a month in October 2026, and no Hodge decomposition or Betti numbers |
 | NetworkX | oriented incidence, cycle bases, cliques, greedy coloring | wrapped: network complexes, faces, and coloring |
 | SciPy | sparse matrices and sparse least squares | wrapped: incidence products, Hodge decomposition, and ranks |
 | Numba | compiled loops | wrapped: gather kernels of the exterior calculus |
 
-No maintained library holds exterior calculus on lattices and graphs with a permissive licence and wheels. The in-house
-parts are the index tables of cubical complexes and the lowering of the operators, thin code over NumPy, SciPy,
-NetworkX, and Numba, which the project already depends on.
+No maintained library holds exterior calculus on lattices and graphs with a permissive licence and wheels. XGI, which
+the project already depends on for hypergraphs and simplicial complexes, builds the oriented boundary matrices of a
+simplicial complex, so the incidence of simplicial faces comes from it. The in-house parts are the index tables of
+cubical complexes, the incidence of faces that are not simplices, and the lowering of the operators, thin code over
+NumPy, SciPy, NetworkX, and Numba. TopoNetX computes the same signed incidence and Hodge Laplacians for cell
+complexes, but adds heavy dependencies for a use XGI and the in-house tables cover, so it serves only as a parity
+oracle in the tests, next to XGI.
 
 ## Decisions
 
@@ -87,6 +93,16 @@ It sets `incidences_`, the oriented incidence matrices between consecutive degre
 `±1`, and `cofaces_`, the padded table of the cells of the next degree that contain every cell, which the kernels read.
 A face whose node cycle uses a pair the graph does not join raises a `SpaceError` that names the face and the missing
 edge, in `_prepare`.
+
+The incidence matrices come from two sources:
+- Simplicial faces, the `'cliques'` complex and `'hyperedges'` whose every hyperedge is a simplex all of whose faces the
+  complex holds, such as triangles of graph edges, are added to an `xgi.SimplicialComplex` on the integer node indices,
+  and `xgi.linalg.hodge_matrix.boundary_matrix(complex, order, orientations, index=True)` builds the incidence of every
+  order, converted to CSR. Using node indices makes XGI's reference orientation, the sorted vertex order, agree with
+  the node order of the space, and `orientations` carries the parity of every hyperedge's given node order against it.
+  The row and column dictionaries map XGI's simplex IDs back to the space's numbering of edges and hyperedges.
+- Lattice complexes, minimum cycle bases, given node cycles, and hyperedges that are not simplices keep the in-house
+  tables, which sum the oriented edges around each face.
 
 Alternative considered: letting `LatticeSpace` offer edges and hyperedges directly. It would duplicate the orientation
 and incidence logic in two spaces, and groups on edges already need a network space.
@@ -177,5 +193,11 @@ selects.
   the gallery uses 2D lattices.
 - [Metropolis decorrelates links slower than heat-bath on U(1)] → The scenarios allow the longer runs, and an exact
   heat-bath move can follow without changing the interface.
+- [XGI builds dense boundary matrices with Python loops] → The space converts them to CSR once in `_prepare`, the
+  simplicial complexes of the models have at most a few thousand faces, and the lattice tables, which grow largest,
+  stay in house.
+- [XGI and the in-house tables could orient a cell differently] → The tests compare the incidence of the clique complex
+  and of simplicial hyperedges with XGI's boundary matrices and with TopoNetX's `incidence_matrix` up to the orientation
+  of each cell, and check that consecutive products vanish.
 - [A face sum read as a holonomy holds only for abelian groups] → Non-abelian links are a non-goal, and the docstring of
   `CofaceNeighborhood` says so.

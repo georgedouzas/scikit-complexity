@@ -76,7 +76,7 @@ Checked on 2026-10-19 against PyPI, GitHub, and spike installs in Python 3.13 on
 |---|---|---|---|
 | SciPy | BSD-3-Clause | `optimize.root`, `special.logsumexp`, `spatial.cKDTree`, `sparse.csgraph` | already a dependency |
 | Sage (passagemath) | GPL | exact `solve` of algebraic equations | already the symbolic layer |
-| PySAT 1.9.dev16 | MIT, with permissive bundled solvers | incremental SAT with `add_clause` and cardinality encodings in `pysat.card` | adopt as a runtime dependency |
+| PySAT 1.9.dev17 | MIT, with permissive bundled solvers | incremental SAT with `add_clause` and cardinality encodings in `pysat.card` | adopt as a runtime dependency |
 | OR-Tools CP-SAT 9.15 | Apache-2.0 | constraint programming | reject: pulls `protobuf`, `absl-py`, and `pandas` pins for a feature PySAT covers |
 | pymoo 0.6.2 | Apache-2.0 | DE, PSO, ES, CMA-ES with ask and tell | adopt as a runtime dependency |
 | DEAP 1.4.4 | LGPL-3.0 | evolutionary toolkit | reject: hand-written loops where pymoo gives the algorithms |
@@ -84,10 +84,12 @@ Checked on 2026-10-19 against PyPI, GitHub, and spike installs in Python 3.13 on
 | nevergrad 1.0.12 | MIT | ask-and-tell optimisers | reject: pins `bayesian-optimization==1.4.0` |
 | nashpy 0.0.43 | MIT | two-player equilibria | reject: no model needs equilibrium enumeration |
 
-PySAT publishes only `.dev` versions, so the manifest pins `python-sat>=1.9.dev16`, which admits pre-releases for that
-package in pip, uv, and PDM. The spike measured a mean critical load of 0.85 at `N = 21` over 20 draws, at 0.11 s per
-draw, against 0.83 in the limit, and DE reaching 0.0 on the 2-D Rastrigin function by generation 50 with 40
-candidates.
+PySAT publishes only `.dev` versions: all 177 releases on PyPI are pre-releases, the latest 1.9.dev17 of 2026-10-20,
+with wheels for Python 3.12 and 3.13 on Linux and macOS. The manifest already declares `python-sat>=1.8.dev16`, which
+admits pre-releases for that package in pip, uv, and PDM, and this change keeps that specifier. Depending on a project
+that never cuts a final release is an accepted risk, recorded under Risks. The spike measured a mean critical load of
+0.85 at `N = 21` over 20 draws, at 0.11 s per draw, against 0.83 in the limit, and DE reaching 0.0 on the 2-D Rastrigin
+function by generation 50 with 40 candidates.
 
 ### Log-sum-exp
 
@@ -153,7 +155,11 @@ The sweeps of the gallery examples are `Experiment`s with `GridDesign`, and the 
 ## Risks / Trade-offs
 
 - [The SAT cost grows exponentially near the critical load] → The gallery uses `N` of at most 21.
-- [Two new runtime dependencies] → PySAT is small, and pymoo brings `cma`, `autograd`, `moocore`, and `matplotlib`,
-  which the documentation already installs. deptry learns that they are used.
+- [Two new runtime dependencies] → PySAT is small and already declared. pymoo 0.6.2 brings the transitive runtime
+  dependencies `autograd`, `alive_progress`, `Deprecated`, `moocore`, `cma`, and `matplotlib`, of which only
+  `matplotlib` is already installed, by the `docs` dependency group. deptry learns that pymoo is used.
+- [PySAT publishes only pre-releases] → Accepted. The specifier `python-sat>=1.8.dev16` opts into pre-releases for that
+  package alone, the wheels cover every supported platform, and the lock file pins the exact `.dev` version, so an
+  install is reproducible. A final release, if one appears, satisfies the same specifier.
 - [Sage's `solve` may be slow on large groups] → The compiler tries it only on systems below a size limit and falls back
   to the numerical solve, which a scenario checks.

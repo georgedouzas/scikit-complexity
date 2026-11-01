@@ -72,6 +72,7 @@ satisfiability, population optimisers beyond genetic algorithms, a cooling tempe
   `SamplingInteraction` gains `cooling`.
 - `skcomplex.specs` gains `ClauseSpec`, `CardinalitySpec`, `DifferentialEvolutionSpec`, `ParticleSwarmSpec`,
   `EvolutionStrategySpec`, and `CovarianceAdaptationSpec`.
-- New runtime dependencies `python-sat` and `pymoo`, which the core uses. SciPy is already a dependency.
+- A new runtime dependency `pymoo`, which the core uses, with its transitive dependencies. `python-sat`, which
+  publishes only pre-releases, is already declared as `python-sat>=1.8.dev16`, and SciPy is already a dependency.
 - The package `skcomplex.models.social.language` is new, and `docs/overview/inventory.toml` marks the nine entries
   implemented.

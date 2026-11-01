@@ -28,7 +28,12 @@ curated gallery example and an inventory entry tagged with the system it builds.
 - **WHEN** `next_generation_reservoir` is fitted to a training window of the Lorenz flow
 - **THEN** its forecast stays within 10% of the attractor size of the true trajectory for at least one Lyapunov time
 
+### Requirement: The next-generation reservoir reuses the analysis readout
+`next_generation_reservoir` SHALL take its readout from a fitted `ReservoirAnalysis(kind='next_generation')` and SHALL
+NOT fit a readout of its own.
+
 #### Scenario: Agreement with the reservoir analysis
-- **WHEN** `next_generation_reservoir` and `ReservoirAnalysis(kind='next_generation')` are fitted to the same series
-  with the same delay and order
-- **THEN** their forecasts over one Lyapunov time agree within 1% of the attractor size
+- **WHEN** `next_generation_reservoir` is built from the readout of a `ReservoirAnalysis(kind='next_generation')`
+  fitted to a series, and both forecast from the end of that series
+- **THEN** the system's forecast over one Lyapunov time agrees with the analysis's `forecast_` within 1e-6 of the
+  attractor size

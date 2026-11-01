@@ -32,6 +32,18 @@ while it declares its laws as `IssueSpec`s of its `report_`.
 
 ## Decisions
 
+### Build on the framework, not on a mechanics library
+
+A library audit on 2026-11-01 found no Python library to take this capability from, so the plan stays in house:
+- REBOUND 5.2.2 ships symplectic integrators such as WHFast and the Wisdom-Holman family, but it is GPL and integrates
+  only gravitational N-body problems of its own particles. It cannot step a compiled vector field of arbitrary states,
+  and `n_body` and `two_body_orbit` already run on the framework's solvers.
+- No Python library composes symplectic integrators, such as Yoshida's fourth-order scheme, over an arbitrary compiled
+  field, so `Yoshida4Solver` composes the existing `VelocityVerletSolver` step.
+- Poisson brackets, Lie derivatives, and the first-order variation of a Hamiltonian are a few lines of Sage
+  differentiation over the canonical pairs. No library offers them as a reusable component over a system's namespace,
+  so `InvariantAnalysis` holds only that glue on top of Sage, the symbolic layer every law is written in.
+
 ### Hamilton's equations as rate laws
 
 `HamiltonianInteraction(label, *, target, coordinates='q', momenta='p', hamiltonian=None)` derives

@@ -25,7 +25,8 @@ regions of a map, so an agent cannot be placed in a region, ask which regions co
 - Add `regions` to `ContinuousSpace`, a mapping from a layer name to a sequence of Shapely polygons in the coordinates
   of the space. `prepare` indexes them with Shapely's `STRtree`.
 - Let a location of a member, in `GroupElement(location=...)`, in `ModelView.create`, and in `AgentView.move_to`, be a
-  Shapely polygon, which places the agent at a random point inside it drawn from the simulation's generator.
+  Shapely polygon, which places the agent at a point drawn uniformly inside it from the simulation's generator, over
+  the area-weighted triangles of Shapely's `constrained_delaunay_triangles`.
 - Add `AgentView.regions_here(layer)`, the indices of the regions of a layer that contain the agent, and
   `ModelView.region(layer, index)`, the polygon of a region, so a `MovementInteraction` step moves an agent to a region
   and an agent-form interaction reads where it stands.
@@ -48,7 +49,8 @@ regions of a map, so an agent cannot be placed in a region, ask which regions co
 ## Impact
 
 - `skcomplex.core.spaces.ContinuousSpace` gains `regions` and the derived `regions_` index. No space class and no
-  dependency are added, since Shapely is already a runtime dependency.
+  dependency are added, since Shapely is already a runtime dependency; its minimum rises from 2.1 to 2.2 for
+  `constrained_delaunay_triangles`, which places agents uniformly in a polygon.
 - `MesaSolver` in `skcomplex.engine.solvers` builds Mesa's continuous space from every side, rejects unsupported
   continuous spaces in `_unsupported`, places agents in polygons, and its views gain `regions_here` and `region`.
 - `PassCompiler` gains the issue `location-dimension`. `SpaceError` widens to a location that does not fit its space.

@@ -27,7 +27,8 @@ visual of cells. This change adds those and the four models.
 - Add `CellComplexSpace` to `skcomplex.core.spaces`, a `NetworkSpace` derived from a `LatticeSpace` or a `NetworkSpace`:
   its nodes are the sites or nodes, its edges the oriented links or edges, and its hyperedges the oriented plaquettes or
   faces in cyclic node order, taken from the lattice, from given node cycles, from the hyperedges of the network, from a
-  minimum cycle basis, or from the cliques of the network. It holds the oriented incidence between consecutive degrees.
+  minimum cycle basis, or from the cliques of the network. It holds the oriented incidence between consecutive degrees,
+  built by XGI's `boundary_matrix` for simplicial faces and by in-house tables for lattices and cycles.
 - Add the exterior calculus to `skcomplex.core.laws.utils`: `exterior_derivative`, `codifferential`, and `hodge_star`,
   which act on the states of groups on the sites, edges, and hyperedges of a cell complex, lowered to sparse incidence
   products on NumPy and gather loops on Numba.
@@ -66,4 +67,5 @@ visual of cells. This change adds those and the four models.
   `law-degree`. `skcomplex.engine.backends` gains their NumPy and Numba kernels.
 - `skcomplex.analysis` gains `CellComplexAnalysis`, and `skcomplex.engine.viz` gains `CellVisual`.
 - `skcomplex.models` gains four models, and `docs/overview/inventory.toml` marks them implemented.
-- No new runtime dependency. The feature builds on NumPy, SciPy sparse matrices, NetworkX, and Numba.
+- No new runtime dependency. The feature builds on NumPy, SciPy sparse matrices, NetworkX, XGI, and Numba.
+- The `tests` dependency group gains TopoNetX, used only as a parity oracle for the incidence matrices.

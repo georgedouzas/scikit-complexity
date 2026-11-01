@@ -21,7 +21,7 @@ regime. It SHALL raise `MissingExtraError` without the extra `rna`.
 #### Scenario: Model that needs the extra
 - **WHEN** a user without the extra `rna` creates `rna_neutral_networks`
 - **THEN** a `MissingExtraError` names the model and the extra, and `fuzzy_oil_drop` and
-  `early_stage_folding_intermediate` still run
+  `early_stage_folding_intermediate` still run with the extra `structures`
 
 ### Requirement: RNA folds and neutral networks are analysed in the evolution package
 The package `skcomplex.models.biology.evolution` SHALL fold an RNA sequence into its minimum free energy secondary
@@ -58,9 +58,11 @@ clash penalty. Its catalog entry SHALL declare `RD` and `K` as observables in th
 - **WHEN** the model folds the Trp-cage sequence from an extended chain at temperature zero for 300 units of time
 - **THEN** `RD` never increases, and the radius of gyration at the end is lower than at the start
 
+
 ### Requirement: Structures and the fuzzy oil drop live in the systems biology package
 The package `skcomplex.models.biology.systems_biology` SHALL read and write PDB and mmCIF files as structures holding
-every model of an ensemble, read molecular dynamics trajectories with the extra `trajectories`, rebuild a protein
+every model of an ensemble with the extra `structures`, read molecular dynamics trajectories with the extra
+`trajectories`, rebuild a protein
 backbone from its dihedral angles, and provide `FuzzyOilDropAnalysis`, a subclass of `BaseAnalysis` that gives `T`,
 `O`, `R`, the divergences, `RD`, and `K` of a structure and a hydrophobicity scale.
 
@@ -104,6 +106,14 @@ heat-bath rule of `SamplingInteraction` from per-amino-acid probabilities estima
 - **WHEN** the model samples the cells of a sequence for 300 units of time
 - **THEN** each residue's frequency of each cell over the last 200 frames matches its amino acid's probability within
   0.15
+
+### Requirement: Protein models need the structures extra
+`fuzzy_oil_drop` and `early_stage_folding_intermediate` SHALL read structures through Biopython from the extra
+`structures`, and SHALL raise `MissingExtraError` without it while staying listed in the catalog.
+
+#### Scenario: Protein model that needs the extra
+- **WHEN** a user without the extra `structures` creates `fuzzy_oil_drop` or `early_stage_folding_intermediate`
+- **THEN** a `MissingExtraError` names the model, the extra `structures`, and the install command
 
 ### Requirement: Molecular structure models are recorded in the model inventory
 Every model this change adds SHALL register under the field path of its subfield and SHALL be marked implemented in

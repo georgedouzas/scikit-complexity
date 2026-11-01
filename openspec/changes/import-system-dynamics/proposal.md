@@ -46,7 +46,9 @@ What is missing is only the translation from a file to those names.
   vector functions, data read from spreadsheets, macros, variables subscripted over more than one range, and models
   that mix subscripted and unsubscripted stocks raise one error that lists every unsupported construct with its
   variable.
-- **Dependency:** PySD becomes a runtime dependency, since `skcomplex.engine` imports it.
+- **Dependency:** PySD becomes a runtime dependency as `pysd>=3.14.3,<4`, since `skcomplex.engine` imports it. Its
+  last release is of 2025-03-23 and its classifiers stop at Python 3.12, so a CI job checks the translator on Python
+  3.13.
 
 ## Capabilities
 
@@ -62,8 +64,9 @@ What is missing is only the translation from a file to those names.
 - **Code:** a new package `skcomplex.engine.translators` with `SystemDynamicsTranslator`, and a frozen
   `RunSettingsSpec(start, until, dt, save_every)` in `skcomplex.specs`. The import-linter contracts place the package
   in the engine's layers. No core class changes.
-- **Dependencies:** `pysd` in `[project] dependencies`, with its own dependencies, such as `parsimonious`, `xarray`,
-  and `pandas`.
+- **Dependencies:** `pysd>=3.14.3,<4` in `[project] dependencies`, with its own dependencies, such as `parsimonious`,
+  `xarray`, `lxml`, and `black`.
+- **CI:** a job that runs the translator tests on Python 3.13.
 - **Tests:** small Vensim and XMILE fixtures under `tests/fixtures`, including the classic teacup and SIR models, each
   translated, imported from a temporary directory, and compared against PySD's own run of the same file.
 - **Docs:** a user-guide section on translating models and one gallery example that translates a published model,

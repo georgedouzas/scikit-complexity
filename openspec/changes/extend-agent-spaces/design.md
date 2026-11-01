@@ -58,8 +58,10 @@ Three-dimensional continuous space:
   adapter.
 
 Regions of a map:
-- **Shapely 2, chosen.** It is the reference geometry library, BSD-3, already a runtime dependency, and gives
-  polygons, containment, and the `STRtree` index the region queries need.
+- **Shapely 2.2, chosen.** It is the reference geometry library, BSD-3, already a runtime dependency, and gives
+  polygons, containment, the `STRtree` index the region queries need, and, from 2.2.0 of 2026-10-07, the constrained
+  Delaunay triangulation of a polygon that uniform placement needs. The manifest's `shapely>=2.1` rises to
+  `shapely>=2.2`.
 - **`mesa-geo` 0.9.3, rejected.** It needs `geopandas`, `pyproj`, `rasterio` with GDAL, `ipyleaflet`, and `folium`.
   `pyproj` 3.8 ships macOS wheels for macOS 14 on Apple silicon and macOS 15 on Intel only, above the macOS 13 floor of
   the Project Profile, and the profile makes every library `skcomplex.engine` uses a runtime dependency, so it would
@@ -102,9 +104,12 @@ Rules reach the regions through the views of `MesaSolver`:
 - a location may be a polygon, in `GroupElement(location=...)`, `ModelView.create`, and `AgentView.move_to`, and the
   solver places the agent at a random point inside it.
 
-Random points inside polygons use rejection sampling in the polygon's bounds with the model's NumPy generator, so runs
-stay reproducible under the simulation's seed. After a fixed number of tries, sampling falls back to the polygon's
-`representative_point`.
+Random points inside polygons are exact and uniform. The solver triangulates every polygon once with Shapely 2.2's
+`constrained_delaunay_triangles`, which respects the polygon's edges and holes, and keeps the triangles and their
+areas. A point is drawn with the model's NumPy generator in two steps: a triangle with probability proportional to its
+area, then a uniform point in it from two uniform numbers, reflected into the triangle when their sum exceeds one. Every
+draw comes from the generator, so runs stay reproducible under the simulation's seed, and a thin or concave polygon
+costs the same as a square, so no rejection loop and no `representative_point` fallback is needed.
 
 A group drawn from a region layer is then plain `GroupElement` arguments: the model package computes the size and the
 values from the attributes of the regions, such as one member per resident of a census region, and passes the region
@@ -149,8 +154,10 @@ and its package stays self-contained.
   without changing the spec.
 - [Users with shapefiles in geographic coordinates] → The user guide shows how to reproject them before passing the
   polygons. Distances in an unprojected space are in degrees, which the guide states once.
-- [Random points in thin polygons make rejection sampling slow] → Sampling falls back to a point on the polygon's
-  `representative_point` after a fixed number of tries, and the fallback is recorded in the docstring.
+- [Triangulating many large polygons costs time at preparation] → Each polygon is triangulated once and cached with
+  its triangle areas, and the synthetic island's polygons have tens of vertices.
+- [Shapely 2.2 is recent] → It ships wheels for Python 3.12 and 3.13 on Linux x86_64 and aarch64 and on macOS x86_64
+  and arm64, and the minimum rises to `shapely>=2.2` in the manifest and the Project Profile.
 - [Real census and commuting data cannot ship or be downloaded in tests] → The synthetic island has the same layer
   schema, and the user guide shows how to load public census shapefiles.
 

@@ -48,8 +48,20 @@
   time. Decided on 2026-11-01.
 
 ### Library survey
-- **PySD 3, chosen.** It is the maintained Python reader of Vensim and XMILE, MIT licensed, and its abstract model is a
-  documented, language-neutral boundary.
+- **PySD 3, chosen.** It is the Python reader of Vensim and XMILE, MIT licensed, and its abstract model is a
+  documented, language-neutral boundary. The audit of 2026-11-01 recorded three caveats:
+  - Its last release, 3.14.3, is of 2025-03-23, more than 12 months old, although the repository still takes commits,
+    such as dependency updates in October 2026.
+  - Its classifiers stop at Python 3.12, while the project supports 3.13. A spike on Python 3.13 with NumPy 2.5.4,
+    pandas 3.1.0, and xarray 2026.9.0 parsed the teacup model with `VensimFile(path).parse()` and
+    `get_abstract_model()`, and PySD's run ended at the temperature 75.374.
+  - Its runtime dependencies are heavy for a reader: `parsimonious`, `xarray`, `pandas[excel]`, `lxml`, `regex`,
+    `chardet`, `black`, `openpyxl`, `progressbar2`, and `portion`, besides NumPy and SciPy. The first task lists which
+    of them are new to the install.
+
+  PySD stays the choice, since no other library parses Vensim, and the constraint `pysd>=3.14.3,<4` keeps a major
+  release that changes the abstract model out until it is checked. A CI job on Python 3.13 runs the translator tests,
+  so a break on the Python version PySD does not declare shows up at once.
 - **Parsing Vensim and XMILE in house, rejected.** Vensim's grammar alone is the bulk of PySD, and the constitution
   takes such a capability from a mature library.
 - **BPTK-Py, rejected.** It interprets XMILE with its own runtime and exposes no abstract model to translate.
@@ -145,12 +157,17 @@ co-simulation are already in the library and are not listed.
 
 ## Risks / Trade-offs
 
-- [PySD's abstract model could change between versions.] → Pin a compatible range, keep all access in the one
+- [PySD's abstract model could change between versions.] → Constrain `pysd>=3.14.3,<4`, keep all access in the one
   translation table, and test against fixtures in CI.
+- [PySD has not released since 2025-03-23 and declares no support for Python 3.13.] → The CI job on Python 3.13 runs
+  the translator tests against the fixtures. If PySD stops installing or parsing on a supported Python version, the
+  translator is the only module that imports it, so it can be replaced or its dependency moved without touching the
+  core.
 - [Delays: Vensim integrates delay chains with Euler steps, while `delay1`, `delay3`, and `distributed_delay` are exact
   under adaptive solvers.] → The tests compare against PySD with a small time step and a tolerance, and the user guide
   states that runs with the file's own `dt` may differ by the Euler error.
-- [Heavy dependencies (xarray, pandas).] → The first task lists which of them are new to the install.
+- [Heavy dependencies (xarray, the Excel readers of pandas, lxml, black, and others).] → The first task lists which of
+  them are new to the install, and `pandas` is already a runtime dependency.
 - [Flows that are a sum of several flow variables in one term, such as `INTEG(a + b - c)`.] → They are split into
   terms, and each flow variable is classified on its own.
 - [A user edits the generated module.] → That is the intent: it is ordinary model code.

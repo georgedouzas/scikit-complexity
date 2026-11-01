@@ -17,11 +17,16 @@
   lowered to a matrix product when the function factors and to a pair loop otherwise; verify the generalized
   Lotka-Volterra coupling scenario on NumPy and Numba
 
+- [ ] 2.4 Add the reduction `contraction` to `skcomplex.core.laws.utils` with its NumPy and Numba lowering, and the
+  `parameter-shape` issue of a tensor on an element; verify the contraction against NumPy and tensor on an element
+  scenarios on NumPy and Numba
+
 ## 3. JAX backend
 
 - [ ] 3.1 Add `JaxBackend` in `engine/backends/_jax.py` with its `DialectSpec`, for discrete maps and ODEs with
   reductions and shaped parameters, and its `SupportSpec`; verify the weighted input and coupling scenarios on JAX and
-  forward agreement with NumPy within 1e-10 on `logistic_map` and `lotka_volterra`
+  forward agreement with NumPy within 1e-10 on `logistic_map` and `lotka_volterra`, and the contraction against NumPy
+  scenario on JAX
 
 ## 4. Training law and learning solver
 
@@ -38,7 +43,7 @@
 - [ ] 4.4 Run systems holding the law through `Simulation` with whole-epoch `dt`, seeded shuffling, and the recorded
   loss and metrics; verify the epochs as frames, time between frames, loss at the start, masked steps, same seed, and
   updates per epoch scenarios
-- [ ] 4.5 Verify the trained model agrees with training, Lotka-Volterra fit, and Oja's rule scenarios
+- [ ] 4.5 Verify the trained model agrees with training, Lotka-Volterra fit, Oja's rule, and tensor trains scenarios
 
 ## 5. Visualization
 
@@ -55,6 +60,11 @@
   error-by-position figure; verify the gallery example scenario and the gallery checks
 - [ ] 6.3 Rebuild `GeneralizedLotkaVolterraInteraction` on `CouplingInteraction(mode='group')` with a shaped matrix
   parameter and the growth as a `RateInteraction`; verify the rebuilt community and matrix swept scenarios
+- [ ] 6.4 Add `higher_order_random_lotka_volterra` to `biology/ecology` on a shaped tensor parameter and `contraction`,
+  with a curated gallery example, and mark its inventory entry implemented in place of `pending
+  add-higher-order-interactions`, with the tags of the system it builds, a group with no network and no hyperedge
+  binding; verify the no interactions and random community scenarios, the conformance suite, and the inventory
+  check
 
 ## 7. Documentation and gate
 

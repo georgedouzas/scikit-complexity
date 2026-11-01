@@ -23,7 +23,8 @@ decomposition of a system with control inputs, which the Koopman controller need
   discrete-time controller whose `MapInteraction` sets the control from a `CallSpec` that solves the predictive problem
   on the fitted surrogate.
 - Add `next_generation_reservoir` to `computer_science/neural_networks`: an element whose variables keep lags, and a
-  `MapInteraction` in the increment mode whose function is a ridge readout of polynomial features.
+  `MapInteraction` in the increment mode whose function is the ridge readout of polynomial features that the existing
+  `ReservoirAnalysis(kind='next_generation')` fits with ReservoirPy's `NVAR` and `Ridge`, with no second fit.
 - Give each model a curated gallery example with a review row, and set its inventory entry to implemented with the tags
   of the system it builds.
 

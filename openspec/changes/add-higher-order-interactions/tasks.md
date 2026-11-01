@@ -25,11 +25,8 @@
 
 - [x] 3.2 Run symbolic laws in ordered phases within one step, each phase reading the states the previous one wrote, on NumPy and Numba; move `triadic_percolation` off its step parity; verify a payoff then imitation in one step against a loop
 
-## 4. Tensors and growth
+## 4. Growth
 
-- [ ] 4.1 Add the reduction `contraction` with its NumPy and Numba lowering, on the shaped parameters of
-  `add-learning-dynamics`, and the `parameter-shape` issue of a tensor on an element; verify the contraction and tensor
-  on an element scenarios
 - [x] 4.2 Add the `hyperedge` argument of `TopologyInteraction(action='add-node')` with growing hyperedge tables;
   verify the triangle attachment scenario
 
@@ -37,14 +34,13 @@
 
 ## 5. Models
 
-- [ ] 5.1 Add `hypergraph_kuramoto`, `simplicial_contagion`, `triadic_percolation`, and
-  `higher_order_random_lotka_volterra` with curated gallery examples; verify the explosive synchronization and
-  bistable contagion scenarios
+- [ ] 5.1 Add `hypergraph_kuramoto`, `simplicial_contagion`, and `triadic_percolation` with curated gallery examples;
+  verify the explosive synchronization and bistable contagion scenarios
 - [ ] 5.2 Add `hypergraph_consensus`, `simplicial_social_dilemmas`, `hypergraph_public_goods`,
   `hypergraph_exposure_sis`, `hypergraph_random_walk`, and `growing_simplicial_complex`; verify each model's tests
 - [ ] 5.3 Rebuild `galam_majority` and `public_goods_game` on the symbolic grouping, `DiscussionsInteraction` as a thin
   subclass; verify the Galam scenario and the public goods game over 20 seeds
-- [ ] 5.4 Mark the ten probe entries implemented in `docs/overview/inventory.toml`; verify the inventory check passes
+- [ ] 5.4 Mark the nine probe entries implemented in `docs/overview/inventory.toml`; verify the inventory check passes
 
 ## 6. Documentation and gate
 

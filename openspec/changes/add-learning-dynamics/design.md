@@ -187,6 +187,22 @@ the generalized Lotka-Volterra gap: `GeneralizedLotkaVolterraInteraction` become
 interaction matrix `a` is a shaped parameter, with `function=lambda s: s.target.x * s.source.x`, beside the growth
 `b x` as a `RateInteraction`, so experiments sweep and fit the matrix.
 
+### Coupling tensors
+
+A k-body tensor is a parameter of an interaction declared `ParameterSpec(shape=('target',) * k)`, whose value a
+factory draws with its `random_state`. No core class draws it. `contraction(tensor, *expressions)` in
+`skcomplex.core.laws.utils` returns `sum_jk T_ijk a_j b_k` for every member `i`, with one expression per index after the
+first, and lowers to `numpy.einsum`, a Numba loop over the indices, and `jax.numpy.einsum`, so a tensor trains like a
+matrix. A tensor whose role binds a single element gets the issue `parameter-shape`, as every shaped parameter does,
+with the fix of binding a group. Matrices keep `total(x, weights=W)`, and the user guide shows `contraction` for
+tensors of order 3 and above.
+
+This part moved from `add-higher-order-interactions`, which planned it on the shaped parameters of this change. Its
+model moved with it: `higher_order_random_lotka_volterra` in `biology/ecology`, after Sidhom and Galla (2024, arXiv
+2409.10990), is a group of species with logistic growth as a `RateInteraction` and a rate `x_i contraction(T, x, x) / N`
+from a random symmetric tensor `T` of order 3 with mean `mu` and standard deviation `sigma`, drawn by the factory from
+its `random_state`.
+
 ### Local learning rules need nothing new
 
 Hebb's and Oja's rules change a weight from its own pre- and postsynaptic activity, so they are update or rate laws on
@@ -270,12 +286,17 @@ platforms narrow to Linux and macOS 13 or later on Apple silicon.
   scenario against finite differences catches a broken lowering.
 - [Large matrices make the flat parameter vector long] → Parameters stay one vector so the layout, trajectory, and
   schedules work. JAX reshapes slices without copies inside `jit`.
+- [A coupling tensor of order k over N members holds N^k entries] → The documentation states the memory, and
+  `higher_order_random_lotka_volterra` keeps N at 100 for order 3, a million entries.
 - [The rebuilt generalized Lotka-Volterra model changes the order of sums] → It is compared with its previous trajectory
   within 1e-10.
 
 ## Migration Plan
 
 - The inventory entry of `elman_network` moves from `blocked add-learning-dynamics` to implemented when the model lands.
+- The inventory entry of `higher_order_random_lotka_volterra`, recorded as `pending add-higher-order-interactions`
+  with hypergraph tags, is marked implemented by this change when the model lands, with the tags of the group system it
+  builds.
 - The Project Profile gains `jax`, `optax`, and `diffrax` as runtime dependencies, the JAX backend, and the narrowed
   macOS platform, in the same PR as the code.
 - No public name is removed or renamed.

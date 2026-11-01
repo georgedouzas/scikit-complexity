@@ -14,7 +14,8 @@
 - [ ] 2.3 Add `koopman_model_predictive_control` to `engineering/control` with the three plants, the fit, and the
   co-simulated controller, and verify the surrogate predictive control scenario for each plant
 - [ ] 2.4 Add `next_generation_reservoir` to `computer_science/neural_networks` with lagged states and the ridge
-  readout, and verify the reservoir forecast and the agreement with `ReservoirAnalysis` scenarios
+  readout taken from a fitted `ReservoirAnalysis(kind='next_generation')`, and verify the reservoir forecast and the
+  agreement with `ReservoirAnalysis` scenarios
 
 ## 3. Gallery and gate
 

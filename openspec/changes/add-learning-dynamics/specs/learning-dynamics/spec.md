@@ -175,6 +175,25 @@ shape, and changed or trained like a scalar parameter. The compiler SHALL report
 - **THEN** the compiler's report holds an issue with the code `parameter-shape` whose path is the parameter and whose
   fix asks for a group
 
+### Requirement: Tensors couple k members
+A parameter declared `ParameterSpec(shape=(role,) * k)` SHALL hold a k-body coupling tensor over the members of the
+group the role binds, and the reduction `contraction` SHALL contract it with one expression per index after the first,
+on the NumPy, Numba, and JAX backends.
+
+#### Scenario: Contraction against NumPy
+- **WHEN** a rate reads `contraction(T, x, x)` with a random tensor `T` of order 3 over 20 members
+- **THEN** the compiled rate equals `numpy.einsum('ijk,j,k->i', T, x, x)` within 1e-12 on the NumPy, Numba, and JAX
+  backends
+
+#### Scenario: Tensor on an element
+- **WHEN** a tensor parameter is bound to a single element
+- **THEN** the compiler reports an issue with the code `parameter-shape` that suggests a group
+
+#### Scenario: Tensor trains
+- **WHEN** a gradient-step law fits an adaptive tensor of order 3 over 4 members that a rate reads through
+  `contraction`
+- **THEN** its gradient agrees with central finite differences within 1e-6 relative error
+
 ### Requirement: The trained model is a system
 The inner model with the trained parameters of any recorded frame SHALL be the nested system with the recorded values
 set through `set_params`, a system that runs with every backend and solver that supports it, so the trained model is

@@ -61,8 +61,10 @@ and SHALL reject an invalid region with a named error that names the layer and t
 - **THEN** preparing the space raises a `SpaceError` that names the layer and the index of the region
 
 ### Requirement: Agents are placed and moved in regions
-A member location given as a polygon SHALL place the agent at a random point inside it drawn from the simulation's
-generator, in the initial locations of a group, in created agents, and in moves.
+A member location given as a polygon SHALL place the agent at a point drawn uniformly over the polygon's area from
+the simulation's generator, in the initial locations of a group, in created agents, and in moves, by choosing a
+triangle of the polygon's constrained Delaunay triangulation with probability proportional to its area and a uniform
+point in that triangle, with no rejection loop or fallback point.
 
 #### Scenario: Agents per census region
 - **WHEN** a group of 150 members is given the first of three region polygons as the location of 100 members and the
@@ -72,6 +74,12 @@ generator, in the initial locations of a group, in created agents, and in moves.
 #### Scenario: Reproducible placement
 - **WHEN** the same model with region locations is simulated twice with random state 0
 - **THEN** the agents start at the same points in both runs
+
+#### Scenario: Uniform placement in a concave polygon
+- **WHEN** 20000 agents are placed in an L-shaped polygon with a hole, made of three unit squares around a missing
+  fourth, with a hole of area 0.1 in one of them
+- **THEN** every agent lies inside the polygon and outside the hole, and the share of agents in each unit square
+  matches its area share within 0.02
 
 ### Requirement: Rules query the regions of an agent
 Rules SHALL list the regions of a layer that contain an agent and read the polygon of a region, so a

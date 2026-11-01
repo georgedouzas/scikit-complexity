@@ -68,12 +68,12 @@ root mean square deviation from a reference after optimal superposition.
 
 ### Requirement: Missing extras raise a named error
 `skcomplex.errors` SHALL define `MissingExtraError`, which a model raises when an optional extra it needs is not
-installed, naming the model, the extra, and the install command. The default install SHALL NOT import ViennaRNA or
-MDTraj.
+installed, naming the model, the extra, and the install command. The default install SHALL NOT import Biopython,
+ViennaRNA, or MDTraj.
 
 #### Scenario: Default install stays importable
 - **WHEN** the package and its model catalog are imported without the extras
-- **THEN** no module of ViennaRNA or MDTraj is imported, and every model is listed in the catalog
+- **THEN** no module of Biopython, ViennaRNA, or MDTraj is imported, and every model is listed in the catalog
 
 ### Requirement: The core stays free of molecular biology
 `skcomplex.core`, `skcomplex.engine`, and `skcomplex.analysis` SHALL export no structure, RNA, hydrophobicity, genotype,

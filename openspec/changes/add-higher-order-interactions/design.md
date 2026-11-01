@@ -21,7 +21,7 @@
 **Goals:**
 - Run laws over hyperedges of any size on the same symbolic and compiled path as the laws over edges.
 - Give the group mechanisms that agent groupings run a symbolic form where the mechanism is a law of the group.
-- Let a node gate a link, and let a tensor couple k members.
+- Let a node gate a link.
 
 **Non-Goals:**
 - Persistent homology of hypergraphs, which belongs to analysis libraries.
@@ -241,14 +241,6 @@ third is the regulator. A `HyperedgeInteraction` subclass in `mathematics/networ
 role, and its `UpdateLaw` sets `namespace.edge.active` from the regulator, so percolation alternates with regulation
 every step, as in Millán et al.
 
-### Coupling tensors
-
-A k-body tensor is a parameter of an interaction declared `ParameterSpec(shape=('target',) * k)`, the shaped
-parameters `add-learning-dynamics` adds, whose value a factory draws with its `random_state`. No core class draws it.
-`contraction(tensor, *expressions)` in `skcomplex.core.laws.utils` returns `sum_jk T_ijk a_j b_k` for every member `i`,
-with one expression per index after the first, and lowers to `numpy.einsum` and a Numba loop. A shaped parameter whose
-role binds a single element gets the existing issue code `parameter-shape`, with the fix of binding a group.
-
 ### Growth by hyperedges
 
 `TopologyInteraction(action='add-node', hyperedge=None)` gains `hyperedge`, the size of the hyperedge every new node
@@ -278,7 +270,6 @@ simplicial complex does. The hyperedge tables of a network whose groups are vari
 | Model | Field path | Built on |
 |---|---|---|
 | `hypergraph_kuramoto` | `physics/synchronization` | `CouplingInteraction(mode='hyperedges', size=3)` |
-| `higher_order_random_lotka_volterra` | `biology/ecology` | `RateInteraction` with `contraction` |
 | `hypergraph_consensus` | `social/opinion_dynamics` | `HyperedgeInteraction`, a hyperedge group of activities |
 | `simplicial_social_dilemmas` | `social/cooperation` | `CouplingInteraction` on edges and hyperedges |
 | `hypergraph_public_goods` | `social/cooperation` | `HyperedgeInteraction`, `ImitationInteraction` |
@@ -294,7 +285,5 @@ subclass of the symbolic form, and are compared over 20 seeds with their previou
 ## Risks / Trade-offs
 
 - [Large hyperedges make gathers wide] → Hyperedges are grouped by size, one index table per size.
-- [A coupling tensor of order k over N members holds N^k entries] → The documentation states the memory, and the probe
-  model keeps N at 100 for order 3.
 - [Rebuilt groupings draw in a different order] → Galam and the public goods game are accepted only when they agree
   statistically over 20 seeds.

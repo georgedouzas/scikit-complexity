@@ -38,20 +38,29 @@ Checked on 2026-10-19 against PyPI, GitHub, and spike installs on macOS arm64 wi
 
 | Library | Licence | Role | Decision |
 |---|---|---|---|
-| Biopython 1.88 | permissive, partly BSD-3-Clause | PDB and mmCIF, internal coordinates, superposition, hydrophobicity scales | adopt as a runtime dependency |
+| Biopython 1.88 | permissive, partly BSD-3-Clause | PDB and mmCIF, internal coordinates, superposition, hydrophobicity scales | adopt behind the extra `structures`: no macOS x86_64 wheels |
 | ViennaRNA 2.7.2 | free for research and commercial use, no redistribution for a fee, not OSI approved | MFE folding, base-pair distance, plane layouts | adopt behind the extra `rna` |
 | MDTraj 1.11.2 | LGPL-2.1-or-later | DCD, XTC, TRR, NetCDF, and HDF5 trajectories | adopt behind the extra `trajectories` |
-| MDAnalysis 2.10 | LGPL-3.0-or-later | trajectories | reject: no manylinux aarch64 wheel, heavier than MDTraj |
+| MDAnalysis 2.11.0 | LGPL-3.0-or-later | trajectories | reject: heavier than MDTraj and under a stricter licence |
 | gemmi 0.7.5 | MPL-2.0 | fast mmCIF and PDB I/O | reject: Biopython also gives internal coordinates and superposition |
 | seqfold 0.10.2 | MIT | MFE folding | reject: its folds differ from ViennaRNA's, which the literature on neutral networks uses |
 | PeptideBuilder 1.1 | MIT | peptides from dihedrals | reject: inactive since 2020, Biopython does the same |
 | SciPy | BSD-3-Clause | `Rotation.align_vectors`, bounded minimisation | already a dependency |
 | NetworkX | BSD-3-Clause | neutral networks and their components | already a dependency |
 
-Biopython is permissive and needs only NumPy, so it is a runtime dependency, which the Project Profile allows for a
-library a model alone uses. ViennaRNA's licence cannot be promised to the users of an MIT package, and MDTraj is LGPL,
-so both live behind extras. A model that needs a missing extra raises `MissingExtraError`, which names the model, the
-extra, and the install command. The import is lazy with a suppression that gives the reason, as the constitution asks.
+Biopython is permissive and needs only NumPy, but the audit of 2026-11-01 found that 1.88 publishes wheels for Python
+3.12 and 3.13 only for macOS arm64 and manylinux x86_64 and aarch64, with no macOS x86_64 wheel, so an Intel Mac builds
+it from source with a C compiler. Only the two protein models of `skcomplex.models.biology.systems_biology` use it, and
+the Project Profile lets an optional extra hold a library that a model alone needs, so Biopython lives behind the extra
+`structures` rather than in the default install, which therefore installs everywhere from wheels. The documentation of
+the extra states that it builds from source on Intel Macs. ViennaRNA's licence cannot be promised to the users of an
+MIT package, and MDTraj is LGPL, so both live behind extras too.
+
+The audit also corrected the reason MDAnalysis was rejected: 2.11.0, of 2026-10-21, now ships manylinux aarch64 wheels
+for Python 3.12 and 3.13. MDTraj stays the choice, since it is lighter, reads the same trajectory formats the models
+need, and is LGPL-2.1-or-later where MDAnalysis is LGPL-3.0-or-later. A model that needs a missing extra raises
+`MissingExtraError`, which names the model, the extra, and the install command. The import is lazy with a suppression
+that gives the reason, as the constitution asks.
 
 The spike measured that ViennaRNA folds `GGGGAAACCCC` into `((((...))))` at −4.5 kcal/mol, that a neutral walk of 8
 walkers of length 30 for 300 steps with robustness and evolvability every 10 steps takes 3.0 s, with a Spearman
@@ -109,9 +118,9 @@ or three dimensions, beside the points. Sequences use the existing `ImageVisual`
 The two protein models share the package `skcomplex.models.biology.systems_biology`, so their realizations live there,
 and the RNA pieces live in `skcomplex.models.biology.evolution`:
 - `systems_biology` holds the structures, the geometry, and the analysis of the two protein models:
-  - `read_structure` and `write_structure` over Biopython's PDB and mmCIF parsers and writers, which return a frozen
-    `StructureSpec` with coordinates of shape `(models, atoms, 3)` and the atom, residue, and chain names, and
-    `read_trajectory` over MDTraj with the extra.
+  - `read_structure` and `write_structure` over Biopython's PDB and mmCIF parsers and writers with the extra
+    `structures`, which return a frozen `StructureSpec` with coordinates of shape `(models, atoms, 3)` and the atom,
+    residue, and chain names, and `read_trajectory` over MDTraj with the extra `trajectories`.
   - The protein backbone geometry, which writes `phi`, `psi`, and `omega` into Biopython's `IC_Chain` and rebuilds the
     atoms, and effective atoms, the mean atom of each residue.
   - `FuzzyOilDropAnalysis(BaseAnalysis)` with the kinds `'profile'`, the distributions `T`, `O`, and `R`,
@@ -140,6 +149,9 @@ the projected native angles of the bundled structures with add-one smoothing.
   entry declares `RD` and `K` as observables.
 - `early_stage_folding_intermediate` (`biology/systems_biology`): samples the path cells of BPTI's residues.
 
+Both protein models read the bundled structures through Biopython, so they raise `MissingExtraError` without the extra
+`structures`, and their catalog entries stay listed without it.
+
 All three stay within the gallery budget of 300 frames and 60 s.
 
 ## Risks / Trade-offs
@@ -150,6 +162,9 @@ All three stay within the gallery budget of 300 frames and 60 s.
   lengths where ViennaRNA folds in under a millisecond.
 - [The book does not fix `σ`, the scale, or the ellipse parameters] → Each is a parameter whose default and source the
   docstring names, and the scenarios test properties that hold for any choice.
+- [Biopython 1.88 publishes no macOS x86_64 wheels] → It sits behind the extra `structures`, so the default install
+  never builds it. Installing the extra on an Intel Mac builds it from source, which the documentation of the extra
+  states, and the CI jobs that install the extras run on platforms with wheels.
 - [Biopython's internal coordinates warn on NumPy's `where` without `out`] → The package filters this one warning by
   category and module, and a test checks that no other warning is hidden.
 

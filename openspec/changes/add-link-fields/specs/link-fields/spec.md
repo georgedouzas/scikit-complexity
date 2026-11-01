@@ -38,6 +38,17 @@ oriented by its node order.
 - **THEN** it has 4 nodes, 6 edges, 4 triangles, and 1 tetrahedron, and the product of consecutive incidence matrices is
   zero
 
+#### Scenario: Simplicial hyperedges
+- **WHEN** a user prepares the `CellComplexSpace` of a network whose hyperedges are triangles of its edges with
+  `faces='hyperedges'`, one of them given in reversed node order
+- **THEN** the edge-to-face incidence matrix equals XGI's `boundary_matrix` of order 2 with the orientation of the
+  reversed triangle flipped, and the product of consecutive incidence matrices is zero
+
+#### Scenario: Incidence parity
+- **WHEN** the incidence matrices of the clique complex of a random graph on 12 nodes are compared with those of XGI and
+  of TopoNetX built from the same simplices
+- **THEN** they agree entry by entry after matching the cells and the orientation of each cell
+
 #### Scenario: Invalid face
 - **WHEN** a user gives a face whose node cycle uses a pair of nodes that the graph does not join
 - **THEN** preparing the space raises a `SpaceError` that names the face and the missing edge

@@ -10,7 +10,6 @@ blocked by this change, each with a curated gallery example, built on the classe
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their names and field paths and marked implemented:
   - `hypergraph_kuramoto` in `physics/synchronization`
-  - `higher_order_random_lotka_volterra` in `biology/ecology`
   - `hypergraph_consensus` in `social/opinion_dynamics`
   - `simplicial_social_dilemmas` and `hypergraph_public_goods` in `social/cooperation`
   - `simplicial_contagion` and `hypergraph_exposure_sis` in `social/spreading`

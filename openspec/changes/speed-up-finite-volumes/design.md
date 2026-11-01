@@ -32,6 +32,29 @@ the audit found it: `_speed` calls `np.linalg.eigvals` on the stacked Jacobians,
 
 ## Decisions
 
+### Keep the kernel in house
+
+A library audit on 2026-11-01 looked for a maintained Python finite-volume library that could run a compiled
+`FiniteVolumeKernel`, that is an arbitrary system of conservation laws with per-cell parameters on a lattice, and
+publishes wheels for Python 3.12 and 3.13 on Linux and macOS. None fits, so the plan stays the in-house kernel:
+- FiPy 4.0.3 discretises implicit diffusion, convection, and source terms of its own term objects on its own meshes and
+  owns the solver loop. It has no Riemann solvers or limiters for nonlinear hyperbolic systems, and it cannot take a
+  flux system compiled elsewhere.
+- ANUGA 4.1.0, Apache-2.0, solves only the shallow-water equations on triangular meshes, and publishes no Linux aarch64
+  wheels.
+- PyFR 3.1, BSD, is a high-order flux reconstruction code for the Euler, Navier-Stokes, and artificial compressibility
+  equations on unstructured meshes, driven by configuration and mesh files. Its systems are fixed in its code, so a
+  field's flux cannot be plugged in.
+- dune-fem 2.12.0.4 is GPL, publishes no wheels, and builds the DUNE C++ stack from source on install.
+- pystencils 2.1 is GPL-3.0-or-later and generates stencil kernels from SymPy, which the Project Profile bans. It
+  provides no numerical fluxes, limiters, or time stepping, so it would replace only the slicing this change fixes.
+- Devito 4.8.23, MIT, is a finite-difference stencil compiler built on SymPy, with no finite-volume or Riemann
+  discretisation.
+- jax-cfd 0.2.1 has not been released since 2024-05-13, targets incompressible Navier-Stokes on staggered grids, and
+  would add JAX as a runtime dependency.
+
+PyClaw is the one library that fits the numerics, and it is out of scope for the platform reason under Non-Goals.
+
 ### Measure before and after
 
 The first task times Burgers on 3200 cells to time 2 and the dam break on 1600 cells to time 0.5 with `SSPRKSolver`, on

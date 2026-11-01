@@ -39,6 +39,22 @@ schedule or an experiment changes it, and SHALL keep its trajectory.
 - **WHEN** a grid experiment sets the matrix parameter to two matrices that differ off the diagonal
 - **THEN** the two members of the experiment differ in their final abundances
 
+### Requirement: Random Lotka-Volterra community with k-body interactions
+The library SHALL provide `higher_order_random_lotka_volterra` in `biology/ecology` (Sidhom and Galla 2024, arXiv
+2409.10990): a group of species with logistic growth and a rate `x_i contraction(T, x, x) / N` from a random symmetric
+coupling tensor `T` of order 3, a shaped parameter drawn by the factory from its `random_state`, so a schedule or an
+experiment changes it, with a curated gallery example.
+
+#### Scenario: No interactions
+- **WHEN** the model runs with a tensor of zeros
+- **THEN** every species converges to its carrying capacity within 1e-6
+
+#### Scenario: Random community
+- **WHEN** the model runs with its defaults, 100 species and a tensor of mean 0 and standard deviation 0.5, over 20
+  seeds
+- **THEN** every abundance stays non-negative and finite, and the mean fraction of surviving species lies strictly
+  between 0 and 1
+
 ### Requirement: Learning models are recorded in the model inventory
 Every model this change implements SHALL register under the field path of its subfield and SHALL have an entry in the
 model inventory, and a model the inventory records as blocked by this change SHALL register under the name of its
@@ -46,6 +62,6 @@ entry.
 
 #### Scenario: Inventory models registered
 - **WHEN** the change is applied and the inventory check runs
-- **THEN** this entry is registered under its field path and marked implemented, with the sources Gr 10.5.1 and
-  Elman 1990:
-  - `elman_network` in `computer_science/neural_networks`
+- **THEN** these entries are registered under their field paths and marked implemented:
+  - `elman_network` in `computer_science/neural_networks`, with the sources Gr 10.5.1 and Elman 1990
+  - `higher_order_random_lotka_volterra` in `biology/ecology`

@@ -3,7 +3,7 @@
 ## Purpose
 
 Lets a user run laws over hyperedges of more than two members, on hypergraphs and simplicial complexes, run symbolic
-laws once per group of a grouping, let nodes regulate links, and couple members through tensors of any order.
+laws once per group of a grouping, and let nodes regulate links.
 
 ## ADDED Requirements
 
@@ -80,18 +80,6 @@ update law every step.
 #### Scenario: Triadic percolation
 - **WHEN** links are regulated by the activity of their regulating nodes as in Millán et al. (2023)
 - **THEN** the giant component shows period two above the bifurcation point of the paper within the finite-size error
-
-### Requirement: Tensors couple k members
-A parameter shaped by the size of one group to the power k SHALL hold a k-body coupling tensor, and the reduction
-`contraction` SHALL contract it with one expression per index after the first.
-
-#### Scenario: Contraction against NumPy
-- **WHEN** a rate reads `contraction(T, x, x)` with a random tensor `T` of order 3 over 20 members
-- **THEN** the compiled rate equals `numpy.einsum('ijk,j,k->i', T, x, x)` within 1e-12
-
-#### Scenario: Tensor on an element
-- **WHEN** a tensor parameter is bound to a single element
-- **THEN** the compiler reports an issue with the code `parameter-shape` that suggests a group
 
 ### Requirement: Networks grow by hyperedges
 `TopologyInteraction(action='add-node', hyperedge=k)` SHALL add every new node together with a hyperedge of size `k`

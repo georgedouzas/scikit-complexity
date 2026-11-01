@@ -21,8 +21,8 @@
 
 ## 3. Satisfiability and search
 
-- [ ] 3.1 Add `python-sat>=1.9.dev16` and `pymoo>=0.6.2` to the runtime dependencies and the Project Profile, and verify
-  `pdm install`, `deptry`, and `pip-audit` pass
+- [ ] 3.1 Keep the existing `python-sat>=1.8.dev16` specifier, add `pymoo>=0.6.2` to the runtime dependencies, name
+  both in the Project Profile, and verify `pdm install`, `deptry`, and `pip-audit` pass
 - [ ] 3.2 Add `ClauseSpec` and `CardinalitySpec` to `skcomplex.specs` and `SatisfiabilityInteraction` to
   `skcomplex.core.interactions`, and verify the perceptron pattern, real state, small perceptron, and capacity scenarios
 - [ ] 3.3 Add `DifferentialEvolutionSpec`, `ParticleSwarmSpec`, `EvolutionStrategySpec`, and

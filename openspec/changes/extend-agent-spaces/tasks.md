@@ -18,9 +18,11 @@
 
 - [ ] 2.1 Add `regions` to `ContinuousSpace` with the derived `regions_` index of Shapely `STRtree`s and the check of
   valid polygons, and verify the regions are indexed and invalid region scenarios
-- [ ] 2.2 Let `GroupElement(location=...)`, `ModelView.create`, and `AgentView.move_to` take a polygon, placed at a
-  random point inside it from the model's generator, and verify the agents per census region and reproducible
-  placement scenarios
+- [ ] 2.2 Raise the Shapely requirement to `shapely>=2.2` in `pyproject.toml` and the Project Profile, let
+  `GroupElement(location=...)`, `ModelView.create`, and `AgentView.move_to` take a polygon, placed at a uniform point
+  inside it drawn from the model's generator over the area-weighted triangles of Shapely's
+  `constrained_delaunay_triangles`, and verify the agents per census region, reproducible placement, and uniform
+  placement in a concave polygon scenarios
 - [ ] 2.3 Add `AgentView.regions_here`, `ModelView.region`, and `ModelView.regions`, and verify the move to a favourite
   place scenario with a `MovementInteraction`
 

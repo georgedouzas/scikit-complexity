@@ -2,8 +2,8 @@
 
 ## 1. Dependency and fixtures
 
-- [ ] 1.1 Add `pysd` to `[project] dependencies` with a compatible range, list which of its dependencies are new to the
-  install, and verify `deptry` and `pip-audit` pass
+- [ ] 1.1 Add `pysd>=3.14.3,<4` to `[project] dependencies`, list which of its dependencies are new to the install,
+  and verify `deptry` and `pip-audit` pass
 - [ ] 1.2 Add Vensim and XMILE fixtures under `tests/fixtures/system_dynamics`: teacup, SIR in both formats, a goal
   seeking stock without flow variables, a population with births and deaths, a `DELAY3` of a step, a population
   subscripted over three regions, and a file with `ALLOCATE BY PRIORITY` and `GET XLS DATA`, store PySD's run of each
@@ -31,4 +31,6 @@
 
 - [ ] 3.1 Add a user-guide section on translating models and a gallery example that translates a published model, runs
   it, and plots the dominance of its loops with `LoopAnalysis`, and verify the documentation build runs both
-- [ ] 3.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
+- [ ] 3.2 Add a CI job in `.github/workflows/ci.yml` that installs the project on Python 3.13 and runs the translator
+  tests against the fixtures, and verify it passes on a pull request
+- [ ] 3.3 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass

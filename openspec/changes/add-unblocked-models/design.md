@@ -30,7 +30,8 @@ of the dictionary computed from the other variables, and it sets `operator_` and
 `M` the input matrix that gives the same one-sample map under an input held over the sample, and it declares every input
 as a bounded adaptive parameter of the surrogate element, bounded by the range of the inputs in the samples. PyDMD is
 already a dependency of the analysis layer, and its `DMDc` is the mature implementation, so nothing is written in house
-beyond the adapter.
+beyond the adapter. The audit of 2026-11-01 recorded that PyDMD's last release, 2025.8.1, is of 2025-08-01; the
+manifest already requires `pydmd>=2025.8.1`, and the risk is recorded below.
 
 ### szabo_cells
 
@@ -68,14 +69,23 @@ The predictive problem lives in the model package as a private class, because it
 
 Gauthier et al. (2021), as the reservoir review of 2509.11338 writes it: an element whose variables keep `delay - 1`
 lags, `StateSpec(lags=...)`, and one `MapInteraction` per variable in the increment mode, whose function is the ridge
-readout of the constant, linear, and quadratic monomials of the variables and their lags. The factory fits the readout
-with scikit-learn's `PolynomialFeatures` and `Ridge` on a trajectory of the Lorenz flow, which the package builds from
-`RateInteraction`s since model packages do not import each other, or on a series the caller passes. A test checks that
-the forecast of the system agrees with that of `ReservoirAnalysis(kind='next_generation')` fitted to the same series.
+readout of the constant, linear, and quadratic monomials of the variables and their lags. The factory does not fit a
+second readout. It fits `ReservoirAnalysis(kind='next_generation', delay=..., order=..., ridge=...)` of
+`skcomplex.analysis` on a trajectory of the Lorenz flow, which the package builds from `RateInteraction`s since model
+packages do not import each other, or on a series the caller passes. That analysis already fits ReservoirPy's `NVAR`
+features and `Ridge` readout in `src/skcomplex/analysis/_reservoirs.py`, and the factory reads the fitted readout from
+its `step_`: the weights and bias of the `Ridge` node, the standardisation `mean` and `scale`, and the order of the
+`NVAR` monomials. It writes them as the symbolic increment of every variable over its lags, so the model is a readable
+system of the core while the fit stays in one place. A test checks that the forecast of the system agrees with the
+`forecast_` of the same analysis.
 
 ## Risks / Trade-offs
 
 - [Fitting inside a factory makes it slow] → The default runs are short, and the factory takes the training series or
   the fitted readout as arguments to skip the fit.
+- [The readout depends on the feature layout of ReservoirPy's `NVAR`] → The factory reads the monomial order from the
+  fitted node rather than assuming it, and the agreement scenario fails if the layouts diverge.
+- [PyDMD has not released since 2025-08-01] → `DMDc` is a small, stable part of PyDMD, the adapter is the one place
+  that calls it, and the linear system scenario detects a break.
 - [The surrogate of a controlled plant may track poorly] → The scenario compares the controlled with the uncontrolled
   plant rather than fixing an error bound, as the review does.

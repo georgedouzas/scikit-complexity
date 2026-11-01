@@ -45,7 +45,8 @@ model packages that use them.
   models `fuzzy_oil_drop` and `early_stage_folding_intermediate`, with the PDB entries 1L2Y, 1UBQ, and 5PTI bundled.
 - Add to the package `skcomplex.models.biology.evolution`: RNA folding over ViennaRNA, `NeutralNetworkAnalysis`, and the
   model `rna_neutral_networks`.
-- Add Biopython as a runtime dependency, and the extras `rna`, for ViennaRNA, and `trajectories`, for MDTraj.
+- Add the extras `structures`, for Biopython, `rna`, for ViennaRNA, and `trajectories`, for MDTraj. Biopython 1.88
+  publishes no macOS x86_64 wheels, and only the two protein models use it, so it stays out of the default install.
 
 ## Capabilities
 
@@ -67,5 +68,5 @@ model packages that use them.
 - `skcomplex.errors` gains `MissingExtraError`.
 - `skcomplex.models.biology.systems_biology` and `skcomplex.models.biology.evolution` gain the models and their
   realizations, and `docs/overview/inventory.toml` marks the three entries implemented.
-- `pyproject.toml` gains `biopython>=1.88`, and the extras `rna = ["ViennaRNA>=2.7.2"]` and
+- `pyproject.toml` gains the extras `structures = ["biopython>=1.88"]`, `rna = ["ViennaRNA>=2.7.2"]`, and
   `trajectories = ["mdtraj>=1.11.2"]`. The Project Profile lists them.
