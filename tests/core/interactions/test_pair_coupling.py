@@ -134,7 +134,7 @@ def test_pair_coupling_conserves_the_total_first_derivative():
     solver = ScipyODESolver(rtol=1e-9, atol=1e-12)
     trajectory = Simulation(system, solver=solver, dt=0.05).check().prepare().run(until=2).trajectory_
     momentum = trajectory.values('gas.x_d1').sum(axis=1)
-    np.testing.assert_allclose(momentum, momentum[0], atol=1e-8)
+    np.testing.assert_allclose(momentum, np.broadcast_to(momentum[0], momentum.shape), atol=1e-8)
 
 
 def test_pair_coupling_potential_moves_a_state_of_order_one():
