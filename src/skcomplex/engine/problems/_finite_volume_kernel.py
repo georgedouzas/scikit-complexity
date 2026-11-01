@@ -7,8 +7,9 @@ from collections.abc import Callable, Sequence
 
 import numpy as np
 import scipy.sparse
+from sage.all__sagemath_symbolics import Expression
 
-from ...errors import ValidationError
+from ...errors import SolverError, ValidationError
 from ...specs import RunStateSpec
 from ...types import Array
 from .._utils import symbol
@@ -58,6 +59,14 @@ class FiniteVolumeKernel(BaseKernel):
             For Godunov fluxes, one function per dimension of the parameters that returns the states where the flux
             has a minimum or maximum.
 
+        expressions:
+            The flux of every state, one column per dimension, in the symbols of the conserved states followed by the
+            symbols of the parameters.
+
+        speeds:
+            One function per dimension of the states and the parameters that returns the closed-form eigenvalues of
+            the flux Jacobian, or none when the Jacobian has no closed form.
+
     Attributes:
         values_:
             The rates of the conserved states of the last run, as a full vector.
@@ -79,6 +88,8 @@ class FiniteVolumeKernel(BaseKernel):
         limiter: str | None,
         riemann: str,
         critical: tuple[Callable[..., object], ...] = (),
+        expressions: tuple[tuple[Expression, ...], ...] = (),
+        speeds: tuple[Callable[..., object], ...] = (),
     ) -> None:
         self.owner = owner
         self.starts = starts
@@ -91,11 +102,24 @@ class FiniteVolumeKernel(BaseKernel):
         self.limiter = limiter
         self.riemann = riemann
         self.critical = critical
+        self.expressions = expressions
+        self.speeds = speeds
 
     @property
     def size(self) -> int:
         """Number of cells."""
         return int(np.prod(self.dimensions))
+
+    @property
+    def closed_form(self) -> bool:
+        """Whether the wave speeds come from closed-form eigenvalues instead of numerical ones."""
+        return bool(self.speeds)
+
+    def _window(self, axis: int, first: int, last: int) -> tuple[slice, ...]:
+        """Return the index that selects the positions from first to last, excluded, along an axis."""
+        index = [slice(None)] * len(self.dimensions)
+        index[axis] = slice(first, last)
+        return tuple(index)
 
     def _states(self, x: Array) -> list[Array]:
         """Return the conserved states in lattice shape."""
@@ -118,6 +142,7 @@ class FiniteVolumeKernel(BaseKernel):
         width = [(0, 0)] * len(self.dimensions)
         width[axis] = (2, 2)
         periodic = self.boundaries[0][0] == 'periodic'
+        before, after = self._window(axis, 1, n + 2), self._window(axis, 2, n + 3)
         left: list[float | Array] = []
         right: list[float | Array] = []
         for value in parameters:
@@ -126,12 +151,50 @@ class FiniteVolumeKernel(BaseKernel):
                 right.append(value)
                 continue
             padded = np.pad(value, width, mode='wrap') if periodic else np.pad(value, width, mode='edge')
-            left.append(np.take(padded, range(1, n + 2), axis=axis))
-            right.append(np.take(padded, range(2, n + 3), axis=axis))
+            left.append(padded[before])
+            right.append(padded[after])
         return left, right
+
+    def _closed_speed(self, axis: int, states: Sequence[Array], parameters: Sequence[float | Array]) -> Array:
+        """Return the largest absolute closed-form eigenvalue of the flux Jacobian of every cell or interface.
+
+        Args:
+            axis:
+                The axis of the fluxes.
+
+            states:
+                The conserved states.
+
+            parameters:
+                The values of the parameters the fluxes read.
+
+        Returns:
+            speed:
+                The largest wave speed of every cell or interface.
+
+        Raises:
+            SolverError:
+                An eigenvalue is not real, so the states leave the hyperbolic region of the fluxes.
+        """
+        shape = np.broadcast_shapes(*(np.shape(item) for item in states))
+        with np.errstate(invalid='ignore'):
+            values = ExpressionPrinter._values_of(self.speeds[axis](0.0, *states, *parameters))
+        speed = np.abs(np.broadcast_to(np.asarray(values[0], dtype=float), shape))
+        for value in values[1:]:
+            speed = np.maximum(speed, np.abs(np.asarray(value, dtype=float)))
+        if np.isnan(speed).any():
+            cell = tuple(int(index) for index in np.argwhere(np.isnan(speed))[0])
+            error_msg = (
+                f'The wave speeds of {self.owner} are not real at cell {cell}, so its states left the hyperbolic '
+                'region of the fluxes. Reduce the step or check the initial values.'
+            )
+            raise SolverError(error_msg)
+        return speed
 
     def _speed(self, axis: int, states: Sequence[Array], parameters: Sequence[float | Array]) -> Array:
         """Return the largest wave speed of every cell or interface, the spectral radius of the flux Jacobian."""
+        if self.speeds:
+            return self._closed_speed(axis, states, parameters)
         entries = ExpressionPrinter._values_of(self.jacobians[axis](0.0, *states, *parameters))
         count = len(states)
         shape = np.broadcast_shapes(*(np.shape(item) for item in states))
@@ -208,18 +271,15 @@ class FiniteVolumeKernel(BaseKernel):
         for axis in range(len(self.dimensions)):
             padded = self._pad(states, axis)
             n = self.dimensions[axis]
-
-            def take(values: Array, first: int, last: int, axis: int = axis) -> Array:
-                return np.take(values, range(first, last), axis=axis)
-
+            behind, centre, ahead = (self._window(axis, offset, n + 2 + offset) for offset in range(3))
+            left_cells, right_cells = (self._window(axis, offset, n + 1 + offset) for offset in range(2))
+            left_faces, right_faces = (self._window(axis, offset, n + offset) for offset in range(2))
             left, right = [], []
             for values in padded:
-                backward = take(values, 1, n + 3) - take(values, 0, n + 2)
-                forward = take(values, 2, n + 4) - take(values, 1, n + 3)
-                slopes = self._limited(backward, forward, self.limiter)
-                cells = take(values, 1, n + 3)
-                left.append(take(cells + slopes / 2, 0, n + 1))
-                right.append(take(cells - slopes / 2, 1, n + 2))
+                cells = values[centre]
+                slopes = self._limited(cells - values[behind], values[ahead] - cells, self.limiter)
+                left.append((cells + slopes / 2)[left_cells])
+                right.append((cells - slopes / 2)[right_cells])
             if self.riemann == 'godunov' and len(states) == 1:
                 interfaces = [self._godunov(axis, left[0], right[0], parameters)]
             else:
@@ -231,7 +291,7 @@ class FiniteVolumeKernel(BaseKernel):
                     for first, second, lower, upper in zip(left_flux, right_flux, left, right, strict=True)
                 ]
             for index, flux in enumerate(interfaces):
-                totals[index] = totals[index] - (take(flux, 1, n + 1) - take(flux, 0, n)) / self.spacings[axis]
+                totals[index] = totals[index] - (flux[right_faces] - flux[left_faces]) / self.spacings[axis]
         rates = np.zeros_like(x)
         for start, total in zip(self.starts, totals, strict=True):
             rates[start : start + self.size] = total.ravel()

@@ -11,8 +11,8 @@ closed form, and SHALL use numerical eigenvalues only for Jacobians without one.
 - **THEN** they agree within 1e-12 relative error
 
 #### Scenario: Faster dam break
-- **WHEN** the dam break on 1600 cells runs to time 0.5 with closed-form speeds and slicing, and then with numerical
-  eigenvalues and `np.take`
+- **WHEN** the dam break on 1600 cells runs to time 0.5 with closed-form speeds, and then with numerical eigenvalues,
+  both with slicing
 - **THEN** the first run is faster by at least half of the speed-up the re-measurement of this change records and
   gives the same solution within 1e-10
 

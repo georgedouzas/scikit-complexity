@@ -8,13 +8,13 @@
 
 ## 2. Hot path
 
-- [ ] 2.1 Keep the canonical flux columns of a field as `expressions` on `FiniteVolumeKernel` in
+- [x] 2.1 Keep the canonical flux columns of a field as `expressions` on `FiniteVolumeKernel` in
   `FieldFunctionsPass._compile_volumes`, and verify the Burgers shock unchanged scenario
-- [ ] 2.2 Compile closed-form eigenvalues of the flux Jacobians from `expressions`, the derivative for one state, the
+- [x] 2.2 Compile closed-form eigenvalues of the flux Jacobians from `expressions`, the derivative for one state, the
   trace and determinant for two, and Sage's eigenvalues for more, use them in `FiniteVolumeKernel._speed`, keep
   `np.linalg.eigvals` only without a closed form, record `closed_form`, and verify the same speeds and no closed form
   scenarios
-- [ ] 2.3 Replace `np.take(..., range(...))` in `FiniteVolumeKernel._sides` and `_run` with slice tuples built once per
+- [x] 2.3 Replace `np.take(..., range(...))` in `FiniteVolumeKernel._sides` and `_run` with slice tuples built once per
   axis, re-time both runs, record the speed-up in design.md, set the threshold of the faster dam break scenario to
   half of it, and verify the scenario
 

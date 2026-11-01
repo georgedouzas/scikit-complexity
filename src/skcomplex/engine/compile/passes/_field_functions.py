@@ -8,7 +8,7 @@ from dataclasses import replace
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression, solve
+from sage.all__sagemath_symbolics import SR, Expression, I, matrix, solve
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.elements import FieldElement
@@ -24,6 +24,8 @@ from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
+
+PAIR = 2
 
 
 class FieldFunctionsPass(BasePass):
@@ -300,6 +302,68 @@ class FieldFunctionsPass(BasePass):
         return printed
 
     @staticmethod
+    def _eigenvalues(jacobian: list[list[Expression]]) -> list[Expression] | None:
+        """Return the closed-form eigenvalues of a flux Jacobian, or `None` when Sage finds no explicit real ones.
+
+        Args:
+            jacobian:
+                The flux Jacobian, row by row.
+
+        Returns:
+            eigenvalues:
+                The eigenvalues, or `None`.
+        """
+        count = len(jacobian)
+        if count == 1:
+            return [jacobian[0][0]]
+        if count == PAIR:
+            trace = jacobian[0][0] + jacobian[1][1]
+            determinant = jacobian[0][0] * jacobian[1][1] - jacobian[0][1] * jacobian[1][0]
+            root = (trace**2 / 4 - determinant).sqrt()
+            return [trace / 2 - root, trace / 2 + root]
+        try:
+            found = matrix(SR, jacobian).eigenvalues()
+        except ArithmeticError:
+            return None
+        if len(found) != count or any(SR(value).has(I) for value in found):
+            return None
+        return [SR(value) for value in found]
+
+    @staticmethod
+    def _compile_speeds(
+        columns: list[tuple[Expression, ...]],
+        states: list[Expression],
+        printer: ExpressionPrinter,
+        owner: str,
+    ) -> tuple[Callable[..., object], ...]:
+        """Return one function per dimension of the closed-form wave speeds, or none when a Jacobian has no closed form.
+
+        Args:
+            columns:
+                The flux of every state, one column per dimension.
+
+            states:
+                The symbols of the conserved states.
+
+            printer:
+                The compiled printer of the states and the parameters.
+
+            owner:
+                The path of the field.
+
+        Returns:
+            speeds:
+                The functions of the eigenvalues, or an empty tuple.
+        """
+        found = []
+        for column in columns:
+            eigenvalues = FieldFunctionsPass._eigenvalues([[value.diff(state) for state in states] for value in column])
+            if eigenvalues is None:
+                return ()
+            found.append(eigenvalues)
+        return tuple(FieldFunctionsPass._function_of(printer.run(values).code_, owner) for values in found)
+
+    @staticmethod
     def _compile_volumes(
         laws: Sequence[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
         place: FieldElement,
@@ -381,6 +445,8 @@ class FieldFunctionsPass(BasePass):
                 limiter=first.limiter,
                 riemann=first.riemann,
                 critical=critical,
+                expressions=tuple(columns),
+                speeds=FieldFunctionsPass._compile_speeds(columns, states, printer, owner),
             )
             .check()
             .prepare()
