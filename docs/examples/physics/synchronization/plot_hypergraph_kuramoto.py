@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer], observables=observ
 # phases keeps it near one down to the onset of the branch, where it drops. The Ott-Antonsen branch
 # `r^2 = (1 + sqrt(1 - 4 / K2)) / 2` is drawn for comparison.
 
-couplings = np.linspace(1.0, 9.0, 9)
+couplings = np.linspace(1.0, 9.0, 5)
 fig, ax = plt.subplots(figsize=(6, 4))
 for label, phases in (('from incoherent phases', None), ('from synchronized phases', np.zeros(40))):
     order = []

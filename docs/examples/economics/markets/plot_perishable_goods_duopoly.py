@@ -9,11 +9,14 @@ more customers.
 # %%
 # The model is created by name from the catalog with half a product per customer in each shop and products that age
 # over one unit of time, so the control parameter is `R = 1` and the critical temperature `T_c = R / (1 + R)^2 = 0.25`.
-# The customers choose at the temperature 0.1. The observer saves every second frame with the default blueprint, whose
-# primary view is the time series of `m`.
+# The customers choose at the temperature 0.1. The two shops are the isolated nodes of a network, so the customers are
+# not drawn in space: the blueprint shows the time series of `m` and, below it, the shares of customers at each shop,
+# which the example computes from the trajectory and logs after the run.
 
 import matplotlib.pyplot as plt
 import numpy as np
+import rerun as rr
+import rerun.blueprint as rrb
 from scipy.optimize import brentq
 
 from skcomplex.engine.runtime import Simulation
@@ -24,8 +27,21 @@ MODEL = 'perishable_goods_duopoly'
 CONTROL = 1.0
 CRITICAL = CONTROL / (1 + CONTROL) ** 2
 
+SHOPS = (0, 1)
+COLORS = ((31, 119, 180), (255, 127, 14))
+
+whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
+blueprint = rrb.Blueprint(
+    rrb.Vertical(
+        rrb.TimeSeriesView(origin='/m', name='asymmetry m', axis_x=rrb.TimeAxis(view_range=whole_run)),
+        rrb.TimeSeriesView(origin='/shares', name='shares of customers', axis_x=rrb.TimeAxis(view_range=whole_run)),
+    ),
+    rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
+    rrb.TopPanel(state='hidden'),
+    collapse_panels=True,
+)
 system = create(MODEL, customers=200, stock=0.5, tau_a=1.0, T=0.1, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
 simulation = (
     Simulation(
         system,
@@ -37,15 +53,29 @@ simulation = (
     .prepare()
     .run(until=300)
 )
+trajectory = simulation.trajectory_
+shops = np.array([trajectory.agents('customers', frame).values['shop'] for frame in range(len(trajectory.times))])
+for shop, color in zip(SHOPS, COLORS, strict=True):
+    observer.recording_.log(
+        f'shares/shop_{shop + 1}',
+        rr.SeriesLines(colors=[color], names=f'shop {shop + 1}'),
+        static=True,
+    )
+    observer.recording_.send_columns(
+        f'shares/shop_{shop + 1}',
+        indexes=[rr.TimeColumn('sim_time', duration=trajectory.times)],
+        columns=rr.Scalars.columns(scalars=(shops == shop).mean(axis=1)),
+    )
+observer.recording_.flush()
 
 # %%
 # Symmetry breaking against the temperature
 # -----------------------------------------
 # The mean-field equation of the representative customer, `dm/dt ~ T ln((1 - m) / (1 + m)) + h_1 - h_2` with the
 # freshness `h_j = 1 / (1 + R / (1 +- m))`, has the stable root `m = 0` above `T_c` and a pair of roots `+-m*` below
-# it, which grow continuously from zero since `R > sqrt(3) - 1`. The stationary asymmetry of runs at a range of
-# temperatures should follow `m*`, slightly below it from the noise of the finite number of customers, and further
-# below it just under `T_c`, where the slow growth of `m` has not ended within a run.
+# it, which grow continuously from zero since `R > sqrt(3) - 1`. The stationary asymmetry of runs of 100 customers at a
+# range of temperatures should follow `m*`, slightly below it from the noise of the finite number of customers, and
+# further below it just under `T_c`, where the slow growth of `m` has not ended within a run.
 
 
 def mean_field_asymmetry(temperature):
@@ -59,10 +89,10 @@ def mean_field_asymmetry(temperature):
     return brentq(drift, 1e-6, 1 - 1e-12)
 
 
-temperatures = np.linspace(0.3, 1.6, 8) * CRITICAL
+temperatures = np.linspace(0.3, 1.6, 6) * CRITICAL
 asymmetries = []
 for temperature in temperatures:
-    model_system = create(MODEL, T=temperature, random_state=1)
+    model_system = create(MODEL, customers=100, T=temperature, random_state=1)
     run = (
         Simulation(
             model_system,
@@ -71,9 +101,7 @@ for temperature in temperatures:
         )
         .check()
         .prepare()
-        .run(
-            until=400,
-        )
+        .run(until=300)
     )
     asymmetries.append(np.abs(run.trajectory_.values('m')[-100:]).mean())
 grid = np.linspace(0.2, 1.7, 200) * CRITICAL
