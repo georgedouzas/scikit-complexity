@@ -62,5 +62,5 @@ connection interaction, and a solve of equations whose unknowns are not all high
 - `skcomplex.engine.compile`: `OrdersPass` solves for algebraic states, and `PassCompiler` reports the port issues.
 - `skcomplex.models.engineering`: `common/electrical`, the thermal components of `control`, and `mechatronics`, with
   `pyproject.toml` listing `mechatronics` among the independent subfield packages.
-- `add-static-models` also solves algebraic equations under static time. It builds on the algebraic states of this
-  change, or adds them first if it lands first.
+- `add-static-models` solves `EquationLaw`s by their targets under `StaticTime`, in its form `FormKind.STATIC` with
+  `RootSolver`. This change solves equations inside the right side under continuous time, so the two do not overlap.

@@ -111,8 +111,9 @@ before compilation.
   them.
 - [High-index systems are rejected] → The issue names the constraint, and the user guide shows how to reformulate it
   with a compliant element.
-- [`add-static-models` also solves algebraic equations] → Both changes use the same algebraic states and the same
-  solve, and whichever lands second builds on the first.
+- [`add-static-models` also solves algebraic equations] → It solves `EquationLaw`s by their targets under static time
+  with `RootSolver`, while this change solves them under continuous time in `OrdersPass`, so neither builds on the
+  other.
 
 ## Open Questions
 
