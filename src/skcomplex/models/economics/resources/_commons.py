@@ -12,12 +12,12 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import FeedbackInteraction, MatchingInteraction
+from ....core.interactions import FeedbackInteraction, LifeCycleInteraction, MapInteraction, MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.laws.utils import transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
-from ....core.types import MatchingRule
+from ....core.types import AgentViewProtocol, MatchingRule, ModelViewProtocol
 from ....engine.solvers import ModelView
 from ....errors import SimulationError
 from ....specs import (
@@ -47,6 +47,76 @@ def _commons_observables(system: System) -> list[ObservableSpec]:
         ObservableSpec('grass', group='meadow', variable='grass', reduce='sum'),
         ObservableSpec('herd', group='cows', variable='energy', reduce='count'),
         ObservableSpec('quota', group='herders', variable='quota', reduce='mean'),
+    ]
+
+
+def _pays(herder: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return whether a cow of a herder earned more than its upkeep in the last step while the herd is below quota."""
+    del model
+    if not isinstance(herder, HerderView):
+        return False
+    earning = herder.income / herder.herd if herder.herd else herder.upkeep + 1
+    return earning > herder.upkeep and herder.herd < herder.quota
+
+
+def _exceeds(herder: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return whether the herd of a herder in the last step exceeds its quota, so it sells a cow."""
+    del model
+    return isinstance(herder, HerderView) and herder.herd > herder.quota
+
+
+def _owns(herder: AgentViewProtocol, cow: AgentViewProtocol) -> bool:
+    """Return whether a herder owns a cow, which the reference state `owner` of the cow names."""
+    return cow.referenced('owner') is herder
+
+
+def _get_calf(herder: AgentViewProtocol | None, model: ModelViewProtocol) -> dict[str, object]:
+    """Return the owner and the energy of a new cow of a herder."""
+    del model
+    if not isinstance(herder, HerderView):
+        return {}
+    return {'owner': float(herder.id), 'energy': herder.newborn}
+
+
+def _get_cell(herder: AgentViewProtocol | None, model: ModelViewProtocol) -> tuple[int, ...]:
+    """Return a random cell of the meadow, where a new cow starts."""
+    del herder
+    return tuple(int(model.rng.integers(int(size))) for size in model.dimensions or ())
+
+
+def _get_cleared(herder: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return zero, the income and the herd a herder starts a step with."""
+    del herder, model
+    return 0.0
+
+
+def _get_investment() -> list[LifeCycleInteraction | MapInteraction]:
+    """Return the member interactions of a herder: buy or sell a cow, then clear its income and herd."""
+    return [
+        LifeCycleInteraction(
+            'investment',
+            target='herders',
+            group='cows',
+            birth=_pays,
+            values=_get_calf,
+            placement=_get_cell,
+            cull=_exceeds,
+            kin=_owns,
+            schedule='member',
+            phase='herding',
+        ),
+        *(
+            MapInteraction(
+                f'{state}_clearing',
+                target='herders',
+                state=state,
+                function=_get_cleared,
+                form='agent',
+                schedule='member',
+                phase='herding',
+            )
+            for state in ('income', 'herd')
+        ),
     ]
 
 
@@ -183,6 +253,9 @@ class CowElement(Element):
 class HerderElement(Element):
     """Herder who adds a cow whenever a cow earned more than its upkeep, and sells one when the herd exceeds its quota.
 
+    The life cycle `investment` of the model buys a cow, at a random cell, or sells the first cow the herder owns,
+    and two maps clear the income and the herd the grazing tallies, all member interactions in the phase of herding.
+
     Args:
         label:
             The label of the agent or group.
@@ -233,37 +306,6 @@ class HerderElement(Element):
     def _get_view(cls) -> type[HerderView]:
         """Return the view of the agents of the element."""
         return HerderView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that grows the herd in the phase of herding.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.invest, phase='herding')]
-
-    def invest(self, agent: HerderView, model: ModelView) -> None:
-        """Add a cow while a cow earns more than its upkeep below the quota, and sell a cow above the quota.
-
-        Args:
-            agent:
-                The herder.
-
-            model:
-                The model.
-        """
-        earning = agent.income / agent.herd if agent.herd else model.parameter('upkeep') + 1
-        if earning > model.parameter('upkeep') and agent.herd < agent.quota:
-            model.create('cows', owner=float(agent.id), energy=model.parameter('newborn'))
-        elif agent.herd > agent.quota:
-            next(cow for cow in model.agents('cows', CowView) if cow.referenced('owner') is agent).remove()
-        agent.income = 0.0
-        agent.herd = 0.0
 
 
 class GrazingInteraction(MatchingInteraction[ModelView]):
@@ -558,7 +600,7 @@ def tragedy_of_the_commons(
     )
     return System(
         elements=[meadow, herd, herders],
-        interactions=[grazing, regulator],
+        interactions=[grazing, *_get_investment(), regulator],
         space=LatticeSpace((width, height), boundary='periodic', neighborhood='moore'),
         time=DiscreteTime(
             schedule=PhasesScheduleSpec([PhaseSpec('grazing'), PhaseSpec('growth'), PhaseSpec('herding')]),
