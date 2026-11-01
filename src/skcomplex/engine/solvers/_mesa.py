@@ -647,11 +647,10 @@ class AgentView:
         """
         spec = self._stepper._spec_of(self._agent)
         MesaSolver._check_variable(spec, 'remove')
-        declared = declarations_of(MesaSolver._agent_type(spec), VariableKind.STATE)
         held = {
             name: value
-            for name, declaration in declared.items()
-            if declaration.quantity is not None and (value := float(getattr(self._agent, name))) != 0.0
+            for name in self._stepper._quantities[spec.path]
+            if (value := float(getattr(self._agent, name))) != 0.0
         }
         if self.alive and held:
             error_msg = (
@@ -862,6 +861,14 @@ class MesaSolver(ExternalSolver):
                 for name, declaration in declarations_of(self._agent_type(spec), VariableKind.STATE).items()
                 if declaration.lags
             }
+            for spec in problem.agents
+        }
+        self._quantities = {
+            spec.path: [
+                name
+                for name, declaration in declarations_of(self._agent_type(spec), VariableKind.STATE).items()
+                if declaration.quantity is not None
+            ]
             for spec in problem.agents
         }
         self._classes: dict[type, CompiledAgentsSpec] = {}
