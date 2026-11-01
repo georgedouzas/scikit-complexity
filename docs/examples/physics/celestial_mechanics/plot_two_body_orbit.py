@@ -30,8 +30,9 @@ simulation = Simulation(system, dt=0.05, solver=RK4Solver(), observers=[observer
 # The orbit should lie on the ellipse `r(θ) = p / (1 + e cos θ)` with `p = 10 (1 + e)`, and the areal velocity
 # `|x v_y - y v_x| / 2` should stay constant along the orbit.
 
-relative = np.asarray(simulation.trajectory_.values('planet.x')) - np.asarray(simulation.trajectory_.values('star.x'))
-velocity = np.asarray(simulation.trajectory_.values('planet.x_d1')) - np.asarray(simulation.trajectory_.values('star.x_d1'))
+trajectory = simulation.trajectory_
+relative = np.asarray(trajectory.values('planet.x')) - np.asarray(trajectory.values('star.x'))
+velocity = np.asarray(trajectory.values('planet.x_d1')) - np.asarray(trajectory.values('star.x_d1'))
 areal = np.abs(relative[:, 0] * velocity[:, 1] - relative[:, 1] * velocity[:, 0]) / 2
 angles = np.linspace(0, 2 * np.pi, 400)
 radius = 10 * 1.6 / (1 + 0.6 * np.cos(angles))
