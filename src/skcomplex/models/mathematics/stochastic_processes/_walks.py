@@ -4,7 +4,6 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -13,10 +12,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
 from ....core.interactions import JumpInteraction, MapInteraction, RateInteraction
-from ....core.laws import BaseLaw, RuleLaw
 from ....core.laws.utils import bernoulli, normal
 from ....core.system import System
-from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._ageing_walker_view import AgeingWalkerView
@@ -195,7 +192,8 @@ class WeakeningParticleElement(Element):
 class AgeingWalkerElement(Element):
     """Walker that steps up with a probability that decays with the number of its earlier up steps.
 
-    After `k` up steps, the next step is up with probability `p / (1 + k)^nu` and down otherwise.
+    After `k` up steps, the next step is up with probability `p / (1 + k)^nu` and down otherwise. The walker remembers
+    its number of up steps at the end of the last step, from which its step follows.
 
     Args:
         label:
@@ -229,7 +227,7 @@ class AgeingWalkerElement(Element):
         visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'x'}),
         *,
         x: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
-        ups: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        ups: Annotated[float, StateSpec(domain=NN, lags=1)] = 0.0,
         p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:
@@ -243,35 +241,6 @@ class AgeingWalkerElement(Element):
     def _get_view(cls) -> type[AgeingWalkerView]:
         """Return the view of the agents, which types their states and parameters."""
         return AgeingWalkerView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the stepping rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.walk)]
-
-    def walk(self, agent: AgeingWalkerView, model: ModelView) -> None:
-        """Take one step up or down.
-
-        Args:
-            agent:
-                The walker.
-
-            model:
-                The model.
-        """
-        if model.rng.random() < agent.p / (1 + agent.ups) ** agent.nu:
-            agent.x += 1
-            agent.ups += 1
-            return
-        agent.x -= 1
 
 
 @register_model(
@@ -404,8 +373,25 @@ def ageing_random_walk(n_walkers: int = 50, *, p: float = 0.5, nu: float = 1.0) 
         >>> ageing_random_walk(5).elements[0].check().prepare().size_
         5
     """
+    ageing = MapInteraction(
+        'ageing',
+        target='walkers',
+        state='ups',
+        function=lambda agent, model: float(model.rng.random() < agent.p / (1 + agent.ups) ** agent.nu),
+        mode='increment',
+        form='agent',
+    )
+    step = MapInteraction(
+        'step',
+        target='walkers',
+        state='x',
+        function=lambda agent, model: 2 * (agent.ups - agent.lags('ups')[-1]) - 1,
+        mode='increment',
+        form='agent',
+    )
     return System(
         elements=[GroupElement('walkers', element=AgeingWalkerElement, size=n_walkers, values={'p': p, 'nu': nu})],
+        interactions=[ageing, step],
     )
 
 

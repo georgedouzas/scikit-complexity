@@ -12,7 +12,7 @@ from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
-from skcomplex.specs import StateSpec
+from skcomplex.specs import ParameterSpec, StateSpec
 
 CELLS = 64
 
@@ -77,3 +77,86 @@ def test_check_rejects_invalid_arguments(arguments, message):
     """Test that `check` rejects a bad state, function, limiter, or numerical flux."""
     with pytest.raises(ValidationError, match=message):
         ConservationInteraction('conservation', target='line', **arguments).check()
+
+
+class WaterElement(Element):
+    """Cell of a channel with a depth, a discharge, and a gravity that may vary across the cells."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        h: Annotated[object, StateSpec()] = 1.0,
+        q: Annotated[object, StateSpec()] = 0.0,
+        g: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.h = h
+        self.q = q
+        self.g = g
+
+
+class FluxWaterElement(WaterElement):
+    """Cell of a channel whose shallow-water fluxes are written by hand."""
+
+    def _get_laws(self, s):
+        """Return the fluxes of the depth and the discharge."""
+        return [FluxLaw(s.h, s.q), FluxLaw(s.q, s.q**2 / s.h + s.g * s.h**2 / 2)]
+
+
+def _run_water(element, gravity, *interactions):
+    """Return the depth of a periodic channel that starts from a bump of water."""
+    centers = (np.arange(CELLS) + 0.5) / CELLS
+    values = {'h': 1.0 + 0.2 * np.exp(-(((centers - 0.5) / 0.1) ** 2)), 'q': np.zeros(CELLS), 'g': gravity}
+    space = LatticeSpace((CELLS,), spacing=1 / CELLS, boundary='periodic')
+    field = FieldElement('channel', element=element, space=space, values=values, discretization='finite-volume')
+    simulation = Simulation(System(elements=[field], interactions=list(interactions)), dt=0.05)
+    return simulation.check().prepare().run(until=0.2).trajectory_.values('channel.h')
+
+
+def _water_interactions():
+    """Return the conservation of the depth and of the discharge as two interactions."""
+    return (
+        ConservationInteraction('mass', target='channel', state='h', flux=lambda s: s.target.q),
+        ConservationInteraction(
+            'momentum',
+            target='channel',
+            state='q',
+            flux=lambda s: s.target.q**2 / s.target.h + s.target.g * s.target.h**2 / 2,
+        ),
+    )
+
+
+def test_run_couples_the_states_of_two_interactions_into_one_system():
+    """Test that two interactions on the states of one field give the trajectory of the element's own fluxes."""
+    values = _run_water(WaterElement, 1.0, *_water_interactions())
+    np.testing.assert_allclose(values, _run_water(FluxWaterElement, 1.0), atol=1e-12)
+    np.testing.assert_allclose(values.sum(axis=1), values[0].sum(), rtol=1e-12)
+
+
+def test_run_reads_parameters_that_vary_across_the_cells():
+    """Test that a gravity varying across the cells changes the motion and keeps the total of the depth."""
+    gravity = np.linspace(0.5, 1.5, CELLS)
+    values = _run_water(WaterElement, gravity, *_water_interactions())
+    uniform = _run_water(WaterElement, 1.0, *_water_interactions())
+    assert not np.allclose(values[-1], uniform[-1])
+    np.testing.assert_allclose(values.sum(axis=1), values[0].sum(), rtol=1e-12)
+
+
+def test_run_without_numerical_flux_takes_the_divergence_on_a_spectral_field():
+    """Test that the Burgers flux without a numerical flux keeps the total of a spectral field."""
+    spacing = 2 * np.pi / CELLS
+    values = {'u': 0.5 * np.sin(np.arange(CELLS) * spacing)}
+    space = LatticeSpace((CELLS,), spacing=spacing, boundary='periodic')
+    field = FieldElement('line', element=CellElement, space=space, values=values, discretization='spectral')
+    burgers = ConservationInteraction(
+        'burgers',
+        target='line',
+        state='u',
+        flux=lambda s: s.target.u**2 / 2,
+        riemann=None,
+    )
+    simulation = Simulation(System(elements=[field], interactions=[burgers]), dt=0.1).check().prepare()
+    trajectory = simulation.run(until=1.0).trajectory_.values('line.u')
+    assert trajectory[-1].sum() == pytest.approx(trajectory[0].sum(), abs=1e-9)
+    assert not np.allclose(trajectory[-1], trajectory[0])

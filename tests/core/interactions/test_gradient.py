@@ -209,3 +209,57 @@ def test_check_rejects_invalid_arguments(arguments, message):
     """Test that `check` rejects a state or a divisor that is not a name, or a potential that is not callable."""
     with pytest.raises(ValidationError, match=message):
         GradientInteraction('gradient', target='walkers', **arguments).check()
+
+
+class CoordinatesElement(Element):
+    """Element with two scalar coordinates of order 2 and their own masses."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        a: Annotated[object, StateSpec(order=2)] = 1.0,
+        a_d1: object = 0.0,
+        b: Annotated[object, StateSpec(order=2)] = 0.0,
+        b_d1: object = 0.0,
+        ma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        mb: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+    ) -> None:
+        super().__init__(label)
+        self.a = a
+        self.a_d1 = a_d1
+        self.b = b
+        self.b_d1 = b_d1
+        self.ma = ma
+        self.mb = mb
+
+
+def test_run_divides_every_state_by_its_own_divisor():
+    """Test that a spring between two coordinates with their own masses keeps the momentum `ma a' + mb b'` at 0."""
+    spring = GradientInteraction(
+        'spring',
+        target='body',
+        states=('a', 'b'),
+        potential=lambda s: (s.target.a - s.target.b) ** 2 / 2,
+        divisor={'a': 'ma', 'b': 'mb'},
+    )
+    system = System(elements=[CoordinatesElement('body')], interactions=[spring])
+    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=2.0).trajectory_
+    momentum = trajectory.values('body.a_d1') + 3.0 * trajectory.values('body.b_d1')
+    np.testing.assert_allclose(momentum, 0.0, atol=1e-9)
+
+
+def test_run_divides_by_a_divisor_expression():
+    """Test that a harmonic well divided by `4 m` oscillates at the frequency `1 / sqrt(4 m)`."""
+    well = _harmonic('body', 1.0, lambda member: 4 * member.m)
+    system = System(elements=[BodyElement('body', x=[1.0], m=1.0)], interactions=[well], space=ContinuousSpace(n_dim=1))
+    simulation = Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=np.pi).check().prepare()
+    trajectory = simulation.run(until=np.pi).trajectory_
+    assert float(trajectory.values('body.x')[-1][0]) == pytest.approx(0.0, abs=1e-6)
+
+
+def test_check_rejects_a_divisor_of_an_unknown_state():
+    """Test that a divisor mapping that names a state the interaction does not move raises an error."""
+    gradient = GradientInteraction('well', target='body', states='a', potential=lambda s: 0, divisor={'b': 'mb'})
+    with pytest.raises(ValidationError, match='divisor'):
+        gradient.check()

@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from functools import partial
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -10,7 +11,8 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, Sink, Source, TransferLaw
+from ....core.interactions import TransferInteraction
+from ....core.laws import Sink, Source
 from ....core.laws.utils import minimum
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -31,19 +33,46 @@ STAGES = (
 
 
 def _stage(
-    stock: Expression,
-    following: Expression | Sink,
-    time: Expression,
-    losses: list[tuple[Expression, str]],
     label: str,
-) -> list[BaseLaw]:
-    """Return the flows that drain a stage over its duration, a share to each loss and the rest to the next stage."""
-    outflow = stock / time
-    survival = 1 - sum((share for share, _ in losses), start=0)
-    return [
-        TransferLaw(stock, following, survival * outflow, label=label),
-        *(TransferLaw(stock, Sink(sink), share * outflow, label=f'{label}_{sink}') for share, sink in losses),
-    ]
+    stock: str,
+    following: str,
+    time: str,
+    losses: tuple[tuple[str, str], ...],
+) -> TransferInteraction:
+    """Return the transfer that drains a stage over its duration, a share to each loss and the rest to the next stage.
+
+    The stage reads the duration `time` and the share of every loss by name, and reports the flow to the next stage as
+    `hilsa.<label>` and the flow to every loss as `hilsa.<label>_<loss>`.
+    """
+    shares = [share for share, _ in losses]
+    return TransferInteraction(
+        label,
+        source='hilsa',
+        target='hilsa',
+        state=stock,
+        into=following,
+        amount=partial(_survival, stock=stock, time=time, shares=shares),
+        flow=label,
+        legs=[
+            (stock, Sink(sink), partial(_loss, stock=stock, time=time, share=share), f'{label}_{sink}')
+            for share, sink in losses
+        ],
+    )
+
+
+def _outflow(s: SimpleNamespace, stock: str, time: str) -> Expression:
+    """Return the outflow of a stage over its duration."""
+    return getattr(s.source, stock) / getattr(s.source, time)
+
+
+def _survival(s: SimpleNamespace, stock: str, time: str, shares: list[str]) -> Expression:
+    """Return the outflow of a stage that survives its losses into the next stage."""
+    return (1 - sum((getattr(s.source, share) for share in shares), start=0)) * _outflow(s, stock, time)
+
+
+def _loss(s: SimpleNamespace, stock: str, time: str, share: str) -> Expression:
+    """Return the outflow of a stage to one loss."""
+    return getattr(s.source, share) * _outflow(s, stock, time)
 
 
 def _spawning(s: SimpleNamespace) -> Expression:
@@ -66,25 +95,48 @@ def _juvenile_weight(s: SimpleNamespace) -> Expression:
     return s.weight_per_juvenile * s.juveniles * TONNES_PER_MILLION_KG
 
 
-def _hilsa_laws(s: SimpleNamespace) -> list[BaseLaw]:
+def _life_cycle() -> list[TransferInteraction]:
     """Return the spawning, hatching, growth, migration, losses, and catch of the stages of the hilsa life cycle."""
-    spawning = _spawning(s)
+    mortality = 'mortality'
     return [
-        TransferLaw(Source('spawning'), s.eggs, s.eggs_per_nest * _nests(s), label='egg_deposition'),
-        *_stage(s.eggs, s.larvae, s.hatching_time, [(s.egg_loss, 'mortality')], 'hatching'),
-        *_stage(s.larvae, s.juveniles, s.larval_time, [(s.larval_loss, 'mortality')], 'juvenile_entering'),
-        *_stage(
-            s.juveniles,
-            s.yearlings,
-            s.river_time,
-            [(s.juvenile_loss, 'mortality'), (s.juvenile_harvest, 'catch')],
-            'young_entering_ocean',
+        TransferInteraction(
+            'egg_deposition',
+            source='hilsa',
+            target='hilsa',
+            state=Source('spawning'),
+            into='eggs',
+            amount=lambda s: s.source.eggs_per_nest * _nests(s.source),
+            flow='egg_deposition',
         ),
-        *_stage(s.yearlings, s.adults, s.ocean_time, [(s.first_year_loss, 'mortality')], 'maturation'),
-        *_stage(s.adults, s.migrants, s.adult_ocean_time, [(s.second_year_loss, 'mortality')], 'adults_entering'),
-        *_stage(s.migrants, s.spawners, s.migration_time, [(s.migration_loss, 'mortality')], 'adults_leaving'),
-        TransferLaw(s.spawners, Sink('spent'), spawning, label='spawning'),
-        TransferLaw(s.spawners, Sink('catch'), s.adult_harvest * s.spawners / s.spawning_time, label='adult_catch'),
+        _stage('hatching', 'eggs', 'larvae', 'hatching_time', (('egg_loss', mortality),)),
+        _stage('juvenile_entering', 'larvae', 'juveniles', 'larval_time', (('larval_loss', mortality),)),
+        _stage(
+            'young_entering_ocean',
+            'juveniles',
+            'yearlings',
+            'river_time',
+            (('juvenile_loss', mortality), ('juvenile_harvest', 'catch')),
+        ),
+        _stage('maturation', 'yearlings', 'adults', 'ocean_time', (('first_year_loss', mortality),)),
+        _stage('adults_entering', 'adults', 'migrants', 'adult_ocean_time', (('second_year_loss', mortality),)),
+        _stage('adults_leaving', 'migrants', 'spawners', 'migration_time', (('migration_loss', mortality),)),
+        TransferInteraction(
+            'spawning',
+            source='hilsa',
+            target='hilsa',
+            state='spawners',
+            into=Sink('spent'),
+            amount=lambda s: _spawning(s.source),
+            flow='spawning',
+            legs=[
+                (
+                    'spawners',
+                    Sink('catch'),
+                    lambda s: s.source.adult_harvest * s.source.spawners / s.source.spawning_time,
+                    'adult_catch',
+                ),
+            ],
+        ),
     ]
 
 
@@ -260,19 +312,6 @@ class HilsaElement(Element):
         self.weight_per_adult = weight_per_adult
         self.weight_per_juvenile = weight_per_juvenile
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the flows of the life cycle.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return _hilsa_laws(s)
-
 
 @register_model(
     field='economics/resources',
@@ -342,4 +381,4 @@ def hilsa_fishery(
         migration_loss=migration_loss,
     )
     hilsa.set_params(**_filled_stages(spawners, eggs_per_nest, juvenile_harvest, adult_harvest, migration_loss))
-    return System(elements=[hilsa])
+    return System(elements=[hilsa], interactions=_life_cycle())

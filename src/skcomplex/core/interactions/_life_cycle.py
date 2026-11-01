@@ -3,9 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
@@ -16,9 +16,13 @@ from ._interaction import Interaction
 PLACEMENTS = ('here', 'neighbor')
 SCHEDULES = ('sequential', 'random-sequential', 'member')
 
-type Chance = float | Callable[[AgentViewProtocol, ModelViewProtocol], float]
-type Count = int | Callable[[AgentViewProtocol, ModelViewProtocol], int]
+type Chance = float | Callable[..., float]
+type Count = int | Callable[..., int]
 type Mutation = Callable[[dict[str, object], ModelViewProtocol], dict[str, object]]
+type Arrival = float | Callable[..., float]
+type Values = Callable[..., Mapping[str, object]]
+type Placement = str | Callable[..., object]
+type Kinship = Callable[..., object]
 
 
 class LifeCycleInteraction(Interaction):
@@ -26,17 +30,29 @@ class LifeCycleInteraction(Interaction):
 
     Every step the agents act once each, in their order under the schedule `'sequential'`, in a new random order under
     `'random-sequential'`, or each in its own activation under `'member'`, together with the rules of its element and
-    the other member interactions, in the order the system lists them. An agent dies with the probability `death`, and
-    an agent that
-    survives gives birth with the probability `birth`, or as many times as a Poisson number of the mean `rate`. A
-    probability is a number or a function of the agent and the model view, and a function that returns a condition
-    gives probability one where it holds. Every birth creates `offspring` new agents of the group, a number or a
-    function of the parent and the model view, such as a Poisson draw. A new agent stands in the cell of its parent,
-    with the placement `'here'`, or in a neighbouring cell that no agent of the group holds, with the placement
-    `'neighbor'`, and a birth without such a cell creates fewer agents. A new agent copies the states `inherit` of its
-    parent, the parent splits each state of `split` equally with its offspring, and `mutate(values, model)` returns the
-    values of a new agent from those it would get. The other states take their defaults. The life cycle is an agent
-    rule, so the system runs in discrete time.
+    the other member interactions, in the order the system lists them, without the reports of the step and without
+    arrivals. An agent dies with the probability `death`, and an agent that survives gives birth with the probability
+    `birth`, or as many times as a Poisson number of the mean `rate`. A probability is a number or a function of the
+    agent and the model view, and a function that returns a condition gives probability one where it holds. Every birth
+    creates `offspring` new agents, a number or a function of the parent and the model view, such as a Poisson draw, of
+    the group `group`, or of the parent's group without one. A new agent stands in the cell of its parent, with the
+    placement `'here'`, in a neighbouring cell that no agent of the group holds, with the placement `'neighbor'`, or at
+    the location a function of the parent and the model view returns, where `None` means no place, and a birth without a
+    place creates fewer agents.
+
+    A new agent copies the states `inherit` of its parent and takes the values that `values(parent, model)` returns,
+    such as a generation one higher or drawn states. The parent splits each state of `split` with its offspring,
+    keeping the share `keep`, a number or a function of the parent and the model view such as a random cut, or else an
+    equal share, and the offspring share the rest equally. Then `mutate(values, model)` returns the values of a new
+    agent from those it would get, and the other states take their defaults. A parent that gave birth takes the values
+    `reset`, and with `replace` it is removed, so its offspring replace it, also when the birth created none. With
+    `renew` an agent that dies is renewed in place instead of removed: it keeps its identity, its place, and the states
+    the new values leave out, and takes the values of an offspring of its own. With the probability `cull` an agent
+    that survives removes one member of `group` for which `kin(agent, member)` holds, the first in the order of the
+    group, such as one it owns. Every step a Poisson number of the mean `arrival`, a number or a function of the model
+    view, of new agents arrive without a parent, at the location of the placement function or else at a random place,
+    with the values `values(None, model)`. The life cycle reports the `births`, `deaths`, and `arrivals` of every step.
+    It is an agent rule, so the system runs in discrete time.
 
     Args:
         label:
@@ -58,13 +74,14 @@ class LifeCycleInteraction(Interaction):
             The number of new agents of a birth.
 
         placement:
-            Where a new agent stands, `'here'` or `'neighbor'`.
+            Where a new agent stands, `'here'`, `'neighbor'`, or a function of the parent, `None` for an arrival, and
+            the model view that returns its location.
 
         inherit:
             The names of the states a new agent copies from its parent.
 
         split:
-            The names of the states the parent shares equally with its offspring.
+            The names of the states the parent shares with its offspring.
 
         mutate:
             A function of the values of a new agent and the model view that returns its values, or `None`.
@@ -75,10 +92,40 @@ class LifeCycleInteraction(Interaction):
         phase:
             The phase of the step the life cycle runs in, or `None` for the default phase.
 
+        group:
+            The path of the variable group the new agents join, or `None` for the group of the target.
+
+        values:
+            A function of the parent, `None` for an arrival, and the model view that returns values of a new agent by
+            state name, or `None`.
+
+        keep:
+            The share of every split state the parent keeps, a number or a function, or `None` for an equal share.
+
+        reset:
+            The values a parent takes after it gives birth, by state name, or `None`.
+
+        replace:
+            Whether a parent that gives birth is removed.
+
+        renew:
+            Whether an agent that dies is renewed in place instead of removed.
+
+        cull:
+            The probability that an agent removes one member of `group` in a step, or `None` for no removals.
+
+        kin:
+            A function of an agent and a member of `group` that returns whether the agent may remove the member, or
+            `None` for every member.
+
+        arrival:
+            The mean number of new agents that arrive in a step without a parent, or `None` for no arrivals.
+
     Raises:
         ValidationError:
-            The placement or the schedule is unknown, both a birth probability and a rate are given, or a function is
-            not callable, raised by `check`.
+            The placement or the schedule is unknown, both a birth probability and a rate are given, a function is
+            not callable, a removal of members of another group has no group, or the schedule `'member'` has
+            arrivals, raised by `check`.
 
     Examples:
         >>> from typing import Annotated
@@ -100,6 +147,8 @@ class LifeCycleInteraction(Interaction):
         [2.0, 2.0, 2.0, 2.0]
     """
 
+    reports: ClassVar[tuple[str, ...]] = ('births', 'deaths', 'arrivals')
+
     def __init__(
         self,
         label: str,
@@ -109,12 +158,21 @@ class LifeCycleInteraction(Interaction):
         death: Chance | None = None,
         rate: Chance | None = None,
         offspring: Count = 1,
-        placement: str = 'here',
+        placement: Placement = 'here',
         inherit: Sequence[str] = (),
         split: Sequence[str] = (),
         mutate: Mutation | None = None,
         schedule: str = 'random-sequential',
         phase: str | None = None,
+        group: Annotated[str | None, RoleSpec(optional=True)] = None,
+        values: Values | None = None,
+        keep: Chance | None = None,
+        reset: Mapping[str, object] | None = None,
+        replace: bool = False,
+        renew: bool = False,
+        cull: Chance | None = None,
+        kin: Kinship | None = None,
+        arrival: Arrival | None = None,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -128,32 +186,53 @@ class LifeCycleInteraction(Interaction):
         self.mutate = mutate
         self.schedule = schedule
         self.phase = phase
+        self.group = group
+        self.values = values
+        self.keep = keep
+        self.reset = reset
+        self.replace = replace
+        self.renew = renew
+        self.cull = cull
+        self.kin = kin
+        self.arrival = arrival
 
     def _check(self) -> None:
         """Raise an error for an unknown placement, a birth by both probability and rate, or a bad function.
 
         Raises:
             ValidationError:
-                The placement or the schedule is unknown, both a birth probability and a rate are given, or a value
-                is neither a number nor a function.
+                The placement or the schedule is unknown, both a birth probability and a rate are given, a value is
+                neither a number nor a function, a removal of members of another group has no group, or the
+                schedule `'member'` has arrivals.
         """
         super()._check()
-        if self.placement not in PLACEMENTS:
-            error_msg = f'Unknown placement {self.placement!r} of {self.label!r}. Use one of {", ".join(PLACEMENTS)}.'
+        if not callable(self.placement) and self.placement not in PLACEMENTS:
+            error_msg = (
+                f'Unknown placement {self.placement!r} of {self.label!r}. Use one of {", ".join(PLACEMENTS)}, or a '
+                'function.'
+            )
             raise ValidationError(error_msg)
         if self.schedule not in SCHEDULES:
             error_msg = f'Unknown schedule {self.schedule!r} of {self.label!r}. Use one of {", ".join(SCHEDULES)}.'
             raise ValidationError(error_msg)
+        if self.schedule == 'member' and self.arrival is not None:
+            error_msg = f'{self.label!r} runs member by member, so no agent brings arrivals. Give `arrival=None`.'
+            raise ValidationError(error_msg)
         if self.birth is not None and self.rate is not None:
             error_msg = f'{self.label!r} gives births by a probability and by a rate. Give one of them.'
             raise ValidationError(error_msg)
-        for name in ('birth', 'death', 'rate', 'offspring'):
+        for name in ('birth', 'death', 'rate', 'offspring', 'keep', 'cull', 'arrival'):
             value = getattr(self, name)
             if value is not None and not callable(value) and not isinstance(value, int | float):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a number or a function.'
                 raise ValidationError(error_msg)
-        if self.mutate is not None and not callable(self.mutate):
-            error_msg = f'The mutation of {self.label!r} is {self.mutate!r}. Give a function, or None.'
+        for name in ('mutate', 'values', 'kin'):
+            value = getattr(self, name)
+            if value is not None and not callable(value):
+                error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function, or None.'
+                raise ValidationError(error_msg)
+        if self.cull is not None and self.group is None:
+            error_msg = f'{self.label!r} removes members of another group but binds no group. Give the group.'
             raise ValidationError(error_msg)
 
     @staticmethod
@@ -169,12 +248,10 @@ class LifeCycleInteraction(Interaction):
         return probability >= 1.0 or (probability > 0.0 and model.rng.random() < probability)
 
     def _count_births(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> int:
-        """Return the number of new agents of a parent in this step."""
+        """Return the number of births of a parent in this step."""
         if self.rate is not None:
-            births = int(model.rng.poisson(self._evaluate(self.rate, agent, model)))
-        else:
-            births = int(self._happens(self.birth, agent, model))
-        return births * int(self._evaluate(self.offspring, agent, model)) if births else 0
+            return int(model.rng.poisson(self._evaluate(self.rate, agent, model)))
+        return int(self._happens(self.birth, agent, model))
 
     def _get_places(
         self,
@@ -183,7 +260,10 @@ class LifeCycleInteraction(Interaction):
         occupied: set[object],
         model: ModelViewProtocol,
     ) -> list[object]:
-        """Return the locations of the new agents of a parent, fewer when free neighbouring cells run out."""
+        """Return the locations of the new agents of a parent, fewer when places run out."""
+        if callable(self.placement):
+            places = [self.placement(agent, model) for _ in range(count)]
+            return [place for place in places if place is not None]
         if self.placement == 'here':
             return [agent.location] * count
         free = [cell for cell in agent.neighbor_cells() if cell not in occupied]
@@ -191,43 +271,123 @@ class LifeCycleInteraction(Interaction):
         occupied.update(chosen)
         return chosen
 
-    def _bear(self, agent: AgentViewProtocol, places: list[object], model: ModelViewProtocol) -> None:
-        """Create the new agents of a parent at their places, with inherited, split, and mutated values."""
-        shares = {name: getattr(agent, name) / (len(places) + 1) for name in self.split}
-        for name, share in shares.items():
-            setattr(agent, name, share)
-        for place in places:
-            values: dict[str, object] = {name: getattr(agent, name) for name in self.inherit}
-            values.update(shares)
-            if self.mutate is not None:
-                values = self.mutate(values, model)
-            agent.create(None, place, **values)
+    def _get_values(self, agent: AgentViewProtocol | None, model: ModelViewProtocol) -> dict[str, object]:
+        """Return the inherited and given values of a new agent of a parent, or of an arrival."""
+        values: dict[str, object] = {} if agent is None else {name: getattr(agent, name) for name in self.inherit}
+        if self.values is not None:
+            values.update(self.values(agent, model))
+        return values
 
-    def _live_agent(self, agent: AgentViewProtocol, model: ModelViewProtocol, occupied: set[object]) -> None:
-        """Remove an agent that dies, or create the offspring of an agent that gives birth."""
-        if not agent.alive:
+    def _create(
+        self,
+        agent: AgentViewProtocol | None,
+        place: object,
+        values: dict[str, object],
+        model: ModelViewProtocol,
+    ) -> None:
+        """Create a new agent with mutated values at a place, `None` for a random one, in the group of the cycle."""
+        if self.mutate is not None:
+            values = self.mutate(values, model)
+        if self.group is not None:
+            model.create('group', place, **values)
+        elif agent is not None:
+            agent.create(None, place, **values)
+        else:
+            model.create('target', place, **values)
+
+    def _bear(self, agent: AgentViewProtocol, places: list[object], model: ModelViewProtocol) -> None:
+        """Create the new agents of a parent at their places, with inherited, given, split, and mutated values."""
+        kept = 1 / (len(places) + 1) if self.keep is None else self._evaluate(self.keep, agent, model)
+        totals = {name: float(getattr(agent, name)) for name in self.split}
+        for name, amount in totals.items():
+            setattr(agent, name, amount * kept)
+        shares = {name: (amount - amount * kept) / max(len(places), 1) for name, amount in totals.items()}
+        for place in places:
+            values = self._get_values(agent, model)
+            values.update(shares)
+            self._create(agent, place, values, model)
+
+    def _renew(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
+        """Give an agent that dies the values of an offspring of its own, in place."""
+        values = self._get_values(agent, model)
+        if self.mutate is not None:
+            values = self.mutate(values, model)
+        for name, value in values.items():
+            setattr(agent, name, value)
+
+    def _remove_kin(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
+        """Remove the first member of the group of the cycle that is kin of an agent, if there is one."""
+        kin = self.kin
+        members = (item for item in model.agents('group') if item.alive and (kin is None or kin(agent, item)))
+        member = next(members, None)
+        if member is not None:
+            member.remove()
+
+    def _die(self, agent: AgentViewProtocol, occupied: set[object], model: ModelViewProtocol) -> None:
+        """Renew an agent in place, or remove it and free its cell."""
+        if self.renew:
+            self._renew(agent, model)
             return
+        occupied.discard(agent.location_key)
+        agent.remove()
+
+    def _act(self, agent: AgentViewProtocol, occupied: set[object], model: ModelViewProtocol) -> tuple[int, int]:
+        """Let an agent die, or give birth and remove kin, and return its numbers of new agents and deaths."""
         if self._happens(self.death, agent, model):
-            occupied.discard(agent.location_key)
-            agent.remove()
-            return
-        count = self._count_births(agent, model)
-        if count:
-            self._bear(agent, self._get_places(agent, count, occupied, model), model)
+            self._die(agent, occupied, model)
+            return 0, 1
+        born = 0
+        events = self._count_births(agent, model)
+        if events > 0:
+            births = events * int(self._evaluate(self.offspring, agent, model))
+            places = self._get_places(agent, births, occupied, model) if births else []
+            if places or self.split:
+                self._bear(agent, places, model)
+            born = len(places)
+            for name, value in (self.reset or {}).items():
+                setattr(agent, name, value)
+            if self.replace:
+                occupied.discard(agent.location_key)
+                agent.remove()
+                return born, 1
+        if self._happens(self.cull, agent, model):
+            self._remove_kin(agent, model)
+        return born, 0
+
+    def _arrive(self, model: ModelViewProtocol) -> int:
+        """Create the agents that arrive without a parent in this step, and return their number."""
+        if self.arrival is None:
+            return 0
+        mean = self.arrival(model) if callable(self.arrival) else self.arrival
+        count = int(model.rng.poisson(float(mean)))
+        for _ in range(count):
+            place = self.placement(None, model) if callable(self.placement) else None
+            self._create(None, place, self._get_values(None, model), model)
+        return count
 
     def _live_member(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
         """Run the life cycle of one agent in its own activation."""
+        if not agent.alive:
+            return
         neighbor = self.placement == 'neighbor'
         occupied = {other.location_key for other in model.agents('target')} if neighbor else set()
-        self._live_agent(agent, model, occupied)
+        self._act(agent, occupied, model)
 
     def _live(self, model: ModelViewProtocol) -> None:
-        """Remove the agents that die and create the offspring of those that give birth, in order or random order."""
+        """Remove or renew the agents that die and create the offspring of those that give birth, by the schedule."""
         agents = model.agents('target')
         occupied = {agent.location_key for agent in agents} if self.placement == 'neighbor' else set()
+        births = deaths = 0
         order = model.rng.permutation(len(agents)) if self.schedule == 'random-sequential' else range(len(agents))
         for index in order:
-            self._live_agent(agents[int(index)], model, occupied)
+            agent = agents[int(index)]
+            if not agent.alive:
+                continue
+            born, died = self._act(agent, occupied, model)
+            births, deaths = births + born, deaths + died
+        model.report('births', births)
+        model.report('deaths', deaths)
+        model.report('arrivals', self._arrive(model))
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the rule of the life cycle.

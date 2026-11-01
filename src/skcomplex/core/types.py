@@ -45,7 +45,7 @@ type MatchingRule = (
 )
 type NamespaceFunction = Callable[[SimpleNamespace], Target]
 type PairPotential = Callable[[SimpleNamespace, Expression], Expression]
-type Combination = Callable[[Target, Target], Target]
+type Combination = Callable[[SimpleNamespace, Target], Target]
 
 
 @runtime_checkable
@@ -186,6 +186,9 @@ class ModelViewProtocol(Protocol):
 
     def deposit(self, name: str, cell: object, amount: float) -> None:
         """Add an amount to a field state, by path or as `<role>.<state>`, at a cell or node."""
+
+    def create(self, group: str, location: object = None, **values: object) -> AgentViewProtocol:
+        """Create an agent of a group, a role of the owner or a path, at a location or by default a random place."""
 
     def report(self, name: str, value: float) -> None:
         """Publish a value of the owner as the reporter `<owner>.<name>`."""

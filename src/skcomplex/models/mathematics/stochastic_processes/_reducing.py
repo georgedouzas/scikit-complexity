@@ -4,27 +4,27 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import LifeCycleInteraction
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._fragment_view import FragmentView
 from ._reducing_ball_view import ReducingBallView
+from ._reducing_jump import ReducingJumpInteraction
 
 
 class ReducingBallElement(Element):
-    """Ball that jumps to a random lower state, and restarts from the top state after it reaches state 1.
+    """Ball of the sample-space-reducing process, whose state the reducing jump moves to a random lower state.
 
-    With probability `lam` the ball jumps uniformly to a state below its own, and otherwise uniformly to any state, so
-    the states are visited with probabilities proportional to `i^(-lam)`.
+    With probability `lam` the jump takes the ball uniformly to a state below its own, and otherwise uniformly to any
+    state, and the ball restarts from the top state after it reaches state 1.
 
     Args:
         label:
@@ -68,40 +68,9 @@ class ReducingBallElement(Element):
         """Return the view of the agents, which types their states and parameters."""
         return ReducingBallView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the jump rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.jump)]
-
-    def jump(self, agent: ReducingBallView, model: ModelView) -> None:
-        """Jump to a lower state, to any state, or back to the top state.
-
-        Args:
-            agent:
-                The ball.
-
-            model:
-                The model.
-        """
-        top = round(agent.n_states)
-        if agent.level <= 1:
-            agent.level = float(top)
-        elif model.rng.random() < agent.lam:
-            agent.level = float(model.rng.integers(1, round(agent.level)))
-        else:
-            agent.level = float(model.rng.integers(1, top + 1))
-
 
 class FragmentElement(Element):
-    """Fragment of integer size that breaks at a uniformly random point into two smaller fragments.
+    """Fragment of integer size, which the breaking of the model cuts at a uniformly random point into two fragments.
 
     Args:
         label:
@@ -140,21 +109,9 @@ class FragmentElement(Element):
         """Return the view of the agents, which types their states and parameters."""
         return FragmentView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the breaking rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.split)]
-
-    def split(self, agent: FragmentView, model: ModelView) -> None:
-        """Break the fragment in two with the breaking probability.
+    @staticmethod
+    def breaks(agent: FragmentView, model: ModelView) -> float:
+        """Return the probability that a fragment breaks in a step, zero at size 1.
 
         Args:
             agent:
@@ -162,13 +119,30 @@ class FragmentElement(Element):
 
             model:
                 The model.
+
+        Returns:
+            probability:
+                The breaking probability, or zero for a fragment of size 1.
+        """
+        return agent.rate if round(agent.length) > 1 else 0.0
+
+    @staticmethod
+    def cut(agent: FragmentView, model: ModelView) -> float:
+        """Return the share of a breaking fragment that stays with it, cut at a uniformly random whole point.
+
+        Args:
+            agent:
+                The fragment.
+
+            model:
+                The model.
+
+        Returns:
+            share:
+                The share of the size left of the cut.
         """
         length = round(agent.length)
-        if length <= 1 or model.rng.random() >= agent.rate:
-            return
-        cut = int(model.rng.integers(1, length))
-        agent.length = float(cut)
-        agent.create(length=float(length - cut))
+        return int(model.rng.integers(1, length)) / length
 
 
 @register_model(
@@ -209,6 +183,7 @@ def sample_space_reducing(n_balls: int = 20, *, n_states: int = 10, lam: float =
                 variable=True,
             ),
         ],
+        interactions=[ReducingJumpInteraction('jump', target='balls')],
     )
 
 
@@ -247,6 +222,15 @@ def fragmentation(size: int = 1000, *, rate: float = 0.5) -> System:
                 size=1,
                 values={'length': float(size), 'rate': rate},
                 variable=True,
+            ),
+        ],
+        interactions=[
+            LifeCycleInteraction(
+                'breaking',
+                target='fragments',
+                birth=FragmentElement.breaks,
+                split=('length',),
+                keep=FragmentElement.cut,
             ),
         ],
     )

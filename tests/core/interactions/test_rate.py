@@ -137,3 +137,39 @@ def test_check_rejects_invalid_arguments(arguments, message):
     """Test that `check` rejects a bad state, function, divisor, convention, Hurst index, or noise combination."""
     with pytest.raises(ValidationError, match=message):
         RateInteraction('rate', target='walkers', **arguments).check()
+
+
+def test_run_divides_by_a_divisor_expression():
+    """Test that a constant rate `F` divided by the expression `2 m` gives `x = F t**2 / (4 m)`."""
+    push = RateInteraction('push', target='body', state='x', rate=4.0, divisor=lambda member: 2 * member.m)
+    system = System(elements=[InertialElement('body', m=2.0)], interactions=[push], space=ContinuousSpace(n_dim=2))
+    trajectory = Simulation(system, dt=0.5).check().prepare().run(until=2.0).trajectory_
+    np.testing.assert_allclose(trajectory.values('body.x')[-1], [2.0, 2.0])
+
+
+class FractionalElement(Element):
+    """Element with a state and a Hurst index as a parameter."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        n: Annotated[object, StateSpec()] = 0.0,
+        H: Annotated[float, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.H = H
+
+
+def test_run_reads_the_hurst_index_from_a_parameter():
+    """Test that a Hurst index read from a parameter gives the variance `t**(2 H)` within 5 percent."""
+    noise = RateInteraction('walk', target='walkers', state='n', noise=1.0, hurst=lambda s: s.target.H)
+    system = System(
+        elements=[GroupElement('walkers', element=FractionalElement, size=5_000, values={'n': 0.0, 'H': 0.7})],
+        interactions=[noise],
+    )
+    solver = FractionalEulerMaruyamaSolver(dt=0.01)
+    simulation = Simulation(system, solver=solver, dt=2.0, random_state=0).check().prepare()
+    final = simulation.run(until=2.0).trajectory_.values('walkers.n')[-1]
+    assert final.var() == pytest.approx(2.0**1.4, rel=0.05)

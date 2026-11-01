@@ -4,7 +4,6 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
@@ -14,17 +13,16 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import NetworkSpace
 from ....core.system import System
-from ....engine.solvers import ModelView
 from ....specs import StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._threshold_activation import ThresholdActivationInteraction
 from ._threshold_node_view import ThresholdNodeView
 
 
 class ThresholdNodeElement(Element):
-    """Node of the Watts cascade model, which becomes active once the share of active neighbours reaches its threshold.
+    """Node of the Watts cascade model, which the activation turns active once enough of its neighbours are active.
 
     Args:
         label:
@@ -62,35 +60,6 @@ class ThresholdNodeElement(Element):
     def _get_view(cls) -> type[ThresholdNodeView]:
         """Return the class of the views of the agents, whose attributes are the states and parameters."""
         return ThresholdNodeView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the activation rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.activate)]
-
-    def activate(self, agent: ThresholdNodeView, model: ModelView) -> None:
-        """Become active once the share of active neighbours reaches the threshold.
-
-        Args:
-            agent:
-                The node.
-
-            model:
-                The model.
-        """
-        neighbors = [item for item in agent.neighbors() if isinstance(item, ThresholdNodeView)]
-        if agent.active or not neighbors:
-            return
-        if sum(neighbor.active for neighbor in neighbors) / len(neighbors) >= agent.threshold:
-            agent.active = 1.0
 
 
 @register_model(
@@ -142,4 +111,8 @@ def watts_cascades(
         size=size,
         values={'active': active, 'threshold': threshold},
     )
-    return System(elements=[nodes], space=NetworkSpace(graph))
+    return System(
+        elements=[nodes],
+        interactions=[ThresholdActivationInteraction('activation', target='nodes')],
+        space=NetworkSpace(graph),
+    )

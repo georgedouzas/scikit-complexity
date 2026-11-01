@@ -15,6 +15,7 @@ from ....core.interactions import Interaction, ReactionInteraction
 from ....core.laws import BaseLaw
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....types import Stoichiometry
 from ..._catalog import register_model
 
 MODES = {False: 'rate', True: 'jump'}
@@ -49,13 +50,13 @@ class BranchElement(CompartmentElement):
         super().__init__(label, visual=visual, n=n)
 
 
-class TrailChoiceInteraction(Interaction):
+class TrailChoiceInteraction(ReactionInteraction):
     """Choice of a branch by arriving ants, with Deneubourg's probability `(k + n)^h / ((k + n)^h + (k + n')^h)`.
 
     Ants arrive at the fork at rate `flux`, and each takes the chosen branch with a probability that grows with its
-    marks `n` against the marks `n'` of the other branch, and marks it. Its laws are those of a `ReactionInteraction`
-    that produces one mark on the chosen branch at that propensity and reads the other branch as a modifier, a rate
-    equation, or in stochastic mode a random event per ant.
+    marks `n` against the marks `n'` of the other branch, and marks it. It is a `ReactionInteraction` that produces one
+    mark on the chosen branch at that propensity and reads the other branch as a modifier, a rate equation, or in
+    stochastic mode a random event per ant.
 
     Args:
         label:
@@ -109,34 +110,33 @@ class TrailChoiceInteraction(Interaction):
         self.h = h
         self.stochastic = stochastic
 
-    def _get_propensity(self, namespace: SimpleNamespace) -> Expression:
-        """Return the rate of ants that choose the branch, `flux` times Deneubourg's probability."""
+    def _get_products(self) -> Stoichiometry:
+        """Return the marks `n` of the chosen branch, which every choice adds one to."""
+        return {(self.chosen, 'n'): 1}
+
+    def _get_modifiers(self) -> Stoichiometry:
+        """Return the marks `n` of the other branch, which the choice reads."""
+        return {(self.other, 'n'): 1}
+
+    def _get_mode(self) -> str:
+        """Return the mode of the reaction, random events when stochastic and a rate equation otherwise."""
+        return MODES[self.stochastic]
+
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
+        """Return the rate of ants that choose the branch, `flux` times Deneubourg's probability.
+
+        Args:
+            namespace:
+                The namespace of the symbols the rate can use, with the chosen and the other branch.
+
+        Returns:
+            rate:
+                The propensity of the marking.
+        """
         s = namespace
         attraction = (s.k + s.chosen.n) ** s.h
         propensity: Expression = s.flux * attraction / (attraction + (s.k + s.other.n) ** s.h)
         return propensity
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the laws of the reaction that marks the chosen branch at the rate of ants that choose it.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use, with the chosen and the other branch.
-
-        Returns:
-            laws:
-                The rate law, or the jump law, of the marking.
-        """
-        propensity = self._get_propensity(namespace)
-        reaction = ReactionInteraction(
-            self.label,
-            products={(self.chosen, 'n'): 1},
-            propensity=lambda _: propensity,
-            modifiers={(self.other, 'n'): 1},
-            mode=MODES[self.stochastic],
-        )
-        species = SimpleNamespace(reactants=(), products=(namespace.chosen,), modifiers=(namespace.other,), k=0)
-        return list(reaction.check().prepare().run(species).laws_)
 
 
 class RatsElement(CompartmentElement):

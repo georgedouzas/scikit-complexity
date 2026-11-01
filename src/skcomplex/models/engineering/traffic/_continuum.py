@@ -11,8 +11,7 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement
-from ....core.interactions import ConservationInteraction
-from ....core.laws import BaseLaw, FluxLaw, RateLaw
+from ....core.interactions import ConservationInteraction, RateInteraction, RelaxationInteraction
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
 from ....core.system import System
@@ -42,7 +41,11 @@ class LighthillWhithamRichardsElement(Element):
 
 
 class PayneElement(Element):
-    """Cell of a road with the traffic density `rho` and the flow `q` of the Payne model."""
+    """Cell of a road with the traffic density `rho` and the flow `q` of the Payne model.
+
+    The density and the flow are conserved by conservation interactions, and the flow relaxes to the Greenshields
+    flow by a relaxation interaction.
+    """
 
     def __init__(
         self,
@@ -62,17 +65,13 @@ class PayneElement(Element):
         self.rho_max = rho_max
         self.tau = tau
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the conservation of the density and the flow, and the relaxation of the flow."""
-        return [
-            FluxLaw(s.rho, s.q),
-            FluxLaw(s.q, s.q**2 / s.rho + s.vmax * s.rho / (2 * s.tau * s.rho_max)),
-            RateLaw(s.q, (s.rho * s.vmax * (1 - s.rho / s.rho_max) - s.q) / s.tau),
-        ]
-
 
 class KernerKonhauserElement(Element):
-    """Cell of a road with the traffic density `rho` and the flow `q` of the Kerner-Konhäuser model."""
+    """Cell of a road with the traffic density `rho` and the flow `q` of the Kerner-Konhäuser model.
+
+    The density and the flow are conserved by conservation interactions, the flow relaxes to the equilibrium flow by
+    a relaxation interaction, and the viscosity adds the rate `mu laplacian(q / rho)` to the flow.
+    """
 
     def __init__(
         self,
@@ -96,24 +95,16 @@ class KernerKonhauserElement(Element):
         self.c0 = c0
         self.mu = mu
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the conservation of the density and the flow, and the viscous relaxation of the flow."""
-        return [
-            FluxLaw(s.rho, s.q),
-            FluxLaw(s.q, s.q**2 / s.rho + s.c0**2 * s.rho),
-            RateLaw(
-                s.q,
-                (s.rho * s.V0 * (1 / (1 + exp((s.rho / s.rho_max - 0.25) / 0.06)) - KERNER_KONHAUSER_OFFSET) - s.q)
-                / s.tau
-                + s.mu * laplacian(s.q / s.rho),
-            ),
-        ]
-
 
 def _get_lighthill_whitham_richards_flux(s: SimpleNamespace) -> Expression:
     """Return the Greenshields flux `vmax rho (1 - rho / rho_max)` of the density."""
     road = s.target
     return road.vmax * road.rho * (1 - road.rho / road.rho_max)
+
+
+def _get_kerner_konhauser_speed(road: SimpleNamespace) -> Expression:
+    """Return the equilibrium speed `V0 (1 / (1 + exp((rho / rho_max - 0.25) / 0.06)) - 3.72e-6)` of a road."""
+    return road.V0 * (1 / (1 + exp((road.rho / road.rho_max - 0.25) / 0.06)) - KERNER_KONHAUSER_OFFSET)
 
 
 def _density_bump(n: int, density: float, bump: float) -> np.ndarray:
@@ -248,7 +239,22 @@ def payne(
         values=values,
         discretization='finite-volume',
     )
-    return System(elements=[road])
+    density = ConservationInteraction('density', target='road', state='rho', flux=lambda s: s.target.q)
+    flow = ConservationInteraction(
+        'flow',
+        target='road',
+        state='q',
+        flux=lambda s: s.target.q**2 / s.target.rho
+        + s.target.vmax * s.target.rho / (2 * s.target.tau * s.target.rho_max),
+    )
+    relaxation = RelaxationInteraction(
+        'relaxation',
+        target='road',
+        state='q',
+        goal=lambda s: s.target.rho * s.target.vmax * (1 - s.target.rho / s.target.rho_max),
+        time=lambda s: s.target.tau,
+    )
+    return System(elements=[road], interactions=[density, flow, relaxation])
 
 
 @register_model(
@@ -331,4 +337,24 @@ def kerner_konhauser(
         values=values,
         discretization='finite-volume',
     )
-    return System(elements=[road])
+    density = ConservationInteraction('density', target='road', state='rho', flux=lambda s: s.target.q)
+    flow = ConservationInteraction(
+        'flow',
+        target='road',
+        state='q',
+        flux=lambda s: s.target.q**2 / s.target.rho + s.target.c0**2 * s.target.rho,
+    )
+    relaxation = RelaxationInteraction(
+        'relaxation',
+        target='road',
+        state='q',
+        goal=lambda s: s.target.rho * _get_kerner_konhauser_speed(s.target),
+        time=lambda s: s.target.tau,
+    )
+    viscosity = RateInteraction(
+        'viscosity',
+        target='road',
+        state='q',
+        rate=lambda s: s.target.mu * laplacian(s.target.q / s.target.rho),
+    )
+    return System(elements=[road], interactions=[density, flow, relaxation, viscosity])

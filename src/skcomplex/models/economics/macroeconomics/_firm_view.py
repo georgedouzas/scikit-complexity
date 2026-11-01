@@ -7,7 +7,11 @@ from ....engine.solvers import AgentView
 
 
 class FirmView(AgentView):
-    """Firm as the rules see it: its net worth, demand, loan, rate, partner, gross return, injection, and default."""
+    """Firm as the rules see it: its balance sheet, loan, partner, return, injection, default, and parameters.
+
+    It reads its `net_worth`, `demand`, `loan`, `rate`, `partner`, `gross_return`, `injected`, and `defaulted`, and the
+    parameters `leverage`, `mean_return`, `volatility`, and `entry`.
+    """
 
     net_worth: float
     demand: float
@@ -17,3 +21,7 @@ class FirmView(AgentView):
     gross_return: float
     injected: float
     defaulted: float
+    leverage: float
+    mean_return: float
+    volatility: float
+    entry: float

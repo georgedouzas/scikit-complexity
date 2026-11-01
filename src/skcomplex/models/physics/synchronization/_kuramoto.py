@@ -8,13 +8,12 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, cos, oo, sin
+from sage.all__sagemath_symbolics import Expression, oo, sin
 from sage.sets.real_set import RealSet
 
 from ....core.elements import GroupElement
-from ....core.interactions import BaseInteraction, Interaction, RateInteraction
-from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import delayed, mean
+from ....core.interactions import BaseInteraction, RateInteraction
+from ....core.laws.utils import delayed
 from ....core.spaces import ContinuousSpace, RadiusNeighborhood
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, VisualSpec
@@ -85,66 +84,6 @@ class DelayedCouplingInteraction(RateInteraction):
                 The rate of the phase of the target.
         """
         return namespace.K * sin(delayed(namespace.source.theta, namespace.tau) - namespace.target.theta)
-
-
-class MeanFieldCouplingInteraction(Interaction):
-    """Kuramoto-Sakaguchi coupling of one population to the mean field of another, possibly itself.
-
-    Every member `i` of the target turns by `K mean_j sin(theta_j - theta_i - alpha)` over every member `j` of the
-    source, which it reads from the means of `cos theta_j` and `sin theta_j`, so the coupling costs time linear in the
-    sizes of the populations.
-
-    Args:
-        label:
-            The label of the interaction, unique among the parts of its system.
-
-        target:
-            The path of the population whose phases turn.
-
-        source:
-            The path of the population whose mean field the target reads.
-
-        K:
-            The coupling strength.
-
-        alpha:
-            The phase lag.
-
-    Examples:
-        >>> from skcomplex.models.physics.synchronization import MeanFieldCouplingInteraction
-        >>> MeanFieldCouplingInteraction('coupling', target='first', source='second', alpha=0.1).alpha
-        0.1
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        source: Annotated[str, RoleSpec()],
-        K: Annotated[float, ParameterSpec()] = 1.0,
-        alpha: Annotated[float, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label)
-        self.target = target
-        self.source = source
-        self.K = K
-        self.alpha = alpha
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate `K (<sin theta_j> cos(theta_i + alpha) - <cos theta_j> sin(theta_i + alpha))`.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate of the phase of the target.
-        """
-        shifted = namespace.target.theta + namespace.alpha
-        sines, cosines = mean(sin(namespace.source.theta)), mean(cos(namespace.source.theta))
-        return [RateLaw(namespace.target.theta, namespace.K * (sines * cos(shifted) - cosines * sin(shifted)))]
 
 
 def _spread_phases(size: int, seed: int) -> list[float]:
@@ -346,12 +285,15 @@ def kuramoto_sakaguchi_chimera(
         ),
     ]
     interactions: list[BaseInteraction] = [
-        MeanFieldCouplingInteraction(
+        KuramotoCouplingInteraction(
             f'{target}_from_{source}',
             target=target,
             source=source,
             K=mu if target == source else nu,
             alpha=alpha,
+            reduce='mean',
+            mode='group',
+            include_self=True,
         )
         for target in ('first', 'second')
         for source in ('first', 'second')

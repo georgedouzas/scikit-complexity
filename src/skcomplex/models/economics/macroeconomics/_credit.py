@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
+from collections.abc import Callable
 from typing import Annotated, ClassVar
 
 import numpy as np
@@ -12,8 +12,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import MatchingInteraction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import MapInteraction, MatchingInteraction
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
@@ -111,9 +110,6 @@ class FirmElement(Element):
         entry:
             The net worth of an entrant.
 
-        lenders:
-            The path of the group of banks.
-
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import FirmElement
         >>> GroupElement('firms', element=FirmElement, size=10, values={'net_worth': 5.0}).size
@@ -138,7 +134,6 @@ class FirmElement(Element):
         mean_return: Annotated[float, ParameterSpec()] = 0.03,
         volatility: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         entry: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        lenders: str = 'banks',
     ) -> None:
         super().__init__(label, visual=visual)
         self.net_worth = net_worth
@@ -154,70 +149,83 @@ class FirmElement(Element):
         self.mean_return = mean_return
         self.volatility = volatility
         self.entry = entry
-        self.lenders = lenders
 
     @classmethod
     def _get_view(cls) -> type[FirmView]:
         """Return the view of a firm, with its balance sheet and its loan."""
         return FirmView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the borrowing plan and the investment rule.
+    @staticmethod
+    def get_return(agent: FirmView, model: ModelView) -> float:
+        """Return the return on the net worth and the loan invested, at a normal rate of return of at least -1.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            agent:
+                The firm.
+
+            model:
+                The model view of the investment.
 
         Returns:
-            laws:
-                The laws of the component.
+            gross_return:
+                The return of the step.
         """
-        return [RuleLaw(self.plan, phase='plan'), RuleLaw(self.invest, phase='settle')]
+        draw = agent.mean_return + agent.volatility * model.rng.standard_normal()
+        return (agent.net_worth + agent.loan) * max(draw, -1.0)
 
-    def plan(self, agent: FirmView, model: ModelView) -> None:
-        """Ask for a loan of `leverage` times the net worth.
+    @staticmethod
+    def get_worth(agent: FirmView) -> float:
+        """Return the net worth after the return and the interest, negative for a firm that defaults.
 
         Args:
             agent:
                 The firm.
 
-            model:
-                The model.
+        Returns:
+            worth:
+                The net worth before a default.
         """
-        agent.demand = model.parameter('leverage') * agent.net_worth
-        agent.loan, agent.rate, agent.defaulted, agent.injected = 0.0, 0.0, 0, 0.0
+        return agent.net_worth + agent.gross_return - agent.loan * agent.rate
 
-    def invest(self, agent: FirmView, model: ModelView) -> None:
-        """Invest the capital, pay the interest to the bank, and default when the net worth turns negative.
+    @staticmethod
+    def get_plan() -> tuple[tuple[str, Callable[[FirmView, ModelView], float]], ...]:
+        """Return the states a firm sets in the plan of a step, a loan request of `leverage` times its net worth.
 
-        Args:
-            agent:
-                The firm.
-
-            model:
-                The model.
+        Returns:
+            plan:
+                The name of every state and the function of its value, of the firm and the model view.
         """
-        draw = model.parameter('mean_return') + model.parameter('volatility') * model.rng.standard_normal()
-        capital = agent.net_worth + agent.loan
-        agent.gross_return = capital * max(draw, -1.0)
-        interest = agent.loan * agent.rate
-        worth = agent.net_worth + agent.gross_return - interest
-        if agent.loan > 0:
-            bank = next(bank for bank in model.agents(self.lenders, LenderView) if bank.id == int(agent.partner))
-            bank.equity += interest + min(worth, 0.0)
-            bank.losses += max(-worth, 0.0)
-        if worth >= 0:
-            agent.net_worth = worth
-            return
-        agent.net_worth = agent.injected = model.parameter('entry')
-        agent.defaulted, agent.partner = 1, -1
+        return (
+            ('demand', lambda agent, model: agent.leverage * agent.net_worth),
+            ('loan', lambda agent, model: 0.0),
+            ('rate', lambda agent, model: 0.0),
+            ('defaulted', lambda agent, model: 0.0),
+            ('injected', lambda agent, model: 0.0),
+        )
+
+    @staticmethod
+    def get_default() -> tuple[tuple[str, Callable[[FirmView, ModelView], float]], ...]:
+        """Return the states a firm sets after its return, those of an entrant for a firm that defaults.
+
+        Returns:
+            default:
+                The name of every state and the function of its value, of the firm and the model view.
+        """
+        worth = FirmElement.get_worth
+        return (
+            ('injected', lambda agent, model: agent.entry if worth(agent) < 0 else agent.injected),
+            ('defaulted', lambda agent, model: 1.0 if worth(agent) < 0 else agent.defaulted),
+            ('partner', lambda agent, model: -1.0 if worth(agent) < 0 else agent.partner),
+            ('net_worth', lambda agent, model: agent.entry if worth(agent) < 0 else worth(agent)),
+        )
 
 
 class LenderElement(Element):
     """Bank that lends up to a multiple of its equity at a rate that falls with its equity.
 
     The bank asks the rate `alpha * equity ** -alpha` of Delli Gatti et al. (2010), so better capitalised banks lend
-    cheaper, and it offers loans up to `equity / capital_ratio`.
+    cheaper, and it offers loans up to `equity / capital_ratio`. The class attribute `borrowers` names the path of the
+    group of firms whose interest and defaults reach the bank.
 
     Args:
         label:
@@ -253,6 +261,8 @@ class LenderElement(Element):
         5
     """
 
+    borrowers: ClassVar[str] = 'firms'
+
     def __init__(
         self,
         label: str,
@@ -280,33 +290,62 @@ class LenderElement(Element):
         """Return the view of a bank, with its equity, quote, and loans."""
         return LenderView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the quoting rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+    @staticmethod
+    def get_quote() -> tuple[tuple[str, Callable[[LenderView, ModelView], float]], ...]:
+        """Return the states a bank sets in the plan of a step, its rate and lending capacity from its equity.
 
         Returns:
-            laws:
-                The laws of the component.
+            quote:
+                The name of every state and the function of its value, of the bank and the model view.
         """
-        return [RuleLaw(self.quote, phase='plan')]
+        return (
+            ('ask', lambda agent, model: agent.alpha * max(agent.equity, 1e-6) ** -agent.alpha),
+            ('supply', lambda agent, model: max(agent.equity, 0.0) / agent.capital_ratio),
+            ('lent', lambda agent, model: 0.0),
+            ('losses', lambda agent, model: 0.0),
+        )
 
-    def quote(self, agent: LenderView, model: ModelView) -> None:
-        """Set the interest rate and the lending capacity from the equity.
+    @classmethod
+    def _get_borrowers(cls, agent: LenderView, model: ModelView) -> list[FirmView]:
+        """Return the firms that borrowed from a bank in the step."""
+        firms = model.agents(cls.borrowers, FirmView)
+        return [firm for firm in firms if firm.loan > 0 and int(firm.partner) == agent.id]
+
+    @staticmethod
+    def get_income(agent: LenderView, model: ModelView) -> float:
+        """Return the interest a bank earns in the step, less what its defaulting borrowers cannot repay.
 
         Args:
             agent:
                 The bank.
 
             model:
-                The model.
+                The model view of the settlement.
+
+        Returns:
+            income:
+                The change of the equity.
         """
-        alpha = model.parameter('alpha')
-        agent.ask = alpha * max(agent.equity, 1e-6) ** -alpha
-        agent.supply = max(agent.equity, 0.0) / model.parameter('capital_ratio')
-        agent.lent, agent.losses = 0.0, 0.0
+        borrowers = LenderElement._get_borrowers(agent, model)
+        return sum(firm.loan * firm.rate + min(FirmElement.get_worth(firm), 0.0) for firm in borrowers)
+
+    @staticmethod
+    def get_losses(agent: LenderView, model: ModelView) -> float:
+        """Return the loans of a bank written off in the step.
+
+        Args:
+            agent:
+                The bank.
+
+            model:
+                The model view of the settlement.
+
+        Returns:
+            losses:
+                The change of the losses.
+        """
+        borrowers = LenderElement._get_borrowers(agent, model)
+        return sum(max(-FirmElement.get_worth(firm), 0.0) for firm in borrowers)
 
 
 class CreditMarketInteraction(MatchingInteraction[ModelView]):
@@ -497,8 +536,46 @@ def credit_networks(
         phase='credit',
         on_match=_lend,
     )
+    plan = [
+        MapInteraction(f'{group}_plan_{name}', target=group, state=name, function=function, form='agent', phase='plan')
+        for group, steps in (('firms', FirmElement.get_plan()), ('banks', LenderElement.get_quote()))
+        for name, function in steps
+    ]
+    settlement = [
+        MapInteraction(
+            'returns',
+            target='firms',
+            state='gross_return',
+            function=FirmElement.get_return,
+            form='agent',
+            phase='settle',
+        ),
+        *(
+            MapInteraction(
+                f'bank_{name}',
+                target='banks',
+                state=name,
+                function=function,
+                mode='increment',
+                form='agent',
+                phase='settle',
+            )
+            for name, function in (('equity', LenderElement.get_income), ('losses', LenderElement.get_losses))
+        ),
+        *(
+            MapInteraction(
+                f'firms_settle_{name}',
+                target='firms',
+                state=name,
+                function=function,
+                form='agent',
+                phase='settle',
+            )
+            for name, function in FirmElement.get_default()
+        ),
+    ]
     return System(
         elements=[borrowers, lenders],
-        interactions=[market],
+        interactions=[*plan, market, *settlement],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('plan'), PhaseSpec('credit'), PhaseSpec('settle')])),
     )

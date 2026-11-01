@@ -21,6 +21,7 @@ from ._flocks import (
     gregoire_chate,
     vicsek,
 )
+from ._heading_alignment import HeadingAlignmentInteraction
 from ._model_b import ActiveScalarElement, active_model_b
 from ._nonreciprocal import NonreciprocalMoverElement, nonreciprocal_vicsek
 from ._particles import (
@@ -34,6 +35,8 @@ from ._particles import (
     depot_brownian_particles,
     run_and_tumble,
 )
+from ._propulsion_step import PropulsionStepInteraction
+from ._self_propulsion import SelfPropulsionInteraction
 from ._tumbler_view import TumblerView
 
 __all__: list[str] = [
@@ -46,12 +49,15 @@ __all__: list[str] = [
     'DepotParticleElement',
     'FlockerElement',
     'FlockerView',
+    'HeadingAlignmentInteraction',
     'NematicParticleElement',
     'NonreciprocalMoverElement',
     'OrnsteinUhlenbeckParticleElement',
     'PhoreticAttractionInteraction',
     'PolarAlignmentInteraction',
     'PolarFluidElement',
+    'PropulsionStepInteraction',
+    'SelfPropulsionInteraction',
     'TumblerElement',
     'TumblerView',
     'VicsekParticleElement',

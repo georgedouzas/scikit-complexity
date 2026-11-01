@@ -4,14 +4,14 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction, MatchingInteraction
+from ....core.interactions import LifeCycleInteraction, MapInteraction, MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.laws.utils import transfer
 from ....core.spaces import DiscreteTime, LatticeSpace
@@ -149,31 +149,6 @@ class RiderElement(Element):
         """Return the view of the riders, which types their states."""
         return RiderView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the waiting rule of the phase of driving.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.wait, phase='drive')]
-
-    def wait(self, agent: RiderView, model: ModelView) -> None:
-        """Wait one more step.
-
-        Args:
-            agent:
-                The rider.
-
-            model:
-                The model.
-        """
-        agent.waited += 1
-
 
 class CabElement(Element):
     """Cab that drives one block a step to its rider, collects the fare, and drives the rider to its destination.
@@ -308,8 +283,8 @@ class CabElement(Element):
             agent.seats = 1.0
 
 
-class ArrivalInteraction(Interaction):
-    """Arrival of new riders at random cells with random destinations.
+class ArrivalInteraction(LifeCycleInteraction):
+    """Arrival of new riders at random cells with random destinations, a life cycle of arrivals only.
 
     Every step a Poisson number of riders, with mean `demand`, appear at random cells with random destinations.
 
@@ -317,7 +292,7 @@ class ArrivalInteraction(Interaction):
         label:
             The label of the arrivals.
 
-        riders:
+        target:
             The path of the group of riders.
 
         demand:
@@ -329,54 +304,83 @@ class ArrivalInteraction(Interaction):
         height:
             The number of rows of the grid.
 
+        phase:
+            The phase the riders arrive in.
+
     Examples:
         >>> from skcomplex.models.engineering.traffic import ArrivalInteraction
-        >>> ArrivalInteraction('arrival', riders='riders').reports
-        ('arrivals',)
+        >>> ArrivalInteraction('arrival', target='riders').reports
+        ('births', 'deaths', 'arrivals')
     """
-
-    reports: ClassVar[tuple[str, ...]] = ('arrivals',)
 
     def __init__(
         self,
         label: str,
         *,
-        riders: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
         demand: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         width: int = 30,
         height: int = 30,
+        phase: str | None = 'arrival',
     ) -> None:
-        super().__init__(label)
-        self.riders = riders
+        super().__init__(
+            label,
+            target=target,
+            placement=self.place,
+            values=self.destine,
+            arrival=self.expect,
+            phase=phase,
+        )
         self.demand = demand
         self.width = width
         self.height = height
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the arrival of riders.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.admit, phase='arrival')]
-
-    def admit(self, model: ModelView) -> None:
-        """Create the riders of the step at random cells with random destinations.
+    def expect(self, model: ModelView) -> float:
+        """Return the mean number of new riders in a step.
 
         Args:
             model:
                 The model view of the arrivals.
+
+        Returns:
+            demand:
+                The demand.
         """
-        arrivals = int(model.rng.poisson(model.parameter('demand')))
-        for _ in range(arrivals):
-            x, y, to_x, to_y = model.rng.integers((self.width, self.height, self.width, self.height))
-            model.create('riders', location=(int(x), int(y)), destination_x=float(to_x), destination_y=float(to_y))
-        model.report('arrivals', arrivals)
+        return model.parameter('demand')
+
+    def place(self, agent: RiderView | None, model: ModelView) -> tuple[int, int]:
+        """Return a random cell of the grid for a new rider.
+
+        Args:
+            agent:
+                The parent, `None` for an arrival.
+
+            model:
+                The model view of the arrivals.
+
+        Returns:
+            cell:
+                The coordinates of the cell.
+        """
+        x, y = model.rng.integers((self.width, self.height))
+        return int(x), int(y)
+
+    def destine(self, agent: RiderView | None, model: ModelView) -> dict[str, object]:
+        """Return a random destination on the grid for a new rider.
+
+        Args:
+            agent:
+                The parent, `None` for an arrival.
+
+            model:
+                The model view of the arrivals.
+
+        Returns:
+            values:
+                The coordinates of the destination by state name.
+        """
+        to_x, to_y = model.rng.integers((self.width, self.height))
+        return {'destination_x': float(to_x), 'destination_y': float(to_y)}
 
 
 @register_model(
@@ -456,7 +460,16 @@ def ridesharing(
     return System(
         elements=[riders, cabs],
         interactions=[
-            ArrivalInteraction('arrival', riders='riders', demand=demand, width=width, height=height),
+            ArrivalInteraction('arrival', target='riders', demand=demand, width=width, height=height),
+            MapInteraction(
+                'waiting',
+                target='riders',
+                state='waited',
+                function=lambda agent, model: 1.0,
+                mode='increment',
+                form='agent',
+                phase='drive',
+            ),
             MatchingInteraction(
                 'dispatch',
                 requesters='riders',

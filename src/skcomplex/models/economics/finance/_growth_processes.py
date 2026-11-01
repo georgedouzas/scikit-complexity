@@ -4,7 +4,6 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -12,14 +11,22 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import MapInteraction
+from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._gibrat_firm_view import GibratFirmView
 from ._kesten_firm_view import KestenFirmView
+
+
+def _get_gibrat_growth() -> list[MapInteraction]:
+    """Return the maps that keep the size of every Gibrat firm and then grow it."""
+    return [
+        MapInteraction('memory', target='firms', state='previous', function=lambda agent, model: agent.x, form='agent'),
+        MapInteraction('growth', target='firms', state='x', function=GibratFirmElement.get_growth, form='agent'),
+    ]
 
 
 def _size_observables() -> list[ObservableSpec]:
@@ -79,31 +86,22 @@ class GibratFirmElement(Element):
         """Return the view of the agents of the element."""
         return GibratFirmView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.grow)]
-
-    def grow(self, agent: GibratFirmView, model: ModelView) -> None:
-        """Keep the size and multiply it by a growth factor drawn from a normal distribution.
+    @staticmethod
+    def get_growth(agent: GibratFirmView, model: ModelView) -> float:
+        """Return the size multiplied by a growth factor drawn from a normal distribution.
 
         Args:
             agent:
                 The firm.
 
             model:
-                The model.
+                The model view of the growth.
+
+        Returns:
+            size:
+                The size after the step.
         """
-        agent.previous = agent.x
-        agent.x = agent.x * float(model.rng.normal(agent.mu, agent.sigma))
+        return agent.x * float(model.rng.normal(agent.mu, agent.sigma))
 
 
 class KestenFirmElement(Element):
@@ -160,49 +158,47 @@ class KestenFirmElement(Element):
         """Return the view of the agents of the element."""
         return KestenFirmView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.grow)]
-
-    def grow(self, agent: KestenFirmView, model: ModelView) -> None:
-        """Multiply the size by a random factor and add a random term.
+    @staticmethod
+    def get_growth(agent: KestenFirmView, model: ModelView) -> float:
+        """Return the size multiplied by a random factor plus a random term.
 
         Args:
             agent:
                 The firm.
 
             model:
-                The model.
+                The model view of the growth.
+
+        Returns:
+            size:
+                The size after the step.
         """
         factor = float(model.rng.uniform(agent.lambda_low, agent.lambda_high))
-        agent.x = factor * agent.x + float(model.rng.uniform(agent.b_low, agent.b_high))
+        return factor * agent.x + float(model.rng.uniform(agent.b_low, agent.b_high))
 
 
-class ReflectingFloorInteraction(Interaction):
+class ReflectingFloorInteraction(MapInteraction):
     """Lower bound on the sizes of a group at a fraction of their mean before the step, `x = max(x, c <x_{t-1}>)`.
+
+    It is a map of the agent form that raises every size below the floor to the floor, the mean of the states
+    `previous` of the group times `c`.
 
     Args:
         label:
             The label of the interaction.
 
-        firms:
+        target:
             The path of the group of firms.
 
         c:
             The fraction of the previous mean size below which no size falls.
 
+        phase:
+            The phase of the step the floor acts in, or `None` for the default phase.
+
     Examples:
         >>> from skcomplex.models.economics.finance import ReflectingFloorInteraction
-        >>> ReflectingFloorInteraction('floor', firms='firms', c=0.5).c
+        >>> ReflectingFloorInteraction('floor', target='firms', c=0.5).check().c
         0.5
     """
 
@@ -210,37 +206,17 @@ class ReflectingFloorInteraction(Interaction):
         self,
         label: str,
         *,
-        firms: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
         c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+        phase: str | None = None,
     ) -> None:
-        super().__init__(label)
-        self.firms = firms
+        super().__init__(label, target=target, state='x', function=self._get_floored, form='agent', phase=phase)
         self.c = c
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the reflection rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.reflect)]
-
-    def reflect(self, model: ModelView) -> None:
-        """Raise every size below the floor to the floor.
-
-        Args:
-            model:
-                The model.
-        """
-        firms = model.agents('firms', GibratFirmView)
-        floor = model.parameter('c') * float(np.mean([firm.previous for firm in firms]))
-        for firm in firms:
-            firm.x = max(firm.x, floor)
+    def _get_floored(self, agent: GibratFirmView, model: ModelView) -> float:
+        """Return the size of a firm raised to the floor, `c` times the mean size of its group before the step."""
+        previous = [firm.previous for firm in model.agents('target', GibratFirmView)]
+        return max(agent.x, model.parameter('c') * float(np.mean(previous)))
 
 
 @register_model(
@@ -287,7 +263,7 @@ def gibrat_process(
         size=n_firms,
         values={'x': x, 'previous': x, 'mu': mu, 'sigma': sigma},
     )
-    return System(elements=[firms])
+    return System(elements=[firms], interactions=_get_gibrat_growth(), time=DiscreteTime())
 
 
 @register_model(
@@ -332,7 +308,7 @@ def multiplicative_process(
 
     Examples:
         >>> from skcomplex.models.economics.finance import multiplicative_process
-        >>> multiplicative_process(c=0.5).interactions[0].c
+        >>> multiplicative_process(c=0.5).interactions[-1].c
         0.5
     """
     firms = GroupElement(
@@ -343,7 +319,8 @@ def multiplicative_process(
     )
     return System(
         elements=[firms],
-        interactions=[ReflectingFloorInteraction('floor', firms='firms', c=c)],
+        interactions=[*_get_gibrat_growth(), ReflectingFloorInteraction('floor', target='firms', c=c)],
+        time=DiscreteTime(),
     )
 
 
@@ -402,4 +379,5 @@ def kesten_process(
         size=n_firms,
         values={'x': x, 'lambda_low': lambda_low, 'lambda_high': lambda_high, 'b_low': b_low, 'b_high': b_high},
     )
-    return System(elements=[firms])
+    growth = MapInteraction('growth', target='firms', state='x', function=KestenFirmElement.get_growth, form='agent')
+    return System(elements=[firms], interactions=[growth], time=DiscreteTime())

@@ -11,10 +11,10 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import derivative
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.mechanics import SpringDamperInteraction
 
 
 def _piezo_voltage(s: SimpleNamespace) -> Expression:
@@ -24,7 +24,11 @@ def _piezo_voltage(s: SimpleNamespace) -> Expression:
 
 
 class PiezoHarvesterElement(Element):
-    """Two-mass suspension of a car whose spring presses a piezoelectric bar as the road shakes it."""
+    """Two-mass suspension of a car whose spring presses a piezoelectric bar as the road shakes it.
+
+    The element holds the tyre between the unsprung mass and the road, and the model joins the two masses by a
+    `SpringDamperInteraction` of the stiffness `k2` and the damping `b`.
+    """
 
     def __init__(
         self,
@@ -63,19 +67,8 @@ class PiezoHarvesterElement(Element):
         self.C = C
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the accelerations of the unsprung and the sprung mass."""
-        return [
-            RateLaw(
-                s.y1,
-                (
-                    -s.b * (derivative(s.y1, 1) - derivative(s.y2, 1))
-                    - s.k2 * (s.y1 - s.y2)
-                    - s.k1 * (s.y1 - s.A * sin(s.omega * s.t))
-                )
-                / s.m1,
-            ),
-            RateLaw(s.y2, (-s.b * (derivative(s.y2, 1) - derivative(s.y1, 1)) - s.k2 * (s.y2 - s.y1)) / s.m2),
-        ]
+        """Return the acceleration of the unsprung mass by the tyre on the road, the suspension apart."""
+        return [RateLaw(s.y1, -s.k1 * (s.y1 - s.A * sin(s.omega * s.t)) / s.m1)]
 
 
 @register_model(
@@ -146,4 +139,12 @@ def vibration_energy_harvester(
         1000.0
     """
     harvester = PiezoHarvesterElement('harvester', m1=m1, m2=m2, k1=k1, k2=k2, b=b, A=A, omega=omega, n=n, d=d, C=C)
-    return System(elements=[harvester])
+    suspension = SpringDamperInteraction(
+        'suspension',
+        target='harvester',
+        states=('y1', 'y2'),
+        stiffness='k2',
+        damping='b',
+        divisor={'y1': 'm1', 'y2': 'm2'},
+    )
+    return System(elements=[harvester], interactions=[suspension])

@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Callable, Mapping
-from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import numpy as np
@@ -19,7 +18,7 @@ from ....core.interactions import (
     MovementInteraction,
     TransferInteraction,
 )
-from ....core.laws import BaseLaw, RuleLaw, Sink
+from ....core.laws import Sink
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....core.types import AgentViewProtocol, ModelViewProtocol
@@ -27,6 +26,7 @@ from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ..common.resources import RegrowthInteraction
 from ._forager_view import ForagerView
 from ._patch_map_spec import _PatchMapSpec
 from ._sugar_patch_view import SugarPatchView
@@ -150,6 +150,8 @@ def _get_foraging() -> list[MovementInteraction | TransferInteraction | LifeCycl
 class SugarPatchElement(Element):
     """Cell of the landscape whose sugar grows back by a fixed amount a step up to its capacity.
 
+    The growback is a `RegrowthInteraction` of the group of patches.
+
     Args:
         label:
             The label of the agent or group.
@@ -190,31 +192,6 @@ class SugarPatchElement(Element):
     def _get_view(cls) -> type[SugarPatchView]:
         """Return the view of a patch, with its sugar, capacity, and growback."""
         return SugarPatchView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growback rule in the phase of growth.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.grow, phase='growth')]
-
-    def grow(self, agent: SugarPatchView, model: ModelView) -> None:
-        """Grow sugar back up to the capacity.
-
-        Args:
-            agent:
-                The patch.
-
-            model:
-                The model.
-        """
-        agent.sugar = min(agent.capacity, agent.sugar + agent.growback)
 
 
 class ForagerElement(Element):
@@ -402,7 +379,11 @@ def sugarscape(
     )
     return System(
         elements=[patches, foragers],
-        interactions=[*_get_foraging(), ForagerCensusInteraction('census', foragers='foragers', phase='growth')],
+        interactions=[
+            *_get_foraging(),
+            RegrowthInteraction('growback', target='patches', state='sugar', growth='growback', phase='growth'),
+            ForagerCensusInteraction('census', foragers='foragers', phase='growth'),
+        ],
         space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'),
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('foraging'), PhaseSpec('growth')])),
     )

@@ -1,4 +1,4 @@
-"""Define bilateral exchange of goods between agents with Cobb-Douglas preferences, and pairing of neighbours."""
+"""Define bilateral exchange of goods between agents with Cobb-Douglas preferences."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -7,10 +7,7 @@ import itertools
 import math
 from collections.abc import Sequence
 
-import numpy as np
-
 from ....core.laws.utils import transfer
-from ....engine.solvers import AgentView
 
 
 def cobb_douglas(agent: object, goods: Sequence[str], weights: Sequence[str]) -> float:
@@ -172,58 +169,3 @@ def trade_goods(
         if not traded:
             break
     return trades
-
-
-def neighbor_pairing(
-    left: Sequence[object],
-    right: Sequence[object],
-    rng: np.random.Generator,
-    capacity: int,
-) -> list[tuple[object, object]]:
-    """Pairing of every agent with a random unpaired neighbour, a pairing of the core's matching law.
-
-    The agents of the first group, in random order, each pick one agent of the second group at random among those in
-    the neighbouring cells or nodes that are not yet paired, so trading partners meet only locally.
-
-    Args:
-        left:
-            The agents of the first group.
-
-        right:
-            The agents of the second group, the same sequence as `left` for pairs within one group.
-
-        rng:
-            The random generator.
-
-        capacity:
-            The largest number of pairs of every agent.
-
-    Returns:
-        pairs:
-            The pairs of neighbouring agents.
-
-    Examples:
-        >>> import numpy as np
-        >>> from skcomplex.models.economics.markets import neighbor_pairing
-        >>> neighbor_pairing([], [], np.random.default_rng(0), 1)
-        []
-    """
-    candidates = {agent.id for agent in right if isinstance(agent, AgentView)}
-    used: dict[int, int] = {}
-    pairs: list[tuple[object, object]] = []
-    for index in rng.permutation(len(left)):
-        agent = left[int(index)]
-        if not isinstance(agent, AgentView) or used.get(agent.id, 0) >= capacity:
-            continue
-        free = [
-            other
-            for other in agent.neighbors()
-            if other.id in candidates and other.id != agent.id and used.get(other.id, 0) < capacity
-        ]
-        if not free:
-            continue
-        partner = free[int(rng.integers(len(free)))]
-        pairs.append((agent, partner))
-        used[agent.id] = used.get(agent.id, 0) + 1
-        used[partner.id] = used.get(partner.id, 0) + 1
-    return pairs

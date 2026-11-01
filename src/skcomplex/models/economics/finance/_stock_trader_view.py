@@ -7,7 +7,7 @@ from ....engine.solvers import AgentView
 
 
 class StockTraderView(AgentView):
-    """Stock trader as the rules see it, with its strategy, holdings, order, wealth, and gain.
+    """Stock trader as the rules see it, with its strategy, holdings, order, wealth, gain, and fundamental value.
 
     The order is the limit prices `bid` and `ask` and the quantities `demand` and `supply`.
     """
@@ -21,3 +21,4 @@ class StockTraderView(AgentView):
     supply: float
     wealth: float
     gain: float
+    fundamental: float

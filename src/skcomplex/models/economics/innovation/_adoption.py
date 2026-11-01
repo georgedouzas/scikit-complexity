@@ -5,7 +5,6 @@
 
 from collections import deque
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -13,8 +12,8 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, RuleLaw
-from ....core.spaces import LatticeSpace
+from ....core.interactions import MapInteraction
+from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -106,34 +105,41 @@ class HouseholdElement(Element):
         """Return the view of the agents of the element."""
         return HouseholdView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the yearly rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.adopt)]
-
-    def adopt(self, agent: HouseholdView, model: ModelView) -> None:
-        """Grow the income and get a phone if it is affordable and a neighbour has one.
+    @staticmethod
+    def get_income(agent: HouseholdView, model: ModelView) -> float:
+        """Return the income grown by a year.
 
         Args:
             agent:
                 The household.
 
             model:
-                The model.
+                The model view of the growth.
+
+        Returns:
+            income:
+                The income of the next year.
         """
-        agent.income = agent.income * (1 + agent.growth)
+        return agent.income * (1 + agent.growth)
+
+    @staticmethod
+    def get_phone(agent: HouseholdView, model: ModelView) -> float:
+        """Return 1 for a household that has a phone or gets one, affordable with a neighbour that has one, else 0.
+
+        Args:
+            agent:
+                The household.
+
+            model:
+                The model view of the adoption.
+
+        Returns:
+            phone:
+                1 for a household with a phone and 0 otherwise.
+        """
         if agent.phone or agent.income < agent.threshold:
-            return
-        if any(isinstance(neighbor, HouseholdView) and neighbor.phone for neighbor in agent.neighbors()):
-            agent.phone = 1
+            return float(agent.phone)
+        return float(any(isinstance(neighbor, HouseholdView) and neighbor.phone for neighbor in agent.neighbors()))
 
 
 @register_model(
@@ -157,8 +163,9 @@ def phone_adoption(
     One household lives in every cell of a torus. The upper class lives in the top left quadrant, the lower class in
     the bottom left, and the middle class elsewhere, so neighbours tend to be alike. Incomes are lognormal, scaled by
     class and normalised to a mean of 1, and grow every year. A household gets a phone once its income reaches the
-    threshold and one of its eight neighbours has a phone. The first owners are a cluster of affording households
-    grown from the richest upper-class household.
+    threshold and one of its eight neighbours has a phone. Households decide one after the other in a new random order
+    every year, so phones spread along chains of affording neighbours within a year. The first owners are a cluster of
+    affording households grown from the richest upper-class household.
 
     Args:
         shape:
@@ -203,7 +210,24 @@ def phone_adoption(
         values={'income': incomes, 'phone': owners, 'social_class': classes, 'growth': growth, 'threshold': threshold},
         location=locations,
     )
+    growth = MapInteraction(
+        'growth',
+        target='households',
+        state='income',
+        function=HouseholdElement.get_income,
+        form='agent',
+    )
+    adoption = MapInteraction(
+        'adoption',
+        target='households',
+        state='phone',
+        function=HouseholdElement.get_phone,
+        schedule='random-sequential',
+        form='agent',
+    )
     return System(
         elements=[households],
+        interactions=[growth, adoption],
         space=LatticeSpace((width, height), boundary='periodic'),
+        time=DiscreteTime(),
     )

@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
@@ -12,13 +11,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import NetworkSpace
 from ....core.system import System
-from ....engine.solvers import ModelView
 from ....specs import StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._hopfield_update import HopfieldUpdateInteraction
 from ._neuron_view import NeuronView
 
 
@@ -30,7 +28,7 @@ def _hebbian_weights(patterns: Array) -> Array:
 
 
 class NeuronElement(Element):
-    """Binary neuron of a Hopfield network, which aligns with the sign of its weighted input when it updates.
+    """Binary neuron of a Hopfield network, which the update aligns with the sign of its weighted input.
 
     The neuron sits on its node of a complete graph and holds the weights of its incoming links, one per node.
 
@@ -70,35 +68,6 @@ class NeuronElement(Element):
     def _get_view(cls) -> type[NeuronView]:
         """Return the view of the neurons, which types their states."""
         return NeuronView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the update rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.update)]
-
-    def update(self, agent: NeuronView, model: ModelView) -> None:
-        """Take the sign of the weighted input from the other neurons, and keep the state when the input is zero.
-
-        Args:
-            agent:
-                The neuron.
-
-            model:
-                The model.
-        """
-        weights = np.asarray(agent.weights)
-        neighbors = [other for other in agent.neighbors() if isinstance(other, NeuronView)]
-        field = sum(weights[int(np.asarray(other.location))] * other.spin for other in neighbors)
-        if field != 0:
-            agent.spin = float(np.sign(field))
 
 
 @register_model(
@@ -158,4 +127,8 @@ def hopfield(
         size=size,
         values={'spin': spins, 'weights': _hebbian_weights(stored)},
     )
-    return System(elements=[neurons], space=NetworkSpace(nx.complete_graph(size)))
+    return System(
+        elements=[neurons],
+        interactions=[HopfieldUpdateInteraction('update', target='neurons')],
+        space=NetworkSpace(nx.complete_graph(size)),
+    )

@@ -550,9 +550,9 @@ class LammpsSolver(ExternalSolver):
     def _divisors(problem: ProblemSpec, element: CompiledElementSpec) -> set[str]:
         """Return the names that the divisors of the interactions on the members of an element or group give."""
         return {
-            str(divisor)
+            divisor
             for item in problem.interactions
-            if (divisor := item.interaction.get_params(deep=False).get('divisor')) is not None
+            if isinstance(divisor := item.interaction.get_params(deep=False).get('divisor'), str)
             and element.path in item.roles.values()
         }
 

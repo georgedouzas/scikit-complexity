@@ -76,6 +76,9 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
         terms_:
             The flows and rates of every spec, with their sources and sinks, for the loop terms.
+
+        claimed_:
+            The path and the set index of every flow expanded by `run`, which no two flows share.
     """
 
     quantities_: dict[str, str]
@@ -84,6 +87,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     records_: list[_RecordSpec]
     delays_: list[_CompiledDelaySpec]
     terms_: list[_FlowTermSpec]
+    claimed_: set[tuple[str, int]]
 
     def _prepare(self, context: Compilation | None) -> None:
         """Read the quantity of every tagged state of the compilation, with no flow expanded yet.
@@ -111,11 +115,12 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
         Raises:
             LabelError:
-                Two flows of a component share a label.
+                Two flows reported under one part share a label.
 
             ConservationError:
                 A flow connects holders of different quantities.
         """
+        self.claimed_ = set()
         self.lowered_ = [(spec, self._expand(spec, list(laws))) for spec, laws in inputs or []]
 
     def _declarations(self) -> DeclarationsSpec:
@@ -187,11 +192,11 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         tags = {self.quantities_.get(name) for name in (source, sink) if name is not None}
         if len(tags) > 1:
             error_msg = (
-                f'The flow {spec.owner}.{label} moves a quantity from {source_label} to {sink_label}, which hold '
-                f'different quantities {sorted(map(str, tags))}. A flow connects holders of one quantity.'
+                f'The flow {self._owner_of(flow, spec)}.{label} moves a quantity from {source_label} to {sink_label}, '
+                f'which hold different quantities {sorted(map(str, tags))}. A flow connects holders of one quantity.'
             )
             raise ConservationError(error_msg)
-        path = f'{spec.owner}.{label}'
+        path = f'{self._owner_of(flow, spec)}.{label}'
         compiled = _CompiledFlowSpec(path, source, sink, source_label, sink_label, next(iter(tags)))
         amount = SR(flow.amount)
         holders = [(item, sign) for item, sign in ((flow.source, -1), (flow.sink, 1)) if isinstance(item, Expression)]
@@ -225,17 +230,16 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
         Raises:
             LabelError:
-                Two flows of the component share a label.
+                Two flows reported under one part share a label.
 
             ConservationError:
                 A flow connects holders of different quantities.
         """
-        labels: set[str] = set()
         expanded: list[BaseLaw] = []
         for index, law in enumerate(laws):
             if isinstance(law, TransferLaw):
                 label = law.label or f'flow_{index}'
-                self._claim_label(labels, spec.owner, label)
+                self._claim_label(self._owner_of(law, spec), label, spec.set_index)
                 expanded.extend(self._expand_flow(spec, law, label))
                 continue
             if (
@@ -564,12 +568,19 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             self._add_reference(host, item, reference)
 
     @staticmethod
-    def _claim_label(labels: set[str], owner: str, label: str) -> None:
-        """Add the label of a flow of a component, raising an error for a label it already declares."""
-        if label in labels:
-            error_msg = f'{owner} declares two flows labelled {label!r}. Rename one.'
+    def _owner_of(flow: TransferLaw, spec: KernelSpec) -> str:
+        """Return the path a flow is reported under, its owner in the system of the declaring part, or that part."""
+        if not flow.owner:
+            return spec.owner
+        scope = spec.owner.rpartition('/')[0]
+        return f'{scope}/{flow.owner}' if scope else flow.owner
+
+    def _claim_label(self, owner: str, label: str, set_index: int) -> None:
+        """Add the label of a flow reported under a part, raising an error for a label the part already reports."""
+        if (f'{owner}.{label}', set_index) in self.claimed_:
+            error_msg = f'{owner} reports two flows labelled {label!r}. Rename one.'
             raise LabelError(error_msg)
-        labels.add(label)
+        self.claimed_.add((f'{owner}.{label}', set_index))
 
     def _initial(self, item: Expression, spec: KernelSpec, declarations: DeclarationsSpec) -> float:
         """Return the value of an expression of a spec's single symbols at the initial state and time zero."""

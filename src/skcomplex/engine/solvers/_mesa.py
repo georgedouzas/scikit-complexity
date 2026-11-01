@@ -317,7 +317,7 @@ class ModelView:
 
         Args:
             group:
-                The path of the group.
+                A role of the owner that binds the group, or the path of the group.
 
             location:
                 The cell coordinates, network node, or position, or `None` for a random place.
@@ -333,7 +333,7 @@ class ModelView:
             SimulationError:
                 The group is not variable, so its size cannot change.
         """
-        return MesaSolver._view_of(self._stepper._create_agent(group, location, values))
+        return MesaSolver._view_of(self._stepper._create_agent(self._paths(group)[0], location, values))
 
     @property
     def round(self) -> int:

@@ -11,7 +11,8 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, Sink, Source, TransferLaw
+from ....core.interactions import TransferInteraction
+from ....core.laws import Sink, Source
 from ....core.laws.utils import clip, lookup
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -30,12 +31,51 @@ def _table(levels: Sequence[float], values: Sequence[float]) -> list[tuple[float
     return [(float(level), float(value)) for level, value in zip(levels, values, strict=True)]
 
 
+def _efficiency(holder: SimpleNamespace, yields: Sequence[float]) -> Expression:
+    """Return the yield per unit of capital, a table of the resource stock."""
+    return lookup(holder.resource, _table(RESOURCE_LEVELS, yields))
+
+
+def _investment(holder: SimpleNamespace, revenue: Expression) -> Expression:
+    """Return the investment, the profit of a revenue clipped to the growth goal per unit of capital."""
+    return clip(revenue - holder.cost * holder.capital, 0, holder.growth_goal * holder.capital)
+
+
+def _oil_price(holder: SimpleNamespace, yields: Sequence[float], prices: Sequence[float] | None) -> Expression:
+    """Return the price of the oil, constant or a table of the yield."""
+    return holder.price if prices is None else lookup(_efficiency(holder, yields), _table(YIELD_LEVELS, prices))
+
+
+def _harvest(holder: SimpleNamespace, yields: Sequence[float]) -> Expression:
+    """Return the harvest or extraction, the capital times the yield per unit of capital."""
+    return holder.capital * _efficiency(holder, yields)
+
+
+def _fish_revenue(holder: SimpleNamespace, yields: Sequence[float], prices: Sequence[float]) -> Expression:
+    """Return the revenue of the harvest at the price, a table of the yield."""
+    return lookup(_efficiency(holder, yields), _table(YIELD_LEVELS, prices)) * _harvest(holder, yields)
+
+
+def _capital(label: str, holder: str) -> TransferInteraction:
+    """Return the depreciation of the capital of a holder, reported as `<holder>.depreciation`."""
+    return TransferInteraction(
+        label,
+        source=holder,
+        target=holder,
+        state='capital',
+        into=Sink('scrap'),
+        amount=lambda s: s.source.capital / s.source.lifetime,
+        flow='depreciation',
+    )
+
+
 class OilEconomyElement(Element):
     """Capital that extracts a nonrenewable resource and reinvests its profit up to a growth goal.
 
     Extraction is the capital times the yield per unit of capital, a table of the resource stock. The profit is the
     price times the extraction minus the operating cost of the capital. The price is constant, or a table of the yield
-    when a price table is given.
+    when a price table is given. The economy holds the stocks, the parameters, and the tables, and transfers within it
+    of the model move the resource and the capital.
 
     Args:
         label:
@@ -98,39 +138,14 @@ class OilEconomyElement(Element):
         self.yield_table = yield_table
         self.price_table = price_table
 
-    def _profit(self, s: SimpleNamespace, efficiency: Expression) -> Expression:
-        """Return the profit of the extraction at a yield per unit of capital."""
-        price = s.price
-        if self.price_table is not None:
-            price = lookup(efficiency, _table(YIELD_LEVELS, self.price_table))
-        return price * s.capital * efficiency - s.cost * s.capital
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the extraction from the resource and the investment in and depreciation of the capital.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        efficiency = lookup(s.resource, _table(RESOURCE_LEVELS, self.yield_table))
-        extraction = s.capital * efficiency
-        investment = clip(self._profit(s, efficiency), 0, s.growth_goal * s.capital)
-        return [
-            TransferLaw(s.resource, Sink('market'), extraction, label='extraction'),
-            TransferLaw(Source('investors'), s.capital, investment, label='investment'),
-            TransferLaw(s.capital, Sink('scrap'), s.capital / s.lifetime, label='depreciation'),
-        ]
-
 
 class FisheryElement(Element):
     """Capital that harvests a regenerating resource, with a price that rises as the yield falls.
 
     The resource regenerates at a rate per unit of stock that is a hump-shaped table of the stock, zero when it is
-    empty or full. The harvest is the capital times the yield per unit of capital, a table of the stock.
+    empty or full. The harvest is the capital times the yield per unit of capital, a table of the stock. The fishery
+    holds the stocks, the parameters, and the tables, and transfers within it of the model move the resource and the
+    capital.
 
     Args:
         label:
@@ -192,29 +207,6 @@ class FisheryElement(Element):
         self.yield_table = yield_table
         self.regeneration_table = regeneration_table
         self.price_table = price_table
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the regeneration and harvest of the resource and the investment in and depreciation of the capital.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        efficiency = lookup(s.resource, _table(RESOURCE_LEVELS, self.yield_table))
-        price = lookup(efficiency, _table(YIELD_LEVELS, self.price_table))
-        harvest = s.capital * efficiency
-        regeneration = s.resource * lookup(s.resource, _table(RESOURCE_LEVELS, self.regeneration_table))
-        investment = clip(price * harvest - s.cost * s.capital, 0, s.growth_goal * s.capital)
-        return [
-            TransferLaw(Source('spawning'), s.resource, regeneration, label='regeneration'),
-            TransferLaw(s.resource, Sink('market'), harvest, label='harvest'),
-            TransferLaw(Source('investors'), s.capital, investment, label='investment'),
-            TransferLaw(s.capital, Sink('scrap'), s.capital / s.lifetime, label='depreciation'),
-        ]
 
 
 @register_model(
@@ -279,7 +271,26 @@ def oil_economy(
         lifetime=lifetime,
         price_table=None if price_table is None else tuple(float(value) for value in price_table),
     )
-    return System(elements=[economy])
+    yields, prices = economy.yield_table, economy.price_table
+    extraction = TransferInteraction(
+        'extraction',
+        source='oil',
+        target='oil',
+        state='resource',
+        into=Sink('market'),
+        amount=lambda s: _harvest(s.source, yields),
+        flow='extraction',
+    )
+    investment = TransferInteraction(
+        'investment',
+        source='oil',
+        target='oil',
+        state=Source('investors'),
+        into='capital',
+        amount=lambda s: _investment(s.source, _oil_price(s.source, yields, prices) * _harvest(s.source, yields)),
+        flow='investment',
+    )
+    return System(elements=[economy], interactions=[extraction, investment, _capital('depreciation', 'oil')])
 
 
 @register_model(
@@ -340,4 +351,24 @@ def fishery_capital(
         lifetime=lifetime,
         yield_table=tuple(float(value) for value in yield_table),
     )
-    return System(elements=[fishery])
+    yields, regenerations, prices = fishery.yield_table, fishery.regeneration_table, fishery.price_table
+    fish = TransferInteraction(
+        'fish',
+        source='fishery',
+        target='fishery',
+        state=Source('spawning'),
+        into='resource',
+        amount=lambda s: s.source.resource * lookup(s.source.resource, _table(RESOURCE_LEVELS, regenerations)),
+        flow='regeneration',
+        legs=[('resource', Sink('market'), lambda s: _harvest(s.source, yields), 'harvest')],
+    )
+    investment = TransferInteraction(
+        'investment',
+        source='fishery',
+        target='fishery',
+        state=Source('investors'),
+        into='capital',
+        amount=lambda s: _investment(s.source, _fish_revenue(s.source, yields, prices)),
+        flow='investment',
+    )
+    return System(elements=[fishery], interactions=[fish, investment, _capital('depreciation', 'fishery')])

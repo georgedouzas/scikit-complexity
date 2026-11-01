@@ -10,7 +10,8 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw, Sink, TransferLaw
+from ....core.interactions import TransferInteraction
+from ....core.laws import BaseLaw, RateLaw, Sink
 from ....core.laws.utils import clip, lookup
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -99,30 +100,57 @@ def _profitability(s: SimpleNamespace) -> Expression:
     return clip(_profit_per_area(s), 0) / (s.price * _cocoa_yield(s))
 
 
+def _planting(s: SimpleNamespace) -> Expression:
+    """Return the planting of forest towards the desired area, which grows with the profitability."""
+    land = s.source
+    desired = land.area * lookup(_profitability(land), PROFITABILITY_EFFECT)
+    return clip(desired - land.area, 0) / land.adjustment_time * land.forest / (land.forest + land.area)
+
+
+def _abandonment(s: SimpleNamespace) -> Expression:
+    """Return the abandonment of plantations whose yield and profit fall."""
+    land = s.source
+    effects = lookup(_cocoa_yield(land), YIELD_EFFECT) * lookup(_profit_per_area(land), PROFIT_EFFECT)
+    return land.area * effects / land.abandon_time
+
+
+def _conversion(land: SimpleNamespace) -> Expression:
+    """Return the share of the abandoned land converted to oil palm, as cocoa pays less than palm."""
+    return clip(land.palm_margin - _profitability(land), 0) / land.palm_margin
+
+
+def _land_use() -> TransferInteraction:
+    """Return the planting, abandonment, fallow, and conversion of cocoa land, reported under the plantation."""
+    return TransferInteraction(
+        'land_use',
+        source='cocoa',
+        target='cocoa',
+        state='forest',
+        into='area',
+        amount=_planting,
+        flow='planting',
+        legs=[
+            ('area', 'abandoned', _abandonment, 'abandonment'),
+            (
+                'abandoned',
+                'forest',
+                lambda s: (1 - _conversion(s.source)) * s.source.abandoned / s.source.conversion_time,
+                'fallow',
+            ),
+            (
+                'abandoned',
+                Sink('oil_palm'),
+                lambda s: _conversion(s.source) * s.source.abandoned / s.source.conversion_time,
+                'conversion',
+            ),
+        ],
+    )
+
+
 def _cocoa_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the planting, abandonment, and conversion of cocoa land, and the thinning of shade and the insects."""
-    profitability = _profitability(s)
-    desired = s.area * lookup(profitability, PROFITABILITY_EFFECT)
-    conversion = clip(s.palm_margin - profitability, 0) / s.palm_margin
+    """Return the thinning of shade and the growth and control of the insects."""
     unprotected = 1 - s.subsidy
     return [
-        TransferLaw(
-            s.forest,
-            s.area,
-            clip(desired - s.area, 0) / s.adjustment_time * s.forest / (s.forest + s.area),
-            label='planting',
-        ),
-        TransferLaw(
-            s.area,
-            s.abandoned,
-            s.area
-            * lookup(_cocoa_yield(s), YIELD_EFFECT)
-            * lookup(_profit_per_area(s), PROFIT_EFFECT)
-            / s.abandon_time,
-            label='abandonment',
-        ),
-        TransferLaw(s.abandoned, s.forest, (1 - conversion) * s.abandoned / s.conversion_time, label='fallow'),
-        TransferLaw(s.abandoned, Sink('oil_palm'), conversion * s.abandoned / s.conversion_time, label='conversion'),
         RateLaw(s.shade_removal, unprotected * (FULL_INDEX - s.shade_removal) / s.thinning_time),
         RateLaw(
             s.insects,
@@ -138,7 +166,7 @@ class PlantationElement(Element):
     Farmers plant forest towards a desired area that grows with the profitability of cocoa, abandon plantations whose
     yield and profit fall, and leave abandoned land to the forest or convert it to oil palm when cocoa pays less than
     palm. Removing shade raises the yield and lets the insects grow logistically, and the subsidy keeps the shade and
-    controls the insects.
+    controls the insects. The land flows are transfers within the plantation of the model.
 
     Args:
         label:
@@ -247,7 +275,7 @@ class PlantationElement(Element):
         self.subsidy = subsidy
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the land flows, the thinning of shade, and the growth and control of the insects.
+        """Return the thinning of shade and the growth and control of the insects.
 
         Args:
             s:
@@ -328,4 +356,4 @@ def cocoa(
         insect_growth=insect_growth,
         subsidy=subsidy,
     )
-    return System(elements=[plantation])
+    return System(elements=[plantation], interactions=[_land_use()])

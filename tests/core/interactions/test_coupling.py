@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import SR, I, atan2, cos, exp, pi, sin, vector
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import CouplingInteraction
 from skcomplex.core.laws import BaseLaw, RateLaw, UpdateLaw
-from skcomplex.core.laws.utils import uniform
+from skcomplex.core.laws.utils import uniform, where
 from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
@@ -195,6 +195,91 @@ def test_coupling_over_the_group_weights_every_member_by_a_matrix(backend):
     np.testing.assert_allclose(_drift(system, backend=backend), expected, atol=1e-12)
 
 
+def _two_groups(theta, phi, **arguments):
+    """Return two groups of oscillators, the first coupled to the members of the second."""
+    first = GroupElement('first', element=OscillatorElement, size=len(theta), values={'theta': theta})
+    second = GroupElement('second', element=OscillatorElement, size=len(phi), values={'theta': phi})
+    coupling = CouplingInteraction(
+        'coupling',
+        target='first',
+        source='second',
+        read='theta',
+        write='theta',
+        mode='group',
+        **arguments,
+    )
+    return System(elements=[first, second], interactions=[coupling])
+
+
+@BACKENDS
+def test_coupling_over_a_source_group_reduces_over_its_every_member(backend):
+    """Test that a source group gives every member of the target the mean over every member of the source."""
+    theta, phi = np.array([0.0, 1.0, 2.0]), np.array([0.5, 3.0, -1.0, 2.2])
+    system = _two_groups(theta, phi, function=_sine, lag=0.3, reduce='mean')
+    expected = np.sin(phi[None, :] - theta[:, None] - 0.3).mean(axis=1)
+    np.testing.assert_allclose(_drift(system, 'first.theta', backend), expected, atol=1e-12)
+    np.testing.assert_allclose(_drift(system, 'second.theta', backend), 0.0)
+
+
+@BACKENDS
+@pytest.mark.parametrize('reduce', ['max', 'min'])
+def test_coupling_over_a_source_group_takes_the_largest_or_smallest_term(reduce, backend):
+    """Test that the largest and smallest reductions take the extreme weighted term over the source group."""
+    theta, phi = np.array([0.0, 1.0, 2.0]), np.array([0.5, 3.0, -1.0, 2.2])
+    system = _two_groups(theta, phi, function=_sine, reduce=reduce, weights=lambda s: 2.0)
+    differences = 2.0 * np.sin(phi[None, :] - theta[:, None])
+    expected = differences.max(axis=1) if reduce == 'max' else differences.min(axis=1)
+    np.testing.assert_allclose(_drift(system, 'first.theta', backend), expected, atol=1e-12)
+
+
+@BACKENDS
+@pytest.mark.parametrize('mode', ['group', 'edges'])
+def test_coupling_normalized_mean_weights_members_by_their_states(mode, backend):
+    """Test that the normalized mean with indicator weights averages the members within a distance, itself included."""
+    theta = np.array([0.0, 0.3, 0.5, 2.0, 2.4])
+    system = _oscillators(
+        NetworkSpace(nx.complete_graph(len(theta))),
+        theta,
+        np.zeros(len(theta)),
+        function=lambda s: s.other.theta,
+        weights=lambda s: where(abs(s.other.theta - s.member.theta) < 0.6, 1, 0),
+        reduce='normalized-mean',
+        mode=mode,
+        include_self=True,
+    )
+    close = np.abs(theta[None, :] - theta[:, None]) < 0.6
+    np.testing.assert_allclose(_drift(system, backend=backend), (close * theta).sum(1) / close.sum(1), atol=1e-12)
+
+
+@BACKENDS
+def test_coupling_circular_mean_gives_the_mean_direction_of_the_other_members(backend):
+    """Test that the circular mean over the group gives the direction of the sum of the unit vectors of the others."""
+    theta = np.array([0.1, 1.0, 2.5, -2.0])
+    system = _group(theta, function=lambda s: s.other.theta, mode='group', reduce='circular-mean')
+    sines, cosines = np.sin(theta).sum() - np.sin(theta), np.cos(theta).sum() - np.cos(theta)
+    np.testing.assert_allclose(_drift(system, backend=backend), np.arctan2(sines, cosines), atol=1e-12)
+
+
+def test_coupling_map_form_combines_with_parameters_and_time():
+    """Test that the combination of the map form reads the parameters of the interaction and the time."""
+    u = np.array([0.0, 1.0, 2.5, 4.0])
+    cells = LatticeElement('cells', element=CellElement, space=LatticeSpace(4), values={'u': u})
+    coupling = CouplingInteraction(
+        'coupling',
+        target='cells',
+        read='u',
+        write='u',
+        lag=0.5,
+        form='map',
+        function=lambda s: s.other.u,
+        reduce='mean',
+        combine=lambda s, reduction: (1 - s.lag) * s.member.u + s.lag * reduction + s.t,
+    )
+    system = System(elements=[cells], interactions=[coupling], time=DiscreteTime())
+    levels = Simulation(system, dt=1).check().prepare().run(1).trajectory_.values('cells.u')[-1]
+    np.testing.assert_allclose(levels, 0.5 * u + 0.25 * (np.roll(u, 1) + np.roll(u, -1)))
+
+
 @BACKENDS
 def test_coupling_to_the_next_member_reads_the_member_after_it(backend):
     """Test that the next mode couples every member to the next member in group order, the first after the last."""
@@ -263,7 +348,7 @@ def test_coupling_map_form_combines_the_state_with_the_reduction():
         reduce='mean',
         include_self=True,
         form='map',
-        combine=lambda own, reduction: own + reduction,
+        combine=lambda s, reduction: s.member.u + reduction,
     )
     system = System(elements=[cells], interactions=[coupling], time=DiscreteTime())
     levels = Simulation(system, dt=1).check().prepare().run(1).trajectory_.values('cells.u')[-1]
@@ -294,7 +379,7 @@ def test_coupling_map_form_aligns_a_vicsek_flock_at_low_noise():
         neighborhood=RadiusNeighborhood(1.0),
         include_self=True,
         form='map',
-        combine=lambda theta, total: atan2(total[1], total[0]) + uniform('turn', -noise * pi, noise * pi),
+        combine=lambda s, total: atan2(total[1], total[0]) + uniform('turn', -noise * pi, noise * pi),
     )
     system = System(
         elements=[GroupElement('flock', element=MoverElement, size=300, values=values)],
@@ -322,7 +407,11 @@ def test_coupling_over_edges_needs_edges_for_its_rates():
     ('arguments', 'match'),
     [
         ({'mode': 'chain'}, 'mode of coupling'),
-        ({'reduce': 'max'}, 'reduce of coupling'),
+        ({'reduce': 'median'}, 'reduce of coupling'),
+        ({'source': 'others'}, 'needs the mode group'),
+        ({'mode': 'next', 'reduce': 'max'}, 'sum or mean'),
+        ({'mode': 'group', 'reduce': 'max'}, 'include_self'),
+        ({'mode': 'group', 'reduce': 'min', 'include_self': True, 'weights': np.ones((2, 2))}, 'no matrix'),
         ({'form': 'jump'}, 'form of coupling'),
         ({'function': 1.0}, 'callable'),
         ({'combine': 1.0}, 'callable'),

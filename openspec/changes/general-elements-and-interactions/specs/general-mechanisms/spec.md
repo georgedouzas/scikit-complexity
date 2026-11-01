@@ -33,8 +33,8 @@ the `common` package of its field when several of its packages use it. No field 
 `RateInteraction` SHALL add a rate and an optional noise to the highest derivative of a state of any order, divided by
 an optional divisor. `RelaxationInteraction` SHALL relax a state towards a goal expression over a time, with optional
 noise. `GradientInteraction` SHALL move states down the gradient of a potential, as a gradient flow on states of order
-1, as Newtonian motion on states of order 2, and variationally and conserved on fields. `EulerLagrangeInteraction`
-SHALL give the equations of motion of a Lagrangian with dissipation and forcing.
+1, as Newtonian motion on states of order 2, and variationally and conserved on fields. `EulerLagrangeInteraction` SHALL
+give the equations of motion of a Lagrangian with dissipation and forcing.
 
 #### Scenario: Ornstein-Uhlenbeck variance
 - **WHEN** a `RelaxationInteraction` with goal 0, time `1 / theta`, and noise `sigma` runs long
@@ -44,13 +44,41 @@ SHALL give the equations of motion of a Lagrangian with dissipation and forcing.
 - **WHEN** one `GradientInteraction` with a harmonic potential acts on a state of order 1 and on a state of order 2
 - **THEN** the first decays exponentially and the second oscillates with the harmonic period
 
+### Requirement: Divisors, Hurst indices, and summed Lagrangians
+A divisor SHALL be the name of a state or parameter of the moving member or an expression of them, and a gradient SHALL
+take one divisor per moving state. The Hurst index of a fractional noise SHALL be a number or a parameter. The equations of one coordinate from several `EulerLagrangeInteraction`s SHALL add,
+so that their Lagrangians sum.
+
+#### Scenario: Divisors per state
+- **WHEN** a `GradientInteraction` joins two coordinates of one element by a spring, each divided by its own mass
+- **THEN** the momentum of the two coordinates stays constant
+
+#### Scenario: Summed Lagrangians
+- **WHEN** two pendulums each have an `EulerLagrangeInteraction` and a third one holds only the energy of a spring
+  between them
+- **THEN** the angles follow the equations of motion of the sum of the three Lagrangians
+
 ### Requirement: Conservation and diffusion on fields
-`ConservationInteraction` SHALL change a conserved state of a field by the divergence of a flux and a source.
-`DiffusionInteraction` SHALL use the flux minus a coefficient times the gradient.
+`ConservationInteraction` SHALL change a conserved state of a field by the divergence of a flux and a source, by a
+finite-volume numerical flux, or by the field's own divergence operator on spectral and finite-difference fields.
+`AdvectionInteraction` SHALL use the flux of a drift field times the state. `DiffusionInteraction` SHALL use the flux
+minus a coefficient times the gradient.
 
 #### Scenario: Conserved total
 - **WHEN** a state diffuses on a periodic field
 - **THEN** its total stays constant and its profile matches the heat kernel
+
+### Requirement: Coupled conservation laws
+The conservation laws of several states of one field, from any interactions, SHALL form one system whose numerical flux
+reads the wave speeds of all of them, and a flux SHALL read parameters and states that vary across the cells.
+
+#### Scenario: Coupled conservation laws
+- **WHEN** the depth and the discharge of shallow water are conserved by two `ConservationInteraction`s
+- **THEN** the trajectory equals that of the two flux laws of one element, and the total depth stays constant
+
+#### Scenario: Advection by a drift field
+- **WHEN** an `AdvectionInteraction` carries a state on a periodic field
+- **THEN** it gives the trajectory of the conservation law of the flux `a u`, and the total stays constant
 
 ### Requirement: Maps, local rules, and cascades
 `MapInteraction` SHALL set the next value of a state to a function of the namespace, or add it, updated synchronously,
@@ -67,10 +95,12 @@ threshold until all are below it, recording cascades as events.
 - **THEN** the avalanche sizes follow a power law over two decades
 
 ### Requirement: Coupling over structures
-`CouplingInteraction` SHALL give every member a reduction over its neighbours, its group, or the next member of an
-ordered group, of a function that reads both members and the edge, with weights, lag, and delay, and SHALL add it to a
-rate or combine it into the next value. `PairCouplingInteraction` SHALL do the same for every pair within a cutoff, from
-a function or from minus the gradient of a pair potential.
+`CouplingInteraction` SHALL give every member a reduction over its neighbours, its group, every member of a separate
+source group, or the next member of an ordered group, of a function that reads both members, the edge, the parameters,
+and the time, by sum, mean, maximum, minimum, normalized mean, or circular mean, with weights given as an edge state, a
+matrix, or a function of both members, lag, and delay, and SHALL add it to a rate or combine it, with a function that
+reads the member, the parameters, and the time, into the next value. `PairCouplingInteraction` SHALL do the same for
+every pair within a cutoff, from a function of one or several states or from minus the gradient of a pair potential.
 
 #### Scenario: Kuramoto synchronization
 - **WHEN** 500 phase oscillators with sine coupling above the critical strength run on a complete graph
@@ -80,9 +110,22 @@ a function or from minus the gradient of a pair potential.
 - **WHEN** members align their headings within a radius by the map form at low noise
 - **THEN** the polar order parameter exceeds 0.9
 
+#### Scenario: Coupling to a separate population
+- **WHEN** a group of oscillators couples by the mean sine of the phase differences to every member of a second group
+- **THEN** every rate equals the direct mean over the second group, and the second group does not move
+
+#### Scenario: Bounded confidence
+- **WHEN** members take the normalized mean of the states within a distance, themselves included, weighted by an
+  indicator of that distance
+- **THEN** every next value equals the direct mean of the members within the distance
+
+#### Scenario: Map reading parameters and time
+- **WHEN** the map form combines the member's state, a parameter, and the time with the mean of its neighbours
+- **THEN** every next value equals the direct evaluation of the combination
+
 ### Requirement: Jumps, reactions, and transitions
 `JumpInteraction` SHALL change states by signed amounts at a rate, with a probability per step, or after drawn waiting
-times. `ReactionInteraction` SHALL move units between species, given as roles and states, by mass action or a given
+times, after which it SHALL reset scalar or vector states. `ReactionInteraction` SHALL move units between species, given as roles and states, by mass action or a given
 propensity, with real stoichiometry and modifiers, as rates, jumps, or Langevin noise. `TransitionInteraction` SHALL
 move a discrete state between values by a rate, a probability per step, a condition, a transition matrix, or an
 emission matrix, after an optional residence time, and `SpreadingInteraction` SHALL spread an active value along edges.
@@ -94,6 +137,19 @@ emission matrix, after an optional residence time, and `SpreadingInteraction` SH
 #### Scenario: Epidemic threshold
 - **WHEN** a contact process runs on a square lattice below and above its critical spreading rate
 - **THEN** the active fraction dies out below it and stays positive above it
+
+### Requirement: Per-member reactions and renamed roles
+`ReactionInteraction` SHALL take species as state names of its `target` alone and react in every member when the
+target is a group or a field, and a subclass SHALL be able to bind its species under roles of its own names.
+
+#### Scenario: Reactions at every site of a field
+- **WHEN** the Gray-Scott model runs its cubic autocatalysis, feed, and removal as reactions on the state names of its
+  field beside its two diffusions
+- **THEN** its trajectory equals the one of sites that carry the same rate laws of their own, up to round-off
+
+#### Scenario: A reaction under renamed roles
+- **WHEN** a subclass binds its species under the roles `susceptible` and `infected` and returns their pairs
+- **THEN** it follows the mass action of `S + I -> 2 I` at its own rate constant, as a rate equation or as jumps
 
 ### Requirement: Encounters, crossings, impulses, and sampling
 `EncounterInteraction` SHALL run conservative, destructive, or proliferative encounters over densities on activity
@@ -138,9 +194,39 @@ rewire nodes and edges.
 - **WHEN** a ride-sharing model matches riders with idle cars by `StableMatchingSpec`
 - **THEN** it uses `MatchingInteraction`, and no rider and car prefer each other to their matches
 
+#### Scenario: Life cycle variants
+- **WHEN** a life cycle gives births into another group with values of the parent, keeps a share of a split state,
+  replaces parents by their offspring, renews dying agents in place, removes kin of another group, or brings arrivals
+  without a parent at placed locations
+- **THEN** the new agents join the named group with the given values, the parent keeps that share, a parent that gave
+  birth is gone, a renewed agent keeps its identity and the states the new values leave out, the first kin member is
+  removed, and a Poisson number of arrivals of the given mean appear, with the counts reported as `births`, `deaths`,
+  and `arrivals`
+
+#### Scenario: Growth from outside a network
+- **WHEN** a `TopologyInteraction` adds nodes without a target, with values drawn from the generator
+- **THEN** one node joins per step with its edges, as in Barabási-Albert growth, and every new node takes its own draw
+
 #### Scenario: Galam groups
 - **WHEN** the Galam discussion model draws groups of three every step
 - **THEN** it uses `GroupingInteraction`, and the majority of every group wins as before the change
+
+### Requirement: Transfer flows and pairings
+`TransferInteraction` SHALL report every symbolic leg as a flow under its name, under the element when the transfer moves
+a quantity within one element and under the interaction otherwise. Its agent form SHALL pair agents into disjoint pairs
+of neighbours, and SHALL pair with a fallback group in a step in which no target member lives.
+
+#### Scenario: Named flows keep their reporters
+- **WHEN** the Bass diffusion model moves adopters by a `TransferInteraction` within the market with `flow='adoption'`
+- **THEN** the trajectory records the flow as `market.adoption`, as when the market declared the transfer itself
+
+#### Scenario: Disjoint neighbour pairs
+- **WHEN** traders on a grid barter with `pairing='neighbor-pairs'`
+- **THEN** every trader is in at most one pair a step, and the two traders of a pair stand in neighbouring cells
+
+#### Scenario: Fallback group
+- **WHEN** a transfer pays a random member of a group that has no living member and names a `fallback` group
+- **THEN** a random member of the fallback group receives the amount
 
 ### Requirement: Agent and symbolic lowering
 A general class whose operation agent models use SHALL lower to agent rules in its agent form, with functions of the

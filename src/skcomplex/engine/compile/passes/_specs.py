@@ -278,12 +278,15 @@ class SpecsPass(BasePass):
         """Return the blocks and member indices of the entries of a variadic role, in the given order.
 
         An entry is an element path or a group member reference, alone or paired with the name of a state, and the
-        entries may be the keys of a mapping. A role bound to `None` has no entries.
+        entries may be the keys of a mapping, where a state name alone names a state of another role and binds nothing.
+        A role bound to `None` has no entries.
         """
         if entries is None:
             return []
         labels = bound_labels(entries)
-        if not isinstance(entries, list | tuple | Mapping) or len(labels) != len(entries):
+        if isinstance(entries, Mapping):
+            entries = [entry for entry in entries if not isinstance(entry, str)]
+        if not isinstance(entries, list | tuple) or len(labels) != len(entries):
             error_msg = (
                 f'Interaction {node.path} binds its variadic role {role!r} to {entries!r}. Bind a list of element '
                 'paths and group member references, or of pairs of one of them and a state name.'
@@ -363,21 +366,34 @@ class SpecsPass(BasePass):
         return layer
 
     @staticmethod
-    def _edge_roles(node: NodeSpec, elements: dict[str, BlockSpec]) -> tuple[BlockSpec, BlockSpec | None]:
-        """Return the group of nodes and the group on edges, if any, that an interaction over neighbours binds."""
+    def _edge_roles(
+        node: NodeSpec,
+        elements: dict[str, BlockSpec],
+    ) -> tuple[BlockSpec, BlockSpec | None, BlockSpec | None]:
+        """Return the group of nodes of an interaction, its group on edges, if any, and a second group of nodes, if any.
+
+        The first role bound to a group of nodes binds the members the laws run for, and a second one the other members
+        that their reductions run over. A role bound to `None` binds nothing.
+        """
         blocks = [
-            SpecsPass._resolve_role(node, role, elements) for role in declarations_of(node.component, VariableKind.ROLE)
+            SpecsPass._resolve_role(node, role, elements)
+            for role in declarations_of(node.component, VariableKind.ROLE)
+            if getattr(node.component, role) is not None
         ]
         edges = [block for block in blocks if getattr(block.node.component, 'on', None) == 'edges']
         nodes = [block for block in blocks if block not in edges]
-        if len(nodes) != 1 or len(edges) > 1 or nodes[0].node.members is None:
+        if (
+            not 1 <= len(nodes) <= 1 + int(not edges)
+            or len(edges) > 1
+            or any(block.node.members is None for block in nodes)
+        ):
             error_msg = (
                 f'Interaction {node.path} over neighbours binds {len(nodes)} groups of nodes and {len(edges)} groups '
                 'on edges. Bind one role to a group with one member per node or site, and at most one role to a group '
-                'on the edges of the same network.'
+                'on the edges of the same network or to a second group of nodes.'
             )
             raise RoleError(error_msg)
-        return nodes[0], next(iter(edges), None)
+        return nodes[0], next(iter(edges), None), next(iter(nodes[1:]), None)
 
     @staticmethod
     def _edge_search(
@@ -566,11 +582,14 @@ class SpecsPass(BasePass):
         parameters: SimpleNamespace,
         references: dict[Expression, ReferenceSpec],
         time: Expression,
+        *,
+        others: BlockSpec | None = None,
     ) -> KernelSpec:
         """Return the spec of the laws of the members of an interaction over neighbours whose members have no edges.
 
         The laws read one end as the member and, inside their reductions, the other end as the other members, as on a
-        lattice or a network, and the interaction has no laws per edge.
+        lattice or a network, and the interaction has no laws per edge. With a second group of nodes, the source end
+        reads its members, the other members of the reductions, and the target end the members of the first group.
 
         Args:
             block:
@@ -588,16 +607,26 @@ class SpecsPass(BasePass):
             time:
                 The time symbol.
 
+            others:
+                The block of the second group of nodes, or `None` for the group itself.
+
         Returns:
             spec:
                 The spec of the laws of one end.
         """
         namespaces = {}
-        for end, source, suffix in zip(_EDGE_NAMES[:2], (ReadKind.FIRST, ReadKind.SECOND), END_SUFFIXES, strict=True):
-            namespaces[end], end_references = SpecsPass._namespace(nodes, source, alias=suffix)
+        ends = (nodes if others is None else others, nodes)
+        for end, group, source, suffix in zip(
+            _EDGE_NAMES[:2],
+            ends,
+            (ReadKind.FIRST, ReadKind.SECOND),
+            END_SUFFIXES,
+            strict=True,
+        ):
+            namespaces[end], end_references = SpecsPass._namespace(group, source, alias=suffix)
             references.update(end_references)
         namespace = SimpleNamespace(t=time, **vars(parameters), **namespaces)
-        paths: dict[str, str | tuple[str, ...]] = {'source': nodes.node.path, 'target': nodes.node.path}
+        paths: dict[str, str | tuple[str, ...]] = {'source': ends[0].node.path, 'target': nodes.node.path}
         return SpecsPass._end_spec(KernelSpec(block.node.path, namespace, references, 0, roles=paths), nodes)
 
     @staticmethod
@@ -629,7 +658,7 @@ class SpecsPass(BasePass):
                 The interaction declares a parameter named like an end or the member of an edge.
         """
         node = block.node
-        nodes, edges = SpecsPass._edge_roles(node, elements)
+        nodes, edges, others = SpecsPass._edge_roles(node, elements)
         parameters, references = SpecsPass._namespace(block, ReadKind.SINGLE)
         clashes = sorted(set(vars(parameters)) & {*_EDGE_NAMES, 't'})
         if clashes:
@@ -638,8 +667,11 @@ class SpecsPass(BasePass):
                 'its laws read as the ends and the member of an edge. Rename them.'
             )
             raise LabelError(error_msg)
-        if edges is None and not isinstance(SpecsPass._group_space(nodes), LatticeSpace | NetworkSpace | CayleySpace):
-            return [SpecsPass._ends_spec(block, nodes, parameters, references, declarations.time)], declarations
+        if others is not None or (
+            edges is None and not isinstance(SpecsPass._group_space(nodes), LatticeSpace | NetworkSpace | CayleySpace)
+        ):
+            spec = SpecsPass._ends_spec(block, nodes, parameters, references, declarations.time, others=others)
+            return [spec], declarations
         search = SpecsPass._edge_search(node, nodes, edges, elements)
         declarations, degrees = SpecsPass._declare_degrees(node, nodes, search, declarations)
         namespaces: dict[str, SimpleNamespace] = {}
@@ -736,7 +768,7 @@ class SpecsPass(BasePass):
         labels = {
             role: getattr(node.component, role)
             for role, declaration in declared.items()
-            if not (declaration.noise and getattr(node.component, role) is None)
+            if declaration.variadic or getattr(node.component, role) is not None
         }
         variadic = {
             role: SpecsPass._resolve_entries(node, role, labels[role], elements)
@@ -852,7 +884,9 @@ class SpecsPass(BasePass):
         time = declarations.time
         if not block.node.interaction:
             return [SpecsPass._member_spec(block, time)], declarations
-        if isinstance(block.node.component, NeighborInteraction):
+        component = block.node.component
+        bound = [role for role in declarations_of(component, VariableKind.ROLE) if getattr(component, role) is not None]
+        if isinstance(component, NeighborInteraction) and bound:
             return SpecsPass._edge_specs(block, elements, declarations)
         if isinstance(block.node.component, PairInteraction):
             return [SpecsPass._pair_spec(block, elements, time)], declarations

@@ -8,7 +8,7 @@ import pytest
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import JumpInteraction
 from skcomplex.core.laws.utils import draw
-from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.spaces import ContinuousSpace, DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
@@ -110,3 +110,29 @@ def test_check_rejects_clocks_and_changes_it_cannot_take(arguments, match):
     """Test that a jump without one clock, without changes, or with a reset it cannot take raises an error."""
     with pytest.raises(ValidationError, match=match):
         JumpInteraction('jump', target='counters', **arguments).check()
+
+
+class PositionElement(Element):
+    """Element with a vector position."""
+
+    def __init__(self, label: str, *, x: Annotated[object, StateSpec(vector=True)] = 0.0) -> None:
+        super().__init__(label)
+        self.x = x
+
+
+def test_jumps_after_waits_reset_every_component_of_a_vector_state():
+    """Test that a reset of a vector state sets every component, here a step of `+1` along both axes per wait."""
+    steps = JumpInteraction(
+        'steps',
+        target='walker',
+        waiting=lambda s: 1.0,
+        reset={'x': lambda s: [item + 1 for item in s.target.x]},
+    )
+    system = System(
+        elements=[PositionElement('walker', x=[0.0, 0.0])],
+        interactions=[steps],
+        space=ContinuousSpace(n_dim=2),
+    )
+    simulation = Simulation(system, dt=1.0, random_state=0).check().prepare()
+    trajectory = simulation.run(until=3.5).trajectory_
+    np.testing.assert_allclose(trajectory.values('walker.x')[-1], [3.0, 3.0])

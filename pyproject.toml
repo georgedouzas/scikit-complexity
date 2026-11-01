@@ -379,6 +379,7 @@ type = "forbidden"
 source_modules = ["skcomplex.models.biology"]
 forbidden_modules = [
     "skcomplex.models.economics.common",
+    "skcomplex.models.engineering.common",
     "skcomplex.models.physics.common",
 ]
 
@@ -389,6 +390,7 @@ source_modules = ["skcomplex.models.chemistry"]
 forbidden_modules = [
     "skcomplex.models.biology.common",
     "skcomplex.models.economics.common",
+    "skcomplex.models.engineering.common",
     "skcomplex.models.physics.common",
 ]
 
@@ -399,6 +401,7 @@ source_modules = ["skcomplex.models.computer_science"]
 forbidden_modules = [
     "skcomplex.models.biology.common",
     "skcomplex.models.economics.common",
+    "skcomplex.models.engineering.common",
     "skcomplex.models.physics.common",
 ]
 
@@ -409,6 +412,7 @@ source_modules = ["skcomplex.models.earth"]
 forbidden_modules = [
     "skcomplex.models.biology.common",
     "skcomplex.models.economics.common",
+    "skcomplex.models.engineering.common",
     "skcomplex.models.physics.common",
 ]
 
@@ -418,6 +422,7 @@ type = "forbidden"
 source_modules = ["skcomplex.models.economics"]
 forbidden_modules = [
     "skcomplex.models.biology.common",
+    "skcomplex.models.engineering.common",
     "skcomplex.models.physics.common",
 ]
 
@@ -438,6 +443,7 @@ source_modules = ["skcomplex.models.mathematics"]
 forbidden_modules = [
     "skcomplex.models.biology.common",
     "skcomplex.models.economics.common",
+    "skcomplex.models.engineering.common",
     "skcomplex.models.physics.common",
 ]
 
@@ -448,6 +454,7 @@ source_modules = ["skcomplex.models.physics"]
 forbidden_modules = [
     "skcomplex.models.biology.common",
     "skcomplex.models.economics.common",
+    "skcomplex.models.engineering.common",
 ]
 
 [[tool.importlinter.contracts]]
@@ -457,6 +464,7 @@ source_modules = ["skcomplex.models.social"]
 forbidden_modules = [
     "skcomplex.models.biology.common",
     "skcomplex.models.economics.common",
+    "skcomplex.models.engineering.common",
     "skcomplex.models.physics.common",
 ]
 

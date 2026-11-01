@@ -12,6 +12,7 @@ from ._oscillators import (
     stuart_landau,
     van_der_pol,
 )
+from ._van_der_pol import VanDerPolElement
 
 __all__: list[str] = [
     'AdlerPhaseElement',
@@ -19,6 +20,7 @@ __all__: list[str] = [
     'HenonHeilesElement',
     'MushroomBilliardElement',
     'SinaiBilliardElement',
+    'VanDerPolElement',
     'adler_equation',
     'billiards',
     'duffing',

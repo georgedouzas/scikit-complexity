@@ -184,3 +184,25 @@ def test_check_rejects_not_exactly_one_callable(arguments):
     """Test that `check` rejects a coupling without exactly one callable of the function and the potential."""
     with pytest.raises(ValidationError, match='exactly one'):
         PairCouplingInteraction('pair', 'gas', 'gas', **arguments).check()
+
+
+def test_pair_coupling_function_writes_several_states_jointly():
+    """Test that a function of several states adds one value per state to both members, with the roles swapped."""
+    x1, x2, a, b = var('x1 x2 a b')
+    first, second = SimpleNamespace(x=vector([x1]), theta=a), SimpleNamespace(x=vector([x2]), theta=b)
+    coupling = PairCouplingInteraction(
+        'joint',
+        'units',
+        'units',
+        write=('x', 'theta'),
+        function=lambda s: (s.second.x - s.first.x, sin(s.second.theta - s.first.theta)),
+    )
+    laws = coupling.check().prepare().run(SimpleNamespace(first=first, second=second)).laws_
+    assert [law.target for law in laws] == [first.x, first.theta, second.x, second.theta]
+    assert [law.value for law in laws] == [vector([x2 - x1]), sin(b - a), vector([x1 - x2]), sin(a - b)]
+
+
+def test_check_rejects_a_potential_of_several_states():
+    """Test that `check` rejects a potential with several states to write."""
+    with pytest.raises(ValidationError, match='one state'):
+        PairCouplingInteraction('pair', 'gas', 'gas', write=('x', 'v'), potential=_soft).check()

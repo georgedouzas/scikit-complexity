@@ -28,6 +28,7 @@ from ._coevolution import (
 )
 from ._cognition import ConversationsInteraction, ThinkerElement, cognitive_consistency, settle
 from ._complex_agent_view import ComplexAgentView
+from ._confidence_coupling import ConfidenceCouplingInteraction
 from ._conventions import NamerElement, NamingGamesInteraction, naming_game
 from ._diffusion import AdopterElement, AdoptionInteraction, BelieverElement, influentials, threshold_adoption
 from ._discussant_view import DiscussantView
@@ -58,7 +59,9 @@ from ._random_pairs import RandomPairsInteraction
 from ._standardization import ComplexAgentElement, StandardizationInteraction, standardized_agents
 from ._thinker_view import ThinkerView
 from ._variant_voter_view import VariantVoterView
+from ._variant_voting import VariantVotingInteraction
 from ._village_view import VillageView
+from ._voter_imitation import VoterImitationInteraction
 from ._voter_view import VoterView
 from ._voters import (
     MajorityVoterElement,
@@ -81,6 +84,7 @@ __all__: list[str] = [
     'CoevolvingVoterElement',
     'ComplexAgentElement',
     'ComplexAgentView',
+    'ConfidenceCouplingInteraction',
     'ConfidentElement',
     'ConversationsInteraction',
     'CulturalInfluenceInteraction',
@@ -107,9 +111,11 @@ __all__: list[str] = [
     'TieElement',
     'VariantVoterElement',
     'VariantVoterView',
+    'VariantVotingInteraction',
     'VillageElement',
     'VillageView',
     'VoterElement',
+    'VoterImitationInteraction',
     'VoterView',
     'axelrod',
     'coevolving_voter',

@@ -102,8 +102,10 @@ class LowerComplexPass(BasePass):
         description = f'Equation of {owner}'
         real_lhs, imaginary_lhs = _split_complex(equation.lhs_, description)
         real_rhs, imaginary_rhs = _split_complex(equation.rhs_, description)
-        equations: list[BaseLaw] = [EquationLaw(real_lhs, real_rhs).check().prepare()]
-        if not (_is_zero(imaginary_lhs) and _is_zero(imaginary_rhs)):
+        real = _is_zero(imaginary_lhs) and _is_zero(imaginary_rhs)
+        target = equation.target if real else None
+        equations: list[BaseLaw] = [EquationLaw(real_lhs, real_rhs, target=target).check().prepare()]
+        if not real:
             equations.append(EquationLaw(imaginary_lhs, imaginary_rhs).check().prepare())
         return equations
 

@@ -57,6 +57,9 @@ class VariableSpec(BaseSpec):
         noise:
             Whether a role binds a set of Wiener processes.
 
+        optional:
+            Whether a role may be bound to `None`, so it binds nothing.
+
         per:
             The variadic role whose entries a parameter holds one value for, or `None`.
 
@@ -88,6 +91,7 @@ class VariableSpec(BaseSpec):
     index: int = 0
     variadic: bool = False
     noise: bool = False
+    optional: bool = False
     per: str | None = None
     quantity: str | None = None
     history: object = None

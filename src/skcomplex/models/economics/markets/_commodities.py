@@ -10,7 +10,8 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, Sink, Source, TransferLaw
+from ....core.interactions import TransferInteraction
+from ....core.laws import Sink, Source
 from ....core.laws.utils import distributed_delay, lookup, step
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -45,26 +46,27 @@ def _capacity_orders(s: SimpleNamespace) -> Expression:
     return s.capacity / s.lifetime * lookup(_expected_price(s) / s.reference_price, INVESTMENT_TABLE)
 
 
-def _commodity_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the laws of the commodity market."""
-    relative_price = _price(s) / s.reference_price
-    production = s.capacity * relative_price**s.supply_elasticity
-    return [
-        TransferLaw(Source('producers'), s.inventory, production, label='production'),
-        TransferLaw(
-            s.inventory,
-            Sink('consumers'),
-            _demand(s) * relative_price ** (-s.demand_elasticity),
-            label='consumption',
-        ),
-        TransferLaw(
-            Source('construction'),
-            s.capacity,
-            distributed_delay(_capacity_orders(s), order=3, time=s.construction_delay),
-            label='completions',
-        ),
-        TransferLaw(s.capacity, Sink('retirement'), s.capacity / s.lifetime, label='retirements'),
-    ]
+def _market(s: SimpleNamespace) -> SimpleNamespace:
+    """Return the symbols of the market a transfer moves the commodity or the capacity of, with the time."""
+    return SimpleNamespace(t=s.t, **vars(s.source))
+
+
+def _production(s: SimpleNamespace) -> Expression:
+    """Return the production, the capacity times the relative price to the supply elasticity."""
+    market = _market(s)
+    return market.capacity * (_price(market) / market.reference_price) ** market.supply_elasticity
+
+
+def _consumption(s: SimpleNamespace) -> Expression:
+    """Return the consumption, the demand times the relative price to minus the demand elasticity."""
+    market = _market(s)
+    return _demand(market) * (_price(market) / market.reference_price) ** (-market.demand_elasticity)
+
+
+def _completions(s: SimpleNamespace) -> Expression:
+    """Return the completions of capacity, the orders through a third-order delay."""
+    market = _market(s)
+    return distributed_delay(_capacity_orders(market), order=3, time=market.construction_delay)
 
 
 class CommodityMarketElement(Element):
@@ -74,6 +76,8 @@ class CommodityMarketElement(Element):
     coverage. Production is the capacity times the relative price to the supply elasticity, consumption the demand
     times the relative price to minus the demand elasticity. Capacity is ordered at the rate of retirements times a
     rising table function of the smoothed price, completed through a third-order delay, and retired over its lifetime.
+    The market holds the stocks and the parameters, and transfers within it of the model move the commodity and the
+    capacity.
 
     Args:
         label:
@@ -155,19 +159,6 @@ class CommodityMarketElement(Element):
         self.expectation_time = expectation_time
         self.construction_delay = construction_delay
         self.lifetime = lifetime
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the production, the consumption, the completions, and the retirements of the market.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return _commodity_laws(s)
 
 
 @register_model(
@@ -272,4 +263,24 @@ def commodity_cycle(
         construction_delay=construction_delay,
         lifetime=lifetime,
     )
-    return System(elements=[market])
+    commodity = TransferInteraction(
+        'commodity',
+        source='market',
+        target='market',
+        state=Source('producers'),
+        into='inventory',
+        amount=_production,
+        flow='production',
+        legs=[('inventory', Sink('consumers'), _consumption, 'consumption')],
+    )
+    capacity_flows = TransferInteraction(
+        'capacity_flows',
+        source='market',
+        target='market',
+        state=Source('construction'),
+        into='capacity',
+        amount=_completions,
+        flow='completions',
+        legs=[('capacity', Sink('retirement'), lambda s: s.source.capacity / s.source.lifetime, 'retirements')],
+    )
+    return System(elements=[market], interactions=[commodity, capacity_flows])

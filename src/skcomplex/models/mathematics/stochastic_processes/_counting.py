@@ -4,7 +4,6 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, oo
@@ -12,10 +11,8 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import JumpInteraction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import JumpInteraction, MapInteraction
 from ....core.system import System
-from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._bernoulli_trial_view import BernoulliTrialView
@@ -57,7 +54,7 @@ class PoissonCounterElement(Element):
 
 
 class BernoulliTrialElement(Element):
-    """Sequence of independent trials, each a success with the same probability.
+    """Sequence of independent trials, each a success with the same probability, and the count of its successes.
 
     Args:
         label:
@@ -101,32 +98,6 @@ class BernoulliTrialElement(Element):
         """Return the view of the agents, which types their states and parameters."""
         return BernoulliTrialView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the trial rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.draw)]
-
-    def draw(self, agent: BernoulliTrialView, model: ModelView) -> None:
-        """Draw the next outcome and count it.
-
-        Args:
-            agent:
-                The sequence of trials.
-
-            model:
-                The model.
-        """
-        agent.outcome = float(model.rng.random() < agent.p)
-        agent.successes += agent.outcome
-
 
 @register_model(
     field='mathematics/stochastic_processes',
@@ -153,7 +124,25 @@ def bernoulli_process(n_sequences: int = 20, *, p: float = 0.5) -> System:
         >>> bernoulli_process(3).elements[0].check().prepare().size_
         3
     """
-    return System(elements=[GroupElement('trials', element=BernoulliTrialElement, size=n_sequences, values={'p': p})])
+    trial = MapInteraction(
+        'trial',
+        target='trials',
+        state='outcome',
+        function=lambda agent, model: float(model.rng.random() < agent.p),
+        form='agent',
+    )
+    count = MapInteraction(
+        'count',
+        target='trials',
+        state='successes',
+        function=lambda agent, model: agent.outcome,
+        mode='increment',
+        form='agent',
+    )
+    return System(
+        elements=[GroupElement('trials', element=BernoulliTrialElement, size=n_sequences, values={'p': p})],
+        interactions=[trial, count],
+    )
 
 
 @register_model(

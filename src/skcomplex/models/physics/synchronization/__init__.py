@@ -15,13 +15,13 @@ from ._chaos import (
 )
 from ._kuramoto import (
     DelayedCouplingInteraction,
-    MeanFieldCouplingInteraction,
     delayed_kuramoto,
     kuramoto,
     kuramoto_sakaguchi_chimera,
     nonlocal_ring_chimera,
     ott_antonsen,
 )
+from ._logistic_coupling import LogisticCouplingInteraction
 from ._networks import (
     EdgeCouplingInteraction,
     LinkElement,
@@ -45,9 +45,9 @@ __all__: list[str] = [
     'GlobalCouplingInteraction',
     'IntegrateAndFireOscillatorElement',
     'LinkElement',
+    'LogisticCouplingInteraction',
     'LogisticNodeElement',
     'LogisticUnitElement',
-    'MeanFieldCouplingInteraction',
     'RosslerOscillatorElement',
     'SwarmalatorCouplingInteraction',
     'WinfreeMeanFieldInteraction',

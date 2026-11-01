@@ -13,7 +13,7 @@ from ._double_auction import (
     maximum_surplus,
 )
 from ._duopoly import CournotAdjustmentInteraction, DuopolistElement, cournot_duopoly
-from ._exchange import cobb_douglas, marginal_rate, neighbor_pairing, trade_goods
+from ._exchange import cobb_douglas, marginal_rate, trade_goods
 from ._fair_food import ConsumerElement, fair_food
 from ._goods_traders import ExchangeInteraction, GoodsTraderElement, goods_traders
 from ._inventory import CarDealershipElement, car_dealer
@@ -96,7 +96,6 @@ __all__: list[str] = [
     'labour_market',
     'marginal_rate',
     'maximum_surplus',
-    'neighbor_pairing',
     'perishable_goods_duopoly',
     'produce_market',
     'riccati_prices',

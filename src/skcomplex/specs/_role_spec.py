@@ -16,7 +16,8 @@ class RoleSpec(BaseSpec):
     """Spec of a role of an interaction, in the annotation of an argument of its constructor.
 
     A plain role binds one element path, one group path, or one group member reference `<group>[<index>]`. A variadic
-    role binds a sequence of them, and a noise role binds a `WienerProcessSpec`.
+    role binds a sequence of them, and a noise role binds a `WienerProcessSpec`. An optional role may be bound to
+    `None`, and then binds nothing.
 
     Args:
         variadic:
@@ -24,6 +25,9 @@ class RoleSpec(BaseSpec):
 
         noise:
             Whether the role binds a set of Wiener processes instead of a path.
+
+        optional:
+            Whether the role may be bound to `None`, so it binds nothing.
 
     Examples:
         >>> from skcomplex.specs import RoleSpec
@@ -33,6 +37,7 @@ class RoleSpec(BaseSpec):
 
     variadic: bool = False
     noise: bool = False
+    optional: bool = False
 
     def _check(self) -> None:
         """Raise an error for a role that is both variadic and a noise role.

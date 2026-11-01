@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from math import prod
 from types import SimpleNamespace
 from typing import Annotated
@@ -25,9 +25,10 @@ class GradientInteraction(Interaction):
     """Motion of states down the gradient of a potential `U(ns)`, as a gradient flow or as Newtonian motion.
 
     Every state `x` the interaction moves gets the rate `-dU/dx / d` on its highest time derivative, with `d` the
-    divisor of its member. On a state of order 1 this is the gradient flow `x' = -dU/dx / d`, with `d` a friction,
-    and on a state of order 2 it is Newton's law `x'' = -dU/dx / d`, with `d` an inertia. A vector state gets the
-    gradient of every component.
+    divisor of its member: a state or parameter of the member, an expression of them such as a moment of inertia
+    `m l^2`, or one divisor per state, such as the masses of two coordinates of one element. On a state of order 1
+    this is the gradient flow `x' = -dU/dx / d`, with `d` a friction, and on a state of order 2 it is Newton's law
+    `x'' = -dU/dx / d`, with `d` an inertia. A vector state gets the gradient of every component.
 
     On a field the potential is the density `f` of a functional `F = integral f`, which may read the field, its
     derivatives `partial(x, k)` or `gradient(x)`, and its `laplacian(x)`. A variational interaction moves the field by
@@ -57,7 +58,9 @@ class GradientInteraction(Interaction):
             The paths of the elements or groups the potential reads but does not move.
 
         divisor:
-            The name of the state or parameter of every moving member that divides its rate, or `None`.
+            The name of the state or parameter of every moving member that divides its rate, a function of the
+            namespace of the member that returns the divisor, a mapping from the name of every moving state to its
+            own divisor, or `None`.
 
         variational:
             Whether the potential is the density of a functional of a field, moved by its functional derivative.
@@ -89,7 +92,9 @@ class GradientInteraction(Interaction):
         states: str | Sequence[str] = 'x',
         potential: Callable[[SimpleNamespace], object] | None = None,
         sources: Annotated[Sequence[str], RoleSpec(variadic=True)] = (),
-        divisor: str | None = None,
+        divisor: (
+            str | Callable[[SimpleNamespace], object] | Mapping[str, str | Callable[[SimpleNamespace], object]] | None
+        ) = None,
         variational: bool = False,
         conserved: bool = False,
     ) -> None:
@@ -111,15 +116,24 @@ class GradientInteraction(Interaction):
 
         Raises:
             ValidationError:
-                The type declares states, a state or the divisor is not a name, or the potential is not callable.
+                The type declares states, a state is not a name, a divisor is neither a name nor a function, or the
+                potential is not callable.
         """
         super()._check()
         names = self._get_names()
         if not names or not all(isinstance(name, str) and name.isidentifier() for name in names):
             error_msg = f'{type(self).__name__} {self.label!r} moves the states {self.states!r}. Give names of states.'
             raise ValidationError(error_msg)
-        if self.divisor is not None and not (isinstance(self.divisor, str) and self.divisor.isidentifier()):
-            error_msg = f'The divisor of {self.label!r} is {self.divisor!r}. Give the name of a state or parameter.'
+        divisors = dict(self.divisor) if isinstance(self.divisor, Mapping) else dict.fromkeys(names, self.divisor)
+        valid = all(
+            item is None or callable(item) or (isinstance(item, str) and item.isidentifier())
+            for item in divisors.values()
+        )
+        if not valid or not set(divisors) <= set(names):
+            error_msg = (
+                f'The divisor of {self.label!r} is {self.divisor!r}. Give the name of a state or parameter, a function '
+                'of the namespace of the member, or a mapping from the moving states to them.'
+            )
             raise ValidationError(error_msg)
         if self.potential is not None and not callable(self.potential):
             error_msg = f'The potential of {self.label!r} is {self.potential!r}. Give a function of the namespace.'
@@ -131,6 +145,13 @@ class GradientInteraction(Interaction):
             error_msg = f'{type(self).__name__} {self.label!r} has no potential. Give a function of the namespace.'
             raise ValidationError(error_msg)
         return self.potential(namespace)
+
+    def _get_divisor(self, member: SimpleNamespace, name: str) -> object:
+        """Return the divisor of a moving state of a member, or `None` for none."""
+        divisor = self.divisor.get(name) if isinstance(self.divisor, Mapping) else self.divisor
+        if divisor is None:
+            return None
+        return getattr(member, divisor) if isinstance(divisor, str) else divisor(member)
 
     def _get_rate_state(self, member: SimpleNamespace, name: str) -> object:
         """Return the state whose highest derivative gets the rate of a moving state, the moving state itself."""
@@ -238,7 +259,8 @@ class GradientInteraction(Interaction):
                 state = getattr(member, name)
                 derivative = self._get_derivative(potential, state)
                 rate = self._get_laplacian(derivative, state) if self.conserved else -derivative
-                if self.divisor is not None:
-                    rate = rate / getattr(member, self.divisor)
+                divisor = self._get_divisor(member, name)
+                if divisor is not None:
+                    rate = rate / divisor
                 laws.append(RateLaw(self._get_rate_state(member, name), rate))
         return laws

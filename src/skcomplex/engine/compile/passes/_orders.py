@@ -180,12 +180,46 @@ class OrdersPass(BasePass):
         highest: dict[Expression, Expression] = {}
         lhs = OrdersPass._substitute(SR(law.lhs_), spec, orders, f'In {description}, it', highest)
         rhs = OrdersPass._substitute(SR(law.rhs_), spec, orders, f'In {description}, it', highest)
-        if not highest:
+        reference = spec.references.get(law.target) if isinstance(law.target, Expression) else None
+        key = None if reference is None else (reference.entry.name, reference.column)
+        relation = _RelationSpec(spec, SR(lhs) - SR(rhs), highest, description, key)
+        if key is None:
+            OrdersPass._check_relation(relation)
+        return relation
+
+    @staticmethod
+    def _check_relation(relation: _RelationSpec) -> None:
+        """Raise an error for a relation with no highest derivative of a state to solve for."""
+        if not relation.highest:
+            description = relation.description
             error_msg = (
                 f'{description[0].upper()}{description[1:]} contains no highest derivative of a state to solve for.'
             )
             raise ValidationError(error_msg)
-        return _RelationSpec(spec, SR(lhs) - SR(rhs), highest, description)
+
+    @staticmethod
+    def _summed(relations: list[_RelationSpec]) -> list[_RelationSpec]:
+        """Return the relations with those of one target added into one, checked for a highest derivative."""
+        groups: dict[tuple[str, int] | int, list[_RelationSpec]] = {}
+        for index, relation in enumerate(relations):
+            groups.setdefault(index if relation.key is None else relation.key, []).append(relation)
+        summed = []
+        for group in groups.values():
+            first = group[0]
+            if len(group) > 1:
+                references = {key: value for item in group for key, value in item.spec.references.items()}
+                owner = ', '.join(dict.fromkeys(item.spec.owner for item in group))
+                spec = KernelSpec(owner, SimpleNamespace(), references, max(item.spec.rows for item in group))
+                first = _RelationSpec(
+                    spec,
+                    sum((item.expression for item in group), SR(0)),
+                    {key: value for item in group for key, value in item.highest.items()},
+                    ' + '.join(item.description for item in group),
+                    first.key,
+                )
+            OrdersPass._check_relation(first)
+            summed.append(first)
+        return summed
 
     @staticmethod
     def _ordered_law(spec: KernelSpec, law: BaseLaw, orders: _OrdersSpec) -> BaseLaw:
@@ -270,7 +304,7 @@ class OrdersPass(BasePass):
         specs: list[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]],
     ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
         """Return specs whose equations are replaced by rate laws on the highest derivatives they solve for jointly."""
-        relations = [item for _, laws in specs for item in laws if isinstance(item, _RelationSpec)]
+        relations = OrdersPass._summed([item for _, laws in specs for item in laws if isinstance(item, _RelationSpec)])
         kept = [(spec, [law for law in laws if not isinstance(law, _RelationSpec)]) for spec, laws in specs]
         if not relations:
             return kept

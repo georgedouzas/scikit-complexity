@@ -5,7 +5,6 @@
 
 import math
 from collections.abc import Callable, Sequence
-from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import networkx as nx
@@ -14,8 +13,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import MatchingInteraction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import MapInteraction, MatchingInteraction
 from ....core.laws.utils import transfer
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
@@ -130,19 +128,6 @@ class BarterTraderElement(Element):
         """Return the view of a trader, with its holdings, rate, and links."""
         return BarterTraderView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that records the rate of substitution.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.appraise)]
-
     @staticmethod
     def is_partner(trader: object, other: object) -> bool:
         """Return whether another trader is a trading partner of a trader, a neighbour on the trade network.
@@ -185,17 +170,22 @@ class BarterTraderElement(Element):
             return -math.inf
         return abs(math.log(other.good2 / other.good1) - math.log(trader.good2 / trader.good1))
 
-    def appraise(self, agent: BarterTraderView, model: ModelView) -> None:
-        """Record the marginal rate of substitution of the bundle.
+    @staticmethod
+    def get_rate(agent: BarterTraderView, model: ModelView) -> float:
+        """Return the marginal rate of substitution of the bundle, `good2 / good1`.
 
         Args:
             agent:
                 The trader.
 
             model:
-                The model.
+                The model view of the appraisal.
+
+        Returns:
+            mrs:
+                The marginal rate of substitution.
         """
-        agent.mrs = agent.good2 / agent.good1
+        return agent.good2 / agent.good1
 
 
 class BilateralBarterInteraction(MatchingInteraction[ModelView]):
@@ -413,6 +403,13 @@ def wilhite_trade_networks(
     return System(
         elements=[traders],
         interactions=[
+            MapInteraction(
+                'appraisal',
+                target='traders',
+                state='mrs',
+                function=BarterTraderElement.get_rate,
+                form='agent',
+            ),
             BilateralBarterInteraction(
                 'barter',
                 requesters='traders',

@@ -6,24 +6,26 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, TransferLaw
+from ....core.interactions import TransferInteraction
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
-def _adoption(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the adoption flow from potential adopters to adopters, driven by innovation and imitation."""
-    market = s.P + s.A
-    return [TransferLaw(s.P, s.A, (s.p + s.q * s.A / market) * s.P, label='adoption')]
+def _adoption(s: SimpleNamespace) -> Expression:
+    """Return the adoption rate `(p + q A / (P + A)) P` of the market a transfer moves people within."""
+    market = s.source
+    return (market.p + market.q * market.A / (market.P + market.A)) * market.P
 
 
 class BassMarketElement(Element):
     """Market of a new product, split into potential adopters and adopters, who adopt by innovation and imitation.
+
+    The market holds the stocks and the coefficients, and a transfer within it moves the adopters from `P` to `A`.
 
     Args:
         label:
@@ -66,19 +68,6 @@ class BassMarketElement(Element):
         self.p = p
         self.q = q
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the adoption flow `(p + q A / (P + A)) P` from the potential adopters to the adopters.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The adoption flow, reported as `adoption`.
-        """
-        return _adoption(s)
-
 
 @register_model(
     field='economics/innovation',
@@ -120,4 +109,16 @@ def bass_diffusion(market: float = 1000.0, *, adopters: float = 0.0, p: float = 
         >>> bass_diffusion(market=500.0, adopters=10.0).elements[0].P
         490.0
     """
-    return System(elements=[BassMarketElement('market', P=market - adopters, A=adopters, p=p, q=q)])
+    adoption = TransferInteraction(
+        'adoption',
+        source='market',
+        target='market',
+        state='P',
+        into='A',
+        amount=_adoption,
+        flow='adoption',
+    )
+    return System(
+        elements=[BassMarketElement('market', P=market - adopters, A=adopters, p=p, q=q)],
+        interactions=[adoption],
+    )
