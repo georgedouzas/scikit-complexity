@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import Expression
 
+from ...core.elements import FieldElement
 from ...errors import ValidationError
 from ...specs._base_spec import BaseSpec
 from ...types import Indices
@@ -71,6 +72,10 @@ class KernelSpec(BaseSpec):
 
         counts:
             The number of groups that hold the member of every row of a grouping, or `None`.
+
+        place:
+            The field on the nodes of an interaction over neighbours, whose laws per edge lower to the field's
+            Laplacian, or on a lattice to whole-site shifted reads, or `None`.
     """
 
     owner: str
@@ -88,6 +93,7 @@ class KernelSpec(BaseSpec):
     hyperedge: str | None = None
     reduce: str | None = None
     counts: Indices | None = field(default=None, compare=False, repr=False)
+    place: FieldElement | None = field(default=None, compare=False, repr=False)
 
     def _target_references(self, target: object) -> list[ReferenceSpec]:
         """Return the references of the state components a law targets."""

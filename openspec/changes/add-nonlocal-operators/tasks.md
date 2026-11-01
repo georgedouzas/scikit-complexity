@@ -42,7 +42,7 @@
 
 ## 5. Couplings on fields
 
-- [ ] 5.1 Lower a constant times `(other.x - member.x)` in a `CouplingInteraction` on a `FieldElement` to `laplacian`, so
+- [x] 5.1 Lower a constant times `(other.x - member.x)` in a `CouplingInteraction` on a `FieldElement` to `laplacian`, so
   spectral and finite-element fields keep their own operator, and make couplings on fields read a fixed boundary value
   as `laplacian` does; verify the linear exchange and diffusive coupling scenarios, and agreement with the edge kernel
   away from fixed edges

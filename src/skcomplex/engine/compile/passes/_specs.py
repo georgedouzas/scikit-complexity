@@ -9,9 +9,10 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 import numpy as np
-from sage.all__sagemath_symbolics import RR, Expression
+from sage.all__sagemath_symbolics import RR, SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ....core.elements import FieldElement
 from ....core.interactions import (
     BaseInteraction,
     GroupingInteraction,
@@ -19,7 +20,7 @@ from ....core.interactions import (
     NeighborInteraction,
     PairInteraction,
 )
-from ....core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, NetworkSpace
+from ....core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
 from ....core.specs import NodeSpec
 from ....errors import LabelError, RoleError, ValidationError
 from ....specs import EntrySpec, NeighborReadSpec, WienerProcessSpec
@@ -596,6 +597,7 @@ class SpecsPass(BasePass):
             group=nodes.node.path,
             groups={nodes.node.path: nodes.rows},
             edges=edge,
+            place=edge.place,
         )
 
     @staticmethod
@@ -628,6 +630,7 @@ class SpecsPass(BasePass):
         time: Expression,
         *,
         others: BlockSpec | None = None,
+        place: FieldElement | None = None,
     ) -> KernelSpec:
         """Return the spec of the laws of the members of an interaction over neighbours whose members have no edges.
 
@@ -654,6 +657,9 @@ class SpecsPass(BasePass):
             others:
                 The block of the second group of nodes, or `None` for the group itself.
 
+            place:
+                The field on the nodes, whose ends on a lattice have the degree of the nearest neighbours, or `None`.
+
         Returns:
             spec:
                 The spec of the laws of one end.
@@ -669,9 +675,13 @@ class SpecsPass(BasePass):
         ):
             namespaces[end], end_references = SpecsPass._namespace(group, source, alias=suffix)
             references.update(end_references)
+            if place is not None and isinstance(place.space, LatticeSpace) and 'degree' not in vars(namespaces[end]):
+                degree = SR(2 * place.space.check().prepare().n_dim_)
+                namespaces[end] = SimpleNamespace(**vars(namespaces[end]), degree=degree)
         namespace = SimpleNamespace(t=time, **vars(parameters), **namespaces)
         paths: dict[str, str | tuple[str, ...]] = {'source': ends[0].node.path, 'target': nodes.node.path}
-        return SpecsPass._end_spec(KernelSpec(block.node.path, namespace, references, 0, roles=paths), nodes)
+        edge = KernelSpec(block.node.path, namespace, references, 0, roles=paths, place=place)
+        return SpecsPass._end_spec(edge, nodes)
 
     @staticmethod
     def _edge_specs(
@@ -711,10 +721,30 @@ class SpecsPass(BasePass):
                 'its laws read as the ends and the member of an edge. Rename them.'
             )
             raise LabelError(error_msg)
-        if others is not None or (
-            edges is None and not isinstance(SpecsPass._group_space(nodes), LatticeSpace | NetworkSpace | CayleySpace)
+        component = nodes.node.component
+        place = component if isinstance(component, FieldElement) and edges is None and others is None else None
+        spread = (
+            place is not None
+            and isinstance(place.space, LatticeSpace | MeshSpace)
+            and getattr(node.component, 'layer', None) is None
+        )
+        if (
+            others is not None
+            or spread
+            or (
+                edges is None
+                and not isinstance(SpecsPass._group_space(nodes), LatticeSpace | NetworkSpace | CayleySpace)
+            )
         ):
-            spec = SpecsPass._ends_spec(block, nodes, parameters, references, declarations.time, others=others)
+            spec = SpecsPass._ends_spec(
+                block,
+                nodes,
+                parameters,
+                references,
+                declarations.time,
+                others=others,
+                place=place,
+            )
             return [spec], declarations
         search = SpecsPass._edge_search(node, nodes, edges, elements)
         declarations, degrees = SpecsPass._declare_degrees(node, nodes, search, declarations)
@@ -751,6 +781,7 @@ class SpecsPass(BasePass):
             roles=paths,
             group=group,
             groups=groups,
+            place=place if search.source is None else None,
         )
         return [spec, SpecsPass._end_spec(spec, nodes)], declarations
 
