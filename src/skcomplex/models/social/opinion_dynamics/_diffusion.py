@@ -4,7 +4,6 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -14,12 +13,10 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import MovementInteraction, TransitionInteraction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import MapInteraction, MovementInteraction, TransitionInteraction
 from ....core.spaces import ContinuousSpace, LatticeSpace
 from ....core.system import System
 from ....core.types import AgentViewProtocol, ModelViewProtocol
-from ....engine.solvers import ModelView
 from ....errors import ValidationError
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
@@ -40,12 +37,28 @@ def _shift(agent: AgentViewProtocol, model: ModelViewProtocol, size: float) -> A
     return np.mod(position, size)
 
 
+def _learn(agent: BelieverView, model: ModelViewProtocol) -> Array:
+    """Return the weights of an agent plus the influence of every neighbour on the level the neighbour cares at."""
+    belief = np.array(agent.belief, dtype=np.float64)
+    for neighbor in (item for item in agent.neighbors() if isinstance(item, BelieverView)):
+        weights = np.asarray(neighbor.belief, dtype=np.float64)
+        levels = np.flatnonzero(weights == weights.max())
+        belief[levels[int(model.rng.integers(len(levels)))]] += agent.learning * neighbor.influence
+    return belief
+
+
+def _care(agent: BelieverView, model: ModelViewProtocol) -> float:
+    """Return the level an agent cares at, the index of its largest weight."""
+    return float(np.argmax(agent.belief))
+
+
 class BelieverElement(Element):
     """Agent of the belief diffusion model, with the weights it gives to four levels of caring about an issue.
 
     The levels are not caring at all, caring less, caring a bit, and caring passionately. An agent cares at the level
-    of its largest weight. Every step it adds `learning` times the influence of every neighbour to the weight of the
-    level the neighbour cares at, a tie broken at random.
+    of its largest weight. In `influentials`, a `MapInteraction` of the vector of weights adds every step `learning`
+    times the influence of every neighbour to the weight of the level the neighbour cares at, a tie broken at random,
+    and a second one sets the level of caring.
 
     Args:
         label:
@@ -93,37 +106,6 @@ class BelieverElement(Element):
     def _get_view(cls) -> type[BelieverView]:
         """Return the class of the views of the agents, whose attributes are the states and parameters."""
         return BelieverView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the learning rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.learn)]
-
-    def learn(self, agent: BelieverView, model: ModelView) -> None:
-        """Add the influence of every neighbour to the weight of the level the neighbour cares at.
-
-        Args:
-            agent:
-                The believer.
-
-            model:
-                The model.
-        """
-        belief = np.array(agent.belief, dtype=np.float64)
-        neighbors = [item for item in agent.neighbors() if isinstance(item, BelieverView)]
-        for neighbor in neighbors:
-            weights = np.asarray(neighbor.belief, dtype=np.float64)
-            levels = np.flatnonzero(weights == weights.max())
-            belief[levels[int(model.rng.integers(len(levels)))]] += agent.learning * neighbor.influence
-        agent.belief, agent.caring = belief, float(np.argmax(belief))
 
 
 class AdopterElement(Element):
@@ -258,7 +240,8 @@ def influentials(
 ) -> System:
     """Return the belief diffusion model with influentials who care passionately and weigh more with their neighbours.
 
-    Every cell of a torus holds one agent whose weights start uniform on 0 to 4.
+    Every cell of a torus holds one agent whose weights start uniform on 0 to 4. Every agent in turn, in a random
+    order, learns from its neighbours and then sets its level of caring.
 
     Args:
         width:
@@ -303,7 +286,20 @@ def influentials(
         values={'belief': belief, 'caring': belief.argmax(axis=1).astype(float), 'influence': weights},
         location=[(column, row) for column in range(width) for row in range(height)],
     )
-    return System(elements=[people], space=LatticeSpace((width, height), boundary='periodic', capacity=1))
+    learning = MapInteraction(
+        'learning',
+        target='people',
+        state='belief',
+        function=_learn,
+        schedule='member',
+        form='agent',
+    )
+    caring = MapInteraction('caring', target='people', state='caring', function=_care, schedule='member', form='agent')
+    return System(
+        elements=[people],
+        interactions=[learning, caring],
+        space=LatticeSpace((width, height), boundary='periodic', capacity=1),
+    )
 
 
 @register_model(

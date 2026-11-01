@@ -4,25 +4,24 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, ZZ, oo
 from sage.sets.real_set import RealSet
-from scipy.special import expit
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import ChoiceInteraction, MapInteraction
+from ....core.spaces import DiscreteTime
 from ....core.system import System
-from ....engine.solvers import ModelView
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.types import ModelViewProtocol
+from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import AnyArray, Array
 from ..._catalog import register_model
 from ._complex_agent_view import ComplexAgentView
 
 MARKED = 2
+PHASE = 'default'
 
 
 def _standardization(spins: AnyArray) -> float:
@@ -35,11 +34,16 @@ def _spins_of(configurations: Array) -> Array:
     return np.select([configurations == 0, configurations == 1], [1.0, -1.0], 0.0)
 
 
+def _spin_of(agent: ComplexAgentView, model: ModelViewProtocol) -> float:
+    """Return the spin of the configuration of an agent."""
+    return float(_spins_of(np.array(agent.configuration)))
+
+
 class ComplexAgentElement(Element):
     """Agent with many internal configurations, of which two show a characteristic with the spin `1` or `-1`.
 
     Configuration 0 has the spin `S = 1`, configuration 1 the spin `S = -1`, and the configurations from 2 to `H + 1`
-    the spin 0.
+    the spin 0. In `standardized_agents`, a `MapInteraction` sets the spin after every change of configuration.
 
     Args:
         label:
@@ -79,32 +83,21 @@ class ComplexAgentElement(Element):
         """Return the class of the views of the agents, whose attributes are the states and parameters."""
         return ComplexAgentView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the standardization moves every agent.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
-
-
-class StandardizationInteraction(Interaction):
+class StandardizationInteraction(ChoiceInteraction):
     """Changes of configuration of random agents, accepted with the logistic probability of their gain in utility.
 
-    The utility of agent `i` is `u_i = K / N sum_j |S_i| |S_j| + J / N sum_j S_i S_j` over the other agents. A random
-    agent proposes a configuration drawn uniformly from the `H + 2` configurations and takes it with the probability
-    `1 / (1 + exp(-(u_i' - u_i) / T))`, so the agents sample `P ~ exp(E / T)`. One unit of time is `N` proposals.
+    The utility of agent `i` is `u_i = K / N sum_j |S_i| |S_j| + J / N sum_j S_i S_j` over the other agents. An agent
+    proposes a configuration drawn uniformly from the `H + 2` configurations, its own included, and takes it with the
+    probability `1 / (1 + exp(-beta (u_i' - u_i)))` of the rule `'fermi'`, so the agents sample `P ~ exp(beta E)`. The
+    utilities read the counts of the configurations of the group, so every proposal sees the changes accepted before
+    it. In `standardized_agents`, a phase of visits draws `N` agents with replacement every unit of time.
 
     Args:
         label:
             The label of the interaction.
 
-        agents:
+        target:
             The path of the group of agents.
 
         K:
@@ -113,75 +106,62 @@ class StandardizationInteraction(Interaction):
         J:
             The coupling of the spins `S_i`, which orders the standardized agents.
 
-        T:
-            The temperature, the randomness of the choices.
-
         H:
             The number of configurations without the characteristic.
 
+        intensity:
+            The intensity of choice `beta`, the inverse of the temperature.
+
+        activity:
+            The probability that a visited agent proposes a configuration.
+
+        phase:
+            The phase of the step the choice runs in, or `None` for the default phase.
+
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import StandardizationInteraction
-        >>> StandardizationInteraction('standardization', agents='agents', H=100).H
-        100
+        >>> StandardizationInteraction('standardization', target='agents', H=100).check().options[-1]
+        101.0
     """
 
     def __init__(
         self,
         label: str,
         *,
-        agents: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
         K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
         J: Annotated[float, ParameterSpec()] = 1.0,
-        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         H: int = 50,
+        intensity: float = 2.0,
+        activity: float = 1.0,
+        phase: str | None = None,
     ) -> None:
-        super().__init__(label)
-        self.agents = agents
+        super().__init__(
+            label,
+            target=target,
+            state='configuration',
+            options=tuple(float(option) for option in range(H + MARKED)),
+            utility=self._get_utility,
+            rule='fermi',
+            intensity=intensity,
+            schedule='member',
+            activity=activity,
+            form='agent',
+            phase=phase,
+            proposal='all',
+        )
         self.K = K
         self.J = J
-        self.T = T
         self.H = H
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule of the configuration changes.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.sweep)]
-
-    def sweep(self, model: ModelView) -> None:
-        """Propose one change of configuration per agent on average, and accept each with the logistic probability.
-
-        Args:
-            model:
-                The model.
-        """
-        K, J, T = (model.parameter(name) for name in ('K', 'J', 'T'))
-        agents = model.agents(self.agents, ComplexAgentView)
-        size = len(agents)
-        configurations = np.array([agent.configuration for agent in agents], dtype=float)
-        spins = _spins_of(configurations)
-        marked, magnetization = float(np.abs(spins).sum()), float(spins.sum())
-        rng = model.rng
-        chosen, proposals = rng.integers(size, size=size), rng.integers(self.H + MARKED, size=size).astype(float)
-        draws = rng.random(size)
-        for index, proposal, new, draw in zip(chosen, proposals, _spins_of(proposals), draws, strict=True):
-            old = spins[index]
-            standardizing = K * (abs(new) - abs(old)) * (marked - abs(old))
-            ordering = J * (new - old) * (magnetization - old)
-            if draw >= expit((standardizing + ordering) / (size * T)):
-                continue
-            configurations[index], spins[index] = proposal, new
-            marked += abs(new) - abs(old)
-            magnetization += new - old
-        for agent, configuration, spin in zip(agents, configurations, spins, strict=True):
-            agent.configuration, agent.spin = float(configuration), float(spin)
+    def _get_utility(self, agent: ComplexAgentView, model: ModelViewProtocol, option: float) -> float:
+        """Return the utility of a configuration for an agent, from the counts of the configurations of the others."""
+        counts = model.composition('target', 'configuration')
+        up, down = counts.get(0.0, 0), counts.get(1.0, 0)
+        spin, new = float(_spins_of(np.array(agent.configuration))), float(_spins_of(np.array(option)))
+        standardizing = model.parameter('K') * abs(new) * (up + down - abs(spin))
+        ordering = model.parameter('J') * new * (up - down - spin)
+        return (standardizing + ordering) / sum(counts.values())
 
 
 @register_model(
@@ -257,5 +237,17 @@ def standardized_agents(
                 values={'configuration': configurations, 'spin': _spins_of(configurations)},
             ),
         ],
-        interactions=[StandardizationInteraction('standardization', agents='agents', K=K, J=J, T=T, H=H)],
+        interactions=[
+            StandardizationInteraction('standardization', target='agents', K=K, J=J, H=H, intensity=1 / T, phase=PHASE),
+            MapInteraction(
+                'spin',
+                target='agents',
+                state='spin',
+                function=_spin_of,
+                schedule='member',
+                form='agent',
+                phase=PHASE,
+            ),
+        ],
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec(PHASE, activation='visits', groups=('agents',))])),
     )
