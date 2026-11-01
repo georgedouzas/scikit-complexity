@@ -170,6 +170,14 @@ entries whose size is the same in the replicated and the original problem.
   restaurant and credits both ends from one draw, a rule specific to that model, like the hierarchy contest and the
   queue service.
 
+### Independent random streams (2026-11-01)
+
+Models seeded their initial states with `default_rng(s)` and ran `Simulation(random_state=s)`, so the first draws of
+the dynamics repeated the numbers that built the initial state. `Simulation` derives its stream from
+`SeedSequence(random_state).spawn(...)` instead, which fixes it for user code as well as for the library. Every seeded
+trajectory changes once, so tests with fixed expected values take new numbers. It runs after the rebuilds that
+compare against the current trajectories.
+
 ## Migration Plan
 
 Work on `development`, with parallel agents on disjoint packages merging back as they report.

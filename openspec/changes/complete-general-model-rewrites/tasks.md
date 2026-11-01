@@ -27,4 +27,5 @@
 
 - [ ] 3.1 Split every model module that holds several classes into one class per private module, re-exported unchanged; verify the catalog test and every model test.
 - [x] 3.2 Update `uv` to 0.13.4 or later in `pdm.lock` for PYSEC-2026-4321; verify pip-audit reports nothing.
-- [ ] 3.3 Run the checks session and the full suite with doctests; verify only the known timing tests fail.
+- [ ] 3.3 Derive the random stream of `Simulation` from `SeedSequence(random_state).spawn(...)`, so dynamics never reuse the numbers a user or factory drew from `default_rng(random_state)` for initial states; update the tests whose expected values depend on the old stream; verify the Fermi regression test passes with one shared seed.
+- [ ] 3.4 Run the checks session and the full suite with doctests; verify only the known timing tests fail.
