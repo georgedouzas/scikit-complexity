@@ -38,6 +38,7 @@ from ._split import SplitSolver
 from ._ssprk import SSPRKSolver
 from ._unitary import UnitarySolver
 from ._velocity_verlet import VelocityVerletSolver
+from ._yoshida4 import Yoshida4Solver
 
 __all__: list[str] = [
     'AgentView',
@@ -80,4 +81,5 @@ __all__: list[str] = [
     'SplitSolver',
     'UnitarySolver',
     'VelocityVerletSolver',
+    'Yoshida4Solver',
 ]

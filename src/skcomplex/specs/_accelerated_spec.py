@@ -24,6 +24,10 @@ class AcceleratedSpec(BaseSpec):
         velocity_verlet:
             The velocity Verlet loop `velocity_verlet(t, x, p, until, h, positions, velocities)`.
 
+        yoshida4:
+            The fourth-order Yoshida loop `yoshida4(t, x, p, until, h, first, second, weights)`, which drifts the first
+            block and kicks the second in every velocity Verlet stage of a weight.
+
         euler_maruyama:
             The Euler-Maruyama loop `euler_maruyama(t, x, p, until, h, rng)`.
 
@@ -36,6 +40,7 @@ class AcceleratedSpec(BaseSpec):
 
     rk4: Callable[..., Array] | None = None
     velocity_verlet: Callable[..., Array] | None = None
+    yoshida4: Callable[..., Array] | None = None
     euler_maruyama: Callable[..., Array] | None = None
     gillespie: Callable[..., Array] | None = None
     iterate: Callable[..., Array] | None = None

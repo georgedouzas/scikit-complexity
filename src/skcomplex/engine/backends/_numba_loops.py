@@ -54,6 +54,32 @@ def velocity_verlet(t, x, p, L, until, h, positions, velocities):
             y[velocities[component]] += step / 2 * rates[velocities[component]]
     return y
 """,
+    'yoshida4': """
+@njit(cache=CACHE)
+def yoshida4(t, x, p, L, until, h, first, second, weights):
+    if until <= t:
+        return x.copy()
+    n_steps = step_count(t, until, h)
+    step = (until - t) / n_steps
+    y = x.copy()
+    rates = drift(t, y, p, L)
+    for index in range(n_steps):
+        time = t + index * step
+        for stage in range(weights.size):
+            substep = weights[stage] * step
+            for component in range(second.size):
+                y[second[component]] += substep / 2 * rates[second[component]]
+            rates = drift(time, y, p, L)
+            time += substep
+            for component in range(first.size):
+                y[first[component]] += substep * rates[first[component]]
+            if HAS_BOUNDARY:
+                y = boundary(time, y, p, L)
+            rates = drift(time, y, p, L)
+            for component in range(second.size):
+                y[second[component]] += substep / 2 * rates[second[component]]
+    return y
+""",
     'euler_maruyama': """
 @njit(cache=CACHE)
 def euler_maruyama(t, x, p, L, until, h, rng, rows, columns, processes, starts, sizes, offsets, factors):

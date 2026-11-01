@@ -9,7 +9,7 @@
 
 ## 2. Solver
 
-- [ ] 2.1 Add `Yoshida4Solver` in `engine/solvers/_yoshida4.py` with its `SupportSpec`, the block split from
+- [x] 2.1 Add `Yoshida4Solver` in `engine/solvers/_yoshida4.py` with its `SupportSpec`, the block split from
   `ProblemSpec.jacobian`, and its Numba stepping as in `VelocityVerletSolver`, with tests in
   `tests/engine/solvers/test_yoshida4.py`; verify the fourth-order and non-separable scenarios
 
