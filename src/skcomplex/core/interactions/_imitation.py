@@ -8,18 +8,20 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
+import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
 from ...specs import ParameterSpec, RoleSpec
-from ..laws import BaseLaw, JumpLaw, UpdateLaw
+from ..laws import BaseLaw, JumpLaw, RuleLaw, UpdateLaw
 from ..laws.utils import categorical, neighbors, uniform, where
 from ..spaces import AdjacencyNeighborhood
+from ..types import AgentViewProtocol, ModelViewProtocol
 from ._neighbor import NeighborInteraction
 
-RULES = ('random', 'majority', 'best', 'fermi')
-FORMS = ('rate', 'probability')
+RULES = ('random', 'majority', 'best', 'better', 'fermi')
+FORMS = ('rate', 'probability', 'agent')
 
 
 class ImitationInteraction(NeighborInteraction):
@@ -27,6 +29,7 @@ class ImitationInteraction(NeighborInteraction):
 
     By the rule `'random'` a member copies a neighbour chosen at random, by `'majority'` it takes the option that more
     of its neighbours hold than any other, and by `'best'` it copies the neighbour whose payoff is largest, when that
+    payoff is larger than its own. By `'better'` it picks a neighbour at random and copies it when the neighbour's
     payoff is larger than its own. By `'fermi'` it picks a neighbour at random and copies it with probability
     `1 / (1 + exp(-beta (P_j - P_i)))`, where `P_j` and `P_i` are the payoffs of the neighbour and of the member and
     `beta` is the intensity. A member without such a neighbour keeps its state. The rules read the neighbourhood of
@@ -34,7 +37,9 @@ class ImitationInteraction(NeighborInteraction):
 
     In the `'rate'` form every member imitates at the rate `rate`, by jumps between every pair of options in continuous
     time. In the `'probability'` form every member imitates with probability `probability` in every step of a
-    discrete-time system, all members at once.
+    discrete-time system, all members at once. In the `'agent'` form the target is an agent group, and every agent
+    imitates its neighbours in the space with probability `probability` in its `phase`, all agents at once, so they
+    read the states of the step before. The rule `'better'` runs in the agent form only.
 
     Args:
         label:
@@ -62,13 +67,17 @@ class ImitationInteraction(NeighborInteraction):
             The intensity `beta` of the Fermi rule.
 
         form:
-            `'rate'` for imitation in continuous time, or `'probability'` for imitation in discrete time.
+            `'rate'` for imitation in continuous time, `'probability'` for imitation in discrete time, or `'agent'`
+            for imitation of the neighbours of the agents of an agent group.
 
         probability:
             The probability that a member imitates in a step, in the probability form.
 
         layer:
             The layer of the network whose edges the interaction runs on, or `None` for the graph of the network.
+
+        phase:
+            The phase of the step the agent form runs in, or `None` for the default phase.
 
     Raises:
         ValidationError:
@@ -80,6 +89,8 @@ class ImitationInteraction(NeighborInteraction):
         (0.0, 1.0)
         >>> ImitationInteraction('imitation', target='players', rule='fermi', form='probability').check().form
         'probability'
+        >>> ImitationInteraction('imitation', target='traders', rule='better', form='agent', phase='learn').check().rule
+        'better'
     """
 
     def __init__(
@@ -96,6 +107,7 @@ class ImitationInteraction(NeighborInteraction):
         form: str = 'rate',
         probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
         layer: str | None = None,
+        phase: str | None = None,
     ) -> None:
         super().__init__(label, layer=layer)
         self.target = target
@@ -107,6 +119,7 @@ class ImitationInteraction(NeighborInteraction):
         self.intensity = intensity
         self.form = form
         self.probability = probability
+        self.phase = phase
 
     def _check(self) -> None:
         """Raise an error for an unknown rule or form, or options that are not distinct.
@@ -121,6 +134,9 @@ class ImitationInteraction(NeighborInteraction):
             raise ValidationError(error_msg)
         if self.form not in FORMS:
             error_msg = f'The form of imitation is {self.form!r}. Use one of {", ".join(FORMS)}.'
+            raise ValidationError(error_msg)
+        if self.rule == 'better' and self.form != 'agent':
+            error_msg = f'The rule of imitation {self.rule!r} runs in the agent form only. Use form `agent`.'
             raise ValidationError(error_msg)
         if len(set(self.options)) < max(len(self.options), 2):
             error_msg = f'The options of imitation are {self.options!r}. Give at least two distinct values.'
@@ -235,6 +251,50 @@ class ImitationInteraction(NeighborInteraction):
             laws:
                 The jumps of the state between every pair of options, or the update of the state of every member.
         """
+        if self.form == 'agent':
+            return [RuleLaw(self._imitate, phase=self.phase)]
         if self.form == 'probability':
             return self._get_update(namespace)
         return self._get_jumps(namespace)
+
+    def _choose(
+        self,
+        agent: AgentViewProtocol,
+        neighbours: Sequence[AgentViewProtocol],
+        model: ModelViewProtocol,
+    ) -> float | None:
+        """Return the option an agent copies from its neighbours by the rule, or `None` to keep its own."""
+        rng = model.rng
+        if self.rule == 'majority':
+            counts = [sum(getattr(other, self.state) == option for other in neighbours) for option in self.options]
+            leaders = np.flatnonzero(np.asarray(counts) == max(counts))
+            return float(self.options[int(leaders[0])]) if len(leaders) == 1 else None
+        if self.rule == 'random':
+            return float(getattr(neighbours[int(rng.integers(len(neighbours)))], self.state))
+        own = float(getattr(agent, self.payoff))
+        if self.rule == 'best':
+            payoffs = np.array([getattr(other, self.payoff) for other in neighbours], dtype=float)
+            best = int(np.argmax(payoffs))
+            return float(getattr(neighbours[best], self.state)) if payoffs[best] > own else None
+        other = neighbours[int(rng.integers(len(neighbours)))]
+        difference = float(getattr(other, self.payoff)) - own
+        if self.rule == 'better':
+            return float(getattr(other, self.state)) if difference > 0 else None
+        fermi = 1 / (1 + np.exp(-model.parameter('intensity') * difference))
+        return float(getattr(other, self.state)) if rng.random() < fermi else None
+
+    def _imitate(self, model: ModelViewProtocol) -> None:
+        """Let every agent imitate its neighbours with the probability of imitation, all agents at once."""
+        agents = list(model.agents('target'))
+        probability = model.parameter('probability')
+        members = {agent.id for agent in agents}
+        choices: list[float | None] = []
+        for agent in agents:
+            neighbours = [other for other in agent.neighbors() if other.id in members]
+            if not neighbours or model.rng.random() >= probability:
+                choices.append(None)
+                continue
+            choices.append(self._choose(agent, neighbours, model))
+        for agent, choice in zip(agents, choices, strict=True):
+            if choice is not None:
+                setattr(agent, self.state, choice)

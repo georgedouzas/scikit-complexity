@@ -8,17 +8,16 @@ from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, ZZ, oo
+from sage.all__sagemath_symbolics import NN, ZZ
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
-from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import ChoiceInteraction, Interaction
+from ....core.interactions import ChoiceInteraction, EvolutionInteraction, Interaction, ReinforcementInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
-from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import IntArray
 from ..._catalog import register_model
 from ._game_state_spec import _GameStateSpec
@@ -122,11 +121,11 @@ class MinorityGameInteraction(Interaction):
 
     Every round each agent plays the action, `+1` or `-1`, that its chosen strategy assigns to the last `m` winning
     sides, the strategy of higher virtual score that a `ChoiceInteraction` of rule `'best'` chooses before. The side
-    with fewer agents wins, every agent on it gains one point and every other loses one, and every strategy gains one
-    virtual point when it would have played the winning side. The volatility `sigma^2 / N` of the attendance
-    `A = sum_i a_i` has a minimum below the value of random play near `alpha = 2^m / N ~ 0.34`. In the evolutionary
-    version, every `period` rounds the poorest fraction of the agents replace their strategies by new random ones and
-    restart with no wealth.
+    with fewer agents wins, and every agent on it gains one point and every other loses one. The game reports the
+    attendance `A = sum_i a_i` and the code of the history the strategies read, so a cumulative
+    `ReinforcementInteraction` gives every strategy one virtual point when it would have played the winning side, by
+    the payoff `payoff`. The volatility `sigma^2 / N` of the attendance has a minimum below the value of random play
+    near `alpha = 2^m / N ~ 0.34`.
 
     Args:
         label:
@@ -135,14 +134,8 @@ class MinorityGameInteraction(Interaction):
         players:
             The path of the group of agents.
 
-        fraction:
-            The fraction of poorest agents that take new strategies at an evolution.
-
         memory:
             The memory `m`, the number of past winning sides the strategies read.
-
-        period:
-            The number of rounds between two evolutions, or 0 for no evolution.
 
         phase:
             The phase the rounds run in, or `None` for the default phase.
@@ -153,23 +146,19 @@ class MinorityGameInteraction(Interaction):
         4
     """
 
-    reports: ClassVar[tuple[str, ...]] = ('attendance',)
+    reports: ClassVar[tuple[str, ...]] = ('attendance', 'history')
 
     def __init__(
         self,
         label: str,
         *,
         players: Annotated[str, RoleSpec()],
-        fraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         memory: int = 3,
-        period: int = 0,
         phase: str | None = None,
     ) -> None:
         super().__init__(label)
         self.players = players
-        self.fraction = fraction
         self.memory = memory
-        self.period = period
         self.phase = phase
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -201,51 +190,48 @@ class MinorityGameInteraction(Interaction):
             model.storage['game'] = state
         return state
 
-    def _get_actions(self, agent: MinorityPlayerView, history: int, model: ModelView) -> tuple[int, int]:
-        """Set the action of an agent by its chosen strategy and return the actions of its two strategies."""
-        actions = (
-            2 * int(self._table(agent.first, model)[history]) - 1,
-            2 * int(self._table(agent.second, model)[history]) - 1,
-        )
-        agent.action = float(actions[int(agent.strategy)])
-        return actions
-
     def play(self, model: ModelView) -> None:
-        """Play one round, update the scores and the history, and evolve the agents when it is time.
+        """Play one round, pay the agents, and update and report the history.
 
         Args:
             model:
                 The model.
         """
         agents = model.agents('players', MinorityPlayerView)
-        n_histories = 2**self.memory
-        drawn = int(model.rng.integers(n_histories))
-        state = model.storage.get('game')
-        if not isinstance(state, _GameStateSpec):
-            model.storage['game'] = _GameStateSpec(drawn)
         history = self._state(model).history
-        strategies = [self._get_actions(agent, history, model) for agent in agents]
+        for agent in agents:
+            code = agent.second if agent.strategy else agent.first
+            agent.action = float(2 * int(self._table(code, model)[history]) - 1)
         attendance = sum(agent.action for agent in agents)
         winner = -1 if attendance > 0 else 1
-        for agent, (first, second) in zip(agents, strategies, strict=True):
-            agent.first_score += first * winner
-            agent.second_score += second * winner
+        for agent in agents:
             agent.wealth += agent.action * winner
         state = self._state(model)
-        state = replace(state, history=(2 * history + (winner > 0)) % n_histories, round=state.round + 1)
-        model.storage['game'] = state
+        model.storage['game'] = replace(state, history=(2 * history + (winner > 0)) % 2**self.memory)
         model.report('attendance', attendance)
-        if self.period and state.round % self.period == 0:
-            self._evolve(agents, model)
+        model.report('history', float(history))
 
-    def _evolve(self, agents: list[MinorityPlayerView], model: ModelView) -> None:
-        """Give the poorest agents new random strategies and no wealth."""
-        wealth = np.array([agent.wealth for agent in agents], dtype=float)
-        count = round(model.parameter('fraction') * len(agents))
-        for index in np.argsort(wealth, kind='stable')[:count]:
-            agent = agents[int(index)]
-            agent.first, agent.second = (float(code) for code in model.rng.integers(MAX_SEED, size=2))
-            agent.first_score = agent.second_score = agent.wealth = 0.0
+    def payoff(self, agent: MinorityPlayerView, model: ModelView, option: int) -> float:
+        """Return the virtual payoff of a strategy of an agent in the last round, `+1` if it played the winning side.
+
+        Args:
+            agent:
+                The agent.
+
+            model:
+                The model view of the rule that reads the payoff.
+
+            option:
+                The strategy, 0 for the first and 1 for the second.
+
+        Returns:
+            payoff:
+                `+1` when the strategy would have played the winning side, or `-1`.
+        """
+        history = int(model.history(f'{self.label}.history')[-1])
+        winner = -1 if model.history(f'{self.label}.attendance')[-1] > 0 else 1
+        code = agent.second if option else agent.first
+        return float((2 * int(strategy_table(code, self.memory)[history]) - 1) * winner)
 
 
 @register_model(
@@ -286,9 +272,10 @@ def minority_game(
 
     Returns:
         system:
-            The model, with the group `players`, the choice `choice` of the strategy of higher virtual score, and the
-            interaction `game`, which reports the attendance
-            `game.attendance`.
+            The model, with the group `players`, the choice `choice` of the strategy of higher virtual score, the
+            interaction `game`, which reports the attendance `game.attendance`, the cumulative reinforcement
+            `scoring` of the virtual scores, and in the evolutionary version the truncation `evolution`, which gives
+            the poorest agents new random strategies and no wealth every `period` rounds.
 
     Raises:
         ValueError:
@@ -309,7 +296,6 @@ def minority_game(
         size=n_agents,
         values={'first': codes[0], 'second': codes[1]},
     )
-    period = period if evolutionary else 0
     choice = ChoiceInteraction(
         'choice',
         target='players',
@@ -320,16 +306,34 @@ def minority_game(
         form='agent',
         phase='choose',
     )
-    game = MinorityGameInteraction(
-        'game',
-        players='players',
-        memory=memory,
-        period=period,
+    game = MinorityGameInteraction('game', players='players', memory=memory, phase='play')
+    scoring = ReinforcementInteraction(
+        'scoring',
+        target='players',
+        scores=('first_score', 'second_score'),
+        payoff=game.payoff,
+        rule='cumulative',
+        form='agent',
+        phase='score',
+    )
+    evolution = EvolutionInteraction(
+        'evolution',
+        target='players',
+        strategy=('first', 'second'),
+        fitness='wealth',
+        replacement='truncation',
         fraction=fraction,
-        phase='play',
+        mutation=1.0,
+        change='any',
+        alphabet=MAX_SEED,
+        period=period,
+        reset={'first_score': 0.0, 'second_score': 0.0, 'wealth': 0.0},
+        phase='score',
     )
     return System(
         elements=[players],
-        interactions=[choice, game],
-        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('choose'), PhaseSpec('play')])),
+        interactions=[choice, game, scoring, *([evolution] if evolutionary else [])],
+        time=DiscreteTime(
+            schedule=PhasesScheduleSpec([PhaseSpec('choose'), PhaseSpec('play'), PhaseSpec('score')]),
+        ),
     )

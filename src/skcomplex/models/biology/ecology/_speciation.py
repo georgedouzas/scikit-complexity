@@ -8,14 +8,13 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
+from sage.all__sagemath_symbolics import NN
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import EvolutionInteraction
+from ....core.laws import BaseLaw
 from ....core.system import System
-from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import AnyArray
 from ..._catalog import register_model
@@ -75,72 +74,47 @@ class OrganismElement(Element):
         return []
 
 
-class NeutralReplacementInteraction(Interaction):
+class NeutralReplacementInteraction(EvolutionInteraction):
     """Deaths of random individuals at unit rate, each replaced by the offspring of another, a new species at rate `nu`.
 
-    One unit of time holds `N` deaths. The offspring belongs to the species of a parent drawn among the other `N - 1`
-    individuals, or with the probability `nu` to a new species, labelled one above the largest label present.
+    One unit of time holds `N` deaths. The offspring belongs to the species of a parent drawn among the individuals, or
+    with the probability `mutation` to a new species, labelled one above the largest label present. It is the neutral
+    Moran replacement of `EvolutionInteraction` with mutation to new labels.
 
     Args:
         label:
             The label of the interaction.
 
-        community:
+        target:
             The path of the group of individuals.
 
-        nu:
-            The probability that an offspring founds a new species.
+        mutation:
+            The probability `nu` that an offspring founds a new species.
 
     Examples:
         >>> from skcomplex.models.biology.ecology import NeutralReplacementInteraction
-        >>> NeutralReplacementInteraction('replacement', community='community', nu=0.01).nu
-        0.01
+        >>> NeutralReplacementInteraction('replacement', target='community', mutation=0.01).check().change
+        'new'
     """
 
     def __init__(
         self,
         label: str,
         *,
-        community: Annotated[str, RoleSpec()],
-        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        target: Annotated[str, RoleSpec()],
+        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.01,
     ) -> None:
-        super().__init__(label)
-        self.community = community
-        self.nu = nu
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the replacement rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.replace)]
-
-    def replace(self, model: ModelView) -> None:
-        """Run the deaths and replacements of one unit of time.
-
-        Args:
-            model:
-                The model.
-        """
-        individuals = model.agents(self.community, OrganismView)
-        species = np.array([individual.species for individual in individuals], dtype=np.float64)
-        size = len(species)
-        rng = model.rng
-        dead = rng.integers(size, size=size)
-        parents = (dead + rng.integers(1, size, size=size)) % size
-        mutated = rng.random(size) < model.parameter('nu')
-        newest = species.max()
-        for victim, parent, new in zip(dead, parents, mutated, strict=True):
-            newest += new
-            species[victim] = newest if new else species[parent]
-        for individual, label in zip(individuals, species, strict=True):
-            individual.species = float(label)
+        super().__init__(
+            label,
+            target=target,
+            strategy='species',
+            fitness=None,
+            selection='proportional',
+            replacement='moran',
+            mutation=mutation,
+            alphabet=None,
+            change='new',
+        )
 
 
 @register_model(
@@ -190,5 +164,5 @@ def neutral_biodiversity(
     labels = np.random.default_rng(random_state).integers(species, size=individuals).astype(float)
     return System(
         elements=[GroupElement('community', element=OrganismElement, size=individuals, values={'species': labels})],
-        interactions=[NeutralReplacementInteraction('replacement', community='community', nu=nu)],
+        interactions=[NeutralReplacementInteraction('replacement', target='community', mutation=nu)],
     )
