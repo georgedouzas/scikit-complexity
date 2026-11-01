@@ -194,10 +194,18 @@ Implementation (November 2026):
   with the agent form within 1.1 standard errors.
 - `public_goods_game` keeps its `LocalRuleInteraction`. A discrete map updates every state from the state at the start
   of the step, so a grouping that writes the payoffs and an imitation that reads them imitate the payoffs of the step
-  before. Over 20 seeds the rebuilt model ends with a share of cooperators of 0.95 against 0.49 at synergy 4.5. Also,
-  `ImitationInteraction(rule='fermi', form='probability')` is biased in `development`: with equal payoffs, a member
-  of state 1 never switches and a member of state 0 copies a neighbour of state 1 with probability `k / degree`
-  instead of `k / (2 degree)`, although its weights and its categorical draw are right when evaluated alone.
+  before. Over 20 seeds the rebuilt model ends with a share of cooperators of 0.95 against 0.49 at synergy 4.5, but
+  the comparison also carries a bias of `ImitationInteraction(rule='fermi', form='probability')` in `development`:
+  with equal payoffs, a member of state 1 never switches and a member of state 0 copies a neighbour of state 1 with
+  probability `k / degree` instead of `k / (2 degree)`. Its weights, its stay weight, and a uniform draw compared with
+  them are right when evaluated alone, and the categorical draw over them is not, since the drawn index depends on the
+  state of the member. The rebuild waits for the fix of that draw and for a decision on payoffs of the step before.
+- `simplicial_contagion` runs `JumpLaw`s of the focal member per link and per triangle in a
+  `SimplicialInfectionInteraction`, and `hypergraph_consensus` runs the rate of the focal member per triangle in a
+  `ThreeBodyConsensusInteraction` whose second role binds a group on the hyperedges holding the phase of the schedule
+  of every triangle. `hypergraph_public_goods` and `simplicial_social_dilemmas` wait on the same two points as the
+  public goods game, and `hypergraph_exposure_sis` and `simplicial_social_dilemmas` read, in the update of a node, a
+  reduction over the hyperedges around it in the same step, which the reduction `hyperedges` of task 2.3 gives.
 
 ### Triadic regulation
 
