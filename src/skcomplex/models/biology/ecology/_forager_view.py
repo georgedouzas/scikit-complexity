@@ -16,6 +16,7 @@ class ForagerView(AgentView):
     hunger: float
     happiness: float
     distress: float
+    experience: float
     maturity: float
     reproduction: float
     starvation: float

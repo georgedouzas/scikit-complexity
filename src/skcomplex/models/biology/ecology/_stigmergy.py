@@ -4,7 +4,8 @@
 # License: MIT
 
 import itertools
-from types import SimpleNamespace
+from collections.abc import Callable
+from functools import partial
 from typing import Annotated, ClassVar
 
 import numpy as np
@@ -13,10 +14,11 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement, GroupElement
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import LifeCycleInteraction, MapInteraction, MovementInteraction, TransferInteraction
+from ....core.laws import Source
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.stigmergy import EvaporationInteraction
@@ -85,32 +87,263 @@ class EmotionMarksElement(Element):
         self.decay = decay
 
 
-def _kind(agent: AgentView) -> str:
+def _kind(agent: AgentViewProtocol) -> str:
     """Return the label of an agent's group, without the path of its system."""
     return agent.group.rpartition('/')[2]
 
 
-def _occupants(agent: AgentView) -> dict[object, AgentView]:
+def _occupants(agent: AgentViewProtocol) -> dict[object, AgentViewProtocol]:
     """Return the agents around an agent by their cell."""
     return {other.location: other for other in agent.neighbors()}
 
 
-def _empty_cells(agent: AgentView) -> list[object]:
+def _empty_cells(agent: AgentViewProtocol) -> list[object]:
     """Return the neighbouring cells of an agent that no agent occupies."""
     occupied = _occupants(agent)
     return [cell for cell in agent.neighbor_cells() if cell not in occupied]
 
 
-def _spawn(agent: PlantView | ForagerView, model: ModelView, **values: float) -> None:
-    """Place an offspring of an agent in a random empty neighbouring cell, if there is one, with given states."""
-    cells = _empty_cells(agent)
-    if cells:
-        agent.create(None, cells[int(model.rng.integers(len(cells)))], **values)
-        agent.age = 0.0
+def _get_empty_cell(agent: AgentViewProtocol | None, model: ModelViewProtocol) -> object:
+    """Return a random empty neighbouring cell of a parent, or `None` when there is none."""
+    cells = [] if agent is None else _empty_cells(agent)
+    return cells[int(model.rng.integers(len(cells)))] if cells else None
+
+
+def _get_one(agent: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return one, the step by which the age and the hunger of an organism grow."""
+    del agent, model
+    return 1.0
+
+
+def _spreads(plant: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return whether a mature plant has an empty neighbouring cell to spread into."""
+    del model
+    return isinstance(plant, PlantView) and plant.age >= plant.maturity and bool(_empty_cells(plant))
+
+
+def _starves(animal: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return whether the hunger of an animal passes `starvation`, so it dies."""
+    del model
+    return isinstance(animal, ForagerView) and animal.hunger > animal.starvation
+
+
+def _get_fear(prey: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return the number of predators around a prey, its experience of fear."""
+    del model
+    return float(sum(_kind(other) == PREDATORS for other in _occupants(prey).values()))
+
+
+def _get_anger(predator: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return the hunger of a predator as a share of its starvation, its experience of anger."""
+    del model
+    return float(predator.hunger / predator.starvation) if isinstance(predator, ForagerView) else 0.0
+
+
+def _get_preference(
+    animal: ForagerView,
+    model: ModelViewProtocol,
+    cell: object,
+    occupant: AgentViewProtocol | None,
+    marks: tuple[str, str, str],
+) -> float:
+    """Return the preference of an animal for a neighbouring cell, given its food and the marks it reads."""
+    food, happiness_mark, distress_mark = marks
+    meal = 1.0 if occupant is not None and _kind(occupant) == food else 0.0
+    if not animal.emotions:
+        return meal
+    happiness = model.field(f'{MARKS}.{happiness_mark}', cell) - animal.happiness
+    distress = model.field(f'{MARKS}.{distress_mark}', cell) - animal.distress
+    return meal + happiness - distress
+
+
+def _get_preferred(animal: AgentViewProtocol, model: ModelViewProtocol, marks: tuple[str, str, str]) -> object:
+    """Return the empty or food cell around an animal of highest preference, with a little noise, or `None`."""
+    if not isinstance(animal, ForagerView):
+        return None
+    occupants = _occupants(animal)
+    options = [
+        (cell, occupants.get(cell))
+        for cell in animal.neighbor_cells()
+        if cell not in occupants or _kind(occupants[cell]) == marks[0]
+    ]
+    if not options:
+        return None
+    noise = model.rng.random(len(options)) * 1e-3
+    scores = [_get_preference(animal, model, cell, occupant, marks) for cell, occupant in options]
+    return options[int(np.argmax(np.asarray(scores) + noise))][0]
+
+
+def _get_fed(food: AgentViewProtocol, animal: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return minus the hunger of an animal, which a meal clears."""
+    del food, model
+    return -float(animal.hunger) if isinstance(animal, ForagerView) else 0.0
+
+
+def _get_marked(animal: ForagerView, model: ModelViewProtocol, mark: str) -> float:
+    """Return the mean of a mark over the cells around an animal."""
+    return float(np.mean([model.field(f'{MARKS}.{mark}', cell) for cell in animal.neighbor_cells()]))
+
+
+def _get_happiness(animal: AgentViewProtocol, model: ModelViewProtocol, mark: str) -> float:
+    """Return the next happiness of an animal, from a meal in the step and the happiness marked around it."""
+    if not isinstance(animal, ForagerView):
+        return 0.0
+    if not animal.emotions:
+        return float(animal.happiness)
+    ate = float(animal.hunger == 0)
+    keep, share = animal.memory, animal.communication
+    return (1 - keep) * (ate + share * _get_marked(animal, model, mark)) + keep * animal.happiness
+
+
+def _get_distress(animal: AgentViewProtocol, model: ModelViewProtocol, mark: str) -> float:
+    """Return the next distress of an animal, from its experience of the step and the distress marked around it."""
+    if not isinstance(animal, ForagerView):
+        return 0.0
+    if not animal.emotions:
+        return float(animal.distress)
+    keep, share = animal.memory, animal.communication
+    return (1 - keep) * (animal.experience + share * _get_marked(animal, model, mark)) + keep * animal.distress
+
+
+def _feels(animal: AgentViewProtocol, cell: object, model: ModelViewProtocol) -> bool:
+    """Return whether emotions guide an animal, so it marks its cell."""
+    del cell, model
+    return isinstance(animal, ForagerView) and bool(animal.emotions)
+
+
+def _get_marked_happiness(animal: AgentViewProtocol, cell: object, model: ModelViewProtocol) -> float:
+    """Return the happiness an animal marks its cell with."""
+    del cell, model
+    return float(animal.happiness) if isinstance(animal, ForagerView) else 0.0
+
+
+def _get_marked_distress(animal: AgentViewProtocol, cell: object, model: ModelViewProtocol) -> float:
+    """Return the distress an animal marks its cell with."""
+    del cell, model
+    return float(animal.distress) if isinstance(animal, ForagerView) else 0.0
+
+
+def _get_breeding(animal: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return the probability that a mature animal with an empty neighbouring cell breeds, raised by happiness."""
+    del model
+    if not isinstance(animal, ForagerView) or animal.age < animal.maturity or not _empty_cells(animal):
+        return 0.0
+    return float(animal.reproduction * (1 + animal.emotions * (animal.happiness - animal.distress)))
+
+
+def _get_growth(system: str, label: str, state: str) -> MapInteraction:
+    """Return the map that raises a state of every member of a group by one, in the activation of the member."""
+    return MapInteraction(
+        f'{label}_{state}',
+        target=f'{system}/{label}',
+        state=state,
+        function=_get_one,
+        mode='increment',
+        form='agent',
+        schedule='member',
+    )
+
+
+def _get_plants(system: str, label: str) -> list[MapInteraction | LifeCycleInteraction]:
+    """Return the member interactions of a plant: age, and spread into an empty neighbouring cell at maturity."""
+    return [
+        _get_growth(system, label, 'age'),
+        LifeCycleInteraction(
+            f'{label}_spreading',
+            target=f'{system}/{label}',
+            birth=_spreads,
+            placement=_get_empty_cell,
+            reset={'age': 0.0},
+            schedule='member',
+        ),
+    ]
+
+
+def _get_animals(
+    system: str,
+    label: str,
+    element: type['ForagerElement'],
+    sense: Callable[[AgentViewProtocol, ModelViewProtocol], float],
+) -> list[MapInteraction | LifeCycleInteraction | MovementInteraction | TransferInteraction]:
+    """Return the member interactions of an animal: age, starve, sense, move and eat, feel, mark, and breed."""
+    group = f'{system}/{label}'
+    marks = (element.food, element.happiness_mark, element.distress_mark)
+    return [
+        _get_growth(system, label, 'age'),
+        _get_growth(system, label, 'hunger'),
+        LifeCycleInteraction(f'{label}_starvation', target=group, death=_starves, schedule='member'),
+        MapInteraction(
+            f'{label}_experience',
+            target=group,
+            state='experience',
+            function=sense,
+            form='agent',
+            schedule='member',
+        ),
+        MovementInteraction(
+            f'{label}_foraging',
+            target=group,
+            step=partial(_get_preferred, marks=marks),
+            schedule='member',
+        ),
+        TransferInteraction(
+            f'{label}_meal',
+            source=f'{system}/{element.food}',
+            target=group,
+            state=Source(),
+            into='hunger',
+            amount=_get_fed,
+            pairing='cell',
+            actor='target',
+            remove='source',
+            form='agent',
+            schedule='member',
+        ),
+        MapInteraction(
+            f'{label}_happiness',
+            target=group,
+            state='happiness',
+            function=partial(_get_happiness, mark=element.happiness_mark),
+            form='agent',
+            schedule='member',
+        ),
+        MapInteraction(
+            f'{label}_distress',
+            target=group,
+            state='distress',
+            function=partial(_get_distress, mark=element.distress_mark),
+            form='agent',
+            schedule='member',
+        ),
+        TransferInteraction(
+            f'{label}_marking',
+            source=group,
+            target=MARKS,
+            state=Source(),
+            into=element.happiness_mark,
+            amount=_get_marked_happiness,
+            legs=((Source(), element.distress_mark, _get_marked_distress),),
+            pairing='site',
+            guard=_feels,
+            form='agent',
+            schedule='member',
+        ),
+        LifeCycleInteraction(
+            f'{label}_breeding',
+            target=group,
+            birth=_get_breeding,
+            placement=_get_empty_cell,
+            inherit=('hunger',),
+            reset={'age': 0.0},
+            schedule='member',
+        ),
+    ]
 
 
 class PlantElement(Element):
     """Plant that spreads into an empty neighbouring cell whenever it reaches maturity.
+
+    The model adds the ageing and the spreading as member interactions, and a plant that spreads starts its age anew.
 
     Args:
         label:
@@ -148,33 +381,6 @@ class PlantElement(Element):
         """Return the view of a plant, `PlantView`."""
         return PlantView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the spreading rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.spread)]
-
-    def spread(self, agent: PlantView, model: ModelView) -> None:
-        """Age, and spread into an empty neighbouring cell at maturity.
-
-        Args:
-            agent:
-                The plant.
-
-            model:
-                The model.
-        """
-        agent.age += 1
-        if agent.age >= agent.maturity:
-            _spawn(agent, model)
-
 
 class ForagerElement(Element):
     """Animal that hunts its food guided by its emotions and those its kind left on the ground, and breeds.
@@ -185,8 +391,9 @@ class ForagerElement(Element):
     Its emotions follow `E' = (1 - memory) (X + communication C) + memory E`, with the experience `X` of the step and
     the mean emotion `C` marked around it, and it marks its cell with them. A mature animal breeds into an empty
     neighbouring cell with a probability that happiness raises and distress lowers, and its offspring shares its
-    hunger, so a lineage starves together when its food is gone. Subclasses name their food, the
-    marks they read, and their experience of distress.
+    hunger, so a lineage starves together when its food is gone. Subclasses name their food and the marks they read,
+    and the model adds the ageing, the hunger, the starvation, the experience of distress, the move, the meal, the
+    emotions, the marks, and the breeding as member interactions.
 
     Args:
         label:
@@ -206,6 +413,9 @@ class ForagerElement(Element):
 
         distress:
             The fear or anger.
+
+        experience:
+            The distress the animal experienced in the step, before it moved.
 
         maturity:
             The age at which the animal can breed.
@@ -240,6 +450,7 @@ class ForagerElement(Element):
         hunger: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         happiness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         distress: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        experience: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         maturity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
         reproduction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         starvation: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
@@ -252,6 +463,7 @@ class ForagerElement(Element):
         self.hunger = hunger
         self.happiness = happiness
         self.distress = distress
+        self.experience = experience
         self.maturity = maturity
         self.reproduction = reproduction
         self.starvation = starvation
@@ -267,101 +479,6 @@ class ForagerElement(Element):
     def _get_view(cls) -> type[ForagerView]:
         """Return the view of a forager or a predator, `ForagerView`."""
         return ForagerView
-
-    def _preference(self, agent: ForagerView, model: ModelView, cell: object, occupant: AgentView | None) -> float:
-        """Return the preference of an animal for a neighbouring cell."""
-        food = 1.0 if occupant is not None and _kind(occupant) == self.food else 0.0
-        if not agent.emotions:
-            return food
-        happiness = model.field(f'{MARKS}.{self.happiness_mark}', cell) - agent.happiness
-        distress = model.field(f'{MARKS}.{self.distress_mark}', cell) - agent.distress
-        return food + happiness - distress
-
-    def _move(self, agent: ForagerView, model: ModelView, occupants: dict[object, AgentView]) -> float:
-        """Move an animal to its preferred cell, eat the food there, and return 1 if it ate."""
-        options = [
-            (cell, occupants.get(cell))
-            for cell in agent.neighbor_cells()
-            if cell not in occupants or _kind(occupants[cell]) == self.food
-        ]
-        if not options:
-            return 0.0
-        noise = model.rng.random(len(options)) * 1e-3
-        scores = [self._preference(agent, model, cell, occupant) for cell, occupant in options]
-        cell, occupant = options[int(np.argmax(np.asarray(scores) + noise))]
-        if occupant is None:
-            agent.move_to(cell)
-            return 0.0
-        occupant.remove()
-        agent.hunger = 0.0
-        agent.move_to(cell)
-        return 1.0
-
-    def _feel(self, agent: ForagerView, model: ModelView, happiness: float, distress: float) -> None:
-        """Update the emotions of an animal from its experiences and the marks around it, and mark its cell."""
-        cells = agent.neighbor_cells()
-        marked_happiness = np.mean([model.field(f'{MARKS}.{self.happiness_mark}', cell) for cell in cells])
-        marked_distress = np.mean([model.field(f'{MARKS}.{self.distress_mark}', cell) for cell in cells])
-        keep, share = agent.memory, agent.communication
-        agent.happiness = (1 - keep) * (happiness + share * marked_happiness) + keep * agent.happiness
-        agent.distress = (1 - keep) * (distress + share * marked_distress) + keep * agent.distress
-        model.deposit(f'{MARKS}.{self.happiness_mark}', agent.location, agent.happiness)
-        model.deposit(f'{MARKS}.{self.distress_mark}', agent.location, agent.distress)
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the life rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.live)]
-
-    def sense(self, agent: ForagerView, occupants: dict[object, AgentView]) -> float:
-        """Return the distress the animal experiences from its neighbours.
-
-        Args:
-            agent:
-                The animal.
-
-            occupants:
-                The agents around the animal by their cell.
-
-        Returns:
-            distress:
-                The experience of distress.
-        """
-        del occupants
-        return float(agent.hunger / agent.starvation)
-
-    def live(self, agent: ForagerView, model: ModelView) -> None:
-        """Age, starve, sense, move and eat, feel, and breed.
-
-        Args:
-            agent:
-                The animal.
-
-            model:
-                The model.
-        """
-        agent.age += 1
-        agent.hunger += 1
-        if agent.hunger > agent.starvation:
-            agent.remove()
-            return
-        distress = self.sense(agent, _occupants(agent))
-        ate = self._move(agent, model, _occupants(agent))
-        if agent.emotions:
-            self._feel(agent, model, ate, distress)
-        if agent.age < agent.maturity:
-            return
-        chance = agent.reproduction * (1 + agent.emotions * (agent.happiness - agent.distress))
-        if model.rng.random() < chance:
-            _spawn(agent, model, hunger=agent.hunger)
 
 
 class StigmergicPreyElement(ForagerElement):
@@ -382,6 +499,9 @@ class StigmergicPreyElement(ForagerElement):
 
         distress:
             The fear, which predators around it raise.
+
+        experience:
+            The distress the animal experienced in the step, before it moved.
 
         maturity:
             The age at which the animal can breed.
@@ -407,23 +527,6 @@ class StigmergicPreyElement(ForagerElement):
         'plants'
     """
 
-    def sense(self, agent: ForagerView, occupants: dict[object, AgentView]) -> float:
-        """Return the number of predators around the prey, its experience of fear.
-
-        Args:
-            agent:
-                The animal.
-
-            occupants:
-                The agents around the animal by their cell.
-
-        Returns:
-            distress:
-                The experience of distress.
-        """
-        del agent
-        return float(sum(_kind(other) == PREDATORS for other in occupants.values()))
-
 
 class StigmergicPredatorElement(ForagerElement):
     """Predator that eats prey and grows angry with hunger.
@@ -446,6 +549,9 @@ class StigmergicPredatorElement(ForagerElement):
 
         distress:
             The anger, which hunger raises.
+
+        experience:
+            The distress the animal experienced in the step, before it moved.
 
         maturity:
             The age at which the animal can breed.
@@ -480,6 +586,7 @@ class StigmergicPredatorElement(ForagerElement):
         hunger: float = 0.0,
         happiness: float = 0.0,
         distress: float = 0.0,
+        experience: float = 0.0,
         maturity: float = 5.0,
         reproduction: float = 0.3,
         starvation: float = 10.0,
@@ -494,6 +601,7 @@ class StigmergicPredatorElement(ForagerElement):
             hunger=hunger,
             happiness=happiness,
             distress=distress,
+            experience=experience,
             maturity=maturity,
             reproduction=reproduction,
             starvation=starvation,
@@ -617,4 +725,11 @@ def stigmergic_predator_prey(
         EvaporationInteraction(f'evaporation_{mark}', target='marks', state=mark, evaporation='decay')
         for mark in EMOTIONS
     ]
-    return System(systems=[life, System('ground', elements=[marks], interactions=evaporations)])
+    return System(
+        systems=[life, System('ground', elements=[marks], interactions=evaporations)],
+        interactions=[
+            *_get_plants('life', PLANTS),
+            *_get_animals('life', PREY, StigmergicPreyElement, _get_fear),
+            *_get_animals('life', PREDATORS, StigmergicPredatorElement, _get_anger),
+        ],
+    )

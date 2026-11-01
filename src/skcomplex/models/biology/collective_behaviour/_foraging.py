@@ -12,11 +12,11 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement, GroupElement
-from ....core.interactions import DiffusionInteraction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import DiffusionInteraction, MapInteraction, MovementInteraction, TransferInteraction
+from ....core.laws import Source
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.solvers import ModelView
+from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.stigmergy import EvaporationInteraction
@@ -29,6 +29,80 @@ def _get_diffusion(namespace: SimpleNamespace) -> Expression:
     """Return the diffusion coefficient `D` of the pheromone."""
     coefficient: Expression = namespace.target.D
     return coefficient
+
+
+def _get_nest(ant: AntView) -> tuple[int, int]:
+    """Return the cell of the nest of an ant."""
+    return round(ant.nest_x), round(ant.nest_y)
+
+
+def _homes(ant: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return whether an ant carries food away from the nest, so it walks home."""
+    del model
+    return isinstance(ant, AntView) and bool(ant.carrying) and ant.location != _get_nest(ant)
+
+
+def _searches(ant: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return whether an ant without food stands farther than `food_radius` from the food, so it searches."""
+    del model
+    if not isinstance(ant, AntView) or ant.carrying:
+        return False
+    x, y = cast('tuple[int, int]', ant.location)
+    return bool(np.hypot(x - ant.food_x, y - ant.food_y) > ant.food_radius)
+
+
+def _get_home_step(ant: AgentViewProtocol, model: ModelViewProtocol) -> object:
+    """Return the cell one step straight toward the nest."""
+    del model
+    if not isinstance(ant, AntView):
+        return None
+    x, y = cast('tuple[int, int]', ant.location)
+    nest = _get_nest(ant)
+    return x + int(np.sign(nest[0] - x)), y + int(np.sign(nest[1] - y))
+
+
+def _get_search_step(ant: AgentViewProtocol, model: ModelViewProtocol) -> object:
+    """Return a neighbouring cell drawn with a weight that grows with its pheromone and its distance from the nest."""
+    if not isinstance(ant, AntView):
+        return None
+    x, y = cast('tuple[int, int]', ant.location)
+    nest = _get_nest(ant)
+    cells = cast('list[tuple[int, int]]', list(ant.neighbor_cells()))
+    distance = np.hypot(x - nest[0], y - nest[1])
+    weights = np.asarray(
+        [
+            (1.0 + ant.attraction * model.field(PHEROMONE, cell))
+            * np.exp(ant.outward * (np.hypot(cell[0] - nest[0], cell[1] - nest[1]) - distance))
+            for cell in cells
+        ],
+    )
+    return cells[int(model.rng.choice(len(cells), p=weights / weights.sum()))]
+
+
+def _carries(ant: AgentViewProtocol, cell: object, model: ModelViewProtocol) -> bool:
+    """Return whether an ant carries food and walked home in its activation, so it marks its cell with pheromone."""
+    del cell, model
+    return isinstance(ant, AntView) and bool(ant.carrying) and not ant.arrived
+
+
+def _get_deposit(ant: AgentViewProtocol, cell: object, model: ModelViewProtocol) -> float:
+    """Return the pheromone `deposit` an ant leaves on its cell."""
+    del cell, model
+    return float(ant.deposit) if isinstance(ant, AntView) else 0.0
+
+
+def _get_carrying(ant: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return whether an ant carries food next: the step after it arrives, it picks food up or drops it at the nest."""
+    if not isinstance(ant, AntView):
+        return 0.0
+    return float(not ant.carrying) if ant.arrived else float(ant.carrying)
+
+
+def _get_arrived(ant: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return whether an ant stands at the nest with food, or near the food without it, at the end of its activation."""
+    if not isinstance(ant, AntView):
+        return 0.0
+    return float(not _homes(ant, model) and not _searches(ant, model))
 
 
 class PheromoneElement(Element):
@@ -79,7 +153,9 @@ class AntElement(Element):
 
     A searching ant moves to a neighbouring cell with a probability that grows with its pheromone and, by `outward`,
     with its distance from the nest, as a scent of the nest would, and picks up food within a radius of the food. A
-    carrying ant walks straight home and deposits pheromone on every cell it enters.
+    carrying ant walks straight home, deposits pheromone on every cell it enters, and drops the food at the nest. The
+    model adds the walk home, the deposit, the search, the pick-up and drop, and the arrival as member interactions,
+    and an ant picks up or drops food the step after it arrives.
 
     Args:
         label:
@@ -90,6 +166,9 @@ class AntElement(Element):
 
         carrying:
             Whether the ant carries food.
+
+        arrived:
+            Whether the ant stood at the nest with food, or near the food without it, at the end of the previous step.
 
         nest_x:
             The column of the nest.
@@ -127,6 +206,7 @@ class AntElement(Element):
         visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'carrying', 'color_range': (0.0, 1.0)}),
         *,
         carrying: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        arrived: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         nest_x: Annotated[float, ParameterSpec()] = 5.0,
         nest_y: Annotated[float, ParameterSpec()] = 10.0,
         food_x: Annotated[float, ParameterSpec()] = 34.0,
@@ -138,6 +218,7 @@ class AntElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.carrying = carrying
+        self.arrived = arrived
         self.nest_x = nest_x
         self.nest_y = nest_y
         self.food_x = food_x
@@ -151,53 +232,6 @@ class AntElement(Element):
     def _get_view(cls) -> type[AntView]:
         """Return the view of an ant, `AntView`."""
         return AntView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the foraging rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.forage)]
-
-    def forage(self, agent: AntView, model: ModelView) -> None:
-        """Search for food along pheromone, or carry food home and mark the way.
-
-        Args:
-            agent:
-                The ant.
-
-            model:
-                The model.
-        """
-        x, y = cast('tuple[int, int]', agent.location)
-        nest = (round(agent.nest_x), round(agent.nest_y))
-        if agent.carrying:
-            if (x, y) == nest:
-                agent.carrying = 0.0
-                return
-            home = (x + int(np.sign(nest[0] - x)), y + int(np.sign(nest[1] - y)))
-            agent.move_to(home)
-            model.deposit(PHEROMONE, home, agent.deposit)
-            return
-        if np.hypot(x - agent.food_x, y - agent.food_y) <= agent.food_radius:
-            agent.carrying = 1.0
-            return
-        cells = cast('list[tuple[int, int]]', list(agent.neighbor_cells()))
-        distance = np.hypot(x - nest[0], y - nest[1])
-        weights = np.asarray(
-            [
-                (1.0 + agent.attraction * model.field(PHEROMONE, cell))
-                * np.exp(agent.outward * (np.hypot(cell[0] - nest[0], cell[1] - nest[1]) - distance))
-                for cell in cells
-            ],
-        )
-        agent.move_to(cells[model.rng.choice(len(cells), p=weights / weights.sum())])
 
 
 @register_model(
@@ -279,6 +313,50 @@ def pheromone_foraging(
                     DiffusionInteraction('diffusion', target='pheromone', state='level', coefficient=_get_diffusion),
                     EvaporationInteraction('evaporation', target='pheromone', state='level'),
                 ],
+            ),
+        ],
+        interactions=[
+            MovementInteraction(
+                'homing',
+                target='colony/ants',
+                step=_get_home_step,
+                condition=_homes,
+                schedule='member',
+            ),
+            TransferInteraction(
+                'marking',
+                source='colony/ants',
+                target='ground/pheromone',
+                state=Source(),
+                into='level',
+                amount=_get_deposit,
+                pairing='site',
+                guard=_carries,
+                form='agent',
+                schedule='member',
+            ),
+            MovementInteraction(
+                'search',
+                target='colony/ants',
+                step=_get_search_step,
+                condition=_searches,
+                schedule='member',
+            ),
+            MapInteraction(
+                'carrying',
+                target='colony/ants',
+                state='carrying',
+                function=_get_carrying,
+                form='agent',
+                schedule='member',
+            ),
+            MapInteraction(
+                'arrival',
+                target='colony/ants',
+                state='arrived',
+                function=_get_arrived,
+                form='agent',
+                schedule='member',
             ),
         ],
     )
