@@ -654,10 +654,10 @@ class AgentView:
         value = float(getattr(self._agent, state))
         if value < 0 or path is None:
             return None
-        for agent in stepper._group_agents(path):
-            if agent.unique_id == int(value):
-                return MesaSolver._view_of(agent)
-        return None
+        agent = stepper.members_.get(int(value))
+        if agent is None or getattr(agent, 'removed_', False) or stepper._spec_of(agent).path != path:
+            return None
+        return MesaSolver._view_of(agent)
 
     def lags(self, state: str, window: int | None = None) -> npt.NDArray[np.float64]:
         """Return the past values of a state of an agent, the values at the ends of the last steps, the last one last.
@@ -708,6 +708,9 @@ class MesaSolver(ExternalSolver):
     Attributes:
         model_:
             The Mesa model.
+
+        members_:
+            Every agent created in the run by its id, which reference states name.
 
     Examples:
         >>> from typing import Annotated
@@ -801,7 +804,8 @@ class MesaSolver(ExternalSolver):
         }
         self._classes: dict[type, CompiledAgentsSpec] = {}
         self._view_classes: dict[type, type[AgentView]] = {}
-        self.model_ = _AgentModel(self._run_rules, self._seed())
+        self.members_: dict[int, mesa.Agent] = {}
+        self.model_ =_AgentModel(self._run_rules, self._seed())
         self.space_ = self._build_space(
             problem.agent_space,
             self.model_,
@@ -945,6 +949,7 @@ class MesaSolver(ExternalSolver):
             else agent_class(self.model_)
         )
         agent.__dict__['view_'] = self._view_classes[agent_class](agent, self)
+        self.members_[int(agent.unique_id)] = agent
         defaults = self._agent_type(spec)
         for name in spec.states:
             value = values[name] if name in values else self._shared_default(defaults, name)
