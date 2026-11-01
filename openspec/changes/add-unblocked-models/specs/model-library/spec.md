@@ -2,22 +2,33 @@
 
 ## ADDED Requirements
 
-### Requirement: Models on reductions and learned surrogates
-The library SHALL provide `szabo_cells`, `active_passive_flocking`, `koopman_model_predictive_control`, and
-`next_generation_reservoir` as registered factories built from core primitives, each with a curated gallery example.
+### Requirement: Models on radius reductions, pair couplings, and surrogates
+The library SHALL provide `szabo_cells` and `active_passive_flocking` in `physics/active_matter`,
+`koopman_model_predictive_control` in `engineering/control`, and `next_generation_reservoir` in
+`computer_science/neural_networks` as registered factories built from the general classes of the core, each with a
+curated gallery example and an inventory entry tagged with the system it builds.
 
 #### Scenario: Cells order collectively
 - **WHEN** `szabo_cells` runs at a density above its ordering transition
-- **THEN** the mean normalized velocity of the cells grows to an order parameter near one
+- **THEN** the mean normalized velocity of the cells grows to an order parameter above 0.8
 
-#### Scenario: Passive agents are carried
-- **WHEN** `active_passive_flocking` runs with an ordered active majority
-- **THEN** the passive agents move with the mean heading of the flock
+#### Scenario: Active agents flock
+- **WHEN** `active_passive_flocking` runs with every agent active and flocking on
+- **THEN** the polarization of the velocities rises above 0.9
 
-#### Scenario: Surrogate model predictive control
-- **WHEN** `koopman_model_predictive_control` steers the Duffing oscillator to a reference with its fitted surrogate
-- **THEN** the controlled state tracks the reference closer than the uncontrolled one
+#### Scenario: Active agents gather
+- **WHEN** `active_passive_flocking` runs with a minority of active agents and flocking off
+- **THEN** the mean distance between active agents falls below the mean distance between passive agents
+
+#### Scenario: Surrogate predictive control
+- **WHEN** `koopman_model_predictive_control` steers each of its plants to a reference with its fitted surrogate
+- **THEN** the controlled state tracks the reference with a smaller mean squared error than the uncontrolled plant
 
 #### Scenario: Reservoir forecast
-- **WHEN** `next_generation_reservoir` is fitted to a training window of a chaotic flow
-- **THEN** its forecast stays close to the true trajectory for a time of the order of a Lyapunov time
+- **WHEN** `next_generation_reservoir` is fitted to a training window of the Lorenz flow
+- **THEN** its forecast stays within 10% of the attractor size of the true trajectory for at least one Lyapunov time
+
+#### Scenario: Agreement with the reservoir analysis
+- **WHEN** `next_generation_reservoir` and `ReservoirAnalysis(kind='next_generation')` are fitted to the same series
+  with the same delay and order
+- **THEN** their forecasts over one Lyapunov time agree within 1% of the attractor size
