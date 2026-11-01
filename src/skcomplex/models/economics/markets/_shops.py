@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import LifeCycleInteraction, MapInteraction, MatchingInteraction
+from ....core.interactions import LifeCycleInteraction, MapInteraction, MatchingInteraction, SignAdjustmentInteraction
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import ModelView
@@ -265,8 +265,8 @@ class StoreElement(Element):
     def get_settlement() -> tuple[tuple[str, Callable[[StoreView, ModelView], float]], ...]:
         """Return the states a shop sets when it settles its accounts, in their order.
 
-        The shop turns its price back when its profit falls, records the profit, moves the price, never below the unit
-        cost, and pays its costs.
+        The shop turns its price back when its profit falls, records the profit, and pays its costs. The pricing of
+        the model then steps the price by the sign of the direction.
 
         Returns:
             settlement:
@@ -276,10 +276,6 @@ class StoreElement(Element):
         return (
             ('direction', lambda agent, model: -agent.direction if profit(agent) < agent.profit else agent.direction),
             ('profit', lambda agent, model: profit(agent)),
-            (
-                'price',
-                lambda agent, model: max(agent.unit_cost, agent.price * (1 + agent.direction * agent.adjustment)),
-            ),
             ('money', lambda agent, model: agent.money - agent.sales * agent.unit_cost - agent.fixed_cost),
         )
 
@@ -428,6 +424,16 @@ def shops(
                 phase='accounts',
             )
             for name, function in StoreElement.get_settlement()
+        ),
+        SignAdjustmentInteraction(
+            'settlement_price',
+            target='shops',
+            state='price',
+            signal=lambda agent, model: agent.direction,
+            step=lambda agent, model: agent.adjustment,
+            lower=lambda agent, model: agent.unit_cost,
+            form='agent',
+            phase='accounts',
         ),
         LifeCycleInteraction('closure', target='shops', death=lambda agent, model: agent.money < 0, phase='accounts'),
     ]

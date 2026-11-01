@@ -723,6 +723,63 @@ def test_memory_window():
     assert trajectory.agents('savers', 5).values['seen'].tolist() == [3.0, 3.0]
 
 
+class AccountElement(Element):
+    """Agent that names a member of the group `stalls` and counts the stock of that member."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        stall: Annotated[float, StateSpec(reference='stalls')] = -1.0,
+        seen: Annotated[float, StateSpec()] = -1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.stall = stall
+        self.seen = seen
+
+    def _get_laws(self, s):
+        """Return the reading rule."""
+        return [RuleLaw(self.read)]
+
+    def read(self, agent, model):
+        """Record the stock of the member the reference names, or -1 for none."""
+        stall = agent.referenced('stall')
+        agent.seen = -1.0 if stall is None else stall.stock
+
+
+def test_reference_states_name_members_of_another_group_by_id():
+    """Test that initial positions in the referenced group become ids that `referenced` resolves to the members."""
+    system = System(
+        elements=[
+            GroupElement('stalls', element=StallElement, size=2, values={'stock': [5.0, 7.0]}),
+            GroupElement('accounts', element=AccountElement, size=3, values={'stall': [1, -1, 0]}),
+        ],
+    )
+    snapshot = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_.agents('accounts', 1)
+    assert snapshot.values['seen'].tolist() == [7.0, -1.0, 5.0]
+    assert snapshot.values['stall'].tolist() == [2.0, -1.0, 1.0]
+
+
+def test_reference_to_a_group_the_model_lacks_names_no_member():
+    """Test that a reference state names no member when the model has no referenced group."""
+    system = System(elements=[GroupElement('accounts', element=AccountElement, size=2)])
+    snapshot = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_.agents('accounts', 1)
+    assert snapshot.values['seen'].tolist() == [-1.0, -1.0]
+
+
+def test_reference_beyond_the_referenced_group_raises():
+    """Test that an initial position beyond the members of the referenced group raises an error."""
+    system = System(
+        elements=[
+            GroupElement('stalls', element=StallElement, size=1),
+            GroupElement('accounts', element=AccountElement, size=1, values={'stall': [3]}),
+        ],
+    )
+    with pytest.raises(SimulationError, match='position 3'):
+        Simulation(system, random_state=0).check().prepare().run(until=1)
+
+
 def test_memory_of_unremembered_state_raises():
     """Reading the memory of a state the type does not remember raises an error."""
 

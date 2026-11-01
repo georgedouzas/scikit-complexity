@@ -154,6 +154,9 @@ class AgentViewProtocol(Protocol):
     def create(self, group: str | None = None, location: object = None, **values: object) -> AgentViewProtocol:
         """Create an agent of a group, by default the agent's own group at the agent's location."""
 
+    def referenced(self, state: str) -> AgentViewProtocol | None:
+        """Return the member of another group that a reference state of the agent names, or `None`."""
+
 
 @runtime_checkable
 class ModelViewProtocol(Protocol):

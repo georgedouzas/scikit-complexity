@@ -658,6 +658,34 @@ class AgentView:
         place = location if location is not None else self.location
         return MesaSolver._view_of(stepper._create_agent(target, place, values))
 
+    def referenced(self, state: str) -> 'AgentView | None':
+        """Return the member of another group that a reference state of the agent names by its id.
+
+        A state declared with `StateSpec(reference=group)` holds the id of a member of the group, or a negative value
+        for none, such as the bank of a customer or the employer of a worker.
+
+        Args:
+            state:
+                The name of a reference state.
+
+        Returns:
+            agent:
+                The member the state names, or `None` when it names none or the member was removed.
+
+        Raises:
+            KeyError:
+                The state of the agent names no member of a group.
+        """
+        stepper = self._stepper
+        path = stepper._reference_of(stepper._spec_of(self._agent), state)
+        value = float(getattr(self._agent, state))
+        if value < 0 or path is None:
+            return None
+        agent = stepper.members_.get(int(value))
+        if agent is None or getattr(agent, 'removed_', False) or stepper._spec_of(agent).path != path:
+            return None
+        return MesaSolver._view_of(agent)
+
     def lags(self, state: str, window: int | None = None) -> npt.NDArray[np.float64]:
         """Return the past values of a state of an agent, the values at the ends of the last steps, the last one last.
 
@@ -707,6 +735,9 @@ class MesaSolver(ExternalSolver):
     Attributes:
         model_:
             The Mesa model.
+
+        members_:
+            Every agent created in the run by its id, which reference states name.
 
     Examples:
         >>> from typing import Annotated
@@ -800,6 +831,7 @@ class MesaSolver(ExternalSolver):
         }
         self._classes: dict[type, CompiledAgentsSpec] = {}
         self._view_classes: dict[type, type[AgentView]] = {}
+        self.members_: dict[int, mesa.Agent] = {}
         self.model_ = _AgentModel(self._run_rules, self._seed())
         self.space_ = self._build_space(
             problem.agent_space,
@@ -831,6 +863,8 @@ class MesaSolver(ExternalSolver):
                 self.reports_[f'{path}.{name}'] = math.nan
         for spec in problem.agents:
             self._populate(spec)
+        for spec in problem.agents:
+            self._resolve_references(spec)
         self._populating = False
         self._collect()
 
@@ -952,6 +986,7 @@ class MesaSolver(ExternalSolver):
             else agent_class(self.model_)
         )
         agent.__dict__['view_'] = self._view_classes[agent_class](agent, self)
+        self.members_[int(agent.unique_id)] = agent
         defaults = self._agent_type(spec)
         for name in spec.states:
             value = values[name] if name in values else self._shared_default(defaults, name)
@@ -970,6 +1005,65 @@ class MesaSolver(ExternalSolver):
             if location is None and spec.size <= len(network_nodes):
                 location = network_nodes[index]
             self._create_agent(spec.path, location, values)
+
+    def _reference_of(self, spec: CompiledAgentsSpec, state: str) -> str | None:
+        """Return the path of the group a reference state of a group names members of.
+
+        Args:
+            spec:
+                The compiled agent group.
+
+            state:
+                The name of the state.
+
+        Returns:
+            path:
+                The path of the referenced group, or `None` when the model has no such group, so the state names no
+                member.
+
+        Raises:
+            KeyError:
+                The state names no member of a group.
+        """
+        declaration = declarations_of(self._agent_type(spec), VariableKind.STATE).get(state)
+        if declaration is None or declaration.reference is None:
+            error_msg = (
+                f'The state {state!r} of {spec.path} names no member of a group. Declare it with '
+                '`StateSpec(reference=group)` to read the member it names.'
+            )
+            raise KeyError(error_msg)
+        try:
+            return self._resolve_group(declaration.reference, spec.path)
+        except SimulationError:
+            return None
+
+    def _resolve_references(self, spec: CompiledAgentsSpec) -> None:
+        """Turn the initial positions held by the reference states of a group into the ids of the members they name.
+
+        Args:
+            spec:
+                The compiled agent group.
+
+        Raises:
+            SimulationError:
+                An initial position is beyond the initial members of the referenced group.
+        """
+        declarations = declarations_of(self._agent_type(spec), VariableKind.STATE)
+        for name, declaration in declarations.items():
+            if declaration.reference is None:
+                continue
+            path = self._reference_of(spec, name)
+            members = sorted(self._group_agents(path), key=lambda agent: agent.unique_id) if path else []
+            ids = [agent.unique_id for agent in members]
+            for agent in self._group_agents(spec.path):
+                position = int(float(getattr(agent, name)))
+                if position >= len(ids):
+                    error_msg = (
+                        f'The state {name!r} of {spec.path} names the member at position {position} of '
+                        f'{path or declaration.reference}, which has {len(ids)} members.'
+                    )
+                    raise SimulationError(error_msg)
+                setattr(agent, name, float(ids[position]) if position >= 0 else -1.0)
 
     def _spec_of(self, agent: mesa.Agent) -> CompiledAgentsSpec:
         """Return the group of a Mesa agent created by the stepper.

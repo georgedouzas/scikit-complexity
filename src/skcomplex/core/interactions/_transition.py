@@ -5,7 +5,7 @@
 
 import math
 import re
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Collection, Sequence
 from types import SimpleNamespace
 from typing import Annotated, SupportsFloat
 
@@ -25,6 +25,8 @@ KINDS = ('rate', 'probability', 'condition', 'matrix')
 OVERS = ('member', 'neighbors', 'cell')
 SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
 FORMS = ('symbolic', 'agent')
+
+type SourceValues = float | Collection[float] | Callable[..., object]
 
 
 class TransitionInteraction(Interaction):
@@ -65,7 +67,9 @@ class TransitionInteraction(Interaction):
             The name of the discrete state of the target.
 
         source:
-            The value the state moves from.
+            The value the state moves from, a collection of such values, or a function of the value of the state that
+            returns whether the state moves from it, such as `lambda value: value >= 0`, a condition in the symbolic
+            form. A state that moves from several values moves to the destination from each.
 
         destination:
             The value the state moves to.
@@ -129,6 +133,12 @@ class TransitionInteraction(Interaction):
         ... )
         >>> type(agents.check().prepare().run(SimpleNamespace()).laws_[0]).__name__
         'RuleLaw'
+        >>> separation = TransitionInteraction(
+        ...     'separation', target='workers', state='employer', source=lambda value: value >= 0, destination=-1,
+        ...     probability=lambda a, m: 0.05, form='agent'
+        ... )
+        >>> separation.check().destination
+        -1
     """
 
     def __init__(
@@ -137,7 +147,7 @@ class TransitionInteraction(Interaction):
         *,
         target: Annotated[str, RoleSpec()],
         state: str = 'state',
-        source: float = 0.0,
+        source: SourceValues = 0.0,
         destination: float = 1.0,
         rate: Callable[..., SupportsFloat] | None = None,
         probability: Callable[..., SupportsFloat] | None = None,
@@ -215,7 +225,8 @@ class TransitionInteraction(Interaction):
                 'symbolic form does. In the agent form, read the neighbours of the agent in the function.'
             )
             raise ValidationError(error_msg)
-        if self.matrix is None and self.source == self.destination:
+        single = not (callable(self.source) or isinstance(self.source, Collection))
+        if self.matrix is None and single and self.source == self.destination:
             error_msg = f'The transition {self.label!r} moves from {self.source} to itself. Give distinct values.'
             raise ValidationError(error_msg)
         if self.after is not None and (kind not in {'probability', 'condition'} or not self.after >= 0):
@@ -242,17 +253,33 @@ class TransitionInteraction(Interaction):
         super()._check()
         self._check_transition()
 
-    def _get_moving(self, value: Expression, source: float) -> Expression:
-        """Return 1 for a member whose state holds the source value, and 0 otherwise."""
+    def _get_moving(self, value: Expression, source: SourceValues) -> Expression:
+        """Return 1 for a member whose state holds a source value, and 0 otherwise."""
+        if callable(source):
+            return where(SR(source(value)), 1, 0)
+        if isinstance(source, Collection):
+            return sum((where(value == item, 1, 0) for item in set(source)), SR(0))
         return where(value == source, 1, 0)
 
-    def _get_jump(self, value: Expression, source: float, destination: float, rate: Expression) -> JumpLaw:
-        """Return the jump of the state from the source value to the destination at a rate."""
+    def _get_jump(self, value: Expression, source: SourceValues, destination: float, rate: Expression) -> JumpLaw:
+        """Return the jump of the state from a source value to the destination at a rate."""
+        if callable(source) or isinstance(source, Collection):
+            return JumpLaw(rate * self._get_moving(value, source), {value: destination - value})
         return JumpLaw(rate * self._get_moving(value, source), {value: destination - source})
 
-    def _get_step(self, value: Expression, source: float, destination: float, moves: Expression) -> UpdateLaw:
-        """Return the update of the state that moves a member from the source value where a condition holds."""
+    def _get_step(self, value: Expression, source: SourceValues, destination: float, moves: Expression) -> UpdateLaw:
+        """Return the update of the state that moves a member from a source value where a condition holds."""
+        if callable(source) or isinstance(source, Collection):
+            return UpdateLaw(value, where(self._get_moving(value, source) > 0, where(moves, destination, value), value))
         return UpdateLaw(value, where(value == source, where(moves, destination, source), value), source=source)
+
+    def _holds_source(self, value: float) -> bool:
+        """Return whether the value of the state of an agent is a source value."""
+        if callable(self.source):
+            return bool(self.source(value))
+        if isinstance(self.source, Collection):
+            return value in set(self.source)
+        return value == self.source
 
     def _combine_rates(self, rate: Expression) -> Expression:
         """Return the rate of the member, or the sum of the rates of its neighbours."""
@@ -324,7 +351,7 @@ class TransitionInteraction(Interaction):
         if self.matrix is not None:
             return self._draw_row(self.matrix(agent, model)[int(value)], model)
         held = self._get_held(agent, model) if self.after is not None else 0
-        if value != self.source or (self.after is not None and held + 1 < self.after):
+        if not self._holds_source(value) or (self.after is not None and held + 1 < self.after):
             return None
         return float(self.destination) if self._moves_agent(agent, model) else None
 

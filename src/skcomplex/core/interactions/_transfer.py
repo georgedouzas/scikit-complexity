@@ -9,7 +9,7 @@ from typing import Annotated
 
 import numpy as np
 
-from ...errors import ValidationError
+from ...errors import SimulationError, ValidationError
 from ...specs import RoleSpec
 from ..laws import BaseLaw, RuleLaw, Sink, Source, TransferLaw
 from ..laws.utils import where
@@ -64,6 +64,9 @@ class TransferInteraction(Interaction):
     interactions, in the order the system lists them: it transfers with its partners, the members of the other role
     that the pairing `'random'`, `'neighbors'`, or `'cell'` gives it, or with `partners` of them drawn at random, and
     with itself under the pairing `'members'` within one group.
+    A leg end of the agent form may name `'<reference>.<state>'`, the state of the member that a reference state of
+    the agent names, such as `'bank.deposits'` for the deposits of a customer's bank, declared
+    `StateSpec(reference='banks')`.
 
     Args:
         label:
@@ -202,7 +205,7 @@ class TransferInteraction(Interaction):
         return legs
 
     def _check_leg(self, state: object, into: object, amount: object, flow: object) -> None:
-        """Raise an error for a leg with ends that are no states or environment, or an unusable amount or flow name."""
+        """Raise an error for a leg with unusable ends, amount, or flow name, or a symbolic referenced end."""
         if not isinstance(state, str | Source) or not isinstance(into, str | Sink):
             error_msg = (
                 f'A leg of {self.label!r} moves {state!r} into {into!r}. Give a state name or `Source()` it leaves, '
@@ -217,6 +220,10 @@ class TransferInteraction(Interaction):
             raise ValidationError(error_msg)
         if not isinstance(flow, str):
             error_msg = f'A leg of {self.label!r} names its flow {flow!r}. Give a string, or the empty string.'
+            raise ValidationError(error_msg)
+        referenced = [end for end in (state, into) if isinstance(end, str) and '.' in end]
+        if referenced and self.form == 'symbolic':
+            error_msg = f'{self.label!r} moves {referenced[0]!r} of a referenced member. Use `form="agent"`.'
             raise ValidationError(error_msg)
 
     def _check_flows(self) -> None:
@@ -235,8 +242,9 @@ class TransferInteraction(Interaction):
         Raises:
             ValidationError:
                 The form, the pairing, the schedule, the actor, or the removal is unknown, a leg is malformed, two
-                legs share a flow name, the symbolic form has an agent pairing or a fallback, the agent form has a
-                rate or a flow name, or the schedule `'member'` has a pairing it cannot draw.
+                legs share a flow name, the symbolic form has an agent pairing, a fallback, or a leg end of a
+                referenced member, the agent form has a rate or a flow name, or the schedule `'member'` has a pairing
+                it cannot draw.
         """
         super()._check()
         if self.form not in FORMS:
@@ -510,14 +518,43 @@ class TransferInteraction(Interaction):
         Raises:
             ValidationError:
                 An amount function returns something other than a number.
+
+            SimulationError:
+                A leg end names the state of a referenced member, and the reference state names no member.
         """
         if self.guard is not None and not self.guard(source, target, model):
             return False
         legs = self._get_legs()
         amounts = [self._evaluate(amount, source, target, model) for _, _, amount, _ in legs]
-        for (state, into, _, _), amount in zip(legs, amounts, strict=True):
-            if isinstance(state, str):
-                setattr(source, state, getattr(source, state) - amount)
-            if isinstance(into, str):
-                setattr(target, into, getattr(target, into) + amount)
+        ends = [
+            (
+                self._get_end(source, state) if isinstance(state, str) else None,
+                self._get_end(target, into) if isinstance(into, str) else None,
+            )
+            for state, into, _, _ in legs
+        ]
+        for (taken, given), amount in zip(ends, amounts, strict=True):
+            if taken is not None:
+                holder, name = taken
+                setattr(holder, name, getattr(holder, name) - amount)
+            if given is not None:
+                holder, name = given
+                setattr(holder, name, getattr(holder, name) + amount)
         return True
+
+    def _get_end(self, agent: AgentViewProtocol, name: str) -> tuple[AgentViewProtocol, str]:
+        """Return the agent that holds the state a leg end names and the name of the state.
+
+        A name `'<reference>.<state>'` names the state of the member that the reference state of the agent names.
+        """
+        reference, _, state = name.rpartition('.')
+        if not reference:
+            return agent, name
+        holder = agent.referenced(reference)
+        if holder is None:
+            error_msg = (
+                f'A leg of {self.label!r} moves {name!r}, but the state {reference!r} of agent {agent.id} names no '
+                'member.'
+            )
+            raise SimulationError(error_msg)
+        return holder, state

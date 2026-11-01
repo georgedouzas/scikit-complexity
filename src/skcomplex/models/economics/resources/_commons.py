@@ -19,6 +19,7 @@ from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....core.types import MatchingRule
 from ....engine.solvers import ModelView
+from ....errors import SimulationError
 from ....specs import (
     GreedyMatchingSpec,
     MatchSpec,
@@ -137,7 +138,7 @@ class CowElement(Element):
             How the element is drawn, or `None` for `default_visual_`.
 
         owner:
-            The number of the herder that owns the cow.
+            The id of the herder that owns the cow, given initially as its position in the group `herders`.
 
         energy:
             The energy of the cow.
@@ -153,7 +154,7 @@ class CowElement(Element):
         label: str,
         visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'energy'}),
         *,
-        owner: Annotated[float, StateSpec()] = -1.0,
+        owner: Annotated[float, StateSpec(reference='herders')] = -1.0,
         energy: Annotated[float, StateSpec()] = 4.0,
     ) -> None:
         super().__init__(label, visual=visual)
@@ -189,9 +190,6 @@ class HerderElement(Element):
         visual:
             How the element is drawn, or `None` for `default_visual_`.
 
-        number:
-            The number of the herder, which its cows record as their owner.
-
         income:
             The milk income of the herder in the last step.
 
@@ -218,7 +216,6 @@ class HerderElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        number: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         income: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         herd: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         upkeep: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
@@ -226,7 +223,6 @@ class HerderElement(Element):
         quota: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo), adaptive=True)] = UNLIMITED,
     ) -> None:
         super().__init__(label, visual=visual)
-        self.number = number
         self.income = income
         self.herd = herd
         self.upkeep = upkeep
@@ -263,9 +259,9 @@ class HerderElement(Element):
         """
         earning = agent.income / agent.herd if agent.herd else model.parameter('upkeep') + 1
         if earning > model.parameter('upkeep') and agent.herd < agent.quota:
-            model.create('cows', owner=agent.number, energy=model.parameter('newborn'))
+            model.create('cows', owner=float(agent.id), energy=model.parameter('newborn'))
         elif agent.herd > agent.quota:
-            next(cow for cow in model.agents('cows', CowView) if cow.owner == agent.number).remove()
+            next(cow for cow in model.agents('cows', CowView) if cow.referenced('owner') is agent).remove()
         agent.income = 0.0
         agent.herd = 0.0
 
@@ -351,9 +347,14 @@ class GrazingInteraction(MatchingInteraction[ModelView]):
         del cow
         return float(pasture.grass) if isinstance(pasture, PastureView) else -np.inf
 
-    def _get_herder(self, cow: CowView, model: ModelView) -> HerderView:
-        """Return the herder that owns a cow."""
-        return next(herder for herder in model.agents('herders', HerderView) if herder.number == cow.owner)
+    @staticmethod
+    def _get_herder(cow: CowView) -> HerderView:
+        """Return the herder that owns a cow, which its reference state `owner` names."""
+        herder = cow.referenced('owner')
+        if not isinstance(herder, HerderView):
+            error_msg = f'Cow {cow.id} names no herder as its owner.'
+            raise SimulationError(error_msg)
+        return herder
 
     def _settle(self, match: MatchSpec, model: ModelView) -> None:
         """Move the cow of a match to its pasture, feed it, and pay its herder for what it ate.
@@ -371,7 +372,7 @@ class GrazingInteraction(MatchingInteraction[ModelView]):
         cow.move_to(pasture.location)
         eaten = min(pasture.grass, model.parameter('appetite'))
         transfer(pasture, cow, eaten, 'grass', 'energy')
-        self._get_herder(cow, model).income += model.parameter('milk') * eaten
+        self._get_herder(cow).income += model.parameter('milk') * eaten
 
     def match(self, model: ModelView) -> None:
         """Pair and feed the cows, then let every cow burn its metabolism, count it in its herd, and starve.
@@ -381,10 +382,9 @@ class GrazingInteraction(MatchingInteraction[ModelView]):
                 The model view of the grazing.
         """
         super().match(model)
-        herders = {int(herder.number): herder for herder in model.agents('herders', HerderView)}
         for cow in model.agents('requesters', CowView):
             cow.energy -= model.parameter('metabolism')
-            herders[int(cow.owner)].herd += 1
+            self._get_herder(cow).herd += 1
             if cow.energy < 0:
                 cow.remove()
 
@@ -534,7 +534,6 @@ def tragedy_of_the_commons(
         element=HerderElement,
         size=n_herders,
         values={
-            'number': np.arange(n_herders, dtype=float),
             'upkeep': upkeep,
             'quota': UNLIMITED if quota is None else quota,
         },

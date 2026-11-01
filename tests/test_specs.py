@@ -316,6 +316,8 @@ def _decaying_group(*observables):
         (StateSpec(lags=1.5), 'lags'),
         (StateSpec(order=2, lags=1), 'not both'),
         (StateSpec(order=2, initial=(0.0, 1.0)), '2 initial values were given for 1'),
+        (StateSpec(reference='banks', vector=True), 'scalar of order 1'),
+        (StateSpec(reference='banks', lags=1), 'scalar of order 1'),
     ],
 )
 def test_state_spec_rejects_invalid_orders_and_lags(spec, message):

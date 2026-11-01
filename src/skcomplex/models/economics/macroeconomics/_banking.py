@@ -8,12 +8,12 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
+from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import FeedbackInteraction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import FeedbackInteraction, TransferInteraction
+from ....core.laws import BaseLaw, RuleLaw, Sink
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
@@ -25,16 +25,12 @@ from ._reserve_bank_view import ReserveBankView
 TOLERANCE = 1e-9
 
 
-def _bank_of(banks: list[ReserveBankView], index: float) -> ReserveBankView:
-    """Return the bank with an index."""
-    return next(bank for bank in banks if int(bank.index) == int(index))
-
-
 class DepositorElement(Element):
-    """Customer who pays a share of its deposit to a random customer and repays a share of its loan every step.
+    """Customer of a bank, with a deposit at the bank its reference state `bank` names and a loan from it.
 
-    A payment moves deposits and as many reserves from the payer's bank to the payee's bank, and a repayment from the
-    deposit cancels as much deposit and loan at the customer's bank, destroying broad money.
+    The model pays a share of the deposit to a random customer, which moves deposits and as many reserves from the
+    payer's bank to the payee's bank, and repays a share of the loan from the deposit, which cancels as much deposit
+    and loan at the customer's bank and destroys broad money.
 
     Args:
         label:
@@ -44,7 +40,7 @@ class DepositorElement(Element):
             How the element is drawn, or `None` for `default_visual_`.
 
         bank:
-            The index of the customer's bank.
+            The id of the customer's bank in the group `banks`, given initially as its position in the group.
 
         deposit:
             The deposit at the bank.
@@ -58,9 +54,6 @@ class DepositorElement(Element):
         repayment:
             The share of the loan repaid every step.
 
-        lenders:
-            The path of the group of banks.
-
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import DepositorElement
         >>> GroupElement('customers', element=DepositorElement, size=10, values={'deposit': 5.0}).size
@@ -72,12 +65,11 @@ class DepositorElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        bank: Annotated[float, StateSpec(domain=NN)] = 0,
+        bank: Annotated[float, StateSpec(domain=ZZ, reference='banks')] = -1,
         deposit: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
         loan: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         spending: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         repayment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        lenders: str = 'banks',
     ) -> None:
         super().__init__(label, visual=visual)
         self.bank = bank
@@ -85,73 +77,58 @@ class DepositorElement(Element):
         self.loan = loan
         self.spending = spending
         self.repayment = repayment
-        self.lenders = lenders
 
     @classmethod
     def _get_view(cls) -> type[DepositorView]:
         """Return the view of a customer, with its bank, deposit, and loan."""
         return DepositorView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the payment and repayment rules.
+    @staticmethod
+    def get_payment(payer: DepositorView, payee: DepositorView, model: ModelView) -> float:
+        """Return the payment of a customer to another, a share `spending` of its deposit.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            payer:
+                The customer who pays.
+
+            payee:
+                The customer who is paid.
+
+            model:
+                The model view of the payments.
 
         Returns:
-            laws:
-                The laws of the component.
+            amount:
+                The payment.
         """
-        return [RuleLaw(self.pay, phase='pay'), RuleLaw(self.repay, phase='pay')]
+        return payer.spending * payer.deposit
 
-    def pay(self, agent: DepositorView, model: ModelView) -> None:
-        """Pay a share of the deposit to a random customer, moving deposits and reserves between their banks.
+    @staticmethod
+    def get_repayment(customer: DepositorView, same: DepositorView, model: ModelView) -> float:
+        """Return the repayment of a customer, a share `repayment` of its loan, at most its deposit.
 
         Args:
-            agent:
-                The customer.
+            customer:
+                The customer who repays.
+
+            same:
+                The customer again, the target of a transfer within members.
 
             model:
-                The model.
+                The model view of the repayments.
+
+        Returns:
+            amount:
+                The repayment.
         """
-        customers = model.agents(agent.group, DepositorView)
-        payee = customers[int(model.rng.integers(len(customers)))]
-        amount = model.parameter('spending') * agent.deposit
-        banks = model.agents(self.lenders, ReserveBankView)
-        source, target = _bank_of(banks, agent.bank), _bank_of(banks, payee.bank)
-        agent.deposit -= amount
-        payee.deposit += amount
-        source.deposits -= amount
-        source.reserves -= amount
-        target.deposits += amount
-        target.reserves += amount
-
-    def repay(self, agent: DepositorView, model: ModelView) -> None:
-        """Repay a share of the loan from the deposit, which destroys as much broad money.
-
-        Args:
-            agent:
-                The customer.
-
-            model:
-                The model.
-        """
-        amount = min(model.parameter('repayment') * agent.loan, agent.deposit)
-        if amount <= 0:
-            return
-        bank = _bank_of(model.agents(self.lenders, ReserveBankView), agent.bank)
-        agent.deposit -= amount
-        agent.loan -= amount
-        bank.deposits -= amount
-        bank.loans -= amount
+        return min(customer.repayment * customer.loan, customer.deposit)
 
 
 class ReserveBankElement(Element):
     """Bank that lends its reserves in excess of the required share of its deposits to one of its customers.
 
     The borrower spends the loan at once, and the payee, a random customer, deposits it at its own bank, whose
-    reserves and deposits grow by the loan.
+    reserves and deposits grow by the loan. The customers of a bank are those whose reference state `bank` names it.
 
     Args:
         label:
@@ -159,9 +136,6 @@ class ReserveBankElement(Element):
 
         visual:
             How the element is drawn, or `None` for `default_visual_`.
-
-        index:
-            The index of the bank.
 
         reserves:
             The reserves of the bank.
@@ -180,7 +154,7 @@ class ReserveBankElement(Element):
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import ReserveBankElement
-        >>> GroupElement('banks', element=ReserveBankElement, size=3, values={'index': [0, 1, 2]}).size
+        >>> GroupElement('banks', element=ReserveBankElement, size=3, values={'reserves': 10.0}).size
         3
     """
 
@@ -189,7 +163,6 @@ class ReserveBankElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        index: Annotated[float, StateSpec(domain=NN)] = 0,
         reserves: Annotated[float, StateSpec()] = 0.0,
         deposits: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         loans: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
@@ -197,7 +170,6 @@ class ReserveBankElement(Element):
         customers: str = 'customers',
     ) -> None:
         super().__init__(label, visual=visual)
-        self.index = index
         self.reserves = reserves
         self.deposits = deposits
         self.loans = loans
@@ -206,7 +178,7 @@ class ReserveBankElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[ReserveBankView]:
-        """Return the view of a bank, with its index, reserves, deposits, and loans."""
+        """Return the view of a bank, with its reserves, deposits, and loans."""
         return ReserveBankView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
@@ -234,12 +206,14 @@ class ReserveBankElement(Element):
         """
         excess = agent.reserves - model.parameter('reserve_ratio') * agent.deposits
         customers = model.agents(self.customers, DepositorView)
-        own = [customer for customer in customers if int(customer.bank) == int(agent.index)]
+        own = [customer for customer in customers if customer.referenced('bank') is agent]
         if excess <= TOLERANCE or not own:
             return
         borrower = own[int(model.rng.integers(len(own)))]
         payee = customers[int(model.rng.integers(len(customers)))]
-        bank = _bank_of(model.agents(agent.group, ReserveBankView), payee.bank)
+        bank = payee.referenced('bank')
+        if not isinstance(bank, ReserveBankView):
+            return
         borrower.loan += excess
         agent.loans += excess
         agent.reserves -= excess
@@ -392,11 +366,39 @@ def fractional_reserve_banking(
         size=customers,
         values={'bank': owners, 'deposit': deposit, 'spending': spending, 'repayment': repayment},
     )
+    payments = TransferInteraction(
+        'payments',
+        source='customers',
+        target='customers',
+        state='deposit',
+        amount=DepositorElement.get_payment,
+        pairing='random',
+        legs=(
+            ('bank.deposits', None, DepositorElement.get_payment),
+            ('bank.reserves', None, DepositorElement.get_payment),
+        ),
+        form='agent',
+        phase='pay',
+    )
+    repayments = TransferInteraction(
+        'repayments',
+        source='customers',
+        target='customers',
+        state='deposit',
+        into=Sink(),
+        amount=DepositorElement.get_repayment,
+        legs=tuple(
+            (state, Sink(), DepositorElement.get_repayment) for state in ('loan', 'bank.deposits', 'bank.loans')
+        ),
+        guard=lambda customer, same, model: DepositorElement.get_repayment(customer, same, model) > 0,
+        form='agent',
+        phase='pay',
+    )
     lenders = GroupElement(
         'banks',
         element=ReserveBankElement,
         size=banks,
-        values={'index': np.arange(banks), 'reserves': holdings, 'deposits': holdings, 'reserve_ratio': ratio},
+        values={'reserves': holdings, 'deposits': holdings, 'reserve_ratio': ratio},
     )
     regulator = PolicySwitchInteraction(
         'regulator',
@@ -407,7 +409,7 @@ def fractional_reserve_banking(
     )
     return System(
         elements=[depositors, lenders],
-        interactions=[regulator],
+        interactions=[regulator, payments, repayments],
         time=DiscreteTime(
             schedule=PhasesScheduleSpec([PhaseSpec('regulate'), PhaseSpec('pay'), PhaseSpec('lend', repeat=10)]),
         ),

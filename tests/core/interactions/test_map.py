@@ -189,6 +189,23 @@ def test_agent_map_in_the_increment_mode_adds_the_value():
     assert _agent_values(group, agents, 2).tolist() == [1.0, 2.0]
 
 
+def test_agent_map_reads_a_whole_group_bound_to_its_sources():
+    """Test that an entry of the sources naming a whole group binds its agents, which the function reads by role."""
+    group = GroupElement('value', element=ValueElement, size=2, values={'x': [0.0, 1.0]})
+    others = GroupElement('others', element=ValueElement, size=3, values={'x': [1.0, 2.0, 3.0]})
+    agents = MapInteraction(
+        'map',
+        target='value',
+        state='x',
+        function=lambda a, m: sum(other.x for other in m.agents('sources')),
+        sources=['others'],
+        form='agent',
+    )
+    system = System(elements=[group, others], interactions=[agents], time=DiscreteTime())
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    assert trajectory.agents('value', 1).values['x'].tolist() == [6.0, 6.0]
+
+
 @pytest.mark.parametrize(
     ('arguments', 'match'),
     [

@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import FeedbackInteraction, MapInteraction, MatchingInteraction
+from ....core.interactions import FeedbackInteraction, MapInteraction, MatchingInteraction, TransitionInteraction
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
@@ -169,7 +169,7 @@ class JobseekerElement(Element):
         *,
         ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         supply: Annotated[float, StateSpec(domain=NN)] = 1.0,
-        employer: Annotated[float, StateSpec()] = -1.0,
+        employer: Annotated[float, StateSpec(reference='firms')] = -1.0,
         wage: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         duration: Annotated[float, StateSpec(domain=NN)] = 0.0,
         hired: Annotated[float, StateSpec()] = -1.0,
@@ -197,10 +197,10 @@ class JobseekerElement(Element):
 
     @staticmethod
     def get_search() -> tuple[tuple[str, Callable[[JobseekerView, ModelView], float]], ...]:
-        """Return the states a worker sets in the phase of offers, in their order.
+        """Return the states a worker sets in the phase of offers before the separations, in their order.
 
         A worker unemployed at the start of the step searches, with a reservation wage that falls with the duration of
-        its search. An employed worker loses its job at the separation rate and searches from the next step.
+        its search.
 
         Returns:
             search:
@@ -214,12 +214,19 @@ class JobseekerElement(Element):
                     agent.reservation * (1 - agent.decline) ** agent.duration if agent.supply else agent.ask
                 ),
             ),
-            (
-                'employer',
-                lambda agent, model: (
-                    -1.0 if not agent.supply and model.rng.random() < agent.separation else agent.employer
-                ),
-            ),
+        )
+
+    @staticmethod
+    def get_spell() -> tuple[tuple[str, Callable[[JobseekerView, ModelView], float]], ...]:
+        """Return the states a worker sets in the phase of offers after the separations, in their order.
+
+        A worker who lost its job earns no wage, and the duration of a search grows while the worker searches.
+
+        Returns:
+            spell:
+                The name of every state and the function of its value, of the worker and the model view.
+        """
+        return (
             ('wage', lambda agent, model: 0.0 if agent.employer < 0 else agent.wage),
             (
                 'duration',
@@ -397,6 +404,20 @@ def labour_market(
         for group, steps in (('firms', EmployerElement.get_posting()), ('workers', JobseekerElement.get_search()))
         for name, function in steps
     ]
+    losses = TransitionInteraction(
+        'workers_separation',
+        target='workers',
+        state='employer',
+        source=lambda value: value >= 0,
+        destination=-1.0,
+        probability=lambda agent, model: agent.separation,
+        form='agent',
+        phase='offers',
+    )
+    spells = [
+        MapInteraction(f'workers_{name}', target='workers', state=name, function=function, form='agent', phase='offers')
+        for name, function in JobseekerElement.get_spell()
+    ]
     market = MatchingInteraction(
         'labour',
         requesters='firms',
@@ -409,6 +430,12 @@ def labour_market(
     )
     return System(
         elements=[firms, workers],
-        interactions=[*offers, SearchCountInteraction('office', workers='workers', phase='matching'), market],
+        interactions=[
+            *offers,
+            losses,
+            *spells,
+            SearchCountInteraction('office', workers='workers', phase='matching'),
+            market,
+        ],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('offers'), PhaseSpec('matching')])),
     )
