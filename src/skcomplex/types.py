@@ -22,7 +22,7 @@ type Pair = tuple[int, int]
 type VectorFunction = Callable[[float, Array, Array], Array]
 type ProcessKey = tuple[str, str, str | int]
 type Preference = Callable[[object, object], float]
-type Stoichiometry = Mapping[tuple[str, str] | str, float]
+type Stoichiometry = Mapping[tuple[str, str] | str, float | Callable[..., object]]
 
 
 class DataKind(StrEnum):

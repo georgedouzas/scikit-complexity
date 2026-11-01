@@ -11,7 +11,7 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.elements import CompartmentElement, Element, FieldElement, GroupElement
 from skcomplex.core.interactions import JumpInteraction, ReactionInteraction
 from skcomplex.core.laws import JumpLaw, NoiseLaw, RateLaw
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
@@ -178,7 +178,11 @@ def test_reaction_takes_a_propensity_function():
         ({}, 'neither reactants nor products'),
         ({'reactants': ['A']}, 'Map pairs of a path and a state name'),
         ({'reactants': {('A', 'not a name'): 1}}, 'Map pairs of a path and a state name'),
-        ({'reactants': {('A', 'n'): -1}}, 'positive coefficients'),
+        ({'reactants': {('A', 'n'): -1}}, 'positive numbers or functions'),
+        ({'reactants': {('A', 'n'): 1}, 'form': 'mesa'}, 'has the form'),
+        ({'reactants': {('A', 'n'): 1}, 'form': 'agent'}, 'agent form but no target'),
+        ({'target': 'cells', 'reactants': {'n': 1}, 'form': 'agent', 'mode': 'langevin'}, 'Use rate or jump'),
+        ({'target': 'cells', 'reactants': {('A', 'n'): 1}, 'form': 'agent'}, 'state names alone'),
         ({'reactants': {'n': 1}}, 'state names of the target'),
     ],
 )
@@ -252,3 +256,61 @@ def test_reaction_subclass_reads_species_under_its_own_roles():
     times = np.asarray(trajectory.times)
     np.testing.assert_allclose(trajectory.values('A.n'), 8 * np.exp(-0.5 * times), rtol=1e-4)
     np.testing.assert_allclose(trajectory.values('A.n') + trajectory.values('B.n'), 8.0)
+
+
+class ScaledElement(Element):
+    """Concentrations `x` and `y` with the time scales `epsilon` and `delta` that divide their changes."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 1.0,
+        y: Annotated[float, StateSpec()] = 0.0,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        delta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.25,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.epsilon = epsilon
+        self.delta = delta
+
+
+@pytest.mark.parametrize(('epsilon', 'delta'), [(0.5, 0.25), (0.25, 1.0)])
+def test_reaction_scales_changes_by_parametric_coefficients(epsilon, delta):
+    """Test that coefficients that are functions of parameters scale the change of every state by their values."""
+    conversion = ReactionInteraction(
+        'conversion',
+        target='box',
+        reactants={'x': lambda s: 1 / s.target.epsilon},
+        products={'y': lambda s: 1 / s.target.delta},
+        propensity=lambda s: s.target.x,
+    )
+    system = System(elements=[ScaledElement('box', epsilon=epsilon, delta=delta)], interactions=[conversion])
+    trajectory = Simulation(system, dt=0.01).check().prepare().run(until=1).trajectory_
+    x = np.exp(-np.asarray(trajectory.times) / epsilon)
+    np.testing.assert_allclose(trajectory.values('box.x'), x, rtol=1e-4)
+    np.testing.assert_allclose(trajectory.values('box.y'), epsilon / delta * (1 - x), rtol=1e-4, atol=1e-8)
+
+
+def _agent_decay(mode, size=2000):
+    """Return cells of three units each that decay on their own in the agent form."""
+    cells = GroupElement('cells', element=CompartmentElement, size=size, values={'n': np.full(size, 3.0)})
+    decay = ReactionInteraction('decay', target='cells', reactants={'n': 1}, k=0.1, form='agent', mode=mode)
+    return System(elements=[cells], interactions=[decay], time=DiscreteTime())
+
+
+def test_reaction_agent_form_steps_every_member_by_its_rate():
+    """Test that the agent form in the mode `rate` adds the changes times the propensity of every member per step."""
+    trajectory = Simulation(_agent_decay('rate', size=3)).check().prepare().run(until=3).trajectory_
+    np.testing.assert_allclose(trajectory.agents('cells', 3).values['n'], 3 * 0.9**3)
+
+
+def test_reaction_agent_form_jumps_whole_units_at_the_step_probability():
+    """Test that the agent form in the mode `jump` moves one unit with the probability `1 - exp(-propensity)`."""
+    trajectory = Simulation(_agent_decay('jump'), random_state=0).check().prepare().run(until=1).trajectory_
+    counts = trajectory.agents('cells', 1).values['n']
+    assert set(counts.tolist()) <= {2.0, 3.0}
+    assert np.mean(counts == 2.0) == pytest.approx(1 - np.exp(-0.3), abs=0.03)

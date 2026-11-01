@@ -1,8 +1,8 @@
 """Collective behaviour: animals and people that coordinate through signals, trails, and contact."""
 
 from ._decisions import (
+    AlarmInteraction,
     BranchElement,
-    NervousnessInteraction,
     RatsElement,
     TrailChoiceInteraction,
     binary_ant_decision,
@@ -14,12 +14,12 @@ from ._leadership import ShoalMemberElement, couzin_leadership
 from ._trails import GroundElement, WalkerElement, active_walkers
 
 __all__: list[str] = [
+    'AlarmInteraction',
     'AntElement',
     'BoidElement',
     'BranchElement',
     'GroundElement',
     'MorsePotentialInteraction',
-    'NervousnessInteraction',
     'PheromoneElement',
     'RatsElement',
     'SelfPropulsionInteraction',
