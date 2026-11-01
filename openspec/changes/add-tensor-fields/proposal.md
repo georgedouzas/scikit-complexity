@@ -6,72 +6,66 @@ Marchetti et al. (2013, arXiv 1207.2929) describe active liquid crystals by an o
 vector at every point. A dry active nematic carries a density and the symmetric traceless alignment tensor `Q`, whose
 divergence drives an active current (§II.2). Active nematic and polar gels couple `Q` or a polarisation vector `p` to an
 incompressible flow, with an active stress `ζ Q` or `ζ p p`, and transport the order parameter with a co-rotational
-derivative that rotates it with the local vorticity and aligns it with the strain rate (§III).
+derivative that rotates it with the local vorticity and aligns it with the strain rate (§III). The inventory records
+`dry_active_nematics` and `active_gels` in `physics/active_matter` as blocked on this change.
 
-Site groups on lattices hold scalar and vector states, and the only incompressible flow is the two-dimensional
-vorticity-streamfunction form of one scalar vorticity. A user can split `Q` into components by hand, but the framework
-does not store or expose a tensor state by its symmetry, has no divergence of a tensor, no strain-rate or vorticity
-tensor, no co-rotational or upper-convected derivative, and no way to get a divergence-free velocity from a force
-density. The organisation of the model library records these models as blocked on this change.
-
-**Rebased on `redesign-system-model`.** The redesign's inventory gate already added the tensor state domain,
-`state(domain=Tensor(rank, symmetry))` with `DomainKind.TENSOR` and the symmetries `'symmetric'`, `'antisymmetric'`, and
-`'traceless'`, as a declaration that validation reads, and it leaves fields of tensors to this change. This change
-therefore no longer adds the `rank` and `symmetry` keywords of `state`: it gives the existing tensor domain its storage
-of independent components, its symbolic matrix view, and its symmetry check, and adds the tensor calculus, objective
-derivatives, incompressible velocities, boundaries, analysis, visual, and models. Tensor states live in site groups on a
-lattice, `Group(on='sites')`, as every former `Field` does. The visual is named for what it draws, `AxisVisual`, rather
-than the liquid-crystal term director, so the core stays application agnostic.
+The current core already gives most of the numerics. A `FieldElement` holds one value per site for every state of its
+element, `StateSpec(vector=True)` gives a state one component per dimension, and the law utilities `partial`,
+`gradient`, `divergence`, `advection`, `laplacian`, and `inverse_laplacian` of `skcomplex.core.laws.utils` lower to
+stencils with per-state boundaries, to spectral multipliers, and to finite volumes.
+`GradientInteraction(variational=True)` gives the gradient flow of a free energy, `RateInteraction` adds any rate,
+the `symmetry` setting of `FieldElement` gives walls on periodic lattices, and `AlignmentAnalysis`, `ImageVisual`, and
+`RerunObserver` analyse and draw fields.
+`DomainKind.TENSOR` exists in `skcomplex.types` but nothing declares, stores, or checks a tensor state. This change
+therefore adds only what is missing: rank-2 tensor states with a declared symmetry, the tensor operations and objective
+derivatives as law utilities composed from the existing operators, the Leray projection, the principal axis and defect
+analyses, the axis visual, and the two models.
 
 ## What Changes
 
-- Give the tensor domain storage and a symbolic view: a state of rank 1 or 2 per site with a declared symmetry,
-  `'symmetric'`, `'antisymmetric'`, or `'traceless'` (symmetric and traceless). The framework stores only the
-  independent components and exposes the state to laws as a symbolic vector or matrix whose dependent entries are
-  written in terms of them.
-- Add tensor calculus on site groups in `core.laws`: the gradient of a vector, the divergence of a tensor, the Laplacian
-  of a vector or a tensor, the strain-rate and vorticity tensors of a velocity, and products and contractions of tensor
-  expressions.
-- Add objective time derivatives in `core.laws`: the co-rotational derivative with a flow-alignment parameter, as in the
-  Beris-Edwards equations, and the upper-convected derivative.
-- Add incompressible velocities from a force density in `core.laws`: the overdamped Stokes velocity with viscosity and
-  optional substrate friction, and the Leray projection of a velocity rate for inertial flow, in two and three
-  dimensions.
-- Add boundary conditions for tensor states, with a fixed tensor value for anchoring at walls.
-- Add analysis of tensor fields: the principal axis and the scalar order of a symmetric tensor, and the point defects
-  of an axis field with their topological charges.
-- Add an axis visual that streams the principal axis of a tensor state or a vector state to Rerun as line segments or
-  arrows.
-- Declare the tensor support of the solvers and backends, and validate tensor states: a tensor state outside the sites
-  of a lattice, a law that breaks the declared symmetry, and a solver or backend without tensor support are reported by
-  `validate()` before compilation.
-- Add library models in `physics/active_matter`: the dry active nematic, the active nematic gel, and the active polar
-  gel, with the Landau-de Gennes molecular field in their own package.
-- Add `py-pde` as a runtime dependency for tensor operators and Poisson solves on bounded lattices.
+- Add rank-2 tensor states: `StateSpec(tensor=symmetry)` with the symmetry `'full'`, `'symmetric'`, `'antisymmetric'`,
+  or `'traceless'` (symmetric and traceless). The element stores only the independent components, as plain real
+  component states named by index, such as `Q_xx` and `Q_xy`, and the namespace gives laws the full Sage matrix, with
+  every dependent entry written in terms of the independent ones. `EntrySpec` reports `DomainKind.TENSOR` for them.
+- Let the `boundary` mapping of `FieldElement` take a matrix for a tensor state, which it expands into the fixed values
+  of the components, for anchoring at walls.
+- Add tensor operations to `skcomplex.core.laws.utils`, each a composition of `partial` and the existing operators:
+  `vector_gradient`, `tensor_divergence`, `symmetric_part`, `antisymmetric_part`, and the trace and contraction of
+  matrices through Sage.
+- Add the objective time derivatives `corotational` and `upper_convected` to `skcomplex.core.laws.utils`.
+- Add `leray_projection` to `skcomplex.core.laws.utils`, the divergence-free part of a vector expression,
+  `v - gradient(inverse_laplacian(divergence(v)))`, exact on spectral fields of periodic lattices and with the walls
+  of the `symmetry` setting.
+- Add the compile issue `tensor-symmetry`, raised by `PassCompiler` when a rate law on a tensor state breaks its
+  declared symmetry.
+- Add the kind `'principal-axis'` to `AlignmentAnalysis`, the principal axis and scalar order of a symmetric tensor
+  field, and `DefectAnalysis` in `skcomplex.analysis`, the point defects of an axis field and their charges.
+- Add `AxisVisual` to `skcomplex.engine.viz`, which streams the principal axis of a tensor state or a vector state to
+  Rerun as segments or arrows over an image of a scalar.
+- Add the models `dry_active_nematics` and `active_gels` to `physics/active_matter`, with the Landau-de Gennes free
+  energy as `LandauDeGennesEnergyInteraction`, a thin subclass of `GradientInteraction` in that package.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `tensor-fields`: storage and views of tensor states with symmetries, tensor calculus, objective derivatives,
-  incompressible velocities from forces, tensor boundary conditions, principal axes and defects, the axis visual, and
-  their validation declarations.
+- `tensor-fields`: tensor states with symmetries, tensor operations, objective derivatives, the Leray projection,
+  tensor boundaries, the symmetry check, principal axes and defects, and the axis visual.
 
 ### Modified Capabilities
 
-- `model-library`: active nematic and polar models in `physics/active_matter`.
+- `model-library`: the dry active nematic and the active nematic and polar gels in `physics/active_matter`.
 
 ## Impact
 
-- `skcomplex.core.components` gives the existing `Tensor` domain its expansion into independent components and its
-  symbolic views. `skcomplex.core.laws` gains `vector_gradient`, `tensor_divergence`, `strain_rate`,
-  `vorticity_tensor`, `corotational`, `upper_convected`, `stokes_velocity`, and `project`. `skcomplex.core.analysis`
-  gains `principal_axis` and `axis_defects`. `skcomplex.core.viz` gains `AxisVisual`.
-- `skcomplex.core.compile` lowers the new operators to the existing stencils and spectral multipliers, and a private
-  adapter of the NumPy and Numba backends in `skcomplex.core.backends` lowers them to `py-pde` operators and Poisson
-  solves on bounded finite-difference lattices.
-- The ODE and stiff solvers and the NumPy and Numba backends add `DomainKind.TENSOR` to their declared support.
-- `pyproject.toml` gains `py-pde` 0.58 or later. Its own dependencies, NumPy, SciPy, Numba, SymPy, matplotlib, and
-  `tqdm`, are already installed.
-- `skcomplex.models.physics.active_matter` gains three factories, and the inventory moves them from blocked to
-  implemented.
+- `skcomplex.specs.StateSpec` gains `tensor`, and `skcomplex.specs.EntrySpec` expands a tensor state into its
+  components and reports `DomainKind.TENSOR`.
+- `skcomplex.core.elements.FieldElement` accepts a matrix boundary value for a tensor state.
+- `skcomplex.core.laws.utils` gains `vector_gradient`, `tensor_divergence`, `symmetric_part`, `antisymmetric_part`,
+  `corotational`, `upper_convected`, and `leray_projection`.
+- `skcomplex.engine.compile.PassCompiler` gains the issue `tensor-symmetry`.
+- `skcomplex.analysis` gains `DefectAnalysis` and the kind `'principal-axis'` of `AlignmentAnalysis`.
+- `skcomplex.engine.viz` gains `AxisVisual`.
+- `skcomplex.models.physics.active_matter` gains `dry_active_nematics`, `active_gels`, and
+  `LandauDeGennesEnergyInteraction`, and `docs/overview/inventory.toml` marks the two entries implemented.
+- No new dependency. Solvers and backends need no new support, since tensor components are plain real states.

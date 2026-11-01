@@ -1,64 +1,48 @@
 # Tasks
 
-## 1. Dependency and adapter
+## 1. Tensor states
 
-- [ ] 1.1 Add `py-pde` 0.58 or later to the runtime dependencies in `pyproject.toml` and the Project Profile of the
-  constitution, and verify `pdm install`, `deptry`, and `pip-audit` pass
-- [ ] 1.2 Add the private adapter module of the NumPy and Numba backends in `skcomplex.core.backends` that builds a `py-pde` `CartesianGrid` from a lattice,
-  translates periodic, zero-flux, and fixed tensor boundaries, and wraps compiled operators and Poisson solves as
-  derived reads, and verify its tests against `py-pde` on a scalar Laplacian and a Poisson problem with a known solution
+- [ ] 1.1 Add `tensor` to `StateSpec` with its check against `vector`, the expansion into independent components in
+  `EntrySpec` with the kind `DomainKind.TENSOR`, and the matrix view in the namespace, and verify the two- and
+  three-dimensional symmetric traceless and the vector and tensor together scenarios in
+  `tests/specs/test_state_spec.py` and `tests/specs/test_entry_spec.py`
+- [ ] 1.2 Read the rates of a `RateLaw` on a tensor state from the entries of its matrix value, and verify that a
+  relaxation `RateLaw(s.Q, -s.Q)` runs on the NumPy and Numba backends
+- [ ] 1.3 Accept a matrix as the fixed boundary value of a tensor state in `FieldElement`, and verify the anchoring at
+  walls scenario and the rejected asymmetric matrix
+- [ ] 1.4 Add the issue `tensor-symmetry` to `PassCompiler` with its numeric fallback, and verify the law that breaks
+  the symmetry scenario in `tests/engine/compile/test_pass_compiler.py`
 
-## 2. Tensor states
+## 2. Tensor operations and derivatives
 
-- [ ] 2.1 Give the existing `Tensor` domain its expansion into independent components and the matrix and vector views
-  in the symbols namespace, and verify the two- and three-dimensional symmetric traceless scenarios
-- [ ] 2.2 Add the validation issue `tensor-symmetry` for rate laws on tensor states with its numeric fallback, and the
-  check of tensor states outside the sites of a lattice, and verify the law that breaks the symmetry and tensor state on
-  a network scenarios
-- [ ] 2.3 Add `DomainKind.TENSOR` to the declared support of the ODE and stiff solvers, the spectral discretization,
-  and the NumPy and Numba backends, and the requirements of the tensor operators, and verify the solver without tensor
-  support and tensor operator on a scalar scenarios and the declaration test
-- [ ] 2.4 Add fixed tensor boundary values, and verify the anchoring scenario
+- [ ] 2.1 Add `vector_gradient`, `tensor_divergence`, `symmetric_part`, and `antisymmetric_part` in a module `_tensors`
+  of `skcomplex.core.laws.utils`, and verify the divergence of a tensor, strain rate and vorticity, and tensor
+  divergence of a scalar scenarios
+- [ ] 2.2 Add `corotational` and `upper_convected`, and verify the upper-convected identity and the rotation by a
+  uniform vorticity scenarios
+- [ ] 2.3 Add `leray_projection`, and verify the divergence-free projection and the Stokes flow between walls scenarios
+- [ ] 2.4 Document tensor states, the operations, the derivatives, and the projection in the user guide's fields page
+  with a runnable example, and verify the documentation test passes
 
-## 3. Tensor calculus and objective derivatives
+## 3. Analysis and visualization
 
-- [ ] 3.1 Add `vector_gradient`, `tensor_divergence`, `strain_rate`, and `vorticity_tensor` to `skcomplex.core.laws` with their lowering to
-  stencils, spectral multipliers, and the adapter, and verify the divergence of a tensor and the strain and vorticity
-  scenarios on NumPy and Numba
-- [ ] 3.2 Add `corotational` and `upper_convected`, and verify the upper-convected identity and the uniform vorticity
-  rotation scenarios
-- [ ] 3.3 Document tensor states, the operators, and the objective derivatives in the user guide's fields page with a
-  runnable example, and verify the documentation test passes
-
-## 4. Incompressible velocities
-
-- [ ] 4.1 Add `stokes_velocity` and `project` on spectral fields in two and three dimensions, and verify the
-  divergence-free Stokes velocity scenario
-- [ ] 4.2 Add the bounded two-dimensional Stokes solve through the adapter, and verify the Poiseuille scenario
-- [ ] 4.3 Add the elastic diffusivity of tensor laws to the explicit stability check, and verify the warning names the
-  limit for a nematic relaxation run with too large a step
-- [ ] 4.4 Document incompressible velocities from forces in the user guide, and verify the documentation test passes
-
-## 5. Analysis and visualization
-
-- [ ] 5.1 Add `principal_axis` and `axis_defects` to `skcomplex.core.analysis`, and verify the defect pair scenario and
-  a polar `+1` vortex
-- [ ] 5.2 Add `AxisVisual` under the kind `'axis'`, and verify the nematic viewer scenario with a recorded
+- [ ] 3.1 Add the kind `'principal-axis'` to `AlignmentAnalysis`, and verify the axes and scalar order of a uniform
+  tensor field
+- [ ] 3.2 Add `DefectAnalysis` to `skcomplex.analysis`, and verify the defect pair and polar vortex scenarios
+- [ ] 3.3 Add `AxisVisual` to `skcomplex.engine.viz`, and verify the nematic in the viewer scenario with a recorded
   Rerun stream
-- [ ] 5.3 Document the analysis functions and the axis visual with runnable examples, and verify the documentation
-  test passes
 
-## 6. Library
+## 4. Library
 
-- [ ] 6.1 Add the dry active nematic to `physics/active_matter`, and verify the density conservation scenario and the
-  conformance suite
-- [ ] 6.2 Add the active nematic gel, and verify the passive nematic order and active turbulence scenarios and the
-  conformance suite
-- [ ] 6.3 Add the active polar gel, and verify the spontaneous flow scenario and the conformance suite
-- [ ] 6.4 Move the three models from blocked to implemented in the inventory, add them to the field page of
-  `physics/active_matter`, and verify the inventory check and the layout test pass
-- [ ] 6.5 Add the changelog entry for tensor fields and the new models, and verify the changelog session passes
+- [ ] 4.1 Add `LandauDeGennesEnergyInteraction` and `dry_active_nematics` to `skcomplex.models.physics.active_matter`,
+  and verify the density conservation scenario and the conformance suite
+- [ ] 4.2 Add `active_gels` with the nematic and polar orders, and verify the passive nematic order, active turbulence,
+  and spontaneous flow scenarios and the conformance suite
+- [ ] 4.3 Mark `dry_active_nematics` and `active_gels` implemented in `docs/overview/inventory.toml`, add their gallery
+  examples under `docs/examples/physics/active_matter`, and verify the inventory check and the gallery coverage check
+- [ ] 4.4 Add the changelog entry for tensor states and the new models, and verify the changelog session passes
 
-## 7. Gate
+## 5. Gate
 
-- [ ] 7.1 Run formatting, checks, the docs build, and tests through nox in that order, and verify all of them pass
+- [ ] 5.1 Run `nox -s formatting`, `nox -s checks`, `nox -s docs`, and `nox -s tests` in that order, and verify all of
+  them pass
