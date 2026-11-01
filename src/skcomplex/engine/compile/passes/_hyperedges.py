@@ -4,6 +4,7 @@
 # License: MIT
 
 from dataclasses import replace
+from types import SimpleNamespace
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
@@ -16,6 +17,7 @@ from ....errors import RoleError, ValidationError
 from ....specs import ReductionSpec
 from ....types import Indices
 from ...problems import BlockSpec, KernelSpec
+from ...types import ReadKind
 
 MEMBER_LAWS = 'member'
 HYPEREDGE_LAWS = 'hyperedge'
@@ -116,6 +118,39 @@ class HyperedgeTables:
         return focal.astype(np.intp), [item.astype(np.intp) for item in others], np.tile(ids, len(slots)), rows
 
     @staticmethod
+    def _incidences(space: NetworkSpace, size: int) -> tuple[Indices, list[Indices]]:
+        """Return the hyperedges of one size around every node, as rows grouped by node, and their other members.
+
+        Args:
+            space:
+                The prepared network space.
+
+            size:
+                The number of members of the hyperedges.
+
+        Returns:
+            rows:
+                The start of the rows of every node, with the number of rows last, and per position the other member
+                of the hyperedge of every row, in hyperedge order.
+
+        Examples:
+            >>> import networkx as nx
+            >>> from skcomplex.core.spaces import NetworkSpace
+            >>> from skcomplex.engine.compile.passes._hyperedges import HyperedgeTables
+            >>> space = NetworkSpace(nx.complete_graph(4), hyperedges=[(0, 1, 2), (1, 2, 3)]).check().prepare()
+            >>> indptr, others = HyperedgeTables._incidences(space, 3)
+            >>> indptr.tolist(), [item.tolist() for item in others]
+            ([0, 1, 3, 5, 6], [[1, 2, 0, 1, 0, 1], [2, 3, 2, 3, 1, 2]])
+        """
+        ids = np.asarray([number for number, item in enumerate(space.hyperedges_) if len(item) == size], dtype=np.intp)
+        members = np.asarray([space.hyperedges_[number] for number in ids], dtype=np.intp).reshape(-1, size)
+        focal, others, _, _ = HyperedgeTables._tables(members, ids, MEMBER_LAWS)
+        order = np.argsort(focal, kind='stable')
+        counts = np.bincount(focal, minlength=space.size_)
+        indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(counts)]).astype(np.intp)
+        return indptr, [item[order] for item in others]
+
+    @staticmethod
     def _sizes(node: NodeSpec, space: NetworkSpace) -> list[int]:
         """Return the sizes of the hyperedges an interaction runs on, its own size or every size of the network.
 
@@ -203,6 +238,45 @@ class HyperedgeTables:
         return slots
 
     @staticmethod
+    def _around(spec: KernelSpec, kind: ReadKind) -> tuple[dict[Expression, list[Expression]], dict[Expression, int]]:
+        """Return the slots of a hyperedge around a member that the namespace of a spec holds, by symbol of the members.
+
+        A namespace of a member of a group on a network with hyperedges, the namespace of a spec or one of its
+        entries, holds `members`, every member of a hyperedge around the member, and `others`, the other members.
+
+        Args:
+            spec:
+                The spec.
+
+            kind:
+                How the symbols of the slots are read.
+
+        Returns:
+            slots:
+                The symbols of the other members, in hyperedge order, that every symbol of the members stands for, and
+                the position among the other members of every symbol of the other members.
+        """
+        candidates = [
+            spec.namespace,
+            *(item for item in vars(spec.namespace).values() if isinstance(item, SimpleNamespace)),
+        ]
+        columns: dict[Expression, list[Expression]] = {}
+        positions: dict[Expression, int] = {}
+        for namespace in candidates:
+            members, others = getattr(namespace, 'members', None), getattr(namespace, 'others', None)
+            if not isinstance(members, SimpleNamespace) or not isinstance(others, tuple):
+                continue
+            for name, value in vars(members).items():
+                found = [HyperedgeTables._components(getattr(other, name)) for other in others]
+                for index, item in enumerate(HyperedgeTables._components(value)):
+                    reference = spec.references.get(item)
+                    if reference is None or reference.source is not kind:
+                        continue
+                    columns[item] = [column[index] for column in found]
+                    positions.update({column[index]: position for position, column in enumerate(found)})
+        return columns, positions
+
+    @staticmethod
     def _expanded(reduction: ReductionSpec, slots: dict[Expression, list[Expression]]) -> Expression:
         """Return a reduction over the members of a hyperedge written out as a sum, a mean, or an extremum of slots.
 
@@ -249,11 +323,30 @@ class HyperedgeTables:
             expansions:
                 The expansion of every reduction call over the members.
         """
-        slots = HyperedgeTables._slots(spec)
+        return HyperedgeTables._expansions_over(HyperedgeTables._slots(spec), expressions)
+
+    @staticmethod
+    def _expansions_over(
+        slots: dict[Expression, list[Expression]],
+        expressions: list[Expression],
+    ) -> dict[Expression, Expression]:
+        """Return every reduction over the members of a hyperedge in expressions with its expansion over given slots.
+
+        Args:
+            slots:
+                The symbols of the focal and the other members that every symbol of the members stands for.
+
+            expressions:
+                The expressions.
+
+        Returns:
+            expansions:
+                The expansion of every reduction call over the members.
+        """
         expansions: dict[Expression, Expression] = {}
         for expression in expressions:
             for reduction in reductions_in(expression):
-                inner = HyperedgeTables._expansions(spec, [reduction.argument])
+                inner = HyperedgeTables._expansions_over(slots, [reduction.argument])
                 over = reduction.over
                 if (over is not None and over in slots) or (
                     over is None and set(SR(reduction.argument).variables()) & set(slots)

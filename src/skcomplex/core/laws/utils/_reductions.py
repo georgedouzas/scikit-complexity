@@ -19,7 +19,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.symbolic.function import Function
 
 from ....errors import ValidationError
-from ....specs import LayerSpec, NeighborReductionSpec, ReductionSpec
+from ....specs import HyperedgeReductionSpec, LayerSpec, NeighborReductionSpec, ReductionSpec
 from ....specs._draw_spec import draws_in
 from ...spaces import AdjacencyNeighborhood, BaseNeighborhood, LatticeNeighborhood, MemoryNeighborhood
 from ...spaces._lattice import BOUNDARIES
@@ -28,6 +28,7 @@ from ._pointwise import _largest, _smallest
 
 KINDS = {'total': 'sum', 'mean': 'mean', 'maximum': 'max', 'minimum': 'min', 'variance': 'var', 'count': 'count'}
 NEIGHBOR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean', 'argmax')
+MIN_HYPEREDGE_SIZE = 2
 WEIGHTS: dict[str, object] = {}
 NEIGHBORHOODS: dict[str, object] = {}
 
@@ -69,6 +70,23 @@ def _print_neighbors(self: object, argument: Expression, weight: Expression, ove
     return f'neighbors({", ".join(parts)})'
 
 
+def _print_hyperedges(
+    self: object,
+    argument: Expression,
+    weight: Expression,
+    size: Expression,
+    kind: Expression,
+) -> str:
+    """Return a hyperedge reduction call with its keywords, leaving out every size and unit weight."""
+    del self
+    parts = [str(argument), f'reduce={NEIGHBOR_REDUCTIONS[int(SR(kind))]!r}']
+    if not _is_placeholder(size, 0):
+        parts.append(f'size={int(SR(size))}')
+    if not _is_placeholder(weight, 1):
+        parts.append(f'weight={weight}')
+    return f'hyperedges({", ".join(parts)})'
+
+
 def _eval_shift(
     self: object,
     expression: Expression,
@@ -86,6 +104,7 @@ def _eval_shift(
 REDUCTIONS = {name: function(name, nargs=4, print_func=_print_reduction) for name in KINDS}
 NEIGHBORS = function('neighbors', nargs=4, print_func=_print_neighbors)
 NEIGHBOR = function('neighbor', nargs=2)
+HYPEREDGES = function('hyperedges', nargs=4, print_func=_print_hyperedges)
 SHIFT_MEMBER = function('shift_member', nargs=4, eval_func=_eval_shift)
 
 
@@ -564,6 +583,78 @@ def neighbors(
     return NEIGHBORS(SR(expression), weighted, over_symbol, code)
 
 
+def hyperedges(
+    expression: object,
+    reduce: str = 'sum',
+    size: int | None = None,
+    weight: object = None,
+) -> Expression | FreeModuleElement:
+    """Return the reduction of an expression over the hyperedges around every member of a group on a network.
+
+    The expression is written for one hyperedge around the member that reads the reduction: the namespaces
+    `namespace.others` hold the symbols of the other members of the hyperedge in its order, `namespace.members` those
+    of all its members, which `total`, `mean`, `count`, `maximum`, and `minimum` reduce with `over=namespace.members`,
+    and `namespace` those of the reading member. So `sin(s.others[0].theta + s.others[1].theta - 2 * s.theta)` with
+    `size=3` is the three-body phase coupling over the triangles around a member. The hyperedges are those of the
+    network space of the group, and a reduction over no hyperedges is 0.
+
+    The reductions are those of `neighbors` with the weight `w_e` of every hyperedge `e` of the value `f_e`: `'sum'`,
+    `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, `'argmax'`, and `'circular-mean'`. Without a size, the
+    reduction runs over the hyperedges of every size, which the sum, the mean, and the count reduce, and the
+    expression reads `namespace.members` rather than `namespace.others`.
+
+    Args:
+        expression:
+            The value of one hyperedge, an expression of the symbols of `namespace.others`, `namespace.members`, and
+            `namespace`, or a vector of them.
+
+        reduce:
+            `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, `'argmax'`, or `'circular-mean'`.
+
+        size:
+            The number of members of the hyperedges, or `None` for every size.
+
+        weight:
+            The weight of one hyperedge, an expression of the same symbols, or `None` for 1.
+
+    Returns:
+        reduction:
+            The unevaluated reduction, one per component of a vector expression.
+
+    Raises:
+        ValidationError:
+            The reduction is unknown, or the size is not a whole number of at least two.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import sin, var
+        >>> from skcomplex.core.laws.utils import hyperedges
+        >>> theta, first, second = var('theta first second')
+        >>> hyperedges(sin(first + second - 2 * theta), size=3)
+        hyperedges(sin(first + second - 2*theta), reduce='sum', size=3)
+        >>> hyperedges(var('x'), reduce='mean')
+        hyperedges(x, reduce='mean')
+    """
+    if size is not None and (
+        isinstance(size, bool) or not isinstance(size, numbers.Integral) or size < MIN_HYPEREDGE_SIZE
+    ):
+        error_msg = f'A hyperedge reduction takes a size of 2 or more, or None for every size, not {size!r}.'
+        raise ValidationError(error_msg)
+    if reduce == 'circular-mean':
+        sines = hyperedges(sin(SR(expression)), 'sum', size, weight)
+        return arctan2(sines, hyperedges(cos(SR(expression)), 'sum', size, weight))
+    if reduce not in NEIGHBOR_REDUCTIONS:
+        error_msg = (
+            f'Unknown hyperedge reduction {reduce!r}. Use one of {", ".join((*NEIGHBOR_REDUCTIONS, "circular-mean"))}.'
+        )
+        raise ValidationError(error_msg)
+    code = SR(NEIGHBOR_REDUCTIONS.index(reduce))
+    weighted = SR(1) if weight is None else SR(weight)
+    sized = SR(0 if size is None else int(size))
+    if isinstance(expression, FreeModuleElement):
+        return vector(SR, [HYPEREDGES(SR(item), weighted, sized, code) for item in expression])
+    return HYPEREDGES(SR(expression), weighted, sized, code)
+
+
 def shift_member(expression: Expression, offset: int, *, boundary: str = 'periodic', fill: float = 0.0) -> Expression:
     """Return an expression of a group's members read at the member a number of places along the group order.
 
@@ -689,6 +780,38 @@ def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
                 argument=argument,
                 weight=None if _is_placeholder(weight, 1) else weight,
                 over=None if _is_placeholder(over, 0) else NEIGHBORHOODS[str(over)],
+            ),
+        )
+    return reductions
+
+
+def hyperedges_in(expression: object) -> list[HyperedgeReductionSpec]:
+    """Return the outermost hyperedge reductions of an expression.
+
+    Args:
+        expression:
+            A symbolic expression, a number, or a vector of expressions.
+
+    Returns:
+        reductions:
+            The hyperedge reductions, each listed once.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.laws.utils import hyperedges, hyperedges_in
+        >>> [(item.kind, item.size) for item in hyperedges_in(hyperedges(var('x'), reduce='mean', size=3))]
+        [('mean', 3)]
+    """
+    reductions = []
+    for call in _calls_in(expression, {'hyperedges'}):
+        argument, weight, size, kind = call.operands()
+        reductions.append(
+            HyperedgeReductionSpec(
+                call=call,
+                kind=NEIGHBOR_REDUCTIONS[int(SR(kind))],
+                argument=argument,
+                weight=None if _is_placeholder(weight, 1) else weight,
+                size=None if _is_placeholder(size, 0) else int(SR(size)),
             ),
         )
     return reductions

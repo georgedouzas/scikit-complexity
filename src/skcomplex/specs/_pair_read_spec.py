@@ -3,8 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+from ..types import Indices
 from ._base_spec import BaseSpec
 from ._read_spec import ReadSpec
 
@@ -24,8 +25,13 @@ class PairReadSpec(BaseSpec):
 
         image:
             Whether the symbol is a position component of the neighbour, read by its minimum image from the reader.
+
+        table:
+            The member that every neighbour stands for, for an `'other'` read whose neighbours are rows of a table,
+            such as one other member of the hyperedges around the reader, or `None` for the neighbour itself.
     """
 
     read: ReadSpec
     side: str
     image: bool = False
+    table: Indices | None = field(default=None, compare=False)

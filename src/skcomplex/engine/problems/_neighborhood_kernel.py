@@ -145,6 +145,8 @@ class NeighborhoodKernel(BaseKernel):
                 if differences is None:
                     differences = self.search.differences(x, readers, others)
                 values.append(column[readers] - differences[:, read.column])
+            elif pair.table is not None:
+                values.append(column[pair.table[others]])
             else:
                 values.append(column[others])
         return values

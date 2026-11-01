@@ -816,6 +816,9 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         if pair.side == 'shared':
             return f'{vector}[{start} + {read.column}]'
         member = {'reader': '_i_', 'edge': f'_ie{index}_[_e_]'}.get(pair.side, '_j_')
+        if pair.table is not None:
+            slot = self._data_slot(f'__neighbours_{index}_{item}', pair.table)
+            member = f'L[_L{2 * slot}_ + _j_]'
         value = f'{vector}[{start} + {member} * {read.stride} + {read.column}]'
         if not pair.image:
             return value

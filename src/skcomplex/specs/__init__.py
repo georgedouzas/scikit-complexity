@@ -25,6 +25,7 @@ from ._fractional_state_spec import FractionalStateSpec
 from ._greedy_matching_spec import GreedyMatchingSpec
 from ._heading_spec import HeadingSpec
 from ._hilbert_spec import HilbertSpec
+from ._hyperedge_reduction_spec import HyperedgeReductionSpec
 from ._issue_spec import IssueSpec
 from ._iterative_clearing_spec import IterativeClearingSpec
 from ._jump_path_spec import JumpPathSpec
@@ -116,6 +117,7 @@ __all__ = [
     'GreedyMatchingSpec',
     'HeadingSpec',
     'HilbertSpec',
+    'HyperedgeReductionSpec',
     'IssueSpec',
     'IterativeClearingSpec',
     'JumpPathSpec',

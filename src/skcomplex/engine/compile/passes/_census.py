@@ -27,7 +27,7 @@ from ....core.laws import (
     TransferLaw,
     UpdateLaw,
 )
-from ....core.laws.utils import neighborhoods_in, reductions_in
+from ....core.laws.utils import hyperedges_in, neighborhoods_in, reductions_in
 from ....core.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ....core.system import System
 from ....errors import SkcomplexError, ValidationError
@@ -296,6 +296,7 @@ class CensusPass(BasePass):
     def _outside_reductions(expression: Expression) -> Expression:
         """Return an expression with every reduction and neighbourhood reduction replaced by one placeholder symbol."""
         calls = [item.call for item in reductions_in(expression)] + [item.call for item in neighborhoods_in(expression)]
+        calls += [item.call for item in hyperedges_in(expression)]
         if not calls:
             return expression
         placeholder = symbol('_reduction')

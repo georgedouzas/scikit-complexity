@@ -326,10 +326,40 @@ class SpecsPass(BasePass):
         A group that declares a variable named `other` keeps it, and its laws reduce over neighbours without it.
         """
         if block.node.members is None or 'other' in vars(namespace):
-            return namespace
+            return SpecsPass._with_hyperedges(block, namespace, references)
         other, other_references = SpecsPass._namespace(block, ReadKind.OTHER, alias='__other')
         references.update(other_references)
-        return SimpleNamespace(**vars(namespace), other=other)
+        return SpecsPass._with_hyperedges(block, SimpleNamespace(**vars(namespace), other=other), references)
+
+    @staticmethod
+    def _with_hyperedges(
+        block: BlockSpec,
+        namespace: SimpleNamespace,
+        references: dict[Expression, ReferenceSpec],
+    ) -> SimpleNamespace:
+        """Return the namespace of a member of a group on a network with hyperedges, with the slots of one hyperedge.
+
+        The slots are `others`, the other members of a hyperedge around the member in its order, as many as the
+        largest hyperedge has, and `members`, all its members, which only the reductions over the hyperedges around
+        a member read. A group that declares a variable named like a slot keeps it.
+        """
+        space = SpecsPass._group_space(block)
+        if (
+            block.node.members is None
+            or not isinstance(space, NetworkSpace)
+            or not space.hyperedges_
+            or {'others', 'members'} & set(vars(namespace))
+        ):
+            return namespace
+        size = max(len(item) for item in space.hyperedges_)
+        others = []
+        for position in range(size - 1):
+            other, other_references = SpecsPass._namespace(block, ReadKind.OTHER, alias=f'__others{position}')
+            references.update(other_references)
+            others.append(other)
+        members, member_references = SpecsPass._namespace(block, ReadKind.OTHER, alias='__members')
+        references.update(member_references)
+        return SimpleNamespace(**vars(namespace), others=tuple(others), members=members)
 
     @staticmethod
     def _changing_search(node: NodeSpec, nodes: BlockSpec, edges: BlockSpec | None, changing: BlockSpec) -> EdgeSearch:
@@ -541,7 +571,9 @@ class SpecsPass(BasePass):
                 The spec of the laws of the members.
         """
         references = {
-            item: reference for item, reference in edge.references.items() if reference.source is ReadKind.SINGLE
+            item: reference
+            for item, reference in edge.references.items()
+            if reference.source in {ReadKind.SINGLE, ReadKind.OTHER}
         }
         for item, reference in edge.references.items():
             if reference.source not in {ReadKind.FIRST, ReadKind.SECOND}:
@@ -688,7 +720,7 @@ class SpecsPass(BasePass):
             if end in degrees:
                 name = f'degree_{base}{suffix}'
                 namespace = SpecsPass._with_degree(namespace, references, name, degrees[end])
-            namespaces[end] = namespace
+            namespaces[end] = SpecsPass._with_hyperedges(nodes, namespace, references)
         paths: dict[str, str | tuple[str, ...]] = {'source': nodes.node.path, 'target': nodes.node.path}
         groups: dict[str, int] = {}
         if edges is not None:

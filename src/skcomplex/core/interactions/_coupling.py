@@ -18,12 +18,13 @@ from ...errors import ValidationError
 from ...specs import ClampSpec, ParameterSpec, RadiusSpec, RoleSpec
 from ...types import Array
 from ..laws import BaseLaw, RateLaw, RuleLaw, UpdateLaw
-from ..laws.utils import count, delayed, maximum, minimum, neighbors, shift_member, total
+from ..laws.utils import count, delayed, hyperedges, maximum, minimum, neighbors, shift_member, total
 from ..spaces import BaseNeighborhood
 from ..types import AgentCombination, AgentViewProtocol, Combination, ModelViewProtocol, NamespaceFunction, Target
 from ._neighbor import NeighborInteraction
 
-MODES = ('edges', 'group', 'next')
+MODES = ('edges', 'group', 'next', 'hyperedges')
+MIN_SIZE = 2
 REDUCTIONS = ('sum', 'mean', 'max', 'min', 'normalized-mean', 'circular-mean')
 SUMS = ('sum', 'mean')
 EXTREMES = ('max', 'min')
@@ -50,6 +51,11 @@ class CouplingInteraction(NeighborInteraction):
     `source`, and a source that is one element or a list of elements couples every member of the target to them. The
     reduction over separate elements is written out term by term.
     - `'next'`: the next member of the group in member order, the first after the last.
+    - `'hyperedges'`: the other members of every hyperedge around `i` of `size` members, or of every size, on a network
+      with hyperedges. The function then reads `namespace.member`, `namespace.others`, the other members of one
+      hyperedge in its order, and `namespace.members`, all its members, which reductions over them read, and the
+      reduction runs over the hyperedges around `i`. The default function is the sum over the other members of the
+      difference of `read`.
 
     With `include_self`, the reduction also runs over `j = i`. Every term `f_ij` has a weight `w_ij`: on edges, the
     state `weights` of the edge group, which a subclass binds with a second role, over the group, the entry `W_ij` of
@@ -100,7 +106,10 @@ class CouplingInteraction(NeighborInteraction):
             `'sum'`, `'mean'`, `'max'`, `'min'`, `'normalized-mean'`, or `'circular-mean'`.
 
         mode:
-            `'edges'`, `'group'`, or `'next'`.
+            `'edges'`, `'group'`, `'next'`, or `'hyperedges'`.
+
+        size:
+            The number of members of the hyperedges of the mode `'hyperedges'`, or `None` for every size.
 
         weights:
             The name of the state of the edge group in the mode `'edges'`, a matrix with one row per member and one
@@ -168,6 +177,7 @@ class CouplingInteraction(NeighborInteraction):
         function: NamespaceFunction | None = None,
         reduce: str = 'sum',
         mode: str = 'edges',
+        size: int | None = None,
         weights: Weights = None,
         include_self: bool = False,
         lag: Annotated[float, ParameterSpec()] = 0.0,
@@ -188,6 +198,7 @@ class CouplingInteraction(NeighborInteraction):
         self.function = function
         self.reduce = reduce
         self.mode = mode
+        self.size = size
         self.weights = weights
         self.include_self = include_self
         self.lag = lag
@@ -254,6 +265,26 @@ class CouplingInteraction(NeighborInteraction):
             error_msg = 'A matrix of weights of coupling needs the mode group. Name an edge state on the edges.'
             raise ValidationError(error_msg)
 
+    def _check_hyperedges(self) -> None:
+        """Raise an error for a size outside the mode hyperedges, or a setting the mode hyperedges does not take."""
+        if self.size is not None and (
+            self.mode != 'hyperedges'
+            or isinstance(self.size, bool)
+            or not isinstance(self.size, int)
+            or self.size < MIN_SIZE
+        ):
+            error_msg = (
+                f'The size {self.size!r} of coupling needs the mode hyperedges and a whole number of 2 or more, but '
+                f'the mode is {self.mode!r}.'
+            )
+            raise ValidationError(error_msg)
+        if self.mode == 'hyperedges' and (self.include_self or self.delay != 0 or self.form == 'agent'):
+            error_msg = (
+                'The coupling over hyperedges takes no include_self, no delay, and no agent form. Couple the member '
+                'to itself with another interaction.'
+            )
+            raise ValidationError(error_msg)
+
     def _check_agent(self) -> None:
         """Raise an error for radii, a clamp, a phase, or several written states outside the agent form, or no radii."""
         if self.form != 'agent':
@@ -284,6 +315,7 @@ class CouplingInteraction(NeighborInteraction):
         self._check_variants()
         self._check_reduction()
         self._check_structure()
+        self._check_hyperedges()
         self._check_agent()
 
     def _get_written(self) -> str:
@@ -485,8 +517,46 @@ class CouplingInteraction(NeighborInteraction):
         number = neighbors(SR(1), over=self.neighborhood, reduce='count') + 1
         return self._get_reduced(lambda part: self._get_neighbor_total(namespace, part), number)
 
+    def _get_hyperedge_term(self, namespace: SimpleNamespace, around: SimpleNamespace) -> Target:
+        """Return the term of one hyperedge around a member, with the lag applied to the read state of the member."""
+        member = around.member
+        if self.lag != 0:
+            member = SimpleNamespace(**{**vars(member), self.read: getattr(member, self.read) + namespace.lag})
+        if self.function is None:
+            members = around.members
+            own = getattr(around.member, self.read)
+            others = total(getattr(members, self.read), over=members) - own
+            return others - (count(over=members) - 1) * getattr(member, self.read)
+        return self.function(SimpleNamespace(**self._parameters(namespace), **{**vars(around), 'member': member}))
+
+    def _get_hyperedge_reduction(self, namespace: SimpleNamespace) -> Target:
+        """Return the reduction over the hyperedges around the member.
+
+        Raises:
+            ValidationError:
+                The members live on no network with hyperedges.
+        """
+        target = namespace.target
+        others, members = getattr(target, 'others', None), getattr(target, 'members', None)
+        if others is None or members is None:
+            error_msg = (
+                f'The coupling {self.label!r} over hyperedges binds {self.target!r}, whose members live on no network '
+                'with hyperedges. Give the group a network space with hyperedges.'
+            )
+            raise ValidationError(error_msg)
+        if self.size is not None:
+            others = others[: self.size - 1]
+        around = SimpleNamespace(member=target, others=others, members=members)
+        term = self._get_hyperedge_term(namespace, around)
+        weight = None
+        if callable(self.weights):
+            weight = self.weights(SimpleNamespace(**self._parameters(namespace), **vars(around)))
+        return self._map(term, lambda item: hyperedges(item, reduce=self.reduce, size=self.size, weight=weight))
+
     def _get_reduction(self, namespace: SimpleNamespace) -> Target:
         """Return the reduction that one member gets, by mode."""
+        if self.mode == 'hyperedges':
+            return self._get_hyperedge_reduction(namespace)
         if self.mode == 'group':
             return self._get_group_reduction(namespace)
         if self.mode == 'next':

@@ -101,7 +101,30 @@ the nodes of a network with hyperedges may use it. Outside such a network the co
 `CouplingInteraction(mode='hyperedges', size=...)` uses it: member `i` gets the reduction over its hyperedges of
 `function(ns)`, so the three-body Kuramoto coupling is
 `CouplingInteraction(mode='hyperedges', size=3, read='theta', write='theta',
-function=lambda s: sin(s.others[0].theta + s.others[1].theta - 2 * s.target.theta))`.
+function=lambda s: sin(s.others[0].theta + s.others[1].theta - 2 * s.member.theta))`.
+
+Implementation (task 2.3):
+- The namespace of a member of a group on a network with hyperedges, `s` of its own laws, `s.<role>` of an
+  interaction, and both ends `s.source` and `s.target` of an interaction over neighbours, holds `others`, as many
+  slots as the largest hyperedge has other members, and `members`, read as `ReadKind.OTHER`. A group that declares a
+  variable named `others` or `members` keeps it.
+- The reduction lowers to the existing `NeighborhoodKernel`, one per size, whose `StaticSearch` rows are the
+  hyperedges of that size around every member, grouped by member (`HyperedgeTables._incidences`). The new field
+  `table` of `PairReadSpec` gives the other member of every row for one position, so the NumPy and Numba kernels gather
+  `others[p]` through it; the member reads itself. Reductions over `members` are written out with the expansion of the
+  hyperedge pass over the member and the other members.
+- Without a size and with several sizes in the network, the sum and the count add the kernels of every size and the
+  mean divides their sum by the number of hyperedges around the member; the other reductions need a size. Reading
+  more other members than a size has, `members` outside a reduction over them, or the neighbour `other` raises
+  `ValidationError`.
+- Issues: a reduction in a component outside a network with hyperedges gets `law-space`, and a size the network does
+  not have gets `binding`, both from `PassCompiler._around_issues`.
+- The coupling function reads `s.member`, as the other modes do, `s.others`, cut to `size - 1` when the size is given,
+  and `s.members`. The default term is the sum over the other members of `x_j - x_i`, with the lag on `x_i`, a
+  callable `weights` gives the weight of one hyperedge, and the mode takes no `include_self`, `delay`, or agent form.
+- `hypergraph_kuramoto` keeps `SimplexCouplingInteraction(HyperedgeInteraction)`. Two couplings of sizes 2 and 3 give
+  its drift within 9e-16, but summing in another order moves its trajectory by up to 4e-4 over its default run, so the
+  trajectories are not identical, and `K1` and `K2` would stop being parameters of the interaction.
 
 ### Symbolic groupings
 

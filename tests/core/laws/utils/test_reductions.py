@@ -17,6 +17,8 @@ from skcomplex.core.laws.utils import (
     NEIGHBOR_REDUCTIONS,
     circular_mean,
     count,
+    hyperedges,
+    hyperedges_in,
     maximum,
     mean,
     minimum,
@@ -952,3 +954,124 @@ def test_minimum_of_several_expressions_takes_no_group():
     x = var('x')
     with pytest.raises(ValidationError, match='member by member'):
         minimum(x, 2 * x, where=x > 0)
+
+
+HYPEREDGES = [(0, 1, 2), (1, 2, 3, 4), (3, 4, 5), (0, 2, 4, 5), (2, 5)]
+
+
+class AroundElement(Element):
+    """Element whose rate of `x` is a reduction over the hyperedges around it."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        term: str = 'triad',
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.term = term
+
+    def _get_laws(self, s):
+        """Return the rate of `x`, a reduction over the hyperedges around the member."""
+        terms = {
+            'triad': lambda: hyperedges(sin(s.others[0].x + s.others[1].x - 2 * s.x), size=3),
+            'pull': lambda: hyperedges(total(s.members.x, over=s.members) - count(over=s.members) * s.x),
+            'mean': lambda: hyperedges(mean(s.members.x, over=s.members) - s.x, reduce='mean'),
+            'largest': lambda: hyperedges(s.others[0].x, reduce='max', size=2),
+            'beyond': lambda: hyperedges(s.others[1].x, size=2),
+            'extremum': lambda: hyperedges(maximum(s.members.x, over=s.members), reduce='max'),
+            'missing': lambda: hyperedges(s.x, size=6),
+            'count': lambda: hyperedges(s.x, reduce='count'),
+        }
+        return [RateLaw(s.x, terms[self.term]())]
+
+
+def _around_drift(term, values, backend):
+    """Return the drift of the members of the network of the hyperedges under a reduction over hyperedges."""
+    space = NetworkSpace(nx.complete_graph(6), hyperedges=HYPEREDGES)
+    system = System(
+        elements=[
+            LatticeElement('nodes', element=AroundElement, space=space, values={'x': values, 'term': term}),
+        ],
+    )
+    problem = compile_system(system, backend=backend)
+    return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'nodes.x')
+
+
+def _around_expected(term, values):
+    """Return the reduction over the hyperedges around every member computed by a loop over the hyperedges."""
+    expected, numbers = np.zeros(6), np.zeros(6)
+    for hyperedge in HYPEREDGES:
+        for member in hyperedge:
+            others = [values[other] for other in hyperedge if other != member]
+            if term == 'triad' and len(hyperedge) == 3:
+                expected[member] += np.sin(sum(others) - 2 * values[member])
+            elif term == 'pull':
+                expected[member] += values[list(hyperedge)].sum() - len(hyperedge) * values[member]
+            elif term == 'mean':
+                expected[member] += values[list(hyperedge)].mean() - values[member]
+                numbers[member] += 1
+            elif term == 'largest' and len(hyperedge) == 2:
+                expected[member] = max(expected[member], others[0]) if numbers[member] else others[0]
+                numbers[member] += 1
+    return expected / np.maximum(numbers, 1) if term == 'mean' else expected
+
+
+def test_hyperedges_stays_unevaluated_with_its_size_and_weight():
+    """Test that a reduction over hyperedges keeps its kind, size, and weight, and maps a vector by component."""
+    x, w = var('x w')
+    (found,) = hyperedges_in(1 + hyperedges(x**2, reduce='mean', size=3, weight=w))
+    assert (found.kind, found.size, str(found.argument), str(found.weight)) == ('mean', 3, 'x^2', 'w')
+    (every,) = hyperedges_in(hyperedges(x))
+    assert (every.size, every.weight) == (None, None)
+    assert len(hyperedges(vector([x, w]))) == 2
+    assert 'arctan2' in str(hyperedges(x, reduce='circular-mean'))
+
+
+@pytest.mark.parametrize(
+    ('arguments', 'match'),
+    [({'reduce': 'median'}, 'Unknown hyperedge reduction'), ({'size': 1}, 'size of 2 or more')],
+)
+def test_hyperedges_rejects_an_unknown_reduction_or_size(arguments, match):
+    """Test that an unknown reduction or a size below two raises an error."""
+    with pytest.raises(ValidationError, match=match):
+        hyperedges(var('x'), **arguments)
+
+
+@pytest.mark.parametrize('term', ['triad', 'pull', 'mean', 'largest'])
+@pytest.mark.parametrize('backend', BACKENDS, ids=['numpy', 'numba'])
+def test_hyperedges_matches_a_loop_over_the_hyperedges_around_every_member(term, backend):
+    """Test that a reduction over the hyperedges around every member equals a loop over the hyperedges."""
+    values = np.random.default_rng(4).uniform(0.0, 2 * np.pi, size=6)
+    drift = _around_drift(term, values, backend)
+    assert np.allclose(drift, _around_expected(term, values), rtol=0.0, atol=1e-12)
+
+
+@pytest.mark.parametrize(
+    ('term', 'match'),
+    [('beyond', 'other members'), ('extremum', 'only the sum, the mean, and the count')],
+)
+def test_hyperedges_rejects_reads_its_hyperedges_do_not_have(term, match):
+    """Test that reading more other members than a size has, or the maximum over every size, raises an error."""
+    with pytest.raises(ValidationError, match=match):
+        _around_drift(term, np.zeros(6), NumpyBackend())
+
+
+def test_validate_reports_a_hyperedge_reduction_of_a_missing_size():
+    """Test that a reduction over hyperedges of a size the network does not have gives a binding issue."""
+    space = NetworkSpace(nx.complete_graph(6), hyperedges=HYPEREDGES)
+    system = System(elements=[LatticeElement('nodes', element=AroundElement, space=space, values={'term': 'missing'})])
+    (issue,) = [issue for issue in PassCompiler().check().prepare(system).report_.issues if issue.code == 'binding']
+    assert 'size 6' in issue.message
+
+
+def test_validate_reports_a_hyperedge_reduction_in_a_lattice():
+    """Test that a reduction over hyperedges in a lattice space has a law-space issue."""
+    space = LatticeSpace((3, 3))
+    system = System(elements=[LatticeElement('sites', element=AroundElement, space=space, values={'term': 'count'})])
+    issues = PassCompiler().check().prepare(system).report_.issues
+    assert [issue.code for issue in issues] == ['law-space']
+    assert 'hyperedges' in issues[0].message
