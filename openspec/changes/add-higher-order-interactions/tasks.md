@@ -44,6 +44,6 @@
 
 ## 6. Documentation and gate
 
-- [ ] 6.1 Document hypergraphs, laws per hyperedge, and symbolic groupings in the user guide, and add the changelog
+- [x] 6.1 Document hypergraphs, laws per hyperedge, and symbolic groupings in the user guide, and add the changelog
   entry; verify the documentation test passes
 - [ ] 6.2 Run formatting, checks, the docs build, and tests through nox; verify all of them pass
