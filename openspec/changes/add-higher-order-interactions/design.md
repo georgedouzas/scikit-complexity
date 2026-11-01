@@ -36,6 +36,30 @@
   used across domains (epidemic thresholds, infrastructure failure, habitat connectivity, social cohesion), so
   `skcomplex.core.laws.utils` gains a reduction over the connected components of a network's active links, giving
   component labels and the size of the largest component. `triadic_percolation` builds on it. Decided on 2026-11-01.
+- **The components reduction is a neighbourhood reduction.** `components(active, over=None, reduce='label')` in its
+  own module of `skcomplex.core.laws.utils` writes the activity of one link as `neighbors` writes the value of one
+  neighbour, reading `namespace.other`, `namespace`, and the states of the edge group of the layer, and a link is
+  active where the expression is not 0, so a condition or an edge weight selects the links. The reductions are
+  `'label'`, the smallest member of the component, `'size'`, the size of the member's component, `'largest'`, the size
+  of the largest component, and `'giant'`, 1 for the members of the largest component, the one of the smallest label
+  among ties, so a node tests its membership of the giant component without comparing sizes. The Sage function and
+  its kinds sit beside `neighbors` in `_reductions.py`, and `neighborhoods_in` returns its calls with the kinds
+  `'component-label'`, `'component-size'`, `'component-largest'`, and `'component-giant'`, so every pass that finds,
+  validates, and lowers neighbourhood reductions takes it unchanged. `NeighborhoodKernel` evaluates the activity of
+  every pair and runs SciPy's `connected_components` on the active pairs, read without direction, and the Numba
+  printer collects the active pairs in one serial loop and calls a union-find in `_numba_components.py`. Any
+  neighbourhood works, so lattices and radius neighbourhoods give site and continuum percolation. networkx was
+  rejected for the NumPy side, since it builds a Python graph every step, and SciPy is already a runtime dependency.
+  Decided on 2026-11-01.
+- **Triadic percolation alternates by step parity.** Update laws of one step read the states at its start, so the
+  regulation of the links and the giant component of the nodes cannot run in one step. `triadic_percolation` runs one
+  time step of Millán et al. as two steps: the links follow their regulators in even steps,
+  `where(mod(t, 2) < 1, ...)`, and the nodes take the giant component of the active links in odd steps. Every link has
+  one regulator, as the hyperedge of size three of the design holds, positive or negative, so the mean-field map is
+  `R' = S(c p ((1 - nu) R + nu (1 - R)))` for the share `nu` of negative regulators. With negative regulators alone the
+  map decreases, its bifurcation point is the percolation point `p = 1 / c`, and above it the giant component has
+  period two, which the tests verify. Several regulators per link, which period doubling to chaos needs, would need
+  update laws of one edge from several hyperedges to combine, which the design does not cover. Decided on 2026-11-01.
 
 ### Hyperedges from XGI
 
