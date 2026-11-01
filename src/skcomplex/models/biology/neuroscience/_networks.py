@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
+import networkx as nx
 import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo, tanh
 from sage.sets.real_set import RealSet
@@ -35,12 +36,7 @@ TRACE_TIME = 2.0
 
 def _random_connections(n_neurons: int, probability: float, rng: np.random.Generator) -> list[tuple[int, int]]:
     """Return the directed links of a random network without self-links."""
-    return [
-        (source, target)
-        for source in range(n_neurons)
-        for target in range(n_neurons)
-        if source != target and rng.random() < probability
-    ]
+    return list(nx.gnp_random_graph(n_neurons, probability, seed=rng, directed=True).edges)
 
 
 def _link_weights(stimulus: Array, total: float) -> Array:

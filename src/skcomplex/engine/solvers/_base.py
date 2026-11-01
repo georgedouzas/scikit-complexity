@@ -37,7 +37,10 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
 
     Args:
         random_state:
-            The seed or generator of stochastic solvers.
+            The seed or generator of stochastic solvers. A seed starts a stream spawned from
+            `np.random.SeedSequence(random_state)`, so the dynamics never repeat the numbers that
+            `np.random.default_rng(random_state)` gives a factory or a user for initial states; a generator is used
+            as it is.
 
         until:
             The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped,
@@ -170,12 +173,18 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
             error_msg = f'{type(self).__name__} solves the {form} form, but the problem has the {problem.form} form.'
             raise SolverError(error_msg)
         self.problem_ = problem
-        self.rng_ = np.random.default_rng(self.random_state)
+        self.rng_ = self._generator()
         self.initial_state_ = problem.initial_state.copy()
         self.events_ = []
         self.stopped_at_ = None
         self.snapshot_ = None
         self.agents_ = {}
+
+    def _generator(self) -> np.random.Generator:
+        """Return the generator of the random state, spawned from its seed sequence for a seed."""
+        if isinstance(self.random_state, np.random.Generator):
+            return self.random_state
+        return np.random.default_rng(np.random.SeedSequence(self.random_state).spawn(1)[0])
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
         """Advance the state from time `t` to time `until`.

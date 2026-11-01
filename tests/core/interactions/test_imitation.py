@@ -20,6 +20,7 @@ RUNS = 200
 FRACTION = 0.3
 DISCRETE_SIZE = 20
 DISCRETE_RUNS = 100
+SEED = 7
 
 
 class PlayerElement(Element):
@@ -126,7 +127,7 @@ def _fermi_switching(strategies, final):
 
 def test_fermi_copies_a_random_neighbour_with_the_fermi_probability_from_either_state():
     """Test that in one step members of both states on a mixed lattice switch with the exact Fermi probability."""
-    strategies = (np.random.default_rng(7).random((150, 150)) < 0.5).astype(float)
+    strategies = (np.random.default_rng(SEED).random((150, 150)) < 0.5).astype(float)
     system = System(
         elements=[
             LatticeElement(
@@ -139,7 +140,7 @@ def test_fermi_copies_a_random_neighbour_with_the_fermi_probability_from_either_
         interactions=[ImitationInteraction('imitation', target='players', rule='fermi', form='probability')],
         time=DiscreteTime(),
     )
-    trajectory = Simulation(system, dt=1.0, random_state=0).check().prepare().run(until=1.0).trajectory_
+    trajectory = Simulation(system, dt=1.0, random_state=SEED).check().prepare().run(until=1.0).trajectory_
     final = trajectory.values('players.state')[-1].reshape(strategies.shape)
     for switched, exact in _fermi_switching(strategies, final):
         assert switched == pytest.approx(exact, abs=0.01)
@@ -148,7 +149,7 @@ def test_fermi_copies_a_random_neighbour_with_the_fermi_probability_from_either_
 def test_agents_copy_a_random_neighbour_with_the_fermi_probability_from_either_state():
     """Test that in one step agents of both states on a mixed grid switch with the exact Fermi probability."""
     size = 60
-    strategies = (np.random.default_rng(7).random((size, size)) < 0.5).astype(float)
+    strategies = (np.random.default_rng(SEED).random((size, size)) < 0.5).astype(float)
     cells = [(x, y) for x in range(size) for y in range(size)]
     group = GroupElement(
         'players',
@@ -163,7 +164,7 @@ def test_agents_copy_a_random_neighbour_with_the_fermi_probability_from_either_s
         space=LatticeSpace((size, size), boundary='periodic', neighborhood='von_neumann'),
         time=DiscreteTime(),
     )
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=SEED).check().prepare().run(until=1).trajectory_
     final = np.asarray(trajectory.agents('players', 1).values['state'], dtype=float).reshape(strategies.shape)
     for switched, exact in _fermi_switching(strategies, final):
         assert switched == pytest.approx(exact, abs=0.03)

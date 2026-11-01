@@ -11,6 +11,7 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
 from sage.sets.real_set import RealSet
+from scipy import stats
 
 from ....core.elements import Element, GroupElement
 from ....core.interactions import CouplingInteraction, Interaction, RateInteraction, RelaxationInteraction
@@ -24,7 +25,8 @@ from ..._catalog import register_model
 
 def _lorentzian_quantiles(center: float, width: float, size: int) -> list[float]:
     """Return evenly spaced quantiles of a Lorentzian distribution."""
-    return [center + width * math.tan(math.pi * ((index + 0.5) / size - 0.5)) for index in range(size)]
+    levels = (np.arange(size) + 0.5) / size
+    return [float(value) for value in stats.cauchy.ppf(levels, loc=center, scale=width)]
 
 
 def _response(x: Expression, gain: Expression, threshold: Expression) -> Expression:

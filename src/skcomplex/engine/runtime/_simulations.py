@@ -85,7 +85,9 @@ class Simulation(BaseConfig[None, float]):
             Whether to record the frames as the trajectory `trajectory_`.
 
         random_state:
-            The seed or generator of stochastic solvers.
+            The seed or generator of stochastic solvers. A seed starts a stream spawned from
+            `np.random.SeedSequence(random_state)`, independent of `np.random.default_rng(random_state)`, so a model
+            can draw its initial state from the same seed; a generator is used as it is.
 
         checked:
             Whether to check after every frame that every state lies in its domain, such as an alphabet of labels,
@@ -263,8 +265,7 @@ class Simulation(BaseConfig[None, float]):
                 The simulated time the run stops at.
         """
         self.dt_ = self._check_dt(self.problem_, until)
-        rng = np.random.default_rng(self.random_state)
-        self.stepper_.set_params(random_state=rng, until=until).check().prepare(self.problem_)
+        self.stepper_.set_params(random_state=self.random_state, until=until).check().prepare(self.problem_)
         self.time_ = 0.0
         self.state_ = self.stepper_.initial_state_.copy()
         self._step = 0

@@ -9,6 +9,7 @@ from typing import Annotated
 
 import numpy as np
 import scipy.sparse
+from reservoirpy import mat_gen
 from sage.all__sagemath_symbolics import Expression, oo, sin, tanh
 from sage.sets.real_set import RealSet
 
@@ -27,15 +28,8 @@ def _recurrent_weights(
     rng: np.random.Generator,
 ) -> scipy.sparse.csr_array:
     """Return sparse Gaussian recurrent weights scaled to a spectral radius."""
-    weights = scipy.sparse.random_array(
-        (n_units, n_units),
-        density=connectivity,
-        format='csr',
-        rng=rng,
-        data_sampler=rng.standard_normal,
-    )
-    radius = np.abs(np.linalg.eigvals(weights.toarray())).max()
-    return scipy.sparse.csr_array(weights * (spectral_radius / radius))
+    weights = mat_gen.normal(n_units, n_units, connectivity=connectivity, sr=spectral_radius, seed=rng)
+    return scipy.sparse.csr_array(weights)
 
 
 def _leaky_tanh(s: SimpleNamespace, *, weights: scipy.sparse.csr_array) -> Expression:

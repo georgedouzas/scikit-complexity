@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import itertools
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
@@ -13,6 +12,7 @@ import networkx as nx
 import numpy as np
 import xgi
 from sage.all__sagemath_symbolics import sin
+from scipy import stats
 
 from ....core.elements import LatticeElement
 from ....core.interactions import HyperedgeInteraction
@@ -76,13 +76,7 @@ class SimplexCouplingInteraction(HyperedgeInteraction):
 
 def _simplices(n_oscillators: int, links: float, triangles: float, seed: int) -> xgi.Hypergraph:
     """Return a random hypergraph of the given densities of links and of triangles over the oscillators."""
-    rng = np.random.default_rng(seed)
-    pairs = [pair for pair in itertools.combinations(range(n_oscillators), 2) if rng.random() < links]
-    triads = [triad for triad in itertools.combinations(range(n_oscillators), 3) if rng.random() < triangles]
-    hypergraph = xgi.Hypergraph()
-    hypergraph.add_nodes_from(range(n_oscillators))
-    hypergraph.add_edges_from([list(item) for item in [*pairs, *triads]])
-    return hypergraph
+    return xgi.fast_random_hypergraph(n_oscillators, [links, triangles], seed=seed)
 
 
 @register_model(
@@ -154,7 +148,7 @@ def hypergraph_kuramoto(
     mean_links = max(PAIR * sizes.count(PAIR) / n_oscillators, 1.0)
     mean_triangles = max(3 * sizes.count(3) / n_oscillators, 1.0)
     rng = np.random.default_rng(seed + 1)
-    omega = width * np.tan(math.pi * (rng.uniform(size=n_oscillators) - 0.5))
+    omega = stats.cauchy.ppf(rng.uniform(size=n_oscillators), scale=width)
     theta = rng.uniform(0, 2 * math.pi, n_oscillators) if phases is None else np.asarray(phases, dtype=float)
     oscillators = LatticeElement(
         'oscillators',

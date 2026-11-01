@@ -20,6 +20,7 @@ from ...core.elements import BaseElement, GroupElement
 from ...core.laws import BaseLaw, BoundaryLaw, MatchLaw, RuleLaw, TransferLaw
 from ...core.spaces import BaseSpace, ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from ...core.specs import CompiledAgentsSpec
+from ...core.system import System
 from ...errors import ConservationError, SimulationError, SpaceError, ValidationError
 from ...specs import DEFAULT_PHASE, AgentSnapshotSpec, AgentStateSpec, PhaseSpec, PhasesScheduleSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind, VariableKind
@@ -913,9 +914,8 @@ class MesaSolver(ExternalSolver):
                 continue
             for path in view._paths(rule.members):
                 self._member_rules.setdefault(path, []).append((view, rule))
-        time = getattr(problem.system, 'time', None)
-        schedule = time.check().prepare().schedule_ if isinstance(time, DiscreteTime) else None
-        self._phases = self._phase_plan(schedule.phases if isinstance(schedule, PhasesScheduleSpec) else (), problem)
+        declared = self._declared_phases(problem.system) if problem.system is not None else []
+        self._phases = self._phase_plan(declared, problem)
         owners = [(item.path, type(item.interaction)) for item in problem.interactions] + [
             (spec.path, spec.element.element if isinstance(spec.element, GroupElement) else type(spec.element))
             for spec in problem.agents
@@ -1414,6 +1414,19 @@ class MesaSolver(ExternalSolver):
         return rule.phase or DEFAULT_PHASE
 
     @staticmethod
+    def _declared_phases(system: System) -> list[PhaseSpec]:
+        """Return the phases of the schedules of a system and its nested systems, the first of every name kept."""
+        time = system.time
+        schedule = time.check().prepare().schedule_ if isinstance(time, DiscreteTime) else None
+        phases = list(schedule.phases) if isinstance(schedule, PhasesScheduleSpec) else []
+        for nested in system.systems:
+            phases += MesaSolver._declared_phases(nested)
+        kept: dict[str, PhaseSpec] = {}
+        for phase in phases:
+            kept.setdefault(phase.name, phase)
+        return list(kept.values())
+
+    @staticmethod
     def _phase_plan(phases: Sequence[PhaseSpec], problem: ProblemSpec) -> list[PhaseSpec] | None:
         """Return the phases of a step with the default phase, or `None` when no phase is declared or named."""
         rules = MesaSolver._rules_of(
@@ -1422,9 +1435,6 @@ class MesaSolver(ExternalSolver):
         if not phases and all(rule.phase is None for rule in rules):
             return None
         names = [phase.name for phase in phases]
-        if len(set(names)) != len(names):
-            error_msg = f'Phase names must be unique, and they are: {", ".join(names)}.'
-            raise SimulationError(error_msg)
         plan = list(phases) if DEFAULT_PHASE in names else [PhaseSpec(DEFAULT_PHASE), *phases]
         unknown = sorted({MesaSolver._phase_of(rule) for rule in rules} - {phase.name for phase in plan})
         if unknown:

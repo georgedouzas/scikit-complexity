@@ -106,6 +106,17 @@ def test_undeclared_phase_raises():
         Simulation(system).check().prepare().run(until=1)
 
 
+def test_run_reads_the_phases_of_a_nested_system():
+    """Test that rules run in a phase that the schedule of a nested system declares."""
+    nested = System(
+        label='market',
+        elements=[GroupElement('employers', element=EmployerElement, size=2)],
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('offers')])),
+    )
+    trajectory = Simulation(System(systems=[nested]), random_state=0).check().prepare().run(until=3).trajectory_
+    assert np.all(trajectory.agents('market/employers', 3).values['offer'] == 4.0)
+
+
 def test_phases_keep_unphased_models():
     """Rules without a phase run in the default phase."""
 

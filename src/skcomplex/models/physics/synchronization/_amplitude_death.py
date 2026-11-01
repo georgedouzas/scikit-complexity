@@ -10,6 +10,7 @@ from typing import Annotated
 import numpy as np
 from sage.all__sagemath_symbolics import Expression, oo, sqrt
 from sage.sets.real_set import RealSet
+from scipy import stats
 
 from ....core.elements import GroupElement
 from ....core.interactions import CouplingInteraction
@@ -110,7 +111,7 @@ def _frequency_quantiles(size: int, width: float, distribution: str) -> np.ndarr
     """Return the midpoint quantiles of a Lorentzian or quartic density of frequencies of a given width."""
     levels = (np.arange(size) + 1 / 2) / size
     if distribution == 'lorentzian':
-        return width * np.tan(math.pi * (levels - 1 / 2))
+        return np.asarray(stats.cauchy.ppf(levels, scale=width))
     if distribution == 'quartic':
         grid = np.tan(np.linspace(-math.pi / 2, math.pi / 2, QUANTILE_GRID_SIZE)[1:-1])
         return width * np.interp(levels, _quartic_cumulative(grid), grid)

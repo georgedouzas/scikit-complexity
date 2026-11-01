@@ -3,13 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import itertools
 import math
 from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
 import numpy as np
+import xgi
 from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
@@ -114,13 +114,12 @@ class SimplicialInfectionInteraction(HyperedgeInteraction):
 
 def _simplicial_complex(n_nodes: int, links: float, triangles: float, seed: int) -> tuple[nx.Graph, list[tuple]]:
     """Return a random simplicial complex: random links, and random filled triangles whose sides join the links."""
-    rng = np.random.default_rng(seed)
-    triads = [triad for triad in itertools.combinations(range(n_nodes), TRIANGLE) if rng.random() < triangles]
+    simplices = xgi.random_simplicial_complex(n_nodes, [links, triangles], seed=seed)
+    members = [tuple(sorted(edge)) for edge in simplices.edges.members()]
     graph = nx.Graph()
     graph.add_nodes_from(range(n_nodes))
-    graph.add_edges_from(pair for pair in itertools.combinations(range(n_nodes), PAIR) if rng.random() < links)
-    graph.add_edges_from(pair for triad in triads for pair in itertools.combinations(triad, PAIR))
-    return graph, [*graph.edges, *triads]
+    graph.add_edges_from(edge for edge in members if len(edge) == PAIR)
+    return graph, [*graph.edges, *(edge for edge in members if len(edge) == TRIANGLE)]
 
 
 @register_model(

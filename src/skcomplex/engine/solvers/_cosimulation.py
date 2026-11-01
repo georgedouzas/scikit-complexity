@@ -207,7 +207,7 @@ class CoSimulationSolver(Solver):
                 error_msg = f'The compiler returned a {type(partitioned).__name__}, not a ProblemSpec.'
                 raise TypeError(error_msg)
             problem = partitioned
-        self.problem_, self.rng_ = problem, np.random.default_rng(self.random_state)
+        self.problem_, self.rng_ = problem, self._generator()
         generators = self.rng_.spawn(len(problem.partitions))
         given = dict(self.solvers or {})
         self.steppers_: dict[str, Solver] = {}
