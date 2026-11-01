@@ -46,9 +46,9 @@
   spectral and finite-element fields keep their own operator, and make couplings on fields read a fixed boundary value
   as `laplacian` does; verify the linear exchange and diffusive coupling scenarios, and agreement with the edge kernel
   away from fixed edges
-- [ ] 5.2 Add the optional `boundary=` argument of `inverse_helmholtz`, cubic interpolation (`order=3`) for shifted reads,
-  and the sparse path for operands whose states have different boundary conditions, as the design describes; verify
-  each against a direct computation
+- [x] 5.2 Add the optional `boundary=` argument of `inverse_helmholtz` and cubic interpolation (`order=3`) for shifted
+  reads, and require `boundary=` when an inverted operand mixes states of different boundary conditions; verify each
+  against a direct computation
 
 ## 6. Models
 

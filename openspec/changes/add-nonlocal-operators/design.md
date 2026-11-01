@@ -43,6 +43,11 @@
 
 ## Decisions
 
+- **Mixed boundaries need `boundary=`** (decided on 2026-11-01): an inversion whose operand mixes states of different
+  boundary conditions has no single boundary to solve with, so it raises an error asking for `boundary=`, and with
+  `boundary=` it runs on the fast transforms. Per-axis boundaries (a channel periodic along one axis and walled along
+  the other) would need a sparse path; they are not provided until a model needs them.
+
 - **Couplings on fields already lower** (found while applying 5.1): a per-edge `CouplingInteraction` on a lattice or
   network `FieldElement` compiles through the edge kernels on NumPy and Numba and matches a direct sum. Task 5.1 adds
   only the `laplacian` lowering of a constant times `(other.x - member.x)`, and couplings on fields read a fixed boundary
