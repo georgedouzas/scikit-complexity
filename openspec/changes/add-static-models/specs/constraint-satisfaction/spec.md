@@ -2,40 +2,37 @@
 
 ## Purpose
 
-Lets a user declare Boolean decision states under clauses and cardinality constraints, decide satisfiability as
-constraints arrive frame by frame, and train estimators by epochs.
+Lets a user reveal clauses and cardinality constraints on the Boolean states of a group step by step and decide their
+satisfiability incrementally.
 
 ## ADDED Requirements
 
-### Requirement: Constraint problems declare Boolean states and constraints
-Elements SHALL declare Boolean decision states, clauses over literals, and cardinality constraints that at least or
-at most `k` of a set of literals hold. Constraints SHALL be given as a sequence, so a run can reveal them in order. A
-constraint problem SHALL require static time and Boolean states, and validation SHALL report other uses.
+### Requirement: Constraints are declared on the members of a group
+`SatisfiabilityInteraction` SHALL bind a group whose state is Boolean and SHALL take a sequence of constraints, each a
+`ClauseSpec` of literals or a `CardinalitySpec` that at least or at most a bound of its literals hold, where a literal
+is a member index from 1, negative for its negation. A state that is not Boolean SHALL be reported with the code
+`law-domain`.
 
 #### Scenario: Perceptron pattern as a constraint
 - **WHEN** a binary perceptron of 21 weights `w_i = ±1` must give the output `sigma` for a pattern `xi`
-- **THEN** the pattern becomes the constraint that at least 11 of the literals `w_i = sigma xi_i` hold
+- **THEN** the pattern becomes the `CardinalitySpec` that at least 11 of the literals `w_i = sigma xi_i` hold
+
+#### Scenario: Real state
+- **WHEN** a `SatisfiabilityInteraction` binds a group whose state is real
+- **THEN** the report of `PassCompiler` holds an issue with the code `law-domain` that names the interaction and the
+  state
 
 ### Requirement: Satisfiability is decided incrementally
-A run SHALL reveal a set number of further constraints per frame and SHALL decide at every frame whether the
-revealed constraints are satisfiable, keeping what the solver learned before. The frame SHALL hold a satisfying
-assignment when one exists, and the Boolean state `satisfiable`. A problem SHALL also enumerate all solutions up to a
-limit.
+`SatisfiabilityInteraction` SHALL reveal a set number of further constraints per step of discrete time, decide whether
+the revealed constraints are satisfiable with one solver that keeps what it learned, set the states of the members to a
+satisfying assignment when one exists, and report `satisfiable` and `revealed` every step.
 
 #### Scenario: Small perceptron
-- **WHEN** the perceptron of Bertin (2021 Ex. 6.4) with `N = 3` and `p = 2` enumerates its solutions
-- **THEN** every enumerated weight vector satisfies Eq. 6.60 for both patterns, and no other vector does
+- **WHEN** the perceptron of Bertin (2021 Ex. 6.4) with `N = 3` reveals its patterns one per step
+- **THEN** the reported `satisfiable` at every step equals the result of enumerating all `2^3` weight vectors, and every
+  assignment it sets satisfies the revealed patterns
 
 #### Scenario: Capacity of the binary perceptron
-- **WHEN** random patterns of 21 components are revealed one per frame until the constraints become unsatisfiable,
-  over 20 draws
-- **THEN** the mean load `p/N` at the first unsatisfiable frame lies between 0.7 and 1.0, near the critical load 0.83
-
-### Requirement: Estimators train by epochs
-Elements SHALL wrap an estimator that learns incrementally, with its training data, and SHALL run one epoch per step
-of discrete time. The frame SHALL hold the learned coefficients and the training error as states. A learner SHALL
-require discrete time, and validation SHALL report it under any other time.
-
-#### Scenario: Separable patterns
-- **WHEN** a real-weight perceptron with 25 inputs trains on 12 random patterns
-- **THEN** its training error reaches 0 within 200 epochs
+- **WHEN** random patterns of 21 components are revealed one per step until the constraints become unsatisfiable, over
+  20 replicates
+- **THEN** the mean load `p/N` at the first unsatisfiable step lies between 0.7 and 1.0, near the critical load 0.83
