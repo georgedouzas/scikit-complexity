@@ -3,60 +3,64 @@
 ## Why
 
 Engineering systems are assembled from components connected through ports, as Ryzhov et al. (2021) do in Modelica
-for pendulums, impacts, and controlled mechanisms. Each port carries a potential variable, such as voltage, position,
-or temperature, and a flow variable, such as current, force, or heat flow. A connection makes potentials equal and
-flows sum to zero. Components state equations rather than assignments, so a resistor is `v = R i` whichever variable
-is known. This is Kirchhoff's structure. Mobus (2022 §4.3.3) describes the same structure as interfaces with protocols,
-and Schwichtenberg (2020 ch. 2) as continuity on networks. Interactions with roles are close to it, but equation laws
-today state implicit relations in the highest derivatives only, and cannot state algebraic relations between the
-variables of connected components.
+for pendulums, impacts, and controlled mechanisms. Each port carries a potential variable, such as voltage or
+temperature, and a flow variable, such as current or heat flow. A connection makes potentials equal and flows sum to
+zero. Components state equations rather than assignments, so a resistor is `v = R i` whichever variable is known. This
+is Kirchhoff's structure. Mobus (2022 §4.3.3) describes the same structure as interfaces with protocols, and
+Schwichtenberg (2020 ch. 2) as continuity on networks.
 
-**Rebased on `redesign-system-model`.** The redesign already provides the `Equation` law with its law kind, the
-four-part `System`, continuous time, and interactions with the `'members'` binding, and its inventory gate maps acausal
-ports to interactions over members with algebraic equations. This change still adds ports and port domains as a general
-component primitive, connections as interactions whose laws are equations, the algebraic use of `Equation` between port
-variables, and the compile stage that turns connected equations into explicit derivatives. The named port domains
-(electrical, translational, rotational, thermal, hydraulic) are field vocabulary, so they live in
-`skcomplex.models.engineering.realizations`, not in the core.
+The current core already provides part of it:
+- `EquationLaw` takes a `target`, and `OrdersPass` adds the equations of one target from every element and interaction
+  before it solves them jointly for the highest derivatives, so terms from several parts add.
+- `EulerLagrangeInteraction` names every coordinate as the target of its equations, so mechanisms compose by summing
+  Lagrangians, dissipations, and forcings, and `engineering/common/mechanics/SpringDamperInteraction` joins two masses.
+- `CrossingInteraction` switches states when a guard crosses zero, which is a thermostat.
+- `rlc_circuit` and `chua` in `engineering/circuits` are registered as lumped equations of their circuits.
+- The `law-time` issue of `PassCompiler` already reports an `EquationLaw` under discrete time.
+
+So this change no longer adds translational and rotational port domains, mechanical components, a hydraulic domain no
+model uses, a `port-time` issue, the RLC and Chua models, or a dependency on `add-optimal-control`. What the core still
+lacks is a variable that no law integrates and that equations alone determine, ports that carry such variables, a
+connection interaction, and a solve of equations whose unknowns are not all highest derivatives.
 
 ## What Changes
 
-- Add ports: typed connectors with a potential and a flow variable, declared by a component with `port(domain)`, and
-  `PortDomain(name, potential, flow)` to define a domain. The core holds only these general forms.
-- Extend equation laws: components state algebraic relations between their variables and port variables, alongside
-  relations in derivatives, without choosing which variable each equation solves.
-- Add connections: `connect(...)` returns an `Interaction` with the `'members'` binding whose laws are the equalities of
-  potentials and the zero sum of flows of the connected ports. Validation reports ports of different domains.
-- Compile the equations of a connected system to explicit derivatives by matching variables to equations, sorting them
-  into blocks, and solving algebraic blocks symbolically. The system then runs on every existing solver and backend.
-  Systems of differential index above one are reported with the variables involved.
-- Declare `Requires` for ports and connections and `Supports` for the compile stage, so validation reports misuse
-  before compilation.
-- Add a library of port domains and components in `skcomplex.models.engineering.realizations`:
-  - the electrical, translational, rotational, thermal, and hydraulic port domains;
-  - electrical: resistor, capacitor, inductor, voltage and current sources, ground, diode, operational amplifier;
-  - translational and rotational: mass, spring, damper, force source, inertia, gear;
-  - thermal: heat capacity, conductor, convection;
-  - hydraulic: tank, pipe, pump.
-- Add library models: RLC circuit, Chua's circuit, a quarter-car suspension, a DC motor driving an inertia, and a
-  heated room with a thermostat.
+- Add algebraic states: `StateSpec(algebraic=True)` declares a state that no law integrates, whose value at every time
+  the equations of the system determine. Its initial value is the starting guess of a nonlinear solve.
+- Add ports: `ConnectorSpec(name, potential, flow)` in `skcomplex.specs` names the variables a port carries, and an
+  element type declares its ports in the class variable `ports`, a mapping from port name to connector, with one
+  algebraic state per variable, named `<port>_<variable>`.
+- Add `ConnectionInteraction` in `core.interactions`: it binds the elements of one node through a variadic role, names
+  the port of each, and returns `EquationLaw`s that make the potentials equal and the flows sum to zero.
+- Extend `OrdersPass`: its unknowns are the highest derivatives and the algebraic states. It matches equations to
+  unknowns, orders them into blocks, and solves each block, linear blocks symbolically as it does today and nonlinear
+  blocks numerically at every evaluation. The trajectory records every algebraic state.
+- Report misuse in `PassCompiler._issues` with the issues `port-connector`, `port-connections`, `port-states`, and
+  `structural-singularity`.
+- Add the electrical connector and components to `skcomplex.models.engineering.common.electrical`, the thermal
+  connector and components to `skcomplex.models.engineering.control`, and the new subfield package
+  `skcomplex.models.engineering.mechatronics`.
+- Add the models `heated_room` in `engineering/control`, and `dc_motor` and `quarter_car` in
+  `engineering/mechatronics`. The motor joins an electrical circuit to a Lagrangian inertia through an `EquationLaw`
+  whose target is the inertia's angle. The quarter car is built on `SpringDamperInteraction` and needs no port.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `acausal-components`: ports, algebraic equation laws, connections, their validation, and their compilation to
-  explicit derivatives.
+- `acausal-components`: algebraic states, ports, connections, their validation, and the solve of connected equations.
 
 ### Modified Capabilities
 
-- `model-library`: the port domains, the acausal component library, and the engineering models.
+- `model-library`: the electrical and thermal components and three engineering models.
 
 ## Impact
 
-- `skcomplex.core.components` gains `port` and `PortDomain`, `skcomplex.core.interactions` gains `connect`, and
-  `skcomplex.core.laws` extends `Equation` to algebraic relations between port variables. `skcomplex.core.compile`
-  gains the matching, block sorting, and symbolic elimination stage, and `skcomplex.core.base` the issue codes of ports
-  and connections.
-- `skcomplex.models.engineering.realizations` gains the port domains and the component library.
-- Depends on `redesign-system-model`, and on `add-optimal-control` for the thermostat controller in the heated room.
+- `skcomplex.specs`: `StateSpec` gains `algebraic`, and `ConnectorSpec` is new.
+- `skcomplex.core.elements`: `Element` gains the class variable `ports`, empty by default.
+- `skcomplex.core.interactions`: `ConnectionInteraction` is new.
+- `skcomplex.engine.compile`: `OrdersPass` solves for algebraic states, and `PassCompiler` reports the port issues.
+- `skcomplex.models.engineering`: `common/electrical`, the thermal components of `control`, and `mechatronics`, with
+  `pyproject.toml` listing `mechatronics` among the independent subfield packages.
+- `add-static-models` also solves algebraic equations under static time. It builds on the algebraic states of this
+  change, or adds them first if it lands first.

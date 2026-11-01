@@ -2,81 +2,118 @@
 
 ## Context
 
-After `redesign-system-model`, a system is its components, interactions, space, and time. Rate laws give explicit ODEs,
-`Equation` states implicit relations, interactions bind components through roles with the `'members'` binding, and Sage
-solves systems of equations symbolically. The redesign's inventory gate maps acausal ports to interactions over members
-with algebraic equations, so no new system part is needed. Acausal modelling still needs ports on components and a
-compile stage that turns connected implicit equations into explicit derivatives.
+A system is its elements, interactions, and nested systems. `EquationLaw(lhs, rhs, target=None)` states an implicit
+relation, and `OrdersPass` in `skcomplex.engine.compile.passes` turns every equation into a relation in placeholders of
+the highest derivatives it holds. It adds the relations of one target, keyed by the state and the column of the target,
+checks that each sum holds a highest derivative, and solves all of them jointly: symbolically with Sage up to six
+unknowns, and by `numpy.linalg.solve` inside a `CallSpec` above. The unknowns must appear linearly.
+
+`EulerLagrangeInteraction` returns one equation per coordinate with that coordinate as its target, so the Lagrangian of
+a coupling adds to the equations of the coordinates it reads. The issues of a system come from `PassCompiler._issues`
+as `IssueSpec(code, path, message, fix)` in the `report_` that `prepare(system)` sets, and `EquationLaw` already
+requires continuous or static time, which the `law-time` issue reports.
 
 ## Goals / Non-Goals
 
 **Goals:**
-
-- Assemble circuits and mechanisms from reusable components and connections, as Modelica does.
-- Reuse every existing solver, backend, analysis, and visualisation through compilation to ODEs.
-- Keep the core application agnostic: ports and domains are general, and the named domains and components live in the
-  library.
+- Assemble circuits and thermal networks from reusable components and connections, as Modelica does.
+- Keep every solver, backend, analysis, and visual working, by solving the equations inside the right side.
+- Keep the core free of field terms: algebraic states, connectors, and connections are general, and the named
+  connectors and components are field cases in the models.
 
 **Non-Goals:**
-
-- Index reduction of high-index systems by the Pantelides algorithm with dummy derivatives. Validation reports such
-  systems, and a later change can add it.
+- Index reduction of high-index systems by the Pantelides algorithm with dummy derivatives. The structural check
+  reports such systems.
+- Mechanical ports. A mechanism composes through `EulerLagrangeInteraction`, and a port component that exerts a force
+  on a coordinate adds an `EquationLaw` with that coordinate as its target.
 - Reading Modelica source files.
 
 ## Decisions
 
-### Ports and variables
+### Algebraic states
 
-`port(domain)` in `core.components` declares a connector on an `Element` with the domain's potential and flow
-variables, each a state of the element, so a resistor has ports `p` and `n` with `p.v`, `p.i`, `n.v`, and `n.i`.
-`PortDomain(name, potential, flow)` in `core.components` defines a domain. The core ships no named domain: the
-electrical, translational, rotational, thermal, and hydraulic domains are realizations in
-`skcomplex.models.engineering.realizations`, which the engineering model packages import.
+`StateSpec(algebraic=True)` declares a state that no law integrates. It has order 1 and no lags, a law that integrates
+it is an error, and its value at every time is a solution of the equations it appears in. The initial value is the
+starting guess of a nonlinear solve. The trajectory records it like any other state, so observables and visuals read
+it unchanged.
 
-### Equations
+### Ports and connectors
 
-`Equation(lhs, rhs)` in `core.laws` and `derivative(x, j)` already exist. A component states relations such as
-`Equation(p.v - n.v, R * p.i)` and `Equation(C * derivative(v, 1), p.i)`. This change extends equations from relations
-in the highest derivatives to algebraic relations between port variables, without choosing the variable each equation
-determines. A system may mix equation laws with ordinary rate laws under `ContinuousTime()`.
+`ConnectorSpec(name, potential, flow)` in `skcomplex.specs` is a frozen spec of the names of the potential and flow
+variables of a port, such as `ConnectorSpec('electrical', potential='v', flow='i')`. An element type declares its ports
+in the class variable `ports: ClassVar[Mapping[str, ConnectorSpec]]`, which `Element` sets to an empty mapping, and
+declares in its constructor one algebraic state per port variable, named `<port>_<variable>`, so a resistor with ports
+`p` and `n` holds `p_v`, `p_i`, `n_v`, and `n_i`. The states are declared like every other state, so no attribute is
+generated. A flow is positive into the element.
+
+The core ships no named connector. The electrical connector and components live in
+`skcomplex.models.engineering.common.electrical`, which the `control` and `mechatronics` packages share, and the thermal
+connector and components live in `skcomplex.models.engineering.control`, their one user.
 
 ### Connections
 
-`connect(a.p, b.n, c.p)` in `core.interactions` returns a stateless `Interaction` with `over = 'members'` and one role
-per port's component. Its laws are the equalities of the potentials and the zero sum of the flows of the listed ports.
-The system holds it in `interactions=` like any interaction. Unconnected flows default to zero, as Modelica does.
+`ConnectionInteraction(label, *, members, ports)` in `core.interactions` binds the elements of one node through the
+variadic role `members` and names the port of each element in `ports`, in the same order. Its laws are `EquationLaw`s:
+the potential of every port after the first equals that of the first, and the flows of all ports sum to zero. A port
+belongs to one connection, and a node with many ports is one connection, as a node of a netlist is. A port that no
+connection names has a zero flow, as in Modelica, which the interaction does not need to state: the pass adds the
+equation `flow == 0` for it.
 
-### Compilation
+### Solving the equations
 
-A stage of `core.compile` collects the equations and unknowns, and assigns each equation to one unknown with a
-bipartite maximum matching. Unknowns are the derivatives of states plus the algebraic variables. It then orders the
-equations into strongly connected blocks with Tarjan's algorithm and solves each block symbolically with Sage. Linear
-blocks are solved exactly, and nonlinear blocks numerically per evaluation. The result is a set of rate laws, and the
-algebraic variables are named expressions that simulations may record as observables. The stage runs after
-validation, so the lowered system runs on every solver and backend whose support covers rate laws.
+`OrdersPass` extends its solve without changing what it does for equations in highest derivatives alone:
+- The unknowns are the placeholders of the highest derivatives and the symbols of the algebraic states. A relation
+  whose sum holds no unknown is a structural singularity.
+- It matches relations to unknowns by a maximum bipartite matching, `networkx.bipartite.hopcroft_karp_matching`, and
+  orders the matched pairs into blocks, the strongly connected components of their dependency graph in topological
+  order, `networkx.condensation` and `networkx.topological_sort`. NetworkX is already a runtime dependency.
+- A block linear in its unknowns is solved as today, by Sage up to six unknowns and by a numeric linear solve above.
+- A nonlinear block lowers to a `CallSpec` that runs `scipy.optimize.root` with the Jacobian Sage derives, starting
+  from the values of the last evaluation, which the NumPy backend runs.
+- The algebraic states are substituted by their solutions in the rate laws, and the solutions are recorded as the
+  values of the algebraic states at every frame.
 
-### Declarations and validation
+No library was adopted for the structural analysis itself, because NetworkX holds the matching and the components, and
+the pass only maps relations and unknowns to its graphs. CasADi and the Modelica compilers were rejected because they
+would replace the symbolic layer rather than plug into it.
 
-| Primitive | Declaration | Issue when misused |
-|---|---|---|
-| `port` | `Requires(time={continuous})` | `port-time`: a port in a system under discrete or static time; the fix is `ContinuousTime()` |
-| `connect` | `Requires(time={continuous}, bindings={members})` | `port-domain`: ports of different domains, naming both ports and their domains |
-| algebraic `Equation` | `Requires(time={continuous})` | `structural-singularity`: equations that cannot be matched to unknowns, naming the unmatched variables and equations; the fix suggests a compliant element between the constrained states |
-| the compile stage | `Supports(time={continuous}, laws={equation, rate}, domains={real})` | equation laws on a non-real domain are reported by the existing law-domain check |
+### Field cases on the core
 
-The structural check is part of `validate()`, since it needs only the structure of the equations, so a high-index
-system is reported with every other issue before compilation.
+A component is an element type in the models with ports and `EquationLaw`s:
+- A resistor is `EquationLaw(s.p_v - s.n_v, s.R * s.p_i)` and `EquationLaw(s.p_i + s.n_i, 0)`.
+- A capacitor holds a state `u` of order 1 with `EquationLaw(s.C * derivative(s.u, 1), s.p_i)` and the port
+  relations.
+- The DC motor is an interaction of `mechatronics` that binds the armature and the inertia. It returns the back
+  electromotive force `EquationLaw(s.armature.p_v - s.armature.n_v, s.k * derivative(s.inertia.phi, 1))` and the
+  torque `EquationLaw(-s.k * s.armature.p_i, 0, target=s.inertia.phi)`, which adds to the Euler-Lagrange equation of
+  the angle that an `EulerLagrangeInteraction` gives the inertia.
+
+The thermostat of `heated_room` is a `CrossingInteraction` with hysteresis that switches the heater state on and off.
+
+### Issues
+
+`PassCompiler._issues` adds four issues:
+- `port-connector`: the ports of one connection have different connectors. The issue names each port and its
+  connector, and the fix is to connect ports of one connector.
+- `port-connections`: a port appears in more than one connection. The issue names the port and the connections, and
+  the fix is to list every port of the node in one connection.
+- `port-states`: an element type declares a port without an algebraic state for one of its variables. The issue names
+  the state, and the fix is to declare `<port>_<variable>` with `StateSpec(algebraic=True)`.
+- `structural-singularity`: the matching leaves relations or unknowns unmatched. The issue names them, and the fix is
+  to add a compliant element, such as a resistance, between the constrained states.
+
+The structural check needs only which unknowns every relation holds, so it runs in `prepare` with the other issues,
+before compilation.
 
 ## Risks / Trade-offs
 
-- [Nonlinear algebraic loops are slow] → They are solved by Newton's method in compiled code with symbolic Jacobians,
-  and simple components avoid them.
-- [High-index systems are rejected] → The issue names the constraint, and the user guide shows how to reformulate
-  with a compliant joint.
+- [Nonlinear blocks are slow] → They are solved with Sage Jacobians from the last values, and simple components avoid
+  them.
+- [High-index systems are rejected] → The issue names the constraint, and the user guide shows how to reformulate it
+  with a compliant element.
+- [`add-static-models` also solves algebraic equations] → Both changes use the same algebraic states and the same
+  solve, and whichever lands second builds on the first.
 
 ## Open Questions
 
-- The redesign lists `Equation` both as a continuous law (implicit) and as a constraint law (algebraic), but
-  `LawKind.EQUATION` has one law class, continuous. Should an equation without derivatives count as the constraint
-  class, or get its own law kind? This decides whether a purely algebraic connected system may run under static time.
-  The same question is open in `add-static-models`.
+- None.
