@@ -7,8 +7,13 @@ from ....engine.solvers import AgentView
 
 
 class DepositorView(AgentView):
-    """Customer as the rules see it: the index of its `bank`, its `deposit`, and its `loan`."""
+    """Customer as the rules see it: the id of its `bank`, its `deposit`, its `loan`, and its shares of payments.
+
+    The parameters are the `spending` share of the deposit paid every step and the `repayment` share of the loan.
+    """
 
     bank: float
     deposit: float
     loan: float
+    spending: float
+    repayment: float

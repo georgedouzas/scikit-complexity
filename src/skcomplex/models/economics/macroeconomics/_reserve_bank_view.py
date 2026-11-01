@@ -7,9 +7,8 @@ from ....engine.solvers import AgentView
 
 
 class ReserveBankView(AgentView):
-    """Bank as the rules see it: its `index`, `reserves`, `deposits`, and `loans`."""
+    """Bank as the rules see it: its `reserves`, `deposits`, and `loans`."""
 
-    index: float
     reserves: float
     deposits: float
     loans: float
