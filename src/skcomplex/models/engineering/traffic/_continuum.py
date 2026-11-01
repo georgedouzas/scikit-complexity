@@ -4,96 +4,22 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, exp, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression, exp
 
-from ....core.elements import Element, FieldElement
+from ....core.elements import FieldElement
 from ....core.interactions import ConservationInteraction, RateInteraction, RelaxationInteraction
 from ....core.laws.utils import laplacian
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.solvers import SSPRKSolver
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._kerner_konhauser import KernerKonhauserElement
+from ._lighthill_whitham_richards import LighthillWhithamRichardsElement
+from ._payne import PayneElement
 
 KERNER_KONHAUSER_OFFSET = 3.72e-6
-
-
-class LighthillWhithamRichardsElement(Element):
-    """Cell of a road with the traffic density `rho`, the free speed `vmax`, and the jam density `rho_max`."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        vmax: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.rho = rho
-        self.vmax = vmax
-        self.rho_max = rho_max
-
-
-class PayneElement(Element):
-    """Cell of a road with the traffic density `rho` and the flow `q` of the Payne model.
-
-    The density and the flow are conserved by conservation interactions, and the flow relaxes to the Greenshields
-    flow by a relaxation interaction.
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        q: Annotated[object, StateSpec()] = 0.21,
-        vmax: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.rho = rho
-        self.q = q
-        self.vmax = vmax
-        self.rho_max = rho_max
-        self.tau = tau
-
-
-class KernerKonhauserElement(Element):
-    """Cell of a road with the traffic density `rho` and the flow `q` of the Kerner-Konhäuser model.
-
-    The density and the flow are conserved by conservation interactions, the flow relaxes to the equilibrium flow by
-    a relaxation interaction, and the viscosity adds the rate `mu laplacian(q / rho)` to the flow.
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        q: Annotated[object, StateSpec()] = 0.21,
-        V0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        c0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
-        mu: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.rho = rho
-        self.q = q
-        self.V0 = V0
-        self.rho_max = rho_max
-        self.tau = tau
-        self.c0 = c0
-        self.mu = mu
 
 
 def _get_lighthill_whitham_richards_flux(s: SimpleNamespace) -> Expression:

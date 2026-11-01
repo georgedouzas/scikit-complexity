@@ -1,9 +1,11 @@
 """Control: feedback loops that keep or drive a system towards a goal, and the controllers that close them."""
 
+from ._cart_pendulum import CartPendulumElement
 from ._control import pendulum_swing_up, pid_loop, satellite_transfer, thermostat
+from ._driven_oscillator import DrivenOscillatorElement
 from ._integrator import IntegratorElement
 from ._pid import PIDInteraction
-from ._regulation import CartPendulumElement, DrivenOscillatorElement, lqr_oscillator, pid_inverted_pendulum
+from ._regulation import lqr_oscillator, pid_inverted_pendulum
 from ._state_feedback import StateFeedbackInteraction
 
 __all__: list[str] = [

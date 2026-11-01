@@ -4,193 +4,23 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
-from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import clip, derivative, sign, step, where
 from ....core.system import System
 from ....engine.solvers import RK4Solver
-from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec
 from ..._catalog import register_model
-
-HOURS_PER_DAY = 24.0
-DISTURBANCE_TIME = 10.0
-CHANGE_TIME = 20.0
-
-
-def _error(s: SimpleNamespace) -> Expression:
-    """Return the error of the controlled process, the set point after its change less the output."""
-    return s.setpoint + s.change * step(s.t, CHANGE_TIME) - s.y
-
-
-def _pendulum_energy(s: SimpleNamespace) -> Expression:
-    """Return the energy per unit inertia of the pendulum, `θ'^2 / 2 - ω^2 cos θ`."""
-    return derivative(s.theta, 1) ** 2 / 2 - s.omega**2 * cos(s.theta)
-
-
-def _swing_up_control(s: SimpleNamespace) -> Expression:
-    """Return the bang-bang control `u = -μ sign(θ' cos θ) sign(E_s - E)` of the energy of the pendulum."""
-    gap = s.omega**2 - _pendulum_energy(s)
-    return -s.mu * sign(derivative(s.theta, 1) * cos(s.theta)) * sign(gap)
-
-
-def _satellite_energy(s: SimpleNamespace) -> Expression:
-    """Return the total effective energy of the satellite, `s'^2 / 2 + L_z^2 / (2 s^2) - 1 / s`."""
-    return derivative(s.s, 1) ** 2 / 2 + s.Lz**2 / (2 * s.s**2) - 1 / s.s
-
-
-def _thrust_direction(s: SimpleNamespace) -> Expression:
-    """Return the thrust `sigma`: inwards while the satellite falls, outwards while it rises, until the final energy."""
-    return where(_satellite_energy(s) < s.H_final, where(derivative(s.s, 1) < 0, 1, -1), 0)
+from ._controlled_process import ControlledProcessElement
+from ._room import RoomElement
+from ._satellite import SatelliteElement
+from ._swinging_pendulum import SwingingPendulumElement
 
 
 def _energy_of_satellite(s: SimpleNamespace) -> Expression:
     """Return the total effective energy of the satellite of the system."""
     satellite = s.satellite
     return satellite.s_d1**2 / 2 + satellite.Lz**2 / (2 * satellite.s**2) - 1 / satellite.s
-
-
-class RoomElement(Element):
-    """Room heated by a furnace towards a setting and leaking heat to an outside temperature with a daily swing."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        T: Annotated[object, StateSpec()] = 10.0,
-        setting: Annotated[object, ParameterSpec()] = 18.0,
-        furnace: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        leak: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        outside: Annotated[object, ParameterSpec()] = 10.0,
-        swing: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.T = T
-        self.setting = setting
-        self.furnace = furnace
-        self.leak = leak
-        self.outside = outside
-        self.swing = swing
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the saturated heating and the leak of the temperature `T`."""
-        return [
-            RateLaw(
-                s.T,
-                clip(s.setting - s.T, 0, s.furnace)
-                - s.leak * (s.T - s.outside - s.swing * cos(2 * pi * (s.t - HOURS_PER_DAY / 2) / HOURS_PER_DAY)),
-            ),
-        ]
-
-
-class ControlledProcessElement(Element):
-    """First-order process under a PID controller whose derivative term is solved into the time constant."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        y: Annotated[object, StateSpec()] = 0.0,
-        integral: Annotated[object, StateSpec()] = 0.0,
-        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        gain: Annotated[object, ParameterSpec()] = 1.0,
-        Kp: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        Ki: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        Kd: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        setpoint: Annotated[object, ParameterSpec()] = 1.0,
-        change: Annotated[object, ParameterSpec()] = 0.0,
-        disturbance: Annotated[object, ParameterSpec()] = -0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.y = y
-        self.integral = integral
-        self.tau = tau
-        self.gain = gain
-        self.Kp = Kp
-        self.Ki = Ki
-        self.Kd = Kd
-        self.setpoint = setpoint
-        self.change = change
-        self.disturbance = disturbance
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the output `y` and of the integral of the error."""
-        return [
-            RateLaw(
-                s.y,
-                (-s.y + s.gain * (s.Kp * _error(s) + s.Ki * s.integral) + s.disturbance * step(s.t, DISTURBANCE_TIME))
-                / (s.tau + s.gain * s.Kd),
-            ),
-            RateLaw(s.integral, _error(s)),
-        ]
-
-
-class SwingingPendulumElement(Element):
-    """Pendulum swung up by a bang-bang control of its energy, with `f` integrating the control."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        theta: Annotated[object, StateSpec(order=2)] = 0.0,
-        theta_d1: float = 0.0,
-        f: Annotated[object, StateSpec(order=2)] = 0.0,
-        f_d1: float = 0.0,
-        omega: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5652475842498528,
-        mu: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.theta = theta
-        self.theta_d1 = theta_d1
-        self.f = f
-        self.f_d1 = f_d1
-        self.omega = omega
-        self.mu = mu
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the controlled rate of the angle and the rate of the control integral."""
-        return [
-            RateLaw(s.theta, -(s.omega**2) * sin(s.theta) - _swing_up_control(s) * cos(s.theta)),
-            RateLaw(s.f, _swing_up_control(s)),
-        ]
-
-
-class SatelliteElement(Element):
-    """Satellite on a planar Kepler orbit whose radial thrust moves it to an orbit of a final energy."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        s: Annotated[object, StateSpec(domain=RealSet.open(0, oo), order=2)] = 0.314,
-        s_d1: float = 0.0,
-        theta: Annotated[object, StateSpec()] = 0.0,
-        Lz: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.7,
-        epsilon: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        H_final: Annotated[object, ParameterSpec()] = -0.2,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.s = s
-        self.s_d1 = s_d1
-        self.theta = theta
-        self.Lz = Lz
-        self.epsilon = epsilon
-        self.H_final = H_final
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the radial rate under thrust and the rate of the angle."""
-        return [
-            RateLaw(s.s, s.Lz**2 / s.s**3 - 1 / s.s**2 - s.epsilon * _thrust_direction(s)),
-            RateLaw(s.theta, s.Lz / s.s**2),
-        ]
 
 
 @register_model(
