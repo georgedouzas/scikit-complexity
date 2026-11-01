@@ -13,6 +13,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
+from ....core.interactions import MovementInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import LatticeSpace
 from ....core.system import System
@@ -36,6 +37,8 @@ def _wander(agent: AgentView, model: ModelView) -> None:
 class SupervisorElement(Element):
     """Supervisor of the insider sabotage model, who wanders between adjacent cells.
 
+    The wandering is a `MovementInteraction` to a random adjacent cell, which `insider_sabotage` adds.
+
     Args:
         label:
             The label of the agent or group.
@@ -46,19 +49,6 @@ class SupervisorElement(Element):
         >>> group.label, group.element.__name__, group.size
         ('supervisors', 'SupervisorElement', 3)
     """
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the wandering rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(_wander)]
 
 
 class EmployeeElement(Element):
@@ -324,7 +314,9 @@ def insider_sabotage(
         values={'predisposed': predisposed, 'affect': affect, 'risk': predisposed + affect, 'turnover': turnover},
     )
     supervisors = GroupElement('supervisors', element=SupervisorElement, size=n_supervisors)
+    wandering = MovementInteraction('wandering', target='supervisors', schedule='member')
     return System(
         elements=[employees, supervisors],
+        interactions=[wandering],
         space=LatticeSpace((size, size), boundary='periodic', neighborhood='von_neumann'),
     )
