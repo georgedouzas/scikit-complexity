@@ -14,6 +14,7 @@ class WalkerView(AgentView):
 
     goal_x: float
     goal_y: float
+    arrived: float
     directedness: float
     attraction: float
     intensity: float

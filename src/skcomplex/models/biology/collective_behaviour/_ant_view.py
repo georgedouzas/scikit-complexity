@@ -13,6 +13,7 @@ class AntView(AgentView):
     """
 
     carrying: float
+    arrived: float
     nest_x: float
     nest_y: float
     food_x: float

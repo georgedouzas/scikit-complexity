@@ -7,16 +7,23 @@ from types import SimpleNamespace
 from typing import Annotated, cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement, GroupElement
-from ....core.laws import BaseLaw, RateLaw, RuleLaw
-from ....core.laws.utils import laplacian
+from ....core.interactions import (
+    DiffusionInteraction,
+    LifeCycleInteraction,
+    MapInteraction,
+    MovementInteraction,
+    RateInteraction,
+    TransferInteraction,
+)
+from ....core.laws import Source
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.solvers import ModelView
+from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._sprout_view import SproutView
@@ -25,15 +32,188 @@ from ._vessel_view import VesselView
 
 OXYGEN = 'tissue/tissue.oxygen'
 VEGF = 'tissue/tissue.vegf'
-TUMOUR = 'cells/tumour'
 VESSELS = 'cells/vessels'
+TUMOUR = 'cells/tumour'
+SPROUTS = 'cells/sprouts'
+TISSUE = 'tissue/tissue'
+
+
+def _get_oxygen_decay(namespace: SimpleNamespace) -> Expression:
+    """Return the decay `-decay_oxygen oxygen` of oxygen."""
+    rate: Expression = -namespace.target.decay_oxygen * namespace.target.oxygen
+    return rate
+
+
+def _get_oxygen_diffusion(namespace: SimpleNamespace) -> Expression:
+    """Return the diffusion coefficient `D_oxygen` of oxygen."""
+    coefficient: Expression = namespace.target.D_oxygen
+    return coefficient
+
+
+def _get_vegf_decay(namespace: SimpleNamespace) -> Expression:
+    """Return the decay `-decay_vegf vegf` of VEGF."""
+    rate: Expression = -namespace.target.decay_vegf * namespace.target.vegf
+    return rate
+
+
+def _get_vegf_diffusion(namespace: SimpleNamespace) -> Expression:
+    """Return the diffusion coefficient `D_vegf` of VEGF."""
+    coefficient: Expression = namespace.target.D_vegf
+    return coefficient
+
+
+def _get_uptake(cell: AgentViewProtocol, site: object, model: ModelViewProtocol) -> float:
+    """Return minus the oxygen a tumour cell takes up at its site, `consumption` or what is left."""
+    if not isinstance(cell, TumourCellView):
+        return 0.0
+    return -min(cell.consumption, model.field('target.oxygen', site))
+
+
+def _get_hypoxic(cell: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return whether the oxygen at the site of a tumour cell is below `hypoxia`."""
+    if not isinstance(cell, TumourCellView):
+        return 0.0
+    return float(model.field(OXYGEN, cell.location) < cell.hypoxia)
+
+
+def _secretes(cell: AgentViewProtocol, site: object, model: ModelViewProtocol) -> bool:
+    """Return whether a living tumour cell is hypoxic, so it secretes VEGF."""
+    if not isinstance(cell, TumourCellView):
+        return False
+    return bool(cell.hypoxic) and model.field(OXYGEN, site) >= cell.necrosis
+
+
+def _get_secretion(cell: AgentViewProtocol, site: object, model: ModelViewProtocol) -> float:
+    """Return the VEGF `secretion` of a hypoxic tumour cell."""
+    del site, model
+    return float(cell.secretion) if isinstance(cell, TumourCellView) else 0.0
+
+
+def _dies(cell: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return whether the oxygen at the site of a tumour cell is below `necrosis`, so it dies."""
+    return isinstance(cell, TumourCellView) and model.field(OXYGEN, cell.location) < cell.necrosis
+
+
+def _get_division(cell: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return the probability `division` that a supplied tumour cell divides, above `proliferation` oxygen."""
+    if not isinstance(cell, TumourCellView) or cell.hypoxic:
+        return 0.0
+    return float(cell.division) if model.field(OXYGEN, cell.location) > cell.proliferation else 0.0
+
+
+def _get_supply(vessel: AgentViewProtocol, site: object, model: ModelViewProtocol) -> float:
+    """Return the oxygen `supply` of a vessel segment."""
+    del site, model
+    return float(vessel.supply) if isinstance(vessel, VesselView) else 0.0
+
+
+def _active(tip: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return whether the VEGF at a tip reaches `activation`, so the tip moves."""
+    return isinstance(tip, SproutView) and model.field(VEGF, tip.location) >= tip.activation
+
+
+def _lays(tip: AgentViewProtocol, model: ModelViewProtocol) -> bool:
+    """Return whether an active tip stands where there is no vessel segment, so it leaves one."""
+    return _active(tip, model) and not tip.agents_here(VESSELS)
+
+
+def _get_branching(tip: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return the probability `branching` that an active tip splits in two."""
+    return float(tip.branching) if isinstance(tip, SproutView) and _active(tip, model) else 0.0
+
+
+def _get_chemotaxis(tip: AgentViewProtocol, model: ModelViewProtocol) -> object:
+    """Return a neighbouring cell drawn with a weight that grows with `exp(chemotaxis * VEGF / VEGF_here)`."""
+    if not isinstance(tip, SproutView):
+        return None
+    level = model.field(VEGF, tip.location)
+    cells = cast('list[tuple[int, int]]', list(tip.neighbor_cells()))
+    levels = np.array([model.field(VEGF, cell) for cell in cells])
+    weights = np.exp(tip.chemotaxis * (levels - levels.max()) / level)
+    return cells[int(model.rng.choice(len(cells), p=weights / weights.sum()))]
+
+
+def _get_tissue() -> list[DiffusionInteraction | RateInteraction]:
+    """Return the diffusion and the decay of oxygen and VEGF in the tissue."""
+    return [
+        DiffusionInteraction('oxygen_diffusion', target='tissue', state='oxygen', coefficient=_get_oxygen_diffusion),
+        RateInteraction('oxygen_decay', target='tissue', state='oxygen', rate=_get_oxygen_decay),
+        DiffusionInteraction('vegf_diffusion', target='tissue', state='vegf', coefficient=_get_vegf_diffusion),
+        RateInteraction('vegf_decay', target='tissue', state='vegf', rate=_get_vegf_decay),
+    ]
+
+
+def _get_cells() -> list[TransferInteraction | MapInteraction | LifeCycleInteraction | MovementInteraction]:
+    """Return the member interactions of the tumour cells, the vessel segments, and the tips."""
+    return [
+        TransferInteraction(
+            'uptake',
+            source=TUMOUR,
+            target=TISSUE,
+            state=Source(),
+            into='oxygen',
+            amount=_get_uptake,
+            pairing='site',
+            form='agent',
+            schedule='member',
+        ),
+        MapInteraction(
+            'hypoxia',
+            target=TUMOUR,
+            state='hypoxic',
+            function=_get_hypoxic,
+            form='agent',
+            schedule='member',
+        ),
+        TransferInteraction(
+            'secretion',
+            source=TUMOUR,
+            target=TISSUE,
+            into='vegf',
+            state=Source(),
+            amount=_get_secretion,
+            pairing='site',
+            guard=_secretes,
+            form='agent',
+            schedule='member',
+        ),
+        LifeCycleInteraction(
+            'tumour_life',
+            target=TUMOUR,
+            death=_dies,
+            birth=_get_division,
+            placement='neighbor',
+            schedule='member',
+        ),
+        TransferInteraction(
+            'supply',
+            source=VESSELS,
+            target=TISSUE,
+            state=Source(),
+            into='oxygen',
+            amount=_get_supply,
+            pairing='site',
+            form='agent',
+            schedule='member',
+        ),
+        LifeCycleInteraction(
+            'laying',
+            target=SPROUTS,
+            group=VESSELS,
+            birth=_lays,
+            schedule='member',
+        ),
+        LifeCycleInteraction('branching', target=SPROUTS, birth=_get_branching, schedule='member'),
+        MovementInteraction('chemotaxis', target=SPROUTS, step=_get_chemotaxis, condition=_active, schedule='member'),
+    ]
 
 
 class TissueElement(Element):
     """Tissue in which oxygen and the vascular endothelial growth factor VEGF diffuse and decay.
 
     Both follow `u' = D Δu - lambda u`, and cells add or remove amounts at their sites: vessels supply oxygen, tumour
-    cells consume it, and hypoxic tumour cells secrete VEGF.
+    cells consume it, and hypoxic tumour cells secrete VEGF. The model adds the diffusion and the decay as
+    interactions.
 
     Args:
         label:
@@ -86,29 +266,14 @@ class TissueElement(Element):
         self.D_vegf = D_vegf
         self.decay_vegf = decay_vegf
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the diffusion and decay of oxygen and VEGF.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            RateLaw(s.oxygen, s.D_oxygen * laplacian(s.oxygen) - s.decay_oxygen * s.oxygen),
-            RateLaw(s.vegf, s.D_vegf * laplacian(s.vegf) - s.decay_vegf * s.vegf),
-        ]
-
 
 class TumourCellElement(Element):
     """Tumour cell that consumes oxygen, divides when supplied, secretes VEGF when hypoxic, and dies without oxygen.
 
     Every step the cell takes up `consumption` oxygen at its site, or what is left. Above `proliferation` it divides
     with probability `division` into a free neighbouring cell. Below `hypoxia` it secretes `secretion` VEGF, and below
-    `necrosis` it dies.
+    `necrosis` it dies. The model adds the uptake, the hypoxia, the secretion, and the life cycle as member
+    interactions.
 
     Args:
         label:
@@ -171,50 +336,9 @@ class TumourCellElement(Element):
         """Return the view of a tumour cell, `TumourCellView`."""
         return TumourCellView
 
-    def _divide(self, agent: TumourCellView, model: ModelView) -> None:
-        """Place a daughter cell in a random neighbouring cell without a tumour cell, if there is one."""
-        taken = {other.location for other in agent.neighbors() if other.group == agent.group}
-        free = [cell for cell in agent.neighbor_cells() if cell not in taken]
-        if free:
-            agent.create(location=free[int(model.rng.integers(len(free)))])
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the life cycle rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.live)]
-
-    def live(self, agent: TumourCellView, model: ModelView) -> None:
-        """Consume oxygen, then die, signal for vessels, or divide, by the oxygen at the cell.
-
-        Args:
-            agent:
-                The tumour cell.
-
-            model:
-                The model.
-        """
-        cell = agent.location
-        oxygen = model.field(OXYGEN, cell)
-        model.deposit(OXYGEN, cell, -min(agent.consumption, oxygen))
-        agent.hypoxic = float(oxygen < agent.hypoxia)
-        if oxygen < agent.necrosis:
-            agent.remove()
-        elif agent.hypoxic:
-            model.deposit(VEGF, cell, agent.secretion)
-        elif oxygen > agent.proliferation and model.rng.random() < agent.division:
-            self._divide(agent, model)
-
 
 class VesselElement(Element):
-    """Segment of a blood vessel, which supplies oxygen to its site every step.
+    """Segment of a blood vessel, which supplies oxygen to its site every step, a member transfer of the model.
 
     Args:
         label:
@@ -247,38 +371,15 @@ class VesselElement(Element):
         """Return the view of a vessel, `VesselView`."""
         return VesselView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the supply rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.supply_oxygen)]
-
-    def supply_oxygen(self, agent: VesselView, model: ModelView) -> None:
-        """Add oxygen at the segment's site.
-
-        Args:
-            agent:
-                The vessel segment.
-
-            model:
-                The model.
-        """
-        model.deposit(OXYGEN, agent.location, agent.supply)
-
 
 class SproutElement(Element):
     """Endothelial tip cell that climbs the VEGF gradient and leaves a new vessel segment behind it.
 
     Every step the tip moves to a neighbouring cell with a probability that grows with `exp(chemotaxis * VEGF /
     VEGF_here)`, so it senses the relative gradient, and it leaves a vessel segment where there was none. With
-    probability `branching` the tip splits in two. Below the VEGF level `activation` the tip stays put.
+    probability `branching` the tip splits in two, the new tip standing where the tip was. Below the VEGF level
+    `activation` the tip stays put. The model adds the vessel segment, the branching, and the step as member
+    interactions.
 
     Args:
         label:
@@ -320,42 +421,6 @@ class SproutElement(Element):
     def _get_view(cls) -> type[SproutView]:
         """Return the view of a sprout tip, `SproutView`."""
         return SproutView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the sprouting rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.sprout)]
-
-    def sprout(self, agent: SproutView, model: ModelView) -> None:
-        """Move up the VEGF gradient, leave a vessel segment, and branch now and then.
-
-        Args:
-            agent:
-                The tip cell.
-
-            model:
-                The model.
-        """
-        here = agent.location
-        level = model.field(VEGF, here)
-        if level < agent.activation:
-            return
-        cells = cast('list[tuple[int, int]]', list(agent.neighbor_cells()))
-        levels = np.array([model.field(VEGF, cell) for cell in cells])
-        weights = np.exp(agent.chemotaxis * (levels - levels.max()) / level)
-        if not agent.agents_here(VESSELS):
-            model.create(VESSELS, location=here)
-        agent.move_to(cells[model.rng.choice(len(cells), p=weights / weights.sum())])
-        if model.rng.random() < agent.branching:
-            agent.create(location=here)
 
 
 @register_model(
@@ -439,6 +504,7 @@ def tumour_angiogenesis(
     return System(
         systems=[
             System('cells', elements=groups, space=LatticeSpace((width, height), boundary='fixed')),
-            System('tissue', elements=[tissue]),
+            System('tissue', elements=[tissue], interactions=_get_tissue()),
         ],
+        interactions=_get_cells(),
     )
