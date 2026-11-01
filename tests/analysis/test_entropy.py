@@ -120,6 +120,7 @@ def test_lempel_ziv_complexity():
     assert _entropy('lempel-ziv', flips)[0] == pytest.approx(1, abs=0.1)
 
 
+@pytest.mark.benchmark
 def test_lempel_ziv_complexity_of_a_long_sequence_is_fast():
     """Test that the complexity of 10^5 coin flips returns within one second on an idle machine."""
     flips = np.random.default_rng(10).integers(0, 2, 100_000)
