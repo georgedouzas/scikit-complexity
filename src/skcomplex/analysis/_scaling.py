@@ -29,6 +29,7 @@ SETTINGS = {
     'power': {'parameters', 'critical', 'above'},
 }
 """Settings every kind reads, besides `kind` and `variables`."""
+
 MIN_FLUCTUATION_VALUES = 100
 RADII = 30
 PAIR_SAMPLE = 200_000

@@ -17,8 +17,8 @@ from ._kernel_spec import KernelSpec
 class _RelationSpec(BaseSpec):
     """Equation of a component as `expression == 0`, with the placeholders of its highest derivatives.
 
-    The key names the state whose equation it is, as its entry and column, so that the relations of one key add, or
-    is `None` for a relation of its own.
+    The key names the state whose equation it is, as its entry and column, so that the relations of one key add, or is
+    `None` for a relation of its own.
     """
 
     spec: KernelSpec

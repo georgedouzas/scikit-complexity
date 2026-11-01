@@ -53,6 +53,7 @@ SETTINGS: dict[str, set[str]] = {
     'conservation': set(),
 }
 """Settings every kind reads, besides `kind`."""
+
 PURPOSES = {
     'equations': 'The equations of a system',
     'solve': 'Symbolic solving',

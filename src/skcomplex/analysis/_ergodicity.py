@@ -28,6 +28,7 @@ SETTINGS = {
     'ulam': {'edges', 'samples'},
 }
 """Settings every kind reads, besides `kind` and `variables`."""
+
 BINS = {'distance': 20, 'invariant-density': 100}
 """The number of bins of every kind without `bins`."""
 

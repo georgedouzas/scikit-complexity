@@ -15,8 +15,8 @@ from ....specs import ParameterSpec, StateSpec, VisualSpec
 class PayneElement(Element):
     """Cell of a road with the traffic density `rho` and the flow `q` of the Payne model.
 
-    The density and the flow are conserved by conservation interactions, and the flow relaxes to the Greenshields
-    flow by a relaxation interaction.
+    The density and the flow are conserved by conservation interactions, and the flow relaxes to the Greenshields flow
+    by a relaxation interaction.
     """
 
     def __init__(

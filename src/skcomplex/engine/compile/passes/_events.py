@@ -87,8 +87,8 @@ class DelaysPass(BasePass):
     ) -> object:
         """Return a law value with every delayed state replaced by a hidden parameter that solvers fill from history.
 
-        The reference of every hidden parameter is added to `references`, which the spec receives after its laws.
-        A component, or one element of its element sets, that delays one state by one delay twice reads one hidden
+        The reference of every hidden parameter is added to `references`, which the spec receives after its laws. A
+        component, or one element of its element sets, that delays one state by one delay twice reads one hidden
         parameter.
         """
         if isinstance(value, FreeModuleElement):

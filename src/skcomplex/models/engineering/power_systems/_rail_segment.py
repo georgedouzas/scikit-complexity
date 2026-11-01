@@ -18,8 +18,8 @@ from ....specs import ParameterSpec, StateSpec, VisualSpec
 class RailSegmentElement(Element):
     """Rail segment on a sleeper, two masses joined by a spring and a damper and loaded by passing wheels.
 
-    The element holds the wheel load and the ballast under the sleeper, and the model joins the rail and the sleeper
-    by a `SpringDamperInteraction` of the stiffness `kr` and the damping `br`.
+    The element holds the wheel load and the ballast under the sleeper, and the model joins the rail and the sleeper by
+    a `SpringDamperInteraction` of the stiffness `kr` and the damping `br`.
     """
 
     def __init__(

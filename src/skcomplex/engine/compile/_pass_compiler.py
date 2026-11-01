@@ -389,8 +389,8 @@ class PassCompiler(BaseCompiler):
     def _counted(self, system: System) -> tuple[Compilation | None, list[IssueSpec]]:
         """Return the compilation of a system through the census of its laws, or the issues that stop it before.
 
-        The compilation stops after flattening for a system that another compiler compiles. When laws read
-        reductions of agents, the compilation starts again from a system tree that holds each of them in an element.
+        The compilation stops after flattening for a system that another compiler compiles. When laws read reductions of
+        agents, the compilation starts again from a system tree that holds each of them in an element.
         """
         compilation = self._new_compilation(system)
         try:

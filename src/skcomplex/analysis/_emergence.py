@@ -35,6 +35,7 @@ SETTINGS = {
     'closure': {'partition', 'history', 'base'},
 }
 """Settings every kind reads, besides `kind` and `variables`."""
+
 MAX_EXHAUSTIVE_STATES = 10
 TOLERANCE = 1e-12
 

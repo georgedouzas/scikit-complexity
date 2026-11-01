@@ -28,6 +28,7 @@ SETTINGS = {
     'overlap': set(),
 }
 """Settings every kind reads, besides `kind` and `variables`."""
+
 MOMENT_ITERATIONS = 8
 REPLICAS = 2
 
@@ -295,7 +296,7 @@ class CorrelationAnalysis(BaseAnalysis):
 
     @staticmethod
     def _ornstein_zernike_length(hat: Array, power: Array, limit: float) -> float:
-        """Return `sqrt(slope / intercept)` of a fit of `1 / S` against `q̂²` over the modes with `q̂²` up to a limit."""
+        """Return `sqrt(slope / intercept)` of a fit of `1 / S` against `q̂²` over the modes of `q̂²` to `limit`."""
         inside = (hat <= limit) & (power > 0)
         if inside.sum() < MIN_LINE_POINTS:
             return float('nan')

@@ -23,9 +23,9 @@ class BaseStructureSpec(BaseSpec):
     """Base of the structures of a rewriting element at one generation: a word, a patch of tiles, or a graph.
 
     The readers `parts`, `segments`, `polygons`, `geometry`, and `raster` describe the structure; subclasses give the
-    parts, the segments, and the polygons, and the measures follow from them with Shapely. Every subclass has the
-    field `generation`, and its arrays are read-only, built with `_frozen`, so later generations cannot change a
-    recorded structure.
+    parts, the segments, and the polygons, and the measures follow from them with Shapely. Every subclass has the field
+    `generation`, and its arrays are read-only, built with `_frozen`, so later generations cannot change a recorded
+    structure.
     """
 
     @property

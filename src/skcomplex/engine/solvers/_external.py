@@ -14,9 +14,8 @@ class ExternalSolver(Solver):
     """Base class of solvers that translate a compiled problem into a third-party library.
 
     Subclasses implement the hooks `_get_name`, `_get_form`, `_unsupported`, `_build`, and `_advance`, and list the
-    other forms the library runs in `_get_forms`.
-    Before the first frame, `prepare` checks every element, interaction, and law, and raises one error that lists
-    everything the library cannot run.
+    other forms the library runs in `_get_forms`. Before the first frame, `prepare` checks every element, interaction,
+    and law, and raises one error that lists everything the library cannot run.
     """
 
     @classmethod

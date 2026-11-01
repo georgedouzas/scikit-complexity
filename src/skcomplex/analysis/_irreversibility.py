@@ -42,6 +42,7 @@ SETTINGS = {
     'fluctuation-dissipation': {'unperturbed', 'field', 'correlation', 'temperature'},
 }
 """Settings every kind reads, besides `kind` and `variables`."""
+
 PATH_KINDS = ('jump-entropy-production', 'count-entropy-production', 'detailed-balance')
 ENSEMBLE_KINDS = (
     'langevin-entropy-production',

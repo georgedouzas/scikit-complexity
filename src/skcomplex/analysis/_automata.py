@@ -67,6 +67,7 @@ SETTINGS = {
     'entropy': {'windows', 'base'},
 }
 """Settings every kind reads, besides `kind`."""
+
 SOURCES = {
     'injective': ('automaton', 'linear automaton'),
     'surjective': ('automaton', 'linear automaton'),

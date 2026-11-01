@@ -42,7 +42,6 @@ _SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
 )
 """Spaces every kind of neighbourhood is read on."""
 
-
 type NeighborSearch = StaticSearch | EdgeRowSearch | MetricSearch
 
 _PLANE = 2

@@ -27,6 +27,7 @@ SETTINGS = {
     'summary': set(),
 }
 """Settings every kind reads, besides `kind`."""
+
 MIN_FIT_NODES = 50
 HEAVY_TAIL = 5
 FIT_CANDIDATES = 20

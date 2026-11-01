@@ -33,6 +33,7 @@ SETTINGS = {
     **{law: {'fixed', 'simulations', 'random_state'} for law in NAMED_LAWS},
 }
 """Settings every law reads, besides `law`, `variables`, and `group`."""
+
 MIN_TAIL = 10
 MIN_BLOCKS = 10
 

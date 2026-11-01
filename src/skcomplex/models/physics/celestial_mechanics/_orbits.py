@@ -30,10 +30,7 @@ FIGURE_EIGHT: Preset = (
     [[-0.97000436, 0.24308753], [0.97000436, -0.24308753], [0.0, 0.0]],
     [[0.466203685, 0.43236573], [0.466203685, 0.43236573], [-0.93240737, -0.86473146]],
 )
-
-
 """Gravitational constant, masses, positions, and velocities of the figure-eight orbit."""
-
 
 INNER_SOLAR_SYSTEM: Preset = (
     4 * math.pi**2,
@@ -47,10 +44,7 @@ INNER_SOLAR_SYSTEM: Preset = (
         [0.0, 2 * math.pi / math.sqrt(1.524)],
     ],
 )
-
-
 """Gravitational constant, masses, positions, and velocities of the Sun and the inner planets."""
-
 
 PRESETS = {'figure_eight': FIGURE_EIGHT, 'inner_solar_system': INNER_SOLAR_SYSTEM}
 
