@@ -35,8 +35,8 @@ class RowsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Check the draws and settle the rows of every kernel spec.
 
-        A spec whose rows change is replaced by a copy with its rows settled in every field of the compilation, such
-        as the laws, the laws set apart, and the flows, which later passes read.
+        A spec whose rows change is replaced by a copy with its rows settled in every field of the compilation, such as
+        the laws, the laws set apart, and the flows, which later passes read.
         """
         compilation = self.compilation_
         apart = Compilation._required(compilation.apart, 'apart')

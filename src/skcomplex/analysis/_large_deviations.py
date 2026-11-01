@@ -31,6 +31,7 @@ SETTINGS = {
     'reweight': {'log_weights'},
 }
 """Settings every kind reads, besides `kind` and `variables`."""
+
 DATA_KINDS = {
     'tilted': DataKind.PATH,
     'block': DataKind.SERIES,

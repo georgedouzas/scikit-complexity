@@ -38,6 +38,7 @@ from .types import Bounds, Row, Source
 
 _PROBLEMS: dict[tuple[object, ...], BaseProblemSpec] = {}
 """Compiled problems by source, factory arguments, and observables, compiled once per process."""
+
 PLAIN_LAWS = (
     RateLaw,
     NoiseLaw,
@@ -51,6 +52,7 @@ PLAIN_LAWS = (
     EquationLaw,
 )
 """Laws of elements that a group of members of the same type runs as one vectorised simulation."""
+
 BOUND_LENGTH = 2
 """Length of a pair `(low, high)` of bounds."""
 

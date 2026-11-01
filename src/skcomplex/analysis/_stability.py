@@ -33,6 +33,7 @@ SETTINGS = {
     'dispersion': {'at'},
 }
 """Settings every kind reads, besides `kind`."""
+
 OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
 EIGENVALUE = symbol('_eigenvalue_')
 ZERO = 1e-9
@@ -350,7 +351,7 @@ class StabilityAnalysis(BaseAnalysis):
 
     @staticmethod
     def _is_point(solution: Mapping[Expression, Expression], symbols: list[Expression]) -> bool:
-        """Check that a solution fixes every state, without the free parameters `r1`, `r2`, ... of solution families."""
+        """Check that a solution fixes every state, without the free parameters `r1`, `r2` of solution families."""
         free = {str(item) for value in solution.values() for item in SR(value).variables()}
         return all(item in solution for item in symbols) and not any(re.fullmatch(r'r\d+', name) for name in free)
 

@@ -345,9 +345,9 @@ class SpecsPass(BasePass):
     ) -> SimpleNamespace:
         """Return the namespace of a member of a group on a network with hyperedges, with the slots of one hyperedge.
 
-        The slots are `others`, the other members of a hyperedge around the member in its order, as many as the
-        largest hyperedge has, and `members`, all its members, which only the reductions over the hyperedges around
-        a member read. A group that declares a variable named like a slot keeps it.
+        The slots are `others`, the other members of a hyperedge around the member in its order, as many as the largest
+        hyperedge has, and `members`, all its members, which only the reductions over the hyperedges around a member
+        read. A group that declares a variable named like a slot keeps it.
         """
         space = SpecsPass._group_space(block)
         if (

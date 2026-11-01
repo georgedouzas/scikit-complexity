@@ -144,8 +144,8 @@ class KernelsPass(BasePass):
     def _assignment_keys(target: ReferenceSpec) -> tuple[tuple[object, ...], ...]:
         """Return the keys of the laws an assignment of a target meets, the first two, and holds, all but the first.
 
-        The laws of every member of a group are held under the component, and the laws of one member under the
-        component and the member and under the laws of single members, so each meets the other.
+        The laws of every member of a group are held under the component, and the laws of one member under the component
+        and the member and under the laws of single members, so each meets the other.
         """
         name = target.entry.name
         if target.source is ReadKind.MEMBER or target.entry.members is None:

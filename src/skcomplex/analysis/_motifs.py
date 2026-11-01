@@ -25,6 +25,7 @@ SETTINGS = {
     'z-scores': {'size', 'null', 'samples', 'random_state'},
 }
 """Settings every kind reads, besides `kind`."""
+
 SWAPS_PER_EDGE = 3
 UNDIRECTED_THREE = {2: 'path', 3: 'triangle'}
 UNDIRECTED_FOUR = {
@@ -37,6 +38,7 @@ UNDIRECTED_FOUR = {
 }
 ISOCLASSES = {(3, False): 4, (3, True): 16, (4, False): 11, (4, True): 218}
 """The number of isomorphism classes of igraph of every size, undirected and directed."""
+
 PERMUTATIONS = tuple(itertools.permutations(range(4)))
 
 

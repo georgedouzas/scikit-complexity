@@ -26,6 +26,7 @@ SETTINGS = {
     'largest': {'variables', 'dt', 'dimension', 'delay', 'min_separation', 'trajectory_length', 'skip'},
 }
 """Settings every kind reads, besides `kind`."""
+
 FUNCTIONS: dict[str, VectorFunction] = {}
 
 

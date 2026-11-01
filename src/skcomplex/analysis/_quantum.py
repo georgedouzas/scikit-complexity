@@ -30,6 +30,7 @@ SETTINGS = {
     'entanglement': {'subsystems'},
 }
 """Settings every kind reads, besides `kind`."""
+
 DIAGONAL_TOLERANCE = 1e-12
 SECTOR_TOLERANCE = 1e-9
 

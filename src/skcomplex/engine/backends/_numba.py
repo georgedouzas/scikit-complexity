@@ -536,9 +536,8 @@ class NumbaBackend(BaseBackend):
         """Return a digest of the compiled helpers that generated kernels import and of the Numba version.
 
         Numba caches a kernel with the compiled helpers it calls, but checks only the kernel's own source, so a kernel
-        cached against other helpers, such as those of another version of the library, would run stale code. The
-        digest keys the cached kernels on the helpers too, and on the module of the step count that the stepper loops
-        call.
+        cached against other helpers, such as those of another version of the library, would run stale code. The digest
+        keys the cached kernels on the helpers too, and on the module of the step count that the stepper loops call.
         """
         modules = (_numba_components, _numba_neighbours, _numba_stencils, sys.modules[step_count.__module__])
         sources = [inspect.getsource(module).encode() for module in modules]

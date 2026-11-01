@@ -15,8 +15,8 @@ from ....specs import ParameterSpec, StateSpec, VisualSpec
 class KernerKonhauserElement(Element):
     """Cell of a road with the traffic density `rho` and the flow `q` of the Kerner-Konhäuser model.
 
-    The density and the flow are conserved by conservation interactions, the flow relaxes to the equilibrium flow by
-    a relaxation interaction, and the viscosity adds the rate `mu laplacian(q / rho)` to the flow.
+    The density and the flow are conserved by conservation interactions, the flow relaxes to the equilibrium flow by a
+    relaxation interaction, and the viscosity adds the rate `mu laplacian(q / rho)` to the flow.
     """
 
     def __init__(

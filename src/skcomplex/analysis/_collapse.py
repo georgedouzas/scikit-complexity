@@ -23,6 +23,7 @@ SETTINGS = {
     'crossings': {'parameters'},
 }
 """Settings every kind reads, besides `kind`."""
+
 MIN_SIZES = 2
 GRID = 50
 

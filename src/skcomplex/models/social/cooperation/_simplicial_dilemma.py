@@ -94,8 +94,8 @@ class SimplicialDilemmaInteraction(CouplingInteraction):
         """Return the payoff of a member from the games along its links in one hyperedge of two or three members.
 
         In a link a cooperator earns 1 or `S1` and a defector `T1` or 0 against a cooperator or a defector. In a
-        2-simplex with `c` cooperating others a cooperator earns 2, `1 + S2`, or `2 S3`, and a defector `2 T3`, `T2`,
-        or 0, for `c` of 2, 1, or 0.
+        2-simplex with `c` cooperating others a cooperator earns 2, `1 + S2`, or `2 S3`, and a defector `2 T3`, `T2`, or
+        0, for `c` of 2, 1, or 0.
         """
         own = hyperedge.member.strategy
         others = total(hyperedge.members.strategy, over=hyperedge.members) - own

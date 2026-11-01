@@ -80,8 +80,8 @@ class FieldFunctionsPass(BasePass):
     ) -> tuple[FiniteVolumeKernel, ...]:
         """Return the conservation laws of every finite-volume field from the flux laws of all its components.
 
-        The flux laws of one field, from its element and from any interaction, form one system, whose wave speeds
-        come from the Jacobian of all its fluxes.
+        The flux laws of one field, from its element and from any interaction, form one system, whose wave speeds come
+        from the Jacobian of all its fluxes.
         """
         found: dict[str, list[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]]] = {}
         for spec, laws in specs:
@@ -247,8 +247,8 @@ class FieldFunctionsPass(BasePass):
         """Return the flux components in symbols shared by all the laws, the state symbols, and the parameters read.
 
         Every law reads the states and parameters through the symbols of its own namespace, so the conserved states
-        become one symbol each, by their entries, and so do the other values the fluxes read, parameters or states
-        that no flux conserves, by their entries and how they are read.
+        become one symbol each, by their entries, and so do the other values the fluxes read, parameters or states that
+        no flux conserves, by their entries and how they are read.
         """
         names = [reference.entry.name for _, reference, _ in laws]
         if len(set(names)) != len(names):

@@ -69,8 +69,8 @@ def _is_due(agent: AgentViewProtocol, model: ModelViewProtocol) -> bool:
 def _is_spreading(agent: PersonView, model: ModelView) -> bool:
     """Return whether an infectious person spreads in this step, drawn once per step with probability `beta`.
 
-    The infection keeps the draw in its storage for the step, so the person infects every susceptible person of its
-    cell or none of them.
+    The infection keeps the draw in its storage for the step, so the person infects every susceptible person of its cell
+    or none of them.
     """
     record = model.storage.get(f'spreading.{agent.id}')
     if isinstance(record, tuple) and record[0] == model.time:

@@ -1,8 +1,9 @@
 """Fractals: escape-time sets, chaos-game attractors, and words and patches that grow by rewriting.
 
 The rewriting classes are a worked example of a form defined outside the engine: elements and laws on the core bases,
-kernels, a compiler, a solver, and a visual on the engine bases. A rewriting system runs with
-`Simulation(system, compiler=RewritingCompiler())`.
+kernels, a compiler, a solver, and a visual on the engine bases.
+
+A rewriting system runs as `Simulation(system, compiler=RewritingCompiler())`.
 """
 
 from ._affine_spec import AffineSpec

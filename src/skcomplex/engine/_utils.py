@@ -227,8 +227,8 @@ def declared_variables(part: object) -> dict[str, tuple[VariableSpec, object]]:
 def _class_variables(cls: type[BasePart]) -> dict[str, tuple[VariableSpec, object]]:
     """Return the declaration and the default of every variable of a part class, read once per class.
 
-    Rules read the declarations of their agents every step, such as the group a reference state names, so the
-    signature and the annotations of a class are parsed once. Callers receive a copy from `declared_variables`.
+    Rules read the declarations of their agents every step, such as the group a reference state names, so the signature
+    and the annotations of a class are parsed once. Callers receive a copy from `declared_variables`.
     """
     parameters = inspect.signature(cls).parameters
     variables: dict[str, tuple[VariableSpec, object]] = {}

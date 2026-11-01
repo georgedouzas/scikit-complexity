@@ -17,7 +17,7 @@ from .conftest import _final_graph
 
 
 def _transitions(hypergraph: xgi.Hypergraph) -> np.ndarray:
-    """Return the size-biased transition matrix of Carletti et al. from the incidence matrix of a hypergraph."""
+    """Return the size-biased transition matrix of Carletti and coworkers from the incidence matrix of a hypergraph."""
     incidence = xgi.incidence_matrix(hypergraph, sparse=False)
     sizes = incidence.sum(axis=0)
     weights = incidence @ np.diag(sizes - 1) @ incidence.T

@@ -85,8 +85,7 @@ class LowerFieldsPass(BasePass):
     ) -> list[BaseLaw]:
         """Return laws whose differential operators are lowered, noting stable steps and the linear terms of rates.
 
-        The spec is replaced by a copy with the references of the neighbour reads and derived values in the
-        compilation.
+        The spec is replaced by a copy with the references of the neighbour reads and derived values in the compilation.
         """
         places = FieldLowering._field_entries(Compilation._required(compilation.layout, 'layout'))
         linear += LowerFieldsPass._linear_terms_of(spec, laws, places)

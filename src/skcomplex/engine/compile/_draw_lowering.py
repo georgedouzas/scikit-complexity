@@ -222,9 +222,9 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     def _allocate(self, orders: tuple[Indices, ...]) -> None:
         """Place the drawn values after the parameters, by component path, draw name, and member index.
 
-        The reference of every drawn value is noted for the spec of its component, and the draws taken at every step
-        are kept in `draws_` with the orders drawn at every step, which stays `None` when no update law draws and no
-        table reads through an order.
+        The reference of every drawn value is noted for the spec of its component, and the draws taken at every step are
+        kept in `draws_` with the orders drawn at every step, which stays `None` when no update law draws and no table
+        reads through an order.
         """
         if not self.requests_ and not orders:
             return

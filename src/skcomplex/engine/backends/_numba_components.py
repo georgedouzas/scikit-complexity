@@ -43,8 +43,8 @@ def _component_labels(size: int, firsts: IntArray, seconds: IntArray, count: int
 def _component_values(size: int, firsts: IntArray, seconds: IntArray, count: int, kind: int) -> Array:
     """Return the label, the size, the largest size, or the membership of the giant component of every member.
 
-    The first `count` entries of `firsts` and `seconds` are the members of the active links. The label of a component
-    is its smallest member, and the giant component is the largest one, the one of the smallest label among ties.
+    The first `count` entries of `firsts` and `seconds` are the members of the active links. The label of a component is
+    its smallest member, and the giant component is the largest one, the one of the smallest label among ties.
     """
     labels = _component_labels(size, firsts, seconds, count)
     sizes = np.zeros(size, dtype=np.int64)

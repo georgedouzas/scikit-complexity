@@ -371,9 +371,9 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
     def _gathered_member(self, reference: ReferenceSpec) -> str:
         """Return the code of the member a gathered reference reads at the row `_m_`, from its table in the layout.
 
-        A table whose members change during a run holds positions in a parameter entry, which holds the members, and
-        a table of the positions in an order drawn at every step reads the member at its position in the order, whose
-        data the layout holds after the tables.
+        A table whose members change during a run holds positions in a parameter entry, which holds the members, and a
+        table of the positions in an order drawn at every step reads the member at its position in the order, whose data
+        the layout holds after the tables.
         """
         read = reference.shifted
         digest = hashlib.sha256(np.asarray(read.table, dtype=np.int64).tobytes()).hexdigest()[:16]

@@ -10,8 +10,7 @@ class MinorityPlayerView(AgentView):
     """Player as the minority game sees it, with its strategies, action, and wealth.
 
     It reads its `first` and `second` strategies, their scores `first_score` and `second_score`, the `strategy` it
-    plays, 0 for the first and 1 for the second, its last `action`,
-    and its `wealth`.
+    plays, 0 for the first and 1 for the second, its last `action`, and its `wealth`.
     """
 
     first: float

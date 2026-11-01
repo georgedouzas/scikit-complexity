@@ -40,8 +40,10 @@ SETTINGS = {
     'total-variation': set(),
 }
 """Settings every kind reads, besides `kind`, `variables`, and `group`."""
+
 POOLED = ('histogram', 'ccdf', 'gini', 'tail-index')
 """The kinds that pool every series into one sample."""
+
 GROUPS = 2
 UNIT_COLUMNS = 2
 

@@ -24,6 +24,7 @@ SETTINGS = {
     'stroboscopic': {'variables', 'period', 'n_points', 'transient', 'solver', 'random_state'},
 }
 """Settings every kind reads, besides `kind`."""
+
 DIRECTIONS = (-1, 0, 1)
 SECTION = '__section'
 

@@ -30,14 +30,15 @@ SETTINGS = {
     'flow-matrix': {'frame', 'quantity'},
 }
 """Settings every kind reads, besides `kind`."""
+
 POLARITIES = {1: 'reinforcing', -1: 'balancing', 0: 'neutral'}
 
 
 class _Graph:
     """Edges of the signed dependency graph of a problem with the expressions of their partial derivatives.
 
-    The nodes are the state variables and the flows. A state whose rate the flows and rate laws of single elements
-    give is linked through them, and every other state through its row of the Jacobian.
+    The nodes are the state variables and the flows. A state whose rate the flows and rate laws of single elements give
+    is linked through them, and every other state through its row of the Jacobian.
     """
 
     def __init__(self, problem: ProblemSpec) -> None:

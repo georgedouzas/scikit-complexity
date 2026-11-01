@@ -22,6 +22,7 @@ SETTINGS = {
     'mean-phase': {'variables', 'group'},
 }
 """Settings every kind reads, besides `kind`."""
+
 READ_KINDS = (DataKind.AGENTS, DataKind.FIELD, DataKind.SERIES)
 VECTOR_DIMENSIONS = 2
 

@@ -93,8 +93,8 @@ def _get_arrived(walker: AgentViewProtocol, model: ModelViewProtocol) -> float:
 def _get_step(walker: AgentViewProtocol, model: ModelViewProtocol) -> object:
     """Return a neighbouring cell drawn with a weight that grows with the alignment of the step with the heading.
 
-    The heading is the unit vector toward the goal plus `attraction` times the gradient of the trail potential, and
-    the weight of a step is `exp(directedness * cos angle)`, where the angle is between the step and the heading.
+    The heading is the unit vector toward the goal plus `attraction` times the gradient of the trail potential, and the
+    weight of a step is `exp(directedness * cos angle)`, where the angle is between the step and the heading.
     """
     if not isinstance(walker, WalkerView):
         return None

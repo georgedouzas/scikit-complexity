@@ -26,6 +26,7 @@ SETTINGS = {
     'mean-first-passage': {'origin', 'target', 'lag', 'dt'},
 }
 """Settings every kind reads, besides `kind` and `variables`."""
+
 MATRIX_KINDS = ('committor', 'mean-first-passage')
 
 

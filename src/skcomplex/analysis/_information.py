@@ -51,6 +51,7 @@ SETTINGS = {
     'kl-divergence': {'base'},
 }
 """Settings every kind reads, besides `kind` and `variables`."""
+
 SYMBOL_SETTINGS = {None: set(), 'bins': {'bins'}, 'quantiles': {'bins'}, 'ordinal': {'order', 'delay'}}
 """Settings every symbolization reads."""
 

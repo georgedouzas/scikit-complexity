@@ -391,7 +391,6 @@ class LammpsSolver(ExternalSolver):
         Args:
             problem:
                 The compiled problem.
-
         """
         self._set_atoms(problem)
         external = self._external_paths(problem)

@@ -9,8 +9,8 @@ from ....engine.solvers import AgentView
 class HouseholdView(AgentView):
     """Household as its rule sees it, with its income, phone, and class.
 
-    It reads its `income`, its `phone`, its `social_class`, the `growth` of its income, and the `threshold` of
-    affording a phone.
+    It reads its `income`, its `phone`, its `social_class`, the `growth` of its income, and the `threshold` of affording
+    a phone.
     """
 
     income: float

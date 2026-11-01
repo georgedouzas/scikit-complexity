@@ -19,10 +19,8 @@ from ._reference_spec import ReferenceSpec
 type MemberFunction = tuple[Callable[..., object], tuple[ReferenceSpec | str, ...]]
 """Function of the states and parameters of renewing members and of the values drawn for them, with its readers."""
 
-
 type Sampler = tuple[DrawSpec, MemberFunction]
 """DrawSpec of a renewal law with the function of its arguments."""
-
 
 _READ_SOURCES = frozenset({ReadKind.SINGLE, ReadKind.MEMBER})
 
