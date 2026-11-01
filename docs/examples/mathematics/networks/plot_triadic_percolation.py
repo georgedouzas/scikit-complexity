@@ -9,8 +9,8 @@ component alternates between a large and a small size, a cycle of period two.
 
 # %%
 # The network is an Erdős-Rényi graph of 1000 nodes with mean degree 4, and every regulator is negative. A link the
-# regulation allows is active with probability `p = 0.5`. One time step of Millán et al. takes two steps of the
-# simulation: the links follow their regulators, and then the nodes take the giant component of the active links.
+# regulation allows is active with probability `p = 0.5`. Every step of the simulation is a time step of Millán et al.
+# in two phases: the links follow their regulators, and then the nodes take the giant component of the active links.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,8 +23,8 @@ from skcomplex.models import create
 MODEL = 'triadic_percolation'
 
 system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=60)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
+simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=30)
 
 
 def giant_fraction(mean_degree):
@@ -36,8 +36,8 @@ def giant_fraction(mean_degree):
 
 def giant(p):
     """Return the fraction of nodes in the giant component after every time step of Millán et al."""
-    run = Simulation(create(MODEL, p=p), random_state=0).check().prepare().run(until=80)
-    return run.trajectory_.values('nodes.active').mean(axis=1)[::2]
+    run = Simulation(create(MODEL, p=p), random_state=0).check().prepare().run(until=40)
+    return run.trajectory_.values('nodes.active').mean(axis=1)
 
 
 # %%

@@ -23,7 +23,7 @@
   `UpdateLaw` on the hyperedge path with per-step tables for pairs and partitions, fixed tables for neighbourhoods, and
   keyed reductions for groups by state; verify the majority in partitions and the agent setting scenarios
 
-- [ ] 3.2 Run symbolic laws in ordered phases within one step, each phase reading the states the previous one wrote, on NumPy and Numba; move `triadic_percolation` off its step parity; verify a payoff then imitation in one step against a loop
+- [x] 3.2 Run symbolic laws in ordered phases within one step, each phase reading the states the previous one wrote, on NumPy and Numba; move `triadic_percolation` off its step parity; verify a payoff then imitation in one step against a loop
 
 ## 4. Tensors and growth
 

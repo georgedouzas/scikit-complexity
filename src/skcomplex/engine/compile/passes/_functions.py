@@ -12,8 +12,18 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.spaces import DiscreteTime
+from ....core.system import System
 from ....errors import BackendWarning, ValidationError
-from ....specs import EntrySpec, LayoutSpec, LoweredFunctionsSpec, RunStateSpec
+from ....specs import (
+    DEFAULT_PHASE,
+    EntrySpec,
+    LayoutSpec,
+    LoweredFunctionsSpec,
+    PhaseSpec,
+    PhasesScheduleSpec,
+    RunStateSpec,
+)
 from ....types import Array, FormKind, Indices, VectorFunction
 from ..._utils import symbols_of
 from ...backends import BaseBackend, NumpyBackend
@@ -160,13 +170,23 @@ class FunctionsPass(BasePass):
         complete = replace(lowered, form=form, size=size, reductions=reductions, draws=draws)
         lowering = backend.prepare().run(complete).functions_
         update: Callable[..., Array] | None = lowering.update
+        phases = FunctionsPass._phases_of(compilation, lowered) if form == FormKind.DISCRETE else None
         sweeps = FunctionsPass._sweeps_of(lowered, declarations.time)
-        if sweeps and update is not None:
+        if phases is not None:
+            update = FunctionsPass._phased_update(
+                [
+                    (phase, FunctionsPass._phase_update(backend, complete, items, declarations.time))
+                    for phase, items in phases
+                ],
+            )
+        elif sweeps and update is not None:
             update = FunctionsPass._ordered_update(update, sweeps)
         if draws is not None and update is not None:
             update = FunctionsPass._stochastic_update(update, draws)
         accelerated = lowering.accelerated
-        if ((draws is not None and (draws.sampled or draws.orders)) or sweeps) and accelerated is not None:
+        if (
+            (draws is not None and (draws.sampled or draws.orders)) or sweeps or phases is not None
+        ) and accelerated is not None:
             accelerated = replace(accelerated, iterate=None)
         main = {
             FormKind.ODE: kernels[RateLaw],
@@ -175,7 +195,11 @@ class FunctionsPass(BasePass):
             FormKind.JUMP: kernels[JumpLaw],
         }.get(form, kernels[UpdateLaw])
         equation_kernels = {FormKind.DISCRETE: kernels[UpdateLaw], FormKind.JUMP: []}.get(form, kernels[RateLaw])
-        equations, symbols = FunctionsPass._equations_of(equation_kernels, declarations, form)
+        equations, symbols = (
+            FunctionsPass._equations_of(equation_kernels, declarations, form)
+            if phases is None
+            else FunctionsPass._phased_equations([items for _, items in phases], declarations, form)
+        )
         states = LayoutSpec(tuple(declarations.states))
         return _ProblemFunctionsSpec(
             equations=equations,
@@ -296,6 +320,122 @@ class FunctionsPass(BasePass):
             return following
 
         return ordered
+
+    @staticmethod
+    def _phases_of(
+        compilation: Compilation,
+        lowered: LoweredKernelsSpec,
+    ) -> list[tuple[PhaseSpec, list[LawKernel]]] | None:
+        """Return the phases of a step in order with the update kernels of each, or `None` for the default phase alone.
+
+        The phases are those of the `PhasesScheduleSpec` of the discrete time of the system and its nested systems, with
+        the default phase first unless a schedule places it, and a phase without update laws is left out.
+
+        Raises:
+            ValidationError:
+                An update law runs in a phase the schedule does not declare, or a phase of update laws repeats.
+        """
+        declared = FunctionsPass._declared_phases(compilation.system)
+        kernels: dict[str, list[LawKernel]] = defaultdict(list)
+        for kernel in lowered.kernels.get(UpdateLaw, []):
+            _, law = lowered.laws[id(kernel.outputs[0])]
+            kernels[(law.phase if isinstance(law, UpdateLaw) else None) or DEFAULT_PHASE].append(kernel)
+        names = [phase.name for phase in declared]
+        if set(kernels) <= {DEFAULT_PHASE} and DEFAULT_PHASE not in names:
+            return None
+        plan = declared if DEFAULT_PHASE in names else [PhaseSpec(DEFAULT_PHASE), *declared]
+        unknown = sorted(set(kernels) - {phase.name for phase in plan})
+        if unknown:
+            error_msg = (
+                f'Update laws run in the phases {", ".join(unknown)}, which the system does not declare. Declare them '
+                'with `DiscreteTime(schedule=PhasesScheduleSpec(...))`. Declared phases are: '
+                f'{", ".join(names) or "none"}.'
+            )
+            raise ValidationError(error_msg)
+        for phase in plan:
+            if phase.name in kernels and phase.repeat != 1:
+                error_msg = (
+                    f'The phase {phase.name!r} repeats {phase.repeat} times, but update laws run once per phase, since '
+                    'they draw once per step. Give it one round, or move the update laws to a phase of their own.'
+                )
+                raise ValidationError(error_msg)
+        return [(phase, kernels[phase.name]) for phase in plan if phase.name in kernels]
+
+    @staticmethod
+    def _declared_phases(system: System) -> list[PhaseSpec]:
+        """Return the phases of the schedules of a system and its nested systems, the first of every name kept."""
+        time = system.time
+        schedule = time.check().prepare().schedule_ if isinstance(time, DiscreteTime) else None
+        phases = list(schedule.phases) if isinstance(schedule, PhasesScheduleSpec) else []
+        for nested in system.systems:
+            phases += FunctionsPass._declared_phases(nested)
+        kept: dict[str, PhaseSpec] = {}
+        for phase in phases:
+            kept.setdefault(phase.name, phase)
+        return list(kept.values())
+
+    @staticmethod
+    def _phase_update(
+        backend: BaseBackend,
+        complete: LoweredKernelsSpec,
+        kernels: list[LawKernel],
+        time: Expression,
+    ) -> Callable[..., Array]:
+        """Return the update of the kernels of one phase, whose ordered laws set their members one after the other."""
+        phase = replace(complete, kernels=defaultdict(list, {UpdateLaw: kernels}))
+        update = backend.prepare().run(phase).functions_.update
+        if update is None:
+            error_msg = 'The backend returns no update of a phase of a discrete map.'
+            raise TypeError(error_msg)
+        sweeps = FunctionsPass._sweeps_of(phase, time)
+        return FunctionsPass._ordered_update(update, sweeps) if sweeps else update
+
+    @staticmethod
+    def _phased_update(phases: list[tuple[PhaseSpec, Callable[..., Array]]]) -> Callable[..., Array]:
+        """Return an update that runs the phases due in a step in order, each reading the states the one before set.
+
+        A phase runs in the steps `k`, counted from one, for which `k - offset` is a multiple of its period.
+
+        Args:
+            phases:
+                The phases in order, with the update `F(t, x, q)` of each.
+
+        Returns:
+            update:
+                The update `F(t, x, q)`.
+        """
+
+        def phased(t: float, x: Array, q: Array) -> Array:
+            state, step = x.copy(), round(t) + 1
+            for phase, update in phases:
+                if not (step - phase.offset) % phase.period:
+                    state = update(t, state, q)
+            return state
+
+        return phased
+
+    @staticmethod
+    def _phased_equations(
+        phases: list[list[LawKernel]],
+        declarations: DeclarationsSpec,
+        form: FormKind,
+    ) -> tuple[dict[str, Expression], dict[str, Expression]]:
+        """Return the symbolic map of phases that run in every step, the map of every phase composed with those before.
+
+        A state whose value after a phase has no symbolic equation, or reads such a state, is left out.
+        """
+        known, symbols = FunctionsPass._equations_of([], declarations, form)
+        names = {component: name for name, component in symbols.items()}
+        for kernels in phases:
+            equations, _ = FunctionsPass._equations_of(kernels, declarations, form)
+            following = {}
+            for name, equation in equations.items():
+                expression = SR(equation)
+                read = [names[item] for item in expression.variables() if item in names]
+                if all(item in known for item in read):
+                    following[name] = expression.subs({symbols[item]: known[item] for item in read})
+            known = following
+        return known, {name: symbols[name] for name in known}
 
     @staticmethod
     def _stochastic_update(update: Callable[..., Array], draws: DrawKernel) -> Callable[..., Array]:

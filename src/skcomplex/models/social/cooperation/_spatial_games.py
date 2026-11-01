@@ -4,36 +4,28 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.interactions import LocalRuleInteraction
-from ....core.spaces import LatticeNeighborhood, LatticeSpace
+from ....core.interactions import GroupingInteraction, ImitationInteraction, LocalRuleInteraction
+from ....core.laws.utils import count, total
+from ....core.spaces import DiscreteTime, LatticeNeighborhood, LatticeSpace
 from ....core.system import System
 from ....errors import ValidationError
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array, Pair
 from ..._catalog import register_model
 
 IMITATIONS = ('best', 'fermi')
 ORIGIN: Pair = (0, 0)
 MOORE: tuple[Pair, ...] = tuple((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
-VON_NEUMANN: tuple[Pair, ...] = ((-1, 0), (1, 0), (0, -1), (0, 1))
 SQUARE = LatticeNeighborhood(tuple((dx, dy) for dx in range(-2, 3) for dy in range(-2, 3)))
-DIAMOND_RADIUS = 3
-DIAMOND = LatticeNeighborhood(
-    tuple(
-        (dx, dy)
-        for dx in range(-DIAMOND_RADIUS, DIAMOND_RADIUS + 1)
-        for dy in range(-DIAMOND_RADIUS, DIAMOND_RADIUS + 1)
-        if abs(dx) + abs(dy) <= DIAMOND_RADIUS
-    ),
-)
 
 
 def _shift(first: Pair, second: Pair) -> Pair:
@@ -122,9 +114,10 @@ class PrisonerElement(Element):
 
 
 class ContributorElement(Element):
-    """Player of the spatial public goods game, a cooperator at 1 and a defector at 0.
+    """Player of the spatial public goods game, a cooperator at 1 and a defector at 0, with its payoff.
 
-    The play and the imitation are a `PublicGoodsInteraction` of the lattice, which `public_goods_game` adds.
+    The play is a `PublicGoodsInteraction` of the lattice, and the imitation an `ImitationInteraction` that reads the
+    payoffs of the same step, which `public_goods_game` adds.
 
     Args:
         label:
@@ -135,6 +128,9 @@ class ContributorElement(Element):
 
         strategy:
             The initial strategy, 1 or 0.
+
+        payoff:
+            The payoff of the last play, the sum of the shares of its five groups minus its contributions.
 
         synergy:
             The factor that multiplies the contributions of a group.
@@ -154,11 +150,13 @@ class ContributorElement(Element):
         visual: VisualSpec | None = None,
         *,
         strategy: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+        payoff: Annotated[float, StateSpec()] = 0.0,
         synergy: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.5,
         noise: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
     ) -> None:
         super().__init__(label, visual=visual)
         self.strategy = strategy
+        self.payoff = payoff
         self.synergy = synergy
         self.noise = noise
 
@@ -224,14 +222,13 @@ class PrisonersDilemmaInteraction(LocalRuleInteraction):
         return _imitate_fermi(cells[ORIGIN], payoff(ORIGIN), payoffs, strategies, noise=noise, random=random)
 
 
-class PublicGoodsInteraction(LocalRuleInteraction):
-    """Play of the public goods game in groups of five neighbours, and Fermi imitation of a random neighbour.
+class PublicGoodsInteraction(GroupingInteraction):
+    """Play of the public goods game in the groups of a player and its four neighbours, which sets the payoffs.
 
-    It is a stochastic `LocalRuleInteraction` of the strategies over the sites within three steps of a player, a
-    cooperator at 1 and a defector at 0. Every player joins five groups, the one centred on itself and those centred on
-    its four neighbours. In each group a cooperator pays 1, and the pot multiplied by `synergy` is shared by the five
-    members. A player then copies a random neighbour with the Fermi probability
-    `1 / (1 + exp((P_own - P_other) / noise))`. The synergy and the noise are parameters of the players.
+    It is a symbolic `GroupingInteraction` of the von Neumann neighbourhoods of a lattice, a cooperator at 1 and a
+    defector at 0. Every player joins five groups, the one centred on itself and those centred on its four neighbours.
+    In each group a cooperator pays 1, and the pot multiplied by `synergy` is shared by the members, so the payoff of a
+    player is the sum of its shares minus its contributions. The synergy is a parameter of the players.
 
     Args:
         label:
@@ -240,30 +237,30 @@ class PublicGoodsInteraction(LocalRuleInteraction):
         target:
             The path of the players on the lattice.
 
+        phase:
+            The phase of the step the play runs in, or `None` for the default phase.
+
     Examples:
         >>> from skcomplex.models.social.cooperation import PublicGoodsInteraction
-        >>> PublicGoodsInteraction('play', target='players').check().state
-        'strategy'
+        >>> PublicGoodsInteraction('play', target='players').check().write
+        'payoff'
     """
 
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label, target=target, state='strategy', rule=self._play, neighborhood=DIAMOND, stochastic=True)
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], phase: str | None = None) -> None:
+        super().__init__(
+            label,
+            target=target,
+            groups='neighborhood',
+            form='symbolic',
+            write='payoff',
+            function=self._get_share,
+            phase=phase,
+        )
 
-    def _play(self, *values: Array, synergy: float | Array, noise: float | Array, random: Array) -> Array:
-        """Return the strategies after the play of every player in its five groups and the imitation."""
-        cells = dict(zip(DIAMOND.offsets, values, strict=True))
-        group = (*VON_NEUMANN, ORIGIN)
-
-        def payoff(center: Pair) -> Array:
-            share = sum(
-                sum(cells[_shift(_shift(center, host), member)] for member in group) * synergy / len(group)
-                for host in group
-            )
-            return share - len(group) * cells[center]
-
-        payoffs = [payoff(offset) for offset in VON_NEUMANN]
-        strategies = [cells[offset] for offset in VON_NEUMANN]
-        return _imitate_fermi(cells[ORIGIN], payoff(ORIGIN), payoffs, strategies, noise=noise, random=random)
+    def _get_share(self, group: SimpleNamespace) -> Expression:
+        """Return the share of the pot of a group for its member, minus the contribution of the member."""
+        pot = group.member.synergy * total(group.members.strategy, over=group.members)
+        return pot / count(over=group.members) - group.member.strategy
 
 
 @register_model(
@@ -343,6 +340,10 @@ def public_goods_game(
 ) -> System:
     """Return the spatial public goods game in groups of five neighbours, with Fermi imitation.
 
+    Every step has two phases. In the phase `play` every player takes the payoff of its five groups, and in the phase
+    `imitate` every player copies a random neighbour with the Fermi probability `1 / (1 + exp((P_own - P_other) / K))`
+    of the payoffs of the same step, at the noise `K`.
+
     Args:
         shape:
             The number of rows and columns of the periodic lattice.
@@ -361,7 +362,7 @@ def public_goods_game(
 
     Returns:
         system:
-            The model, with the strategies `players.strategy`.
+            The model, with the strategies `players.strategy` and the payoffs `players.payoff`.
 
     Examples:
         >>> from skcomplex.models.social.cooperation import public_goods_game
@@ -372,7 +373,21 @@ def public_goods_game(
     players = LatticeElement(
         'players',
         element=ContributorElement,
-        space=LatticeSpace(tuple(shape)),
+        space=LatticeSpace(tuple(shape), neighborhood='von_neumann'),
         values={'strategy': strategies, 'synergy': synergy, 'noise': noise},
     )
-    return System(elements=[players], interactions=[PublicGoodsInteraction('play', target='players')])
+    imitation = ImitationInteraction(
+        'imitation',
+        target='players',
+        state='strategy',
+        rule='fermi',
+        form='probability',
+        intensity=1 / noise,
+        phase='imitate',
+    )
+    time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('play'), PhaseSpec('imitate'))))
+    return System(
+        elements=[players],
+        interactions=[PublicGoodsInteraction('play', target='players', phase='play'), imitation],
+        time=time,
+    )

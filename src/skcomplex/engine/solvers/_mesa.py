@@ -21,16 +21,13 @@ from ...core.laws import BaseLaw, BoundaryLaw, MatchLaw, RuleLaw, TransferLaw
 from ...core.spaces import BaseSpace, ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from ...core.specs import CompiledAgentsSpec
 from ...errors import ConservationError, SimulationError, SpaceError, ValidationError
-from ...specs import AgentSnapshotSpec, AgentStateSpec, PhaseSpec, PhasesScheduleSpec, SupportSpec
+from ...specs import DEFAULT_PHASE, AgentSnapshotSpec, AgentStateSpec, PhaseSpec, PhasesScheduleSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind, VariableKind
 from .._utils import declarations_of, default_of
 from ..compile import ObservableEvaluator
 from ..problems import ProblemSpec
 from ..types import MesaSpace
 from ._external import ExternalSolver
-
-_DEFAULT_PHASE = 'default'
-
 
 MAX_SEED = 2**31 - 1
 _HISTORY_LENGTH = 10_000
@@ -1414,7 +1411,7 @@ class MesaSolver(ExternalSolver):
     @staticmethod
     def _phase_of(rule: RuleLaw) -> str:
         """Return the name of the phase a rule runs in."""
-        return rule.phase or _DEFAULT_PHASE
+        return rule.phase or DEFAULT_PHASE
 
     @staticmethod
     def _phase_plan(phases: Sequence[PhaseSpec], problem: ProblemSpec) -> list[PhaseSpec] | None:
@@ -1428,7 +1425,7 @@ class MesaSolver(ExternalSolver):
         if len(set(names)) != len(names):
             error_msg = f'Phase names must be unique, and they are: {", ".join(names)}.'
             raise SimulationError(error_msg)
-        plan = list(phases) if _DEFAULT_PHASE in names else [PhaseSpec(_DEFAULT_PHASE), *phases]
+        plan = list(phases) if DEFAULT_PHASE in names else [PhaseSpec(DEFAULT_PHASE), *phases]
         unknown = sorted({MesaSolver._phase_of(rule) for rule in rules} - {phase.name for phase in plan})
         if unknown:
             error_msg = (

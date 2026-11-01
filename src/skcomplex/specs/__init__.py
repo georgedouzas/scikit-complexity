@@ -51,7 +51,7 @@ from ._parameter_spec import ParameterSpec
 from ._parameters_spec import ParametersSpec
 from ._partner_switch_spec import PartnerSwitchSpec
 from ._phase_spec import PhaseSpec
-from ._phases_schedule_spec import ACTIVATIONS, PhasesScheduleSpec
+from ._phases_schedule_spec import ACTIVATIONS, DEFAULT_PHASE, PhasesScheduleSpec
 from ._queue_spec import QueueSpec
 from ._radius_spec import RadiusSpec
 from ._random_search_spec import RandomSearchSpec
@@ -86,6 +86,7 @@ from ._wiener_process_spec import WienerProcessSpec
 
 __all__ = [
     'ACTIVATIONS',
+    'DEFAULT_PHASE',
     'EDGE_KINDS',
     'ENDS',
     'MONTE_CARLO_SCHEDULES',

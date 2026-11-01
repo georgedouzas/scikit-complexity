@@ -37,9 +37,10 @@ class ImitationInteraction(NeighborInteraction):
 
     In the `'rate'` form every member imitates at the rate `rate`, by jumps between every pair of options in continuous
     time. In the `'probability'` form every member imitates with probability `probability` in every step of a
-    discrete-time system, all members at once. In the `'agent'` form the target is an agent group, and every agent
-    imitates its neighbours in the space with probability `probability` in its `phase`, all agents at once, so they
-    read the states of the step before. The rule `'better'` runs in the agent form only.
+    discrete-time system, all members at once in its `phase`, reading the states the phases before it set. In the
+    `'agent'` form the target is an agent group, and every agent imitates its neighbours in the space with probability
+    `probability` in its `phase`, all agents at once, so they read the states of the step before. The rule `'better'`
+    runs in the agent form only.
 
     Args:
         label:
@@ -77,7 +78,7 @@ class ImitationInteraction(NeighborInteraction):
             The layer of the network whose edges the interaction runs on, or `None` for the graph of the network.
 
         phase:
-            The phase of the step the agent form runs in, or `None` for the default phase.
+            The phase of the step the agent and the probability forms run in, or `None` for the default phase.
 
     Raises:
         ValidationError:
@@ -231,14 +232,20 @@ class ImitationInteraction(NeighborInteraction):
         """Return the update of the state of the target with the probability of imitation, in discrete time."""
         value = getattr(namespace.target, self.state)
         if self.rule in ('random', 'fermi'):
-            return [UpdateLaw(value, self._draw_copy(namespace))]
+            return [UpdateLaw(value, self._draw_copy(namespace), phase=self.phase)]
         if self.rule == 'majority':
             leads = self._get_majority(namespace)
             imitated = value + sum((lead * (option - value) for option, lead in leads.items()), SR(0))
         else:
             best, better = self._get_best(namespace)
             imitated = where(better == 1, best, value)
-        return [UpdateLaw(value, where(uniform(f'{value}_imitation') < namespace.probability, imitated, value))]
+        return [
+            UpdateLaw(
+                value,
+                where(uniform(f'{value}_imitation') < namespace.probability, imitated, value),
+                phase=self.phase,
+            ),
+        ]
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the jumps or the update of the state by the rule of the imitation.

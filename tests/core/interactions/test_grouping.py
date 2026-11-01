@@ -8,14 +8,14 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
-from skcomplex.core.interactions import GroupingInteraction
+from skcomplex.core.interactions import GroupingInteraction, ImitationInteraction
 from skcomplex.core.laws.utils import count, mean, total, where
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import BaseBackend, NumbaBackend, NumpyBackend
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.errors import ValidationError
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 
@@ -162,6 +162,29 @@ def _symbolic(
     )
 
 
+class PlayerElement(Element):
+    """Player with a strategy, a payoff, and a small bias of its payoff that breaks ties."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        state: Annotated[float, StateSpec()] = 0.0,
+        payoff: Annotated[float, StateSpec()] = 0.0,
+        bias: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.state = state
+        self.payoff = payoff
+        self.bias = bias
+
+
+def _public_good(group: SimpleNamespace) -> object:
+    """Return the share of the public good of a group of five minus the contribution, with a fifth of the bias."""
+    return 3.8 * total(group.members.state, over=group.members) / 5 - group.member.state + group.member.bias / 5
+
+
 def _majority(group: SimpleNamespace) -> object:
     """Return 1 when more than half of the members of a group hold 1, and 0 otherwise."""
     return where(mean(group.members.s, over=group.members) > 1 / 2, 1, 0)
@@ -276,3 +299,46 @@ def test_check_rejects_an_unknown_form_and_symbolic_settings_of_the_agent_form(a
     """Test that an unknown form, and a state or function given to the agent form, raise an error."""
     with pytest.raises(ValidationError):
         GroupingInteraction('groups', target='voters', **arguments).check()
+
+
+@BACKENDS
+def test_get_laws_symbolic_phases_imitate_the_payoffs_of_the_same_step(backend):
+    """Test that a payoff phase and an imitation phase in one step equal a loop of the payoffs and then the copies."""
+    rng = np.random.default_rng(3)
+    strategies, bias = rng.integers(0, 2, 36).astype(float), rng.uniform(0, 0.01, 36)
+    space = LatticeSpace((6, 6), neighborhood='von_neumann', boundary='periodic')
+    players = LatticeElement('players', element=PlayerElement, space=space, values={'state': strategies, 'bias': bias})
+    payoffs = GroupingInteraction(
+        'goods',
+        target='players',
+        groups='neighborhood',
+        form='symbolic',
+        write='payoff',
+        function=_public_good,
+        phase='play',
+    )
+    imitation = ImitationInteraction('imitation', target='players', rule='best', form='probability', phase='imitate')
+    time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('play'), PhaseSpec('imitate'))))
+    system = System(elements=[players], interactions=[payoffs, imitation], time=time)
+    simulation = Simulation(system, random_state=0, backend=backend).check().prepare().run(until=3)
+    around = [
+        np.array(
+            [
+                ((row + 1) % 6) * 6 + column,
+                ((row - 1) % 6) * 6 + column,
+                row * 6 + (column + 1) % 6,
+                row * 6 + (column - 1) % 6,
+            ],
+        )
+        for row, column in zip(*np.divmod(np.arange(36), 6), strict=True)
+    ]
+    state = strategies.copy()
+    for step in range(1, 4):
+        goods = np.array([3.8 * (state[site] + state[around[site]].sum()) / 5 for site in range(36)])
+        payoff = np.array([goods[site] + goods[around[site]].sum() - 5 * state[site] for site in range(36)]) + bias
+        best = [around[site][np.argmax(payoff[around[site]])] for site in range(36)]
+        state = np.array(
+            [state[best[site]] if payoff[best[site]] > payoff[site] else state[site] for site in range(36)],
+        )
+        assert np.allclose(simulation.trajectory_.values('players.payoff')[step], payoff, atol=1e-12)
+        assert simulation.trajectory_.values('players.state')[step].tolist() == state.tolist()

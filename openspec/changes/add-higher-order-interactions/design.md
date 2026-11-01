@@ -57,15 +57,30 @@
   neighbourhood works, so lattices and radius neighbourhoods give site and continuum percolation. networkx was
   rejected for the NumPy side, since it builds a Python graph every step, and SciPy is already a runtime dependency.
   Decided on 2026-11-01.
-- **Triadic percolation alternates by step parity.** Update laws of one step read the states at its start, so the
-  regulation of the links and the giant component of the nodes cannot run in one step. `triadic_percolation` runs one
-  time step of Millán et al. as two steps: the links follow their regulators in even steps,
-  `where(mod(t, 2) < 1, ...)`, and the nodes take the giant component of the active links in odd steps. Every link has
+- **Triadic percolation runs in two phases.** `triadic_percolation` runs one time step of Millán et al. as one
+  step of two phases, `regulation`, where the links follow their regulators, and `percolation`, where the nodes take
+  the giant component of the links the regulation of the same step left active. It first alternated by step parity,
+  two steps per time step of the paper, before update laws had phases. Every link has
   one regulator, as the hyperedge of size three of the design holds, positive or negative, so the mean-field map is
   `R' = S(c p ((1 - nu) R + nu (1 - R)))` for the share `nu` of negative regulators. With negative regulators alone the
   map decreases, its bifurcation point is the percolation point `p = 1 / c`, and above it the giant component has
   period two, which the tests verify. Several regulators per link, which period doubling to chaos needs, would need
   update laws of one edge from several hyperedges to combine, which the design does not cover. Decided on 2026-11-01.
+- **Phases of update laws reuse the phases of the agent form.** `UpdateLaw(phase=None)` names its phase, as
+  `RuleLaw(phase=...)` does, and the interactions that already take `phase=` for their agent form,
+  `GroupingInteraction` in its symbolic form and `ImitationInteraction` in its probability form, pass it to their
+  update laws. The order comes from the `PhasesScheduleSpec` of `DiscreteTime`, of the system and then of its nested systems, the first phase of every name kept, with the default phase,
+  `skcomplex.specs.DEFAULT_PHASE`, first unless the schedule places it, as `MesaSolver` plans its phases, and `period`
+  and `offset` choose the steps of a phase. `KernelsPass` builds the update kernels of each phase apart and checks one
+  update law per state within a phase, so one state may take a law in each of several phases. `FunctionsPass` lowers
+  the kernels of every phase on the chosen backend, NumPy or Numba, into an update of its own, each with its ordered
+  laws and the reductions it reads evaluated at the state it receives, and composes them in order, so every phase reads
+  the states the phases before it set. The draws of a step are made once before the first phase. A phase of update
+  laws with `repeat` above one is an error, since its rounds would share the draws of the step; the activation policy
+  applies to agents alone. A problem with phases runs its compiled updates from Python, as ordered update laws do,
+  not in the compiled loop `iterate`. The symbolic equations of a problem with phases compose the map of every phase
+  with those before it, leaving out a state with no symbolic value after a phase. An update law in an undeclared phase
+  raises `ValidationError`. Without phases nothing changes. Decided on 2026-11-01.
 
 ### Hyperedges from XGI
 
@@ -198,14 +213,18 @@ Implementation (November 2026):
   `where(mean(opinion) > 1/2, 1, 0)` over partitions. Its test and gallery example read the states of the group, since
   a symbolic group has no agent snapshots. Over 20 seeds from shares 0.4 and 0.6, the mean share at every step agrees
   with the agent form within 1.1 standard errors.
-- `public_goods_game` keeps its `LocalRuleInteraction`. A discrete map updates every state from the state at the start
-  of the step, so a grouping that writes the payoffs and an imitation that reads them imitate the payoffs of the step
-  before. Over 20 seeds the rebuilt model ends with a share of cooperators of 0.95 against 0.49 at synergy 4.5, but
-  the comparison also carries a bias of `ImitationInteraction(rule='fermi', form='probability')` in `development`:
-  with equal payoffs, a member of state 1 never switches and a member of state 0 copies a neighbour of state 1 with
-  probability `k / degree` instead of `k / (2 degree)`. Its weights, its stay weight, and a uniform draw compared with
-  them are right when evaluated alone, and the categorical draw over them is not, since the drawn index depends on the
-  state of the member. The rebuild waits for the fix of that draw and for a decision on payoffs of the step before.
+- `public_goods_game` runs on phases: `PublicGoodsInteraction`, a thin symbolic `GroupingInteraction` of von Neumann
+  neighbourhoods, writes the new state `payoff` of `ContributorElement` in the phase `play`, the sum over the five
+  groups of a player of `synergy * total(strategy) / 5 - strategy`, and `ImitationInteraction(rule='fermi',
+  form='probability', intensity=1 / noise)` copies a random neighbour by those payoffs in the phase `imitate`. The
+  lattice takes the von Neumann neighbourhood. The bias first suspected in the Fermi draw was not one: the initial
+  strategies are drawn with `default_rng(random_state)`, and a simulation with the same seed draws the same numbers in
+  its first step, so the draws of step one correlate with the initial state. Over 20 seeds at 50 steps, with the
+  simulation seeded `seed + 1000`, the share of cooperators of the rebuilt and the previous model agree at every step
+  within 1.94 standard errors (median 1.21) at synergy 4.5, final shares 0.517 and 0.514, and within 1.23 (median 0.84)
+  at synergy 4.0, final shares 0.101 and 0.091. With the simulation seeded like the strategies, both models carry the
+  correlation, each in its own way, and differ by up to 13 standard errors at step one (final shares 0.558 and 0.494),
+  so the seeding of the factory awaits the maintainer's decision. Decided on 2026-11-01.
 - `simplicial_contagion` runs `JumpLaw`s of the focal member per link and per triangle in a
   `SimplicialInfectionInteraction`, and `hypergraph_consensus` runs the rate of the focal member per triangle in a
   `ThreeBodyConsensusInteraction` whose second role binds a group on the hyperedges holding the phase of the schedule

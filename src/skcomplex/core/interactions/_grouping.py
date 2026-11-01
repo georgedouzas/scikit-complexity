@@ -54,7 +54,8 @@ class GroupingInteraction(Interaction):
     group, `members`, which `total`, `mean`, `count`, `maximum`, and `minimum` reduce with `over=namespace.members`,
     the time `t`, and the parameters of the interaction. Pairs and partitions are drawn again at every step from the
     random stream of the simulation, and neighbourhoods are those of the space. The groups by state hold no `others`,
-    and their reductions over the members are keyed by the state.
+    and their reductions over the members are keyed by the state. Within a step, the grouping runs in its `phase` and
+    reads the states the phases before it set.
 
     Args:
         label:
@@ -80,7 +81,7 @@ class GroupingInteraction(Interaction):
             The largest number of agents of a group `'state'` in the agent form, or `None` for no limit.
 
         phase:
-            The phase of the step the agent form runs in, or `None` for the default phase.
+            The phase of the step the grouping runs in, or `None` for the default phase.
 
         form:
             `'agent'` for an action on the agents of every group, or `'symbolic'` for a function of every group.
@@ -327,9 +328,9 @@ class GroupingInteraction(Interaction):
             return [RuleLaw(self._act_on_groups, phase=self.phase)]
         if self.groups == 'state':
             group, value = self._get_keyed_group(namespace)
-            return [UpdateLaw(getattr(group.member, str(self.write)), value)]
+            return [UpdateLaw(getattr(group.member, str(self.write)), value, phase=self.phase)]
         value = self.function(namespace) if self.function is not None else 0
-        return [UpdateLaw(getattr(namespace.member, str(self.write)), value)]
+        return [UpdateLaw(getattr(namespace.member, str(self.write)), value, phase=self.phase)]
 
     def act_on(self, members: list[AgentViewProtocol], model: ModelViewProtocol) -> None:
         """Act on the members of one group.

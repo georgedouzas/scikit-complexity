@@ -24,6 +24,10 @@ class UpdateLaw(BaseLaw):
     the start of the step, ties in the order of the members, and each member reads the values the members before it
     set. Without one, every member updates at once from the states at the start of the step.
 
+    With a `phase`, the law runs in that phase of the step, which a `PhasesScheduleSpec` of the discrete time orders.
+    The phases run one after the other, each reading the states the phases before it set, and the laws of one phase
+    update at once. A law without a phase runs in the default phase, first unless the schedule places it.
+
     Args:
         target:
             The symbol of a scalar state, the column of symbols of a vector state, or a `TopologyRequestSpec`, whose
@@ -46,6 +50,9 @@ class UpdateLaw(BaseLaw):
             A symbolic expression of the states, parameters, and draws of a member, whose values order the members
             that update one after the other, or `None` for members that update at once.
 
+        phase:
+            The name of the phase of the step the law runs in, or `None` for the default phase.
+
     Raises:
         ValidationError:
             The value is a NumPy array, or an increment law has a source.
@@ -58,6 +65,8 @@ class UpdateLaw(BaseLaw):
         1.0
         >>> UpdateLaw(x, x + 1, increment=True).check().increment
         True
+        >>> UpdateLaw(x, x + 1, phase='imitate').check().phase
+        'imitate'
     """
 
     def __init__(
@@ -69,6 +78,7 @@ class UpdateLaw(BaseLaw):
         increment: bool = False,
         source: float | None = None,
         order: object = None,
+        phase: str | None = None,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -76,6 +86,7 @@ class UpdateLaw(BaseLaw):
         self.increment = increment
         self.source = source
         self.order = order
+        self.phase = phase
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the state the update sets."""

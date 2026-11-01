@@ -14,10 +14,10 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement, LatticeElement
 from ....core.interactions import HyperedgeInteraction, Interaction
 from ....core.laws import BaseLaw, UpdateLaw
-from ....core.laws.utils import bernoulli, components, mod, where
+from ....core.laws.utils import bernoulli, components, where
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 ACTIVITY_VISUAL = VisualSpec('sites', {'states': ['active'], 'low': 0.0, 'high': 1.0})
@@ -90,11 +90,11 @@ class RegulatedLinkElement(Element):
 
 
 class TriadicRegulationInteraction(HyperedgeInteraction):
-    """Regulation of every link by a third node, which lets the link be active with probability `p` in even steps.
+    """Regulation of every link by a third node, which lets the link be active with probability `p` in its phase.
 
-    Every hyperedge `(i, j, r)` holds the two ends of the link `(i, j)` and its regulating node `r`. In an even step
-    the link becomes active with probability `p` when a positive regulator is active or a negative regulator is
-    inactive, and inactive otherwise. In an odd step the link keeps its activity.
+    Every hyperedge `(i, j, r)` holds the two ends of the link `(i, j)` and its regulating node `r`. In every step the
+    link becomes active with probability `p` when a positive regulator is active or a negative regulator is inactive,
+    and inactive otherwise.
 
     Args:
         label:
@@ -109,6 +109,9 @@ class TriadicRegulationInteraction(HyperedgeInteraction):
         p:
             The probability that a link the regulation allows is active.
 
+        phase:
+            The phase of the step the regulation runs in, or `None` for the default phase.
+
     Examples:
         >>> from skcomplex.models.mathematics.networks import TriadicRegulationInteraction
         >>> TriadicRegulationInteraction('regulation', nodes='nodes', links='links').check().size
@@ -122,24 +125,23 @@ class TriadicRegulationInteraction(HyperedgeInteraction):
         nodes: Annotated[str, RoleSpec()],
         links: Annotated[str, RoleSpec()],
         p: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.5,
+        phase: str | None = None,
     ) -> None:
         super().__init__(label, size=3)
         self.nodes = nodes
         self.links = links
         self.p = p
+        self.phase = phase
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the activity of the link in an even step, from its regulating node, the third of the hyperedge."""
+        """Return the activity of the link from its regulating node, the third member of the hyperedge."""
         regulator = s.others[1].active
         allowed = where(s.edge.sign > 0, regulator, 1 - regulator)
-        regulated = bernoulli('retained', s.p) * allowed
-        return [UpdateLaw(s.edge.active, where(mod(s.t, 2) < 1, regulated, s.edge.active))]
+        return [UpdateLaw(s.edge.active, bernoulli('retained', s.p) * allowed, phase=self.phase)]
 
 
 class GiantComponentInteraction(Interaction):
-    """Activity of every node in odd steps, 1 in the giant component of the active links and 0 outside it.
-
-    In an even step the nodes keep their activity.
+    """Activity of every node in its phase, 1 in the giant component of the active links and 0 outside it.
 
     Args:
         label:
@@ -151,21 +153,31 @@ class GiantComponentInteraction(Interaction):
         links:
             The path of the group on the edges, whose activity selects the links of the components.
 
+        phase:
+            The phase of the step the interaction runs in, or `None` for the default phase.
+
     Examples:
         >>> from skcomplex.models.mathematics.networks import GiantComponentInteraction
         >>> GiantComponentInteraction('percolation', nodes='nodes', links='links').links
         'links'
     """
 
-    def __init__(self, label: str, *, nodes: Annotated[str, RoleSpec()], links: Annotated[str, RoleSpec()]) -> None:
+    def __init__(
+        self,
+        label: str,
+        *,
+        nodes: Annotated[str, RoleSpec()],
+        links: Annotated[str, RoleSpec()],
+        phase: str | None = None,
+    ) -> None:
         super().__init__(label)
         self.nodes = nodes
         self.links = links
+        self.phase = phase
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the membership of the giant component in an odd step."""
-        giant = components(s.links.active, reduce='giant')
-        return [UpdateLaw(s.nodes.active, where(mod(s.t, 2) < 1, s.nodes.active, giant))]
+        """Return the membership of the giant component of the active links."""
+        return [UpdateLaw(s.nodes.active, components(s.links.active, reduce='giant'), phase=self.phase)]
 
 
 def _giant_observables(system: System) -> list[ObservableSpec]:
@@ -195,7 +207,7 @@ def _regulated_links(
     field='mathematics/networks',
     tags=('network', 'hypergraph', 'percolation', 'triadic interactions', 'period doubling'),
     references=('Sun et al. 2023', 'Millán, Sun, Torres, and Bianconi 2023'),
-    defaults={'until': 60, 'dt': 1},
+    defaults={'until': 30, 'dt': 1},
     observables=_giant_observables,
 )
 def triadic_percolation(
@@ -210,10 +222,10 @@ def triadic_percolation(
 
     Every link of an Erdős-Rényi graph has one regulating node, drawn at random among the other nodes, which is
     negative with probability `negative` and positive otherwise. The link and its regulator form a hyperedge of size
-    three. Every time step of Millán et al. takes two steps. In the even step every link is active with probability `p`
-    when its positive regulator is active or its negative regulator is inactive, and inactive otherwise. In the odd
-    step a node is active when it belongs to the giant component of the active links. All nodes and links start
-    active.
+    three. Every step is a time step of Millán et al. in two phases. In the phase `regulation` every link is active
+    with probability `p` when its positive regulator is active or its negative regulator is inactive, and inactive
+    otherwise. In the phase `percolation` a node is active when it belongs to the giant component of the links the
+    regulation of the same step left active. All nodes and links start active.
 
     With the fraction `R` of nodes in the giant component, the links are active with probability
     `p_L = p ((1 - negative) R + negative (1 - R))`, and `R` follows the map `R' = S(c p_L)`, where `S(m)` solves
@@ -245,8 +257,8 @@ def triadic_percolation(
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.mathematics.networks import triadic_percolation
         >>> system = triadic_percolation(200, p=0.8)
-        >>> trajectory = Simulation(system, random_state=0).check().prepare().run(until=6).trajectory_
-        >>> giant = trajectory.values('nodes.active').mean(axis=1)[::2]
+        >>> trajectory = Simulation(system, random_state=0).check().prepare().run(until=3).trajectory_
+        >>> giant = trajectory.values('nodes.active').mean(axis=1)
         >>> bool(giant[1] < 0.5 < giant[2])
         True
     """
@@ -257,7 +269,8 @@ def triadic_percolation(
     nodes = LatticeElement('nodes', element=RegulatedNodeElement, space=space)
     links = GroupElement('links', element=RegulatedLinkElement, space=space, on='edges', values={'sign': signs})
     interactions = [
-        TriadicRegulationInteraction('regulation', nodes='nodes', links='links', p=p),
-        GiantComponentInteraction('percolation', nodes='nodes', links='links'),
+        TriadicRegulationInteraction('regulation', nodes='nodes', links='links', p=p, phase='regulation'),
+        GiantComponentInteraction('percolation', nodes='nodes', links='links', phase='percolation'),
     ]
-    return System(elements=[nodes, links], interactions=interactions, time=DiscreteTime())
+    time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('regulation'), PhaseSpec('percolation'))))
+    return System(elements=[nodes, links], interactions=interactions, time=time)

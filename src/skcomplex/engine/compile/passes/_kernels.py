@@ -212,14 +212,16 @@ class KernelsPass(BasePass):
         declarations: DeclarationsSpec,
         lowered_outputs: dict[int, list[OutputSpec]],
     ) -> LoweredKernelsSpec:
-        """Return the kernels of every law kind, with the law of every output."""
+        """Return the kernels of every law kind, with the law of every output, the update laws of each phase apart."""
         states, parameters = LayoutSpec(tuple(declarations.states)), LayoutSpec(tuple(declarations.parameters))
         kernels: defaultdict[type, list[LawKernel]] = defaultdict(list)
         jump_changes: dict[int, list[tuple[ReferenceSpec, float]]] = {}
         laws_of: dict[int, tuple[KernelSpec, BaseLaw]] = {}
-        assigned: dict[type, defaultdict[tuple[object, ...], list[BaseLaw]]] = defaultdict(lambda: defaultdict(list))
+        assigned: dict[tuple[type, str | None], defaultdict[tuple[object, ...], list[BaseLaw]]] = defaultdict(
+            lambda: defaultdict(list),
+        )
         for spec, laws in specs:
-            outputs: dict[tuple[type, bool], list[OutputSpec]] = defaultdict(list)
+            outputs: dict[tuple[type, bool, str | None], list[OutputSpec]] = defaultdict(list)
             for law in laws:
                 if isinstance(law, _KERNEL_FREE_LAWS):
                     continue
@@ -230,7 +232,7 @@ class KernelsPass(BasePass):
                         for target, increment in (law.changes or {}).items()
                     ]
                     laws_of[id(output)] = (spec, law)
-                    outputs[(JumpLaw, False)].append(output)
+                    outputs[(JumpLaw, False, None)].append(output)
                     continue
                 if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
                     error_msg = f'A {type(law).__name__} of {spec.owner} reached lowering before it was rewritten.'
@@ -238,8 +240,9 @@ class KernelsPass(BasePass):
                 targets = spec._target_references(law._get_targets()[0])
                 once = KernelsPass._is_once(spec, law)
                 reduced = isinstance(law, UpdateLaw) and spec.reduce is not None
+                phase = law.phase if isinstance(law, UpdateLaw) else None
                 combined = (
-                    KernelsPass._check_assignments(spec, law, targets, assigned[type(law)], once=once)
+                    KernelsPass._check_assignments(spec, law, targets, assigned[(type(law), phase)], once=once)
                     if isinstance(law, _ASSIGNED_KINDS) and not reduced
                     else set()
                 )
@@ -251,8 +254,8 @@ class KernelsPass(BasePass):
                 if reduced:
                     law_outputs = [replace(item, reduce=spec.reduce, counts=spec.counts) for item in law_outputs]
                 laws_of.update({id(item): (spec, law) for item in law_outputs})
-                outputs[(KernelsPass._kind_of(law), once)].extend(law_outputs)
-            for (kind, once), kind_outputs in outputs.items():
+                outputs[(KernelsPass._kind_of(law), once, phase)].extend(law_outputs)
+            for (kind, once, _), kind_outputs in outputs.items():
                 kernels[kind].append(
                     LawKernel(
                         spec.owner,

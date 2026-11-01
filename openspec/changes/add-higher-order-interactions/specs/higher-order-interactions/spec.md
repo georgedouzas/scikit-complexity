@@ -56,6 +56,22 @@ simulation. The agent form SHALL stay the default.
 - **WHEN** a symbolic grouping is given `act`
 - **THEN** `check()` raises `ValidationError` that names `act` as a setting of the agent form
 
+### Requirement: Symbolic updates run in ordered phases
+An `UpdateLaw` SHALL take a `phase`, and the phases of a `PhasesScheduleSpec` of the discrete time SHALL run one after
+the other within a step on the NumPy and Numba backends, each reading the states the phases before it set, with laws
+without a phase in the default phase, first unless the schedule places it. Without phases, every update law SHALL read
+the states at the start of the step, as before.
+
+#### Scenario: Payoffs then imitation in one step
+- **WHEN** a symbolic grouping of neighbourhoods writes the payoffs in a first phase and `ImitationInteraction`
+  copies the best neighbour by those payoffs in a second phase
+- **THEN** the payoffs and strategies of every step equal a loop that computes the payoffs and then the copies, on both
+  backends
+
+#### Scenario: Update law in an undeclared phase
+- **WHEN** an update law names a phase that the schedule of the discrete time does not declare
+- **THEN** compilation raises `ValidationError` naming the phase
+
 ### Requirement: Nodes regulate links
 A `HyperedgeInteraction` SHALL bind a group on the edges of the same network through its second role, whose member is
 the edge joining the first two members of the hyperedge, so a regulating node switches the activity of a link with an

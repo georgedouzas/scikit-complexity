@@ -11,6 +11,7 @@ from ._phase_spec import PhaseSpec
 from ._schedule_spec import ScheduleSpec
 
 ACTIVATIONS = ('random', 'sequential', 'simultaneous', 'by-type', 'visits')
+DEFAULT_PHASE = 'default'
 
 
 @dataclass(frozen=True)
