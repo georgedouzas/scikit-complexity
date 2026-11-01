@@ -15,9 +15,11 @@ class PhaseSpec(BaseSpec):
 
     The policies are `'random'`, every agent in a new random order, `'sequential'`, every agent in the order of
     creation, `'simultaneous'`, every agent in random order reading the states of the start of the phase while its
-    writes apply at the end of the phase, and `'by-type'`, group after group in the order of `groups` or of
-    declaration, each group in random order. The rules of interactions and institutions in the phase run once after
-    the agents. A phase with `repeat` above one runs that many rounds, such as intraday rounds within a day.
+    writes apply at the end of the phase, `'by-type'`, group after group in the order of `groups` or of declaration,
+    each group in random order, and `'visits'`, as many visits as `visits` times the number of agents of `groups` at
+    the start of the phase, each to an agent drawn at random with replacement, which runs its rules of the phase at
+    the time `k + i / n` of visit `i` of `n` in step `k`. The rules of interactions and institutions in the phase run
+    once after the agents. A phase with `repeat` above one runs that many rounds, such as intraday rounds within a day.
 
     Args:
         name:
@@ -30,16 +32,20 @@ class PhaseSpec(BaseSpec):
             The number of rounds of the phase per step.
 
         groups:
-            The paths of the agent groups in their order of activation for `'by-type'`, or `None` for the order of
-            declaration.
+            The paths of the agent groups in their order of activation for `'by-type'`, or the groups whose agents
+            `'visits'` draws, or `None` for every group in the order of declaration.
+
+        visits:
+            The number of visits of `'visits'` per agent of the groups at the start of the phase.
 
     Examples:
         >>> from skcomplex.specs import PhaseSpec
         >>> PhaseSpec('trade', activation='simultaneous', repeat=3)
-        PhaseSpec(name='trade', activation='simultaneous', repeat=3, groups=None)
+        PhaseSpec(name='trade', activation='simultaneous', repeat=3, groups=None, visits=1.0)
     """
 
     name: str
     activation: str = 'random'
     repeat: int = 1
     groups: Sequence[str] | None = None
+    visits: float = 1.0

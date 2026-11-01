@@ -153,6 +153,8 @@ def test_reinforcement_interaction_reinforces_the_components_of_a_vector_state()
         ({'scores': 'first'}, 'sequence of state names'),
         ({'scores': ()}, 'sequence of state names'),
         ({'payoff': 1.0}, 'must be callable'),
+        ({'schedule': 'parallel'}, 'Unknown schedule'),
+        ({'schedule': 'member'}, 'runs agent rules'),
     ],
 )
 def test_check_rejects_invalid_arguments(arguments, message):
@@ -160,3 +162,46 @@ def test_check_rejects_invalid_arguments(arguments, message):
     values = {'target': 'learners', 'scores': ('first', 'second'), 'payoff': lambda s, k: k, **arguments}
     with pytest.raises(ValidationError, match=message):
         ReinforcementInteraction('reinforcement', **values).check()
+
+
+def test_reinforcement_interaction_moves_only_the_score_of_the_chosen_option():
+    """Test that with a chosen state only the score of the option a member chose moves towards its payoff."""
+    reinforcement = ReinforcementInteraction(
+        'reinforcement',
+        target='learners',
+        scores=('first', 'second'),
+        payoff=lambda s, index: s.target.value,
+        rate=0.5,
+        chosen='choice',
+    )
+    trajectory = _run([reinforcement], {'value': 2.0, 'choice': np.array([0.0, 1.0])}, 2, 1)
+    assert trajectory.values('learners.first')[-1].tolist() == [1.0, 0.0]
+    assert trajectory.values('learners.second')[-1].tolist() == [0.0, 1.0]
+
+
+def test_reinforcement_interaction_members_reinforce_their_chosen_option_in_their_activation():
+    """Test that under the member schedule every agent moves the score of its chosen option after its choice."""
+    choice = ChoiceInteraction(
+        'choice',
+        target='learners',
+        state='choice',
+        options=(0, 1),
+        utility=lambda agent, model, option: float(option),
+        rule='best',
+        schedule='member',
+        form='agent',
+    )
+    reinforcement = ReinforcementInteraction(
+        'reinforcement',
+        target='learners',
+        scores=('first', 'second'),
+        payoff=_agent_payoff,
+        rate=0.5,
+        chosen='choice',
+        schedule='member',
+        form='agent',
+    )
+    frame = _run([choice, reinforcement], {'value': 4.0}, 3, 2).agents('learners', 2).values
+    assert frame['choice'].tolist() == [1.0, 1.0, 1.0]
+    assert frame['first'].tolist() == [0.0, 0.0, 0.0]
+    assert frame['second'].tolist() == [3.0, 3.0, 3.0]

@@ -18,7 +18,16 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import AgentView, MesaSolver
 from skcomplex.errors import IncompatibleLawsError, LabelError, SimulationError, SpaceError, ValidationError
 from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, StepSpec, VisualSpec
+from skcomplex.specs import (
+    ObservableSpec,
+    ParameterSpec,
+    PhaseSpec,
+    PhasesScheduleSpec,
+    RoleSpec,
+    StateSpec,
+    StepSpec,
+    VisualSpec,
+)
 from skcomplex.types import FormKind
 
 
@@ -850,3 +859,111 @@ def test_member_rules_run_in_the_activation_of_every_member_after_its_element_ru
     assert len(LOG) == 20
     for first, second in zip(LOG[::2], LOG[1::2], strict=True):
         assert (first[0], second) == ('element', ('member 2.0', first[1]))
+
+
+class VisitedView(AgentView):
+    """View of a visited agent, with its visits, its trait, and the weight of its group."""
+
+    visits: float
+    trait: float
+    weight: float
+
+
+class VisitedElement(Element):
+    """Agent that counts its visits, records their times, and flips its trait at every visit."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        visits: Annotated[float, StateSpec()] = 0.0,
+        trait: Annotated[float, StateSpec()] = 0.0,
+        weight: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.visits = visits
+        self.trait = trait
+        self.weight = weight
+
+    @classmethod
+    def _get_view(cls) -> type[VisitedView]:
+        """Return the view of a visited agent."""
+        return VisitedView
+
+    def _get_laws(self, s):
+        """Return the visiting rule."""
+        return [RuleLaw(self.visit, phase='visit')]
+
+    def visit(self, agent, model):
+        """Count the visit, record its time and the counts of the traits, and flip the trait."""
+        agent.visits += 1
+        agent.trait = 1.0 - agent.trait
+        traits = [item.trait for item in model.agents('visited')]
+        model.storage.setdefault('times', []).append(model.time)
+        model.storage.setdefault('compositions', []).append(
+            (model.composition('visited', 'trait'), {value: traits.count(value) for value in set(traits)}),
+        )
+
+
+def _visited_system(visits: float) -> System:
+    """Return a group of four visited agents whose phase visits them with replacement."""
+    return System(
+        elements=[GroupElement('visited', element=VisitedElement, size=4, values={'weight': 2.0})],
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('visit', activation='visits', visits=visits)])),
+    )
+
+
+def test_visits_draw_agents_with_replacement():
+    """Test that a phase of visits activates agents drawn with replacement, visits times the size of the group."""
+    trajectory = Simulation(_visited_system(2.5), random_state=0).check().prepare().run(until=4).trajectory_
+    visits = trajectory.agents('visited', 4).values['visits']
+    assert visits.sum() == 40
+    assert len(set(visits.tolist())) > 1
+
+
+def test_visits_advance_the_time_by_a_fraction_of_the_step():
+    """Test that rules read the time `k + i / n` at visit `i` of `n` in step `k`."""
+    simulation = Simulation(_visited_system(1.0), random_state=0).check().prepare().run(until=2)
+    assert simulation.stepper_.storage_['visited']['times'] == [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75]
+
+
+def test_composition_counts_the_values_of_a_state():
+    """Test that the composition of a group keeps the counts of a state as agents change it."""
+    simulation = Simulation(_visited_system(3.0), random_state=1).check().prepare().run(until=2)
+    compositions = simulation.stepper_.storage_['visited']['compositions']
+    assert len(compositions) == 24
+    assert all(kept == counted for kept, counted in compositions)
+
+
+class TotalReaderInteraction(Interaction):
+    """Interaction that stores, at every step, the history of the observable it reads."""
+
+    def _get_laws(self, s):
+        """Return the reading rule."""
+        return [RuleLaw(self.read, phase='visit')]
+
+    def read(self, model):
+        """Store the history of the total of the visits."""
+        model.storage.setdefault('histories', []).append(model.history('total').tolist())
+
+
+def test_history_reads_an_observable_at_earlier_steps():
+    """Test that a rule reads the values of an observable of the run at the end of every earlier step."""
+    system = _visited_system(1.0)
+    system.interactions = [TotalReaderInteraction('reader')]
+    observables = [ObservableSpec('total', group='visited', variable='visits', reduce='sum')]
+    simulation = Simulation(system, random_state=0, observables=observables).check().prepare().run(until=3)
+    assert simulation.stepper_.storage_['reader']['histories'] == [[], [4.0], [4.0, 8.0]]
+
+
+def _weight_of(agent: VisitedView) -> float:
+    """Return the weight of an agent, a parameter of its group."""
+    return agent.weight
+
+
+def test_observables_read_agent_views():
+    """Test that an observable of an agent group reads the views of its agents, with the parameters of the group."""
+    observables = [ObservableSpec('weights', group='visited', expression=_weight_of, reduce='sum')]
+    trajectory = Simulation(_visited_system(1.0), observables=observables).check().prepare().run(until=1).trajectory_
+    assert trajectory.values('weights').tolist() == [8.0, 8.0]

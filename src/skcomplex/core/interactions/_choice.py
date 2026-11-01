@@ -22,7 +22,7 @@ from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
 
 RULES = ('logit', 'metropolis', 'fermi', 'best')
-SCHEDULES = ('synchronous', 'random-sequential')
+SCHEDULES = ('synchronous', 'random-sequential', 'member')
 FORMS = ('symbolic', 'agent')
 MIN_OPTIONS = 2
 
@@ -42,8 +42,9 @@ class ChoiceInteraction(Interaction):
     form, the group is an agent group and `utility(agent, model, option)` returns the utility as a number, so it can
     read the agent, its neighbours, and the history and storage of the model view. Its members draw at once, from the
     choices of the last step, under the `'synchronous'` schedule, and one after the other in a random order, each
-    seeing the choices made before it, under the `'random-sequential'` schedule. An option of utility `-inf` is never
-    drawn in the agent form.
+    seeing the choices made before it, under the `'random-sequential'` schedule, and each in its own activation under
+    the `'member'` schedule, together with the rules of its element and the other member interactions, in the order
+    the system lists them. An option of utility `-inf` is never drawn in the agent form.
 
     Args:
         label:
@@ -69,7 +70,8 @@ class ChoiceInteraction(Interaction):
             The intensity of choice `beta`, zero for uniform choice.
 
         schedule:
-            The order in which the members revise, `'synchronous'` or, in the agent form, `'random-sequential'`.
+            The order in which the members revise, `'synchronous'` or, in the agent form, `'random-sequential'` or
+            `'member'`.
 
         activity:
             The probability that a member revises its choice in a step.
@@ -82,7 +84,7 @@ class ChoiceInteraction(Interaction):
 
     Raises:
         ValidationError:
-            The rule, the schedule, or the form is unknown, the schedule is random-sequential in the symbolic form,
+            The rule, the schedule, or the form is unknown, the schedule is not synchronous in the symbolic form,
             there are fewer than two options, or the utility is not callable.
 
     Examples:
@@ -128,7 +130,7 @@ class ChoiceInteraction(Interaction):
         self.phase = phase
 
     def _check_variants(self) -> None:
-        """Raise an error for an unknown rule, schedule, or form, or a random-sequential symbolic choice."""
+        """Raise an error for an unknown rule, schedule, or form, or a symbolic choice that is not synchronous."""
         for name, value, variants in (
             ('rule', self.rule, RULES),
             ('schedule', self.schedule, SCHEDULES),
@@ -150,7 +152,7 @@ class ChoiceInteraction(Interaction):
         Raises:
             ValidationError:
                 The type declares states, the rule, the schedule, or the form is unknown, the schedule is
-                random-sequential in the symbolic form, there are fewer than two options, or the utility is not
+                not synchronous in the symbolic form, there are fewer than two options, or the utility is not
                 callable.
         """
         super()._check()
@@ -236,6 +238,11 @@ class ChoiceInteraction(Interaction):
         """Return whether a member revises its choice in this step."""
         return activity >= 1 or bool(model.rng.random() < activity)
 
+    def _choose_member(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
+        """Set the state of one agent to the option it draws if it revises, in its own activation."""
+        if agent.alive and self._is_active(model, model.parameter('activity')):
+            setattr(agent, self.state, self._draw_agent(agent, model, model.parameter('intensity')))
+
     def choose(self, model: ModelViewProtocol) -> None:
         """Set the state of every agent that revises in this step to the option it draws, by the schedule.
 
@@ -268,6 +275,8 @@ class ChoiceInteraction(Interaction):
             laws:
                 The update law of the state, or the rule that runs the choice of the agents.
         """
+        if self.form == 'agent' and self.schedule == 'member':
+            return [RuleLaw(self._choose_member, phase=self.phase, members='target')]
         if self.form == 'agent':
             return [RuleLaw(self.choose, phase=self.phase)]
         state = getattr(namespace.target, self.state)

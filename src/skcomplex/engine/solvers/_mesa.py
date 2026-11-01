@@ -140,8 +140,10 @@ class ModelView:
 
     @property
     def time(self) -> float:
-        """Time of Mesa's clock, which is `k` during the step that produces frame `k`."""
-        return float(self._stepper.model_.time)
+        """Time of Mesa's clock, `k` during the step that produces frame `k`, plus `i / n` at visit `i` of `n`."""
+        stepper = self._stepper
+        visit, visits = stepper.visit_
+        return float(stepper.model_.time) + visit / max(visits, 1)
 
     @property
     def dimensions(self) -> tuple[float, ...] | None:
@@ -227,6 +229,33 @@ class ModelView:
                 No role or group has that name.
         """
         return sum(len(self._stepper._group_agents(path)) for path in self._paths(name))
+
+    def composition(self, name: str, state: str) -> dict[float, int]:
+        """Return the number of agents of a group that hold every value of a state, for the values some agent holds.
+
+        The stepper keeps the counts as agents are created, removed, and change the state, so reading them costs no
+        pass over the agents.
+
+        Args:
+            name:
+                A role of the owner, the path of a group relative to the owner's system, or the path of a group.
+
+            state:
+                The name of a scalar state of the agents of the group.
+
+        Returns:
+            counts:
+                The number of agents alive in the group, or in every group of a role that binds several, by value.
+
+        Raises:
+            SimulationError:
+                No role or group has that name, or its agents have no such state.
+        """
+        counts: dict[float, int] = {}
+        for path in self._paths(name):
+            for value, count in self._stepper._composition(path, state).items():
+                counts[value] = counts.get(value, 0) + count
+        return {value: count for value, count in counts.items() if count}
 
     def _field_name(self, name: str) -> str:
         """Return the path of a field state named by its path, or as `<role>.<state>` of a role of the owner."""
@@ -377,11 +406,12 @@ class ModelView:
         self._stepper.reported_.setdefault(full, deque(maxlen=_HISTORY_LENGTH)).append(float(value))
 
     def history(self, name: str, window: int | None = None) -> npt.NDArray[np.float64]:
-        """Return the past values of a reporter, the last one last.
+        """Return the past values of a reporter, or of an observable at the end of each earlier step, the last one last.
 
         Args:
             name:
-                The name of a value the owner reports, or the full name of any reporter, such as `bar.attendance`.
+                The name of a value the owner reports, the full name of any reporter, such as `bar.attendance`, or the
+                path of an observable of the run, such as `attendance`.
 
             window:
                 The number of last values, or `None` for every recorded value.
@@ -390,8 +420,9 @@ class ModelView:
             values:
                 The values, at most `window` of them.
         """
-        history = self._stepper.reported_
-        values = history.get(self._report_name(name), history.get(name, ()))
+        stepper = self._stepper
+        history = stepper.reported_
+        values = history.get(self._report_name(name), history.get(name, stepper.observed_.get(name, ())))
         array = np.asarray(values, dtype=float)
         return array if window is None else array[len(array) - min(window, len(array)) :]
 
@@ -616,11 +647,10 @@ class AgentView:
         """
         spec = self._stepper._spec_of(self._agent)
         MesaSolver._check_variable(spec, 'remove')
-        declared = declarations_of(MesaSolver._agent_type(spec), VariableKind.STATE)
         held = {
             name: value
-            for name, declaration in declared.items()
-            if declaration.quantity is not None and (value := float(getattr(self._agent, name))) != 0.0
+            for name in self._stepper._quantities[spec.path]
+            if (value := float(getattr(self._agent, name))) != 0.0
         }
         if self.alive and held:
             error_msg = (
@@ -629,6 +659,7 @@ class AgentView:
             )
             raise ConservationError(error_msg)
         if self.alive:
+            self._stepper._recount(self._agent, -1)
             self._agent.removed_ = True
             self._agent.remove()
 
@@ -816,6 +847,9 @@ class MesaSolver(ExternalSolver):
         self.storage_: dict[str, dict[str, object]] = {}
         self.buffer_: dict[tuple[mesa.Agent, str], object] | None = None
         self.round_ = 0
+        self.visit_ = (0, 0)
+        self.observed_: dict[str, deque[float]] = {}
+        self._compositions: dict[tuple[str, str], dict[float, int]] = {}
         self._live: Array | None = None
         self._state: Array = problem.initial_state
         self._evaluator: ObservableEvaluator | None = None
@@ -827,6 +861,14 @@ class MesaSolver(ExternalSolver):
                 for name, declaration in declarations_of(self._agent_type(spec), VariableKind.STATE).items()
                 if declaration.lags
             }
+            for spec in problem.agents
+        }
+        self._quantities = {
+            spec.path: [
+                name
+                for name, declaration in declarations_of(self._agent_type(spec), VariableKind.STATE).items()
+                if declaration.quantity is not None
+            ]
             for spec in problem.agents
         }
         self._classes: dict[type, CompiledAgentsSpec] = {}
@@ -992,6 +1034,7 @@ class MesaSolver(ExternalSolver):
             value = values[name] if name in values else self._shared_default(defaults, name)
             setattr(agent, name, value)
         self._place(agent, location)
+        self._recount(agent, 1)
         return agent
 
     def _populate(self, spec: CompiledAgentsSpec) -> None:
@@ -1078,11 +1121,11 @@ class MesaSolver(ExternalSolver):
         """
         return self._classes[type(agent)]
 
-    def _agents_of(self, group: str) -> list[mesa.Agent] | None:
-        """Return the alive Mesa agents of a group, or `None` when the model has no such group."""
+    def _agents_of(self, group: str) -> list[AgentView] | None:
+        """Return the views of the alive agents of a group, or `None` when the model has no such group."""
         if group not in self._specs:
             return None
-        return self._group_agents(group)
+        return [self._view_of(agent) for agent in self._group_agents(group)]
 
     def _group_agents(self, group: str) -> list[mesa.Agent]:
         """Return the alive Mesa agents of a group.
@@ -1104,6 +1147,65 @@ class MesaSolver(ExternalSolver):
         """Make new parameter values visible to the rules."""
         self.parameters_ = p.copy()
 
+    def _composition(self, path: str, state: str) -> dict[float, int]:
+        """Return the counts of the values of a state among the agents of a group, kept from their first reading.
+
+        Args:
+            path:
+                The path of the group.
+
+            state:
+                The name of the state.
+
+        Returns:
+            counts:
+                The number of agents of the group by value of the state.
+
+        Raises:
+            SimulationError:
+                The agents of the group have no such state.
+        """
+        states = self._specs[path].states
+        if state not in states:
+            error_msg = f'The agents of {path} have no state {state!r}. Count one of: {", ".join(states)}.'
+            raise SimulationError(error_msg)
+        counts = self._compositions.get((path, state))
+        if counts is None:
+            counts = {}
+            for agent in self._group_agents(path):
+                value = float(getattr(agent, state))
+                counts[value] = counts.get(value, 0) + 1
+            self._compositions[path, state] = counts
+        return counts
+
+    def _recount(self, agent: mesa.Agent, change: int, names: Iterable[str] | None = None) -> None:
+        """Add a change to the counts of the values an agent holds, of the states named or of every counted state."""
+        if not self._compositions:
+            return
+        path = self._spec_of(agent).path
+        for (group, state), counts in self._compositions.items():
+            if group == path and (names is None or state in names):
+                value = float(getattr(agent, state))
+                counts[value] = counts.get(value, 0) + change
+
+    def _write(self, agent: mesa.Agent, name: str, value: object) -> None:
+        """Set a state of an agent and keep the counts of its values."""
+        self._recount(agent, -1, (name,))
+        setattr(agent, name, value)
+        self._recount(agent, 1, (name,))
+
+    def _observe(self) -> None:
+        """Add the scalar values of the observables of the run at the end of a step to their histories."""
+        if not self.problem_.observables:
+            return
+        if self._evaluator is None:
+            self._evaluator = ObservableEvaluator(self.problem_).prepare()
+        values = self._evaluator.evaluate(float(self.model_.time), self._state, self.parameters_, self._agents_of)
+        for name, value in values.items():
+            array = np.asarray(value)
+            if array.ndim == 0 and np.issubdtype(array.dtype, np.number):
+                self.observed_.setdefault(name, deque(maxlen=_HISTORY_LENGTH)).append(float(np.real(array)))
+
     def _run_rules(self) -> None:
         """Run the phases of a step, or activate the agents in random order and run the model rules once."""
         if self._phases is None:
@@ -1117,15 +1219,18 @@ class MesaSolver(ExternalSolver):
                     self._run_phase(phase)
             self.round_ = 0
         self._remember()
+        self._observe()
+
+    def _phase_paths(self, phase: PhaseSpec) -> list[str]:
+        """Return the paths of the groups a phase activates, those it names or every group."""
+        return [self._resolve_group(group) for group in phase.groups or [spec.path for spec in self.problem_.agents]]
 
     def _ordered_agents(self, phase: PhaseSpec) -> list[mesa.Agent]:
         """Return the agents of a phase in the order of its activation policy."""
         if phase.activation == 'sequential':
             return sorted(self.model_.agents, key=lambda agent: agent.unique_id)
         if phase.activation == 'by-type':
-            paths = [
-                self._resolve_group(group) for group in phase.groups or [spec.path for spec in self.problem_.agents]
-            ]
+            paths = self._phase_paths(phase)
             ordered: list[mesa.Agent] = []
             for path in paths:
                 members = sorted(self._group_agents(path), key=lambda agent: agent.unique_id)
@@ -1134,22 +1239,43 @@ class MesaSolver(ExternalSolver):
         agents = sorted(self.model_.agents, key=lambda agent: agent.unique_id)
         return [agents[index] for index in self.model_.rng.permutation(len(agents))]
 
+    def _activate(self, agent: mesa.Agent, phase: PhaseSpec) -> None:
+        """Run the rules of an agent in a phase, those of its element and then its member rules, while it lives."""
+        view = self._view_of(agent)
+        for model, rule in self._agent_rules(self._spec_of(agent)):
+            if getattr(agent, 'removed_', False):
+                return
+            if self._phase_of(rule) == phase.name:
+                rule.function(view, model)
+
+    def _visit(self, phase: PhaseSpec) -> None:
+        """Activate agents of a phase drawn with replacement, `visits` times as many as there are at its start."""
+        paths = self._phase_paths(phase)
+        count = int(sum(len(self._group_agents(path)) for path in paths) * phase.visits)
+        try:
+            for visit in range(count):
+                agents = [agent for path in paths for agent in self._group_agents(path)]
+                if not agents:
+                    return
+                self.visit_ = (visit, count)
+                self._activate(agents[int(self.model_.rng.integers(len(agents)))], phase)
+        finally:
+            self.visit_ = (0, 0)
+
     def _run_phase(self, phase: PhaseSpec) -> None:
         """Run the agent rules of a phase under its activation policy, then the model rules of the phase."""
         if phase.activation == 'simultaneous':
             self.buffer_ = {}
         try:
-            for agent in self._ordered_agents(phase):
-                view = self._view_of(agent)
-                for model, rule in self._agent_rules(self._spec_of(agent)):
-                    if getattr(agent, 'removed_', False):
-                        break
-                    if self._phase_of(rule) == phase.name:
-                        rule.function(view, model)
+            if phase.activation == 'visits':
+                self._visit(phase)
+            else:
+                for agent in self._ordered_agents(phase):
+                    self._activate(agent, phase)
         finally:
             buffer, self.buffer_ = self.buffer_, None
         for (agent, name), value in (buffer or {}).items():
-            setattr(agent, name, value)
+            self._write(agent, name, value)
         for model, rule in self._rules:
             if self._phase_of(rule) == phase.name:
                 rule.function(model)
@@ -1240,7 +1366,7 @@ class MesaSolver(ExternalSolver):
         reporters = {f'{path}.count': float(len(snapshot.ids)) for path, snapshot in groups.items()}
         super()._collect()
         self.snapshot_ = AgentStateSpec(groups, {**reporters, **self.reports_})
-        self.agents_ = agents
+        self.agents_ = {path: [self._view_of(agent) for agent in members] for path, members in agents.items()}
 
     @staticmethod
     def _build_space(space: BaseSpace | None, model: mesa.Model, n_agents: int) -> MesaSpace | None:
@@ -1332,7 +1458,7 @@ class MesaSolver(ExternalSolver):
             if buffer is not None:
                 buffer[view._agent, name] = value
                 return
-            setattr(view._agent, name, value)
+            view._stepper._write(view._agent, name, value)
 
         return property(read, write, doc=f'State {name} of the agent.')
 

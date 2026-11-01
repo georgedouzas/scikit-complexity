@@ -6,7 +6,6 @@ from ._finite_populations import (
     ClimberElement,
     IndividualElement,
     MoranStepInteraction,
-    TangledNatureStepInteraction,
     adaptive_climbing,
     moran_process,
     nk_landscape,
@@ -31,6 +30,7 @@ from ._prebiotic import (
 )
 from ._replicator import ReplicatorInteraction
 from ._substitutions import LocusElement, SubstitutionInteraction, origin_fixation_walk
+from ._tangled_nature_life_cycle import TangledNatureLifeCycleInteraction
 
 __all__: list[str] = [
     'AdaptiveClimbingInteraction',
@@ -50,7 +50,7 @@ __all__: list[str] = [
     'SpeciesElement',
     'StrategyElement',
     'SubstitutionInteraction',
-    'TangledNatureStepInteraction',
+    'TangledNatureLifeCycleInteraction',
     'TaxonElement',
     'adaptive_climbing',
     'bak_sneppen',

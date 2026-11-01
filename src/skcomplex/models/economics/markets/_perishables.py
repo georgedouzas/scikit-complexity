@@ -3,43 +3,35 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
+import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
+from sage.all__sagemath_symbolics import oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
-from scipy.special import expit
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import ChoiceInteraction, MovementInteraction, ReinforcementInteraction, TransferInteraction
+from ....core.laws import Sink, Source
+from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
+from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....engine.solvers import ModelView
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....types import Array
+from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._customer_view import CustomerView
 from ._product_view import ProductView
-from ._shop_view import ShopView
 
 N_SHOPS = 2
-
-
-def _asymmetry(shares: object) -> float:
-    """Return the asymmetry `m = p_1 - p_2` of the shares of customers of the first and the second shop."""
-    first, second = np.asarray(shares, dtype=float)
-    return float(first - second)
-
-
-def _first_shop_probabilities(customers: list[CustomerView], temperature: float) -> Array:
-    """Return the probability `1 / (1 + exp(-(S_1 - S_2) / T))` that each customer visits the first shop."""
-    difference = np.array([customer.s1 - customer.s2 for customer in customers], dtype=float)
-    return expit(difference / temperature)
+PHASE = 'visit'
 
 
 class CustomerElement(Element):
     """Customer who remembers how satisfied it was with the products of each of two shops.
+
+    The customer visits the shop `k` of larger satisfaction `S_k` more often, with the logit utility `S_k / T`, and
+    holds the freshness of the product it bought last.
 
     Args:
         label:
@@ -54,6 +46,15 @@ class CustomerElement(Element):
         s2:
             The satisfaction with the second shop.
 
+        shop:
+            The index of the shop the customer visits, 0 or 1.
+
+        freshness:
+            The freshness of the product the customer bought last.
+
+        T:
+            The temperature of the choice, the randomness of the customer.
+
     Examples:
         >>> from skcomplex.models.economics.markets import CustomerElement
         >>> GroupElement('customers', element=CustomerElement, size=10, values={'s1': 0.5, 's2': 0.5}).size
@@ -67,32 +68,96 @@ class CustomerElement(Element):
         *,
         s1: Annotated[float, StateSpec()] = 0.5,
         s2: Annotated[float, StateSpec()] = 0.5,
+        shop: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        freshness: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
     ) -> None:
         super().__init__(label, visual=visual)
         self.s1 = s1
         self.s2 = s2
+        self.shop = shop
+        self.freshness = freshness
+        self.T = T
 
     @classmethod
     def _get_view(cls) -> type[CustomerView]:
-        """Return the view of a customer, with its satisfactions."""
+        """Return the view of a customer, with its satisfactions, shop, freshness, and temperature."""
         return CustomerView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the trade moves every customer.
+    @staticmethod
+    def utility(agent: CustomerView, model: ModelView, option: float) -> float:
+        """Return the utility `S_k / T` of visiting shop `k`.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            agent:
+                The customer.
+
+            model:
+                The model view of the choice.
+
+            option:
+                The index of the shop.
 
         Returns:
-            laws:
-                The laws of the component.
+            utility:
+                The satisfaction with the shop divided by the temperature.
         """
-        return []
+        return (agent.s1 if option == 0 else agent.s2) / agent.T
+
+    @staticmethod
+    def destination(agent: AgentViewProtocol, model: ModelViewProtocol) -> int | None:
+        """Return the node of the shop the customer chose.
+
+        Args:
+            agent:
+                The customer.
+
+            model:
+                The model view of the movement.
+
+        Returns:
+            node:
+                The node of the shop, or `None` to stay for an agent that is not a customer.
+        """
+        return int(agent.shop) if isinstance(agent, CustomerView) else None
+
+    @staticmethod
+    def payoff(agent: CustomerView, model: ModelView, option: int) -> float:
+        """Return the freshness of the product the customer bought last, the payoff of the shop it visited.
+
+        Args:
+            agent:
+                The customer.
+
+            model:
+                The model view of the reinforcement.
+
+            option:
+                The index of the shop the customer visited.
+
+        Returns:
+            freshness:
+                The freshness of the product.
+        """
+        return agent.freshness
+
+    @staticmethod
+    def preference(agent: CustomerView) -> float:
+        """Return `p_1 - p_2 = tanh((S_1 - S_2) / 2T)`, how much more likely the customer visits the first shop.
+
+        Args:
+            agent:
+                The customer.
+
+        Returns:
+            preference:
+                The difference of the probabilities of visiting the first and the second shop.
+        """
+        return float(np.tanh((agent.s1 - agent.s2) / (2 * agent.T)))
 
 
 class ProductElement(Element):
-    """Product on the shelf of a shop, which ages from the time it was shelved.
+    """Product on the shelf of a shop, which ages from the time it was shelved, its freshness `exp(-age / tau_a)`.
 
     Args:
         label:
@@ -101,15 +166,15 @@ class ProductElement(Element):
         visual:
             How the element is drawn, or `None` for `default_visual_`.
 
-        shop:
-            The index of the shop, 0 or 1.
-
         shelved:
             The time at which the product was put on the shelf.
 
+        tau_a:
+            The time over which the product ages.
+
     Examples:
         >>> from skcomplex.models.economics.markets import ProductElement
-        >>> GroupElement('products', element=ProductElement, size=4, values={'shop': [0, 0, 1, 1]}).size
+        >>> GroupElement('products', element=ProductElement, size=4, location=[0, 0, 1, 1]).size
         4
     """
 
@@ -118,184 +183,57 @@ class ProductElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        shop: Annotated[float, StateSpec(domain=NN)] = 0,
         shelved: Annotated[float, StateSpec()] = 0.0,
+        tau_a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
-        self.shop = shop
         self.shelved = shelved
+        self.tau_a = tau_a
 
     @classmethod
     def _get_view(cls) -> type[ProductView]:
-        """Return the view of a product, with its shop and shelving time."""
+        """Return the view of a product, with its shelving time and ageing time."""
         return ProductView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the trade sells and replaces products.
+    @staticmethod
+    def restock(product: ProductView, customer: CustomerView, model: ModelView) -> float:
+        """Return the amount `shelved - t` that resets the shelving time of a sold product to the time of the sale.
 
         Args:
-            s:
-                The namespace of the symbols the laws can use.
+            product:
+                The product sold.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
+            customer:
+                The customer who buys it.
 
-
-class ShopElement(Element):
-    """Shop of perishable goods, described by its share of customers and the mean freshness of its stock.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        share:
-            The probability that a customer visits the shop, averaged over the customers.
-
-        freshness:
-            The mean freshness of the products on its shelves.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets import ShopElement
-        >>> GroupElement('shops', element=ShopElement, size=2, values={'share': 0.5}).size
-        2
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        share: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        freshness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.share = share
-        self.freshness = freshness
-
-    @classmethod
-    def _get_view(cls) -> type[ShopView]:
-        """Return the view of a shop, with its share and freshness."""
-        return ShopView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the trade records the shares and the freshness.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
-
-
-class PerishableTradeInteraction(Interaction):
-    """Visits of customers to two shops, one random customer at a time, `N` visits per unit of time.
-
-    A customer visits the first shop with the probability `1 / (1 + exp(-(S_1 - S_2) / T))` and buys a random product
-    of age `tau`, whose freshness is `h = exp(-tau / tau_a)`. The shop replaces it with a fresh product, and the
-    customer updates its satisfaction with the shop to `alpha S + (1 - alpha) h`. After the visits of a unit of time,
-    each shop records its share of customers and the mean freshness of its stock.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        customers:
-            The path of the group of customers.
-
-        products:
-            The path of the group of products.
-
-        shops:
-            The path of the group of the two shops.
-
-        T:
-            The temperature of the choice, the randomness of the customers.
-
-        alpha:
-            The memory of the satisfaction, between 0 and 1.
-
-        tau_a:
-            The time over which the products age.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets import PerishableTradeInteraction
-        >>> PerishableTradeInteraction('trade', customers='customers', products='products', shops='shops', T=0.1).T
-        0.1
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        customers: Annotated[str, RoleSpec()],
-        products: Annotated[str, RoleSpec()],
-        shops: Annotated[str, RoleSpec()],
-        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
-        tau_a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label)
-        self.customers = customers
-        self.products = products
-        self.shops = shops
-        self.T = T
-        self.alpha = alpha
-        self.tau_a = tau_a
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the trade rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.trade)]
-
-    def trade(self, model: ModelView) -> None:
-        """Run the visits of one unit of time and record the shares and the freshness of the shops.
-
-        Args:
             model:
-                The model.
+                The model view of the purchase.
+
+        Returns:
+            amount:
+                The amount taken from the shelving time.
         """
-        temperature, alpha, tau_a = (model.parameter(name) for name in ('T', 'alpha', 'tau_a'))
-        customers, products = model.agents(self.customers, CustomerView), model.agents(self.products, ProductView)
-        satisfaction = np.array([[customer.s1, customer.s2] for customer in customers], dtype=float)
-        stock = np.array([product.shop for product in products], dtype=int)
-        shelved = np.array([product.shelved for product in products], dtype=float)
-        shelves = [np.flatnonzero(stock == shop) for shop in range(N_SHOPS)]
-        rng, start, size = model.rng, model.time, len(customers)
-        for visit in range(size):
-            now = start + visit / size
-            buyer = int(rng.integers(size))
-            chosen = int(rng.random() >= expit((satisfaction[buyer, 0] - satisfaction[buyer, 1]) / temperature))
-            sold = int(rng.choice(shelves[chosen]))
-            freshness = np.exp(-(now - shelved[sold]) / tau_a)
-            satisfaction[buyer, chosen] = alpha * satisfaction[buyer, chosen] + (1 - alpha) * freshness
-            shelved[sold] = now
-        for customer, (first, second) in zip(customers, satisfaction, strict=True):
-            customer.s1, customer.s2 = float(first), float(second)
-        for product, time in zip(products, shelved, strict=True):
-            product.shelved = float(time)
-        first = float(_first_shop_probabilities(customers, temperature).mean())
-        freshness = np.exp(-(start + 1 - shelved) / tau_a)
-        for record, share, shelf in zip(model.agents(self.shops, ShopView), (first, 1 - first), shelves, strict=True):
-            record.share = share
-            record.freshness = float(freshness[shelf].mean())
+        return product.shelved - model.time
+
+    @staticmethod
+    def sell(product: ProductView, customer: CustomerView, model: ModelView) -> float:
+        """Return the amount that sets the freshness the customer holds to `exp(-(t - shelved) / tau_a)`.
+
+        Args:
+            product:
+                The product sold.
+
+            customer:
+                The customer who buys it.
+
+            model:
+                The model view of the purchase.
+
+        Returns:
+            amount:
+                The change of the freshness the customer holds.
+        """
+        return float(np.exp(-(model.time - product.shelved) / product.tau_a)) - customer.freshness
 
 
 @register_model(
@@ -303,7 +241,7 @@ class PerishableTradeInteraction(Interaction):
     tags=('agents', 'discrete choice', 'symmetry breaking', 'phase transition', 'retail'),
     references=('Bertin 2021', 'Bouchaud 2013'),
     defaults={'until': 300},
-    observables=lambda system: [ObservableSpec('m', group='shops', variable='share', reduce=_asymmetry)],
+    observables=lambda system: [ObservableSpec('m', group='customers', expression=CustomerElement.preference)],
 )
 def perishable_goods_duopoly(
     customers: int = 200,
@@ -320,7 +258,11 @@ def perishable_goods_duopoly(
     with more customers sells fresher goods and attracts more customers. With the control parameter
     `R = 2 stock / tau_a`, the symmetric state `m = p_1 - p_2 = 0` loses its stability below the temperature
     `T_c = R / (1 + R)^2`, and one shop takes most customers. The transition is continuous for `R > sqrt(3) - 1` and
-    discontinuous below. One unit of time is one visit per customer.
+    discontinuous below. One unit of time is `N` visits by customers drawn with replacement. A visited customer
+    chooses a shop with the probability `1 / (1 + exp(-(S_1 - S_2) / T))` for the first one, moves to it, buys a random
+    product of age `tau`, of freshness `h = exp(-tau / tau_a)`, which the shop replaces with a fresh one, and updates
+    its satisfaction with that shop alone to `alpha S + (1 - alpha) h`. The shops are the two nodes of a network on
+    which their products stand.
 
     Args:
         customers:
@@ -343,25 +285,59 @@ def perishable_goods_duopoly(
 
     Returns:
         system:
-            The model, with the groups `customers`, `products`, and `shops`, and the asymmetry `m` of the shares of
-            the two shops.
+            The model, with the groups `customers` and `products`, and the asymmetry `m` of the probabilities of
+            visiting the two shops.
 
     Examples:
         >>> from skcomplex.models.economics.markets import perishable_goods_duopoly
-        >>> perishable_goods_duopoly(20).elements[1].check().prepare().size_
+        >>> perishable_goods_duopoly(20).elements[0].check().prepare().size_
         20
     """
     rng = np.random.default_rng(random_state)
     shelf = max(round(stock * customers), 1)
     satisfaction = 0.5 + 0.01 * rng.standard_normal((N_SHOPS, customers))
-    trade = PerishableTradeInteraction(
-        'trade',
-        customers='customers',
-        products='products',
-        shops='shops',
-        T=T,
-        alpha=alpha,
-        tau_a=tau_a,
+    choice = ChoiceInteraction(
+        'choice',
+        target='customers',
+        state='shop',
+        options=tuple(float(shop) for shop in range(N_SHOPS)),
+        utility=CustomerElement.utility,
+        schedule='member',
+        form='agent',
+        phase=PHASE,
+    )
+    movement = MovementInteraction(
+        'movement',
+        target='customers',
+        step=CustomerElement.destination,
+        schedule='member',
+        phase=PHASE,
+    )
+    purchase = TransferInteraction(
+        'purchase',
+        source='products',
+        target='customers',
+        state='shelved',
+        into=Sink(),
+        amount=ProductElement.restock,
+        legs=[(Source(), 'freshness', ProductElement.sell)],
+        pairing='cell',
+        form='agent',
+        schedule='member',
+        actor='target',
+        partners=1,
+        phase=PHASE,
+    )
+    satisfaction_update = ReinforcementInteraction(
+        'satisfaction',
+        target='customers',
+        scores=('s1', 's2'),
+        payoff=CustomerElement.payoff,
+        rate=1 - alpha,
+        chosen='shop',
+        schedule='member',
+        form='agent',
+        phase=PHASE,
     )
     return System(
         elements=[
@@ -369,15 +345,19 @@ def perishable_goods_duopoly(
                 'customers',
                 element=CustomerElement,
                 size=customers,
-                values={'s1': satisfaction[0], 's2': satisfaction[1]},
+                values={'s1': satisfaction[0], 's2': satisfaction[1], 'T': T},
             ),
             GroupElement(
                 'products',
                 element=ProductElement,
                 size=N_SHOPS * shelf,
-                values={'shop': np.repeat(np.arange(N_SHOPS), shelf).astype(float)},
+                values={'tau_a': tau_a},
+                location=np.repeat(np.arange(N_SHOPS), shelf).tolist(),
             ),
-            GroupElement('shops', element=ShopElement, size=N_SHOPS),
         ],
-        interactions=[trade],
+        interactions=[choice, movement, purchase, satisfaction_update],
+        space=NetworkSpace(nx.empty_graph(N_SHOPS)),
+        time=DiscreteTime(
+            schedule=PhasesScheduleSpec([PhaseSpec(PHASE, activation='visits', groups=('customers',))]),
+        ),
     )

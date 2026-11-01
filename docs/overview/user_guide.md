@@ -4226,7 +4226,9 @@ agents learn from their past.
 - `DiscreteTime(schedule=PhasesScheduleSpec([...]))` lists the phases of a step. A `PhaseSpec(name, activation, repeat)`
   runs its agents `'random'`ly, `'sequential'`ly in order of creation, `'simultaneous'`ly, or `'by-type'`, for `repeat`
   rounds such as intraday rounds. In a simultaneous phase every rule reads the states of the start of the phase, and the
-  writes apply at its end. `RuleLaw(function, phase=name)` puts a rule in a phase. Rules without a phase run in the
+  writes apply at its end. The activation `'visits'` runs `visits` times as many visits as the agents of `groups` at
+  the start of the phase, each to an agent drawn with replacement, which runs its rules of the phase, its element's and
+  then its member rules, at the time `k + i / n` of visit `i` of `n` in step `k`. `RuleLaw(function, phase=name)` puts a rule in a phase. Rules without a phase run in the
   phase `'default'`, which runs first unless the system lists it, so systems without phases keep one random activation
   per step.
 - `MatchingInteraction(label, requesters=..., providers=..., rule=...)`, from `skcomplex.core.interactions`,
@@ -4249,11 +4251,14 @@ agents learn from their past.
   neighbour, Gaussian, Lévy, best-cell, or user steps, with a condition, an acceptance, exclusion, and a cost.
   `TransferInteraction` moves amounts of states between members, the agents of one cell, a `Source()`, and a `Sink()`,
   as transfer laws with `form='symbolic'` or between paired agents with `form='agent'`. `LifeCycleInteraction` creates
-  offspring by probability or rate, with inherited, split, and mutated states, and removes agents.
+  offspring by probability or rate, with inherited, split, and mutated states, and removes agents, the first or a
+  random member of a group with `cull` and `pick`. `model.composition(group, state)` counts the agents of a group by
+  the value of a state, kept as agents change, so a birth probability can read the composition of the population.
   `GroupingInteraction` draws pairs, partitions, neighbourhoods, or groups by a state every step and acts on each.
   `TopologyInteraction` adds and removes nodes and edges of a network and rewires edges towards a weight.
 - A `FeedbackInteraction`, from `skcomplex.core.interactions`, acts once per round of its phase with its method `act`.
-  It reads `model.observable(name)`, reporters through `model.history(name, window)`, and agents, and it sets
+  It reads `model.observable(name)`, reporters and the observables of the run at the end of earlier steps through
+  `model.history(name, window)`, and agents, and it sets
   parameters of any element or interaction with `model.set_parameter(name, value)`. Rules see the change at once, and
   the trajectory records it. A subclass that declares its own parameters takes them as annotated arguments of its
   `__init__` next to `rule` and `phase`.
@@ -4265,7 +4270,8 @@ agents learn from their past.
   adaptive, trend-following, anchoring, and fundamentalist forecasts. In `skcomplex.core.interactions`,
   `ChoiceInteraction(form='agent')` draws an option by the logit, Metropolis, Fermi, or best rule from a utility
   `utility(agent, model, option)` that can read `model.history` and `model.storage`, `ReinforcementInteraction` moves
-  the scores of options towards their realized payoffs, and `EvolutionInteraction` replaces strategies by selection,
+  the scores of options towards their realized payoffs, or with `chosen` only the score of the option a member chose,
+  both with `schedule='member'` in the activation of every member, such as one visit, and `EvolutionInteraction` replaces strategies by selection,
   crossover, and mutation with the model's random stream. `ImitationInteraction(rule='best')` copies the best
   neighbour.
 

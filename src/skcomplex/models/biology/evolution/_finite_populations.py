@@ -12,27 +12,20 @@ from sage.all__sagemath_symbolics import NN, ZZ, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import EvolutionInteraction, Interaction
+from ....core.interactions import EvolutionInteraction
 from ....core.laws import BaseLaw, RuleLaw
+from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....core.types import ModelViewProtocol
-from ....engine.solvers import AgentView, ModelView
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....engine.solvers import ModelView
+from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
 from ._climber_view import ClimberView
 from ._individual_view import IndividualView
+from ._tangled_nature_life_cycle import TangledNatureLifeCycleInteraction
 
 ORGANISMS = 'organisms'
-
-
-@lru_cache(maxsize=16)
-def _couplings(seed: int, length: int) -> Array:
-    """Return the random couplings `J(S, S')` of the Tangled Nature model, uniform in [-1, 1] and 0 within a type."""
-    size = 2**length
-    couplings = np.random.default_rng(seed).uniform(-1.0, 1.0, size=(size, size))
-    np.fill_diagonal(couplings, 0.0)
-    return couplings
 
 
 @lru_cache(maxsize=16)
@@ -55,12 +48,6 @@ def _nk_fitness(genome: int, n: int, k: int, seed: int) -> float:
 def _random_fitness(genome: int, seed: int) -> float:
     """Return the fitness of a genome in the random energy model, uniform in [0, 1] and fixed by the seed."""
     return float(np.random.default_rng([seed, genome]).random())
-
-
-def _mutate(genome: int, length: int, probability: float, rng: np.random.Generator) -> int:
-    """Return a genome whose every locus flips with a probability."""
-    flips = np.flatnonzero(rng.random(length) < probability)
-    return int(genome ^ sum(1 << int(locus) for locus in flips))
 
 
 class IndividualElement(Element):
@@ -170,127 +157,6 @@ class MoranStepInteraction(EvolutionInteraction):
                 The fitness of every trait.
         """
         return (1 + model.parameter('advantage')) ** np.ravel(strategies)
-
-
-class TangledNatureStepInteraction(Interaction):
-    """One generation of the Tangled Nature model, `N / p_kill` reproduction and killing attempts.
-
-    At every attempt a random organism of type `S` reproduces with probability `1 / (1 + exp(-H(S)))`, where
-    `H(S) = k / N sum_S' J(S, S') n(S') - mu N`, and is replaced by two offspring, whose genome bits flip with
-    probability `p_mut` each. Then a random organism dies with probability `p_kill`. The couplings `J` are uniform in
-    [-1, 1] between different types, 0 within a type, and fixed by `seed`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        organisms:
-            The path of the group of organisms.
-
-        k:
-            The strength of the couplings.
-
-        mu:
-            The limit of resources, which lowers reproduction in large populations.
-
-        p_mut:
-            The probability that a bit of an offspring's genome flips.
-
-        p_kill:
-            The probability that a chosen organism dies.
-
-        length:
-            The number of bits of a genome.
-
-        seed:
-            The seed of the couplings.
-
-    Examples:
-        >>> from skcomplex.models.biology.evolution import TangledNatureStepInteraction
-        >>> TangledNatureStepInteraction('evolution', organisms='organisms').length
-        8
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        organisms: Annotated[str, RoleSpec()],
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        p_mut: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        p_kill: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        length: int = 8,
-        seed: int = 0,
-    ) -> None:
-        super().__init__(label)
-        self.organisms = organisms
-        self.k = k
-        self.mu = mu
-        self.p_mut = p_mut
-        self.p_kill = p_kill
-        self.length = length
-        self.seed = seed
-
-    def _reproduce(
-        self,
-        model: ModelView,
-        *,
-        alive: list[AgentView],
-        genomes: list[int],
-        counts: Array,
-        chosen: int,
-    ) -> None:
-        """Replace an organism by two offspring with probability `1 / (1 + exp(-H))`."""
-        genome = genomes[chosen]
-        size = len(alive)
-        weight = model.parameter('k') / size * _couplings(self.seed, self.length)[genome] @ counts
-        weight -= model.parameter('mu') * size
-        if model.rng.random() >= 1 / (1 + np.exp(-weight)):
-            return
-        alive.pop(chosen).remove()
-        genomes.pop(chosen)
-        counts[genome] -= 1
-        for _ in range(2):
-            child = _mutate(genome, self.length, model.parameter('p_mut'), model.rng)
-            alive.append(model.create(self.organisms, trait=float(child)))
-            genomes.append(child)
-            counts[child] += 1
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the generation rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.generation)]
-
-    def generation(self, model: ModelView) -> None:
-        """Run the reproduction and killing attempts of one generation.
-
-        Args:
-            model:
-                The model.
-        """
-        organisms = model.agents(self.organisms, IndividualView)
-        alive: list[AgentView] = list(organisms)
-        genomes = [int(organism.trait) for organism in organisms]
-        counts = np.bincount(genomes, minlength=2**self.length).astype(float)
-        p_kill = model.parameter('p_kill')
-        for _ in range(int(len(alive) / p_kill)):
-            if not alive:
-                return
-            chosen = int(model.rng.integers(len(alive)))
-            self._reproduce(model, alive=alive, genomes=genomes, counts=counts, chosen=chosen)
-            if alive and model.rng.random() < p_kill:
-                victim = int(model.rng.integers(len(alive)))
-                counts[genomes.pop(victim)] -= 1
-                alive.pop(victim).remove()
 
 
 class AdaptiveClimbingInteraction(EvolutionInteraction):
@@ -545,7 +411,8 @@ def tangled_nature(
 
     Organisms of one random type start the run. Mutants spread through the space of genomes, and the population
     settles into quasi-stable configurations of a few dominant types, the q-ESS, that end in abrupt transitions, a
-    punctuated equilibrium. The trait of an organism holds the bits of its genome.
+    punctuated equilibrium. The trait of an organism holds the bits of its genome. A generation is `N / p_kill`
+    visits to organisms drawn with replacement, where `N` is the population at its start.
 
     Args:
         organisms:
@@ -582,9 +449,9 @@ def tangled_nature(
         20
     """
     genome = float(np.random.default_rng(random_state).integers(2**length))
-    step = TangledNatureStepInteraction(
+    life_cycle = TangledNatureLifeCycleInteraction(
         'evolution',
-        organisms=ORGANISMS,
+        target=ORGANISMS,
         k=k,
         mu=mu,
         p_mut=p_mut,
@@ -604,7 +471,10 @@ def tangled_nature(
                 visual=visual,
             ),
         ],
-        interactions=[step],
+        interactions=[life_cycle],
+        time=DiscreteTime(
+            schedule=PhasesScheduleSpec([PhaseSpec('generation', activation='visits', visits=1 / p_kill)]),
+        ),
     )
 
 
