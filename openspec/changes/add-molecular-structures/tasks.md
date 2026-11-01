@@ -2,68 +2,52 @@
 
 ## 1. Dependencies and errors
 
-- [ ] 1.1 Add `biopython>=1.88` to the runtime dependencies, the extra `rna` with `ViennaRNA>=2.7.2`, and the extra
-  `trajectories` with `mdtraj>=1.11.2`. Relock, teach deptry the optional imports, and grow the Project Profile's
-  dependency list in the same PR. Verify that the full test suite passes on the new lock
-- [ ] 1.2 Add `MissingExtraError` as a `BackendError` unless `add-constraint-based-models` has added it, and verify the
-  missing RNA extra and default install scenarios with the extras hidden from imports
+- [ ] 1.1 Add `biopython>=1.88` to the runtime dependencies and the extras `rna = ["ViennaRNA>=2.7.2"]` and
+  `trajectories = ["mdtraj>=1.11.2"]` to `pyproject.toml`, teach deptry the optional imports, list them in the Project
+  Profile, relock, and verify `pdm install`, `deptry`, and `pip-audit` pass
+- [ ] 1.2 Add `MissingExtraError` to `skcomplex.errors` unless `add-constraint-based-models` has added it, and verify
+  the default install stays importable scenario with the extras hidden from imports
 
-## 2. Sequences, chains, scores, and replay in the core
+## 2. Core
 
-- [ ] 2.1 Add sequences as categorical rows of a lattice site group, the `'mutation'` move kind of `Sample`, and string
-  conversion, and verify the point mutation and letter outside the alphabet scenarios
-- [ ] 2.2 Add global scores to `Sample` with per-row Metropolis acceptance, temperature zero, and `proposals`, on NumPy
-  and Numba, and verify the neutral walk, domain-agnostic score, and positive temperature scenarios
-- [ ] 2.3 Add `Chain` to `core.components` with the bead-chain NeRF, geometry objects, and the dihedral rotation move,
-  and verify the freely rotating chain scenario
-- [ ] 2.4 Add the replay law to `core.laws`, and verify the replay of an ensemble scenario
-- [ ] 2.5 Declare the requirements of `Chain`, the global score, and the replay law, extend the `Supports` of the NumPy
-  and Numba backends, and add the validation issues; verify the chain on a square lattice, local energy and score,
-  Python score on Numba, and replay under continuous time scenarios
+- [ ] 2.1 Add `RowScoreSpec` to `skcomplex.specs` and its acceptance per row as a private method of
+  `SamplingInteraction`, with the row scores recorded as observables, and verify the neutral walk, domain-agnostic
+  score, score at a positive temperature, and point mutation as a function move scenarios
+- [ ] 2.2 Widen the temperature domain of `SamplingInteraction` to `[0, oo)` with the zero-temperature Metropolis rule,
+  and verify the zero temperature on a local energy scenario
+- [ ] 2.3 Pass `time` to a `DriveLaw` function that names it, and verify the replay of an ensemble scenario
+- [ ] 2.4 Add `ShapeAnalysis` to `skcomplex.analysis`, and verify the freely rotating chain and superposition scenarios
+- [ ] 2.5 Add `strip` to `PointsVisual`, and verify the protein chain in three dimensions scenario with a recorded
+  Rerun stream
 
-## 3. Biology realizations, maps, and analyses
+## 3. Biology packages
 
-- [ ] 3.1 Add `GenotypeMap` with its cache statistics, and `rna_fold` and `rna_layout` on ViennaRNA, to the
-  `biology/evolution` model package, and verify the hairpin fold, memoised map, and base-pair distance scenarios
-- [ ] 3.2 Add `neutral_network` and the four robustness and evolvability functions to the `biology/evolution` package,
-  and verify the two toy map scenarios and the neighbours of an RNA sequence scenario
-- [ ] 3.3 Add `Structure`, `read_structure`, `write_structure`, effective atoms, `read_trajectory` on MDTraj, and the
-  protein backbone geometry to `skcomplex.models.biology.realizations`, and bundle 1L2Y, 1UBQ, and 5PTI as gzipped
-  mmCIF. Verify the NMR ensemble, round trip, and round trip through internal coordinates scenarios and a DCD
-  trajectory read with the extra
-- [ ] 3.4 Add radius of gyration, end-to-end distance, and superposed RMSD to `core.analysis`, and backbone dihedral
-  and peptide plane angles to the biology realizations, and verify the ideal helix and superposition scenarios
-- [ ] 3.5 Add the fuzzy oil drop profile with `RD` and the fitted `K`, and its Numba kernel, to the biology
-  realizations, and verify the ideal micelle, uniform hydrophobicity, native against extended, and unknown residue
-  scenarios
-- [ ] 3.6 Verify the field-term and import-graph tests of the core scenario
+- [ ] 3.1 Add the memoised RNA fold, base-pair distance, and plane layout over ViennaRNA and `NeutralNetworkAnalysis`
+  to `skcomplex.models.biology.evolution`, and verify the hairpin fold and toy map scenarios
+- [ ] 3.2 Add `read_structure`, `write_structure`, `read_trajectory`, `StructureSpec`, effective atoms, and the backbone
+  geometry to `skcomplex.models.biology.systems_biology` with 1L2Y, 1UBQ, and 5PTI bundled as gzipped mmCIF, and verify
+  the NMR ensemble, round trip, and round trip through internal coordinates scenarios and a DCD read with the extra
+- [ ] 3.3 Add `FuzzyOilDropAnalysis` and `BackboneVisual` to the systems biology package, and verify the ideal micelle
+  and uniform hydrophobicity, native against extended, and unknown residue scenarios
+- [ ] 3.4 Verify the field-term and import contracts scenario
 
-## 4. Visuals
+## 4. Library and gallery
 
-- [ ] 4.1 Add `ChainVisual` in three dimensions and in the plane with base pairs, and the categorical image of
-  sequences, and verify the protein chain, secondary structure, and sequences as an image scenarios
+- [ ] 4.1 Add `rna_neutral_networks` to `biology/evolution`, and verify the neutral walk, adaptive walk, robustness
+  against evolvability, and model that needs the extra scenarios and the conformance suite
+- [ ] 4.2 Add `fuzzy_oil_drop` with the replay and folding dynamics, and verify the ensemble of the Trp-cage and folding
+  scenarios and the conformance suite
+- [ ] 4.3 Transcribe the ellipse parameters of Brylinski et al. 2004 with their reference, add
+  `early_stage_folding_intermediate`, and verify the projection and sampled cells scenarios and the conformance suite
+- [ ] 4.4 Mark the three entries implemented in `docs/overview/inventory.toml`, add their gallery examples, install the
+  extra `rna` in the tests, docs, and gallery sessions, and verify the sequences as an image scenario, the inventory
+  check, and the gallery coverage check within the budget
 
-## 5. Library and gallery
+## 5. Documentation and gate
 
-- [ ] 5.1 Change the three inventory entries from out of scope to `pending add-molecular-structures`, and verify that
-  the inventory check passes against this change's specs
-- [ ] 5.2 Add `rna_neutral_networks` to `biology/evolution` with its catalog observables, and verify the neutral walk
-  keeps the fold, robustness against evolvability, and adaptive walk scenarios
-- [ ] 5.3 Add `fuzzy_oil_drop` to `biology/systems_biology` with the replay and folding variants and its catalog
-  observables, and verify the ensemble of the Trp-cage and folding scenarios
-- [ ] 5.4 Transcribe the ellipse parameters of Brylinski et al. 2004 with their reference, add
-  `early_stage_folding_intermediate` to `biology/systems_biology` on `Sample` with heat-bath acceptance, and verify the
-  projection, path through the secondary structures, and sampled cells scenarios
-- [ ] 5.5 Mark the three entries implemented, and verify the inventory models registered and model that needs the
-  extra scenarios
-- [ ] 5.6 Add the three gallery examples with their thumbnails, analysis plots, and captions, install the extra `rna`
-  in the tests, docs, and gallery sessions, and verify the three example scenarios and the gallery coverage check
-  within the budget
-
-## 6. Documentation and gate
-
-- [ ] 6.1 Document sequences, chains, scores, replay, the biology realizations, the analyses, the extras, and
-  ViennaRNA's licence in the user guide, and verify that the documentation test passes
-- [ ] 6.2 Add a CI job on a default install without the extras, and verify the default install stays importable
-  scenario
-- [ ] 6.3 Run formatting, checks, the docs build, and tests through nox, and verify that all of them pass
+- [ ] 5.1 Document row scores, zero temperature, drives that read the step, `ShapeAnalysis`, the extras, and
+  ViennaRNA's licence in the user guide, add the changelog entry, and verify the documentation test and the changelog
+  session pass
+- [ ] 5.2 Add a CI job on a default install without the extras, and verify it passes
+- [ ] 5.3 Run `nox -s formatting`, `nox -s checks`, `nox -s docs`, and `nox -s tests` in that order, and verify all of
+  them pass
