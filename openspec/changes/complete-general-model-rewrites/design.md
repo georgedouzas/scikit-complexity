@@ -52,6 +52,21 @@ per step, mode `'jump'` fires at most once per member per step with probability 
 convention of the agent form of `TransitionInteraction`, and mode `'langevin'` is refused. No current model uses the
 agent form yet. The rats' `NervousnessInteraction` became `AlarmInteraction` plus a plain calming reaction.
 
+### Social classes still on their own laws (2.5)
+
+Rebuilt: majority rule, coevolving voter, join a club, social force walls, evacuation crowding and guidance,
+criminality recruitment, the spatial prisoner's dilemma and public goods game, the system traps, employment takeover,
+and the sabotage supervisors. Kept, each lacking a capability:
+- `StandardizationInteraction`: choice proposals over all options including the current one, N members drawn with
+  replacement per step, and utilities reading global sums updated between proposals.
+- `BlockMovesInteraction`: a movement schedule of N members drawn with replacement, updating a block state on accept.
+- `BelieverElement`: the agent form of `MapInteraction` on a vector state.
+- `ContenderElement`: a move into an occupied cell settled by a contest that transfers between the two agents.
+- `EmployeeElement`: a conditional discrete relaxation with a reset by life cycle.
+- `EaterElement`: moves to anchor locations with transfers at each, and a periodic schedule.
+- `ExecutionInteraction`: selection of one member per step by a service policy.
+- `DailyMovementsInteraction`: counts grouped by cell and periodic schedules.
+
 ### Experiments replicate interactions (1.7)
 
 `BaseExperiment._replicate` accepts plain single elements with their interactions: the replicated system holds shallow
