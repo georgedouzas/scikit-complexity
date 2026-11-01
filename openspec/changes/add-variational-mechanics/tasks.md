@@ -27,7 +27,7 @@
   Sitnikov problem as they are; verify the Kepler scenario and the model tests
 - [x] 4.2 Rebuild `henon_heiles` on `HamiltonianInteraction`, with `HenonHeilesElement` declaring `x`, `y`, `px`, and
   `py` of order 1 and no laws, and update its gallery example; verify the Hénon-Heiles scenario
-- [ ] 4.3 Add the `variational-mechanics` primitive to the three entries of `docs/overview/inventory.toml`; verify the
+- [x] 4.3 Add the `variational-mechanics` primitive to the three entries of `docs/overview/inventory.toml`; verify the
   inventory check passes
 
 ## 5. Documentation and gate
