@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import SR, I, atan2, cos, exp, pi, sin, vector
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import CouplingInteraction
 from skcomplex.core.laws import BaseLaw, RateLaw, UpdateLaw
-from skcomplex.core.laws.utils import uniform, where
+from skcomplex.core.laws.utils import count, uniform, where
 from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
@@ -419,6 +419,10 @@ def test_coupling_over_edges_needs_edges_for_its_rates():
         ({'mode': 'group', 'neighborhood': RadiusNeighborhood(1.0)}, 'neighbourhood'),
         ({'mode': 'group', 'weights': 'w'}, 'state of the edges'),
         ({'weights': np.ones((2, 2))}, 'mode group'),
+        ({'size': 3}, 'needs the mode hyperedges'),
+        ({'mode': 'hyperedges', 'size': 1}, 'whole number of 2 or more'),
+        ({'mode': 'hyperedges', 'include_self': True}, 'no include_self'),
+        ({'mode': 'hyperedges', 'delay': 1.0}, 'no delay'),
     ],
 )
 def test_check_rejects_unknown_variants_and_mismatched_structures(arguments, match):
@@ -566,3 +570,69 @@ def test_check_agent_form_needs_radii_and_takes_them_alone(arguments, match):
     """Test that the agent form needs radii, and that the other forms take no radii, clamp, or phase."""
     with pytest.raises(ValidationError, match=match):
         CouplingInteraction('coupling', target='agents', **arguments).check()
+
+
+HYPEREDGES = [(0, 1, 2), (1, 2, 3, 4), (3, 4, 5), (0, 2, 4, 5), (2, 5)]
+
+
+def _hyperedge_drift(coupling, theta, backend, space=None):
+    """Return the drift of oscillators without natural frequencies coupled over the hyperedges of a network."""
+    space = space or NetworkSpace(nx.complete_graph(6), hyperedges=HYPEREDGES)
+    oscillators = LatticeElement('oscillators', element=OscillatorElement, space=space, values={'theta': theta})
+    problem = compile_system(System(elements=[oscillators], interactions=[coupling]), backend=backend)
+    return problem.states.read(
+        problem.drift(0.0, problem.initial_state, problem.initial_parameters),
+        'oscillators.theta',
+    )
+
+
+@BACKENDS
+def test_coupling_over_hyperedges_is_the_three_body_kuramoto_drift(backend):
+    """Test that the three-body phase coupling over the triangles equals a direct loop over the triangles."""
+    theta = np.random.default_rng(5).uniform(0.0, 2 * np.pi, size=6)
+    coupling = CouplingInteraction(
+        'triads',
+        target='oscillators',
+        read='theta',
+        write='theta',
+        mode='hyperedges',
+        size=3,
+        function=lambda s: sin(s.others[0].theta + s.others[1].theta - 2 * s.member.theta),
+    )
+    expected = np.zeros(6)
+    for hyperedge in (item for item in HYPEREDGES if len(item) == 3):
+        for member in hyperedge:
+            first, second = (theta[other] for other in hyperedge if other != member)
+            expected[member] += np.sin(first + second - 2 * theta[member])
+    np.testing.assert_allclose(_hyperedge_drift(coupling, theta, backend), expected, rtol=0.0, atol=1e-12)
+
+
+@BACKENDS
+def test_coupling_over_hyperedges_of_every_size_averages_the_differences(backend):
+    """Test that the default term, weighted and averaged over the hyperedges of every size, matches a loop."""
+    theta = np.random.default_rng(6).uniform(0.0, 2 * np.pi, size=6)
+    coupling = CouplingInteraction(
+        'pull',
+        target='oscillators',
+        read='theta',
+        write='theta',
+        mode='hyperedges',
+        reduce='mean',
+        weights=lambda s: count(over=s.members),
+        lag=0.2,
+    )
+    expected, numbers = np.zeros(6), np.zeros(6)
+    for hyperedge in HYPEREDGES:
+        for member in hyperedge:
+            others = [theta[other] for other in hyperedge if other != member]
+            expected[member] += len(hyperedge) * sum(other - theta[member] - 0.2 for other in others)
+            numbers[member] += 1
+    expected = expected / numbers
+    np.testing.assert_allclose(_hyperedge_drift(coupling, theta, backend), expected, rtol=0.0, atol=1e-12)
+
+
+def test_coupling_over_hyperedges_needs_a_network_with_hyperedges():
+    """Test that the coupling over hyperedges of members on a lattice raises an error naming the hyperedges."""
+    coupling = CouplingInteraction('pull', target='oscillators', read='theta', write='theta', mode='hyperedges')
+    with pytest.raises(ValidationError, match='network with hyperedges'):
+        _hyperedge_drift(coupling, np.zeros(4), NumpyBackend(), LatticeSpace(4))

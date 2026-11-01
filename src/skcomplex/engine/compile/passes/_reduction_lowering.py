@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import replace
+from typing import cast
 
 import numpy as np
 import scipy.sparse
@@ -15,21 +16,30 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....core.laws.utils import both, neighborhoods_in, reductions_in
+from ....core.laws.utils import both, hyperedges_in, maximum, neighborhoods_in, reductions_in
 from ....core.spaces import (
     AdjacencyNeighborhood,
     ConeNeighborhood,
     LatticeNeighborhood,
     MemoryNeighborhood,
     NearestNeighborhood,
+    NetworkSpace,
     RadiusNeighborhood,
 )
 from ....errors import PipelineError, RoleError, ValidationError
-from ....specs import CallSpec, EntrySpec, NeighborReductionSpec, PairReadSpec, ReadSpec, ReductionSpec
+from ....specs import (
+    CallSpec,
+    EntrySpec,
+    HyperedgeReductionSpec,
+    NeighborReductionSpec,
+    PairReadSpec,
+    ReadSpec,
+    ReductionSpec,
+)
 from ....specs._capacity_rows_spec import ACTIVE_THRESHOLD
 from ....specs._held_reduction_spec import _HeldReductionSpec
-from ....types import VariableKind
-from ..._utils import declarations_of, symbol, symbols_of, vector
+from ....types import Indices, VariableKind
+from ..._utils import declarations_of, domain_of, symbol, symbols_of, vector
 from ...problems import DeclarationsSpec, KernelSpec, ReferenceSpec
 from ...problems._neighborhood_kernel import NeighborhoodKernel
 from ...problems._reduction_kernel import ReductionKernel
@@ -39,6 +49,7 @@ from .._base import BaseLowering, BasePass
 from .._compilation import Compilation
 from .._complex import _modulus_form
 from .._observables import _HeldElement
+from ._hyperedges import HyperedgeTables
 from ._mask_requests import MaskRequestsPass
 from ._specs import SpecsPass
 
@@ -153,10 +164,12 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             return value
         found = reductions_in(value)
         local = neighborhoods_in(value)
-        if not found and not local:
+        around = hyperedges_in(value)
+        if not found and not local and not around:
             return value
         placeholders = {item.call: self._placeholder(item, spec) for item in found}
         placeholders.update({item.call: self._neighborhood(item, spec) for item in local})
+        placeholders.update({item.call: self._hyperedges(item, spec) for item in around})
         lowered: Expression = value
         for call in sorted(placeholders, key=lambda item: -len(str(item))):
             lowered = lowered.subs({call: placeholders[call]})
@@ -623,7 +636,12 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, column, ReadKind.REDUCED))
         return compiled.symbol
 
-    def _neighbor_group(self, reduction: NeighborReductionSpec, spec: KernelSpec, symbols: set[Expression]) -> str:
+    def _neighbor_group(
+        self,
+        reduction: NeighborReductionSpec | HyperedgeReductionSpec,
+        spec: KernelSpec,
+        symbols: set[Expression],
+    ) -> str:
         """Return the group whose members read a neighbourhood reduction and are each other's neighbours."""
         groups = set()
         for item in symbols:
@@ -787,3 +805,164 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         compiled = self.neighbourhoods_[key]
         self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, 0, ReadKind.REDUCED))
         return compiled.symbol
+
+    def _hyperedges(self, reduction: HyperedgeReductionSpec, spec: KernelSpec) -> Expression:
+        """Return the placeholder of a reduction over the hyperedges around every member, the sum of one per size.
+
+        Without a size, the reduction runs over the hyperedges of every size of the network: the sum and the count add
+        the reductions of every size, and the mean divides their sum by the number of hyperedges around the member.
+
+        Raises:
+            RoleError:
+                The network has no hyperedge of the size of the reduction.
+
+            ValidationError:
+                The members do not live on a network with hyperedges, or a reduction other than the sum, the mean, or
+                the count runs over hyperedges of several sizes.
+        """
+        argument = SR(reduction.argument)
+        weight = SR(1) if reduction.weight is None else SR(reduction.weight)
+        group = self._neighbor_group(reduction, spec, symbols_of([argument, weight]) - {self.declarations_.time})
+        space = self.declarations_.blocks[group].node.space
+        if not isinstance(space, NetworkSpace) or not space.hyperedges_:
+            error_msg = (
+                f'The hyperedge reduction {reduction.call} of {spec.owner} reads {group}, which lives on {space!r}. '
+                'Give the group a network space with hyperedges.'
+            )
+            raise ValidationError(error_msg)
+        if group in self.declarations_.capacity:
+            error_msg = (
+                f'The hyperedge reduction {reduction.call} of {spec.owner} reads the variable group {group}, whose '
+                'members come and go. Reduce over the hyperedges of a group of fixed members.'
+            )
+            raise ValidationError(error_msg)
+        sizes = sorted({len(item) for item in space.hyperedges_})
+        if reduction.size is not None and reduction.size not in sizes:
+            error_msg = (
+                f'The hyperedge reduction {reduction.call} of {spec.owner} runs on hyperedges of size '
+                f'{reduction.size}, but the hyperedges of the network of {group} have the sizes '
+                f'{", ".join(map(str, sizes))}.'
+            )
+            raise RoleError(error_msg)
+        if reduction.size is not None:
+            sizes = [reduction.size]
+        if len(sizes) == 1:
+            return self._hyperedge_kernel(reduction, spec, group, (reduction.kind, argument, weight), sizes[0])
+        if reduction.kind not in {'sum', 'mean', 'count'}:
+            error_msg = (
+                f'The hyperedge reduction {reduction.call} of {spec.owner} runs on the hyperedges of the sizes '
+                f'{", ".join(map(str, sizes))}, which only the sum, the mean, and the count reduce together. Give a '
+                'size.'
+            )
+            raise ValidationError(error_msg)
+        kind = 'sum' if reduction.kind == 'mean' else reduction.kind
+        parts = [self._hyperedge_kernel(reduction, spec, group, (kind, argument, weight), size) for size in sizes]
+        combined = SR(sum(parts, SR(0)))
+        if reduction.kind != 'mean':
+            return combined
+        numbers = [self._hyperedge_kernel(reduction, spec, group, ('sum', SR(1), SR(1)), size) for size in sizes]
+        return combined / maximum(SR(sum(numbers, SR(0))), 1)
+
+    def _hyperedge_kernel(
+        self,
+        reduction: HyperedgeReductionSpec,
+        spec: KernelSpec,
+        group: str,
+        terms: tuple[str, Expression, Expression],
+        size: int,
+    ) -> Expression:
+        """Return the placeholder of a reduction over the hyperedges of one size, compiled the first time it is found.
+
+        Every row of the reduction is a hyperedge around a member: the symbols of `others` read the other members of
+        the hyperedge through the tables of their positions, and the reductions over `members` are written out over
+        the member and the other members.
+
+        Raises:
+            ValidationError:
+                The reduction reads more other members than a hyperedge of the size has, the members outside a
+                reduction over them, the neighbour `other`, or a complex expression.
+        """
+        kind, argument, weight = terms
+        columns, positions = HyperedgeTables._around(spec, ReadKind.OTHER)
+        focal = {item: symbol(f'{item}__focal', domain_of(item)) for item in columns}
+        slots = {item: [focal[item], *others[: size - 1]] for item, others in columns.items()}
+        expansions = HyperedgeTables._expansions_over(slots, [argument, weight])
+        argument, weight = SR(argument).subs(expansions), SR(weight).subs(expansions)
+        argument, weight = SR(self._lower(argument, spec)), SR(self._lower(weight, spec))
+        symbols = symbols_of([argument, weight]) - {self.declarations_.time}
+        beyond = sorted(str(item) for item in symbols if positions.get(item, -1) >= size - 1)
+        outside = sorted(str(item) for item in symbols if item in columns)
+        if beyond or outside or argument.has(I) or weight.has(I):
+            error_msg = (
+                f'The hyperedge reduction {reduction.call} of {spec.owner} reads '
+                f'{", ".join([*beyond, *outside]) or "a complex expression"}. A reduction over hyperedges of size '
+                f'{size} reads the {size - 1} other members `others`, and `members` inside reductions over them, of '
+                'real expressions.'
+            )
+            raise ValidationError(error_msg)
+        block = self.declarations_.blocks[group]
+        key = ('hyperedges', kind, str(argument), str(weight), size, group)
+        if key not in self.neighbourhoods_:
+            indptr, tables = HyperedgeTables._incidences(cast(NetworkSpace, block.node.space), size)
+            search = StaticSearch(indptr, np.arange(indptr[-1], dtype=np.intp)).check().prepare()
+            sources = {value: item for item, value in focal.items()}
+            reads = {
+                item: self._hyperedge_read(item, spec, group, search, (sources, positions, tables))
+                for item in sorted(symbols, key=str)
+            }
+            index = len(self.neighbourhoods_)
+            entry = EntrySpec(f'__neighbours_{index}', self.extent_, (block.rows,), RR, block.rows)
+            compiled = (
+                NeighborhoodKernel(
+                    symbol(f'_neighbours_{index}'),
+                    kind,
+                    argument,
+                    weight,
+                    entry,
+                    group=group,
+                    search=search,
+                    reads=reads,
+                    time=self.declarations_.time,
+                )
+                .check()
+                .prepare()
+            )
+            self.neighbourhoods_[key] = compiled
+            self.sequence_.append(compiled)
+            self.local_[compiled.symbol] = compiled
+            self.readers_[compiled.symbol] = group
+        compiled = self.neighbourhoods_[key]
+        self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, 0, ReadKind.REDUCED))
+        return compiled.symbol
+
+    def _hyperedge_read(
+        self,
+        item: Expression,
+        spec: KernelSpec,
+        group: str,
+        search: StaticSearch,
+        slots: tuple[dict[Expression, Expression], dict[Expression, int], list[Indices]],
+    ) -> PairReadSpec:
+        """Return how a reduction over hyperedges reads one symbol: of the member, of another member, or shared.
+
+        Raises:
+            ValidationError:
+                The symbol is the neighbour `other` of the member, which no hyperedge has.
+        """
+        sources, positions, tables = slots
+        if item not in sources and item not in positions:
+            reference = self._reference_of(item, spec)
+            if reference is not None and reference.source is ReadKind.OTHER:
+                error_msg = (
+                    f'The hyperedge reduction of {spec.owner} reads {item}, the neighbour `other` of the member. Read '
+                    'the other members of a hyperedge with `others`.'
+                )
+                raise ValidationError(error_msg)
+            return self._pair_read(item, spec, group, search)
+        reference = spec.references[sources.get(item, item)]
+        entry = reference.entry
+        indices = (entry.start + np.arange(entry.rows) * entry.columns + reference.column).astype(np.intp)
+        read = ReadSpec(reference.is_state, indices, entry, reference.column, entry.columns)
+        if item in sources:
+            return PairReadSpec(read, 'reader')
+        return PairReadSpec(read, 'other', table=tables[positions[item]])

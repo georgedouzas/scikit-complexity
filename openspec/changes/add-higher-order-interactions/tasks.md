@@ -14,7 +14,7 @@
   law against a loop and the missing size scenarios
 - [x] 2.2 Bind a group on hyperedges or edges through the second role of `HyperedgeInteraction`, with the `binding`
   issue of an edge role that joins no edge; verify a hyperedge group update and the issue
-- [ ] 2.3 Add the reduction `hyperedges` to `skcomplex.core.laws.utils` and the mode `'hyperedges'` of
+- [x] 2.3 Add the reduction `hyperedges` to `skcomplex.core.laws.utils` and the mode `'hyperedges'` of
   `CouplingInteraction`; verify the three-body Kuramoto and the hyperedge reduction outside a hypergraph scenarios
 
 ## 3. Symbolic groupings

@@ -8,7 +8,7 @@ from dataclasses import replace
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....core.laws.utils import draws_in, neighborhoods_in, reductions_in
+from ....core.laws.utils import draws_in, hyperedges_in, neighborhoods_in, reductions_in
 from ....errors import IncompatibleLawsError, RoleError
 from ....specs._matrix_law_spec import _RANDOM_FIELDS
 from ..._utils import components_of
@@ -67,6 +67,7 @@ class RowsPass(BasePass):
         expressions = [item for item in components_of(value) if isinstance(item, Expression)]
         found = [reduction.call for item in expressions for reduction in reductions_in(item)]
         found += [reduction.call for item in expressions for reduction in neighborhoods_in(item)]
+        found += [reduction.call for item in expressions for reduction in hyperedges_in(item)]
         calls, operators = {str(call) for call in found}, {call.operator() for call in found}
         symbols: set[Expression] = set()
         stack = list(expressions)

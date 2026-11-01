@@ -17,7 +17,7 @@ from ...base import BaseConfig
 from ...core.elements import GroupElement
 from ...core.interactions import HyperedgeInteraction, NeighborInteraction
 from ...core.laws import EncounterLaw, JumpLaw, NoiseLaw, ProliferationLaw
-from ...core.laws.utils import neighborhoods_in, reductions_in
+from ...core.laws.utils import hyperedges_in, neighborhoods_in, reductions_in
 from ...core.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
@@ -435,6 +435,7 @@ class PassCompiler(BaseCompiler):
         issues += PassCompiler._bound_issues(nodes)
         issues += PassCompiler._law_issues(records, FractionalFormPass._declared_times(system))
         issues += PassCompiler._neighborhood_issues(records, nodes)
+        issues += PassCompiler._around_issues(records)
         issues += PassCompiler._space_issues(system, nodes)
         issues += LatticeProblemPass._schedule_issues(compilation)
         issues += ConservedNoisePass._conserved_issues(compilation)
@@ -779,6 +780,36 @@ class PassCompiler(BaseCompiler):
             stack += neighborhoods_in(reduction.argument)
             stack += neighborhoods_in(reduction.weight) if reduction.weight is not None else []
         return found
+
+    @staticmethod
+    def _around_issues(records: list[CensusRecordSpec]) -> list[IssueSpec]:
+        """Return the reductions over hyperedges of a component outside a network with hyperedges of their size."""
+        issues = []
+        for record in records:
+            name = f'{type(record.law).__name__} of {record.path}'
+            include = ('rate',) if isinstance(record.law, JumpLaw) else ('value',)
+            values = record.law._get_values(include=include)
+            reductions = {str(item.call): item for value in values for item in hyperedges_in(value)}
+            space = record.space
+            sizes = sorted({len(item) for item in getattr(space, 'hyperedges_', ())})
+            for reduction in reductions.values():
+                if not isinstance(space, NetworkSpace) or not sizes:
+                    lives = type(space).__name__ if space is not None else 'no space'
+                    message = (
+                        f'The {name} reduces over hyperedges, which needs a network space with hyperedges, but the '
+                        f'component lives on {lives}.'
+                    )
+                    fix = 'Give the group a network space with hyperedges, as `NetworkSpace(graph, hyperedges=...)`.'
+                    issues.append(IssueSpec('law-space', record.path, message, fix))
+                    break
+                if reduction.size is not None and reduction.size not in sizes:
+                    message = (
+                        f'The {name} reduces over hyperedges of size {reduction.size}, but the hyperedges of its '
+                        f'network have the sizes {", ".join(map(str, sizes))}.'
+                    )
+                    fix = f'Reduce over hyperedges of one of the sizes {", ".join(map(str, sizes))}.'
+                    issues.append(IssueSpec('binding', record.path, message, fix))
+        return issues
 
     @staticmethod
     def _space_fix(spaces: tuple[type, ...]) -> str:
