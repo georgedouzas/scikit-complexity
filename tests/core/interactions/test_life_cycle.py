@@ -9,11 +9,11 @@ import pytest
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import LifeCycleInteraction, TransferInteraction
 from skcomplex.core.laws import Sink, Source
-from skcomplex.core.spaces import LatticeSpace, NetworkSpace
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.errors import ValidationError
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 
 
 class ResourceElement(Element):
@@ -344,7 +344,8 @@ def _reserves_of(trajectory: Trajectory) -> list[float]:
         {'mutate': 3},
         {'keep': 'half'},
         {'values': 1.0},
-        {'cull': 0.5},
+        {'cull': 'half'},
+        {'pick': 'last'},
         {'schedule': 'parallel'},
         {'schedule': 'member', 'arrival': 1.0},
     ],
@@ -353,3 +354,27 @@ def test_check_rejects_invalid_arguments(arguments):
     """Test that an unknown placement, two kinds of birth, and values that are not numbers or functions are rejected."""
     with pytest.raises(ValidationError):
         LifeCycleInteraction('life', target='foragers', **arguments).check()
+
+
+def test_live_culls_a_random_member_of_its_group_after_a_replacement():
+    """Test that a parent replaced by its offspring still removes a random member of its own group."""
+    parents = GroupElement('parents', element=ReserveElement, size=4, values={'trait': 1.0}, variable=True)
+    life = LifeCycleInteraction(
+        'life',
+        target='parents',
+        birth=1.0,
+        offspring=2,
+        inherit=('trait',),
+        replace=True,
+        cull=1.0,
+        pick='random',
+        schedule='member',
+    )
+    system = System(
+        elements=[parents],
+        interactions=[life],
+        space=LatticeSpace((3, 3)),
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('default', activation='visits', visits=0.5)])),
+    )
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    assert len(trajectory.agents('parents', 1).ids) == 4

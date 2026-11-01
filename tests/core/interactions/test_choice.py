@@ -297,6 +297,7 @@ def test_choice_interaction_keeps_values_among_options():
         ({'schedule': 'sequential'}, 'Unknown schedule'),
         ({'form': 'table'}, 'Unknown form'),
         ({'schedule': 'random-sequential'}, 'only the agent form'),
+        ({'schedule': 'member'}, 'only the agent form'),
         ({'options': (1,)}, 'at least 2 options'),
         ({'utility': 1.0}, 'must be callable'),
     ],

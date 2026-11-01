@@ -15,6 +15,7 @@ from ._interaction import Interaction
 
 PLACEMENTS = ('here', 'neighbor')
 SCHEDULES = ('sequential', 'random-sequential', 'member')
+PICKS = ('first', 'random')
 
 type Chance = float | Callable[..., float]
 type Count = int | Callable[..., int]
@@ -48,11 +49,13 @@ class LifeCycleInteraction(Interaction):
     `reset`, and with `replace` it is removed, so its offspring replace it, also when the birth created none. With
     `renew` an agent that dies is renewed in place instead of removed: it keeps its identity, its place, and the states
     the new values leave out, and takes the values of an offspring of its own. With the probability `cull` an agent
-    that survives removes one member of `group` for which `kin(agent, member)` holds, the first in the order of the
-    group, such as one it owns. Every step a Poisson number of the mean `arrival`, a number or a function of the model
-    view, of new agents arrive without a parent, at the location of the placement function or else at a random place,
-    with the values `values(None, model)`. The life cycle reports the `births`, `deaths`, and `arrivals` of every step.
-    It is an agent rule, so the system runs in discrete time.
+    that does not die removes, after its births, one member of `group`, or of the target without a group, for which
+    `kin(agent, member)` holds, the first in the order of the group under the pick `'first'`, such as one it owns, or
+    a random one under `'random'`. Every
+    step a Poisson number of the mean `arrival`, a number or a function of the model view, of new agents arrive without
+    a parent, at the location of the placement function or else at a random place, with the values
+    `values(None, model)`. The life cycle reports the `births`, `deaths`, and `arrivals` of every step. It is an agent
+    rule, so the system runs in discrete time.
 
     Args:
         label:
@@ -112,7 +115,8 @@ class LifeCycleInteraction(Interaction):
             Whether an agent that dies is renewed in place instead of removed.
 
         cull:
-            The probability that an agent removes one member of `group` in a step, or `None` for no removals.
+            The probability that an agent removes one member of `group`, or of the target without a group, in a
+            step, or `None` for no removals.
 
         kin:
             A function of an agent and a member of `group` that returns whether the agent may remove the member, or
@@ -121,11 +125,13 @@ class LifeCycleInteraction(Interaction):
         arrival:
             The mean number of new agents that arrive in a step without a parent, or `None` for no arrivals.
 
+        pick:
+            Which member of `group` a removal takes among those it may remove, `'first'` or `'random'`.
+
     Raises:
         ValidationError:
-            The placement or the schedule is unknown, both a birth probability and a rate are given, a function is
-            not callable, a removal of members of another group has no group, or the schedule `'member'` has
-            arrivals, raised by `check`.
+            The placement, the schedule, or the pick is unknown, both a birth probability and a rate are given, a
+            function is not callable, or the schedule `'member'` has arrivals, raised by `check`.
 
     Examples:
         >>> from typing import Annotated
@@ -173,6 +179,7 @@ class LifeCycleInteraction(Interaction):
         cull: Chance | None = None,
         kin: Kinship | None = None,
         arrival: Arrival | None = None,
+        pick: str = 'first',
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -195,29 +202,34 @@ class LifeCycleInteraction(Interaction):
         self.cull = cull
         self.kin = kin
         self.arrival = arrival
+        self.pick = pick
 
-    def _check(self) -> None:
-        """Raise an error for an unknown placement, a birth by both probability and rate, or a bad function.
-
-        Raises:
-            ValidationError:
-                The placement or the schedule is unknown, both a birth probability and a rate are given, a value is
-                neither a number nor a function, a removal of members of another group has no group, or the
-                schedule `'member'` has arrivals.
-        """
-        super()._check()
+    def _check_variants(self) -> None:
+        """Raise an error for an unknown placement, schedule, or pick, or arrivals of a member schedule."""
         if not callable(self.placement) and self.placement not in PLACEMENTS:
             error_msg = (
                 f'Unknown placement {self.placement!r} of {self.label!r}. Use one of {", ".join(PLACEMENTS)}, or a '
                 'function.'
             )
             raise ValidationError(error_msg)
-        if self.schedule not in SCHEDULES:
-            error_msg = f'Unknown schedule {self.schedule!r} of {self.label!r}. Use one of {", ".join(SCHEDULES)}.'
-            raise ValidationError(error_msg)
+        for name, value, variants in (('schedule', self.schedule, SCHEDULES), ('pick', self.pick, PICKS)):
+            if value not in variants:
+                error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {", ".join(variants)}.'
+                raise ValidationError(error_msg)
         if self.schedule == 'member' and self.arrival is not None:
             error_msg = f'{self.label!r} runs member by member, so no agent brings arrivals. Give `arrival=None`.'
             raise ValidationError(error_msg)
+
+    def _check(self) -> None:
+        """Raise an error for an unknown placement, a birth by both probability and rate, or a bad function.
+
+        Raises:
+            ValidationError:
+                The placement, the schedule, or the pick is unknown, both a birth probability and a rate are given,
+                a value is neither a number nor a function, or the schedule `'member'` has arrivals.
+        """
+        super()._check()
+        self._check_variants()
         if self.birth is not None and self.rate is not None:
             error_msg = f'{self.label!r} gives births by a probability and by a rate. Give one of them.'
             raise ValidationError(error_msg)
@@ -231,9 +243,6 @@ class LifeCycleInteraction(Interaction):
             if value is not None and not callable(value):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function, or None.'
                 raise ValidationError(error_msg)
-        if self.cull is not None and self.group is None:
-            error_msg = f'{self.label!r} removes members of another group but binds no group. Give the group.'
-            raise ValidationError(error_msg)
 
     @staticmethod
     def _evaluate(value: Chance | Count, agent: AgentViewProtocol, model: ModelViewProtocol) -> float:
@@ -316,9 +325,15 @@ class LifeCycleInteraction(Interaction):
             setattr(agent, name, value)
 
     def _remove_kin(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
-        """Remove the first member of the group of the cycle that is kin of an agent, if there is one."""
+        """Remove the first or a random member of the group of the cycle that is kin of an agent, if there is one."""
         kin = self.kin
-        members = (item for item in model.agents('group') if item.alive and (kin is None or kin(agent, item)))
+        group = 'target' if self.group is None else 'group'
+        members = (item for item in model.agents(group) if item.alive and (kin is None or kin(agent, item)))
+        if self.pick == 'random':
+            candidates = list(members)
+            if candidates:
+                candidates[int(model.rng.integers(len(candidates)))].remove()
+            return
         member = next(members, None)
         if member is not None:
             member.remove()
@@ -336,6 +351,13 @@ class LifeCycleInteraction(Interaction):
         if self._happens(self.death, agent, model):
             self._die(agent, occupied, model)
             return 0, 1
+        born, died = self._give_birth(agent, occupied, model)
+        if self._happens(self.cull, agent, model):
+            self._remove_kin(agent, model)
+        return born, died
+
+    def _give_birth(self, agent: AgentViewProtocol, occupied: set[object], model: ModelViewProtocol) -> tuple[int, int]:
+        """Let an agent give birth, and return its number of new agents and whether it was replaced."""
         born = 0
         events = self._count_births(agent, model)
         if events > 0:
@@ -350,8 +372,6 @@ class LifeCycleInteraction(Interaction):
                 occupied.discard(agent.location_key)
                 agent.remove()
                 return born, 1
-        if self._happens(self.cull, agent, model):
-            self._remove_kin(agent, model)
         return born, 0
 
     def _arrive(self, model: ModelViewProtocol) -> int:

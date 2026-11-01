@@ -16,11 +16,13 @@ from ...specs import ParameterSpec, RoleSpec
 from ...types import Array
 from ..base import BasePart
 from ..laws import RuleLaw, UpdateLaw
+from ..laws.utils import where
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
 
 FORMS = ('symbolic', 'agent')
 RULES = ('average', 'cumulative')
+SCHEDULES = ('synchronous', 'member')
 
 
 class ReinforcementInteraction(Interaction):
@@ -34,7 +36,11 @@ class ReinforcementInteraction(Interaction):
     `'symbolic'` form, `payoff(namespace, k)` returns the payoff of option `k` as a symbolic
     expression, where `namespace.target` holds the states and parameters of the group. In the `'agent'` form, the
     group is an agent group and `payoff(agent, model, k)` returns the payoff as a number, so it can read the agent and
-    the history and storage of the model view.
+    the history and storage of the model view. With `chosen`, the name of a state that holds the index of the option a
+    member chose, only the score of that option moves, and the payoff of the other options is not read. In the agent
+    form every agent reinforces at once under the schedule `'synchronous'`, and each in its own activation under
+    `'member'`, together with the rules of its element and the other member interactions, in the order the system
+    lists them, such as after a choice and a transfer in one visit.
 
     Args:
         label:
@@ -63,9 +69,18 @@ class ReinforcementInteraction(Interaction):
         phase:
             The phase of the step the agent form runs in, or `None` for the default phase.
 
+        chosen:
+            The name of the state that holds the index of the option a member chose, so only its score moves, or
+            `None` to move every score.
+
+        schedule:
+            The order of the agent form, `'synchronous'` for every agent at once, or `'member'` for every agent in its
+            own activation.
+
     Raises:
         ValidationError:
-            The form or the rule is unknown, there are no scores, or the payoff is not callable.
+            The form, the rule, or the schedule is unknown, the symbolic form runs member by member, there are no
+            scores, or the payoff is not callable.
 
     Examples:
         >>> from skcomplex.core.interactions import ReinforcementInteraction
@@ -78,6 +93,11 @@ class ReinforcementInteraction(Interaction):
         ...     'virtual', target='players', scores='scores', payoff=lambda a, m, k: k, rule='cumulative', form='agent'
         ... ).check().rule
         'cumulative'
+        >>> ReinforcementInteraction(
+        ...     'satisfaction', target='customers', scores=('s1', 's2'), payoff=lambda a, m, k: 1.0, chosen='shop',
+        ...     schedule='member', form='agent',
+        ... ).check().chosen
+        'shop'
     """
 
     def __init__(
@@ -91,6 +111,8 @@ class ReinforcementInteraction(Interaction):
         rule: str = 'average',
         form: str = 'symbolic',
         phase: str | None = None,
+        chosen: str | None = None,
+        schedule: str = 'synchronous',
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -100,20 +122,29 @@ class ReinforcementInteraction(Interaction):
         self.rule = rule
         self.form = form
         self.phase = phase
+        self.chosen = chosen
+        self.schedule = schedule
 
     def _check(self) -> None:
-        """Raise an error for an unknown form or rule, no scores, or a payoff that cannot be called.
+        """Raise an error for an unknown variant, no scores, or a payoff that cannot be called.
 
         Raises:
             ValidationError:
-                The type declares states, the form or the rule is unknown, there are no scores, or the payoff is not
-                callable.
+                The type declares states, the form, the rule, or the schedule is unknown, the symbolic form runs member
+                by member, there are no scores, or the payoff is not callable.
         """
         super()._check()
-        for name, value, variants in (('form', self.form, FORMS), ('rule', self.rule, RULES)):
+        for name, value, variants in (
+            ('form', self.form, FORMS),
+            ('rule', self.rule, RULES),
+            ('schedule', self.schedule, SCHEDULES),
+        ):
             if value not in variants:
                 error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {variants}.'
                 raise ValidationError(error_msg)
+        if self.form == 'symbolic' and self.schedule != 'synchronous':
+            error_msg = f'The schedule {self.schedule!r} of {self.label!r} runs agent rules. Use `form="agent"`.'
+            raise ValidationError(error_msg)
         vector = isinstance(self.scores, str) and bool(self.scores) and self.form == 'agent'
         if not vector and (isinstance(self.scores, str) or not self.scores):
             error_msg = (
@@ -125,6 +156,36 @@ class ReinforcementInteraction(Interaction):
             error_msg = f'The payoff of {self.label!r} must be callable, but it is {self.payoff!r}.'
             raise ValidationError(error_msg)
 
+    def _read(self, agent: AgentViewProtocol) -> Array:
+        """Return the scores of an agent, one per option."""
+        if isinstance(self.scores, str):
+            return np.array(getattr(agent, self.scores), dtype=float).ravel()
+        return np.array([getattr(agent, name) for name in self.scores], dtype=float)
+
+    def _get_scores(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> Array:
+        """Return the new scores of an agent, every score or only that of its chosen option moved by its payoff."""
+        old = self._read(agent)
+        options = range(len(old)) if self.chosen is None else [int(getattr(agent, self.chosen))]
+        rate = 1.0 if self.rule == 'cumulative' else model.parameter('rate')
+        change = np.zeros_like(old)
+        for k in options:
+            payoff = float(self.payoff(agent, model, k))
+            change[k] = payoff if self.rule == 'cumulative' else rate * (payoff - old[k])
+        return old + change
+
+    def _write(self, agent: AgentViewProtocol, scores: Array) -> None:
+        """Set the scores of an agent."""
+        if isinstance(self.scores, str):
+            setattr(agent, self.scores, scores)
+            return
+        for name, value in zip(self.scores, scores, strict=True):
+            setattr(agent, name, float(value))
+
+    def _reinforce_member(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
+        """Move the scores of one agent towards its payoffs, in its own activation."""
+        if agent.alive:
+            self._write(agent, self._get_scores(agent, model))
+
     def reinforce(self, model: ModelViewProtocol) -> None:
         """Move the scores of every agent towards the payoffs of its options, all agents at once.
 
@@ -132,26 +193,10 @@ class ReinforcementInteraction(Interaction):
             model:
                 The model view of the interaction.
         """
-        rate = 1.0 if self.rule == 'cumulative' else model.parameter('rate')
         agents = list(model.agents('target'))
-        scores = [self._read(agent) for agent in agents]
-        payoffs = [
-            np.array([self.payoff(agent, model, k) for k in range(len(old))], float)
-            for agent, old in zip(agents, scores, strict=True)
-        ]
-        for agent, old, realized in zip(agents, scores, payoffs, strict=True):
-            new = old + realized if self.rule == 'cumulative' else old + rate * (realized - old)
-            if isinstance(self.scores, str):
-                setattr(agent, self.scores, new)
-            else:
-                for name, value in zip(self.scores, new, strict=True):
-                    setattr(agent, name, float(value))
-
-    def _read(self, agent: AgentViewProtocol) -> Array:
-        """Return the scores of an agent, one per option."""
-        if isinstance(self.scores, str):
-            return np.array(getattr(agent, self.scores), dtype=float).ravel()
-        return np.array([getattr(agent, name) for name in self.scores], dtype=float)
+        scores = [self._get_scores(agent, model) for agent in agents]
+        for agent, new in zip(agents, scores, strict=True):
+            self._write(agent, new)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
         """Return the update of every score towards its payoff, or the rule of the agent form.
@@ -164,6 +209,8 @@ class ReinforcementInteraction(Interaction):
             laws:
                 The update laws of the scores, or the rule that reinforces the scores of the agents.
         """
+        if self.form == 'agent' and self.schedule == 'member':
+            return [RuleLaw(self._reinforce_member, phase=self.phase, members='target')]
         if self.form == 'agent':
             return [RuleLaw(self.reinforce, phase=self.phase)]
         laws: list[BasePart] = []
@@ -171,5 +218,7 @@ class ReinforcementInteraction(Interaction):
             score = getattr(namespace.target, name)
             payoff = self.payoff(namespace, index)
             change = payoff if self.rule == 'cumulative' else namespace.rate * (payoff - score)
+            if self.chosen is not None:
+                change = where(getattr(namespace.target, self.chosen) == index, change, 0)
             laws.append(UpdateLaw(score, score + change))
         return laws

@@ -10,7 +10,7 @@ from ..errors import ValidationError
 from ._phase_spec import PhaseSpec
 from ._schedule_spec import ScheduleSpec
 
-ACTIVATIONS = ('random', 'sequential', 'simultaneous', 'by-type')
+ACTIVATIONS = ('random', 'sequential', 'simultaneous', 'by-type', 'visits')
 
 
 @dataclass(frozen=True)
@@ -30,11 +30,12 @@ class PhasesScheduleSpec(ScheduleSpec):
     phases: Sequence[PhaseSpec]
 
     def _check(self) -> None:
-        """Raise an error for a phase with an unknown activation or no round, or for a repeated name.
+        """Raise an error for a phase with an unknown activation, no round, or negative visits, or a repeated name.
 
         Raises:
             ValidationError:
-                A phase repeats the name of another, has an unknown activation, or runs no round.
+                A phase repeats the name of another, has an unknown activation, runs no round, or a negative number of
+                visits.
         """
         names = [phase.name for phase in self.phases]
         if len(names) != len(set(names)):
@@ -45,6 +46,9 @@ class PhasesScheduleSpec(ScheduleSpec):
                 error_msg = (
                     f'Unknown activation {phase.activation!r} of phase {phase.name!r}. Use one of {ACTIVATIONS}.'
                 )
+                raise ValidationError(error_msg)
+            if phase.visits < 0:
+                error_msg = f'Phase {phase.name!r} visits {phase.visits} times per agent. Give a number at least 0.'
                 raise ValidationError(error_msg)
             if phase.repeat < 1:
                 error_msg = f'Phase {phase.name!r} repeats {phase.repeat} times. Use at least one round.'

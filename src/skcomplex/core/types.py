@@ -196,5 +196,15 @@ class ModelViewProtocol(Protocol):
     def create(self, group: str, location: object = None, **values: object) -> AgentViewProtocol:
         """Create an agent of a group, a role of the owner or a path, at a location or by default a random place."""
 
+    @property
+    def time(self) -> float:
+        """Time of the model, with the fraction of the step that the visits of a phase reached."""
+
+    def history(self, name: str, window: int | None = None) -> npt.NDArray[np.float64]:
+        """Return the past values of a reporter, or of an observable at the end of every earlier step."""
+
+    def composition(self, name: str, state: str) -> dict[float, int]:
+        """Return the number of agents of a group, a role of the owner or a path, by value of a state."""
+
     def report(self, name: str, value: float) -> None:
         """Publish a value of the owner as the reporter `<owner>.<name>`."""

@@ -432,6 +432,7 @@ def test_wiener_process_spec_checks_its_label_and_dimension(spec, message):
         ((PhaseSpec('trade'), PhaseSpec('trade')), 'repeat a name'),
         ((PhaseSpec('trade', activation='parallel'),), 'Unknown activation'),
         ((PhaseSpec('trade', repeat=0),), 'at least one round'),
+        ((PhaseSpec('trade', activation='visits', visits=-1.0),), 'at least 0'),
     ],
 )
 def test_phases_schedule_spec_checks_its_phases(phases, message):
