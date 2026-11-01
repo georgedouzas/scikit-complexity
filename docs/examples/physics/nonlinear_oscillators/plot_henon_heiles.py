@@ -39,7 +39,7 @@ simulation = Simulation(start(-0.1, 0.0), dt=0.05, observers=[observer]).check()
 fig, ax = plt.subplots(figsize=(6, 5))
 for y in np.linspace(-0.3, 0.45, 12):
     section = SectionAnalysis(state='star.x', value=0.0, until=2000).check().prepare(start(y, 0.0)).run()
-    ax.plot(section.values_['star.y'], section.values_['star.y_d1'], '.', markersize=1.5)
+    ax.plot(section.values_['star.y'], section.values_['star.py'], '.', markersize=1.5)
 ax.set_xlabel('y')
 ax.set_ylabel('p_y')
 ax.set_title('Poincaré section at x = 0, E = 1/8')

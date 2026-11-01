@@ -23,11 +23,24 @@ def test_van_der_pol_reaches_limit_cycle():
 
 
 def test_henon_heiles_conserves_energy():
-    """Test that the Hénon-Heiles star keeps its energy within the solver tolerance."""
+    """Test that the Hénon-Heiles star keeps its energy within its invariant tolerance."""
     trajectory = run('henon_heiles').trajectory_
-    x, y, px, py = (trajectory.values(name) for name in ('star.x', 'star.y', 'star.x_d1', 'star.y_d1'))
+    x, y, px, py = (trajectory.values(name) for name in ('star.x', 'star.y', 'star.px', 'star.py'))
     energy = (px**2 + py**2 + x**2 + y**2) / 2 + x**2 * y - y**3 / 3
-    assert np.abs(energy - energy[0]).max() < 1e-3
+    assert np.abs(energy - energy[0]).max() < 1e-6
+    np.testing.assert_allclose(trajectory.values('star.energy'), energy)
+
+
+def test_henon_heiles_stays_bounded_below_the_escape_energy():
+    """Test that the star started at the energy 1/12 stays bounded to time 1000 within its energy tolerance."""
+    y, py = 0.0, 0.0
+    px = math.sqrt(2 / 12)
+    trajectory = run('henon_heiles', x=0.0, y=y, px=px, py=py, settings={'until': 1000.0}).trajectory_
+    x, y = (np.asarray(trajectory.values(name)) for name in ('star.x', 'star.y'))
+    energy = np.asarray(trajectory.values('star.energy'))
+    assert energy[0] == pytest.approx(1 / 12)
+    assert np.hypot(x, y).max() < 1.0
+    assert np.ptp(energy) < 1e-6
 
 
 def test_stuart_landau_settles_on_its_limit_cycle():
