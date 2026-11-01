@@ -32,6 +32,11 @@
 
 ## Decisions
 
+- **Connected components are a core reduction.** Percolation and the giant component are a fundamental graph operation
+  used across domains (epidemic thresholds, infrastructure failure, habitat connectivity, social cohesion), so
+  `skcomplex.core.laws.utils` gains a reduction over the connected components of a network's active links, giving
+  component labels and the size of the largest component. `triadic_percolation` builds on it. Decided on 2026-11-01.
+
 ### Hyperedges from XGI
 
 XGI (CompleXGroupInteractions) is the maintained library for hypergraphs and simplicial complexes, with generators,

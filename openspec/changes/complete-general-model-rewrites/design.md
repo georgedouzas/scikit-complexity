@@ -128,6 +128,20 @@ copies of the interactions, which bind members by index. Per-member values apply
 only, so sweeping a parameter that lives on an interaction keeps the non-vectorized path. `Trajectory.member` copies
 entries whose size is the same in the replicated and the original problem.
 
+### Decisions of 2026-11-01, second round
+
+- **No field mechanism enters the core.** A model interaction does one operation: the economics transfer subclasses
+  keep only their transfer legs, their parameters move to their elements, and each other mechanism is a general
+  interaction in the factory.
+- **Reporter-only interactions go.** The El Farol, Sugarscape, and labour market tests read the catalog observables,
+  as the perishables test does, a test change beyond imports that the maintainer accepted.
+- **The meadow uses `_get_holders`.** Its grazing is a `TransferInteraction` subclass with the roles `pasture` and
+  `cows`, so its test stays unchanged.
+- **Four core extensions pass the entry rule** (a fundamental paradigm usable across domains): the heat-bath choice
+  variant whose proposals include the current option, the agent form of `MapInteraction` on vector states, periodic
+  schedules, and counts grouped by cell beside `composition`. The hierarchy contest and the queue service stay in their
+  models; the employee is a composition of existing classes.
+
 ## Migration Plan
 
 Work on `development`, with parallel agents on disjoint packages merging back as they report.

@@ -31,6 +31,8 @@
 - [ ] 4.2 Add the `hyperedge` argument of `TopologyInteraction(action='add-node')` with growing hyperedge tables;
   verify the triangle attachment scenario
 
+- [ ] 4.3 Add the connected-components reduction to `skcomplex.core.laws.utils` with its NumPy and Numba lowering, giving component labels and the largest component of the active links of a network; verify it against networkx on random graphs
+
 ## 5. Models
 
 - [ ] 5.1 Add `hypergraph_kuramoto`, `simplicial_contagion`, `triadic_percolation`, and
