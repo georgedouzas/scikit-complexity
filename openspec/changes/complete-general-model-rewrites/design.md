@@ -41,11 +41,6 @@ A model whose draws change is compared over 20 seeds against its previous trajec
   the exposed state reaches `incubation`, counted by the general class, which shifts the onset by half a step from the
   hand-kept clock. The model docstring states the convention and its tests take the new trajectory; the agent model
   still matches its compartment model within the existing tolerance.
-- **Times and neighbourhoods leave `skcomplex.core.spaces`.** `BaseTime` and `BaseNeighborhood` do not subclass
-  `BaseSpace`, so each concept gets its own package: `skcomplex.core.times` (`BaseTime`, `ContinuousTime`,
-  `DiscreteTime`, `StaticTime`) and `skcomplex.core.neighborhoods` (`BaseNeighborhood` and its eleven subclasses).
-  `skcomplex.core.spaces` keeps only spaces and no compatibility re-exports. The open changes that import times or
-  neighbourhoods from `spaces` use the new packages when they are applied.
 
 ## Migration Plan
 

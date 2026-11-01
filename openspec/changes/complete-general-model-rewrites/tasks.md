@@ -22,7 +22,6 @@
 
 ## 3. Conventions and integration
 
-- [ ] 3.1 Move the times to `skcomplex.core.times` and the neighbourhoods to `skcomplex.core.neighborhoods`, leaving only spaces in `skcomplex.core.spaces`, and update every import in `src`, `tests`, and `docs`; verify the import-linter contracts and the full suite.
-- [ ] 3.2 Split every model module that holds several classes into one class per private module, re-exported unchanged; verify the catalog test and every model test.
-- [ ] 3.3 Update `uv` to 0.13.4 or later in `pdm.lock` for PYSEC-2026-4321; verify pip-audit reports nothing.
-- [ ] 3.4 Run the checks session and the full suite with doctests; verify only the known timing tests fail.
+- [ ] 3.1 Split every model module that holds several classes into one class per private module, re-exported unchanged; verify the catalog test and every model test.
+- [x] 3.2 Update `uv` to 0.13.4 or later in `pdm.lock` for PYSEC-2026-4321; verify pip-audit reports nothing.
+- [ ] 3.3 Run the checks session and the full suite with doctests; verify only the known timing tests fail.
