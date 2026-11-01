@@ -187,6 +187,17 @@ the dynamics repeated the numbers that built the initial state. `Simulation` der
 trajectory changes once, so tests with fixed expected values take new numbers. It runs after the rebuilds that
 compare against the current trajectories.
 
+### Library audit (2026-11-01)
+
+An audit of the code and of every open change for reimplemented library features found little. Adopted: scipy's
+connected components for periodic cluster merging (fixing missed diagonal joins across the boundary), igraph's
+RAND-ESU for motif counting (GPL, like passagemath), and library generators already among the dependencies for five
+hand-built ones (XGI hypergraph and simplicial complex, ReservoirPy reservoir weights, SciPy Cauchy quantiles, NetworkX
+random graph), done with the random-stream change since they shift seeded trajectories. Rejected: CasADi for optimal
+control (a second symbolic lowering beside Sage) and pymittagleffler (too little use). Kept: the Numba solvers,
+recurrence analysis, the L-system engine, automata on groups, early warnings, and the Markov and power-law helpers,
+for which no mature library fits.
+
 ## Migration Plan
 
 Work on `development`, with parallel agents on disjoint packages merging back as they report.
