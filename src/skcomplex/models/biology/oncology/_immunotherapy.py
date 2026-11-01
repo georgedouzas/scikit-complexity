@@ -11,12 +11,15 @@ from sage.all__sagemath_symbolics import log, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
+from ....core.interactions import RateInteraction, ReactionInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import delayed, hill, pulse_train, where
 from ....core.system import System
 from ....engine.solvers import ScipyODESolver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.kinetics import MichaelisMentenInteraction
+from ..common.pharmacokinetics import DosingInteraction
 
 BOOK_REFERENCE = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 STIFF_SOLVER = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
@@ -27,7 +30,8 @@ class KirschnerPanettaTumourElement(Element):
 
     The effector cells follow `dE/dt = alpha_a A - d1 E + a1 u1 + rho1 E C / (alpha1 + C)`, the tumour
     `dA/dt = r1 A (1 - b A) - c1 E A / (alpha2 + A)`, and the IL-2 `dC/dt = a2 u2 + rho2 E A / (alpha3 + A) - du C`,
-    with constant inputs `u1` and `u2`.
+    with constant inputs `u1` and `u2`. The element holds the states and parameters and has no laws of its own: the
+    rate and reaction interactions of `kirschner_panetta` read its parameters.
 
     Args:
         label:
@@ -139,24 +143,6 @@ class KirschnerPanettaTumourElement(Element):
         self.a2 = a2
         self.u1 = u1
         self.u2 = u2
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the balances of effector cells, tumour cells, and IL-2.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        E, A, C = s.E, s.A, s.C
-        return [
-            RateLaw(E, s.alpha_a * A - s.d1 * E + s.a1 * s.u1 + s.rho1 * E * hill(C, s.alpha1)),
-            RateLaw(A, s.r1 * A * (1 - s.b * A) - s.c1 * E * hill(A, s.alpha2)),
-            RateLaw(C, s.a2 * s.u2 + s.rho2 * E * hill(A, s.alpha3) - s.du * C),
-        ]
 
 
 class VaccinatedTumourElement(Element):
@@ -1330,7 +1316,51 @@ def kirschner_panetta(
         u1=u1,
         u2=u2,
     )
-    return System(elements=[site])
+    interactions = [
+        RateInteraction('stimulation', target='site', state='E', rate=lambda s: s.target.alpha_a * s.target.A),
+        ReactionInteraction(
+            'effector_death', target='site', reactants={'E': 1}, propensity=lambda s: s.target.d1 * s.target.E
+        ),
+        DosingInteraction('adoptive_therapy', target='site', state='E', dose=lambda s: s.target.a1 * s.target.u1),
+        MichaelisMentenInteraction(
+            'effector_proliferation',
+            target='site',
+            products={'E': 1},
+            substrate='C',
+            vmax=lambda s: s.target.rho1,
+            km=lambda s: s.target.alpha1,
+            modifiers={'E': 1},
+        ),
+        RateInteraction(
+            'tumour_growth',
+            target='site',
+            state='A',
+            rate=lambda s: s.target.r1 * s.target.A * (1 - s.target.b * s.target.A),
+        ),
+        MichaelisMentenInteraction(
+            'kill',
+            target='site',
+            reactants={'A': 1},
+            substrate='A',
+            vmax=lambda s: s.target.c1,
+            km=lambda s: s.target.alpha2,
+            modifiers={'E': 1},
+        ),
+        DosingInteraction('il2_injection', target='site', state='C', dose=lambda s: s.target.a2 * s.target.u2),
+        MichaelisMentenInteraction(
+            'il2_production',
+            target='site',
+            products={'C': 1},
+            substrate='A',
+            vmax=lambda s: s.target.rho2,
+            km=lambda s: s.target.alpha3,
+            modifiers={'E': 1},
+        ),
+        ReactionInteraction(
+            'il2_loss', target='site', reactants={'C': 1}, propensity=lambda s: s.target.du * s.target.C
+        ),
+    ]
+    return System(elements=[site], interactions=interactions)
 
 
 @register_model(
