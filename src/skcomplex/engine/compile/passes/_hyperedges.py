@@ -68,6 +68,23 @@ class HyperedgeTables:
     def _edge_indices(node: NodeSpec, space: NetworkSpace, edges: BlockSpec, ends: tuple[Indices, Indices]) -> Indices:
         """Return the edge of a layer that joins the first two members of every hyperedge.
 
+        Args:
+            node:
+                The node of the interaction.
+
+            space:
+                The prepared network space.
+
+            edges:
+                The block of the edges of the layer.
+
+            ends:
+                The node indices of the first and the second member of every hyperedge.
+
+        Returns:
+            indices:
+                The index of the edge that joins the first two members of every hyperedge.
+
         Raises:
             RoleError:
                 The first two members of a hyperedge are joined by no edge of the layer.
@@ -159,6 +176,17 @@ class HyperedgeTables:
     @staticmethod
     def _sizes(node: NodeSpec, space: NetworkSpace) -> list[int]:
         """Return the sizes of the hyperedges an interaction runs on, its own size or every size of the network.
+
+        Args:
+            node:
+                The node of the interaction.
+
+            space:
+                The prepared network space.
+
+        Returns:
+            sizes:
+                The sizes of the hyperedges in increasing order.
 
         Raises:
             RoleError:
@@ -345,6 +373,17 @@ class HyperedgeTables:
     def _neighborhoods(node: NodeSpec, nodes: BlockSpec) -> list[list[int]]:
         """Return every member of a group on the sites of a space followed by the members around it.
 
+        Args:
+            node:
+                The node of the grouping.
+
+            nodes:
+                The block of the group.
+
+        Returns:
+            neighborhoods:
+                Every member followed by the members around it, one list per member.
+
         Raises:
             RoleError:
                 The space of the group has no neighbourhoods, or the group has not one member per site.
@@ -460,6 +499,17 @@ class HyperedgeTables:
     @staticmethod
     def _expanded(reduction: ReductionSpec, slots: dict[Expression, list[Expression]]) -> Expression:
         """Return a reduction over the members of a hyperedge written out as a sum, a mean, or an extremum of slots.
+
+        Args:
+            reduction:
+                The reduction over the members of a hyperedge.
+
+            slots:
+                The symbols of the slots of a hyperedge for every symbol the reduction reads.
+
+        Returns:
+            expression:
+                The reduction written out over the slots.
 
         Raises:
             ValidationError:

@@ -812,6 +812,17 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         Without a size, the reduction runs over the hyperedges of every size of the network: the sum and the count add
         the reductions of every size, and the mean divides their sum by the number of hyperedges around the member.
 
+        Args:
+            reduction:
+                The reduction over the hyperedges around every member.
+
+            spec:
+                The kernel the reduction is read in.
+
+        Returns:
+            placeholder:
+                The placeholder of the reduction.
+
         Raises:
             RoleError:
                 The network has no hyperedge of the size of the reduction.
@@ -876,6 +887,26 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         Every row of the reduction is a hyperedge around a member: the symbols of `others` read the other members of
         the hyperedge through the tables of their positions, and the reductions over `members` are written out over
         the member and the other members.
+
+        Args:
+            reduction:
+                The reduction over the hyperedges around every member.
+
+            spec:
+                The kernel the reduction is read in.
+
+            group:
+                The path of the group of the members.
+
+            terms:
+                The kind, the argument, and the weight of the reduction.
+
+            size:
+                The size of the hyperedges.
+
+        Returns:
+            placeholder:
+                The placeholder of the reduction over the hyperedges of the size.
 
         Raises:
             ValidationError:
@@ -944,6 +975,26 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         slots: tuple[dict[Expression, Expression], dict[Expression, int], list[Indices]],
     ) -> PairReadSpec:
         """Return how a reduction over hyperedges reads one symbol: of the member, of another member, or shared.
+
+        Args:
+            item:
+                The symbol the reduction reads.
+
+            spec:
+                The kernel the reduction is read in.
+
+            group:
+                The path of the group of the members.
+
+            search:
+                The search of the symbols of the system.
+
+            slots:
+                The sources of the slots, their positions, and the tables of the positions.
+
+        Returns:
+            read:
+                How the reduction reads the symbol.
 
         Raises:
             ValidationError:

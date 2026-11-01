@@ -79,15 +79,15 @@ class ChoiceInteraction(Interaction):
         activity:
             The probability that a member revises its choice in a step.
 
-        proposal:
-            The options the rules `'metropolis'` and `'fermi'` propose from, `'others'` for the options other than the
-            current one, or `'all'` for every option.
-
         form:
             `'symbolic'` for update laws of the states of a group, or `'agent'` for a rule over an agent group.
 
         phase:
             The phase of the step the agent form runs in, or `None` for the default phase.
+
+        proposal:
+            The options the rules `'metropolis'` and `'fermi'` propose from, `'others'` for the options other than the
+            current one, or `'all'` for every option.
 
     Raises:
         ValidationError:

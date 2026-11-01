@@ -286,6 +286,20 @@ class GroupingInteraction(Interaction):
     def _keyed(self, reduction: ReductionSpec, member: SimpleNamespace, members: SimpleNamespace) -> Expression:
         """Return a reduction over the members of a group restricted to the members that share the value of `by`.
 
+        Args:
+            reduction:
+                The reduction over the members of the group.
+
+            member:
+                The symbols of the member.
+
+            members:
+                The symbols of the members of the group.
+
+        Returns:
+            reduction:
+                The reduction restricted to the members that share the value of `by`.
+
         Raises:
             ValidationError:
                 The reduction has weights.

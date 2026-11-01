@@ -538,6 +538,14 @@ class CouplingInteraction(NeighborInteraction):
     def _get_hyperedge_reduction(self, namespace: SimpleNamespace) -> Target:
         """Return the reduction over the hyperedges around the member.
 
+        Args:
+            namespace:
+                The namespace of the states and parameters of the interaction.
+
+        Returns:
+            reduction:
+                The reduction over the hyperedges around the member.
+
         Raises:
             ValidationError:
                 The members live on no network with hyperedges.

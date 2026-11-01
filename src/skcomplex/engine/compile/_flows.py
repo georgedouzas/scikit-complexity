@@ -204,6 +204,14 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     def _expected(amount: Expression) -> Expression:
         """Return an amount with every draw replaced by its mean, the amount a flow that draws records.
 
+        Args:
+            amount:
+                The amount of the flow.
+
+        Returns:
+            amount:
+                The amount with every draw replaced by its mean.
+
         Raises:
             ValidationError:
                 The amount draws from a distribution of `scipy.stats`, whose mean the record does not know.

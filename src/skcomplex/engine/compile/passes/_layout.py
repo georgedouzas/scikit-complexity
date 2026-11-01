@@ -284,6 +284,17 @@ class LayoutPass(BasePass):
     def _members(node: NodeSpec, space: NetworkSpace) -> Array:
         """Return the member nodes of every row of a variable group on hyperedges, with zeros in the free rows.
 
+        Args:
+            node:
+                The node of the variable group.
+
+            space:
+                The prepared network space.
+
+        Returns:
+            members:
+                The member nodes of every row, with zeros in the free rows.
+
         Raises:
             ValidationError:
                 The hyperedges of the network have more than one size, or none.

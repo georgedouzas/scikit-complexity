@@ -331,6 +331,17 @@ class FunctionsPass(BasePass):
         The phases are those of the `PhasesScheduleSpec` of the discrete time of the system and its nested systems, with
         the default phase first unless a schedule places it, and a phase without update laws is left out.
 
+        Args:
+            compilation:
+                The compilation of the system.
+
+            lowered:
+                The lowered kernels of the system.
+
+        Returns:
+            phases:
+                The phases in order with the update kernels of each, or `None` for the default phase alone.
+
         Raises:
             ValidationError:
                 An update law runs in a phase the schedule does not declare, or a phase of update laws repeats.

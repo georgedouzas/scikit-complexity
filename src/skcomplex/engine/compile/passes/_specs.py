@@ -899,6 +899,10 @@ class SpecsPass(BasePass):
     def _check_slot_names(block: BlockSpec) -> None:
         """Raise an error for a parameter of an interaction named like a slot of a hyperedge.
 
+        Args:
+            block:
+                The block of the interaction.
+
         Raises:
             LabelError:
                 The interaction declares a parameter named like a slot of a hyperedge.
