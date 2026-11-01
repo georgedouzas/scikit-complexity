@@ -3,20 +3,17 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from types import SimpleNamespace
-from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
-from ....core.elements import Element
 from ....core.interactions import ReactionInteraction, RelaxationInteraction
 from ....core.system import System
 from ....engine.solvers import ScipyODESolver
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.kinetics import BrusselatorReactionElement, CubicAutocatalysisInteraction
+from ._cubic_autocatalysis import CubicAutocatalysisElement
+from ._oregonator import OregonatorElement
 
 
 def _get_residence(s: SimpleNamespace) -> Expression:
@@ -52,118 +49,6 @@ def _get_bromous_bromide(s: SimpleNamespace) -> Expression:
 def _get_disproportionation(s: SimpleNamespace) -> Expression:
     """Return the propensity `x^2` of the disproportionation of bromous acid."""
     return s.target.x**2
-
-
-class OregonatorElement(Element):
-    """Reactor of the scaled Oregonator, the scaled concentrations of bromous acid, bromide, and the oxidized catalyst.
-
-    The scaled concentrations follow `epsilon dx/dt = q y - x y + x (1 - x)`, `delta dy/dt = -q y - x y + f z`, and
-    `dz/dt = x - z`. The reactions of `oregonator` change the concentrations, with the time scales `epsilon` and
-    `delta` dividing the stoichiometric coefficients of `x` and `y`, and read the parameters from the reactor.
-
-    Args:
-        label:
-            The label of the reactor.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial scaled concentration of bromous acid.
-
-        y:
-            The initial scaled concentration of bromide.
-
-        z:
-            The initial scaled concentration of the oxidized catalyst.
-
-        epsilon:
-            The ratio of the time scales of bromous acid and the catalyst.
-
-        delta:
-            The ratio of the time scales of bromide and the catalyst.
-
-        q:
-            The ratio of rate constants that sets the lowest bromous acid concentration.
-
-        f:
-            The stoichiometric factor of bromide production from the catalyst.
-
-    Examples:
-        >>> from skcomplex.models.chemistry.kinetics import OregonatorElement
-        >>> OregonatorElement('reactor').epsilon
-        0.04
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        z: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.04,
-        delta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.0004,
-        q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0008,
-        f: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.z = z
-        self.epsilon = epsilon
-        self.delta = delta
-        self.q = q
-        self.f = f
-
-
-class CubicAutocatalysisElement(Element):
-    """Continuously fed reactor of cubic autocatalysis, the concentrations of the reactant `a` and the autocatalyst `b`.
-
-    The reactions and the flows of `cubic_autocatalysis` change the concentrations and read the feed rate `F` and the
-    decay rate `k` from the reactor.
-
-    Args:
-        label:
-            The label of the reactor.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        a:
-            The initial concentration of the reactant.
-
-        b:
-            The initial concentration of the autocatalyst.
-
-        F:
-            The feed rate, the inverse residence time.
-
-        k:
-            The decay rate of the autocatalyst.
-
-    Examples:
-        >>> from skcomplex.models.chemistry.kinetics import CubicAutocatalysisElement
-        >>> CubicAutocatalysisElement('reactor').F
-        0.04
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        a: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        b: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        F: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.04,
-        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.a = a
-        self.b = b
-        self.F = F
-        self.k = k
 
 
 @register_model(
