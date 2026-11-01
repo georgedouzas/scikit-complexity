@@ -15,6 +15,7 @@ from ._growth import (
     holme_kim,
     vertex_copying,
 )
+from ._hypergraphs import SizeBiasedMoveInteraction, WalkerDensityElement, hypergraph_random_walk
 from ._processes import (
     NetworkWalkerElement,
     NodeContentElement,
@@ -35,10 +36,13 @@ __all__: list[str] = [
     'NetworkWalkerElement',
     'NodeContentElement',
     'NodeRankElement',
+    'SizeBiasedMoveInteraction',
     'TriadVertexElement',
     'VertexElement',
+    'WalkerDensityElement',
     'barabasi_albert',
     'holme_kim',
+    'hypergraph_random_walk',
     'network_attack',
     'network_diffusion',
     'network_random_walk',

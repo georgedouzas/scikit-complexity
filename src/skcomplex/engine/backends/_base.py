@@ -211,6 +211,8 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         column = output[target.members]
         if target.source is ReadKind.MEMBER:
             column += values
+        elif target.source is ReadKind.NEIGHBOR:
+            np.add.at(column, target.shifted.table, values)
         else:
             assert pairs is not None
             np.add.at(column, pairs[0] if target.source is ReadKind.FIRST else pairs[1], values)
@@ -236,6 +238,9 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         if target is None:
             error_msg = 'An output assigned into a vector needs a target component.'
             raise ValidationError(error_msg)
+        if target.source is ReadKind.NEIGHBOR:
+            output[target.members][target.shifted.table] = values
+            return
         if target.source is not ReadKind.MEMBER:
             output[target.index] = values[0]
             return
@@ -265,6 +270,10 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         if target is None:
             error_msg = 'An output assigned into a vector needs a target component.'
             raise ValidationError(error_msg)
+        if target.source is ReadKind.NEIGHBOR:
+            table = target.shifted.table
+            output[target.members][table] += values - x[target.members][table]
+            return
         if target.source is not ReadKind.MEMBER:
             output[target.index] += values[0] - x[target.index]
             return

@@ -348,11 +348,29 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         second = self._data_slot(f'__edge_targets_{digest}', search.targets)
         return f'_L{2 * first + 1}_', [f'{pad}_a_ = L[_L{2 * first}_ + _m_]', f'{pad}_b_ = L[_L{2 * second}_ + _m_]']
 
+    @staticmethod
+    def _is_gathered(reference: ReferenceSpec) -> bool:
+        """Check whether a reference reads a group through a gather table of members, with no value outside it."""
+        return (
+            reference.source is ReadKind.NEIGHBOR
+            and reference.shifted.sizes is None
+            and reference.shifted.ghost is None
+        )
+
+    def _gathered_member(self, reference: ReferenceSpec) -> str:
+        """Return the code of the member a gathered reference reads at the row `_m_`, from its table in the layout."""
+        table = reference.shifted.table
+        digest = hashlib.sha256(np.asarray(table, dtype=np.int64).tobytes()).hexdigest()[:16]
+        slot = self._data_slot(f'__gather_{digest}', table)
+        return f'L[_L{2 * slot}_ + _m_]'
+
     def _output_count(self, kernel: LawKernel) -> str:
         """Return the code of the number of values a member kernel writes, its outputs times its rows."""
         if isinstance(kernel.pairs, EdgeSearch):
             rows, _ = self._edge_rows(kernel.pairs)
             return f'{len(kernel.outputs)} * L[{rows[2:-1]}]'
+        if any(NumbaPrinter._is_gathered(reference) for reference in kernel.references.values()):
+            return f'{len(kernel.outputs)} * {kernel.rows}'
         entry = next((item.entry for item in kernel.references.values() if item.source is ReadKind.MEMBER), None)
         if entry is None:
             return str(len(kernel.outputs))
@@ -480,9 +498,11 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             (reference.entry for reference in kernel.references.values() if reference.source is ReadKind.MEMBER),
             None,
         )
+        gathered = any(NumbaPrinter._is_gathered(reference) for reference in kernel.references.values())
         rows = f'_L{2 * self._slot(member_entry) + 1}_' if member_entry is not None else '1'
+        rows = str(kernel.rows) if gathered and member_entry is None else rows
         lines = [
-            f'@njit(cache=CACHE, parallel={parallel})',
+            f'@njit(cache=CACHE, parallel={parallel and not gathered})',
             f'def {name}(t, x, p, L, out, offset):',
             f'{INDENT}rows = {rows}',
         ]
@@ -493,6 +513,8 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             reference = kernel.references[item]
             if NumbaPrinter._is_shared(reference):
                 return str(item)
+            if NumbaPrinter._is_gathered(reference):
+                return f'{NumbaPrinter._vector(reference)}[{self._index(reference, self._gathered_member(reference))}]'
             if reference.source is ReadKind.NEIGHBOR:
                 read = reference.shifted
                 if read.sizes is None or read.steps is None:
@@ -522,6 +544,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             else:
                 target = self._target_of(output)
                 member = '_m_' if target.source is ReadKind.MEMBER else None
+                member = self._gathered_member(target) if NumbaPrinter._is_gathered(target) else member
                 lines.append(NumbaPrinter._written(output, self._index(target, member), value, mode))
         for index in sums:
             target = self._target_of(kernel.outputs[index])

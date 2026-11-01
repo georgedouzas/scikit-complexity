@@ -12,12 +12,12 @@ import numpy as np
 from sage.all__sagemath_symbolics import RR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.interactions import BaseInteraction, NeighborInteraction, PairInteraction
+from ....core.interactions import BaseInteraction, HyperedgeInteraction, NeighborInteraction, PairInteraction
 from ....core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ....core.specs import NodeSpec
 from ....errors import LabelError, RoleError, ValidationError
-from ....specs import EntrySpec, WienerProcessSpec
-from ....types import VariableKind
+from ....specs import EntrySpec, NeighborReadSpec, WienerProcessSpec
+from ....types import Indices, VariableKind
 from ..._utils import bound_labels, declarations_of, domain_of, symbol, vector
 from ...problems import (
     BlockSpec,
@@ -37,9 +37,13 @@ from .._base import BasePass
 from .._compilation import Compilation
 from .._observables import ObservableEvaluator
 from .._observer import Observer
+from ._hyperedges import HyperedgeTables, Tables
 from ._layout import LayoutPass
 
 END_SUFFIXES = ('__source', '__target')
+HYPEREDGE_NAMES = ('member', 'others', 'members', 'hyperedge', 'edge', 't')
+MAX_HYPEREDGE_ROLES = 2
+SECOND_PARTS = ('edges', 'hyperedges')
 
 
 class SpecsPass(BasePass):
@@ -713,6 +717,118 @@ class SpecsPass(BasePass):
         return [spec, SpecsPass._end_spec(spec, nodes)], declarations
 
     @staticmethod
+    def _hyperedge_roles(node: NodeSpec, elements: dict[str, BlockSpec]) -> tuple[BlockSpec, BlockSpec | None]:
+        """Return the group on the nodes of a hyperedge interaction and the group its second role binds, if any."""
+        blocks = [
+            SpecsPass._resolve_role(node, role, elements)
+            for role in declarations_of(node.component, VariableKind.ROLE)
+            if getattr(node.component, role) is not None
+        ]
+        parts = [getattr(block.node.component, 'on', None) for block in blocks]
+        valid = (
+            len(blocks) <= MAX_HYPEREDGE_ROLES
+            and parts[0] not in SECOND_PARTS
+            and blocks[0].node.members is not None
+            and all(part in SECOND_PARTS for part in parts[1:])
+        )
+        if not valid:
+            error_msg = (
+                f'Hyperedge interaction {node.path} binds {", ".join(block.node.path for block in blocks)}. Bind its '
+                'first role to a group with one member per node, and at most a second role to a group on the '
+                'hyperedges or on the edges of the same network.'
+            )
+            raise RoleError(error_msg)
+        return blocks[0], next(iter(blocks[1:]), None)
+
+    @staticmethod
+    def _gathered(
+        block: BlockSpec,
+        alias: str,
+        table: Indices | None,
+    ) -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
+        """Return the namespace of one slot of a hyperedge, whose symbols read a group through a gather table.
+
+        The slot of the members of the hyperedge has no table, and its symbols, which only reductions over the members
+        read, have no references.
+        """
+        namespace, references = SpecsPass._namespace(block, ReadKind.NEIGHBOR, alias=alias)
+        if table is None:
+            return namespace, {}
+        read = NeighborReadSpec(table, None, None, None, 0)
+        return namespace, {item: replace(reference, neighbor=read) for item, reference in references.items()}
+
+    @staticmethod
+    def _hyperedge_spec(
+        block: BlockSpec,
+        roles: tuple[BlockSpec, BlockSpec | None],
+        tables: tuple[str, Tables],
+        time: Expression,
+    ) -> KernelSpec:
+        """Return the spec of the laws of one kind and one size of hyperedge, read through the tables of its rows."""
+        nodes, second = roles
+        mode, (focal, others, hyperedges, edges) = tables
+        parameters, references = SpecsPass._namespace(block, ReadKind.SINGLE)
+        namespaces: dict[str, object] = {}
+        namespaces['member'], gathered = SpecsPass._gathered(nodes, '__member', focal)
+        references.update(gathered)
+        read = [SpecsPass._gathered(nodes, f'__other{position}', table) for position, table in enumerate(others)]
+        namespaces['others'] = tuple(namespace for namespace, _ in read)
+        for _, gathered in read:
+            references.update(gathered)
+        namespaces['members'], _ = SpecsPass._gathered(nodes, '__members', None)
+        paths: dict[str, str | tuple[str, ...]] = {'member': nodes.node.path}
+        if second is not None:
+            part = 'edge' if getattr(second.node.component, 'on', None) == 'edges' else 'hyperedge'
+            table = edges if part == 'edge' else hyperedges
+            namespaces[part], gathered = SpecsPass._gathered(second, f'__{part}', table)
+            references.update(gathered)
+            paths[part] = second.node.path
+        return KernelSpec(
+            block.node.path,
+            SimpleNamespace(t=time, **vars(parameters), **namespaces),
+            references,
+            int(focal.size),
+            roles=paths,
+            hyperedge=mode,
+        )
+
+    @staticmethod
+    def _hyperedge_specs(block: BlockSpec, elements: dict[str, BlockSpec], time: Expression) -> list[KernelSpec]:
+        """Return the specs of a hyperedge interaction, of the laws of the focal member and of the hyperedge per size.
+
+        Args:
+            block:
+                The block of the interaction.
+
+            elements:
+                The blocks of the elements and groups by path.
+
+            time:
+                The time symbol.
+
+        Returns:
+            specs:
+                Two specs per size of hyperedge, the laws of the focal member first.
+
+        Raises:
+            LabelError:
+                The interaction declares a parameter named like a slot of a hyperedge.
+        """
+        node = block.node
+        roles = SpecsPass._hyperedge_roles(node, elements)
+        parameters, _ = SpecsPass._namespace(block, ReadKind.SINGLE)
+        clashes = sorted(set(vars(parameters)) & set(HYPEREDGE_NAMES))
+        if clashes:
+            error_msg = (
+                f'Hyperedge interaction {node.path} declares the parameters {", ".join(clashes)}, whose names its laws '
+                'read as the slots of a hyperedge. Rename them.'
+            )
+            raise LabelError(error_msg)
+        return [
+            SpecsPass._hyperedge_spec(block, roles, tables, time) for tables in HyperedgeTables._tables_of(node, *roles)
+        ]
+
+    @staticmethod
     def _member_spec(block: BlockSpec, time: Expression) -> KernelSpec:
         """Return the kernel spec of the intrinsic laws of an element or group."""
         namespace, references = SpecsPass._namespace(block, ReadKind.MEMBER)
@@ -890,6 +1006,8 @@ class SpecsPass(BasePass):
         bound = [role for role in declarations_of(component, VariableKind.ROLE) if getattr(component, role) is not None]
         if isinstance(component, NeighborInteraction) and bound:
             return SpecsPass._edge_specs(block, elements, declarations)
+        if isinstance(component, HyperedgeInteraction) and bound:
+            return SpecsPass._hyperedge_specs(block, elements, time), declarations
         if isinstance(block.node.component, PairInteraction):
             return [SpecsPass._pair_spec(block, elements, time)], declarations
         return SpecsPass._interaction_specs(block, elements, time, observer), declarations

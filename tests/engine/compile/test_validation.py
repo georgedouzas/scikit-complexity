@@ -573,7 +573,7 @@ class ConsensusInteraction(HyperedgeInteraction):
 
     def _get_laws(self, s):
         """Return the pull of the members of one hyperedge."""
-        return [RateLaw(s.nodes.x, mean(s.nodes.x) - s.nodes.x)]
+        return [RateLaw(s.member.x, mean(s.members.x, over=s.members) - s.member.x)]
 
 
 def _bindings(interaction, space):

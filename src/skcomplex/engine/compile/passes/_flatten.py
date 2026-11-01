@@ -45,11 +45,7 @@ class FlattenPass(BasePass):
         """Check whether two prepared network spaces have the same nodes, edges, and layers, like network clones."""
         if list(first.graphs_) != list(second.graphs_):
             return False
-        if (first.capacity, first.fill, list(first.hyperedges)) != (
-            second.capacity,
-            second.fill,
-            list(second.hyperedges),
-        ):
+        if (first.capacity, first.fill, first.hyperedges_) != (second.capacity, second.fill, second.hyperedges_):
             return False
         return all(
             list(graph.nodes) == list(second.graphs_[layer].nodes)

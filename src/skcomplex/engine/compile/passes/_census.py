@@ -44,6 +44,7 @@ from .._compilation import Compilation
 from .._observables import ObservableEvaluator
 from .._observer import Observer
 from .._renewal_law import RenewalLaw
+from ._hyperedges import HYPEREDGE_LAWS, HyperedgeTables
 from ._layout import LayoutPass
 from ._noise import NoisePass
 from ._specs import SpecsPass
@@ -402,6 +403,51 @@ class CensusPass(BasePass):
         return substituted.check()
 
     @staticmethod
+    def _targets_second(spec: KernelSpec, law: BaseLaw) -> bool:
+        """Check whether a law of a hyperedge interaction targets the member of its group on hyperedges or edges."""
+        path = spec.roles.get('hyperedge', spec.roles.get('edge'))
+        targets = [item for item in law._get_targets() if isinstance(item, Expression | FreeModuleElement)]
+        return any(
+            reference.entry.name.rpartition('.')[0] == path
+            for target in targets
+            for reference in spec._target_references(target)
+        )
+
+    @staticmethod
+    def _hyperedge_laws(spec: KernelSpec, laws: list[BaseLaw]) -> list[BaseLaw]:
+        """Return the laws of one kind of a hyperedge interaction, with their reductions over the members written out.
+
+        The spec of the focal member keeps the laws of the nodes, and the spec of the hyperedge the laws that target
+        the member of the group on hyperedges or edges.
+
+        Args:
+            spec:
+                The spec of the hyperedge interaction for one kind of laws and one size.
+
+            laws:
+                The declared laws.
+
+        Returns:
+            laws:
+                The laws of the spec, checked.
+
+        Raises:
+            TypeError:
+                A law is no longer a law once its reductions are written out.
+        """
+        kept = []
+        for law in laws:
+            if CensusPass._targets_second(spec, law) != (spec.hyperedge == HYPEREDGE_LAWS):
+                continue
+            expansions = HyperedgeTables._expansions(spec, CensusPass._expressions_of(law))
+            expanded = CensusPass._substituted(law, expansions) if expansions else law
+            if not isinstance(expanded, BaseLaw):
+                error_msg = f'The law {law!r} of {spec.owner} is not a law once its reductions are written out.'
+                raise TypeError(error_msg)
+            kept.append(expanded.check())
+        return kept
+
+    @staticmethod
     def _declared_laws(spec: KernelSpec, component: BasePart) -> list[BaseLaw]:
         """Return the laws a component returns for its namespace, after checking their classes against its binding.
 
@@ -426,6 +472,8 @@ class CensusPass(BasePass):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
             raise ValidationError(error_msg)
         declared = [law.check().prepare(spec.owner) for law in laws]
+        if spec.hyperedge is not None:
+            declared = CensusPass._hyperedge_laws(spec, declared)
         searched = spec.pairs is not None and spec.edges is None
         rules = [law for law in declared if searched and isinstance(law, RuleLaw)]
         declared = [law for law in declared if law not in rules]

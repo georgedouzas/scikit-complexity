@@ -2,17 +2,17 @@
 
 ## 1. Hyperedges
 
-- [ ] 1.1 Survey XGI and HyperNetX, record the result in design.md, and add the chosen library as a runtime dependency
+- [x] 1.1 Survey XGI and HyperNetX, record the result in design.md, and add the chosen library as a runtime dependency
   in `pyproject.toml` and the Project Profile; verify `deptry` passes
-- [ ] 1.2 Let `NetworkSpace` take XGI hypergraphs and simplicial complexes as `hyperedges`, deriving `incidence_` and
+- [x] 1.2 Let `NetworkSpace` take XGI hypergraphs and simplicial complexes as `hyperedges`, deriving `incidence_` and
   `memberships_`, with tests in `tests/core/spaces/test_network.py`; verify the triangle hypergraph scenario
 
 ## 2. Laws per hyperedge
 
-- [ ] 2.1 Add the `size` argument and the namespace of one hyperedge to `HyperedgeInteraction`, the hyperedge pass in
+- [x] 2.1 Add the `size` argument and the namespace of one hyperedge to `HyperedgeInteraction`, the hyperedge pass in
   `engine/compile/passes/_hyperedges.py`, and its gather kernels on the NumPy and Numba backends; verify the hyperedge
   law against a loop and the missing size scenarios
-- [ ] 2.2 Bind a group on hyperedges or edges through the second role of `HyperedgeInteraction`, with the `binding`
+- [x] 2.2 Bind a group on hyperedges or edges through the second role of `HyperedgeInteraction`, with the `binding`
   issue of an edge role that joins no edge; verify a hyperedge group update and the issue
 - [ ] 2.3 Add the reduction `hyperedges` to `skcomplex.core.laws.utils` and the mode `'hyperedges'` of
   `CouplingInteraction`; verify the three-body Kuramoto and the hyperedge reduction outside a hypergraph scenarios
