@@ -4,14 +4,13 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import RateInteraction, ReactionInteraction
 from ....core.laws.utils import hill, pulse
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -26,6 +25,9 @@ class GlucoseControlElement(Element):
     secretes insulin, `dI/dt = s_i h(G) - d_i I`, and low glucose secretes glucagon, `dN/dt = s_n (1 - h(G)) - d_n N`,
     with the Hill switch `h(G) = G^n / (G^n + K^n)`. The production `R` is set so that the norm `G = K` is a steady
     state.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `glucose_dual_hormone_control` read its parameters.
 
     Args:
         label:
@@ -138,29 +140,6 @@ class GlucoseControlElement(Element):
         self.exercise_time = exercise_time
         self.duration = duration
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the glucose balance and the secretion and clearance of insulin and glucagon.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        intake = s.meal * pulse(s.t, self.meal_time, self.duration) - s.exercise * pulse(
-            s.t,
-            self.exercise_time,
-            self.duration,
-        )
-        high = hill(s.G, s.K, s.n)
-        return [
-            RateLaw(s.G, s.R - (s.k0 + s.k_i * s.I) * s.G + s.k_n * s.N + intake),
-            RateLaw(s.I, s.s_i * high - s.d_i * s.I),
-            RateLaw(s.N, s.s_n * (1 - high) - s.d_n * s.N),
-        ]
-
 
 class CoagulationElement(Element):
     """Coagulation cascade: thrombin amplified by positive feedback, switched off by protein C, and fibrinolysis.
@@ -169,6 +148,9 @@ class CoagulationElement(Element):
     through the feedback of the cascade, `dT/dt = j(t) + ka T^2 / (k_half^2 + T^2) - (d_t + k_c C) T`. Thrombin
     activates the inhibitor protein C, `dC/dt = s_c T - d_c C`, and converts fibrinogen to fibrin,
     `dF/dt = s_f T - k_p P F`. Fibrin activates plasmin, `dP/dt = s_p F - d_p P`, which dissolves the fibrin.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `coagulation_positive_feedback` read its parameters.
 
     Args:
         label:
@@ -276,26 +258,6 @@ class CoagulationElement(Element):
         self.injury_time = injury_time
         self.duration = duration
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the activation and inactivation of thrombin, protein C, fibrin, and plasmin.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        trigger = s.injury * pulse(s.t, self.injury_time, self.duration)
-        feedback = s.ka * hill(s.T, s.k_half, 2)
-        return [
-            RateLaw(s.T, trigger + feedback - (s.d_t + s.k_c * s.C) * s.T),
-            RateLaw(s.C, s.s_c * s.T - s.d_c * s.C),
-            RateLaw(s.F, s.s_f * s.T - s.k_p * s.P * s.F),
-            RateLaw(s.P, s.s_p * s.F - s.d_p * s.P),
-        ]
-
 
 @register_model(
     field='biology/physiology',
@@ -362,7 +324,65 @@ def glucose_dual_hormone_control(
         exercise_time=exercise_time,
         duration=duration,
     )
-    return System(elements=[organism])
+    interactions = [
+        ReactionInteraction('release', target='organism', products={'G': 1}, propensity=lambda s: s.target.R),
+        ReactionInteraction(
+            'basal_uptake',
+            target='organism',
+            reactants={'G': 1},
+            propensity=lambda s: s.target.k0 * s.target.G,
+        ),
+        ReactionInteraction(
+            'insulin_uptake',
+            target='organism',
+            reactants={'G': 1},
+            modifiers={'I': 1},
+            propensity=lambda s: s.target.k_i * s.target.I * s.target.G,
+        ),
+        ReactionInteraction(
+            'glucagon_release',
+            target='organism',
+            products={'G': 1},
+            propensity=lambda s: s.target.k_n * s.target.N,
+        ),
+        RateInteraction(
+            'meal',
+            target='organism',
+            state='G',
+            rate=lambda s: s.target.meal * pulse(s.t, organism.meal_time, organism.duration),
+        ),
+        RateInteraction(
+            'exercise',
+            target='organism',
+            state='G',
+            rate=lambda s: -s.target.exercise * pulse(s.t, organism.exercise_time, organism.duration),
+        ),
+        ReactionInteraction(
+            'insulin_secretion',
+            target='organism',
+            products={'I': 1},
+            propensity=lambda s: s.target.s_i * hill(s.target.G, s.target.K, s.target.n),
+        ),
+        ReactionInteraction(
+            'insulin_clearance',
+            target='organism',
+            reactants={'I': 1},
+            propensity=lambda s: s.target.d_i * s.target.I,
+        ),
+        ReactionInteraction(
+            'glucagon_secretion',
+            target='organism',
+            products={'N': 1},
+            propensity=lambda s: s.target.s_n * (1 - hill(s.target.G, s.target.K, s.target.n)),
+        ),
+        ReactionInteraction(
+            'glucagon_clearance',
+            target='organism',
+            reactants={'N': 1},
+            propensity=lambda s: s.target.d_n * s.target.N,
+        ),
+    ]
+    return System(elements=[organism], interactions=interactions)
 
 
 @register_model(
@@ -411,4 +431,68 @@ def coagulation_positive_feedback(
         0.2
     """
     blood = CoagulationElement('blood', injury=injury, injury_time=injury_time, duration=duration, ka=ka)
-    return System(elements=[blood])
+    interactions = [
+        RateInteraction(
+            'trigger',
+            target='blood',
+            state='T',
+            rate=lambda s: s.target.injury * pulse(s.t, blood.injury_time, blood.duration),
+        ),
+        ReactionInteraction(
+            'thrombin_feedback',
+            target='blood',
+            products={'T': 1},
+            propensity=lambda s: s.target.ka * hill(s.target.T, s.target.k_half, 2),
+        ),
+        ReactionInteraction(
+            'thrombin_decay',
+            target='blood',
+            reactants={'T': 1},
+            propensity=lambda s: s.target.d_t * s.target.T,
+        ),
+        ReactionInteraction(
+            'thrombin_inhibition',
+            target='blood',
+            reactants={'T': 1},
+            modifiers={'C': 1},
+            propensity=lambda s: s.target.k_c * s.target.C * s.target.T,
+        ),
+        ReactionInteraction(
+            'inhibitor_production',
+            target='blood',
+            products={'C': 1},
+            propensity=lambda s: s.target.s_c * s.target.T,
+        ),
+        ReactionInteraction(
+            'inhibitor_decay',
+            target='blood',
+            reactants={'C': 1},
+            propensity=lambda s: s.target.d_c * s.target.C,
+        ),
+        ReactionInteraction(
+            'fibrin_production',
+            target='blood',
+            products={'F': 1},
+            propensity=lambda s: s.target.s_f * s.target.T,
+        ),
+        ReactionInteraction(
+            'fibrinolysis',
+            target='blood',
+            reactants={'F': 1},
+            modifiers={'P': 1},
+            propensity=lambda s: s.target.k_p * s.target.P * s.target.F,
+        ),
+        ReactionInteraction(
+            'plasmin_production',
+            target='blood',
+            products={'P': 1},
+            propensity=lambda s: s.target.s_p * s.target.F,
+        ),
+        ReactionInteraction(
+            'plasmin_decay',
+            target='blood',
+            reactants={'P': 1},
+            propensity=lambda s: s.target.d_p * s.target.P,
+        ),
+    ]
+    return System(elements=[blood], interactions=interactions)

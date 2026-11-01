@@ -6,15 +6,26 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, UpdateLaw
+from ....core.interactions import MapInteraction
 from ....core.laws.utils import mod, where
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+
+
+def _input(s: SimpleNamespace) -> Expression:
+    """Return the input pulse train of the Adaptrode, `amplitude` for `width` steps every `period` until `stop`."""
+    synapse = s.target
+    pulse: Expression = where(
+        mod(s.t, synapse.period) < synapse.width,
+        where(s.t < synapse.stop, synapse.amplitude, 0),
+        0,
+    )
+    return pulse
 
 
 class AdaptrodeElement(Element):
@@ -23,7 +34,8 @@ class AdaptrodeElement(Element):
     At every step the fast weight `w0` rises toward `w_max` in proportion to the input `x` and decays toward the
     slower weight `w1`, which rises toward `w0` and decays toward the slowest weight `w2`, which rises toward `w1` and
     decays toward zero. The input is a train of pulses of height `amplitude`, `width` steps long, every `period`
-    steps, until the step `stop`, so the weights record recent, medium-term, and long-term activity.
+    steps, until the step `stop`, so the weights record recent, medium-term, and long-term activity. The element holds
+    the states and parameters and has no laws of its own: the maps of `adaptrode`, one per level, read its parameters.
 
     Args:
         label:
@@ -116,24 +128,6 @@ class AdaptrodeElement(Element):
         self.width = width
         self.stop = stop
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the updates of the three weights driven by the pulse train.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        x = where(mod(s.t, s.period) < s.width, where(s.t < s.stop, s.amplitude, 0), 0)
-        return [
-            UpdateLaw(s.w0, s.w0 + s.alpha0 * x * (s.w_max - s.w0) - s.delta0 * (s.w0 - s.w1)),
-            UpdateLaw(s.w1, s.w1 + s.alpha1 * (s.w0 - s.w1) - s.delta1 * (s.w1 - s.w2)),
-            UpdateLaw(s.w2, s.w2 + s.alpha2 * (s.w1 - s.w2) - s.delta2 * s.w2),
-        ]
-
 
 @register_model(
     field='biology/neuroscience',
@@ -203,4 +197,30 @@ def adaptrode(
         period=period,
         stop=stop,
     )
-    return System(elements=[synapse])
+    levels = [
+        MapInteraction(
+            'fast_level',
+            target='synapse',
+            state='w0',
+            function=lambda s: s.target.w0
+            + s.target.alpha0 * _input(s) * (s.target.w_max - s.target.w0)
+            - s.target.delta0 * (s.target.w0 - s.target.w1),
+        ),
+        MapInteraction(
+            'medium_level',
+            target='synapse',
+            state='w1',
+            function=lambda s: s.target.w1
+            + s.target.alpha1 * (s.target.w0 - s.target.w1)
+            - s.target.delta1 * (s.target.w1 - s.target.w2),
+        ),
+        MapInteraction(
+            'slow_level',
+            target='synapse',
+            state='w2',
+            function=lambda s: s.target.w2
+            + s.target.alpha2 * (s.target.w1 - s.target.w2)
+            - s.target.delta2 * s.target.w2,
+        ),
+    ]
+    return System(elements=[synapse], interactions=levels)

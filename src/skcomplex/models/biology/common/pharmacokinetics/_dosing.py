@@ -115,5 +115,11 @@ class DosingInteraction(RateInteraction):
         if self.period is None:
             constant: Expression = dose
             return constant
-        schedule: Expression = dose * pulse_train(namespace.t, self.period, self.width, start=self.start, count=self.count)
+        schedule: Expression = dose * pulse_train(
+            namespace.t,
+            self.period,
+            self.width,
+            start=self.start,
+            count=self.count,
+        )
         return schedule

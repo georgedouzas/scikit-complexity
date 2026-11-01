@@ -3,18 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import RateInteraction, ReactionInteraction
 from ....core.system import System
 from ....engine.solvers import ScipyODESolver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.kinetics import MichaelisMentenInteraction
+from ..common.pharmacokinetics import DosingInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
@@ -24,6 +25,9 @@ class TcrGeneTherapyElement(Element):
 
     The effector cells follow `dE/dt = s + alpha A - d1 E + r1 E / (E + g1)` and the tumour cells
     `dA/dt = r2 A (1 - b A) - a E A / (A + g2)`, a predator-prey model of the immune attack.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of `tcr_gene_therapy` read
+    its parameters.
 
     Args:
         label:
@@ -101,23 +105,6 @@ class TcrGeneTherapyElement(Element):
         self.a = a
         self.g2 = g2
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the recruitment of effector cells and the logistic growth and immune kill of tumour cells.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        E, A = s.E, s.A
-        return [
-            RateLaw(E, s.s + s.alpha * A - s.d1 * E + s.r1 * E / (E + s.g1)),
-            RateLaw(A, s.r2 * A * (1 - s.b * A) - s.a * E * A / (A + s.g2)),
-        ]
-
 
 class SirnaTgfBetaElement(Element):
     """Effector cells, tumour cells, IL-2, TGF-beta, and the siRNA that silences the production of TGF-beta.
@@ -125,6 +112,9 @@ class SirnaTgfBetaElement(Element):
     The model extends Kirschner and Panetta. TGF-beta lowers the recruitment and the IL-2 driven proliferation of
     effector cells and the production of IL-2, and raises the growth of the tumour. The siRNA, infused at the rate
     `u`, divides the production of TGF-beta by `1 + psi G^gamma3`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of `sirna_tgf_beta` read
+    its parameters.
 
     Args:
         label:
@@ -292,34 +282,15 @@ class SirnaTgfBetaElement(Element):
         self.u = u
         self.du = du
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the balances of the effector cells, the tumour, the two cytokines, and the siRNA.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        E, A, C1, C2, G = s.E, s.A, s.C1, s.C2, s.G
-        proliferation = E * C1 / (s.g1 + C1) * (s.rho1 - s.rmax * C2 / (s.g2 + C2))
-        silencing = 1 + s.psi * G**s.gamma3
-        return [
-            RateLaw(E, s.alpha * A / (1 + s.gamma1 * C2) - s.d1 * E + proliferation),
-            RateLaw(A, s.r1 * A * (1 - s.b * A) - s.a1 * E * A / (s.g3 + A) + s.rho2 * C2 * A / (s.g4 + C2)),
-            RateLaw(C1, s.rho3 * E * A / ((s.g5 + A) * (1 + s.gamma2 * C2)) - s.d2 * C1),
-            RateLaw(C2, s.rho4 * A**2 / (s.mu**2 + silencing * A**2) - s.d3 * C2),
-            RateLaw(G, s.u - s.du * G),
-        ]
-
 
 class OncolyticVirusElement(Element):
     """Uninfected and infected tumour cells that share a carrying capacity, with infection by mass action.
 
     In units of the carrying capacity and of the growth time of uninfected cells, the uninfected cells follow
     `dAU/dt = AU (1 - AU - AV) - alpha AU AV` and the infected cells `dAV/dt = r AV (1 - AU - AV) + alpha AU AV - d AV`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of `oncolytic_virus` read
+    its parameters.
 
     Args:
         label:
@@ -367,22 +338,6 @@ class OncolyticVirusElement(Element):
         self.r = r
         self.d = d
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the shared logistic growth and the infection of the tumour cells.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        AU, AV = s.AU, s.AV
-        room = 1 - AU - AV
-        infection = s.alpha * AU * AV
-        return [RateLaw(AU, AU * room - infection), RateLaw(AV, s.r * AV * room + infection - s.d * AV)]
-
 
 class OncolyticVirusDendriticElement(Element):
     """Tumour cells, an oncolytic adenovirus, activated and naive T cells, and injected dendritic cells.
@@ -391,6 +346,9 @@ class OncolyticVirusDendriticElement(Element):
     `Atot = AU + AV + E + EN`. Activated T cells kill both kinds of tumour cells at the rate
     `(a0 + a1 AV) E / Atot`. Infected cells lyse at the rate `a2` and release `r2` virions each. The infected cells,
     the naive T cells, and the dendritic cells activate T cells.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `oncolytic_virus_dendritic` read its parameters.
 
     Args:
         label:
@@ -523,30 +481,6 @@ class OncolyticVirusDendriticElement(Element):
         self.uv = uv
         self.ud = ud
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the infection, the immune kill, the virus, and the three immune populations.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        AU, AV, V, E, EN, D = s.AU, s.AV, s.V, s.E, s.EN, s.D
-        total = AU + AV + E + EN
-        infection = s.alpha * AU * V / total
-        kill = (s.a0 + s.a1 * AV) * E / total
-        return [
-            RateLaw(AU, s.r1 * AU - infection - kill * AU),
-            RateLaw(AV, infection - s.a2 * AV - kill * AV),
-            RateLaw(V, s.uv + s.r2 * s.a2 * AV - s.du1 * V),
-            RateLaw(E, s.a3 * AV + s.m * EN + s.a4 * D - s.d1 * E),
-            RateLaw(EN, s.a5 * AV - s.d2 * EN),
-            RateLaw(D, s.ud - s.du2 * D),
-        ]
-
 
 @register_model(
     field='biology/oncology',
@@ -619,7 +553,40 @@ def tcr_gene_therapy(
         100000.0
     """
     site = TcrGeneTherapyElement('site', E=E, A=A, s=s, alpha=alpha, d1=d1, r1=r1, g1=g1, r2=r2, b=b, a=a, g2=g2)
-    return System(elements=[site])
+    interactions = [
+        DosingInteraction('influx', target='site', state='E', dose=lambda s: s.target.s),
+        RateInteraction('stimulation', target='site', state='E', rate=lambda s: s.target.alpha * s.target.A),
+        ReactionInteraction(
+            'effector_death',
+            target='site',
+            reactants={'E': 1},
+            propensity=lambda s: s.target.d1 * s.target.E,
+        ),
+        MichaelisMentenInteraction(
+            'self_proliferation',
+            target='site',
+            products={'E': 1},
+            substrate='E',
+            vmax=lambda s: s.target.r1,
+            km=lambda s: s.target.g1,
+        ),
+        RateInteraction(
+            'tumour_growth',
+            target='site',
+            state='A',
+            rate=lambda s: s.target.r2 * s.target.A * (1 - s.target.b * s.target.A),
+        ),
+        MichaelisMentenInteraction(
+            'kill',
+            target='site',
+            reactants={'A': 1},
+            substrate='A',
+            vmax=lambda s: s.target.a,
+            km=lambda s: s.target.g2,
+            modifiers={'E': 1},
+        ),
+    ]
+    return System(elements=[site], interactions=interactions)
 
 
 @register_model(
@@ -685,7 +652,90 @@ def sirna_tgf_beta(
         1000000.0
     """
     site = SirnaTgfBetaElement('site', E=E, A=A, alpha=alpha, rho4=rho4, psi=psi, gamma3=gamma3, u=u, du=du)
-    return System(elements=[site])
+    interactions = [
+        RateInteraction(
+            'stimulation',
+            target='site',
+            state='E',
+            rate=lambda s: s.target.alpha * s.target.A / (1 + s.target.gamma1 * s.target.C2),
+        ),
+        ReactionInteraction(
+            'effector_death',
+            target='site',
+            reactants={'E': 1},
+            propensity=lambda s: s.target.d1 * s.target.E,
+        ),
+        RateInteraction(
+            'effector_proliferation',
+            target='site',
+            state='E',
+            rate=lambda s: s.target.E
+            * s.target.C1
+            / (s.target.g1 + s.target.C1)
+            * (s.target.rho1 - s.target.rmax * s.target.C2 / (s.target.g2 + s.target.C2)),
+        ),
+        RateInteraction(
+            'tumour_growth',
+            target='site',
+            state='A',
+            rate=lambda s: s.target.r1 * s.target.A * (1 - s.target.b * s.target.A),
+        ),
+        MichaelisMentenInteraction(
+            'kill',
+            target='site',
+            reactants={'A': 1},
+            substrate='A',
+            vmax=lambda s: s.target.a1,
+            km=lambda s: s.target.g3,
+            modifiers={'E': 1},
+        ),
+        MichaelisMentenInteraction(
+            'stimulated_growth',
+            target='site',
+            products={'A': 1},
+            substrate='C2',
+            vmax=lambda s: s.target.rho2,
+            km=lambda s: s.target.g4,
+            modifiers={'A': 1},
+        ),
+        RateInteraction(
+            'il2_production',
+            target='site',
+            state='C1',
+            rate=lambda s: s.target.rho3
+            * s.target.E
+            * s.target.A
+            / ((s.target.g5 + s.target.A) * (1 + s.target.gamma2 * s.target.C2)),
+        ),
+        ReactionInteraction(
+            'il2_loss',
+            target='site',
+            reactants={'C1': 1},
+            propensity=lambda s: s.target.d2 * s.target.C1,
+        ),
+        RateInteraction(
+            'tgf_beta_production',
+            target='site',
+            state='C2',
+            rate=lambda s: s.target.rho4
+            * s.target.A**2
+            / (s.target.mu**2 + (1 + s.target.psi * s.target.G**s.target.gamma3) * s.target.A**2),
+        ),
+        ReactionInteraction(
+            'tgf_beta_loss',
+            target='site',
+            reactants={'C2': 1},
+            propensity=lambda s: s.target.d3 * s.target.C2,
+        ),
+        DosingInteraction('sirna_dosing', target='site', state='G', dose=lambda s: s.target.u),
+        ReactionInteraction(
+            'sirna_loss',
+            target='site',
+            reactants={'G': 1},
+            propensity=lambda s: s.target.du * s.target.G,
+        ),
+    ]
+    return System(elements=[site], interactions=interactions)
 
 
 @register_model(
@@ -728,7 +778,36 @@ def oncolytic_virus(AU: float = 0.1, AV: float = 1e-4, *, alpha: float = 1.0, r:
         >>> oncolytic_virus(alpha=1.5).elements[0].alpha
         1.5
     """
-    return System(elements=[OncolyticVirusElement('tumour', AU=AU, AV=AV, alpha=alpha, r=r, d=d)])
+    tumour = OncolyticVirusElement('tumour', AU=AU, AV=AV, alpha=alpha, r=r, d=d)
+    interactions = [
+        RateInteraction(
+            'uninfected_growth',
+            target='tumour',
+            state='AU',
+            rate=lambda s: s.target.AU * (1 - s.target.AU - s.target.AV),
+        ),
+        RateInteraction(
+            'infected_growth',
+            target='tumour',
+            state='AV',
+            rate=lambda s: s.target.r * s.target.AV * (1 - s.target.AU - s.target.AV),
+        ),
+        ReactionInteraction(
+            'infection',
+            target='tumour',
+            reactants={'AU': 1},
+            products={'AV': 1},
+            modifiers={'AV': 1},
+            propensity=lambda s: s.target.alpha * s.target.AU * s.target.AV,
+        ),
+        ReactionInteraction(
+            'lysis',
+            target='tumour',
+            reactants={'AV': 1},
+            propensity=lambda s: s.target.d * s.target.AV,
+        ),
+    ]
+    return System(elements=[tumour], interactions=interactions)
 
 
 @register_model(
@@ -785,4 +864,81 @@ def oncolytic_virus_dendritic(
         >>> oncolytic_virus_dendritic(ud=0.0).elements[0].ud
         0.0
     """
-    return System(elements=[OncolyticVirusDendriticElement('site', AU=AU, uv=uv, ud=ud, a0=a0, m=m, a5=a5)])
+    site = OncolyticVirusDendriticElement('site', AU=AU, uv=uv, ud=ud, a0=a0, m=m, a5=a5)
+    interactions = [
+        RateInteraction('tumour_growth', target='site', state='AU', rate=lambda s: s.target.r1 * s.target.AU),
+        ReactionInteraction(
+            'infection',
+            target='site',
+            reactants={'AU': 1},
+            products={'AV': 1},
+            modifiers={'V': 1},
+            propensity=lambda s: s.target.alpha
+            * s.target.AU
+            * s.target.V
+            / (s.target.AU + s.target.AV + s.target.E + s.target.EN),
+        ),
+        ReactionInteraction(
+            'uninfected_kill',
+            target='site',
+            reactants={'AU': 1},
+            modifiers={'E': 1},
+            propensity=lambda s: (s.target.a0 + s.target.a1 * s.target.AV)
+            * s.target.E
+            / (s.target.AU + s.target.AV + s.target.E + s.target.EN)
+            * s.target.AU,
+        ),
+        ReactionInteraction(
+            'infected_kill',
+            target='site',
+            reactants={'AV': 1},
+            modifiers={'E': 1},
+            propensity=lambda s: (s.target.a0 + s.target.a1 * s.target.AV)
+            * s.target.E
+            / (s.target.AU + s.target.AV + s.target.E + s.target.EN)
+            * s.target.AV,
+        ),
+        ReactionInteraction(
+            'lysis',
+            target='site',
+            reactants={'AV': 1},
+            propensity=lambda s: s.target.a2 * s.target.AV,
+        ),
+        RateInteraction(
+            'virus_release',
+            target='site',
+            state='V',
+            rate=lambda s: s.target.r2 * s.target.a2 * s.target.AV,
+        ),
+        DosingInteraction('virus_injection', target='site', state='V', dose=lambda s: s.target.uv),
+        ReactionInteraction(
+            'virus_clearance',
+            target='site',
+            reactants={'V': 1},
+            propensity=lambda s: s.target.du1 * s.target.V,
+        ),
+        RateInteraction('effector_recruitment', target='site', state='E', rate=lambda s: s.target.a3 * s.target.AV),
+        RateInteraction('naive_activation', target='site', state='E', rate=lambda s: s.target.m * s.target.EN),
+        RateInteraction('dendritic_activation', target='site', state='E', rate=lambda s: s.target.a4 * s.target.D),
+        ReactionInteraction(
+            'effector_death',
+            target='site',
+            reactants={'E': 1},
+            propensity=lambda s: s.target.d1 * s.target.E,
+        ),
+        RateInteraction('naive_recruitment', target='site', state='EN', rate=lambda s: s.target.a5 * s.target.AV),
+        ReactionInteraction(
+            'naive_death',
+            target='site',
+            reactants={'EN': 1},
+            propensity=lambda s: s.target.d2 * s.target.EN,
+        ),
+        DosingInteraction('dendritic_injection', target='site', state='D', dose=lambda s: s.target.ud),
+        ReactionInteraction(
+            'dendritic_clearance',
+            target='site',
+            reactants={'D': 1},
+            propensity=lambda s: s.target.du2 * s.target.D,
+        ),
+    ]
+    return System(elements=[site], interactions=interactions)

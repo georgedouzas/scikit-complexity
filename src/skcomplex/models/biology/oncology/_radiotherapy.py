@@ -4,14 +4,13 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import RateInteraction, ReactionInteraction
 from ....core.laws.utils import pulse_train
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -27,6 +26,9 @@ class RadiationCompetitionElement(Element):
     The normal cells follow `dN/dt = r1 N (1 - b1 N) - c1 N A - epsilon N` and the tumour cells
     `dA/dt = r2 A (1 - b2 A) - c2 N A - a2 D(t) A`, where the irradiation `D` is 1 for `width` time units every `period`
     and 0 otherwise, and `epsilon N` is the radiation that spills over to the normal tissue.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `radiotherapy_competition` read its parameters.
 
     Args:
         label:
@@ -109,23 +111,6 @@ class RadiationCompetitionElement(Element):
         self.period = period
         self.width = width
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the competition of the normal and tumour cells and the kill of the radiation.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        irradiation = pulse_train(s.t, self.period, self.width)
-        return [
-            RateLaw(s.N, s.r1 * s.N * (1 - s.b1 * s.N) - s.c1 * s.N * s.A - s.epsilon * s.N),
-            RateLaw(s.A, s.r2 * s.A * (1 - s.b2 * s.A) - s.c2 * s.N * s.A - s.a2 * irradiation * s.A),
-        ]
-
 
 class IrradiatedTumourElement(Element):
     """Tumour in six compartments under linear-quadratic radiation fractions and a radiosensitizer.
@@ -134,6 +119,9 @@ class IrradiatedTumourElement(Element):
     an irradiation accumulate. The lethally irradiated cells of `A5` divide once into `A6`, `dA5/dt = -(r + m1) A5` and
     `dA6/dt = 2 r A5 - m1 A6`, and both feed the dying chain `A2 -> A3 -> A4`, which leaves the tumour at the rate
     `m1`. The radiosensitizer is eliminated as `dUs/dt = -du Us`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of `lq_radiosensitizer`
+    read its parameters.
 
     Args:
         label:
@@ -215,27 +203,6 @@ class IrradiatedTumourElement(Element):
         self.m1 = m1
         self.a_gamma = a_gamma
         self.du = du
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth and transit of the compartments and the elimination of the radiosensitizer.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            RateLaw(s.A1, s.r * s.A1 * exp(-s.a_gamma * s.u_tot)),
-            RateLaw(s.A2, s.m1 * (s.A5 + s.A6) - s.m1 * s.A2),
-            RateLaw(s.A3, s.m1 * (s.A2 - s.A3)),
-            RateLaw(s.A4, s.m1 * (s.A3 - s.A4)),
-            RateLaw(s.A5, -(s.r + s.m1) * s.A5),
-            RateLaw(s.A6, 2 * s.r * s.A5 - s.m1 * s.A6),
-            RateLaw(s.Us, -s.du * s.Us),
-        ]
 
 
 @register_model(
@@ -320,7 +287,47 @@ def radiotherapy_competition(
         period=period,
         width=width,
     )
-    return System(elements=[tissue])
+    interactions = [
+        RateInteraction(
+            'normal_growth',
+            target='tissue',
+            state='N',
+            rate=lambda s: s.target.r1 * s.target.N * (1 - s.target.b1 * s.target.N),
+        ),
+        ReactionInteraction(
+            'normal_competition',
+            target='tissue',
+            reactants={'N': 1},
+            modifiers={'A': 1},
+            propensity=lambda s: s.target.c1 * s.target.N * s.target.A,
+        ),
+        ReactionInteraction(
+            'spillover',
+            target='tissue',
+            reactants={'N': 1},
+            propensity=lambda s: s.target.epsilon * s.target.N,
+        ),
+        RateInteraction(
+            'tumour_growth',
+            target='tissue',
+            state='A',
+            rate=lambda s: s.target.r2 * s.target.A * (1 - s.target.b2 * s.target.A),
+        ),
+        ReactionInteraction(
+            'tumour_competition',
+            target='tissue',
+            reactants={'A': 1},
+            modifiers={'N': 1},
+            propensity=lambda s: s.target.c2 * s.target.N * s.target.A,
+        ),
+        ReactionInteraction(
+            'irradiation',
+            target='tissue',
+            reactants={'A': 1},
+            propensity=lambda s: s.target.a2 * pulse_train(s.t, period, width) * s.target.A,
+        ),
+    ]
+    return System(elements=[tissue], interactions=interactions)
 
 
 @register_model(
@@ -433,4 +440,60 @@ def lq_radiosensitizer(
         start=start,
         fractions=fractions,
     )
-    return System(elements=[tumour], interactions=[irradiation])
+    interactions = [
+        RateInteraction(
+            'growth',
+            target='tumour',
+            state='A1',
+            rate=lambda s: s.target.r * s.target.A1 * exp(-s.target.a_gamma * s.target.u_tot),
+        ),
+        ReactionInteraction(
+            'damaged_division',
+            target='tumour',
+            reactants={'A5': 1},
+            products={'A6': 2},
+            propensity=lambda s: s.target.r * s.target.A5,
+        ),
+        ReactionInteraction(
+            'arrest',
+            target='tumour',
+            reactants={'A5': 1},
+            products={'A2': 1},
+            propensity=lambda s: s.target.m1 * s.target.A5,
+        ),
+        ReactionInteraction(
+            'daughter_arrest',
+            target='tumour',
+            reactants={'A6': 1},
+            products={'A2': 1},
+            propensity=lambda s: s.target.m1 * s.target.A6,
+        ),
+        ReactionInteraction(
+            'first_dying_transit',
+            target='tumour',
+            reactants={'A2': 1},
+            products={'A3': 1},
+            propensity=lambda s: s.target.m1 * s.target.A2,
+        ),
+        ReactionInteraction(
+            'second_dying_transit',
+            target='tumour',
+            reactants={'A3': 1},
+            products={'A4': 1},
+            propensity=lambda s: s.target.m1 * s.target.A3,
+        ),
+        ReactionInteraction(
+            'removal',
+            target='tumour',
+            reactants={'A4': 1},
+            propensity=lambda s: s.target.m1 * s.target.A4,
+        ),
+        ReactionInteraction(
+            'sensitizer_elimination',
+            target='tumour',
+            reactants={'Us': 1},
+            propensity=lambda s: s.target.du * s.target.Us,
+        ),
+        irradiation,
+    ]
+    return System(elements=[tumour], interactions=interactions)

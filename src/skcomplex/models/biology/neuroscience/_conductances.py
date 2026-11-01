@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -10,7 +11,7 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, CrossingLaw, RateLaw
+from ....core.interactions import CrossingInteraction, RateInteraction
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
@@ -27,6 +28,18 @@ def _gate_rates(v: Expression) -> GateRates:
     }
 
 
+def _gate_kinetics(gate: str) -> Callable[[SimpleNamespace], Expression]:
+    """Return the rate `alpha(v) (1 - x) - beta(v) x` of a gate `x` as a function of the namespace of the neuron."""
+
+    def kinetics(s: SimpleNamespace) -> Expression:
+        opening, closing = _gate_rates(s.target.v)[gate]
+        x = getattr(s.target, gate)
+        rate: Expression = opening * (1 - x) - closing * x
+        return rate
+
+    return kinetics
+
+
 def _resting_gates(v: float) -> dict[str, float]:
     """Return the steady-state opening of every gate at a fixed potential in mV."""
     return {gate: float(opening / (opening + closing)) for gate, (opening, closing) in _gate_rates(v).items()}
@@ -37,7 +50,9 @@ class HodgkinHuxleyElement(Element):
 
     The potential follows `C v' = I - g_Na m³ h (v - E_Na) - g_K n⁴ (v - E_K) - g_L (v - E_L)`, and each gate `x` of
     `n`, `m`, and `h` relaxes as `x' = alpha_x(v) (1 - x) - beta_x(v) x`, in the modern convention with rest near -65
-    mV. Upward crossings of 0 mV are recorded as `spike` events. Units are mV, ms, mS/cm², and µA/cm².
+    mV. Upward crossings of 0 mV are recorded as `spike` events. Units are mV, ms, mS/cm², and µA/cm². The element holds
+    the states and parameters and has no laws of its own: the current, gating, and crossing interactions of
+    `hodgkin_huxley` read its parameters.
 
     Args:
         label:
@@ -119,24 +134,6 @@ class HodgkinHuxleyElement(Element):
         self.e_k = e_k
         self.e_l = e_l
         self.I = I
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the membrane equation, the gate kinetics, and the spike events.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        currents = s.g_na * s.m**3 * s.h * (s.v - s.e_na) + s.g_k * s.n**4 * (s.v - s.e_k) + s.g_l * (s.v - s.e_l)
-        gates = [
-            RateLaw(getattr(s, gate), opening * (1 - getattr(s, gate)) - closing * getattr(s, gate))
-            for gate, (opening, closing) in _gate_rates(s.v).items()
-        ]
-        return [RateLaw(s.v, (s.I - currents) / s.C), *gates, CrossingLaw(s.v, None, direction=1, label='spike')]
 
 
 class FitzHughNagumoNeuronElement(Element):
@@ -241,6 +238,35 @@ def hodgkin_huxley(
                 m=gates['m'],
                 h=gates['h'],
             ),
+        ],
+        interactions=[
+            RateInteraction('applied_current', target='neuron', state='v', rate=lambda s: s.target.I, divisor='C'),
+            RateInteraction(
+                'sodium_current',
+                target='neuron',
+                state='v',
+                rate=lambda s: -s.target.g_na * s.target.m**3 * s.target.h * (s.target.v - s.target.e_na),
+                divisor='C',
+            ),
+            RateInteraction(
+                'potassium_current',
+                target='neuron',
+                state='v',
+                rate=lambda s: -s.target.g_k * s.target.n**4 * (s.target.v - s.target.e_k),
+                divisor='C',
+            ),
+            RateInteraction(
+                'leak_current',
+                target='neuron',
+                state='v',
+                rate=lambda s: -s.target.g_l * (s.target.v - s.target.e_l),
+                divisor='C',
+            ),
+            *[
+                RateInteraction(f'{gate}_gating', target='neuron', state=gate, rate=_gate_kinetics(gate))
+                for gate in ('n', 'm', 'h')
+            ],
+            CrossingInteraction('spike', target='neuron', guard=lambda s: s.target.v, direction=1),
         ],
     )
 

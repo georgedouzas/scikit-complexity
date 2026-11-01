@@ -3,14 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import RateInteraction, ReactionInteraction
 from ....core.laws.utils import delayed
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -26,6 +25,9 @@ class CellCycleElement(Element):
     `dA1/dt = -l1 A1 + 2 (1 - u1) l3 A3`, `dA2/dt = l1 A1 - (1 - u2) l2 A2`, and `dA3/dt = (1 - u2) l2 A2 - l3 A3`.
     The killing agent kills the fraction `u1` of the cells that divide, and the blocking agent slows the transit
     through S by the fraction `u2`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `cell_cycle_chemotherapy` read its parameters.
 
     Args:
         label:
@@ -88,24 +90,6 @@ class CellCycleElement(Element):
         self.u1 = u1
         self.u2 = u2
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the transits between the three compartments and the division with its kill.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        exit_s = (1 - s.u2) * s.l2 * s.A2
-        return [
-            RateLaw(s.A1, -s.l1 * s.A1 + 2 * (1 - s.u1) * s.l3 * s.A3),
-            RateLaw(s.A2, s.l1 * s.A1 - exit_s),
-            RateLaw(s.A3, exit_s - s.l3 * s.A3),
-        ]
-
 
 class DormantCellCycleElement(Element):
     """Tumour cells in a dormant phase and two cycling phases under a killing and a recruiting agent.
@@ -114,6 +98,9 @@ class DormantCellCycleElement(Element):
     A fraction `b0` of the daughters enters G0 and `b1` enters G1, so `dA0/dt = -l0 (1 + v) A0 + 2 b0 (1 - u) l2 A2`,
     `dA1/dt = l0 (1 + v) A0 - l1 A1 + 2 b1 (1 - u) l2 A2`, and `dA2/dt = l1 A1 - l2 A2`. The killing agent kills the
     fraction `u` of the cells that divide, and the recruiting agent speeds the exit from G0 by the factor `1 + v`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `cell_cycle_chemotherapy` read its parameters.
 
     Args:
         label:
@@ -186,25 +173,6 @@ class DormantCellCycleElement(Element):
         self.u = u
         self.v = v
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the recruitment from G0, the transits, and the division with its kill.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        recruited = s.l0 * (1 + s.v) * s.A0
-        daughters = 2 * (1 - s.u) * s.l2 * s.A2
-        return [
-            RateLaw(s.A0, -recruited + s.b0 * daughters),
-            RateLaw(s.A1, recruited - s.l1 * s.A1 + s.b1 * daughters),
-            RateLaw(s.A2, s.l1 * s.A1 - s.l2 * s.A2),
-        ]
-
 
 class ErythropoiesisElement(Element):
     """Quiescent, proliferating, and mature red cells and their mean volume under a constant 6-mercaptopurine level.
@@ -217,6 +185,9 @@ class ErythropoiesisElement(Element):
     `dL/dt = r1 Q - d1 L(t - lifespan)`, and their mean corpuscular volume
     `dMCV/dt = ((g1 U + MCV0) r1 Q - 0.85 MCV(t - lifespan) d1 L(t - lifespan) - 0.15 MCV d1 L) / L`. Before the start
     the mature cells and their volume keep their initial values.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `erythropoiesis_mercaptopurine` read its parameters.
 
     Args:
         label:
@@ -319,31 +290,6 @@ class ErythropoiesisElement(Element):
         self.lifespan = lifespan
         self.U = U
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the balances of quiescent, proliferating, and mature cells and of their mean volume.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        L, Q, P, MCV = s.L, s.Q, s.P, s.MCV
-        a1 = s.a0 * s.U
-        new_volume = s.g1 * s.U + s.MCV0
-        survival = exp(-a1 * new_volume * s.tau_h / s.MCV_h)
-        entry = s.m0 * s.Q50**s.n / (s.Q50**s.n + Q**s.n) * Q
-        old_L = delayed(L, s.lifespan)
-        old_MCV = delayed(MCV, s.lifespan)
-        return [
-            RateLaw(Q, -s.r1 * Q + (2 * survival - 1) * entry),
-            RateLaw(P, -a1 * P + (1 - survival) * entry),
-            RateLaw(L, s.r1 * Q - s.d1 * old_L),
-            RateLaw(MCV, (new_volume * s.r1 * Q - 0.85 * old_MCV * s.d1 * old_L - 0.15 * MCV * s.d1 * L) / L),
-        ]
-
 
 @register_model(
     field='biology/oncology',
@@ -393,8 +339,71 @@ def cell_cycle_chemotherapy(
         'DormantCellCycleElement'
     """
     if dormant:
-        return System(elements=[DormantCellCycleElement('tumour', u=u1, v=v)])
-    return System(elements=[CellCycleElement('tumour', u1=u1, u2=u2)])
+        dormant_interactions = [
+            ReactionInteraction(
+                'recruitment',
+                target='tumour',
+                reactants={'A0': 1},
+                products={'A1': 1},
+                propensity=lambda s: s.target.l0 * (1 + s.target.v) * s.target.A0,
+            ),
+            ReactionInteraction(
+                'transit',
+                target='tumour',
+                reactants={'A1': 1},
+                products={'A2': 1},
+                propensity=lambda s: s.target.l1 * s.target.A1,
+            ),
+            ReactionInteraction(
+                'mitosis',
+                target='tumour',
+                reactants={'A2': 1},
+                propensity=lambda s: s.target.l2 * s.target.A2,
+            ),
+            RateInteraction(
+                'dormant_daughters',
+                target='tumour',
+                state='A0',
+                rate=lambda s: s.target.b0 * 2 * (1 - s.target.u) * s.target.l2 * s.target.A2,
+            ),
+            RateInteraction(
+                'cycling_daughters',
+                target='tumour',
+                state='A1',
+                rate=lambda s: s.target.b1 * 2 * (1 - s.target.u) * s.target.l2 * s.target.A2,
+            ),
+        ]
+        return System(elements=[DormantCellCycleElement('tumour', u=u1, v=v)], interactions=dormant_interactions)
+    interactions = [
+        ReactionInteraction(
+            'g1_exit',
+            target='tumour',
+            reactants={'A1': 1},
+            products={'A2': 1},
+            propensity=lambda s: s.target.l1 * s.target.A1,
+        ),
+        ReactionInteraction(
+            's_exit',
+            target='tumour',
+            reactants={'A2': 1},
+            products={'A3': 1},
+            propensity=lambda s: (1 - s.target.u2) * s.target.l2 * s.target.A2,
+        ),
+        ReactionInteraction(
+            'division',
+            target='tumour',
+            reactants={'A3': 1},
+            products={'A1': 2},
+            propensity=lambda s: (1 - s.target.u1) * s.target.l3 * s.target.A3,
+        ),
+        ReactionInteraction(
+            'kill',
+            target='tumour',
+            reactants={'A3': 1},
+            propensity=lambda s: s.target.u1 * s.target.l3 * s.target.A3,
+        ),
+    ]
+    return System(elements=[CellCycleElement('tumour', u1=u1, u2=u2)], interactions=interactions)
 
 
 @register_model(
@@ -465,4 +474,86 @@ def erythropoiesis_mercaptopurine(
         n=n,
         U=U,
     )
-    return System(elements=[patient])
+    interactions = [
+        ReactionInteraction(
+            'maturation',
+            target='patient',
+            reactants={'Q': 1},
+            products={'L': 1},
+            propensity=lambda s: s.target.r1 * s.target.Q,
+        ),
+        ReactionInteraction(
+            'division',
+            target='patient',
+            reactants={'Q': 1},
+            products={'Q': 2},
+            propensity=lambda s: exp(
+                -s.target.a0
+                * s.target.U
+                * (s.target.g1 * s.target.U + s.target.MCV0)
+                * s.target.tau_h
+                / s.target.MCV_h,
+            )
+            * s.target.m0
+            * s.target.Q50**s.target.n
+            / (s.target.Q50**s.target.n + s.target.Q**s.target.n)
+            * s.target.Q,
+        ),
+        ReactionInteraction(
+            'damage',
+            target='patient',
+            reactants={'Q': 1},
+            products={'P': 1},
+            propensity=lambda s: (
+                1
+                - exp(
+                    -s.target.a0
+                    * s.target.U
+                    * (s.target.g1 * s.target.U + s.target.MCV0)
+                    * s.target.tau_h
+                    / s.target.MCV_h,
+                )
+            )
+            * s.target.m0
+            * s.target.Q50**s.target.n
+            / (s.target.Q50**s.target.n + s.target.Q**s.target.n)
+            * s.target.Q,
+        ),
+        ReactionInteraction(
+            'damaged_loss',
+            target='patient',
+            reactants={'P': 1},
+            propensity=lambda s: s.target.a0 * s.target.U * s.target.P,
+        ),
+        RateInteraction(
+            'senescence',
+            target='patient',
+            state='L',
+            rate=lambda s: -s.target.d1 * delayed(s.target.L, s.target.lifespan),
+        ),
+        RateInteraction(
+            'new_volume',
+            target='patient',
+            state='MCV',
+            rate=lambda s: (s.target.g1 * s.target.U + s.target.MCV0) * s.target.r1 * s.target.Q,
+            divisor='L',
+        ),
+        RateInteraction(
+            'senescent_volume',
+            target='patient',
+            state='MCV',
+            rate=lambda s: -0.85
+            * delayed(s.target.MCV, s.target.lifespan)
+            * s.target.d1
+            * delayed(s.target.L, s.target.lifespan),
+            divisor='L',
+        ),
+        RateInteraction(
+            'random_volume',
+            target='patient',
+            state='MCV',
+            rate=lambda s: -0.15 * s.target.MCV * s.target.d1 * s.target.L,
+            divisor='L',
+        ),
+    ]
+    return System(elements=[patient], interactions=interactions)

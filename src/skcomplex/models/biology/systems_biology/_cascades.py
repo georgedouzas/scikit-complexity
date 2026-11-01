@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
@@ -12,7 +11,6 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.interactions import ReactionInteraction
-from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import pulse
 from ....core.system import System
 from ....errors import ValidationError
@@ -28,6 +26,9 @@ class GProteinElement(Element):
 
     The active fraction follows `dg/dt = k_on H(t) (1 - g) - k_gtp g`, where the hormone `H(t)` is a rectangular pulse
     of height `hormone` from `start` for `width`. Once the hormone is gone, the signal ends after the time `1 / k_gtp`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `hormone_cascade_amplifier` read its parameters.
 
     Args:
         label:
@@ -79,20 +80,6 @@ class GProteinElement(Element):
         self.hormone = hormone
         self.start = start
         self.width = width
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the activation by the hormone pulse and the inactivation by GTP hydrolysis.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        hormone = pulse(s.t, s.start, s.width, s.hormone)
-        return [RateLaw(s.g, s.k_on * hormone * (1 - s.g) - s.k_gtp * s.g)]
 
 
 @register_model(
@@ -172,4 +159,20 @@ def hormone_cascade_amplifier(
         ReactionInteraction(f'inactivation_of_{label}', reactants={(label, 'x'): 1}, k=rate)
         for label, rate in zip(STAGES, beta, strict=True)
     ]
-    return System(elements=[g_protein, *stages], interactions=[*activations, *inactivations])
+    switching = [
+        ReactionInteraction(
+            'g_protein_activation',
+            target='g_protein',
+            products={'g': 1},
+            propensity=lambda s: s.target.k_on
+            * pulse(s.t, s.target.start, s.target.width, s.target.hormone)
+            * (1 - s.target.g),
+        ),
+        ReactionInteraction(
+            'gtp_hydrolysis',
+            target='g_protein',
+            reactants={'g': 1},
+            propensity=lambda s: s.target.k_gtp * s.target.g,
+        ),
+    ]
+    return System(elements=[g_protein, *stages], interactions=[*switching, *activations, *inactivations])

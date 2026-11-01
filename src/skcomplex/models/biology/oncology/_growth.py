@@ -10,7 +10,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, log, oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import CompartmentElement, Element
+from ....core.elements import Element
 from ....core.interactions import Interaction, RateInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import minimum, pulse_train
@@ -22,30 +22,11 @@ from ..common.populations import (
     GompertzGrowthInteraction,
     GrowthInteraction,
     MortalityInteraction,
+    PopulationElement,
     PowerLawGrowthInteraction,
 )
 
 GROWTH_REFERENCES = ('Padmanabhan, Meskin, and Al Moustafa 2021', 'Benzekry et al. 2014')
-
-
-class TumourElement(CompartmentElement):
-    """Tumour of a size `n` measured in cells or in volume.
-
-    Args:
-        label:
-            The label of the tumour.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        n:
-            The initial size.
-
-    Examples:
-        >>> from skcomplex.models.biology.oncology import TumourElement
-        >>> TumourElement('tumour', n=50.0).n
-        50.0
-    """
 
 
 class VasculatureElement(Element):
@@ -285,7 +266,7 @@ def exponential_linear_growth(n: float = 2.0, *, r0: float = 0.31, r: float = 67
         0.31
     """
     return System(
-        elements=[TumourElement('tumour', n=n)],
+        elements=[PopulationElement('tumour', n=n)],
         interactions=[ExponentialLinearGrowthInteraction('growth', target='tumour', r0=r0, r=r)],
     )
 
@@ -322,7 +303,7 @@ def power_law_growth(n: float = 10.0, *, r: float = 1.32, p: float = 0.58) -> Sy
         0.6666666666666666
     """
     return System(
-        elements=[TumourElement('tumour', n=n)],
+        elements=[PopulationElement('tumour', n=n)],
         interactions=[PowerLawGrowthInteraction('growth', target='tumour', r=r, p=p)],
     )
 
@@ -361,7 +342,7 @@ def von_bertalanffy(n: float = 1.0, *, r: float = 2.32, p: float = 0.918, d: flo
         0.808
     """
     return System(
-        elements=[TumourElement('tumour', n=n)],
+        elements=[PopulationElement('tumour', n=n)],
         interactions=[
             PowerLawGrowthInteraction('growth', target='tumour', r=r, p=p),
             MortalityInteraction('loss', target='tumour', d=d),
@@ -404,7 +385,7 @@ def generalized_logistic(n: float = 10.0, *, r: float = 0.305, K: float = 1221.0
         0.5
     """
     return System(
-        elements=[TumourElement('tumour', n=n)],
+        elements=[PopulationElement('tumour', n=n)],
         interactions=[GrowthInteraction('growth', target='tumour', r=r, K=K, p=p, form='logistic')],
     )
 
@@ -441,7 +422,7 @@ def gompertz(n: float = 10.0, *, r: float = 0.0719, K: float = 1964.0) -> System
         1000.0
     """
     return System(
-        elements=[TumourElement('tumour', n=n)],
+        elements=[PopulationElement('tumour', n=n)],
         interactions=[GompertzGrowthInteraction('growth', target='tumour', r=r, K=K)],
     )
 
@@ -482,7 +463,7 @@ def dynamic_carrying_capacity(n: float = 1.0, K: float = 12.7, *, r: float = 2.6
         12.7
     """
     return System(
-        elements=[TumourElement('tumour', n=n), VasculatureElement('vessels', K=K)],
+        elements=[PopulationElement('tumour', n=n), VasculatureElement('vessels', K=K)],
         interactions=[VascularSupportInteraction('support', tumour='tumour', vasculature='vessels', r=r, d=d)],
     )
 
@@ -537,7 +518,7 @@ def skipper_log_kill(
         21.0
     """
     return System(
-        elements=[TumourElement('tumour', n=n)],
+        elements=[PopulationElement('tumour', n=n)],
         interactions=[
             ExponentialGrowthInteraction('growth', target='tumour', r=r),
             LogKillInteraction('kill', target='tumour', a=a, dose=dose, period=period, width=width),
@@ -602,7 +583,7 @@ def norton_simon(
         42.0
     """
     return System(
-        elements=[TumourElement('tumour', n=n)],
+        elements=[PopulationElement('tumour', n=n)],
         interactions=[
             GompertzGrowthInteraction('growth', target='tumour', r=r, K=K),
             LogKillInteraction('kill', target='tumour', a=a, dose=dose, period=period, width=width, start=start),

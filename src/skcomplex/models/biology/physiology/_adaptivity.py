@@ -4,14 +4,13 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import RateInteraction, ReactionInteraction, RelaxationInteraction
 from ....core.laws.utils import pulse_train, where
 from ....core.system import System
 from ....errors import ValidationError
@@ -32,6 +31,9 @@ class AdaptiveResponderElement(Element):
     is the response effort `c e`, the restore cost the work `price kappa (1 - S)` of refilling the reserves, the repair
     cost `repair (e - theta)` while the excursion exceeds the damage threshold `theta`, and the preparedness cost the
     upkeep `upkeep (c - c0 + a)` of the extra capacity and of the anticipation.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `adaptive_response_costs` read its parameters.
 
     Args:
         label:
@@ -159,29 +161,6 @@ class AdaptiveResponderElement(Element):
         self.period = period
         self.start = start
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the excursion, the capacity, the reserves, and the four costs.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        stimulus = pulse_train(s.t, self.period, self.width, self.height, start=self.start)
-        effort = s.c * s.e
-        return [
-            RateLaw(s.e, (1 - s.anticipation) * stimulus - effort - s.k0 * s.e),
-            RateLaw(s.c, s.eta * s.e**2 - (s.c - s.c0) / s.tau),
-            RateLaw(s.S, -effort + s.kappa * (1 - s.S)),
-            RateLaw(s.response_cost, effort),
-            RateLaw(s.restore_cost, s.price * s.kappa * (1 - s.S)),
-            RateLaw(s.repair_cost, s.repair * where(s.e > s.theta, s.e - s.theta, 0)),
-            RateLaw(s.prepare_cost, s.upkeep * (s.c - s.c0 + s.anticipation)),
-        ]
-
 
 @register_model(
     field='biology/physiology',
@@ -246,4 +225,53 @@ def adaptive_response_costs(
         width=width,
         period=period,
     )
-    return System(elements=[organism])
+    interactions = [
+        RateInteraction(
+            'stimulus',
+            target='organism',
+            state='e',
+            rate=lambda s: (1 - s.target.anticipation)
+            * pulse_train(s.t, organism.period, organism.width, organism.height, start=organism.start),
+        ),
+        ReactionInteraction(
+            'effort',
+            target='organism',
+            reactants={'e': 1, 'S': 1},
+            products={'response_cost': 1},
+            propensity=lambda s: s.target.c * s.target.e,
+        ),
+        ReactionInteraction(
+            'effort_decay',
+            target='organism',
+            reactants={'e': 1},
+            propensity=lambda s: s.target.k0 * s.target.e,
+        ),
+        RateInteraction('capacity_growth', target='organism', state='c', rate=lambda s: s.target.eta * s.target.e**2),
+        RelaxationInteraction(
+            'capacity_relaxation',
+            target='organism',
+            state='c',
+            goal=lambda s: s.target.c0,
+            time=lambda s: s.target.tau,
+        ),
+        RateInteraction('restoration', target='organism', state='S', rate=lambda s: s.target.kappa * (1 - s.target.S)),
+        RateInteraction(
+            'restoration_cost',
+            target='organism',
+            state='restore_cost',
+            rate=lambda s: s.target.price * s.target.kappa * (1 - s.target.S),
+        ),
+        RateInteraction(
+            'repair_cost',
+            target='organism',
+            state='repair_cost',
+            rate=lambda s: s.target.repair * where(s.target.e > s.target.theta, s.target.e - s.target.theta, 0),
+        ),
+        RateInteraction(
+            'preparation_cost',
+            target='organism',
+            state='prepare_cost',
+            rate=lambda s: s.target.upkeep * (s.target.c - s.target.c0 + s.target.anticipation),
+        ),
+    ]
+    return System(elements=[organism], interactions=interactions)

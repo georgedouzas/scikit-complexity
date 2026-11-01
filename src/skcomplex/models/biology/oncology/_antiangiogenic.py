@@ -11,12 +11,14 @@ from sage.all__sagemath_symbolics import Expression, exp, log, oo, pi
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
+from ....core.interactions import RateInteraction, ReactionInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import logistic, pulse_train
 from ....core.system import System
 from ....engine.solvers import ScipyODESolver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ..common.pharmacokinetics import DosingInteraction
 
 BOOK_REFERENCE = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 INHIBITOR_CLEARANCE = math.log(2) / 3.9
@@ -39,6 +41,9 @@ class AngiogenicTumourElement(Element):
     `dVb/dt = -lambda2 Vb + xi_s A - xi_i Vb A^(2/3) - a Vb U`, and the inhibitor `dU/dt = -du U + u(t)`, where the
     infusion `u` is `dose` for `width` time units every `period`, from `start` on. A `width` equal to the `period`
     is a continuous infusion.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `hahnfeldt` read its parameters.
 
     Args:
         label:
@@ -125,24 +130,6 @@ class AngiogenicTumourElement(Element):
         self.period = period
         self.width = width
         self.start = start
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the Gompertz growth of the tumour, the balance of the vasculature, and the inhibitor kinetics.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        infusion = s.dose * pulse_train(s.t, self.period, self.width, start=self.start)
-        return [
-            RateLaw(s.A, -s.lambda1 * s.A * log(s.A / s.Vb)),
-            RateLaw(s.Vb, -s.lambda2 * s.Vb + s.xi_s * s.A - s.xi_i * s.Vb * s.A ** (2 / 3) - s.a * s.Vb * s.U),
-            RateLaw(s.U, infusion - s.du * s.U),
-        ]
 
 
 class VascularizedSpheroidElement(Element):
@@ -473,7 +460,49 @@ def hahnfeldt(
         width=width,
         start=start,
     )
-    return System(elements=[tumour])
+    interactions = [
+        RateInteraction(
+            'tumour_growth',
+            target='tumour',
+            state='A',
+            rate=lambda s: -s.target.lambda1 * s.target.A * log(s.target.A / s.target.Vb),
+        ),
+        ReactionInteraction(
+            'vessel_loss',
+            target='tumour',
+            reactants={'Vb': 1},
+            propensity=lambda s: s.target.lambda2 * s.target.Vb,
+        ),
+        RateInteraction('stimulation', target='tumour', state='Vb', rate=lambda s: s.target.xi_s * s.target.A),
+        ReactionInteraction(
+            'inhibition',
+            target='tumour',
+            reactants={'Vb': 1},
+            propensity=lambda s: s.target.xi_i * s.target.Vb * s.target.A ** (2 / 3),
+        ),
+        ReactionInteraction(
+            'pruning',
+            target='tumour',
+            reactants={'Vb': 1},
+            propensity=lambda s: s.target.a * s.target.Vb * s.target.U,
+        ),
+        DosingInteraction(
+            'dosing',
+            target='tumour',
+            state='U',
+            dose=lambda s: s.target.dose,
+            period=tumour.period,
+            width=tumour.width,
+            start=tumour.start,
+        ),
+        ReactionInteraction(
+            'clearance',
+            target='tumour',
+            reactants={'U': 1},
+            propensity=lambda s: s.target.du * s.target.U,
+        ),
+    ]
+    return System(elements=[tumour], interactions=interactions)
 
 
 @register_model(

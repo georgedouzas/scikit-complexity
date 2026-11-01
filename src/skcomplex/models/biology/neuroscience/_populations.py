@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
+from ....core.interactions import Interaction, RateInteraction, RelaxationInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import logistic, mean, total
 from ....core.system import System
@@ -26,12 +26,55 @@ def _lorentzian_quantiles(center: float, width: float, size: int) -> list[float]
     return [center + width * math.tan(math.pi * ((index + 0.5) / size - 0.5)) for index in range(size)]
 
 
+def _response(x: Expression, gain: Expression, threshold: Expression) -> Expression:
+    """Return the response `logistic(x) - logistic(0)` of a sigmoid of a gain and a threshold, 0 at no input."""
+    response: Expression = logistic(x, threshold, 1 / gain) - logistic(0, threshold, 1 / gain)
+    return response
+
+
+def _saturation(gain: Expression, threshold: Expression) -> Expression:
+    """Return the largest value of the response of a sigmoid of a gain and a threshold."""
+    saturation: Expression = 1 - logistic(0, threshold, 1 / gain)
+    return saturation
+
+
+def _excitation(s: SimpleNamespace) -> Expression:
+    """Return the response of the excitatory population of Wilson and Cowan to its input."""
+    c = s.target
+    excitation: Expression = (_saturation(c.a_e, c.theta_e) - c.r_e * c.E) * _response(
+        c.c1 * c.E - c.c2 * c.I + c.P,
+        c.a_e,
+        c.theta_e,
+    )
+    return excitation
+
+
+def _inhibition(s: SimpleNamespace) -> Expression:
+    """Return the response of the inhibitory population of Wilson and Cowan to its input."""
+    c = s.target
+    inhibition: Expression = (_saturation(c.a_i, c.theta_i) - c.r_i * c.I) * _response(
+        c.c3 * c.E - c.c4 * c.I + c.Q,
+        c.a_i,
+        c.theta_i,
+    )
+    return inhibition
+
+
+def _kl_gradient(s: SimpleNamespace) -> Expression:
+    """Return the factor `d = 1 - (2 + 1/mu) y + y²/mu` of the gradient of the polyhomeostatic neuron."""
+    neuron = s.target
+    rate = logistic(neuron.x, neuron.b, 1 / neuron.a)
+    gradient: Expression = 1 - (2 + 1 / neuron.mu) * rate + rate**2 / neuron.mu
+    return gradient
+
+
 class WilsonCowanElement(Element):
     """Excitatory and inhibitory populations of Wilson and Cowan, as fractions of active cells.
 
     The excitatory activity follows `tau_e E' = -E + (k_e - r_e E) S_e(c1 E - c2 I + P)` and the inhibitory activity
     `tau_i I' = -I + (k_i - r_i I) S_i(c3 E - c4 I + Q)`, where `S(x) = 1 / (1 + exp(-a (x - theta))) - 1 / (1 +
-    exp(a theta))` is a sigmoid shifted to vanish at zero input and `k` is its largest value.
+    exp(a theta))` is a sigmoid shifted to vanish at zero input and `k` is its largest value. The element holds the
+    states and parameters and has no laws of its own: the relaxations of `wilson_cowan` read its parameters.
 
     Args:
         label:
@@ -133,37 +176,6 @@ class WilsonCowanElement(Element):
         self.Q = Q
         self.tau_e = tau_e
         self.tau_i = tau_i
-
-    def _get_response(self, x: Expression, gain: Expression, threshold: Expression) -> Expression:
-        """Return the response `logistic(x) - logistic(0)` of a sigmoid of a gain and a threshold, 0 at no input."""
-        return logistic(x, threshold, 1 / gain) - logistic(0, threshold, 1 / gain)
-
-    def _get_saturation(self, gain: Expression, threshold: Expression) -> Expression:
-        """Return the largest value of the response."""
-        return 1 - logistic(0, threshold, 1 / gain)
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the relaxation of both activities toward their responses.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        excitation = (self._get_saturation(s.a_e, s.theta_e) - s.r_e * s.E) * self._get_response(
-            s.c1 * s.E - s.c2 * s.I + s.P,
-            s.a_e,
-            s.theta_e,
-        )
-        inhibition = (self._get_saturation(s.a_i, s.theta_i) - s.r_i * s.I) * self._get_response(
-            s.c3 * s.E - s.c4 * s.I + s.Q,
-            s.a_i,
-            s.theta_i,
-        )
-        return [RateLaw(s.E, (-s.E + excitation) / s.tau_e), RateLaw(s.I, (-s.I + inhibition) / s.tau_i)]
 
 
 class ThetaNeuronElement(Element):
@@ -378,7 +390,8 @@ class PolyhomeostaticNeuronElement(Element):
     The membrane potential `x` integrates the input `I0 + A sin(omega t)` with rate `Gamma`, and the neuron fires at
     rate `y = 1 / (1 + exp(a (b - x)))`. Stochastic gradient descent on the Kullback-Leibler divergence between the
     distribution of `y` and an exponential of mean `mu` gives `a' = eps_a (1/a + (x - b) d)` and `b' = -eps_b a d`
-    with `d = 1 - (2 + 1/mu) y + y²/mu`.
+    with `d = 1 - (2 + 1/mu) y + y²/mu`. The element holds the states and parameters and has no laws of its own: the
+    relaxation and plasticity interactions of `polyhomeostatic_neuron` read its parameters.
 
     Args:
         label:
@@ -451,25 +464,6 @@ class PolyhomeostaticNeuronElement(Element):
         self.A = A
         self.omega = omega
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the leaky membrane and the adaptation of gain and threshold.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        rate = logistic(s.x, s.b, 1 / s.a)
-        gradient = 1 - (2 + 1 / s.mu) * rate + rate**2 / s.mu
-        return [
-            RateLaw(s.x, s.Gamma * (s.I0 + s.A * sin(s.omega * s.t) - s.x)),
-            RateLaw(s.a, s.eps_a * (1 / s.a + (s.x - s.b) * gradient)),
-            RateLaw(s.b, -s.eps_b * s.a * gradient),
-        ]
-
 
 @register_model(
     field='biology/neuroscience',
@@ -527,7 +521,24 @@ def wilson_cowan(
         >>> wilson_cowan(P=0.0).elements[0].P
         0.0
     """
-    return System(elements=[WilsonCowanElement('cortex', E=E, I=I, P=P, Q=Q, c1=c1, c2=c2, c3=c3, c4=c4)])
+    cortex = WilsonCowanElement('cortex', E=E, I=I, P=P, Q=Q, c1=c1, c2=c2, c3=c3, c4=c4)
+    relaxations = [
+        RelaxationInteraction(
+            'excitatory_relaxation',
+            target='cortex',
+            state='E',
+            goal=_excitation,
+            time=lambda s: s.target.tau_e,
+        ),
+        RelaxationInteraction(
+            'inhibitory_relaxation',
+            target='cortex',
+            state='I',
+            goal=_inhibition,
+            time=lambda s: s.target.tau_i,
+        ),
+    ]
+    return System(elements=[cortex], interactions=relaxations)
 
 
 @register_model(
@@ -691,4 +702,25 @@ def polyhomeostatic_neuron(
         0.1
     """
     neuron = PolyhomeostaticNeuronElement('neuron', mu=mu, eps_a=eps_a, eps_b=eps_b, I0=I0, A=A, omega=omega)
-    return System(elements=[neuron])
+    interactions = [
+        RelaxationInteraction(
+            'membrane',
+            target='neuron',
+            state='x',
+            goal=lambda s: s.target.I0 + s.target.A * sin(s.target.omega * s.t),
+            time=lambda s: 1 / s.target.Gamma,
+        ),
+        RateInteraction(
+            'gain_plasticity',
+            target='neuron',
+            state='a',
+            rate=lambda s: s.target.eps_a * (1 / s.target.a + (s.target.x - s.target.b) * _kl_gradient(s)),
+        ),
+        RateInteraction(
+            'threshold_plasticity',
+            target='neuron',
+            state='b',
+            rate=lambda s: -s.target.eps_b * s.target.a * _kl_gradient(s),
+        ),
+    ]
+    return System(elements=[neuron], interactions=interactions)
