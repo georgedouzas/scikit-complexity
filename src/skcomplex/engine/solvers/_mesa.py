@@ -257,6 +257,29 @@ class ModelView:
                 counts[value] = counts.get(value, 0) + count
         return {value: count for value, count in counts.items() if count}
 
+    def occupancy(self, name: str) -> dict[Hashable, int]:
+        """Return the number of agents of a group in every cell or node that holds one, by the key of the location.
+
+        Args:
+            name:
+                A role of the owner, the path of a group relative to the owner's system, or the path of a group.
+
+        Returns:
+            counts:
+                The number of agents alive in the group, or in every group of a role that binds several, by the
+                `location_key` of their cell, node, or position.
+
+        Raises:
+            SimulationError:
+                No role or group has that name.
+        """
+        counts: dict[Hashable, int] = {}
+        for path in self._paths(name):
+            for agent in self._stepper._group_agents(path):
+                key = self._stepper._view_of(agent).location_key
+                counts[key] = counts.get(key, 0) + 1
+        return counts
+
     def _field_name(self, name: str) -> str:
         """Return the path of a field state named by its path, or as `<role>.<state>` of a role of the owner."""
         role, _, state = name.rpartition('.')
@@ -1207,13 +1230,15 @@ class MesaSolver(ExternalSolver):
                 self.observed_.setdefault(name, deque(maxlen=_HISTORY_LENGTH)).append(float(np.real(array)))
 
     def _run_rules(self) -> None:
-        """Run the phases of a step, or activate the agents in random order and run the model rules once."""
+        """Run the phases due in a step, or activate the agents in random order and run the model rules once."""
         if self._phases is None:
             self.model_.agents.shuffle_do('step')
             for model, rule in self._rules:
                 rule.function(model)
         else:
             for phase in self._phases:
+                if (round(self.model_.time) - phase.offset) % phase.period:
+                    continue
                 for index in range(phase.repeat):
                     self.round_ = index
                     self._run_phase(phase)

@@ -206,6 +206,43 @@ def test_agent_map_reads_a_whole_group_bound_to_its_sources():
     assert trajectory.agents('value', 1).values['x'].tolist() == [6.0, 6.0]
 
 
+class VectorElement(Element):
+    """Element with a vector state `w`."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        w: Annotated[object, StateSpec(vector=True)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.w = w
+
+
+@pytest.mark.parametrize(
+    ('mode', 'expected'), [('replace', [[2.0, 4.0], [6.0, 8.0]]), ('increment', [[3.0, 6.0], [9.0, 12.0]])]
+)
+def test_agent_map_sets_a_vector_state(mode, expected):
+    """Test that an agent map whose function returns an array replaces or increments a vector state."""
+    group = GroupElement('vectors', element=VectorElement, size=2, values={'w': [[1.0, 2.0], [3.0, 4.0]]})
+    doubling = MapInteraction(
+        'map', target='vectors', state='w', function=lambda a, m: 2 * np.asarray(a.w), mode=mode, form='agent'
+    )
+    system = System(elements=[group], interactions=[doubling], time=DiscreteTime())
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    assert trajectory.agents('vectors', 1).values['w'].tolist() == expected
+
+
+def test_agent_map_rejects_a_vector_of_another_shape():
+    """Test that an agent map whose function returns an array of another shape than its vector state raises."""
+    group = GroupElement('vectors', element=VectorElement, size=1, values={'w': [[1.0, 2.0]]})
+    stretching = MapInteraction('map', target='vectors', state='w', function=lambda a, m: [1.0, 2.0, 3.0], form='agent')
+    system = System(elements=[group], interactions=[stretching], time=DiscreteTime())
+    with pytest.raises(ValidationError, match='shape of the state'):
+        Simulation(system, random_state=0).check().prepare().run(until=1)
+
+
 @pytest.mark.parametrize(
     ('arguments', 'match'),
     [

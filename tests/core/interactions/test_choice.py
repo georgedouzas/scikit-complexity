@@ -169,6 +169,46 @@ def test_choice_interaction_agent_proposal_rules_reach_boltzmann_distribution(ru
     assert np.allclose(_frequencies(values, 3), expected, atol=0.015)
 
 
+@pytest.mark.parametrize('form', ['symbolic', 'agent'])
+def test_choice_interaction_heat_bath_proposals_reach_boltzmann_distribution(form):
+    """Test that Fermi acceptance of proposals of every option reaches the distribution `exp(beta u) / sum`."""
+    choice = ChoiceInteraction(
+        'choice',
+        target='members',
+        state='option',
+        options=(0, 1, 2),
+        utility=_fixed if form == 'symbolic' else _fixed_agent,
+        rule='fermi',
+        intensity=0.5,
+        form=form,
+        proposal='all',
+    )
+    trajectory = _run_choice(choice, np.zeros(2000), 60)
+    if form == 'symbolic':
+        values = trajectory.values('members.option')[-20:]
+    else:
+        values = np.concatenate([trajectory.agents('members', frame).values['option'] for frame in range(40, 61)])
+    expected = np.exp([0.0, 0.5, 1.0]) / np.exp([0.0, 0.5, 1.0]).sum()
+    assert np.allclose(_frequencies(values, 3), expected, atol=0.015)
+
+
+def test_choice_interaction_heat_bath_proposals_keep_the_option_at_equal_utilities():
+    """Test that proposals of every option keep the current one in a third of the draws of three equal options."""
+    choice = ChoiceInteraction(
+        'choice',
+        target='members',
+        state='option',
+        options=(0, 1, 2),
+        utility=_fixed_agent,
+        rule='metropolis',
+        intensity=0.0,
+        form='agent',
+        proposal='all',
+    )
+    values = _run_choice(choice, np.zeros(3000), 1).agents('members', 1).values['option']
+    assert np.mean(values == 0) == pytest.approx(1 / 3, abs=0.03)
+
+
 def test_choice_interaction_best_draws_among_the_largest_utilities():
     """Test that the best rule draws uniformly among the options of largest utility and never the others."""
     choice = ChoiceInteraction(
@@ -300,6 +340,7 @@ def test_choice_interaction_keeps_values_among_options():
         ({'schedule': 'member'}, 'only the agent form'),
         ({'options': (1,)}, 'at least 2 options'),
         ({'utility': 1.0}, 'must be callable'),
+        ({'proposal': 'current'}, 'Unknown proposal'),
     ],
 )
 def test_check_rejects_invalid_arguments(arguments, message):
