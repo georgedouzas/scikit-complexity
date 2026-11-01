@@ -24,8 +24,10 @@ from ..problems._request_spec import _RequestSpec
 from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
+from ._members import MemberLowering
 
 _NORMAL_KINDS = frozenset({'normal'})
+_SHIFT = 'shift_member'
 
 
 DISTRIBUTIONS = tuple(
@@ -42,7 +44,8 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
     `prepare(compilation)` reads where the parameters end and the time symbol, and `run(laws)` takes the laws of every
     kernel spec, replaces every draw of their update laws by a drawn value, and places the drawn values after the
-    parameters, by component path, draw name, and member index. `_apply_references()` then gives every spec the
+    parameters, by component path, draw name, and member index. A draw read at a member offset reads the value the
+    offset member draws, so the members of a group can share one draw. `_apply_references()` then gives every spec the
     references of its drawn values.
 
     Attributes:
@@ -57,12 +60,17 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
         draws_:
             The draws taken at every step, or `None` when no update law draws.
+
+        shifted_:
+            The symbol of every draw read at a member offset, by the spec, the draw name, the offset, the boundary,
+            and the fill of the read.
     """
 
     offset_: int
     time_: Expression
     requests_: list[_RequestSpec]
     draws_: DrawKernel | None
+    shifted_: dict[tuple[int, str, int, str, float], Expression]
 
     def _prepare(self, context: Compilation | None) -> None:
         """Read where the parameters end and the time symbol of the compilation, with no draws yet.
@@ -81,7 +89,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             error_msg = 'The compilation has no layout yet. Lower draws after the layout pass.'
             raise ValidationError(error_msg)
         self.offset_, self.time_ = declarations.ends[False], declarations.time
-        self.requests_, self.draws_ = [], None
+        self.requests_, self.draws_, self.shifted_ = [], None, {}
 
     def _run(self, inputs: list[tuple[KernelSpec, list[BaseLaw]]] | None) -> None:
         """Set the laws of every kernel spec with the draws of their update laws replaced by drawn values.
@@ -98,13 +106,19 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         self._allocate()
 
     def _slots(self, spec: KernelSpec, laws: list[BaseLaw]) -> dict[str, Expression]:
-        """Return the value symbol of every draw of a component, after checking that each name has one declaration."""
+        """Return the value symbol of every draw of a component, after checking that each name has one declaration.
+
+        A draw read at a member offset is the draw of another member, so its arguments may read that member.
+        """
         owner = spec.owner
         declared: dict[str, DrawSpec] = {}
         for law in laws:
             if not isinstance(law, UpdateLaw) or not self._is_symbolic(law.value):
                 continue
-            for draw in draws_in([*components_of(law.value), *([] if law.order is None else [law.order])]):
+            items = [SR(item) for item in (*components_of(law.value), *([] if law.order is None else [law.order]))]
+            shifted = [call for item in items for call in self._shifted_draws(item)]
+            outside = [item.subs(dict.fromkeys(shifted, 0)) for item in items]
+            for draw in draws_in(outside):
                 known = declared.setdefault(draw.name, draw)
                 if (known.kind, known.distribution, known.parameters, known.arguments) != (
                     draw.kind,
@@ -117,6 +131,9 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
                         'declaration per name, or give the draws different names.'
                     )
                     raise ValidationError(error_msg)
+            for call in shifted:
+                draw = draws_in(call.operands()[0])[0]
+                declared.setdefault(draw.name, draw)
         sanitized = re.sub(r'[^0-9A-Za-z]', '_', owner)
         slots: dict[str, Expression] = {}
         for name, draw in declared.items():
@@ -154,11 +171,42 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             if not isinstance(law, UpdateLaw) or not self._is_symbolic(law.value):
                 lowered.append(law)
                 continue
-            values = [self._lowered(SR(item), slots) for item in components_of(law.value)]
+            values = [self._lowered(self._unshifted(spec, SR(item), slots), slots) for item in components_of(law.value)]
             value = vector(values) if isinstance(law.value, FreeModuleElement) else values[0]
             order = None if law.order is None else self._lowered(SR(law.order), slots)
             lowered.append(BasePass._replaced(law, value=value, order=order))
         return lowered
+
+    @staticmethod
+    def _shifted_draws(expression: Expression) -> list[Expression]:
+        """Return the member offset reads of draws in an expression."""
+        return [call for call in BasePass._calls_of(expression, _SHIFT) if draws_in(call.operands()[0])]
+
+    def _unshifted(self, spec: KernelSpec, expression: Expression, slots: Mapping[str, Expression]) -> Expression:
+        """Return an expression with every draw read at a member offset replaced by the value the offset member draws.
+
+        Args:
+            spec:
+                The kernel spec of the component.
+
+            expression:
+                The expression.
+
+            slots:
+                The value symbol of every draw of the component.
+
+        Returns:
+            expression:
+                The expression with the offset reads of draws replaced.
+        """
+        replacements = {}
+        for call in self._shifted_draws(expression):
+            drawn, offset, boundary, fill = MemberLowering._shift_arguments(call)
+            draw = draws_in(drawn)[0]
+            key = (id(spec), draw.name, offset, boundary, fill)
+            slot = self.shifted_.setdefault(key, symbol(f'{slots[draw.name]}__shift{len(self.shifted_)}'))
+            replacements[call] = self._replacement(draw, list(draw.arguments), slot)
+        return expression.subs(replacements) if replacements else expression
 
     def _allocate(self) -> None:
         """Place the drawn values after the parameters, by component path, draw name, and member index.
@@ -177,6 +225,10 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             entry = EntrySpec(f'{request.owner}.{request.name}~draw', start, shape, RR, members)
             source = ReadKind.MEMBER if grouped else ReadKind.SINGLE
             self._add_reference(request.spec, request.slot, ReferenceSpec(entry, False, 0, source))
+            for (spec, name, offset, boundary, fill), slot in self.shifted_.items():
+                if spec == id(request.spec) and name == request.name:
+                    read = MemberLowering._neighbor_read(request.rows, offset, boundary, fill)
+                    self._add_reference(request.spec, slot, ReferenceSpec(entry, False, 0, ReadKind.NEIGHBOR, read))
             if request.draw is None:
                 flags.extend([request.normal] * request.rows)
             start += request.rows

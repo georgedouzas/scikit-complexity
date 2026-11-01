@@ -64,6 +64,17 @@ def test_tasep_open_line_stays_an_exclusion_process():
     assert set(np.unique(trajectory.lattice('lane.occupied'))) <= {0.0, 1.0}
 
 
+def test_tasep_reports_the_hops_and_carries_the_exact_current_of_an_open_line():
+    """Test that the reported hops on a ring and the exits of an open line give the exact parallel-update current."""
+    exact = (1 - np.sqrt(0.5)) / 2
+    ring = Simulation(tasep(400, ring=True, p=0.5), random_state=0).check().prepare().run(until=500).trajectory_
+    assert np.asarray(ring.values('lane.hops'))[50:].sum(axis=1).mean() / 400 == pytest.approx(exact, rel=0.03)
+    line = Simulation(tasep(100, alpha=0.6, beta=0.6), random_state=0).check().prepare().run(until=3000).trajectory_
+    occupied = line.lattice('lane.occupied')[300:]
+    exits = ((occupied[:-1, -1] == 1) & (occupied[1:, -1] == 0)).mean()
+    assert exits == pytest.approx(exact, rel=0.05)
+
+
 def test_diffusion_limited_aggregate_is_connected():
     """Test that the aggregate grows and every stuck walker touches another stuck walker."""
     trajectory = (

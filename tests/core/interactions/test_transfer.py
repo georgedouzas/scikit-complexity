@@ -9,11 +9,12 @@ import pytest
 from skcomplex.core.elements import Element, FieldElement, GroupElement
 from skcomplex.core.interactions import TransferInteraction
 from skcomplex.core.laws import BaseLaw, RateLaw, RuleLaw, Sink, Source
+from skcomplex.core.laws.utils import bernoulli
 from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.errors import ValidationError
-from skcomplex.specs import PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class StockElement(Element):
@@ -357,6 +358,11 @@ def test_transfer_symbolic_flows_run_in_discrete_time():
         {'flow': 'out', 'form': 'agent'},
         {'fallback': 'c'},
         {'into': 'holder.level'},
+        {'reverse_rate': 1.0},
+        {'rate': 1.0, 'reverse_rate': 'back'},
+        {'offset': 1},
+        {'offset': 1.5},
+        {'boundary': 'reflecting'},
     ],
 )
 def test_check_rejects_invalid_arguments(arguments):
@@ -435,3 +441,118 @@ def test_transfer_site_deposits_from_the_agents_into_the_field_at_their_cells(sc
     level = trajectory.lattice('ground/level.u')[-1]
     assert (level[1, 2], level[0, 0], level.sum()) == (3.0, 3.0, 6.0)
     assert trajectory.agents('walkers/markers', 3).values['level'].tolist() == [7.0, 7.0]
+
+
+class RelayInteraction(TransferInteraction):
+    """Transfer at a parameter rate from a first holder through a middle holder to a last holder."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[str, RoleSpec()],
+        middle: Annotated[str, RoleSpec()],
+        last: Annotated[str, RoleSpec()],
+        k: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(
+            label,
+            source=first,
+            target=middle,
+            state='first.level',
+            into='middle.level',
+            amount=lambda s: s.k * s.first.level,
+            flow='inner',
+            legs=[('middle.level', 'last.level', lambda s: s.k * s.middle.level, 'outer')],
+        )
+        self.first = first
+        self.middle = middle
+        self.last = last
+        self.k = k
+
+    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
+        """Return the first and the middle holder."""
+        return [(namespace.first, namespace.middle)]
+
+
+def test_transfer_legs_move_between_the_holders_of_several_roles_at_a_parameter_rate():
+    """Test that legs naming roles move amounts along a chain of three holders, reported under the interaction."""
+    relay = RelayInteraction('relay', first='a', middle='b', last='c', k=0.5)
+    holders = [StockElement('a', level=2.0), StockElement('b'), StockElement('c')]
+    trajectory = _run(System(elements=holders, interactions=[relay]), 40.0)
+    levels = [trajectory.values(f'{label}.level')[-1] for label in 'abc']
+    assert levels == pytest.approx([0.0, 0.0, 2.0], abs=1e-3)
+    assert trajectory.values('relay.inner')[0] == pytest.approx(1.0)
+
+
+def test_transfer_offset_moves_along_the_group_order_in_discrete_time():
+    """Test that a transfer by an offset moves the amount of every member to the next one, around a ring."""
+    cells = GroupElement('cells', element=StockElement, size=4, values={'level': [4.0, 0.0, 0.0, 0.0]})
+    shift = TransferInteraction(
+        'shift',
+        source='cells',
+        target='cells',
+        state='level',
+        amount=lambda s: s.source.level,
+        offset=1,
+    )
+    system = System(elements=[cells], interactions=[shift], time=DiscreteTime())
+    trajectory = Simulation(system, dt=1, random_state=0).check().prepare().run(until=4).trajectory_
+    levels = np.asarray(trajectory.values('cells.level'))[1:].tolist()
+    assert levels == [[0.0, 4.0, 0.0, 0.0], [0.0, 0.0, 4.0, 0.0], [0.0, 0.0, 0.0, 4.0], [4.0, 0.0, 0.0, 0.0]]
+
+
+def test_transfer_offset_moves_nothing_past_a_fixed_boundary():
+    """Test that a flow along a line with a fixed boundary keeps the total, with nothing leaving the last member."""
+    cells = GroupElement('cells', element=StockElement, size=3, values={'level': [3.0, 0.0, 0.0]})
+    flow = TransferInteraction(
+        'flow',
+        source='cells',
+        target='cells',
+        state='level',
+        amount=lambda s: s.source.level,
+        offset=1,
+        boundary='fixed',
+    )
+    trajectory = _run(System(elements=[cells], interactions=[flow]), 30.0)
+    levels = np.asarray(trajectory.values('cells.level'))
+    assert np.allclose(levels.sum(axis=1), 3.0)
+    assert levels[-1] == pytest.approx([0.0, 0.0, 3.0], abs=1e-3)
+
+
+def test_transfer_offset_shares_one_draw_per_edge():
+    """Test that the two ends of every edge read one draw, so every unit that leaves a member enters the next."""
+    cells = GroupElement('cells', element=StockElement, size=50, values={'level': np.tile([1.0, 0.0], 25)})
+    hops = TransferInteraction(
+        'hops',
+        source='cells',
+        target='cells',
+        state='level',
+        amount=lambda s: s.source.level * (1 - s.target.level) * bernoulli('hop', 0.5),
+        flow='hops',
+        offset=1,
+    )
+    system = System(elements=[cells], interactions=[hops], time=DiscreteTime())
+    trajectory = Simulation(system, dt=1, random_state=0).check().prepare().run(until=50).trajectory_
+    levels = np.asarray(trajectory.values('cells.level'))
+    assert set(np.unique(levels)) == {0.0, 1.0}
+    assert set(levels.sum(axis=1)) == {25.0}
+    assert np.asarray(trajectory.values('cells.hops')).mean() == pytest.approx(0.25 * 0.5, rel=0.3)
+
+
+def test_transfer_reverse_rate_returns_units_to_the_environment():
+    """Test that reverse jumps of a leg from `Source()` return units to the environment, balancing the entries."""
+    bath = TransferInteraction(
+        'bath',
+        source='tank',
+        target='tank',
+        state=Source('bath'),
+        into='level',
+        amount=1.0,
+        rate=2.0,
+        reverse_rate=lambda s: s.target.level,
+    )
+    trajectory = _run(System(elements=[StockElement('tank')], interactions=[bath]), 400.0)
+    levels = np.asarray(trajectory.values('tank.level'))
+    assert np.allclose(levels, np.round(levels))
+    assert levels[50:].mean() == pytest.approx(2.0, rel=0.25)

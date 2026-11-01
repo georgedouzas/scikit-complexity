@@ -24,7 +24,7 @@ from skcomplex.models.physics.statistical_mechanics import (
     ZeroRangeHopsInteraction,
     zero_range_process,
 )
-from skcomplex.specs import RoleSpec, StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class CarElement(Element):
@@ -133,6 +133,36 @@ def test_shift_member_of_a_single_element_raises_error():
     system = System(elements=[CarElement('car', x=1.0)], interactions=[LookAheadInteraction('look', cars='car')])
     with pytest.raises(ValidationError, match=r'look reads car\.x at a member offset'):
         compile_system(system)
+
+
+class ShiftedGapInteraction(Interaction):
+    """Update of every car to the position ahead plus a gap, a parameter of the interaction."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        cars: Annotated[str, RoleSpec()],
+        gap: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.cars = cars
+        self.gap = gap
+
+    def _get_laws(self, s):
+        """Return the update of the read position."""
+        return [UpdateLaw(s.cars.ahead, shift_member(s.cars.x + s.gap, 1))]
+
+
+def test_shift_member_reads_a_parameter_of_an_interaction_as_it_is():
+    """Test that a parameter of an interaction read at a member offset is the same at every member."""
+    system = System(
+        elements=[GroupElement('cars', element=CarElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
+        interactions=[ShiftedGapInteraction('gap', cars='cars', gap=0.5)],
+    )
+    problem = compile_system(system)
+    state = problem.update(0.0, problem.initial_state, problem.initial_parameters)
+    assert problem.states.read(state, 'cars.ahead').tolist() == [2.5, 3.5, 1.5]
 
 
 def test_shift_member_rejects_unknown_boundary():

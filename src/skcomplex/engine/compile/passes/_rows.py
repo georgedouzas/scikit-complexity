@@ -9,6 +9,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import draws_in, neighborhoods_in, reductions_in
+from ....core.spaces import DiscreteTime
 from ....errors import IncompatibleLawsError, RoleError
 from ....specs._matrix_law_spec import _RANDOM_FIELDS
 from ..._utils import components_of
@@ -25,7 +26,7 @@ class RowsPass(BasePass):
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
-        return ('lowered', 'apart')
+        return ('lowered', 'apart', 'transfer')
 
     def _get_writes(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass writes."""
@@ -39,13 +40,29 @@ class RowsPass(BasePass):
         """
         compilation = self.compilation_
         apart = Compilation._required(compilation.apart, 'apart')
+        lowered = Compilation._required(compilation.lowered, 'lowered')
+        stepped = self._stepped_flows(compilation, [laws for _, laws, _ in lowered])
         settled: dict[int, KernelSpec] = {}
-        for spec, laws, _ in Compilation._required(compilation.lowered, 'lowered'):
-            self._check_draw_placement(spec.owner, laws)
+        for spec, laws, _ in lowered:
+            self._check_draw_placement(spec.owner, [law for law in laws if id(law) not in stepped])
             new = self._settled(spec, [*laws, *(law for other, items in apart if other is spec for law in items)])
             if new is not spec:
                 settled[id(spec)] = new
         compilation._replace_specs(settled)
+
+    @staticmethod
+    def _stepped_flows(compilation: Compilation, laws: list[list[BaseLaw]]) -> set[int]:
+        """Return the identities of the rate laws of flows that move their amounts once per step, which may draw.
+
+        The flows of a system that declares discrete time, or that holds update laws, become updates.
+        """
+        born = compilation.transfer.born if compilation.transfer is not None else {}
+        declared = isinstance(compilation.system.time, DiscreteTime)
+        if not declared and not any(
+            isinstance(law, UpdateLaw) and id(law) not in born for items in laws for law in items
+        ):
+            return set()
+        return {id(law) for items in laws for law in items if id(law) in born and isinstance(law, RateLaw)}
 
     @staticmethod
     def _check_aligned(spec: KernelSpec, groups: list[str]) -> None:

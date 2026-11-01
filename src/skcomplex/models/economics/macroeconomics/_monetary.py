@@ -7,12 +7,12 @@
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, Sink, Source, TransferLaw, UpdateLaw
+from ....core.interactions import TransferInteraction
+from ....core.laws import BaseLaw, Sink, Source, UpdateLaw
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
@@ -118,12 +118,12 @@ class MonetaryBankElement(Element):
         self.deposits = deposits
 
 
-class CircuitInteraction(Interaction):
+class CircuitInteraction(TransferInteraction):
     """Circuit of money between households, firms, and a bank, one period per step.
 
-    The flows of a period are the transfers consumption, wages, interest, dividends, and profits between the deposits
-    of the sectors, lending from the environment, and repayments to it, while the loans and the sales of the firms
-    follow as maps. Every flow is a transfer law labelled by its name, so the reporters `<label>.<flow>` record it.
+    The flows of a period are the legs of one transfer between the deposits of the sectors, consumption, wages,
+    interest, dividends, and profits, lending from the environment, and repayments to it, while the loans and the
+    sales of the firms follow as maps. Every leg is named by its flow, so the reporters `<label>.<flow>` record it.
 
     Args:
         label:
@@ -172,19 +172,35 @@ class CircuitInteraction(Interaction):
         self,
         label: str,
         *,
-        households: Annotated[object, RoleSpec()],
-        firms: Annotated[object, RoleSpec()],
-        bank: Annotated[object, RoleSpec()],
-        alpha_income: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
-        alpha_wealth: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
-        wage_share: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
-        interest: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        payout: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        distribution: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        credit: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        repayment: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
+        households: Annotated[str, RoleSpec()],
+        firms: Annotated[str, RoleSpec()],
+        bank: Annotated[str, RoleSpec()],
+        alpha_income: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
+        alpha_wealth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
+        wage_share: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
+        interest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
+        payout: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        distribution: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        credit: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        repayment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
     ) -> None:
-        super().__init__(label)
+        super().__init__(
+            label,
+            source=households,
+            target=firms,
+            state='households.deposits',
+            into='firms.deposits',
+            amount=self._get_consumption,
+            flow='consumption',
+            legs=[
+                ('firms.deposits', 'households.deposits', lambda s: s.wage_share * s.firms.sales, 'wages'),
+                ('firms.deposits', 'bank.deposits', lambda s: s.interest * s.firms.loans, 'interest'),
+                ('bank.deposits', 'households.deposits', lambda s: s.payout * s.bank.deposits, 'dividends'),
+                ('firms.deposits', 'households.deposits', lambda s: s.distribution * s.firms.deposits, 'profits'),
+                (Source('lending'), 'firms.deposits', self._get_lending, 'lending'),
+                ('firms.deposits', Sink('repayment'), lambda s: s.repayment * s.firms.loans, 'repayments'),
+            ],
+        )
         self.households = households
         self.firms = firms
         self.bank = bank
@@ -197,35 +213,37 @@ class CircuitInteraction(Interaction):
         self.credit = credit
         self.repayment = repayment
 
-    def _get_flows(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the transactions of one period between households, firms, and the bank."""
-        households, firms, bank = s.households, s.firms, s.bank
-        consumption = s.alpha_income * s.wage_share * firms.sales + s.alpha_wealth * households.deposits
-        lending = s.credit * firms.sales
-        return [
-            TransferLaw(households.deposits, firms.deposits, consumption, label='consumption'),
-            TransferLaw(firms.deposits, households.deposits, s.wage_share * firms.sales, label='wages'),
-            TransferLaw(firms.deposits, bank.deposits, s.interest * firms.loans, label='interest'),
-            TransferLaw(bank.deposits, households.deposits, s.payout * bank.deposits, label='dividends'),
-            TransferLaw(firms.deposits, households.deposits, s.distribution * firms.deposits, label='profits'),
-            TransferLaw(Source('lending'), firms.deposits, lending, label='lending'),
-            TransferLaw(firms.deposits, Sink('repayment'), s.repayment * firms.loans, label='repayments'),
-            UpdateLaw(firms.loans, firms.loans + lending - s.repayment * firms.loans),
-            UpdateLaw(firms.sales, consumption),
-        ]
+    @staticmethod
+    def _get_consumption(s: SimpleNamespace) -> Expression:
+        """Return the consumption of a period, a share of the wages and a share of the deposits of the households."""
+        return s.alpha_income * s.wage_share * s.firms.sales + s.alpha_wealth * s.households.deposits
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+    @staticmethod
+    def _get_lending(s: SimpleNamespace) -> Expression:
+        """Return the new loans of a period, in proportion to the sales of the firms."""
+        return s.credit * s.firms.sales
+
+    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
+        """Return the households and the firms, the first pair of the circuit, whose other legs name their roles."""
+        return [(namespace.households, namespace.firms)]
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the transfers of one period and the maps of the loans and the sales.
 
         Args:
-            s:
+            namespace:
                 The namespace of the symbols the laws can use.
 
         Returns:
             laws:
                 The laws of the circuit.
         """
-        return self._get_flows(s)
+        firms = namespace.firms
+        return [
+            *super()._get_laws(namespace),
+            UpdateLaw(firms.loans, firms.loans + self._get_lending(namespace) - namespace.repayment * firms.loans),
+            UpdateLaw(firms.sales, self._get_consumption(namespace)),
+        ]
 
 
 @register_model(

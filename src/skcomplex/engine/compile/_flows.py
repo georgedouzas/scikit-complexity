@@ -23,7 +23,8 @@ from ...core.laws import (
     TransferLaw,
     UpdateLaw,
 )
-from ...core.laws.utils import delay_parts
+from ...core.laws.utils import delay_parts, draws_in, shift_member
+from ...core.spaces import DiscreteTime
 from ...errors import ConservationError, LabelError, ValidationError
 from ...specs import EntrySpec
 from ...specs._compiled_flow_spec import _CompiledFlowSpec
@@ -46,8 +47,10 @@ from ..problems._recorded_spec import _RecordedSpec
 from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
+from ._members import MemberLowering
 
 _BOUNDARY_PREFIX = '__boundary'
+_SHIFT = 'shift_member'
 
 
 class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
@@ -56,7 +59,9 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     `prepare(compilation)` reads the quantity of every tagged state, and `run(laws)` takes the laws of every kernel spec
     and sets them in `lowered_` with their flows expanded into laws of other kinds. A later pass finishes the lowering
     on the laws of every spec after their complex states and Markov laws are lowered: it checks the conserved quantities
-    and lowers the flows and the delays into the transfer network of the system.
+    and lowers the flows and the delays into the transfer network of the system. The flows of a system that declares
+    discrete time, or that holds update laws, move their amounts once per step. A flow that draws records its expected
+    amount at the state of every frame.
 
     Attributes:
         quantities_:
@@ -180,13 +185,64 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         name = reference.entry.name if reference is not None else str(target)
         return name, self.quantities_.get(name)
 
+    @staticmethod
+    def _offset_of(holder: object) -> tuple[Expression, int, str, float] | None:
+        """Return the state symbol, the offset, the boundary, and the fill of a holder read at a member offset."""
+        if not isinstance(holder, Expression) or getattr(holder.operator(), 'name', lambda: '')() != _SHIFT:
+            return None
+        return MemberLowering._shift_arguments(holder)
+
+    @staticmethod
+    def _presence(offset: tuple[Expression, int, str, float] | None) -> Expression:
+        """Return 1 where the member at the offset of a holder exists, and 0 past the ends of a fixed boundary."""
+        if offset is None or offset[2] != 'fixed':
+            return SR(1)
+        state, step = offset[0], offset[1]
+        return 1 + shift_member(state, step, boundary='fixed') - shift_member(state, step, boundary='fixed', fill=1.0)
+
+    @staticmethod
+    def _expected(amount: Expression) -> Expression:
+        """Return an amount with every draw replaced by its mean, the amount a flow that draws records.
+
+        Raises:
+            ValidationError:
+                The amount draws from a distribution of `scipy.stats`, whose mean the record does not know.
+        """
+        found = draws_in(amount)
+        while found:
+            draw = next(item for item in found if not draws_in(list(item.arguments)))
+            arguments = list(draw.arguments)
+            if draw.kind == 'draw':
+                error_msg = f'A flow draws {draw.call}, whose mean it cannot record. Draw a uniform or normal value.'
+                raise ValidationError(error_msg)
+            if draw.kind == 'categorical':
+                mean = sum(index * weight for index, weight in enumerate(arguments)) / sum(arguments)
+            else:
+                mean = sum(arguments) / 2 if draw.kind == 'uniform' else arguments[0]
+            amount = SR(amount).subs({draw.call: mean})
+            found = draws_in(amount)
+        return amount
+
+    def _rate_law(self, holder: Expression, change: Expression, presence: Expression) -> RateLaw:
+        """Return the rate law of a holder, which a holder read at an offset takes from the member behind it."""
+        offset = self._offset_of(holder)
+        if offset is None:
+            return RateLaw(holder, change * presence)
+        state, step, boundary, _ = offset
+        return RateLaw(state, shift_member(change, -step, boundary=boundary))
+
     def _expand_flow(
         self,
         spec: KernelSpec,
         flow: TransferLaw,
         label: str,
     ) -> list[BaseLaw]:
-        """Return the rate or jump laws of a flow, after recording it."""
+        """Return the rate or jump laws of a flow, after recording it.
+
+        A flow with a holder read at a member offset moves the amount of every member to the member at the offset, so
+        the holder at the offset takes the amount of the member behind it, and past the ends of a fixed boundary no
+        member moves anything.
+        """
         source, source_label = self._holder(flow.source, spec.references, spec.owner)
         sink, sink_label = self._holder(flow.sink, spec.references, spec.owner)
         tags = {self.quantities_.get(name) for name in (source, sink) if name is not None}
@@ -198,19 +254,21 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             raise ConservationError(error_msg)
         path = f'{self._owner_of(flow, spec)}.{label}'
         compiled = _CompiledFlowSpec(path, source, sink, source_label, sink_label, next(iter(tags)))
-        amount = SR(flow.amount)
         holders = [(item, sign) for item, sign in ((flow.source, -1), (flow.sink, 1)) if isinstance(item, Expression)]
+        presence = self._presence(next(filter(None, map(self._offset_of, (flow.source, flow.sink))), None))
         if flow.rate is not None:
+            amount = SR(flow.amount)
             laws: list[BaseLaw] = [
-                JumpLaw(flow.rate, {item: sign * amount for item, sign in holders}),
+                JumpLaw(SR(flow.rate) * presence, {item: sign * amount for item, sign in holders}),
             ]
         else:
-            laws = [RateLaw(item, sign * amount) for item, sign in holders]
+            laws = [self._rate_law(item, sign * SR(flow.amount), presence) for item, sign in holders]
+            amount = SR(flow.amount) * presence
         sign = 1 if source is None else -1 if sink is None else 0
         born = _BornSpec(spec, compiled, amount, sign)
         self.flows_.append(born)
         self.born_.update({id(law): born for law in laws})
-        self.records_.append(_RecordSpec(path, amount, spec))
+        self.records_.append(_RecordSpec(path, self._expected(amount), spec))
         self.terms_.append(_FlowTermSpec(spec, 'flow', path, amount, source, sink))
         return laws
 
@@ -295,7 +353,7 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
                 host = next(laws for spec, laws in specs if spec is host_spec)
                 value: Expression = target
                 index = len(host)
-                host.append(UpdateLaw(target, target))
+                host.append(UpdateLaw(target, target, increment=True))
                 found: BaseLaw = host[index]
             else:
                 host_spec = next(spec for spec, laws in specs if laws is host)
@@ -433,7 +491,10 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         for spec, laws in specs:
             for law in laws:
                 self._check_conserved(spec, law)
-        discrete = any(isinstance(law, UpdateLaw) and id(law) not in self.born_ for _, laws in specs for law in laws)
+        declared = isinstance(self.compilation_.system.time, DiscreteTime)
+        discrete = declared or any(
+            isinstance(law, UpdateLaw) and id(law) not in self.born_ for _, laws in specs for law in laws
+        )
         if discrete:
             self._to_updates(specs)
         declarations, boundary = self._accumulate(specs, declarations, discrete)
@@ -524,7 +585,8 @@ class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         """Return the state name of a holder, or `None` for the environment, and its name in flow matrices."""
         if isinstance(holder, Source | Sink):
             return None, holder.label
-        reference = references.get(holder)
+        offset = TransferLowering._offset_of(holder)
+        reference = references.get(holder if offset is None else offset[0])
         if reference is None or not reference.is_state:
             error_msg = (
                 f'A flow of {owner} moves a quantity to or from {holder}, which is not a state of its namespace `s`.'

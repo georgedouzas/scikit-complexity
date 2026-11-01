@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import var
 from skcomplex.analysis import LoopAnalysis, SymbolicAnalysis
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import BoundaryLaw, Sink, Source, TransferLaw, UpdateLaw
-from skcomplex.core.laws.utils import where
+from skcomplex.core.laws.utils import shift_member, where
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
@@ -270,6 +270,14 @@ def test_flow_holders_and_labels_are_checked():
     reads = ReadsElement
     with pytest.raises(ValidationError, match='not a state'):
         compile_system(System(elements=[reads('reads')]))
+
+
+def test_flow_takes_one_holder_read_at_a_member_offset():
+    """Test that one holder of a flow may be a state read at a member offset, but not both of them."""
+    x = var('x')
+    assert TransferLaw(x, shift_member(x, 1), 1.0).check().prepare().targets_ == (x, shift_member(x, 1))
+    with pytest.raises(ValidationError, match='Both holders'):
+        TransferLaw(shift_member(x, -1), shift_member(x, 1), 1.0).check()
 
 
 def test_flow_owner_reports_the_flow_under_another_part():

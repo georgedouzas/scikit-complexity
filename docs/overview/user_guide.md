@@ -2362,6 +2362,48 @@ trajectory = Simulation(system).check().prepare().run(until=1.0).trajectory_
 print(round(float(trajectory.values('upper.level')[-1] + trajectory.values('lower.level')[-1]), 6))
 ```
 
+With `offset=k`, a symbolic transfer within one group moves amounts along the edges of the group order, from every
+member to the member `k` places along it, which `namespace.target` reads. The `boundary` is `'periodic'` for a ring or
+`'fixed'` for a line, whose last member moves nothing. With a `rate`, a `reverse_rate` adds jumps that move the
+amounts back. A draw in an amount is one draw per edge, read by both of its ends, so the parallel update of the
+exclusion process keeps one particle per site. A leg end `'<role>.<state>'` names a state of any role, so one
+transfer, such as the circuit of money of a stock-flow consistent economy, moves amounts between several holders, and
+a subclass declares the parameters its amounts read.
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import TransferInteraction
+from skcomplex.core.laws.utils import bernoulli
+from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class SiteElement(Element):
+    def __init__(self, label, *, occupied: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.occupied = occupied
+
+
+hops = TransferInteraction(
+    'hops',
+    source='lane',
+    target='lane',
+    state='occupied',
+    amount=lambda s: s.source.occupied * (1 - s.target.occupied) * bernoulli('hop', 0.5),
+    offset=1,
+)
+lane = GroupElement('lane', element=SiteElement, size=20, values={'occupied': np.tile([1.0, 0.0], 10)})
+system = System(elements=[lane], interactions=[hops], time=DiscreteTime())
+trajectory = Simulation(system, dt=1, random_state=0).check().prepare().run(until=10).trajectory_
+print(set(trajectory.values('lane.occupied').sum(axis=1)))
+```
+
 `LifeCycleInteraction(target, birth, death, rate=None, offspring=1, placement='here', inherit=(), split=(), ...)`
 creates offspring by a condition, a probability, or a rate, with inherited, given, split, and mutated values, and
 removes or renews agents.

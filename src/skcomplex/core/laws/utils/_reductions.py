@@ -20,6 +20,7 @@ from sage.symbolic.function import Function
 
 from ....errors import ValidationError
 from ....specs import LayerSpec, NeighborReductionSpec, ReductionSpec
+from ....specs._draw_spec import draws_in
 from ...spaces import AdjacencyNeighborhood, BaseNeighborhood, LatticeNeighborhood, MemoryNeighborhood
 from ...spaces._lattice import BOUNDARIES
 from ._conditions import both
@@ -75,9 +76,9 @@ def _eval_shift(
     boundary: Expression,
     fill: Expression,
 ) -> Expression | None:
-    """Return the expression itself for an offset of 0 or an expression without symbols, or `None` otherwise."""
+    """Return the expression itself for an offset of 0 or an expression without symbols or draws, or `None`."""
     del self, boundary, fill
-    if _is_placeholder(offset, 0) or not SR(expression).variables():
+    if _is_placeholder(offset, 0) or not (SR(expression).variables() or draws_in(expression)):
         return expression
     return None
 

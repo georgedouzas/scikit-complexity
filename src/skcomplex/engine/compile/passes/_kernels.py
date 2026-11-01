@@ -105,13 +105,14 @@ class KernelsPass(BasePass):
         spec: KernelSpec,
         law: BaseLaw,
         targets: list[ReferenceSpec],
-        assigned: dict[tuple[str, int], list[BaseLaw]],
+        assigned: dict[int, list[BaseLaw]],
         *,
         once: bool,
     ) -> set[int]:
         """Raise an error for an update or boundary law that sums over members or sets a component it cannot share.
 
-        Returns the positions of the targets that an earlier law sets, whose changes this law adds to.
+        Returns the positions of the targets that an earlier law sets, whose changes this law adds to. The laws that
+        set a component are found by its flat index, so a law of one member of a group meets a law of every member.
         """
         kind = type(law).__name__
         combined = set()
@@ -125,7 +126,8 @@ class KernelsPass(BasePass):
             if target.source is ReadKind.SINGLE and spec.rows > 1 and not once:
                 error_msg = f'A {kind} law of {spec.owner} targets a single element from a group, which has no meaning.'
                 raise ValidationError(error_msg)
-            laws = assigned[(target.entry.name, target.column)]
+            indices = target.flat_indices.tolist() if target.source is ReadKind.MEMBER else [target.index]
+            laws = list(dict.fromkeys(earlier for index in indices for earlier in assigned[index]))
             if laws and not KernelsPass._combines([*laws, law]):
                 error_msg = (
                     f'A {kind} law of {spec.owner} sets {target.entry.name} a second time. Each takes one law, unless '
@@ -134,7 +136,8 @@ class KernelsPass(BasePass):
                 raise ValidationError(error_msg)
             if laws:
                 combined.add(position)
-            laws.append(law)
+            for index in indices:
+                assigned[index].append(law)
         return combined
 
     @staticmethod
@@ -201,7 +204,7 @@ class KernelsPass(BasePass):
         kernels: defaultdict[type, list[LawKernel]] = defaultdict(list)
         jump_changes: dict[int, list[tuple[ReferenceSpec, float]]] = {}
         laws_of: dict[int, tuple[KernelSpec, BaseLaw]] = {}
-        assigned: dict[type, defaultdict[tuple[str, int], list[BaseLaw]]] = defaultdict(lambda: defaultdict(list))
+        assigned: dict[type, defaultdict[int, list[BaseLaw]]] = defaultdict(lambda: defaultdict(list))
         for spec, laws in specs:
             outputs: dict[tuple[type, bool], list[OutputSpec]] = defaultdict(list)
             for law in laws:

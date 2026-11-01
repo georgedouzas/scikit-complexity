@@ -8,11 +8,12 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import Expression
 
 from ...errors import SimulationError, ValidationError
 from ...specs import RoleSpec
 from ..laws import BaseLaw, RuleLaw, Sink, Source, TransferLaw
-from ..laws.utils import where
+from ..laws.utils import shift_member, where
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
 
@@ -22,6 +23,7 @@ SCHEDULES = ('random-sequential', 'member')
 ACTORS = ('source', 'target')
 REMOVALS = ('source', 'target')
 LEG_LENGTHS = (3, 4)
+BOUNDARIES = ('periodic', 'fixed')
 
 type Amount = float | Callable[..., object]
 type Leg = tuple[str | Source, str | Sink | None, Amount] | tuple[str | Source, str | Sink | None, Amount, str]
@@ -40,13 +42,23 @@ class TransferInteraction(Interaction):
     The symbolic form reports the amount of every leg as a flow. A leg named by its `flow` is reported under that
     name: under the element or group, as `<path>.<flow>`, when the source and the target are one element or group,
     since the flow then moves a quantity within it like a flow of its own, and under the interaction, as
-    `<label>.<flow>`, otherwise. A leg without a name is reported under the interaction as `<label>.flow_<index>`.
+    `<label>.<flow>`, otherwise, as it is for a subclass that names its roles otherwise. A leg without a name is
+    reported under the interaction as `<label>.flow_<index>`.
 
     The form chooses how the transfer lowers:
 
     - `'symbolic'` lowers to `TransferLaw`s between the source and the target of one element, or member `i` of both
-      groups. The amounts, the guard, and the rate are numbers or functions of the namespace, and the roles are read as
-      `namespace.source` and `namespace.target`. With a `rate`, the amount is the size of a jump at the rate.
+      groups. The amounts, the guard, and the rates are numbers or functions of the namespace, and the roles are read
+      as `namespace.source` and `namespace.target`. With a `rate`, the amount is the size of a jump at the rate, and
+      with a `reverse_rate` jumps also move the amounts back from the target to the source at that rate, so a leg from
+      `Source()` returns its amount to the environment. With an `offset`, the source is a group and every member
+      transfers along an edge of the group order, to the member `offset` places along it, which `namespace.target`
+      reads. Past the ends of a `'fixed'` boundary no member is there, and the edge moves nothing. A draw in an amount
+      is one draw per edge, which both of its ends read, so the amounts of a step move in parallel. A leg end
+      `'<role>.<state>'` names the state of the element or group another role binds, so one transfer moves amounts
+      between several holders, such as the payments of a circuit of sectors, and a subclass that declares parameters
+      reads them in its amounts. A subclass that names its roles otherwise returns the namespaces of the source and
+      the target of every pair from `_get_holders`.
     - `'agent'` lowers to an agent rule, whose amounts and guard are numbers or functions of the source agent, the
       target agent, and the model view. The pairing `'members'` pairs member `i` of both groups, `'random'` pairs every
       source member with a random target member, `'pairs'` draws disjoint random pairs, `'neighbors'` pairs every
@@ -111,6 +123,17 @@ class TransferInteraction(Interaction):
             The rate of jumps of the symbolic form, a number or a function of the namespace, or `None` for a
             continuous flow.
 
+        reverse_rate:
+            The rate of the jumps of the symbolic form that move the amounts back from the target to the source, a
+            number or a function of the namespace, or `None` for no reverse jumps.
+
+        offset:
+            The number of places along the group order from every source member to its target member, or 0 to pair
+            the members of the roles.
+
+        boundary:
+            Past the ends of the group order, `'periodic'` closes a ring and `'fixed'` holds no member.
+
         form:
             The lowering, `'symbolic'` to transfer laws or `'agent'` to an agent rule.
 
@@ -131,9 +154,11 @@ class TransferInteraction(Interaction):
 
     Raises:
         ValidationError:
-            The form, the pairing, the schedule, the actor, or the removal is unknown, a leg is malformed, two legs
-            share a flow name, the symbolic form has an agent pairing or a fallback, the agent form a rate or a flow
-            name, or the schedule `'member'` a pairing it cannot draw, raised by `check`.
+            The form, the pairing, the schedule, the actor, the removal, or the boundary is unknown, a leg is
+            malformed, two legs share a flow name, the symbolic form has an agent pairing or a fallback, the agent
+            form a rate, an offset, or a flow name, a reverse rate has no rate, an offset is not a whole number or
+            pairs two groups, a leg end of the symbolic form names no role, or the schedule `'member'` has a pairing
+            it cannot draw, raised by `check`.
 
     Examples:
         >>> from skcomplex.core.elements import Element
@@ -170,6 +195,9 @@ class TransferInteraction(Interaction):
         fallback: Annotated[str | None, RoleSpec()] = None,
         guard: Callable[..., object] | None = None,
         rate: Amount | None = None,
+        reverse_rate: Amount | None = None,
+        offset: int = 0,
+        boundary: str = 'periodic',
         form: str = 'symbolic',
         schedule: str = 'random-sequential',
         actor: str = 'source',
@@ -189,6 +217,9 @@ class TransferInteraction(Interaction):
         self.fallback = fallback
         self.guard = guard
         self.rate = rate
+        self.reverse_rate = reverse_rate
+        self.offset = offset
+        self.boundary = boundary
         self.form = form
         self.schedule = schedule
         self.actor = actor
@@ -205,7 +236,7 @@ class TransferInteraction(Interaction):
         return legs
 
     def _check_leg(self, state: object, into: object, amount: object, flow: object) -> None:
-        """Raise an error for a leg with unusable ends, amount, or flow name, or a symbolic referenced end."""
+        """Raise an error for a leg with unusable ends, amount, or flow name, or a symbolic end that names no role."""
         if not isinstance(state, str | Source) or not isinstance(into, str | Sink):
             error_msg = (
                 f'A leg of {self.label!r} moves {state!r} into {into!r}. Give a state name or `Source()` it leaves, '
@@ -221,9 +252,14 @@ class TransferInteraction(Interaction):
         if not isinstance(flow, str):
             error_msg = f'A leg of {self.label!r} names its flow {flow!r}. Give a string, or the empty string.'
             raise ValidationError(error_msg)
+        roles = [name for name, spec in self._get_specs().items() if isinstance(spec, RoleSpec)]
         referenced = [end for end in (state, into) if isinstance(end, str) and '.' in end]
-        if referenced and self.form == 'symbolic':
-            error_msg = f'{self.label!r} moves {referenced[0]!r} of a referenced member. Use `form="agent"`.'
+        unknown = [end for end in referenced if end.partition('.')[0] not in roles]
+        if unknown and self.form == 'symbolic':
+            error_msg = (
+                f'{self.label!r} moves {unknown[0]!r}, but its symbolic form names the states of roles, one of '
+                f'{", ".join(roles)}. Name a role, or use `form="agent"` for a referenced member.'
+            )
             raise ValidationError(error_msg)
 
     def _check_flows(self) -> None:
@@ -241,10 +277,11 @@ class TransferInteraction(Interaction):
 
         Raises:
             ValidationError:
-                The form, the pairing, the schedule, the actor, or the removal is unknown, a leg is malformed, two
-                legs share a flow name, the symbolic form has an agent pairing, a fallback, or a leg end of a
-                referenced member, the agent form has a rate or a flow name, or the schedule `'member'` has a pairing
-                it cannot draw.
+                The form, the pairing, the schedule, the actor, the removal, or the boundary is unknown, a leg is
+                malformed, two legs share a flow name, the symbolic form has an agent pairing, a fallback, or a leg end
+                that names no role, the agent form has a rate, an offset, or a flow name, a reverse rate has no rate,
+                an offset is not a whole number or pairs two groups, or the schedule `'member'` has a pairing it
+                cannot draw.
         """
         super()._check()
         if self.form not in FORMS:
@@ -272,7 +309,30 @@ class TransferInteraction(Interaction):
         if self.guard is not None and not callable(self.guard):
             error_msg = f'The guard of {self.label!r} is {self.guard!r}. Give a function, or None.'
             raise ValidationError(error_msg)
+        self._check_edges()
         self._check_schedule()
+
+    def _check_edges(self) -> None:
+        """Raise an error for an unusable reverse rate, offset, or boundary."""
+        if self.reverse_rate is not None and self.rate is None:
+            error_msg = f'{self.label!r} has a reverse rate but no rate. Give the rate of the forward jumps.'
+            raise ValidationError(error_msg)
+        reverse = self.reverse_rate
+        if reverse is not None and not callable(reverse) and not isinstance(reverse, int | float):
+            error_msg = f'The reverse rate {reverse!r} of {self.label!r} is neither a number nor a function.'
+            raise ValidationError(error_msg)
+        if isinstance(self.offset, bool) or not isinstance(self.offset, int):
+            error_msg = f'The offset of {self.label!r} is {self.offset!r}. Give a whole number of members.'
+            raise ValidationError(error_msg)
+        if self.boundary not in BOUNDARIES:
+            error_msg = f'Unknown boundary {self.boundary!r} of {self.label!r}. Use one of {", ".join(BOUNDARIES)}.'
+            raise ValidationError(error_msg)
+        if self.offset and (self.form != 'symbolic' or self.source != self.target):
+            error_msg = (
+                f'{self.label!r} transfers along the order of one group by an offset. Give the group as both source '
+                'and target, and `form="symbolic"`.'
+            )
+            raise ValidationError(error_msg)
 
     def _check_schedule(self) -> None:
         """Raise an error for an unknown schedule, actor, or removal, or partners the schedule cannot draw."""
@@ -301,21 +361,72 @@ class TransferInteraction(Interaction):
             error_msg = f'The partners of {self.label!r} are {self.partners!r}. Give a positive whole number, or None.'
             raise ValidationError(error_msg)
 
-    def _get_law(self, namespace: SimpleNamespace, leg: NamedLeg) -> TransferLaw:
-        """Return the transfer law of one leg between the members of a namespace, reported under its flow name."""
+    def _get_owner(self) -> str:
+        """Return the path of the element or group the source and target roles both bind, or the empty string."""
+        roles = self._get_specs()
+        bound = isinstance(roles.get('source'), RoleSpec) and isinstance(roles.get('target'), RoleSpec)
+        return self.source if bound and self.source == self.target else ''
+
+    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
+        """Return the namespaces of the source and the target of every pair the symbolic form transfers between."""
+        return [(namespace.source, namespace.target)]
+
+    def _shift(self, holder: SimpleNamespace) -> SimpleNamespace:
+        """Return the namespace of a group with every symbol read at the member the offset names."""
+        if not self.offset:
+            return holder
+        return SimpleNamespace(
+            **{
+                name: (
+                    shift_member(value, self.offset, boundary=self.boundary) if isinstance(value, Expression) else value
+                )
+                for name, value in vars(holder).items()
+            },
+        )
+
+    @staticmethod
+    def _get_holder(namespace: SimpleNamespace, end: str, own: SimpleNamespace) -> object:
+        """Return the symbol of a leg end, the state of the role it names or the state of its own side."""
+        role, _, state = end.rpartition('.')
+        return getattr(getattr(namespace, role) if role else own, state)
+
+    def _get_law(
+        self,
+        namespace: SimpleNamespace,
+        leg: NamedLeg,
+        rate: Amount | None,
+        reverse: bool,
+    ) -> TransferLaw:
+        """Return the transfer law of one leg of a pair, forward or back, reported under its flow name."""
         state, into, amount, flow = leg
-        owner = self.source if flow and self.source == self.target else ''
-        held = state if isinstance(state, Source) else getattr(namespace.source, state)
-        sink = into if isinstance(into, Sink) else getattr(namespace.target, str(into))
+        owner = self._get_owner() if flow else ''
+        held = state if isinstance(state, Source) else self._get_holder(namespace, state, namespace.source)
+        sink = into if isinstance(into, Sink) else self._get_holder(namespace, str(into), namespace.target)
         value = amount(namespace) if callable(amount) else amount
-        if self.rate is None:
+        if reverse:
+            held, sink = (
+                Source(sink.label) if isinstance(sink, Sink) else sink,
+                Sink(held.label) if isinstance(held, Source) else held,
+            )
+            flow = f'{flow}_reverse' if flow else ''
+        if rate is None:
             if self.guard is not None:
                 value = where(self.guard(namespace), value, 0)
             return TransferLaw(held, sink, value, label=flow, owner=owner)
-        rate = self.rate(namespace) if callable(self.rate) else self.rate
+        jumps = rate(namespace) if callable(rate) else rate
         if self.guard is not None:
-            rate = where(self.guard(namespace), rate, 0)
-        return TransferLaw(held, sink, value, rate, label=flow, owner=owner)
+            jumps = where(self.guard(namespace), jumps, 0)
+        return TransferLaw(held, sink, value, jumps, label=flow, owner=owner)
+
+    def _get_transfer_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the transfer laws of every leg of every pair, forward and back, of the symbolic form."""
+        laws: list[BaseLaw] = []
+        for source, target in self._get_holders(namespace):
+            paired = SimpleNamespace(**{**vars(namespace), 'source': source, 'target': self._shift(target)})
+            laws += [self._get_law(paired, leg, self.rate, False) for leg in self._get_legs()]
+            if self.reverse_rate is not None:
+                laws += [self._get_law(paired, leg, self.reverse_rate, True) for leg in self._get_legs()]
+        return laws
 
     def _get_pairs(self, model: ModelViewProtocol) -> list[tuple[AgentViewProtocol, AgentViewProtocol]]:
         """Return the pairs of source and target agents of one step in random order."""
@@ -496,7 +607,7 @@ class TransferInteraction(Interaction):
             return [RuleLaw(self._transfer_member, phase=self.phase, members=self.actor)]
         if self.form == 'agent':
             return [RuleLaw(self._transfer_pairs, phase=self.phase)]
-        return [self._get_law(namespace, leg) for leg in self._get_legs()]
+        return self._get_transfer_laws(namespace)
 
     def transfer(self, source: AgentViewProtocol, target: AgentViewProtocol, model: ModelViewProtocol) -> bool:
         """Move the amounts of every leg from one source agent to one target agent, when the guard holds.

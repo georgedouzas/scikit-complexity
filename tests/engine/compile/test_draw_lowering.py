@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import EmissionLaw, RateLaw, TransitionLaw, UpdateLaw
-from skcomplex.core.laws.utils import bernoulli, categorical, normal, total, uniform, where
+from skcomplex.core.laws.utils import bernoulli, categorical, normal, shift_member, total, uniform, where
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
@@ -277,6 +277,34 @@ def test_compile_system_shares_a_draw_within_a_step():
     """Test that two uses of one draw name read the same value at every frame."""
     trajectory = _run(System(elements=[FlipElement('f')]), 200)
     assert np.all((trajectory.values('f.a') + trajectory.values('f.b'))[1:] == 1)
+
+
+def test_compile_system_reads_the_draw_of_the_member_at_an_offset():
+    """Test that a draw read at a member offset is the value the member at that offset draws."""
+
+    class PairedElement(Element):
+        """Paired element."""
+
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            a: Annotated[object, StateSpec()] = 0.0,
+            b: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.a = a
+            self.b = b
+
+        def _get_laws(self, s):
+            """Return the laws of the paired element."""
+            return [UpdateLaw(s.a, uniform('u', 0, 1)), UpdateLaw(s.b, shift_member(uniform('u', 0, 1), -1))]
+
+    trajectory = _run(System(elements=[GroupElement('g', element=PairedElement, size=5)]), 20)
+    a, b = trajectory.values('g.a')[1:], trajectory.values('g.b')[1:]
+    assert np.array_equal(b, np.roll(a, 1, axis=1))
+    assert len(np.unique(a)) == a.size
 
 
 def test_compile_system_rejects_conflicting_draws():
