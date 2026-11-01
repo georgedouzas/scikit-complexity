@@ -51,6 +51,15 @@ counting only the radii of the highest priority that hold a neighbour, then a `C
 norm; `combine(agent, model, reduction, priority)` defaults to `v + reduction`. Winners take all, LEGION, the power
 grid lines, the contour cell, boids, and the Couzin model run on it.
 
+### Core extensions and social rebuilds (2.9)
+
+`ChoiceInteraction(proposal='all')` draws proposals over all options including the current one (`'fermi'` with
+`'all'` is the heat-bath rule); the agent form of `MapInteraction` maps vector states; `PhaseSpec(period, offset)`
+runs a phase every `period` steps; `ModelView.occupancy(name)` counts agents per location. Beliefs, standardization,
+segregation blocks, the sabotage employee, and the trafficking bills run on them, identical or equal over 20 seeds.
+The obesity `EaterElement` waits: its meal needs a partner chosen within reach or else the nearest, and legs that
+credit both ends from one shared draw.
+
 ### Observables and economics transfers (1.6, 2.8)
 
 El Farol, Sugarscape, and the labour market read their catalog observables (`attendance`, `population` and `gini`,
