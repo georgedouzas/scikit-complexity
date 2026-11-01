@@ -115,8 +115,12 @@ class LocalRuleInteraction(Interaction):
             laws:
                 The local rule law.
         """
-        targets = tuple(getattr(namespace.target, name) for name in self._get_names())
-        reads = None if self.reads is None else tuple(getattr(namespace.target, name) for name in self.reads)
+        targets = tuple(getattr(self._get_member(namespace, 'target'), name) for name in self._get_names())
+        reads = (
+            None
+            if self.reads is None
+            else tuple(getattr(self._get_member(namespace, 'target'), name) for name in self.reads)
+        )
         return [
             LocalRuleLaw(
                 targets[0] if isinstance(self.state, str) else targets,

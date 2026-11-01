@@ -114,8 +114,8 @@ class EncounterInteraction(Interaction):
             laws:
                 The law of the encounters.
         """
-        candidate = getattr(namespace.candidate, self.state)
-        field = getattr(namespace.field, self.state)
+        candidate = getattr(self._get_member(namespace, 'candidate'), self.state)
+        field = getattr(self._get_member(namespace, 'field'), self.state)
         rate = self.rate(namespace)
         kernel = None if self.kernel is None else self.kernel(namespace)
         if self.outcome == 'destructive':

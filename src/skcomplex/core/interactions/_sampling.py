@@ -160,7 +160,7 @@ class SamplingInteraction(Interaction):
                 The sample law.
         """
         over = VonNeumannNeighborhood() if self.neighborhood is None else self.neighborhood
-        target = getattr(namespace.target, self.state)
+        target = getattr(self._get_member(namespace, 'target'), self.state)
         energy = EnergySpec(self.energy(namespace), over)
         sampler = SamplerSpec(self.rule, namespace.temperature, self.schedule)
         return [SampleLaw(energy, self._get_move(target), sampler, label=self.label)]

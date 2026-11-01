@@ -116,7 +116,10 @@ class CrossingInteraction(Interaction):
             laws:
                 The crossing law.
         """
-        reset = {getattr(namespace.target, name): SR(f(namespace)) for name, f in (self.reset or {}).items()}
+        reset = {
+            getattr(self._get_member(namespace, 'target'), name): SR(f(namespace))
+            for name, f in (self.reset or {}).items()
+        }
         return [
             CrossingLaw(
                 SR(self.guard(namespace)),

@@ -215,10 +215,10 @@ class ReinforcementInteraction(Interaction):
             return [RuleLaw(self.reinforce, phase=self.phase)]
         laws: list[BasePart] = []
         for index, name in enumerate(self.scores):
-            score = getattr(namespace.target, name)
+            score = getattr(self._get_member(namespace, 'target'), name)
             payoff = self.payoff(namespace, index)
             change = payoff if self.rule == 'cumulative' else namespace.rate * (payoff - score)
             if self.chosen is not None:
-                change = where(getattr(namespace.target, self.chosen) == index, change, 0)
+                change = where(getattr(self._get_member(namespace, 'target'), self.chosen) == index, change, 0)
             laws.append(UpdateLaw(score, score + change))
         return laws

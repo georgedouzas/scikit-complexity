@@ -191,7 +191,7 @@ class SignAdjustmentInteraction(Interaction):
         """
         if self.form == 'agent':
             return [RuleLaw(self.adjust, phase=self.phase)]
-        value = SR(getattr(namespace.target, self.state))
+        value = SR(getattr(self._get_member(namespace, 'target'), self.state))
         direction = sign(self._read(self.signal, namespace))
         stepped = self._get_stepped(value, SR(self._read(self.step, namespace)), direction)
         bounded = clip(stepped, self._read(self.lower, namespace), self._read(self.upper, namespace))

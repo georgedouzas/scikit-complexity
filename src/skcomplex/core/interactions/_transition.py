@@ -301,7 +301,7 @@ class TransitionInteraction(Interaction):
         if self.matrix is not None:
             laws.append(TransitionLaw(value, self.matrix(namespace), label=self.label))
         if self.emission is not None and self.observed is not None:
-            observed = getattr(namespace.target, self.observed)
+            observed = getattr(self._get_member(namespace, 'target'), self.observed)
             laws.append(EmissionLaw(observed, value, self.emission(namespace), label=self.label))
         return laws
 
@@ -411,7 +411,7 @@ class TransitionInteraction(Interaction):
             return [RuleLaw(self._move_member, phase=self.phase, members=self._get_role('target'))]
         if self.form == 'agent':
             return [RuleLaw(self.move, phase=self.phase)]
-        value = getattr(namespace.target, self.state)
+        value = getattr(self._get_member(namespace, 'target'), self.state)
         if self.matrix is not None:
             return self._get_chain(namespace, value)
         if self.rate is not None:

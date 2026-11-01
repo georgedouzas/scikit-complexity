@@ -114,7 +114,7 @@ class AdvectionInteraction(ConservationInteraction):
             flux:
                 The flux, one expression or one per dimension.
         """
-        state = getattr(namespace.target, self.state)
+        state = getattr(self._get_member(namespace, 'target'), self.state)
         drift = self.drift(namespace) if callable(self.drift) else None
         if isinstance(drift, FreeModuleElement | list | tuple):
             return [SR(component) * state for component in drift]

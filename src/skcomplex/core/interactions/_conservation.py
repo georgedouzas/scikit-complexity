@@ -135,7 +135,7 @@ class ConservationInteraction(Interaction):
         flux = self._get_flux(namespace)
         if flux is None:
             return []
-        state = getattr(namespace.target, self.state)
+        state = getattr(self._get_member(namespace, 'target'), self.state)
         if self.riemann is None:
             components = list(flux) if isinstance(flux, FreeModuleElement | list | tuple) else [flux]
             return [RateLaw(state, -divergence(components))]
@@ -154,5 +154,5 @@ class ConservationInteraction(Interaction):
         """
         laws = self._get_transport_laws(namespace)
         if self.source is not None:
-            laws.append(RateLaw(getattr(namespace.target, self.state), self.source(namespace)))
+            laws.append(RateLaw(getattr(self._get_member(namespace, 'target'), self.state), self.source(namespace)))
         return laws

@@ -98,6 +98,6 @@ class RelaxationInteraction(RateInteraction):
             rate:
                 The rate of the state.
         """
-        state = getattr(namespace.target, self.state)
+        state = getattr(self._get_member(namespace, 'target'), self.state)
         goal = self._broadcast(self._get_goal(namespace), state)
         return (goal - state) / self._get_time(namespace)

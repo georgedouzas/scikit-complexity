@@ -95,5 +95,5 @@ class DiffusionInteraction(ConservationInteraction):
                 The rate law of the state.
         """
         coefficient = self.coefficient(namespace) if callable(self.coefficient) else self.coefficient
-        state = getattr(namespace.target, self.state)
+        state = getattr(self._get_member(namespace, 'target'), self.state)
         return [RateLaw(state, coefficient * laplacian(state))]

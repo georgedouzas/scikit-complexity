@@ -124,7 +124,9 @@ class ImpulseInteraction(Interaction):
             laws:
                 One crossing law per given time and one for the periodic impulses.
         """
-        reset = {getattr(namespace.target, name): SR(f(namespace)) for name, f in self.reset.items()}
+        reset = {
+            getattr(self._get_member(namespace, 'target'), name): SR(f(namespace)) for name, f in self.reset.items()
+        }
         laws: list[BaseLaw] = [CrossingLaw(namespace.t - time, reset, 1, label=self.label) for time in self.times]
         if self.period is not None:
             laws.append(CrossingLaw(self._get_periodic_guard(namespace.t, self.period), reset, 0, label=self.label))

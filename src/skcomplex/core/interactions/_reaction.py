@@ -245,7 +245,10 @@ class ReactionInteraction(JumpInteraction):
             sources = {pair: bound[pair[0]] for pair in pairs}
         return [
             (
-                getattr(namespace.target if isinstance(entry, str) else sources[entry], self._get_state(entry)),
+                getattr(
+                    self._get_member(namespace, 'target') if isinstance(entry, str) else sources[entry],
+                    self._get_state(entry),
+                ),
                 SR(coefficient(namespace)) if callable(coefficient) else coefficient,
             )
             for entry, coefficient in entries.items()

@@ -400,8 +400,16 @@ class TransferInteraction(Interaction):
         """Return the transfer law of one leg of a pair, forward or back, reported under its flow name."""
         state, into, amount, flow = leg
         owner = self._get_owner() if flow else ''
-        held = state if isinstance(state, Source) else self._get_holder(namespace, state, namespace.source)
-        sink = into if isinstance(into, Sink) else self._get_holder(namespace, str(into), namespace.target)
+        held = (
+            state
+            if isinstance(state, Source)
+            else self._get_holder(namespace, state, self._get_member(namespace, 'source'))
+        )
+        sink = (
+            into
+            if isinstance(into, Sink)
+            else self._get_holder(namespace, str(into), self._get_member(namespace, 'target'))
+        )
         value = amount(namespace) if callable(amount) else amount
         if reverse:
             held, sink = (
@@ -422,7 +430,9 @@ class TransferInteraction(Interaction):
         """Return the transfer laws of every leg of every pair, forward and back, of the symbolic form."""
         laws: list[BaseLaw] = []
         for source, target in self._get_holders(namespace):
-            paired = SimpleNamespace(**{**vars(namespace), 'source': source, 'target': self._shift(target)})
+            paired = SimpleNamespace(
+                **{**vars(namespace), self._get_role('source'): source, self._get_role('target'): self._shift(target)},
+            )
             laws += [self._get_law(paired, leg, self.rate, False) for leg in self._get_legs()]
             if self.reverse_rate is not None:
                 laws += [self._get_law(paired, leg, self.reverse_rate, True) for leg in self._get_legs()]

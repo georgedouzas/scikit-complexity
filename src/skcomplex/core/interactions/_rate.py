@@ -194,7 +194,11 @@ class RateInteraction(Interaction):
         """Return a value divided by the divisor of the target, or the value without a divisor."""
         if self.divisor is None:
             return value
-        divisor = self.divisor(namespace.target) if callable(self.divisor) else getattr(namespace.target, self.divisor)
+        divisor = (
+            self.divisor(self._get_member(namespace, 'target'))
+            if callable(self.divisor)
+            else getattr(self._get_member(namespace, 'target'), self.divisor)
+        )
         return operator.truediv(value, divisor)
 
     def _get_rate(self, namespace: SimpleNamespace) -> object:
@@ -212,7 +216,7 @@ class RateInteraction(Interaction):
             return FractionalNoiseLaw(state, amplitude, hurst=hurst, convention=self.convention)
         process = None
         if self.process is not None:
-            handle = namespace.process.dW
+            handle = self._get_member(namespace, 'process').dW
             process = handle if self.index is None else handle[self.index]
         return NoiseLaw(state, amplitude, convention=self.convention, process=process, conserved=self.conserved)
 
@@ -227,7 +231,7 @@ class RateInteraction(Interaction):
             laws:
                 The rate law, and the noise law when the interaction has noise.
         """
-        state = getattr(namespace.target, self.state)
+        state = getattr(self._get_member(namespace, 'target'), self.state)
         rate = self._divide(self._broadcast(self._get_rate(namespace), state), namespace)
         laws: list[BasePart] = [RateLaw(state, rate)]
         noise = self._get_noise(namespace)

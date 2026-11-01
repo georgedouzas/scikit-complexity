@@ -127,7 +127,7 @@ class SpreadingInteraction(TransitionInteraction):
             laws:
                 The jumps of the state.
         """
-        member = namespace.target
+        member = self._get_member(namespace, 'target')
         value = getattr(member, self.state)
         over = None if self.layer is None else AdjacencyNeighborhood(layer=self.layer)
         reduce = 'mean' if self.form == 'fraction' else 'sum'

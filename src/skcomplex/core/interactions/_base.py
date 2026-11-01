@@ -21,7 +21,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
     `namespace.<parameter>` is a symbol. Interactions hold no state: state on couplings lives in groups on the edges or
     hyperedges of a network space. A general interaction reads the members of its roles, such as `'source'` or
     `'target'`, by the name `_get_role` returns for them, the role itself by default, so a subclass that names its
-    roles otherwise returns its own names.
+    roles otherwise returns its own names, in the agent forms and, through `_get_member`, in the symbolic forms.
 
     Args:
         label:
@@ -72,6 +72,23 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
                 The name of the role of the subclass, the role itself by default.
         """
         return role
+
+    def _get_member(self, namespace: SimpleNamespace, role: str) -> SimpleNamespace:
+        """Return the namespace of the element bound to a role of the general interaction, under its subclass name.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+            role:
+                The name of the role in the general interaction, such as `'source'` or `'target'`.
+
+        Returns:
+            member:
+                The namespace bound to the name `_get_role` returns for the role.
+        """
+        member: SimpleNamespace = getattr(namespace, self._get_role(role))
+        return member
 
     def _check_states(self) -> None:
         """Raise an error for a type that declares states or adaptive parameters without a shape."""

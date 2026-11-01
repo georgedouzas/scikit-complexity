@@ -132,7 +132,10 @@ class JumpInteraction(Interaction):
 
     def _get_changes(self, namespace: SimpleNamespace) -> dict[Expression, float]:
         """Return the amount the event adds to every state it changes."""
-        return {getattr(namespace.target, name): amount for name, amount in (self.changes or {}).items()}
+        return {
+            getattr(self._get_member(namespace, 'target'), name): amount
+            for name, amount in (self.changes or {}).items()
+        }
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
         """Return the propensity of the event."""
@@ -175,7 +178,7 @@ class JumpInteraction(Interaction):
         """Return the renewal of the event, which adds the changes and sets the reset states after every wait."""
         reset: dict[Expression, object] = {state: state + amount for state, amount in changes.items()}
         for name, function in (self.reset or {}).items():
-            reset.update(self._get_reset(getattr(namespace.target, name), function(namespace)))
+            reset.update(self._get_reset(getattr(self._get_member(namespace, 'target'), name), function(namespace)))
         waiting = SR(self.waiting(namespace)) if self.waiting is not None else SR(0)
         return JumpLaw(waiting=waiting, reset=reset, label=self.label)
 

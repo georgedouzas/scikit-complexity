@@ -213,7 +213,7 @@ class ChoiceInteraction(Interaction):
 
     def _draw_symbolic(self, namespace: SimpleNamespace) -> Expression:
         """Return the option a member draws, as a symbolic expression of the namespace."""
-        state = getattr(namespace.target, self.state)
+        state = getattr(self._get_member(namespace, 'target'), self.state)
         utilities = [SR(self.utility(namespace, option)) for option in self.options]
         if self.rule == 'logit':
             return self._draw_softmax(state, utilities, namespace.intensity)
@@ -295,6 +295,6 @@ class ChoiceInteraction(Interaction):
             return [RuleLaw(self._choose_member, phase=self.phase, members=self._get_role('target'))]
         if self.form == 'agent':
             return [RuleLaw(self.choose, phase=self.phase)]
-        state = getattr(namespace.target, self.state)
+        state = getattr(self._get_member(namespace, 'target'), self.state)
         revised = where(uniform(f'{state}_activity') < namespace.activity, self._draw_symbolic(namespace), state)
         return [UpdateLaw(state, revised)]

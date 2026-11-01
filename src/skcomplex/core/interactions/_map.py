@@ -227,7 +227,7 @@ class MapInteraction(Interaction):
             return [RuleLaw(self._update_member, phase=self.phase, members=self._get_role('target'))]
         if self.form == 'agent':
             return [RuleLaw(self.update, phase=self.phase)]
-        value = getattr(namespace.target, self.state)
+        value = getattr(self._get_member(namespace, 'target'), self.state)
         mapped = self.function(namespace)
         increment = self.mode == 'increment'
         return [UpdateLaw(value, value + mapped if increment else mapped, increment=increment, order=self._get_order())]

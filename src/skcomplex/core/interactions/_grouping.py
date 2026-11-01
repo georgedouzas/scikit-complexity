@@ -315,8 +315,8 @@ class GroupingInteraction(Interaction):
 
     def _get_keyed_group(self, namespace: SimpleNamespace) -> tuple[SimpleNamespace, Expression]:
         """Return the namespace of the group by state of a member and the value of the group, its reductions keyed."""
-        target = namespace.target
-        names = {name: value for name, value in vars(namespace).items() if name != 'target'}
+        target = self._get_member(namespace, 'target')
+        names = {name: value for name, value in vars(namespace).items() if name != self._get_role('target')}
         group = SimpleNamespace(**names, member=target, members=target.other, others=())
         value = SR(self.function(group)) if self.function is not None else SR(0)
         keyed = {
