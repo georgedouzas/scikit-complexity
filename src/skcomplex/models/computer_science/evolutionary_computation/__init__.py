@@ -1,7 +1,11 @@
 """Evolutionary computation: genetic algorithms and bit strings on fitness landscapes."""
 
-from ._genetic_algorithms import RoomCleaningInteraction, StrategyElement, robby_ga
-from ._landscapes import BitStringElement, ReproductionInteraction, bit_string_evolution
+from ._bit_string import BitStringElement
+from ._genetic_algorithms import robby_ga
+from ._landscapes import bit_string_evolution
+from ._reproduction import ReproductionInteraction
+from ._room_cleaning import RoomCleaningInteraction
+from ._strategy import StrategyElement
 
 __all__: list[str] = [
     'BitStringElement',

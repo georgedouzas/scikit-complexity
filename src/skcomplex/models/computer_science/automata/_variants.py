@@ -6,14 +6,11 @@
 import itertools
 import re
 from collections.abc import Callable, Sequence
-from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, LatticeElement
+from ....core.elements import LatticeElement
 from ....core.interactions import LocalRuleInteraction
 from ....core.spaces import (
     BoxNeighborhood,
@@ -24,13 +21,17 @@ from ....core.spaces import (
 )
 from ....core.system import System
 from ....errors import ParameterError
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
 from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram, life
+from ._diffusion_cell import DiffusionCellElement
+from ._noisy_elementary_cell import NoisyElementaryCellElement
+from ._pascal_cell import PascalCellElement
 
 LIFE_RULE = re.compile(r'^B(?P<born>[0-8]*)/S(?P<survive>[0-8]*)$')
+
+
 PREDECESSORS = LatticeNeighborhood(((-1,), (0,)))
 
 
@@ -63,105 +64,6 @@ def _diffuse(level: Array, *around: Array, r: Array | float) -> Array:
 def _add(left: Array, center: Array) -> Array:
     """Return the sum of a cell and its left neighbour."""
     return left + center
-
-
-class NoisyElementaryCellElement(BinaryCellElement):
-    """Binary cell that holds the probability that the output of its local rule is flipped.
-
-    Args:
-        label:
-            The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        alive:
-            The initial value, 0 or 1.
-
-        noise:
-            The probability that the output of the rule is flipped.
-
-    Examples:
-        >>> from skcomplex.models.computer_science.automata import NoisyElementaryCellElement
-        >>> NoisyElementaryCellElement('cell', noise=0.1).noise
-        0.1
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        alive: float = 0,
-        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-    ) -> None:
-        super().__init__(label, visual=visual, alive=alive)
-        self.noise = noise
-
-
-class DiffusionCellElement(Element):
-    """Cell of a lattice with a content and the share of the difference it exchanges with each neighbour in a step.
-
-    Args:
-        label:
-            The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        level:
-            The initial content.
-
-        r:
-            The share of the difference with a neighbour exchanged in a step, below `1 / (2 d)` in `d` dimensions.
-
-    Examples:
-        >>> from skcomplex.models.computer_science.automata import DiffusionCellElement
-        >>> DiffusionCellElement('cell', r=0.2).r
-        0.2
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        level: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.level = level
-        self.r = r
-
-
-class PascalCellElement(Element):
-    """Cell of an automaton over the nonnegative integers.
-
-    Args:
-        label:
-            The label of the cell or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        value:
-            The initial value, a nonnegative integer.
-
-    Examples:
-        >>> from skcomplex.models.computer_science.automata import PascalCellElement
-        >>> PascalCellElement('cell', value=3).value
-        3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        value: Annotated[float, StateSpec(domain=NN)] = 0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.value = value
 
 
 def _random_cells(shape: Sequence[int], density: float, random_state: int | np.random.Generator | None) -> Array:
