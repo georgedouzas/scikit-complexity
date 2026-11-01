@@ -4,26 +4,17 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.elements import GroupElement
 from ....core.system import System
-from ....engine.solvers import ModelView
-from ....specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._debt_rank_cascade import DISTRESSED, DebtRankCascadeInteraction
+from ._interbank import UNDISTRESSED, InterbankElement
 from ._interbank_view import InterbankView
-
-UNDISTRESSED = 0
-DISTRESSED = 1
-INACTIVE = 2
 
 
 def _random_exposures(n_banks: int, density: float, rng: np.random.Generator) -> tuple[Array, Array]:
@@ -49,128 +40,6 @@ def _economic_values(liabilities: Array) -> Array:
 def _value_at_risk(agent: InterbankView) -> float:
     """Return the distress of a bank weighted by its economic value."""
     return float(agent.h * agent.value)
-
-
-class InterbankElement(Element):
-    """Bank of the DebtRank cascade, with its level of distress, its state, and its economic value.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        h:
-            The level of distress, between 0 and 1, where 1 is default.
-
-        status:
-            0 for undistressed, 1 for distressed, and 2 for inactive.
-
-        value:
-            The economic value, the bank's share of all interbank lending.
-
-    Examples:
-        >>> from skcomplex.models.economics.finance import InterbankElement
-        >>> GroupElement('banks', element=InterbankElement, size=3, values={'h': [1.0, 0.0, 0.0]}).size
-        3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        h: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        status: Annotated[float, StateSpec(domain=NN)] = UNDISTRESSED,
-        value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.h = h
-        self.status = status
-        self.value = value
-
-    @classmethod
-    def _get_view(cls) -> type[InterbankView]:
-        """Return the view of the agents of the element."""
-        return InterbankView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the cascade updates every bank at once.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
-
-
-class DebtRankCascadeInteraction(Interaction):
-    """Synchronous spread of distress, `h_i = min(1, h_i + sum_j W_ji h_j)` over the distressed banks `j`.
-
-    A bank whose distress becomes positive turns distressed, and a distressed bank turns inactive after one step, so
-    every bank passes its distress on once.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        banks:
-            The path of the group of banks.
-
-        impact:
-            The impact matrix, `impact[i][j]` the relative loss of `j` when `i` defaults.
-
-    Examples:
-        >>> from skcomplex.models.economics.finance import DebtRankCascadeInteraction
-        >>> DebtRankCascadeInteraction('cascade', banks='banks', impact=[[0.0, 0.5], [0.0, 0.0]]).impact
-        [[0.0, 0.5], [0.0, 0.0]]
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        banks: Annotated[str, RoleSpec()],
-        impact: Sequence[Sequence[float]] = (),
-    ) -> None:
-        super().__init__(label)
-        self.banks = banks
-        self.impact = impact
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the cascade rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.spread)]
-
-    def spread(self, model: ModelView) -> None:
-        """Advance the distress and the states of every bank by one step.
-
-        Args:
-            model:
-                The model.
-        """
-        banks = sorted(model.agents('banks', InterbankView), key=lambda bank: bank.id)
-        h = np.array([bank.h for bank in banks])
-        status = np.array([bank.status for bank in banks])
-        distressed = status == DISTRESSED
-        new_h = np.minimum(1.0, h + np.asarray(self.impact, dtype=float).T @ (h * distressed))
-        hit = (status == UNDISTRESSED) & (new_h > 0)
-        new_status = np.where(distressed, INACTIVE, np.where(hit, DISTRESSED, status))
-        for bank, level, code in zip(banks, new_h, new_status, strict=True):
-            bank.h, bank.status = float(level), float(code)
 
 
 @register_model(

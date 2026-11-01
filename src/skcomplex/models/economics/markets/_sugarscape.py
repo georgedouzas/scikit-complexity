@@ -4,29 +4,32 @@
 # License: MIT
 
 from collections.abc import Mapping
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.real_set import RealSet
 
 from ....analysis import DistributionAnalysis
-from ....core.elements import Element, GroupElement
+from ....core.elements import GroupElement
 from ....core.interactions import LifeCycleInteraction, MovementInteraction, TransferInteraction
 from ....core.laws import Sink
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....core.types import AgentViewProtocol, ModelViewProtocol
-from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
 from ....types import Array
 from ..._catalog import register_model
 from ..common.resources import RegrowthInteraction
+from ._forager import ForagerElement
 from ._forager_view import ForagerView
 from ._patch_map_spec import _PatchMapSpec
+from ._sugar_patch import SugarPatchElement
 from ._sugar_patch_view import SugarPatchView
 
 PEAKS = ((0.3, 0.3), (0.7, 0.7))
+
+
 BOUNDS = (21, 16, 11, 6)
+
+
 DIRECTIONS = ((1, 0), (-1, 0), (0, 1), (0, -1))
 
 
@@ -139,103 +142,6 @@ def _get_foraging() -> list[MovementInteraction | TransferInteraction | LifeCycl
         ),
         LifeCycleInteraction('starvation', target='foragers', death=_is_starved, schedule='member', phase='foraging'),
     ]
-
-
-class SugarPatchElement(Element):
-    """Cell of the landscape whose sugar grows back by a fixed amount a step up to its capacity.
-
-    The growback is a `RegrowthInteraction` of the group of patches.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        sugar:
-            The sugar on the patch.
-
-        capacity:
-            The most sugar the patch holds.
-
-        growback:
-            The sugar that grows back in a step.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets import SugarPatchElement
-        >>> GroupElement('patches', element=SugarPatchElement, size=4, values={'capacity': 2.0}).size
-        4
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'sugar', 'color_range': (0.0, 4.0)}),
-        *,
-        sugar: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        capacity: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        growback: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.sugar = sugar
-        self.capacity = capacity
-        self.growback = growback
-
-    @classmethod
-    def _get_view(cls) -> type[SugarPatchView]:
-        """Return the view of a patch, with its sugar, capacity, and growback."""
-        return SugarPatchView
-
-
-class ForagerElement(Element):
-    """Agent that moves to the richest free cell in sight, harvests its sugar, burns its metabolism, and may starve.
-
-    In its own activation, a forager sees `vision` cells along each of the four lattice directions and moves to the
-    free cell with the most sugar, the nearest among equals, or stays when no cell in sight beats its own, by a
-    `MovementInteraction` of the best step with a vision. Transfers then harvest the sugar of its cell and burn its
-    metabolism, and a `LifeCycleInteraction` removes it when its wealth falls below zero.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        sugar:
-            The wealth of the forager.
-
-        vision:
-            The number of cells the forager sees in every direction.
-
-        metabolism:
-            The sugar the forager burns in a step.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets import ForagerElement
-        >>> GroupElement('foragers', element=ForagerElement, size=3, values={'vision': 2.0}).size
-        3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'sugar'}),
-        *,
-        sugar: Annotated[float, StateSpec()] = 10.0,
-        vision: Annotated[float, StateSpec(domain=NN)] = 1.0,
-        metabolism: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.sugar = sugar
-        self.vision = vision
-        self.metabolism = metabolism
-
-    @classmethod
-    def _get_view(cls) -> type[ForagerView]:
-        """Return the view of a forager, with its sugar, vision, and metabolism."""
-        return ForagerView
 
 
 def _gini(wealth: object) -> float:

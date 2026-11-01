@@ -5,20 +5,20 @@
 
 from functools import partial
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import Expression, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
 from ....core.elements import DensityElement, GroupElement
-from ....core.interactions import BaseInteraction, EncounterInteraction
+from ....core.interactions import BaseInteraction
 from ....core.laws.utils import moment, total
 from ....core.spaces import ContinuousTime, LatticeSpace
 from ....core.system import System
-from ....specs import ObservableSpec, ParameterSpec
+from ....specs import ObservableSpec
 from ..._catalog import register_model
+from ._wealth_exchange import WealthExchangeInteraction
+from ._welfare_policy import WelfarePolicyInteraction
 
 WELFARE_REFERENCES = ('Bellomo et al. 2017', 'Dolfin and Lachowicz 2014', 'Bertotti and Delitala 2008')
 
@@ -40,77 +40,6 @@ def wealth_classes(classes: int) -> npt.NDArray[np.float64]:
         [0.0, 0.5, 1.0]
     """
     return np.linspace(0.0, 1.0, classes)
-
-
-def exchange_table(classes: int, cooperation: object, competition: object) -> npt.NDArray[np.object_]:
-    """Return the transition table of encounters between wealth classes, `A[h, k, i]`.
-
-    A candidate of class `h` that meets a richer field particle moves one class up with probability `cooperation`
-    and one class down with probability `competition`. One that meets a poorer field particle moves one class up with
-    probability `competition` and one class down with probability `cooperation`. So competition makes the rich richer
-    and the poor poorer, and cooperation does the opposite. A move past the poorest or the richest class is not made.
-
-    Args:
-        classes:
-            The number of wealth classes.
-
-        cooperation:
-            The probability of the move that narrows the gap between the two classes, a number or a parameter.
-
-        competition:
-            The probability of the move that widens it, a number or a parameter.
-
-    Returns:
-        table:
-            The transition probabilities, which sum to one over the outcomes.
-
-    Examples:
-        >>> from skcomplex.models.economics.econophysics import exchange_table
-        >>> exchange_table(3, 0.2, 0.3)[0, 2].astype(float).tolist()
-        [0.8, 0.2, 0.0]
-    """
-    table = np.zeros((classes, classes, classes), dtype=object)
-    for candidate in range(classes):
-        for field in range(classes):
-            gap = int(np.sign(field - candidate))
-            moves = {candidate + gap: cooperation, candidate - gap: competition} if gap else {}
-            for outcome, probability in moves.items():
-                if 0 <= outcome < classes:
-                    table[candidate, field, outcome] += probability
-            table[candidate, field, candidate] += 1.0 - table[candidate, field].sum()
-    return table
-
-
-def policy_table(classes: int) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-    """Return the rate pattern and the transition table of a welfare policy that taxes the rich and helps the poor.
-
-    The policy moves a candidate of the richest third of the classes one class down, and a candidate of the poorest
-    third one class up, and leaves the middle classes alone.
-
-    Args:
-        classes:
-            The number of wealth classes.
-
-    Returns:
-        pattern:
-            The rate pattern `eta[h, 0]`, 1 for the classes the policy acts on and 0 for the others.
-
-        table:
-            The transition table `A[h, 0, i]` of the policy.
-
-    Examples:
-        >>> from skcomplex.models.economics.econophysics import policy_table
-        >>> policy_table(3)[0].ravel().tolist()
-        [1.0, 0.0, 1.0]
-    """
-    pattern = np.zeros((classes, 1))
-    table = np.zeros((classes, 1, classes))
-    third = max(1, classes // 3)
-    for candidate in range(classes):
-        outcome = candidate + 1 if candidate < third else candidate - 1 if candidate >= classes - third else candidate
-        pattern[candidate, 0] = float(outcome != candidate)
-        table[candidate, 0, outcome] = 1.0
-    return pattern, table
 
 
 def gini_coefficient(s: SimpleNamespace, wealth: npt.NDArray[np.float64]) -> Expression:
@@ -194,118 +123,6 @@ def wealth_observables(classes: int) -> list[ObservableSpec]:
         ObservableSpec('mean_wealth', partial(mean_wealth, wealth=wealth), group='wealth'),
         ObservableSpec('gini', partial(gini_coefficient, wealth=wealth), group='wealth'),
     ]
-
-
-class WealthExchangeInteraction(EncounterInteraction):
-    """Conservative encounters between wealth classes, with cooperation and competition.
-
-    A candidate of class `h` meets a field particle of class `k` at the rate `eta` and moves by the transition table
-    of `exchange_table`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        candidate:
-            The path of the distribution over wealth classes whose particles move.
-
-        field:
-            The path of the distribution over wealth classes they meet, the candidate again.
-
-        classes:
-            The number of wealth classes.
-
-        eta:
-            The encounter rate.
-
-        cooperation:
-            The probability of the move that narrows the gap between the classes of an encounter.
-
-        competition:
-            The probability of the move that widens it.
-
-    Examples:
-        >>> from skcomplex.models.economics.econophysics import WealthExchangeInteraction
-        >>> WealthExchangeInteraction('exchange', candidate='wealth', field='wealth').check().competition
-        0.3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        candidate: str,
-        field: str,
-        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 9,
-        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        cooperation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        competition: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-    ) -> None:
-        super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
-        self.classes = classes
-        self.eta = eta
-        self.cooperation = cooperation
-        self.competition = competition
-
-    def _get_rate(self, s: SimpleNamespace) -> Expression:
-        """Return the encounter rate `eta`."""
-        return s.eta
-
-    def _get_kernel(self, s: SimpleNamespace) -> npt.NDArray[np.object_]:
-        """Return the transition table of the encounters, with the cooperation and competition parameters."""
-        return exchange_table(int(self.classes), s.cooperation, s.competition)
-
-
-class WelfarePolicyInteraction(EncounterInteraction):
-    """Welfare policy that taxes the richest classes and helps the poorest, a micro-scale external action.
-
-    The policy is an encounter whose field role binds a group with a fixed density, so it acts on the transitions of
-    the population at the rate `tax` times that density, by the pattern and the table of `policy_table`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        candidate:
-            The path of the distribution over wealth classes.
-
-        field:
-            The path of the group of one member whose fixed density is the strength of the policy.
-
-        classes:
-            The number of wealth classes.
-
-        tax:
-            The rate at which the policy moves the richest classes down and the poorest up.
-
-    Examples:
-        >>> from skcomplex.models.economics.econophysics import WelfarePolicyInteraction
-        >>> WelfarePolicyInteraction('welfare', candidate='wealth', field='state').check().tax
-        0.1
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        candidate: str,
-        field: str,
-        classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 9,
-        tax: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-    ) -> None:
-        super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
-        self.classes = classes
-        self.tax = tax
-
-    def _get_rate(self, s: SimpleNamespace) -> npt.NDArray[np.object_]:
-        """Return the rate pattern of the policy times the tax."""
-        pattern, _ = policy_table(int(self.classes))
-        return pattern * s.tax
-
-    def _get_kernel(self, s: SimpleNamespace) -> npt.NDArray[np.float64]:
-        """Return the transition table of the policy."""
-        _, table = policy_table(int(self.classes))
-        return table
 
 
 @register_model(

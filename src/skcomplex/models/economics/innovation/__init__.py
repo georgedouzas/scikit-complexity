@@ -3,14 +3,10 @@
 from ._adoption import HouseholdElement, phone_adoption
 from ._bass import bass_diffusion
 from ._diversity import AdjacentPossibleElement, creative_phase_transition
-from ._technology import (
-    InventionInteraction,
-    PartElement,
-    RedesignInteraction,
-    TechnologyElement,
-    arthur_polak,
-    nk_technology,
-)
+from ._invention import InventionInteraction
+from ._part import PartElement
+from ._redesign import RedesignInteraction
+from ._technology import TechnologyElement, arthur_polak, nk_technology
 
 __all__: list[str] = [
     'AdjacentPossibleElement',

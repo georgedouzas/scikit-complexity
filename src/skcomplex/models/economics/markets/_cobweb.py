@@ -9,11 +9,11 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element
 from ....core.interactions import MapInteraction
 from ....core.system import System
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, RoleSpec
 from ..._catalog import register_model
+from ._market import MarketElement
 
 
 @register_model(
@@ -54,36 +54,6 @@ def cobweb(price: float = 1.0, *, a: float = 10.0, b: float = 2.0, c: float = 1.
         elements=[MarketElement('market', price=price)],
         interactions=[CobwebInteraction('cobweb', target='market', a=a, b=b, c=c, d=d)],
     )
-
-
-class MarketElement(Element):
-    """Market of one good described by its price.
-
-    Args:
-        label:
-            The label of the market.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        price:
-            The initial price.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets import MarketElement
-        >>> MarketElement('wheat', price=2.0).price
-        2.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        price: Annotated[float, StateSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.price = price
 
 
 class CobwebInteraction(MapInteraction):

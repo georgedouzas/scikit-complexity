@@ -5,47 +5,27 @@
 
 from itertools import pairwise
 from types import SimpleNamespace
-from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
-from ....core.elements import Element
-from ....core.interactions import RateInteraction, TransferInteraction
-from ....core.laws import BaseLaw, RateLaw, Sink, Source
-from ....core.laws.utils import distributed_delay, maximum, minimum, step
+from ....core.interactions import RateInteraction
+from ....core.laws.utils import distributed_delay, step
 from ....core.system import System
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec
 from ..._catalog import register_model
+from ._brewery import BreweryInteraction
+from ._echelon import EchelonElement
+from ._factory import FactoryElement
+from ._retail_demand import RetailDemandInteraction
+from ._retailer import RetailerElement
+from ._supply_link import SupplyLinkInteraction
 
 ECHELONS = ('retailer', 'wholesaler', 'distributor', 'factory')
 
 
-def _shipments(echelon: SimpleNamespace) -> Expression:
-    """Return the shipments of an echelon, its backlog limited by its inventory over the dispatch time."""
-    return minimum(echelon.backlog, echelon.inventory) / echelon.dispatch_time
-
-
-def _orders(echelon: SimpleNamespace) -> Expression:
-    """Return the orders of an echelon by Sterman's anchoring and adjustment rule, never negative."""
-    effective = echelon.inventory - echelon.backlog
-    orders = echelon.expected + echelon.alpha * (echelon.desired - effective - echelon.beta * echelon.supply_line)
-    return maximum(orders, 0)
-
-
-def _arrivals(upstream: SimpleNamespace, downstream: SimpleNamespace) -> Expression:
-    """Return the arrivals at the downstream echelon, the shipments after a third-order shipping delay."""
-    return distributed_delay(_shipments(upstream), order=3, time=downstream.shipping_delay)
-
-
 def _received(downstream: SimpleNamespace) -> Expression:
     """Return the orders of the downstream echelon that reach its supplier, after a third-order mail delay."""
-    return distributed_delay(_orders(downstream), order=3, time=downstream.mail_delay)
-
-
-def _completions(factory: SimpleNamespace) -> Expression:
-    """Return the brews completed for the factory, its orders after a third-order production delay."""
-    return distributed_delay(_orders(factory), order=3, time=factory.production_delay)
+    return distributed_delay(BreweryInteraction._orders(downstream), order=3, time=downstream.mail_delay)
 
 
 def _demand(retailer: SimpleNamespace, t: Expression) -> Expression:
@@ -58,14 +38,6 @@ def _customer_orders(s: SimpleNamespace) -> Expression:
     return _demand(s.retailer, s.t)
 
 
-def _echelon_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the laws of an echelon, the shipping of its backlog and the decay of its expectation."""
-    return [
-        RateLaw(s.backlog, -_shipments(s)),
-        RateLaw(s.expected, -s.theta * s.expected),
-    ]
-
-
 def _get_link_rates(downstream: str, upstream: str) -> list[RateInteraction]:
     """Return the rates of a link, the supply line of the downstream echelon and the incoming orders upstream."""
     return [
@@ -74,7 +46,8 @@ def _get_link_rates(downstream: str, upstream: str) -> list[RateInteraction]:
             target=downstream,
             state='supply_line',
             sources=[upstream],
-            rate=lambda s: _orders(s.target) - _arrivals(s.sources[0], s.target),
+            rate=lambda s: BreweryInteraction._orders(s.target)
+            - SupplyLinkInteraction._arrivals(s.sources[0], s.target),
         ),
         RateInteraction(
             f'{upstream}_backlog',
@@ -112,444 +85,8 @@ def _get_brewery_rate() -> RateInteraction:
         'factory_supply_line',
         target='factory',
         state='supply_line',
-        rate=lambda s: _orders(s.target) - _completions(s.target),
+        rate=lambda s: BreweryInteraction._orders(s.target) - BreweryInteraction._completions(s.target),
     )
-
-
-class EchelonElement(Element):
-    """Echelon of a supply chain, which ships its backlog from its inventory and orders by anchoring and adjustment.
-
-    It ships its backlog over the dispatch time, limited by its inventory. Its expected demand adapts to incoming
-    orders at the rate `theta`, and it orders its expected demand plus `alpha` times the gap between its desired stock
-    and its effective inventory, the inventory less the backlog, less `beta` times its supply line, never negative.
-    Its orders reach its supplier after the mail delay, and the beer its supplier ships arrives after the shipping
-    delay.
-
-    Args:
-        label:
-            The label of the echelon.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        inventory:
-            The initial inventory, in cases.
-
-        in_transit:
-            The initial beer on its way to the echelon.
-
-        backlog:
-            The initial orders waiting to ship.
-
-        expected:
-            The initial expected demand.
-
-        supply_line:
-            The initial beer ordered and not received.
-
-        desired:
-            The desired stock `S'`.
-
-        theta:
-            The rate at which the expected demand adapts to incoming orders.
-
-        alpha:
-            The fraction of the stock gap ordered per week.
-
-        beta:
-            The weight of the supply line in the stock gap.
-
-        dispatch_time:
-            The time over which the echelon ships its backlog.
-
-        mail_delay:
-            The average time an order of the echelon takes to reach its supplier.
-
-        shipping_delay:
-            The average time a shipment takes to reach the echelon from its supplier.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets import EchelonElement
-        >>> EchelonElement('retailer', inventory=10.0).inventory
-        10.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 12.0,
-        in_transit: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 8.0,
-        backlog: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        expected: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        supply_line: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 16.0,
-        desired: Annotated[float, ParameterSpec()] = 13.44,
-        theta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.36,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.26,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.34,
-        dispatch_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        mail_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        shipping_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.inventory = inventory
-        self.in_transit = in_transit
-        self.backlog = backlog
-        self.expected = expected
-        self.supply_line = supply_line
-        self.desired = desired
-        self.theta = theta
-        self.alpha = alpha
-        self.beta = beta
-        self.dispatch_time = dispatch_time
-        self.mail_delay = mail_delay
-        self.shipping_delay = shipping_delay
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the shipping of the backlog and the decay of the expected demand.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return _echelon_laws(s)
-
-
-class RetailerElement(EchelonElement):
-    """Retailer of a supply chain, an echelon whose customers order their demand, which steps once.
-
-    Args:
-        label:
-            The label of the retailer.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        inventory:
-            The initial inventory, in cases.
-
-        in_transit:
-            The initial beer on its way to the echelon.
-
-        backlog:
-            The initial orders waiting to ship.
-
-        expected:
-            The initial expected demand.
-
-        supply_line:
-            The initial beer ordered and not received.
-
-        desired:
-            The desired stock `S'`.
-
-        theta:
-            The rate at which the expected demand adapts to incoming orders.
-
-        alpha:
-            The fraction of the stock gap ordered per week.
-
-        beta:
-            The weight of the supply line in the stock gap.
-
-        dispatch_time:
-            The time over which the echelon ships its backlog.
-
-        mail_delay:
-            The average time an order of the echelon takes to reach its supplier.
-
-        shipping_delay:
-            The average time a shipment takes to reach the echelon from its supplier.
-
-        demand:
-            The customer demand, in cases a week.
-
-        demand_step:
-            The permanent change of the demand.
-
-        step_time:
-            The week of the change of the demand.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets import RetailerElement
-        >>> RetailerElement('retailer').demand
-        4.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 12.0,
-        in_transit: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 8.0,
-        backlog: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        expected: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        supply_line: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 16.0,
-        desired: Annotated[float, ParameterSpec()] = 13.44,
-        theta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.36,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.26,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.34,
-        dispatch_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        mail_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        shipping_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        demand: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        demand_step: Annotated[float, ParameterSpec()] = 4.0,
-        step_time: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
-    ) -> None:
-        super().__init__(
-            label,
-            visual=visual,
-            inventory=inventory,
-            in_transit=in_transit,
-            backlog=backlog,
-            expected=expected,
-            supply_line=supply_line,
-            desired=desired,
-            theta=theta,
-            alpha=alpha,
-            beta=beta,
-            dispatch_time=dispatch_time,
-            mail_delay=mail_delay,
-            shipping_delay=shipping_delay,
-        )
-        self.demand = demand
-        self.demand_step = demand_step
-        self.step_time = step_time
-
-
-class FactoryElement(EchelonElement):
-    """Factory of a supply chain, an echelon whose orders a brewery brews over the production delay.
-
-    Args:
-        label:
-            The label of the factory.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        inventory:
-            The initial inventory, in cases.
-
-        in_transit:
-            The initial beer on its way to the echelon.
-
-        backlog:
-            The initial orders waiting to ship.
-
-        expected:
-            The initial expected demand.
-
-        supply_line:
-            The initial beer ordered and not received.
-
-        desired:
-            The desired stock `S'`.
-
-        theta:
-            The rate at which the expected demand adapts to incoming orders.
-
-        alpha:
-            The fraction of the stock gap ordered per week.
-
-        beta:
-            The weight of the supply line in the stock gap.
-
-        dispatch_time:
-            The time over which the echelon ships its backlog.
-
-        mail_delay:
-            The average time an order of the echelon takes to reach its supplier.
-
-        shipping_delay:
-            The average time a shipment takes to reach the echelon from its supplier.
-
-        production_delay:
-            The average time the brewery takes to brew an order, through a third-order delay.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets import FactoryElement
-        >>> FactoryElement('factory').production_delay
-        3.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        inventory: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 12.0,
-        in_transit: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), quantity='beer')] = 8.0,
-        backlog: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        expected: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
-        supply_line: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 16.0,
-        desired: Annotated[float, ParameterSpec()] = 13.44,
-        theta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.36,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.26,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.34,
-        dispatch_time: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        mail_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        shipping_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        production_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-    ) -> None:
-        super().__init__(
-            label,
-            visual=visual,
-            inventory=inventory,
-            in_transit=in_transit,
-            backlog=backlog,
-            expected=expected,
-            supply_line=supply_line,
-            desired=desired,
-            theta=theta,
-            alpha=alpha,
-            beta=beta,
-            dispatch_time=dispatch_time,
-            mail_delay=mail_delay,
-            shipping_delay=shipping_delay,
-        )
-        self.production_delay = production_delay
-
-
-class SupplyLinkInteraction(TransferInteraction):
-    """Link of a supply chain, which ships beer from the upstream echelon to the downstream echelon.
-
-    The shipments and their arrivals, after a third-order delay of the shipping delay of the downstream echelon, are
-    the legs of one transfer, from the inventory of the upstream echelon to the beer in transit to the downstream
-    echelon and on to its inventory.
-
-    Args:
-        label:
-            The label of the link.
-
-        downstream:
-            The path of the echelon that orders.
-
-        upstream:
-            The path of the echelon that ships.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets import SupplyLinkInteraction
-        >>> SupplyLinkInteraction('link', downstream='retailer', upstream='wholesaler').upstream
-        'wholesaler'
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        downstream: Annotated[str, RoleSpec()],
-        upstream: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(
-            label,
-            source=upstream,
-            target=downstream,
-            state='inventory',
-            into='in_transit',
-            amount=lambda s: _shipments(s.upstream),
-            flow='shipments',
-            legs=[
-                (
-                    'downstream.in_transit',
-                    'downstream.inventory',
-                    lambda s: _arrivals(s.upstream, s.downstream),
-                    'arrivals',
-                ),
-            ],
-        )
-        self.downstream = downstream
-        self.upstream = upstream
-
-    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the upstream echelon, which ships, and the downstream echelon, which receives."""
-        return [(namespace.upstream, namespace.downstream)]
-
-
-class RetailDemandInteraction(TransferInteraction):
-    """Customers of a supply chain, who take the shipments of the retailer.
-
-    The sales are a transfer from the inventory of the retailer to the customers.
-
-    Args:
-        label:
-            The label of the customers.
-
-        retailer:
-            The path of the retailer.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets import RetailDemandInteraction
-        >>> RetailDemandInteraction('customers', retailer='retailer').retailer
-        'retailer'
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        retailer: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(
-            label,
-            source=retailer,
-            target=retailer,
-            state='inventory',
-            into=Sink('customers'),
-            amount=lambda s: _shipments(s.retailer),
-            flow='sales',
-        )
-        self.retailer = retailer
-
-    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the retailer, whose inventory the customers take."""
-        return [(namespace.retailer, namespace.retailer)]
-
-
-class BreweryInteraction(TransferInteraction):
-    """Brewery of a supply chain, which brews the orders of the factory over its production delay.
-
-    The brewing is a transfer from the brewery into the beer in production at the factory and on to its inventory.
-
-    Args:
-        label:
-            The label of the brewery.
-
-        factory:
-            The path of the factory.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets import BreweryInteraction
-        >>> BreweryInteraction('brewery', factory='factory').factory
-        'factory'
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        factory: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(
-            label,
-            source=factory,
-            target=factory,
-            state=Source('brewery'),
-            into='in_transit',
-            amount=lambda s: _orders(s.factory),
-            flow='starts',
-            legs=[('in_transit', 'inventory', lambda s: _completions(s.factory), 'completions')],
-        )
-        self.factory = factory
-
-    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
-        """Return the factory, whose beer in production and inventory the brewery fills."""
-        return [(namespace.factory, namespace.factory)]
 
 
 @register_model(
@@ -558,8 +95,8 @@ class BreweryInteraction(TransferInteraction):
     references=('Sterman 1989',),
     defaults={'until': 36.0, 'dt': 0.5},
     observables=lambda system: [
-        *(ObservableSpec('orders', _orders, element=label) for label in ECHELONS),
-        *(ObservableSpec('shipments', _shipments, element=label) for label in ECHELONS),
+        *(ObservableSpec('orders', BreweryInteraction._orders, element=label) for label in ECHELONS),
+        *(ObservableSpec('shipments', EchelonElement._shipments, element=label) for label in ECHELONS),
         ObservableSpec('customers.orders', _customer_orders),
     ],
 )

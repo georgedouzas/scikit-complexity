@@ -1,19 +1,22 @@
 """Natural resources: harvesting, extracting, and cultivating renewable and nonrenewable stocks."""
 
-from ._commons import (
-    CowElement,
-    GrazingInteraction,
-    HerderElement,
-    PastureElement,
-    QuotaRegulatorInteraction,
-    tragedy_of_the_commons,
-)
-from ._extraction import FisheryElement, OilEconomyElement, fishery_capital, oil_economy
+from ._commons import tragedy_of_the_commons
+from ._cow import CowElement
+from ._extraction import fishery_capital, oil_economy
+from ._farmer import FarmerElement
 from ._fisheries import HilsaElement, hilsa_fishery
+from ._fishery import FisheryElement
 from ._food import RiceSectorElement, food_security
-from ._harvesting import FarmerElement, HarvestInteraction, StockElement, harvesting
+from ._grazing import GrazingInteraction
+from ._harvest import HarvestInteraction
+from ._harvesting import harvesting
+from ._herder import HerderElement
+from ._oil_economy import OilEconomyElement
 from ._optimal_harvesting import HarvestedResourceElement, optimal_harvesting
+from ._pasture import PastureElement
 from ._plantations import PlantationElement, cocoa
+from ._quota_regulator import QuotaRegulatorInteraction
+from ._stock import StockElement
 
 __all__: list[str] = [
     'CowElement',

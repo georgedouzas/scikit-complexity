@@ -18,7 +18,7 @@ from ....core.system import System
 from ....specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._exchange import cobb_douglas
-from ._goods_traders import ExchangeInteraction
+from ._exchange_interaction import ExchangeInteraction
 
 GOODS = ('chocolate', 'cigarettes')
 WEIGHTS = tuple(f'{good}_weight' for good in GOODS)

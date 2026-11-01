@@ -3,14 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement
+from ....core.elements import GroupElement
 from ....core.interactions import MapInteraction, MatchingInteraction, TransitionInteraction
 from ....core.spaces import DiscreteTime
 from ....core.system import System
@@ -18,222 +14,15 @@ from ....engine.solvers import ModelView
 from ....specs import (
     MatchSpec,
     ObservableSpec,
-    ParameterSpec,
     PhaseSpec,
     PhasesScheduleSpec,
     StableMatchingSpec,
-    StateSpec,
-    VisualSpec,
 )
 from ..._catalog import register_model
+from ._employer import EmployerElement
 from ._employer_view import EmployerView
+from ._jobseeker import JobseekerElement
 from ._jobseeker_view import JobseekerView
-
-
-class EmployerElement(Element):
-    """Firm that posts a vacancy with a random wage offer in some steps, filled by at most one worker.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        bid:
-            The wage offered for the vacancy.
-
-        demand:
-            The number of open vacancies, one or zero.
-
-        posted:
-            The step in which the vacancy was posted.
-
-        vacancy_rate:
-            The probability of posting a vacancy in a step.
-
-        low_wage:
-            The lowest wage offer.
-
-        high_wage:
-            The highest wage offer.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets import EmployerElement
-        >>> GroupElement('firms', element=EmployerElement, size=5).size
-        5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        demand: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        posted: Annotated[float, StateSpec()] = -1.0,
-        vacancy_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        low_wage: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        high_wage: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.bid = bid
-        self.demand = demand
-        self.posted = posted
-        self.vacancy_rate = vacancy_rate
-        self.low_wage = low_wage
-        self.high_wage = high_wage
-
-    @classmethod
-    def _get_view(cls) -> type[EmployerView]:
-        """Return the view of an employer, with its vacancy and the parameters of its offers."""
-        return EmployerView
-
-    @staticmethod
-    def get_posting() -> tuple[tuple[str, Callable[[EmployerView, ModelView], float]], ...]:
-        """Return the states a firm sets in the phase of offers, in their order.
-
-        The firm withdraws its last vacancy and posts a new one at the vacancy rate, with a uniform wage offer and the
-        step of posting.
-
-        Returns:
-            posting:
-                The name of every state and the function of its value, of the firm and the model view.
-        """
-        return (
-            ('demand', lambda agent, model: float(model.rng.random() < agent.vacancy_rate)),
-            (
-                'bid',
-                lambda agent, model: (
-                    float(model.rng.uniform(agent.low_wage, agent.high_wage)) if agent.demand else agent.bid
-                ),
-            ),
-            ('posted', lambda agent, model: model.time if agent.demand else agent.posted),
-        )
-
-
-class JobseekerElement(Element):
-    """Worker who loses its job at the separation rate and, while unemployed, lowers its reservation wage.
-
-    A worker who loses its job searches from the next step. An unemployed worker asks the reservation wage
-    `w_0 (1 - decline)^d`, where `d` is the number of steps of search, and is hired by the matching market.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        ask:
-            The reservation wage.
-
-        supply:
-            One while the worker searches in the current step, zero otherwise.
-
-        employer:
-            The id of the employer, or -1 for an unemployed worker.
-
-        wage:
-            The wage of the current job.
-
-        duration:
-            The number of steps of the current spell of search.
-
-        hired:
-            The step of the last hire.
-
-        offer:
-            The step in which the offer of the last hire was posted.
-
-        separation:
-            The probability that a job is destroyed in a step.
-
-        reservation:
-            The reservation wage at the start of a search.
-
-        decline:
-            The relative fall of the reservation wage per step of search.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets import JobseekerElement
-        >>> GroupElement('workers', element=JobseekerElement, size=5).size
-        5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        supply: Annotated[float, StateSpec(domain=NN)] = 1.0,
-        employer: Annotated[float, StateSpec(reference='firms')] = -1.0,
-        wage: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        duration: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        hired: Annotated[float, StateSpec()] = -1.0,
-        offer: Annotated[float, StateSpec()] = -1.0,
-        separation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        reservation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        decline: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.ask = ask
-        self.supply = supply
-        self.employer = employer
-        self.wage = wage
-        self.duration = duration
-        self.hired = hired
-        self.offer = offer
-        self.separation = separation
-        self.reservation = reservation
-        self.decline = decline
-
-    @classmethod
-    def _get_view(cls) -> type[JobseekerView]:
-        """Return the view of a worker, with its search and job states and their parameters."""
-        return JobseekerView
-
-    @staticmethod
-    def get_search() -> tuple[tuple[str, Callable[[JobseekerView, ModelView], float]], ...]:
-        """Return the states a worker sets in the phase of offers before the separations, in their order.
-
-        A worker unemployed at the start of the step searches, with a reservation wage that falls with the duration of
-        its search.
-
-        Returns:
-            search:
-                The name of every state and the function of its value, of the worker and the model view.
-        """
-        return (
-            ('supply', lambda agent, model: float(agent.employer < 0)),
-            (
-                'ask',
-                lambda agent, model: (
-                    agent.reservation * (1 - agent.decline) ** agent.duration if agent.supply else agent.ask
-                ),
-            ),
-        )
-
-    @staticmethod
-    def get_spell() -> tuple[tuple[str, Callable[[JobseekerView, ModelView], float]], ...]:
-        """Return the states a worker sets in the phase of offers after the separations, in their order.
-
-        A worker who lost its job earns no wage, and the duration of a search grows while the worker searches.
-
-        Returns:
-            spell:
-                The name of every state and the function of its value, of the worker and the model view.
-        """
-        return (
-            ('wage', lambda agent, model: 0.0 if agent.employer < 0 else agent.wage),
-            (
-                'duration',
-                lambda agent, model: (
-                    agent.duration + 1 if agent.supply else 0.0 if agent.employer < 0 else agent.duration
-                ),
-            ),
-        )
 
 
 def hire(trade: MatchSpec, model: ModelView) -> None:

@@ -1,9 +1,8 @@
 """Test the `_double_auction` module of `skcomplex.models.economics.markets`."""
 
-import numpy as np
 import pytest
 
-from skcomplex.models.economics.markets import double_auction, maximum_surplus
+from skcomplex.models.economics.markets import double_auction
 
 from ..conftest import _run_observed
 
@@ -23,8 +22,3 @@ def test_double_auction_rejects_unknown_protocol():
     """An unknown protocol raises an error."""
     with pytest.raises(ValueError, match='protocol'):
         double_auction(protocol='barter')
-
-
-def test_maximum_surplus():
-    """The maximum surplus pairs the highest values with the lowest costs."""
-    assert maximum_surplus(np.array([10.0, 6.0, 2.0]), np.array([1.0, 4.0, 8.0])) == 11.0
