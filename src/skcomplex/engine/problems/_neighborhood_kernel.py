@@ -142,6 +142,8 @@ class NeighborhoodKernel(BaseKernel):
                 values.append(column[readers])
             elif pair.side == 'edge':
                 values.append(column[edges])
+            elif pair.side == 'pair':
+                values.append(column[np.arange(others.size)])
             elif pair.image:
                 if not isinstance(self.search, MetricSearch):
                     error_msg = f'The reduction {self.symbol} reads a periodic image, which only a metric search finds.'

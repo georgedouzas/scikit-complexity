@@ -876,7 +876,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         start = f'_L{2 * self._slot(read.entry)}_'
         if pair.side == 'shared':
             return f'{vector}[{start} + {read.column}]'
-        member = {'reader': '_i_', 'edge': f'_ie{index}_[_e_]'}.get(pair.side, '_j_')
+        member = {'reader': '_i_', 'edge': f'_ie{index}_[_e_]', 'pair': '_e_'}.get(pair.side, '_j_')
         if pair.table is not None:
             slot = self._data_slot(f'__neighbours_{index}_{item}', pair.table)
             member = f'L[_L{2 * slot}_ + _j_]'
@@ -901,7 +901,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         """Return the lines that collect the active pairs of every member and write the values of their components."""
         sides = {item: reduction.reads[item].side for item in reduction.symbols}
         readers = [item for item in reduction.symbols if sides[item] == 'reader']
-        others = [item for item in reduction.symbols if sides[item] in {'other', 'edge'}]
+        others = [item for item in reduction.symbols if sides[item] in {'other', 'edge', 'pair'}]
         firsts, seconds, count = f'_cf{index}_', f'_cs{index}_', f'_cn{index}_'
         target = f'_L{2 * self._slot(reduction.entry)}_'
         size = reduction.size
@@ -929,7 +929,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         sides = {item: reduction.reads[item].side for item in reduction.symbols}
         shared = [item for item in reduction.symbols if sides[item] == 'shared']
         readers = [item for item in reduction.symbols if sides[item] == 'reader']
-        others = [item for item in reduction.symbols if sides[item] in {'other', 'edge'}]
+        others = [item for item in reduction.symbols if sides[item] in {'other', 'edge', 'pair'}]
         lines += [f'{INDENT}{item} = {self._pair_read_code(reduction, item, index)}' for item in shared]
         printer = ExpressionPrinter('scalar', prefix=f'_n{index}cse').check().prepare()
         assignments, codes = self._printed(printer, [reduction.argument, reduction.weight])

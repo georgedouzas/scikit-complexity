@@ -17,7 +17,7 @@ from skcomplex.core.laws import BaseLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import count, uniform, where
 from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.system import System
-from skcomplex.engine.backends import NumbaBackend, NumpyBackend
+from skcomplex.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
@@ -194,6 +194,73 @@ def test_coupling_over_the_group_weights_every_member_by_a_matrix(backend):
     system = _group(theta, function=lambda s: sin(s.other.theta), mode='group', weights=weights)
     expected = (weights - np.diag(np.diag(weights))) @ np.sin(theta)
     np.testing.assert_allclose(_drift(system, backend=backend), expected, atol=1e-12)
+
+
+class MatrixCouplingInteraction(CouplingInteraction):
+    """Coupling over a group weighted by a shaped matrix parameter."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        a: Annotated[object, ParameterSpec(shape=('target', 'target'))] = 0.0,
+        function=None,
+        reduce: str = 'sum',
+        include_self: bool = True,
+    ) -> None:
+        super().__init__(
+            label,
+            target=target,
+            read='theta',
+            write='theta',
+            function=function,
+            reduce=reduce,
+            mode='group',
+            weights='a',
+            include_self=include_self,
+        )
+        self.a = a
+
+
+def _matrix_group(theta, matrix, **arguments):
+    """Return oscillators in a group coupled through a shaped matrix parameter."""
+    group = GroupElement('oscillators', element=OscillatorElement, size=len(theta), values={'theta': theta})
+    coupling = MatrixCouplingInteraction('coupling', target='oscillators', a=matrix, **arguments)
+    return System(elements=[group], interactions=[coupling])
+
+
+@pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend(), JaxBackend()], ids=['numpy', 'numba', 'jax'])
+def test_coupling_over_the_group_reads_a_shaped_parameter_with_terms_of_both_members(backend):
+    """Test that a shaped parameter `a` and the term `x_i x_j` give the generalized Lotka-Volterra rate `x_i (ax)_i`."""
+    x = np.random.default_rng(0).uniform(0.5, 1.5, 5)
+    matrix = np.random.default_rng(1).normal(size=(5, 5))
+    system = _matrix_group(x, matrix, function=lambda s: s.member.theta * s.other.theta)
+    np.testing.assert_allclose(_drift(system, backend=backend), x * (matrix @ x), atol=1e-12)
+
+
+@BACKENDS
+@pytest.mark.parametrize('reduce', ['sum', 'mean'])
+def test_coupling_over_the_group_reads_a_shaped_parameter_pair_by_pair(backend, reduce):
+    """Test that a term that does not factor reads every entry of the shaped parameter for its pair."""
+    theta = np.array([0.0, 1.0, 2.5, 4.0])
+    matrix = np.arange(16.0).reshape(4, 4)
+    system = _matrix_group(theta, matrix, function=_sine, reduce=reduce)
+    expected = (matrix * np.sin(theta[None, :] - theta[:, None])).sum(axis=1) / (4 if reduce == 'mean' else 1)
+    np.testing.assert_allclose(_drift(system, backend=backend), expected, atol=1e-12)
+
+
+def test_check_shaped_weights_that_leave_out_the_member():
+    """Test that weights naming a shaped parameter over the own group without the member raise an error."""
+    with pytest.raises(ValidationError, match='include_self=True'):
+        MatrixCouplingInteraction('coupling', target='oscillators', include_self=False).check()
+
+
+def test_run_shaped_weights_that_name_no_parameter():
+    """Test that weights naming no parameter of the interaction raise an error."""
+    system = _group(np.zeros(3), mode='group', weights='b', include_self=True)
+    with pytest.raises(ValidationError, match='name no parameter'):
+        compile_system(system)
 
 
 def _two_groups(theta, phi, **arguments):
@@ -417,7 +484,7 @@ def test_coupling_over_edges_needs_edges_for_its_rates():
         ({'function': 1.0}, 'callable'),
         ({'combine': 1.0}, 'callable'),
         ({'mode': 'group', 'neighborhood': RadiusNeighborhood(1.0)}, 'neighbourhood'),
-        ({'mode': 'group', 'weights': 'w'}, 'state of the edges'),
+        ({'mode': 'group', 'weights': 'w'}, 'shaped parameter'),
         ({'weights': np.ones((2, 2))}, 'mode group'),
         ({'size': 3}, 'needs the mode hyperedges'),
         ({'mode': 'hyperedges', 'size': 1}, 'whole number of 2 or more'),

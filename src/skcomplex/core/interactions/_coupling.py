@@ -59,7 +59,8 @@ class CouplingInteraction(NeighborInteraction):
 
     With `include_self`, the reduction also runs over `j = i`. Every term `f_ij` has a weight `w_ij`: on edges, the
     state `weights` of the edge group, which a subclass binds with a second role, over the group, the entry `W_ij` of
-    the matrix `weights`, and in every mode a callable `weights(namespace)` of the namespace of the term, such as an
+    the matrix `weights` or of the shaped parameter of the interaction that `weights` names, which a subclass declares,
+    and in every mode a callable `weights(namespace)` of the namespace of the term, such as an
     indicator of the states of both members. The reductions are `'sum'`, `sum_j w_ij f_ij`, `'mean'`, the sum divided
     by the number of members `j`, `'max'` and `'min'`, the largest and smallest `w_ij f_ij`, `'normalized-mean'`,
     `sum_j w_ij f_ij / sum_j w_ij`, and `'circular-mean'`, the angle `arctan2(sum_j w_ij sin f_ij, sum_j w_ij cos
@@ -113,8 +114,9 @@ class CouplingInteraction(NeighborInteraction):
 
         weights:
             The name of the state of the edge group in the mode `'edges'`, a matrix with one row per member and one
-            column per other member in the mode `'group'`, a callable of the namespace of a term in any mode, or `None`
-            for no weights.
+            column per other member or the name of a parameter of the interaction declared
+            `ParameterSpec(shape=('target', 'source'))` in the mode `'group'`, a callable of the namespace of a term in
+            any mode, or `None` for no weights.
 
         include_self:
             Whether the reduction also runs over the member itself.
@@ -244,7 +246,7 @@ class CouplingInteraction(NeighborInteraction):
                 'a separate source group.'
             )
             raise ValidationError(error_msg)
-        if self.reduce in EXTREMES and self._has_matrix():
+        if self.reduce in EXTREMES and (self._has_matrix() or self._names_matrix()):
             error_msg = f'The {self.reduce} of coupling takes no matrix of weights. Give the weights as a callable.'
             raise ValidationError(error_msg)
 
@@ -255,10 +257,17 @@ class CouplingInteraction(NeighborInteraction):
         ):
             error_msg = f'The neighbourhood {self.neighborhood!r} of coupling needs a neighbourhood in the mode edges.'
             raise ValidationError(error_msg)
-        if isinstance(self.weights, str) and not self._is_per_edge():
+        if isinstance(self.weights, str) and not self._is_per_edge() and not self._names_matrix():
             error_msg = (
                 f'The weights {self.weights!r} of coupling name a state of the edges, which only the sum or mean rate '
-                'on the edges of a lattice or network reads. Give a matrix in the mode group, or a callable.'
+                'on the edges of a lattice or network reads, or a shaped parameter in the mode group. Give a matrix '
+                'in the mode group, or a callable.'
+            )
+            raise ValidationError(error_msg)
+        if self._names_matrix() and (self._excludes_self() or not isinstance(self.target, str) or self._is_separate()):
+            error_msg = (
+                f'The weights {self.weights!r} of coupling name a shaped parameter, whose matrix product runs over '
+                'every member of a group. Pass include_self=True or a separate source group, and bind groups.'
             )
             raise ValidationError(error_msg)
         if self._has_matrix() and self.mode != 'group':
@@ -332,6 +341,14 @@ class CouplingInteraction(NeighborInteraction):
         """Return whether the weights are a matrix."""
         return self.weights is not None and not isinstance(self.weights, str) and not callable(self.weights)
 
+    def _names_matrix(self) -> bool:
+        """Return whether the weights name a shaped parameter of the interaction in the mode group."""
+        return isinstance(self.weights, str) and self.mode == 'group'
+
+    def _is_separate(self) -> bool:
+        """Return whether the source lists separate elements."""
+        return self.source is not None and not isinstance(self.source, str)
+
     def _excludes_self(self) -> bool:
         """Return whether a reduction over the own group leaves the member out."""
         return self.source is None and not self.include_self
@@ -381,8 +398,20 @@ class CouplingInteraction(NeighborInteraction):
             return SR(1)
         return self.weights(SimpleNamespace(**self._parameters(namespace), member=member, other=other, edge=edge))
 
-    def _get_matrix(self) -> npt.ArrayLike | scipy.sparse.sparray | None:
-        """Return the matrix of weights, with a zero diagonal unless the member is included, or `None`."""
+    def _get_matrix(self, namespace: SimpleNamespace) -> npt.ArrayLike | scipy.sparse.sparray | Expression | None:
+        """Return the matrix of weights, with a zero diagonal unless the member is included, or `None`.
+
+        Weights that name a shaped parameter give the symbol of that parameter.
+        """
+        if self._names_matrix():
+            name = cast(str, self.weights)
+            if not hasattr(namespace, name):
+                error_msg = (
+                    f'The weights {name!r} of coupling {self.label!r} name no parameter of the interaction. Declare '
+                    f"it as `ParameterSpec(shape=('target', 'source'))`."
+                )
+                raise ValidationError(error_msg)
+            return cast(Expression, getattr(namespace, name))
         if not self._has_matrix():
             return None
         weights = cast(npt.ArrayLike | scipy.sparse.sparray, self.weights)
@@ -429,7 +458,7 @@ class CouplingInteraction(NeighborInteraction):
     def _get_group_total(self, namespace: SimpleNamespace, part: Part) -> Target:
         """Return the sum of a part of the weighted term over the other members of the group."""
         source, target = namespace.source, namespace.target
-        matrix = self._get_matrix()
+        matrix = self._get_matrix(namespace)
         value, weight = self._get_term(namespace, target, source), self._get_weight(namespace, target, source)
         reduction = self._map(part(value, weight), lambda item: total(item, over=source, weights=matrix))
         if self._excludes_self() and matrix is None:
