@@ -2,50 +2,85 @@
 
 ## Purpose
 
-Lets a user run laws over hyperedges of more than two members, on hypergraphs and simplicial complexes, let nodes
-regulate links, and couple populations through random tensors of any order.
+Lets a user run laws over hyperedges of more than two members, on hypergraphs and simplicial complexes, run symbolic
+laws once per group of a grouping, let nodes regulate links, and couple members through tensors of any order.
 
 ## ADDED Requirements
 
-### Requirement: Network spaces with hyperedges come from XGI
-The space layer SHALL build a network space with hyperedges of any size from an XGI hypergraph, an XGI simplicial
-complex, or a list of node groups, with its incidence matrix and the hyperedges around each node.
+### Requirement: Network spaces take hyperedges from XGI
+`NetworkSpace` SHALL take as its hyperedges an XGI hypergraph, an XGI simplicial complex, or sequences of nodes, and
+SHALL derive its incidence matrix and the hyperedges around every node.
 
 #### Scenario: Triangle hypergraph
-- **WHEN** a network space with the triangles of a complete graph on five nodes as hyperedges is built
+- **WHEN** a network space takes the triangles of a complete graph on five nodes as its hyperedges
 - **THEN** it has 10 hyperedges of size 3 and every node lies in 6 of them
 
-### Requirement: Laws act on hyperedges
-An interaction with the binding `'hyperedges'` SHALL run its laws once per hyperedge of its declared size, its laws
-SHALL read all members of the hyperedge, and a law SHALL reduce over the hyperedges of a node, compiled to gathers on
-NumPy and Numba.
+### Requirement: Laws run once per hyperedge
+The laws of a `HyperedgeInteraction` SHALL run once per hyperedge of its declared size, SHALL read the members of the
+hyperedge, the focal member, and the member of a group on hyperedges or edges that a second role binds, and SHALL
+compile to gathers and scatter-adds on the NumPy and Numba backends.
 
-#### Scenario: Three-body Kuramoto
-- **WHEN** phase oscillators couple only through the triangles of a hypergraph with the three-body term
-  `sin(theta_j + theta_k - 2 theta_i)`
-- **THEN** the compiled drift equals a direct loop over the triangles within 1e-12 on both backends
+#### Scenario: Hyperedge law against a loop
+- **WHEN** a `HyperedgeInteraction` adds `total(x, over=members) - size * x` to the rate of every focal member on a
+  hypergraph with hyperedges of sizes 3 and 4
+- **THEN** the compiled drift equals a direct loop over the hyperedges within 1e-12 on both backends
 
 #### Scenario: Missing hyperedge size
-- **WHEN** an interaction over hyperedges of size 4 is placed in a network space whose hyperedges all have size 3
-- **THEN** validation reports an issue with the code `binding` that names the size and the sizes the space has
+- **WHEN** a `HyperedgeInteraction` of size 4 runs in a network space whose hyperedges all have size 3
+- **THEN** the compiler reports an issue with the code `binding` that names the size and the sizes the space has
+
+### Requirement: Laws reduce over the hyperedges of a member
+The reduction `hyperedges` SHALL reduce an expression of one hyperedge over the hyperedges around every member, and
+`CouplingInteraction` SHALL couple through it in the mode `'hyperedges'`.
+
+#### Scenario: Three-body Kuramoto
+- **WHEN** phase oscillators couple only through the triangles of a hypergraph by
+  `CouplingInteraction(mode='hyperedges', size=3)` with the term `sin(theta_j + theta_k - 2 theta_i)`
+- **THEN** the compiled drift equals a direct loop over the triangles within 1e-12 on both backends
+
+#### Scenario: Hyperedge reduction outside a hypergraph
+- **WHEN** a law reads `hyperedges` in a lattice space
+- **THEN** the compiler reports an issue with the code `law-space`
+
+### Requirement: Groupings take a symbolic form
+`GroupingInteraction(form='symbolic')` SHALL compile a function of one group as an update of a state of its members,
+reduced over the groups that hold a member, with pairs and partitions drawn every step from the random stream of the
+simulation. The agent form SHALL stay the default.
+
+#### Scenario: Majority in partitions
+- **WHEN** a symbolic grouping of partitions of size 3 sets every member to the majority opinion of its group
+- **THEN** after one step every group of the drawn partition holds one opinion, and two runs with one seed draw the
+  same partitions
+
+#### Scenario: Agent setting in the symbolic form
+- **WHEN** a symbolic grouping is given `act`
+- **THEN** `check()` raises `ValidationError` that names `act` as a setting of the agent form
 
 ### Requirement: Nodes regulate links
-An interaction over hyperedges SHALL bind an edge group of the same network through an edge role, whose member is the
-edge between two declared members of the hyperedge, so a regulating node switches the activity of a link with an
-update law each step.
+A `HyperedgeInteraction` SHALL bind a group on the edges of the same network through its second role, whose member is
+the edge joining the first two members of the hyperedge, so a regulating node switches the activity of a link with an
+update law every step.
 
 #### Scenario: Triadic percolation
 - **WHEN** links are regulated by the activity of their regulating nodes as in Millán et al. (2023)
 - **THEN** the giant component shows period two above the bifurcation point of the paper within the finite-size error
 
-### Requirement: Couplings can be random tensors
-The component layer SHALL provide quenched random coupling tensors of order k over the members of a group, symmetric or
-general, with a given mean and variance, as parameters of groups.
+### Requirement: Tensors couple k members
+A parameter shaped by the size of one group to the power k SHALL hold a k-body coupling tensor, and the reduction
+`contraction` SHALL contract it with one expression per index after the first.
 
-#### Scenario: Tensor statistics
-- **WHEN** a symmetric order-3 tensor over 100 species with variance 1/N^2 is drawn
-- **THEN** its entries are symmetric under permutation and their sample variance is within 5% of 1/N^2
+#### Scenario: Contraction against NumPy
+- **WHEN** a rate reads `contraction(T, x, x)` with a random tensor `T` of order 3 over 20 members
+- **THEN** the compiled rate equals `numpy.einsum('ijk,j,k->i', T, x, x)` within 1e-12
 
-#### Scenario: Coupling tensor on an element
-- **WHEN** a coupling tensor is given as a parameter of a single element
-- **THEN** validation reports an issue with the code `parameter-shape` that suggests a group
+#### Scenario: Tensor on an element
+- **WHEN** a tensor parameter is bound to a single element
+- **THEN** the compiler reports an issue with the code `parameter-shape` that suggests a group
+
+### Requirement: Networks grow by hyperedges
+`TopologyInteraction(action='add-node', hyperedge=k)` SHALL add every new node together with a hyperedge of size `k`
+holding it and `k - 1` existing nodes.
+
+#### Scenario: Triangle attachment
+- **WHEN** a growing network adds 50 nodes with `hyperedge=3` from one triangle
+- **THEN** it holds 51 triangles, and every new node lies in at least one of them
