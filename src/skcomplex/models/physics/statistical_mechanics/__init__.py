@@ -22,7 +22,7 @@ from ._particle_site import ParticleSiteElement
 from ._percolation_site import PercolationSiteElement
 from ._potts_spin import PottsSpinElement
 from ._processes import contact_process, diffusion_limited_aggregation, q2r, site_percolation, tasep
-from ._q2_r_spin import Q2RSpinElement
+from ._q2r_spin import Q2RSpinElement
 from ._quantum_spins import local_magnetization, quantum_heisenberg, total_magnetization
 from ._reservoir import ReservoirInteraction
 from ._spin_glasses import edwards_anderson, mattis_spin_glass

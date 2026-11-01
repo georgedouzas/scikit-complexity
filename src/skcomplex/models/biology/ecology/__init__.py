@@ -43,7 +43,7 @@ from ._predation_interaction import PredationInteraction
 from ._predator import PredatorElement
 from ._predator_prey_events import PredatorPreyEventsInteraction
 from ._prey import PreyElement
-from ._rosenzweig_mac_arthur import RosenzweigMacArthurInteraction
+from ._rosenzweig_macarthur import RosenzweigMacArthurInteraction
 from ._seasonal_logistic_growth import SeasonalLogisticGrowthInteraction
 from ._sequential import sequentially_linear_ecosystem
 from ._sheep import SheepElement

@@ -20,7 +20,7 @@ from ..._catalog import register_model
 from ._contact_site import ContactSiteElement
 from ._exclusion_site import ExclusionSiteElement
 from ._percolation_site import BURNING, PercolationSiteElement
-from ._q2_r_spin import Q2RSpinElement
+from ._q2r_spin import Q2RSpinElement
 from ._walker import WalkerElement
 
 

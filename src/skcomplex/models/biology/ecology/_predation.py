@@ -11,7 +11,7 @@ from ..common.populations import ExponentialGrowthInteraction, MortalityInteract
 from ._parasitism import ParasitismInteraction
 from ._predation_interaction import PredationInteraction
 from ._predator_prey_events import PredatorPreyEventsInteraction
-from ._rosenzweig_mac_arthur import RosenzweigMacArthurInteraction
+from ._rosenzweig_macarthur import RosenzweigMacArthurInteraction
 
 
 @register_model(
