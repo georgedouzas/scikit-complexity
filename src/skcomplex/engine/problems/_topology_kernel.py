@@ -24,13 +24,16 @@ from ._compiled_request_spec import CompiledRequestSpec
 from ._reduction_schedule_spec import ReductionScheduleSpec
 
 _NO_REDUCTIONS = ReductionScheduleSpec()
+MIN_EDGE_HYPEREDGE = 2
 
 
 class TopologyKernel(BaseKernel):
     """Topology requests of a problem, applied between steps to the rows of the variable groups of its networks.
 
     `run(state)` fires the requests of update laws at the state and keeps the state after them in `values_`; the solver
-    of jump laws applies the request of every jump channel that fires.
+    of jump laws applies the request of every jump channel that fires. A new node of a request with a hyperedge forms
+    a new member of the variable group on the hyperedges, with the ends of an edge it draws and further nodes drawn by
+    the weights of the request, and joins each of them by an edge. A removed node takes its hyperedges with it.
 
     Args:
         networks:
@@ -189,7 +192,8 @@ class TopologyKernel(BaseKernel):
                 One flag per row of the group, or `None`.
         """
         for network in self.networks:
-            for group in (*network.nodes, *network.edges.values()):
+            hyperedges = () if network.hyperedges is None else (network.hyperedges,)
+            for group in (*network.nodes, *network.edges.values(), *hyperedges):
                 if any(entry.name == name for entry, _ in group.variables.values()):
                     return group.present(p)
         return None
@@ -242,6 +246,66 @@ class TopologyKernel(BaseKernel):
             values = self._initial_values(request, rng) if request.kind == 'add-edge' else {}
             self._add_edge(network, request.layer, (end, other), x, p, values=values)
 
+    def _attach(
+        self,
+        item: CompiledRequestSpec,
+        node: int,
+        t: float,
+        x: Array,
+        p: Array,
+        *,
+        rng: np.random.Generator,
+    ) -> None:
+        """Form a hyperedge of a new node with the ends of a drawn edge and nodes drawn by the weights of a request.
+
+        The new node joins every other member of the hyperedge by an edge, and the hyperedge lists the ends of the
+        drawn edge first and the new node last, so an edge joins its first two members. A network with too few nodes
+        for the hyperedge leaves the new node alone.
+
+        Args:
+            item:
+                The compiled request, whose request has a hyperedge.
+
+            node:
+                The node row of the new node.
+
+            t:
+                The time.
+
+            x:
+                The state vector, changed in place.
+
+            p:
+                The parameter vector, changed in place.
+
+            rng:
+                The random number generator.
+        """
+        request, network = item.request, item.network
+        size = int(request.hyperedge or 0)
+        hyperedges = network.hyperedges
+        if hyperedges is None or hyperedges.members is None:
+            error_msg = f'{item.owner} forms hyperedges on a network without a variable group on its hyperedges.'
+            raise ValidationError(error_msg)
+        edges = network.edges[request.layer]
+        present = np.flatnonzero(edges.present(p))
+        members: list[int] = []
+        if size > MIN_EDGE_HYPEREDGE and present.size:
+            sources, targets = edges.ends(p)
+            row = int(rng.choice(present))
+            members = [int(sources[row]), int(targets[row])]
+        allowed = network.present(p).copy()
+        allowed[[node, *members]] = False
+        members += self._draw(self._weights(item, t, x, p), allowed, size - 1 - len(members), rng)
+        if len(members) < size - 1:
+            return
+        for other in members:
+            self._add_edge(network, request.layer, (other, node), x, p, values={})
+        row = hyperedges.take_row(p)
+        self._write(hyperedges, row, x, p, {})
+        start = hyperedges.members.start + row * size
+        p[start : start + len(members) + 1] = [*members, node]
+
     def _rewire(
         self,
         item: CompiledRequestSpec,
@@ -284,7 +348,10 @@ class TopologyKernel(BaseKernel):
         kind = request.kind
         if kind == 'add-node':
             node = self._add_node(network, x, p, self._initial_values(request, rng))
-            self._join(item, node, t, x, p, rng=rng)
+            if request.hyperedge is None:
+                self._join(item, node, t, x, p, rng=rng)
+            else:
+                self._attach(item, node, t, x, p, rng=rng)
         elif kind == 'add-edge':
             self._join(item, row, t, x, p, rng=rng)
         elif kind == 'remove-node':
@@ -431,7 +498,7 @@ class TopologyKernel(BaseKernel):
         p[edges.source.start + row], p[edges.target.start + row] = ends
 
     def _remove_node(self, network: NetworkRowsSpec, row: int, p: Array) -> None:
-        """Remove a node and every edge that joins it.
+        """Remove a node with every edge that joins it and every hyperedge that holds it.
 
         Args:
             network:
@@ -449,6 +516,11 @@ class TopologyKernel(BaseKernel):
             sources, targets = edges.ends(p)
             for edge in np.flatnonzero(edges.present(p) & ((sources == row) | (targets == row))):
                 self._clear(edges, int(edge), p)
+        hyperedges = network.hyperedges
+        if hyperedges is not None and hyperedges.members is not None:
+            holding = hyperedges.present(p) & (hyperedges.hyperedges(p) == row).any(axis=1)
+            for hyperedge in np.flatnonzero(holding):
+                self._clear(hyperedges, int(hyperedge), p)
 
     @staticmethod
     def _request_of(law: object) -> TopologyRequestSpec | None:
@@ -499,4 +571,5 @@ class TopologyKernel(BaseKernel):
             >>> TopologyKernel._changes_edges(rewire), TopologyKernel._changes_edges(removal)
             (True, False)
         """
-        return request.kind in EDGE_KINDS or (request.kind == 'add-node' and request.edges > 0)
+        joins = request.edges > 0 or request.hyperedge is not None
+        return request.kind in EDGE_KINDS or (request.kind == 'add-node' and joins)

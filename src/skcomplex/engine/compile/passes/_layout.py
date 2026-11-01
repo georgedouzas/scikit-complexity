@@ -23,7 +23,7 @@ from ....specs import EntrySpec, VariableSpec, WienerProcessSpec
 from ....types import Array, VariableKind
 from ..._utils import components_of, declarations_of, default_of, symbol, vector
 from ...problems import BlockSpec, DeclarationsSpec, ReferenceSpec
-from ...problems._declarations_spec import _ACTIVE, ENDS
+from ...problems._declarations_spec import _ACTIVE, ENDS, MEMBERS
 from .._base import BasePass
 from .._compilation import Compilation
 
@@ -219,27 +219,36 @@ class LayoutPass(BasePass):
         variable: str,
         values: Array,
     ) -> tuple[DeclarationsSpec, BlockSpec]:
-        """Return the declarations and the block with a hidden parameter of one value per member of a group.
+        """Return the declarations and the block with a hidden parameter of one value or one row per member of a group.
 
-        Laws read the parameter as `s.<variable>`.
+        Laws read the parameter as `s.<variable>`, a vector for values with one row per member.
         """
         node = block.node
         rows = node.members or 1
-        entry = EntrySpec(f'{node.path}.{variable}', declarations.ends[False], (rows,), RR, rows)
-        item = symbol(f'{variable.strip("_")}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_topology', RR)
+        shape = (rows, *np.shape(values)[1:])
+        entry = EntrySpec(f'{node.path}.{variable}', declarations.ends[False], shape, RR, rows)
+        base = f'{variable.strip("_")}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}_topology'
+        items = [symbol(f'{base}_{column}', RR) for column in range(shape[1])] if len(shape) > 1 else [symbol(base, RR)]
         block = replace(
             block,
-            symbols={**block.symbols, variable: item},
+            symbols={**block.symbols, variable: vector(items) if len(shape) > 1 else items[0]},
             entries={**block.entries, variable: entry},
-            references={**block.references, item: ReferenceSpec(entry, False, 0)},
+            references={
+                **block.references,
+                **{item: ReferenceSpec(entry, False, column) for column, item in enumerate(items)},
+            },
         )
-        return LayoutPass._with_entry(declarations, entry, np.asarray(values, dtype=float), is_state=False), block
+        return (
+            LayoutPass._with_entry(declarations, entry, np.ravel(np.asarray(values, dtype=float)), is_state=False),
+            block,
+        )
 
     @staticmethod
     def _declare_topology(declarations: DeclarationsSpec, block: BlockSpec) -> tuple[DeclarationsSpec, BlockSpec]:
         """Return the declarations and the block with the activity of every row of a capacity group.
 
-        A group on edges also gets the ends of every edge.
+        A group on edges also gets the ends of every edge, and a group on hyperedges the members of every hyperedge,
+        whose hyperedges all have one size.
         """
         node = block.node
         group = node.component
@@ -253,12 +262,14 @@ class LayoutPass(BasePass):
             _ACTIVE,
             (np.arange(rows) < active).astype(float),
         )
-        if group.on != 'edges':
+        if group.on not in {'edges', 'hyperedges'}:
             return declarations, block
         space = node.space
         if not isinstance(space, NetworkSpace):
-            error_msg = f'The group {node.path} lies on the edges of a space that is not a network.'
+            error_msg = f'The group {node.path} lies on the {group.on} of a space that is not a network.'
             raise ValidationError(error_msg)
+        if group.on == 'hyperedges':
+            return LayoutPass._declare_hidden(declarations, block, MEMBERS, LayoutPass._members(node, space))
         padding = np.zeros(rows - active, dtype=np.intp)
         for variable, ends in zip(ENDS, space.edges_[group.layer], strict=True):
             declarations, block = LayoutPass._declare_hidden(
@@ -268,6 +279,25 @@ class LayoutPass(BasePass):
                 np.concatenate([ends, padding]),
             )
         return declarations, block
+
+    @staticmethod
+    def _members(node: NodeSpec, space: NetworkSpace) -> Array:
+        """Return the member nodes of every row of a variable group on hyperedges, with zeros in the free rows.
+
+        Raises:
+            ValidationError:
+                The hyperedges of the network have more than one size, or none.
+        """
+        sizes = sorted({len(hyperedge) for hyperedge in space.hyperedges_})
+        if len(sizes) != 1:
+            error_msg = (
+                f'The variable group {node.path} lies on the hyperedges of a network whose hyperedges have the sizes '
+                f'{sizes}. Give the network hyperedges of one size, which every new hyperedge also has.'
+            )
+            raise ValidationError(error_msg)
+        members = np.zeros(((node.members or 0), sizes[0]))
+        members[: len(space.hyperedges_)] = np.asarray(space.hyperedges_, dtype=float)
+        return members
 
     @staticmethod
     def _value_of(node: NodeSpec, variable: str) -> object:

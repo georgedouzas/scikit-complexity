@@ -24,7 +24,7 @@ from ...problems import (
     OutputSpec,
     ReductionScheduleSpec,
 )
-from ...problems._declarations_spec import _ACTIVE, ENDS
+from ...problems._declarations_spec import _ACTIVE, ENDS, MEMBERS
 from ...problems._edge_search import EdgeSearch
 from ...problems._law_kernel import LawKernel
 from ...problems._topology_kernel import TopologyKernel
@@ -103,6 +103,20 @@ class TopologyFunctionsPass(BasePass):
                 'layer has no variable edge group. Add `GroupElement(..., on="edges", variable=True)` on the layer.'
             )
             raise ValidationError(error_msg)
+        if request.hyperedge is not None and network.hyperedges is None:
+            error_msg = (
+                f'{spec.owner} requests {request!r}, which forms a hyperedge, but the network has no variable group '
+                'on its hyperedges. Add `GroupElement(..., on="hyperedges", variable=True)`.'
+            )
+            raise ValidationError(error_msg)
+        if request.hyperedge is not None and network.hyperedges is not None:
+            size = network.hyperedges.members.columns if network.hyperedges.members is not None else 0
+            if size != request.hyperedge:
+                error_msg = (
+                    f'{spec.owner} requests {request!r}, which forms hyperedges of size {request.hyperedge}, but the '
+                    f'hyperedges of the network have size {size}. Give the request the size of the hyperedges.'
+                )
+                raise ValidationError(error_msg)
         needs = {'remove-edge': 'edge', 'rewire': 'edge', 'add-edge': 'node', 'remove-node': 'node'}.get(request.kind)
         if needs is not None and needs != rows:
             error_msg = f'{spec.owner} requests {request!r}, which runs for every {needs}, from laws of every {rows}.'
@@ -179,14 +193,14 @@ class TopologyFunctionsPass(BasePass):
         variables: dict[str, tuple[EntrySpec, bool]] = {}
         defaults: dict[str, Array] = {}
         for name, entry in block.entries.items():
-            if name in {_ACTIVE, *ENDS}:
+            if name in {_ACTIVE, *ENDS, MEMBERS}:
                 continue
             variables[name] = (entry, name in states)
             default = default_of(element, name) if name in declared_variables(element) else 0.0
             default = 0.0 if default is dataclasses.MISSING else default
             defaults[name] = LayoutPass._coerce_value(entry.name, default, entry.member_shape, entry.domain, None)
-        source, target = block.entries.get(ENDS[0]), block.entries.get(ENDS[1])
-        return CapacityRowsSpec(node.path, variables, defaults, block.entries[_ACTIVE], source, target)
+        source, target, members = (block.entries.get(name) for name in (*ENDS, MEMBERS))
+        return CapacityRowsSpec(node.path, variables, defaults, block.entries[_ACTIVE], source, target, members)
 
     @staticmethod
     def _networks(declarations: DeclarationsSpec) -> dict[int, NetworkRowsSpec]:
@@ -216,7 +230,15 @@ class TopologyFunctionsPass(BasePass):
                 error_msg = f'The variable groups {", ".join(group.path for group in nodes)} are not on a network.'
                 raise ValidationError(error_msg)
             directed = {layer: space.graphs_[layer].is_directed() for layer in edges}
-            networks[key] = NetworkRowsSpec(nodes, edges, directed)
+            hyperedges = next(
+                (
+                    TopologyFunctionsPass._capacity_rows(block, declarations)
+                    for block in declarations.capacity.values()
+                    if block.node.space is space and getattr(block.node.component, 'on', None) == 'hyperedges'
+                ),
+                None,
+            )
+            networks[key] = NetworkRowsSpec(nodes, edges, directed, hyperedges)
         return networks
 
     @staticmethod

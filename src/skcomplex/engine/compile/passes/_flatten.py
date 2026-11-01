@@ -22,6 +22,7 @@ from .._laws import _AGENT_LAWS
 from .._probe import probe_laws
 
 _LABEL_PATTERN = re.compile(r'^[A-Za-z0-9_\-]+$')
+TOPOLOGY_PARTS = ('sites', 'edges', 'hyperedges')
 
 
 class FlattenPass(BasePass):
@@ -227,7 +228,7 @@ class FlattenPass(BasePass):
 
     @staticmethod
     def _is_topology_group(component: object, space: BaseSpace | None) -> bool:
-        """Check whether a component is a variable group on the sites or edges of a network without agent laws.
+        """Check whether a component is a variable group on the sites, edges, or hyperedges of a network, not of agents.
 
         Compiled backends run such a group with a capacity layout, whose rows hold the members present and room for new
         ones, so laws that change the topology of the network add and remove its members.
@@ -243,7 +244,7 @@ class FlattenPass(BasePass):
             topology_group:
                 Whether the group runs with a capacity layout.
         """
-        if not (isinstance(component, GroupElement) and component.variable and component.on in {'sites', 'edges'}):
+        if not (isinstance(component, GroupElement) and component.variable and component.on in TOPOLOGY_PARTS):
             return False
         if not isinstance(space, NetworkSpace):
             return False

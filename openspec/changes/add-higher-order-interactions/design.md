@@ -165,6 +165,24 @@ role binds a single element gets the existing issue code `parameter-shape`, with
 forms with `hyperedge - 1` existing nodes, drawn along an edge for size three, as the triangle attachment of a growing
 simplicial complex does. The hyperedge tables of a network whose groups are variable grow with its nodes.
 
+- Storage: the hyperedges that grow are the rows of `GroupElement(on='hyperedges', variable=True, capacity=n)`, a
+  capacity group like the variable groups on nodes and edges. The layout pass gives it the hidden parameter
+  `_members`, one column per member, beside `_active`, so the initial hyperedges of the network must have one size,
+  which every new hyperedge also has. `CapacityRowsSpec.members` holds the entry, `NetworkRowsSpec.hyperedges` the
+  group, and `NetworkSnapshotSpec.hyperedges` the members of the hyperedges present at a frame.
+- Drawing: a new node draws an edge of its layer uniformly, whose ends are the first two members, then the other
+  `hyperedge - 3` members by `toward`, and joins each member by an edge; it is the last member, so an edge joins the
+  first two members of every hyperedge. The request ignores `edges`. Without edges, all members are drawn by `toward`;
+  with too few nodes the new node stays alone. A removed node clears the hyperedges that hold it. The topology pass
+  reports a request with a hyperedge on a network without a variable group on its hyperedges, or of another size.
+- Gather tables at run time: on such a network the tables of the member slots of a hyperedge interaction hold positions
+  in `_members`, and `NeighborReadSpec.entry` names that entry, so the NumPy readers and writers, which now take the
+  parameter vector, and the Numba printer, `int(p[start + L[table + row]])`, read the members of every row at every
+  evaluation. The spec also reads the activity of the hyperedge of every row, by which `HyperedgeTables._masked`
+  multiplies rates, noises, and jumps. An update of the hyperedge member writes only its own row and stays as it is;
+  an update of the focal member is reported, since free rows would write node 0, as is an edge role and a jump that
+  targets a gathered member, whose channels are fixed.
+
 ### Models
 
 | Model | Field path | Built on |

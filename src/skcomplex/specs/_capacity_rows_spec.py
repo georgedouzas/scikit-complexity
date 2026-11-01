@@ -19,7 +19,7 @@ ACTIVE_THRESHOLD = 0.5
 
 @dataclass(frozen=True)
 class CapacityRowsSpec(BaseSpec):
-    """Rows of a variable group on the nodes or edges of a network, with the values a new member starts from.
+    """Rows of a variable group on the nodes, edges, or hyperedges of a network, with the values of a new member.
 
     Args:
         path:
@@ -39,6 +39,10 @@ class CapacityRowsSpec(BaseSpec):
 
         target:
             The parameter entry of the target node of every edge row, or `None` for a group on the nodes.
+
+        members:
+            The parameter entry of the member nodes of every hyperedge row, one column per member, or `None` for a
+            group on the nodes or edges.
     """
 
     path: str
@@ -47,6 +51,7 @@ class CapacityRowsSpec(BaseSpec):
     active: EntrySpec
     source: EntrySpec | None = None
     target: EntrySpec | None = None
+    members: EntrySpec | None = None
 
     def present(self, p: Array) -> npt.NDArray[np.bool_]:
         """Return whether every row holds a member.
@@ -99,3 +104,17 @@ class CapacityRowsSpec(BaseSpec):
         assert self.source is not None
         assert self.target is not None
         return self.source.view(p)[:, 0].astype(np.intp), self.target.view(p)[:, 0].astype(np.intp)
+
+    def hyperedges(self, p: Array) -> Indices:
+        """Return the member nodes of every hyperedge row.
+
+        Args:
+            p:
+                The parameter vector.
+
+        Returns:
+            members:
+                One row of member nodes per hyperedge row.
+        """
+        assert self.members is not None
+        return self.members.view(p).astype(np.intp)

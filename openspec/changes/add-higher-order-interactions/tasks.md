@@ -28,7 +28,7 @@
 - [ ] 4.1 Add the reduction `contraction` with its NumPy and Numba lowering, on the shaped parameters of
   `add-learning-dynamics`, and the `parameter-shape` issue of a tensor on an element; verify the contraction and tensor
   on an element scenarios
-- [ ] 4.2 Add the `hyperedge` argument of `TopologyInteraction(action='add-node')` with growing hyperedge tables;
+- [x] 4.2 Add the `hyperedge` argument of `TopologyInteraction(action='add-node')` with growing hyperedge tables;
   verify the triangle attachment scenario
 
 - [ ] 4.3 Add the connected-components reduction to `skcomplex.core.laws.utils` with its NumPy and Numba lowering, giving component labels and the largest component of the active links of a network; verify it against networkx on random graphs

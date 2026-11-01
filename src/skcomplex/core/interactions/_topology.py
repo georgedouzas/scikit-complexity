@@ -31,7 +31,10 @@ class TopologyInteraction(NeighborInteraction):
     other nodes, and a rewiring keeps the end `keep` of its edge. New ends are drawn with probability proportional to
     `toward(node)`, a function of the namespace of a candidate node, or uniformly. A new node or edge takes the
     `values`, each a value or a function of the random number generator that draws it. The groups on the nodes and the
-    edges of the network are variable.
+    edges of the network are variable. With `hyperedge`, a new node instead forms a hyperedge of that size with
+    `hyperedge - 1` existing nodes and joins each of them by an edge: the first two are the ends of an edge drawn
+    uniformly, so a size of three attaches a triangle along an edge, and further members are drawn by `toward`. The
+    new hyperedge is a new member of the variable group on the hyperedges of the network.
 
     Args:
         label:
@@ -70,10 +73,14 @@ class TopologyInteraction(NeighborInteraction):
         layer:
             The layer of the network whose edges change, or `None` for the graph of the network.
 
+        hyperedge:
+            The size of the hyperedge every new node forms with existing nodes, or `None` for none.
+
     Raises:
         ValidationError:
             The action or the kept end is unknown, both a rate and a probability are given, the number of edges is
-            not a whole number, or an action other than `'add-node'` has no target, raised by `check`.
+            not a whole number, an action other than `'add-node'` has no target, or a hyperedge is given to an action
+            other than `'add-node'` or has fewer than two members, raised by `check`.
 
     Examples:
         >>> import networkx as nx
@@ -89,6 +96,20 @@ class TopologyInteraction(NeighborInteraction):
         >>> trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
         >>> len(trajectory.network(0).sources), len(trajectory.network(1).sources)
         (5, 0)
+
+        A network that grows by triangles from one triangle:
+
+        >>> import xgi
+        >>> from skcomplex.core.spaces import DiscreteTime
+        >>> triangles = GroupElement('triangles', element=Element, on='hyperedges', variable=True, capacity=8)
+        >>> growth = TopologyInteraction('growth', action='add-node', hyperedge=3)
+        >>> space = NetworkSpace(nx.complete_graph(3), hyperedges=[[0, 1, 2]])
+        >>> system = System(
+        ...     elements=[nodes, links, triangles], interactions=[growth], space=space, time=DiscreteTime()
+        ... )
+        >>> trajectory = Simulation(system, random_state=0).check().prepare().run(until=5).trajectory_
+        >>> trajectory.network(-1).hyperedges.shape
+        (6, 3)
     """
 
     def __init__(
@@ -105,6 +126,7 @@ class TopologyInteraction(NeighborInteraction):
         keep: str = 'source',
         values: Mapping[str, object] | None = None,
         layer: str | None = None,
+        hyperedge: int | None = None,
     ) -> None:
         super().__init__(label, layer=layer)
         self.target = target
@@ -116,6 +138,7 @@ class TopologyInteraction(NeighborInteraction):
         self.edges = edges
         self.keep = keep
         self.values = values
+        self.hyperedge = hyperedge
 
     def _check(self) -> None:
         """Raise an error for an unknown action or kept end, a rate next to a probability, or a bad number of edges.
@@ -123,8 +146,8 @@ class TopologyInteraction(NeighborInteraction):
         Raises:
             ValidationError:
                 The action or the kept end is unknown, both a rate and a probability are given, a condition or a
-                weight cannot be called, the number of edges is not a whole number of at least 0, or an action other
-                than `'add-node'` has no target.
+                weight cannot be called, the number of edges is not a whole number of at least 0, an action other
+                than `'add-node'` has no target, or a hyperedge is given to an action other than `'add-node'`.
         """
         super()._check()
         if self.action not in ACTIONS:
@@ -135,6 +158,9 @@ class TopologyInteraction(NeighborInteraction):
             raise ValidationError(error_msg)
         if self.target is None and self.action != 'add-node':
             error_msg = f'{self.label!r} runs {self.action!r} without a target. Give the group on the nodes.'
+            raise ValidationError(error_msg)
+        if self.hyperedge is not None and self.action != 'add-node':
+            error_msg = f'{self.label!r} runs {self.action!r} with a hyperedge. Only new nodes form hyperedges.'
             raise ValidationError(error_msg)
         for name in ('condition', 'toward'):
             value = getattr(self, name)
@@ -148,7 +174,18 @@ class TopologyInteraction(NeighborInteraction):
         """Return the requests of the action, two for a replacement of a node."""
         values = tuple((self.values or {}).items())
         kinds = ['add-node', 'remove-node'] if self.action == 'replace-node' else [self.action]
-        return [TopologyRequestSpec(kind, self.edges, self.toward, self.keep, self.layer, values) for kind in kinds]
+        return [
+            TopologyRequestSpec(
+                kind,
+                self.edges,
+                self.toward,
+                self.keep,
+                self.layer,
+                values,
+                self.hyperedge if kind == 'add-node' else None,
+            )
+            for kind in kinds
+        ]
 
     @staticmethod
     def _evaluate(value: Chance, namespace: SimpleNamespace) -> object:

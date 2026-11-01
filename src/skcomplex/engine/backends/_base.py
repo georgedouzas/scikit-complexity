@@ -120,7 +120,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
             for kernel in kernels:
                 pairs, values = BaseBackend._outputs_of(kernel, RunStateSpec(t, x, p))
                 for item, value in zip(kernel.outputs, values, strict=True):
-                    BaseBackend._add_into(output, item.target, value, pairs)
+                    BaseBackend._add_into(output, item.target, value, pairs, p)
             return output
 
         return evaluate
@@ -148,9 +148,9 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
                 _, values = BaseBackend._outputs_of(kernel, RunStateSpec(t, x, p))
                 for item, value in zip(kernel.outputs, values, strict=True):
                     if item.combined:
-                        BaseBackend._assign_change_into(output, x, item.target, value)
+                        BaseBackend._assign_change_into(output, x, item.target, value, p)
                     else:
-                        BaseBackend._assign_into(output, item.target, value)
+                        BaseBackend._assign_into(output, item.target, value, p)
             return output
 
         return evaluate
@@ -182,6 +182,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         target: ReferenceSpec | None,
         values: Array,
         pairs: tuple[Indices, Indices] | None,
+        p: Array,
     ) -> None:
         """Add the values of one output to the target component of a flat vector.
 
@@ -198,6 +199,9 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
             pairs:
                 The pairs of a pair kernel, or `None` in member mode.
 
+            p:
+                The parameter vector, which holds the members of gather tables that change during a run.
+
         Raises:
             ValidationError:
                 The output has no target.
@@ -212,13 +216,13 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         if target.source is ReadKind.MEMBER:
             column += values
         elif target.source is ReadKind.NEIGHBOR:
-            np.add.at(column, target.shifted.table, values)
+            np.add.at(column, target.shifted.members(p), values)
         else:
             assert pairs is not None
             np.add.at(column, pairs[0] if target.source is ReadKind.FIRST else pairs[1], values)
 
     @staticmethod
-    def _assign_into(output: Array, target: ReferenceSpec | None, values: Array) -> None:
+    def _assign_into(output: Array, target: ReferenceSpec | None, values: Array, p: Array) -> None:
         """Set the target component of a flat vector to the values of one output.
 
         Args:
@@ -231,6 +235,9 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
             values:
                 One value per evaluation index.
 
+            p:
+                The parameter vector, which holds the members of gather tables that change during a run.
+
         Raises:
             ValidationError:
                 The output has no target.
@@ -239,7 +246,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
             error_msg = 'An output assigned into a vector needs a target component.'
             raise ValidationError(error_msg)
         if target.source is ReadKind.NEIGHBOR:
-            output[target.members][target.shifted.table] = values
+            output[target.members][target.shifted.members(p)] = values
             return
         if target.source is not ReadKind.MEMBER:
             output[target.index] = values[0]
@@ -247,7 +254,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         output[target.members] = values
 
     @staticmethod
-    def _assign_change_into(output: Array, x: Array, target: ReferenceSpec | None, values: Array) -> None:
+    def _assign_change_into(output: Array, x: Array, target: ReferenceSpec | None, values: Array, p: Array) -> None:
         """Add the change of one output from the state to the target component of a flat vector.
 
         Args:
@@ -263,6 +270,9 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
             values:
                 One value per evaluation index.
 
+            p:
+                The parameter vector, which holds the members of gather tables that change during a run.
+
         Raises:
             ValidationError:
                 The output has no target.
@@ -271,7 +281,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
             error_msg = 'An output assigned into a vector needs a target component.'
             raise ValidationError(error_msg)
         if target.source is ReadKind.NEIGHBOR:
-            table = target.shifted.table
+            table = target.shifted.members(p)
             output[target.members][table] += values - x[target.members][table]
             return
         if target.source is not ReadKind.MEMBER:

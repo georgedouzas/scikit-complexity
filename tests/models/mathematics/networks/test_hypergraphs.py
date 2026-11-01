@@ -1,13 +1,19 @@
 """Test the `_hypergraphs` module of `skcomplex.models.mathematics.networks`."""
 
+import itertools
+
 import numpy as np
 import pytest
 import xgi
 
+from skcomplex.analysis import FitAnalysis
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.mathematics.networks import hypergraph_random_walk
+from skcomplex.models import create
+from skcomplex.models.mathematics.networks import growing_simplicial_complex, hypergraph_random_walk
+
+from .conftest import _final_graph
 
 
 def _transitions(hypergraph: xgi.Hypergraph) -> np.ndarray:
@@ -40,3 +46,34 @@ def test_hypergraph_random_walk_settles_on_the_hyperedge_weights():
     weights = np.asarray(system.elements[0].values['D'])
     assert np.allclose(probabilities.sum(axis=1), 1.0, atol=1e-9)
     assert np.allclose(probabilities[-1], weights / weights.sum(), atol=1e-6)
+
+
+@pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
+def test_growing_simplicial_complex_attaches_one_triangle_per_step(backend):
+    """Test that 50 steps from one triangle give 51 triangles along edges, each with its age in steps."""
+    simulation = Simulation(growing_simplicial_complex(60), backend=backend, random_state=0).check().prepare()
+    trajectory = simulation.run(until=50).trajectory_
+    network = trajectory.network(-1)
+    graph = network.graph()
+    assert network.hyperedges.shape == (51, 3)
+    assert (graph.number_of_nodes(), graph.number_of_edges()) == (53, 3 + 2 * 50)
+    assert set(range(3, 53)) <= set(network.hyperedges.ravel().tolist())
+    assert all(graph.has_edge(*pair) for row in network.hyperedges for pair in itertools.combinations(row, 2))
+    ages = np.asarray(trajectory.values('triangles.age')[-1])
+    assert sorted(ages[~np.isnan(ages)].tolist()) == list(range(51))
+
+
+def test_growing_simplicial_complex_degrees_follow_preferential_attachment():
+    """Test that gluing triangles along uniform edges gives a degree tail exponent near 3."""
+    graph, _ = _final_graph(growing_simplicial_complex(2003), 2000)
+    assert graph.number_of_edges() == 3 + 2 * 2000
+    degrees = np.array([degree for _, degree in graph.degree])
+    fit = FitAnalysis(minimum=8, discrete=True, bootstrap=0).check().prepare(degrees).run()
+    assert abs(fit.exponent_ - 3) < 0.4
+
+
+def test_growing_simplicial_complex_is_created_by_name():
+    """Test that the model is registered with variable groups on its nodes, edges, and triangles."""
+    system = create('growing_simplicial_complex')
+    assert [element.on for element in system.elements] == ['sites', 'edges', 'hyperedges']
+    assert all(element.variable for element in system.elements)

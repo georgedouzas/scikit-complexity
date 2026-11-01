@@ -28,7 +28,7 @@ from ...problems import (
     ReferenceSpec,
     SetSymbolSpec,
 )
-from ...problems._declarations_spec import _ACTIVE, ENDS
+from ...problems._declarations_spec import _ACTIVE, ENDS, MEMBERS
 from ...problems._edge_search import EdgeSearch
 from ...problems._pair_search import PairSearch
 from ...problems._set_symbol_spec import _EDGE_NAMES, _MEMBER_REFERENCE
@@ -777,16 +777,18 @@ class SpecsPass(BasePass):
         block: BlockSpec,
         alias: str,
         table: Indices | None,
+        entry: EntrySpec | None = None,
     ) -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
         """Return the namespace of one slot of a hyperedge, whose symbols read a group through a gather table.
 
         The slot of the members of the hyperedge has no table, and its symbols, which only reductions over the members
-        read, have no references.
+        read, have no references. A table of positions in the entry of the members of a growing hypergraph reads its
+        members from that entry.
         """
         namespace, references = SpecsPass._namespace(block, ReadKind.NEIGHBOR, alias=alias)
         if table is None:
             return namespace, {}
-        read = NeighborReadSpec(table, None, None, None, 0)
+        read = NeighborReadSpec(table, None, None, None, 0, entry)
         return namespace, {item: replace(reference, neighbor=read) for item, reference in references.items()}
 
     @staticmethod
@@ -795,15 +797,21 @@ class SpecsPass(BasePass):
         roles: tuple[BlockSpec, BlockSpec | None],
         tables: tuple[str, Tables],
         time: Expression,
+        growing: BlockSpec | None = None,
     ) -> KernelSpec:
-        """Return the spec of the laws of one kind and one size of hyperedge, read through the tables of its rows."""
+        """Return the spec of the laws of one kind and one size of hyperedge, read through the tables of its rows.
+
+        On a network whose hyperedges are the rows of a variable group, the members read their nodes from the entry of
+        the members of the group, and the spec reads the activity of the hyperedge of every row.
+        """
         nodes, second = roles
         mode, (focal, others, hyperedges, edges) = tables
+        entry = None if growing is None else growing.entries[MEMBERS]
         parameters, references = SpecsPass._namespace(block, ReadKind.SINGLE)
         namespaces: dict[str, object] = {}
-        namespaces['member'], gathered = SpecsPass._gathered(nodes, '__member', focal)
+        namespaces['member'], gathered = SpecsPass._gathered(nodes, '__member', focal, entry)
         references.update(gathered)
-        read = [SpecsPass._gathered(nodes, f'__other{position}', table) for position, table in enumerate(others)]
+        read = [SpecsPass._gathered(nodes, f'__other{position}', table, entry) for position, table in enumerate(others)]
         namespaces['others'] = tuple(namespace for namespace, _ in read)
         for _, gathered in read:
             references.update(gathered)
@@ -815,6 +823,10 @@ class SpecsPass(BasePass):
             namespaces[part], gathered = SpecsPass._gathered(second, f'__{part}', table)
             references.update(gathered)
             paths[part] = second.node.path
+        if growing is not None:
+            activity = symbol(f'active_{re.sub(r"[^0-9A-Za-z]", "_", block.node.path)}_{mode}_hyperedges', RR)
+            read_activity = NeighborReadSpec(hyperedges, None, None, None, 0)
+            references[activity] = ReferenceSpec(growing.entries[_ACTIVE], False, 0, ReadKind.NEIGHBOR, read_activity)
         return KernelSpec(
             block.node.path,
             SimpleNamespace(t=time, **vars(parameters), **namespaces),
@@ -856,8 +868,24 @@ class SpecsPass(BasePass):
                 'read as the slots of a hyperedge. Rename them.'
             )
             raise LabelError(error_msg)
+        growing = next(
+            (
+                item
+                for item in elements.values()
+                if item.node.active is not None
+                and getattr(item.node.component, 'on', None) == 'hyperedges'
+                and item.node.space is roles[0].node.space
+            ),
+            None,
+        )
+        if growing is None:
+            return [
+                SpecsPass._hyperedge_spec(block, roles, tables, time)
+                for tables in HyperedgeTables._tables_of(node, *roles)
+            ]
         return [
-            SpecsPass._hyperedge_spec(block, roles, tables, time) for tables in HyperedgeTables._tables_of(node, *roles)
+            SpecsPass._hyperedge_spec(block, roles, tables, time, growing)
+            for tables in HyperedgeTables._growing_tables_of(node, *roles, growing)
         ]
 
     @staticmethod

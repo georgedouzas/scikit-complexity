@@ -445,7 +445,7 @@ class CensusPass(BasePass):
             if not isinstance(expanded, BaseLaw):
                 error_msg = f'The law {law!r} of {spec.owner} is not a law once its reductions are written out.'
                 raise TypeError(error_msg)
-            kept.append(expanded.check())
+            kept.append(HyperedgeTables._masked(spec, expanded.check()))
         return kept
 
     @staticmethod

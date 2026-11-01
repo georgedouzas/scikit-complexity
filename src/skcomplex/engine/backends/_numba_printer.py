@@ -358,11 +358,17 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         )
 
     def _gathered_member(self, reference: ReferenceSpec) -> str:
-        """Return the code of the member a gathered reference reads at the row `_m_`, from its table in the layout."""
-        table = reference.shifted.table
+        """Return the code of the member a gathered reference reads at the row `_m_`, from its table in the layout.
+
+        A table whose members change during a run holds positions in a parameter entry, which holds the members.
+        """
+        read = reference.shifted
+        table = read.table
         digest = hashlib.sha256(np.asarray(table, dtype=np.int64).tobytes()).hexdigest()[:16]
         slot = self._data_slot(f'__gather_{digest}', table)
-        return f'L[_L{2 * slot}_ + _m_]'
+        if read.entry is None:
+            return f'L[_L{2 * slot}_ + _m_]'
+        return f'int(p[_L{2 * self._slot(read.entry)}_ + L[_L{2 * slot}_ + _m_]])'
 
     def _output_count(self, kernel: LawKernel) -> str:
         """Return the code of the number of values a member kernel writes, its outputs times its rows."""

@@ -13,6 +13,7 @@ from ._base_spec import BaseSpec
 TOPOLOGY_KINDS = ('add-edge', 'remove-edge', 'rewire', 'add-node', 'remove-node')
 EDGE_KINDS = ('add-edge', 'remove-edge', 'rewire')
 ENDS = ('source', 'target')
+MIN_HYPEREDGE = 2
 
 
 @dataclass(frozen=True, eq=False)
@@ -49,6 +50,11 @@ class TopologyRequestSpec(BaseSpec):
             random number generator that draws the value for every new node or edge, which default to the defaults of
             the element type.
 
+        hyperedge:
+            The size of the hyperedge a new node forms with existing nodes, joining each of them by an edge in place
+            of `edges`, or `None` for no hyperedge. The first two existing members are the ends of an edge drawn
+            uniformly, and further members are drawn by `toward`.
+
     Examples:
         >>> from skcomplex.core.laws import UpdateLaw
         >>> from skcomplex.specs import TopologyRequestSpec
@@ -62,13 +68,15 @@ class TopologyRequestSpec(BaseSpec):
     keep: str = 'source'
     layer: str | None = None
     values: tuple[tuple[str, object], ...] = ()
+    hyperedge: int | None = None
 
     def _check(self) -> None:
         """Raise an error for an unknown kind or kept end, or a number of edges that is not a whole number.
 
         Raises:
             ValidationError:
-                The kind or the kept end is unknown, or the number of edges is negative or not whole.
+                The kind or the kept end is unknown, the number of edges is negative or not whole, or a hyperedge
+                has fewer than two members or belongs to a request other than `'add-node'`.
         """
         if self.kind not in TOPOLOGY_KINDS:
             error_msg = f'Unknown topology request {self.kind!r}. Use one of {", ".join(TOPOLOGY_KINDS)}.'
@@ -78,4 +86,12 @@ class TopologyRequestSpec(BaseSpec):
             raise ValidationError(error_msg)
         if int(self.edges) != self.edges or self.edges < 0:
             error_msg = f'A topology request adds a whole number of edges of at least 0, not {self.edges!r}.'
+            raise ValidationError(error_msg)
+        if self.hyperedge is None:
+            return
+        if int(self.hyperedge) != self.hyperedge or self.hyperedge < MIN_HYPEREDGE:
+            error_msg = f'A new node forms a hyperedge of a whole number of at least 2 members, not {self.hyperedge!r}.'
+            raise ValidationError(error_msg)
+        if self.kind != 'add-node':
+            error_msg = f'A {self.kind!r} request forms no hyperedge. Only a request that adds a node takes one.'
             raise ValidationError(error_msg)

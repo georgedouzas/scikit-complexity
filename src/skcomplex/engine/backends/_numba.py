@@ -53,7 +53,7 @@ from ...core.spaces import (
     StaticTime,
 )
 from ...errors import BackendWarning, ValidationError
-from ...specs import AcceleratedSpec, EntrySpec, LoweredFunctionsSpec, SupportSpec
+from ...specs import AcceleratedSpec, EntrySpec, LoweredFunctionsSpec, NeighborReadSpec, SupportSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind, VectorFunction
 from ..problems import ExpressionPrinter, LoweredKernelsSpec, ReductionScheduleSpec, ReferenceSpec, SourceLoader
 from ..problems._draw_kernel import DrawKernel
@@ -385,6 +385,10 @@ class NumbaBackend(BaseBackend):
                 if isinstance(search, EdgeSearch) and search.source is not None and search.target is not None:
                     entries[search.source.name] = search.source
                     entries[search.target.name] = search.target
+                for reference in kernel.references.values():
+                    read = reference.neighbor
+                    if isinstance(read, NeighborReadSpec) and read.entry is not None:
+                        entries[read.entry.name] = read.entry
         for item in reductions.reductions:
             entries[item.entry.name] = item.entry
             entries.update({read.entry.name: read.entry for read in item.reads.values() if read.entry is not None})

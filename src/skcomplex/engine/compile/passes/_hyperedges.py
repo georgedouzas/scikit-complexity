@@ -10,14 +10,18 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
+from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import maximum, minimum, reductions_in, where
 from ....core.spaces import NetworkSpace
 from ....core.specs import NodeSpec
 from ....errors import RoleError, ValidationError
 from ....specs import ReductionSpec
 from ....types import Indices
+from ..._utils import vector
 from ...problems import BlockSpec, KernelSpec
+from ...problems._declarations_spec import _ACTIVE, MEMBERS
 from ...types import ReadKind
+from .._base import BasePass
 
 MEMBER_LAWS = 'member'
 HYPEREDGE_LAWS = 'hyperedge'
@@ -31,7 +35,9 @@ class HyperedgeTables:
 
     The laws of the focal member run over one row per member of every hyperedge, and the laws of the member of a group
     on hyperedges or edges over one row per hyperedge. Every symbol of the laws reads its value through the table of
-    its slot: the focal member, one of the other members, the hyperedge, or the edge.
+    its slot: the focal member, one of the other members, the hyperedge, or the edge. On a network whose hyperedges
+    are the rows of a variable group, the tables of the members hold positions in the parameter entry of the members
+    of every row, which topology requests rewrite during a run.
     """
 
     @staticmethod
@@ -215,6 +221,125 @@ class HyperedgeTables:
                     edges = HyperedgeTables._edge_indices(node, space, second, (rows[:, 0], rows[:, 1]))
                 found.append((mode, (focal, others, hyperedges, edges)))
         return found
+
+    @staticmethod
+    def _growing_tables_of(
+        node: NodeSpec,
+        nodes: BlockSpec,
+        second: BlockSpec | None,
+        growing: BlockSpec,
+    ) -> list[tuple[str, Tables]]:
+        """Return the gather tables of the rows of a variable group on hyperedges, for both kinds of laws.
+
+        The tables of the focal and the other members hold the positions of the members in the parameter entry of the
+        members of every row, and the table of the hyperedge holds its row.
+
+        Args:
+            node:
+                The hyperedge interaction.
+
+            nodes:
+                The block of the variable group on the nodes.
+
+            second:
+                The block of the group that the second role binds, which is the variable group on hyperedges, or
+                `None`.
+
+            growing:
+                The block of the variable group on the hyperedges of the network.
+
+        Returns:
+            tables:
+                The kind of laws, `'member'` then `'hyperedge'`, with the focal member, the other members, the
+                hyperedge, and no edge, of every row.
+
+        Raises:
+            RoleError:
+                The nodes are not a variable group, the second role binds another group, or the interaction runs on
+                another size than the hyperedges of the group.
+        """
+        size = growing.entries[MEMBERS].columns
+        if nodes.node.active is None:
+            error_msg = (
+                f'Hyperedge interaction {node.path} binds {nodes.node.path} on a network whose hyperedges change. '
+                'Bind the variable group on its nodes.'
+            )
+            raise RoleError(error_msg)
+        if second is not None and second is not growing:
+            error_msg = (
+                f'Hyperedge interaction {node.path} binds {second.node.path} on a network whose hyperedges change. '
+                f'Bind the variable group on its hyperedges, {growing.node.path}.'
+            )
+            raise RoleError(error_msg)
+        if getattr(node.component, 'size', None) not in {None, size}:
+            error_msg = (
+                f'Hyperedge interaction {node.path} runs on hyperedges of size {node.component.size}, but the '
+                f'hyperedges of {growing.node.path} have size {size}. Give the size {size}.'
+            )
+            raise RoleError(error_msg)
+        rows = growing.rows
+        positions = np.arange(rows * size, dtype=np.intp).reshape(rows, size)
+        found: list[tuple[str, Tables]] = []
+        for mode in (MEMBER_LAWS, HYPEREDGE_LAWS):
+            focal, others, hyperedges, _ = HyperedgeTables._tables(positions, np.arange(rows, dtype=np.intp), mode)
+            found.append((mode, (focal, others, hyperedges, None)))
+        return found
+
+    @staticmethod
+    def _activity(spec: KernelSpec) -> Expression | None:
+        """Return the symbol of the activity of the hyperedge of every row on a growing hypergraph, or `None`."""
+        return next(
+            (
+                item
+                for item, reference in spec.references.items()
+                if reference.source is ReadKind.NEIGHBOR and reference.entry.name.endswith(f'.{_ACTIVE}')
+            ),
+            None,
+        )
+
+    @staticmethod
+    def _scaled(value: object, activity: Expression) -> Expression | FreeModuleElement:
+        """Return a scalar or a vector value multiplied by an activity."""
+        if isinstance(value, FreeModuleElement):
+            return vector(SR(item) * activity for item in value)
+        return SR(value) * activity
+
+    @staticmethod
+    def _masked(spec: KernelSpec, law: BaseLaw) -> BaseLaw:
+        """Return a law of a spec on a growing hypergraph that vanishes on the free rows of the group on hyperedges.
+
+        A rate, a noise, or a jump is multiplied by the activity of the hyperedge. An update of the hyperedge member
+        writes only its own row, which a new hyperedge starts afresh, so it stays as it is.
+
+        Args:
+            spec:
+                The spec of the hyperedge interaction for one kind of laws.
+
+            law:
+                The law, with its reductions over the members written out.
+
+        Returns:
+            law:
+                The masked law, or the law itself on a hypergraph whose hyperedges do not change.
+
+        Raises:
+            ValidationError:
+                A law of the focal member other than a rate, a noise, or a jump runs on a growing hypergraph.
+        """
+        activity = HyperedgeTables._activity(spec)
+        if activity is None:
+            return law
+        if isinstance(law, RateLaw | NoiseLaw):
+            return BasePass._replaced(law, value=HyperedgeTables._scaled(law.value, activity)).check()
+        if isinstance(law, JumpLaw):
+            return BasePass._replaced(law, rate=HyperedgeTables._scaled(law.rate, activity)).check()
+        if isinstance(law, UpdateLaw) and spec.hyperedge == HYPEREDGE_LAWS:
+            return law
+        error_msg = (
+            f'{spec.owner} returns {type(law).__name__} for the members of hyperedges that change during a run, where '
+            'its free rows would write to a node. Write a rate, a noise, or a jump, or update the hyperedge member.'
+        )
+        raise ValidationError(error_msg)
 
     @staticmethod
     def _components(value: object) -> list[Expression]:
