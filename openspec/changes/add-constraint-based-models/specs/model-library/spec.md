@@ -4,8 +4,8 @@
 
 ### Requirement: Flux balance model
 The library SHALL provide `flux_balance`, which runs FBA, FVA, and parsimonious FBA on Raman's toy network of Table 8.2
-by default without the extra, and on the E. coli core model with the extra. It SHALL accept a ramp of an uptake bound
-over the frames.
+by default without the extra, and on the E. coli core model with the extra, under static time. A sweep of an uptake
+bound SHALL run as an `Experiment` over a `GridDesign`.
 
 #### Scenario: Toy network growth
 - **WHEN** `flux_balance` runs with its defaults
@@ -14,13 +14,14 @@ over the frames.
   `v7 = 100`, `b1 = 600`, and `b2 = 1000`, as Raman Eq. 8.12 gives
 
 #### Scenario: E. coli core aerobic and anaerobic growth
-- **WHEN** `flux_balance` runs on the E. coli core model while the oxygen uptake bound ramps from 0 to 20
+- **WHEN** `flux_balance` runs on the E. coli core model over a sweep of the oxygen uptake bound from 0 to 20
 - **THEN** growth is 0.2117 h⁻¹ within 1e-4 at no oxygen, rises with oxygen, and reaches 0.8739 h⁻¹ within 1e-4 once
   oxygen no longer limits
 
 ### Requirement: Metabolic perturbations model
 The library SHALL provide `metabolic_perturbations`, which applies gene and reaction knock-outs, MoMA, ROOM, OptKnock,
-synthetic lethal scans, and FSEOF to the E. coli core model.
+synthetic lethal scans, and FSEOF to the E. coli core model through the analyses of
+`biology/common/metabolism`.
 
 #### Scenario: Essential gene
 - **WHEN** the `gapA` gene (b1779) is knocked out
@@ -32,7 +33,7 @@ synthetic lethal scans, and FSEOF to the E. coli core model.
 
 ### Requirement: Regulatory FBA model
 The library SHALL provide `regulatory_fba`, where Boolean gene rules alternate with FBA (Raman Eq. 9.7) in a batch
-culture on glucose and acetate.
+culture on glucose and acetate, with the switches set by `UpdateLaw`s from the Boolean nodes.
 
 #### Scenario: Glucose represses acetate uptake
 - **WHEN** `regulatory_fba` runs until both substrates are exhausted
@@ -51,7 +52,7 @@ and the static optimisation approach (Raman Eqs. 9.8–9.9). The direct approach
 
 ### Requirement: Dynamic multispecies FBA model
 The library SHALL provide `dynamic_multispecies_fba`, the dynamic multi-species metabolic model of microbes competing
-for a shared medium, each species with its own network, uptake kinetics, and biomass.
+for a shared medium, each species with its own program, uptake kinetics, and biomass.
 
 #### Scenario: Competition for glucose
 - **WHEN** two E. coli core strains that differ only in maximal glucose uptake grow on one medium
@@ -60,16 +61,17 @@ for a shared medium, each species with its own network, uptake kinetics, and bio
 
 ### Requirement: COMETS model
 The library SHALL provide `comets`, dynamic FBA on a 2D lattice in which metabolites and biomass diffuse, and only sites
-with biomass above a threshold are solved.
+with biomass above a threshold are solved, through the activity of the linear program law.
 
 #### Scenario: Expanding colony
 - **WHEN** `comets` runs from a central inoculum on uniform glucose
-- **THEN** the colony radius grows with a nearly constant speed after a transient. The glucose consumed over the lattice matches the
-  integral of uptake flux times biomass over sites and time within 1%, and sites without biomass have zero fluxes.
+- **THEN** the colony radius grows with a nearly constant speed after a transient. The glucose consumed over the lattice
+  matches the integral of uptake flux times biomass over sites and time within 1%, and sites without biomass have zero
+  fluxes.
 
 ### Requirement: Community FBA model
-The library SHALL provide `community_fba`, which models a microbial community by joint FBA, community FBA with
-abundances, SteadyCom, and, with the extra, the cooperative trade-off (Raman Eq. 11.3).
+The library SHALL provide `community_fba`, which models a microbial community by joint FBA as merged programs,
+community FBA with abundances, SteadyCom, and, with the extra, the cooperative trade-off (Raman Eq. 11.3).
 
 #### Scenario: Cross-feeding mutants
 - **WHEN** two E. coli core members with complementary knock-outs that each make the other's missing metabolite are
@@ -79,22 +81,23 @@ abundances, SteadyCom, and, with the extra, the cooperative trade-off (Raman Eq.
 ### Requirement: Elementary flux modes model
 The library SHALL provide `elementary_flux_modes`, which enumerates the elementary flux modes and extreme pathways of a
 metabolic network (Raman 2021 §9.8), Raman's toy network of Table 8.2 by default, ordered by growth yield on the
-substrate, with one frame per mode. It SHALL need the extra `polyhedra`.
+substrate, through `ElementaryModeAnalysis`, without any extra.
 
 #### Scenario: Toy network modes and the FBA optimum
 - **WHEN** `elementary_flux_modes` runs with its defaults
-- **THEN** it records 2 modes, each with growth yield `1/12` on `A` and `v6 = 20 · vbio`, and the FBA optimum of growth
+- **THEN** it finds 2 modes, each with growth yield `1/12` on `A` and `v6 = 20 · vbio`, and the FBA optimum of growth
   50 is their non-negative combination within 1e-9, so its maximum is set by the bound 1000 on `v6`
 
 #### Scenario: Yield of a knock-out
 - **WHEN** `elementary_flux_modes` runs with `v1` knocked out
-- **THEN** it records 1 mode, through `v2` and `v3`, with the same growth yield `1/12`
+- **THEN** it finds 1 mode, through `v2` and `v3`, with the same growth yield `1/12`
 
 ### Requirement: Carbon-13 metabolic flux analysis model
 The library SHALL provide `carbon_13_mfa`, which estimates the fluxes of a network with atom transitions from
 labelling data of parallel tracer experiments (Raman 2021 §9.7), with confidence intervals and a goodness-of-fit test.
 By default it SHALL use the TCA example network of Antoniewicz et al. (2007) with data simulated from known fluxes plus
-seeded noise, and it SHALL accept user networks and measurements. It SHALL run without any extra.
+seeded noise, through `LabellingAnalysis`, and it SHALL accept user networks and measurements. It SHALL run without
+any extra.
 
 #### Scenario: Recovered fluxes
 - **WHEN** `carbon_13_mfa` runs with its defaults, noise of standard deviation 0.002, and seed 0
@@ -106,22 +109,22 @@ seeded noise, and it SHALL accept user networks and measurements. It SHALL run w
 - **THEN** the distribution is `[0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039]` within 5e-5
 
 ### Requirement: Static analyses come with an optional extra
-With the extra `metabolism` installed, the biology realizations of the library, `skcomplex.models.biology.realizations`,
-SHALL analyse a network with:
-- flux variability;
-- parsimonious fluxes;
-- single and double deletions of processes or switches;
-- MoMA and ROOM in their linear and quadratic or mixed-integer forms;
+With the extra `metabolism` installed, `CobraAnalysis` of `skcomplex.models.biology.common.metabolism` SHALL analyse a
+metabolic network with:
+- flux variability,
+- parsimonious fluxes,
+- single and double deletions of reactions or genes,
+- MoMA and ROOM in their linear and quadratic or mixed-integer forms,
 - synthetic lethal pairs.
 
-Results SHALL be indexed by process or switch name.
+Results SHALL be indexed by reaction or gene name.
 
 #### Scenario: Flux variability at the optimum
 - **WHEN** flux variability runs on the E. coli core model at 100% of the optimum
 - **THEN** the range of the biomass flux is 0.8739 within 1e-4 at both ends
 
 #### Scenario: Parity with the core solve
-- **WHEN** the E. coli core model is solved by the core and by the extra's analysis path
+- **WHEN** the E. coli core model is solved by its linear program law and by COBRApy
 - **THEN** the growth agrees within 1e-7, and the parsimonious total flux agrees with the core's lexicographic total
   flux within 1e-6
 
@@ -130,8 +133,8 @@ Results SHALL be indexed by process or switch name.
 - **THEN** FBA gives growth 0.8632 within 1e-3, and MoMA and ROOM give positive growth below it
 
 ### Requirement: Strain designs are computed with the extra
-With the extra installed, the biology realizations SHALL compute OptKnock, RobustKnock, OptCouple, and minimal cut set designs with
-a maximum number of interventions. It SHALL return each design as sets of process or switch names.
+With the extra installed, `StrainDesignAnalysis` SHALL compute OptKnock, RobustKnock, OptCouple, and minimal cut set
+designs with a maximum number of interventions, and SHALL return each design as sets of reaction or gene names.
 
 #### Scenario: Growth-coupled succinate
 - **WHEN** OptKnock designs succinate production in the E. coli core model with at most 3 knock-outs and growth of at
@@ -140,19 +143,19 @@ a maximum number of interventions. It SHALL return each design as sets of proces
   wild type secretes none
 
 ### Requirement: Flux scanning runs in the default install
-The biology realizations SHALL scan fluxes with enforced objective flux (FSEOF). It SHALL enforce a target flux at increasing
-levels, and report the processes whose absolute flux rises monotonically with it, without the optional extra.
+`ProductionScanAnalysis` SHALL scan fluxes with enforced objective flux (FSEOF). It SHALL enforce a target flux at
+increasing levels, and report the reactions whose absolute flux rises monotonically with it, without the extra.
 
 #### Scenario: Scan toward a product
 - **WHEN** FSEOF scans the succinate exchange of the E. coli core model in 10 steps
-- **THEN** the reported processes carry a flux that rises with every step, and the growth falls from its optimum
+- **THEN** the reported reactions carry a flux that rises with every step, and the growth falls from its optimum
 
 ### Requirement: Communities are modelled jointly and with trade-offs
 The library SHALL:
-- join member networks into one network with a shared compartment and an abundance-weighted growth objective, through
-  the general `join_networks` of `skcomplex.core.analysis`;
-- compute SteadyCom with one common growth rate in the biology realizations, without the optional extra;
-- compute MICOM's cooperative trade-off in the biology realizations, with the extra.
+- join member networks by the merging of their linear program laws through the exchange variables of a shared medium
+  element, whose law holds the abundance-weighted growth objective,
+- compute SteadyCom with one common growth rate by `CommunityAnalysis(kind='steadycom')`, without the extra,
+- compute MICOM's cooperative trade-off by `CommunityAnalysis(kind='tradeoff')`, with the extra.
 
 #### Scenario: Identical members
 - **WHEN** two copies of the E. coli core model share one medium whose uptake allows each of them a glucose uptake of 10
@@ -164,12 +167,12 @@ The library SHALL:
 - **THEN** the community growth equals the joint FBA optimum within 1e-5
 
 ### Requirement: Models import and export standard formats
-With the extra installed, the biology realizations SHALL read SBML and BiGG JSON files and BiGG identifiers into networks, keeping
-the identifiers of reactions, metabolites, and genes, the bounds, the objective, and the gene rules. It SHALL write
-networks back to both formats.
+With the extra installed, `load_network` SHALL read SBML and BiGG JSON files and BiGG identifiers into metabolic
+network elements, keeping the identifiers of reactions, metabolites, and genes, the bounds, the objective, and the gene
+rules, and `save_network` SHALL write them back to both formats.
 
 #### Scenario: Bundled E. coli core
-- **WHEN** a user reads the bundled E. coli core model and solves it in the core
+- **WHEN** a user loads the bundled E. coli core model and solves it in the core
 - **THEN** aerobic growth is 0.8739 within 1e-4, and with oxygen uptake bounded at 0 it is 0.2117 within 1e-4
 
 #### Scenario: Round trip
@@ -188,9 +191,9 @@ its own run, with a caption stating the behaviour shown.
 
 #### Scenario: Carbon-13 flux analysis example
 - **WHEN** a user opens the `carbon_13_mfa` example page
-- **THEN** its thumbnail is the Rerun pool-process graph with the estimated fluxes at the last iteration. Below it, a
-  plot shows the estimated net fluxes with their 95% intervals against the true fluxes, and a plot shows the measured
-  and simulated glutamate distributions.
+- **THEN** its thumbnail is the Rerun graph of the network with the estimated fluxes. Below it, a plot shows the
+  estimated net fluxes with their 95% intervals against the true fluxes, and a plot shows the measured and simulated
+  glutamate distributions.
 
 #### Scenario: Coverage of the new models
 - **WHEN** the gallery coverage check runs after this change
@@ -198,7 +201,8 @@ its own run, with a caption stating the behaviour shown.
 
 ### Requirement: Constraint-based models are recorded in the model inventory
 Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
-inventory, and a model the inventory records as pending this change SHALL register under the name of its entry.
+inventory tagged with the system it builds, and a model the inventory records as pending this change SHALL register
+under the name of its entry.
 
 #### Scenario: Inventory models registered
 - **WHEN** the change is applied and the inventory check runs
@@ -217,8 +221,7 @@ inventory, and a model the inventory records as pending this change SHALL regist
 - **WHEN** a user without the extra `metabolism` creates a model that needs it
 - **THEN** a named error names the model and the extra, and `flux_balance` with its default toy network still runs
 
-#### Scenario: Models outside the inventory's earlier scope
+#### Scenario: Models blocked on this change
 - **WHEN** the inventory check runs after this change
-- **THEN** `elementary_flux_modes` and `carbon_13_mfa`, which the inventory recorded as out of scope, are recorded as
-  implemented with the sources `Rm 9.8` and `Rm 9.7`, and the `polyhedra` extra is named in the docstring of
-  `elementary_flux_modes`
+- **THEN** `elementary_flux_modes` and `carbon_13_mfa`, which the inventory recorded as blocked on this change, are
+  recorded as implemented with the sources `Rm 9.8` and `Rm 9.7`

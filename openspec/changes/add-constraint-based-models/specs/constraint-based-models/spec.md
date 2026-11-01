@@ -2,166 +2,157 @@
 
 ## Purpose
 
-Lets a user declare constraint-based models, which are linear constraint systems over flux variables with bounds and
-objectives, solve them at a point in time, couple the solve to dynamics, regulation, lattices, and communities, analyse
-them with established methods, and enumerate the elementary modes and extreme pathways of their flux cone.
+Lets a user set algebraic states to optimal solutions of linear programs, couple the solve to dynamics, regulation,
+lattices, and communities, and enumerate the elementary modes and extreme pathways of their steady-state cone.
 
 ## ADDED Requirements
 
-### Requirement: Constraint networks are declared from symbols
-The modelling layer SHALL declare a constraint network, an element of `core.components`, from pools, processes with
-coefficients per pool and bounds, extra linear constraints, switches, Boolean rules over switches that gate processes,
-and objectives. Each process SHALL expose a flux symbol that laws and observables read. Invalid declarations SHALL raise
-a named error that names the offending part.
-
-#### Scenario: Stoichiometric matrix
-- **WHEN** a user declares a network of 8 pools and 10 processes
-- **THEN** its stoichiometric matrix is 8 by 10 with the declared coefficients, in the declared order
-
-#### Scenario: Inverted bounds
-- **WHEN** a process is declared with a lower bound of 5 and an upper bound of 1
-- **THEN** construction raises a named validation error that names the process and both bounds
-
-#### Scenario: Rule over an undeclared switch
-- **WHEN** a rule names a switch that the network does not declare
-- **THEN** construction raises a named validation error that names the process and the switch
-
-### Requirement: Networks are made of general laws and adaptive parameters
-A constraint network SHALL contribute its pool balances as algebraic `Equation` laws, its declared bounds as bound laws,
-and its objectives as `Objective` laws, all of the constraint class, and SHALL hold its switches as adaptive parameters
-with the domain `{0, 1}`. It SHALL need no law kind of its own besides the bound law.
-
-#### Scenario: Laws of a network
-- **WHEN** a network of 3 pools, 4 processes, and 2 objectives is compiled
-- **THEN** it contributes 3 equation laws, 4 bound laws, and 2 objective laws, and its switches are listed among the
-  system's adaptive parameters
-
-### Requirement: Networks solve in the default install
-A network SHALL be solved as a linear program in the default install, without the optional extra, and SHALL return the
-fluxes, the objective values, the status, the pool duals, and the reduced costs. Several objectives SHALL be optimised
-in order, each keeping the earlier optima.
+### Requirement: Linear program laws set algebraic states
+`LinearProgramLaw` SHALL set its variables, algebraic states, to an optimal solution of the linear program whose
+constraints are its Sage relations and whose objectives are its `ObjectiveSpec`s, solved in order with each optimum kept
+within a relative 1e-9. Relations SHALL be linear in the variables with constant coefficients, and their other terms MAY
+read states, parameters, and the time.
 
 #### Scenario: Toy network optimum
-- **WHEN** Raman's toy network of Table 8.2 is solved for its growth objective
-- **THEN** the optimum equals the value of Table 8.2 within 1e-9, and every pool balance is zero within 1e-9
+- **WHEN** Raman's toy network of Table 8.2 is solved for its growth objective with every bound at 1000
+- **THEN** the growth is 50 within 1e-9, and every balance is zero within 1e-9
 
 #### Scenario: Domain-agnostic flow network
-- **WHEN** a transport network with capacities on its routes is declared as a network that maximises the flow from a
-  source pool to a sink pool
+- **WHEN** a transport network with capacities on its routes is written as a program that maximises the flow from a
+  source node to a sink node
 - **THEN** the optimum equals the maximum flow of the same graph computed by NetworkX
 
 #### Scenario: Lexicographic objectives
-- **WHEN** a network maximises growth and then minimises the total absolute flux
-- **THEN** the growth equals the single-objective optimum within 1e-9, and the total flux is no larger than that of
-  the single-objective solution
+- **WHEN** a program maximises growth and then minimises the sum of the absolute values of its variables
+- **THEN** the growth equals the single-objective optimum within 1e-9, and the sum is no larger than that of the
+  single-objective solution
 
-### Requirement: Switches and rules gate processes
-A process whose rule is false for the current switch values SHALL have both bounds set to zero. Switches SHALL change
-as parameters at construction, as live parameter changes, and through algebraic `Equation` laws of interactions bound
-to the network, as adaptive parameters do.
+#### Scenario: Variable that is not algebraic
+- **WHEN** a linear program law names a state that is not declared algebraic as a variable
+- **THEN** a named error names the state and says to declare it with `StateSpec(algebraic=True)`
 
-#### Scenario: Isozymes
-- **WHEN** a process has the rule `either(g1, g2)` and only `g1` is switched off
-- **THEN** the process keeps its bounds, and switching off `g2` as well sets them to zero
-
-#### Scenario: Live knock-out
-- **WHEN** a running static network has the switch of an essential process set to 0 between frames
-- **THEN** the next frame's objective is zero within 1e-9
-
-#### Scenario: Switch set by an equation
-- **WHEN** an interaction returns an `Equation` that sets switch `g1` to the state of a Boolean node, and the node is 0
-- **THEN** the switch is 0 at the next solve, and the trajectory records `g1` as it records any adaptive parameter
-
-### Requirement: Interactions bound fluxes from other elements
-Interactions SHALL return bound laws whose expressions read states, parameters, and inputs. The bound law SHALL be a
-law kind of the constraint class, valid under every time kind, that never changes the form. The bounds in effect at a
-solve SHALL be the intersection of the declared bounds and every bound law on that flux.
+### Requirement: Programs that share variables merge
+The linear program laws whose variables overlap, from any element or interaction, SHALL form one program whose
+constraints add, and at most one of them SHALL hold objectives.
 
 #### Scenario: Michaelis-Menten uptake
-- **WHEN** a medium's glucose concentration is 0.015 with a half-saturation constant of 0.015 and a maximal uptake of
-  10
-- **THEN** the glucose uptake flux is bounded by 5 at that solve
+- **WHEN** an interaction bounds the glucose uptake of a cell by `10 S / (0.015 + S)` and the medium holds `S = 0.015`
+- **THEN** the uptake is bounded by 5 at that solve
 
-#### Scenario: Two bound laws
-- **WHEN** two interactions give one flux the upper bounds 8 and 6
+#### Scenario: Two bounds
+- **WHEN** two interactions give one variable the upper bounds 8 and 6
 - **THEN** the solve uses the upper bound 6
 
+### Requirement: Switches gate variables through adaptive parameters
+A bound SHALL be able to read adaptive parameters with the domain `{0, 1}` through `either` and `both`, so that a
+knock-out sets a parameter to 0 at construction, between runs, or by an `UpdateLaw` of another part.
+
+#### Scenario: Isozymes
+- **WHEN** a reaction is bounded by `1000 * either(g1, g2)` and only `g1` is switched off
+- **THEN** the reaction keeps its bound, and switching off `g2` as well sets it to zero
+
+#### Scenario: Live knock-out
+- **WHEN** the switch of an essential reaction is set to 0 between two runs of a program
+- **THEN** the objective of the second run is zero within 1e-9
+
+#### Scenario: Regulation gates a reaction
+- **WHEN** an `UpdateLaw` sets the switch of a reaction from a Boolean node that represses it, and the node is on
+- **THEN** the next solve has that reaction at zero, and after the node turns off the reaction may carry flux
+
 ### Requirement: Infeasible solves follow a declared policy
-A network SHALL declare whether an infeasible solve raises a named error, sets fluxes and objectives to zero, or keeps
-the last fluxes. The error SHALL name the network, the time, the site if any, and the processes and pools of an
-irreducible infeasible subset.
+A linear program law SHALL declare whether an infeasible solve raises `InfeasibleError`, sets the variables and
+objectives to zero, or keeps the last values. The error SHALL name the path, the time, the member if any, and the
+constraints and variables of an irreducible infeasible subset.
 
 #### Scenario: Raised infeasibility
-- **WHEN** a network with the policy `raise` requires a maintenance flux of 8 while its substrate uptake is bounded by 0
-- **THEN** solving raises a named error that names the network, the time, the maintenance process, and the uptake
-  process
+- **WHEN** a program with the policy `'raise'` requires a maintenance flux of 8 while its substrate uptake is bounded by
+  0
+- **THEN** solving raises `InfeasibleError` that names the program, the time, the maintenance variable, and the uptake
+  variable
 
 #### Scenario: Zero policy
-- **WHEN** the same network has the policy `zero`
-- **THEN** the solve returns zero fluxes and a zero objective, and the run continues
+- **WHEN** the same program has the policy `'zero'`
+- **THEN** the solve returns zero variables and a zero objective, and the run continues
 
-### Requirement: Solves run inside ODE right-hand sides
-A network in the same system as rate laws, under continuous time, SHALL be solved at every evaluation of the drift,
-once per evaluation, before the rates that read its fluxes. This is the direct approach of dynamic FBA.
+### Requirement: Programs solve where their variables are read
+A program beside rate laws under continuous time SHALL solve once per evaluation of the drift, before the rates that
+read it. A program alone or beside update laws under discrete time SHALL solve once per step, before the updates. A
+program alone under static time SHALL solve once per frame in the static form of `add-static-models`.
 
 #### Scenario: One solve per evaluation
-- **WHEN** three rate laws read fluxes of one network and the drift is evaluated once
-- **THEN** the network is solved exactly once
+- **WHEN** three rate laws read variables of one program and the drift is evaluated once
+- **THEN** the program is solved exactly once
 
-### Requirement: Separate nested systems hold fluxes between synchronisation points
-A network in a nested system beside a sibling with rate laws SHALL form its own partition, solved at every
-synchronisation point. Its fluxes SHALL be held as inputs until the next one, which is the static optimisation approach
-of dynamic FBA.
+#### Scenario: Static program
+- **WHEN** a system under static time holds only a program
+- **THEN** each frame solves it once from the current parameters
+
+### Requirement: Co-simulated programs hold their values between synchronisation points
+A program in a discrete-time nested system beside a sibling with rate laws SHALL solve at every synchronisation point,
+and the sibling SHALL read its variables as inputs held until the next one, which is the static optimisation approach of
+dynamic FBA.
 
 #### Scenario: Static optimisation step
 - **WHEN** biomass and substrate are co-simulated with held fluxes over one synchronisation interval
-- **THEN** they match the closed-form update of Raman's Eqs. 9.8–9.9 within 1e-8 relative error
+- **THEN** they match the closed-form update of Raman's Eqs. 9.8 and 9.9 within 1e-8 relative error
 
 #### Scenario: Agreement with the direct approach
 - **WHEN** the E. coli core batch culture runs with the static optimisation approach and intervals 0.1, 0.05, and
   0.025 h
-- **THEN** the biomass at 6 h approaches the direct approach's biomass, with an error that falls at least linearly with
+- **THEN** the biomass at 6 h approaches that of the direct approach, with an error that falls at least linearly with
   the interval
 
-### Requirement: Networks solve per lattice site
-A network in a group on the sites of a lattice space SHALL be solved at every site where its activity condition holds,
-with bound laws read per site from the site groups of other elements. Inactive sites SHALL have zero fluxes and SHALL
-NOT be solved.
+### Requirement: Programs solve per member
+A program of a group on the sites of a lattice SHALL solve per member where its activity holds, with bounds read per
+member, and inactive members SHALL have zero variables and SHALL NOT be solved.
 
-#### Scenario: Only occupied sites are solved
+#### Scenario: Only active sites are solved
 - **WHEN** a lattice of 25 by 25 sites has biomass above the threshold at 9 sites
-- **THEN** one synchronisation step solves the network 9 times, and every other site's fluxes are zero
+- **THEN** one evaluation solves the program 9 times, and every other site's variables are zero
 
 #### Scenario: Single site reproduces the well-mixed model
 - **WHEN** a lattice of one site runs the batch culture without diffusion
 - **THEN** its biomass matches the well-mixed dynamic FBA within 1e-6 relative error
 
-### Requirement: Boolean regulation alternates with solves
-Equation laws on adaptive switch parameters SHALL set switches from expressions such as Boolean node states, and a map
-partition of regulatory nodes under discrete time SHALL alternate with the network's solve at the regulatory time step.
+### Requirement: Program values are recorded
+A run SHALL record the variables of every program, its objective values under `<path>.objective_<k>`, and, when the law
+asks for them, the duals of its constraints under `<path>.dual_<k>`, with one value per member for groups.
 
-#### Scenario: Regulation gates a process
-- **WHEN** a regulatory node that represses a process is on
-- **THEN** the next solve has that process's flux at zero, and after the node turns off the process may carry flux
+#### Scenario: Recorded values
+- **WHEN** a user asks a dynamic FBA trajectory for the glucose exchange variable of the cell
+- **THEN** it returns the exchange at every frame, and it is zero after glucose depletion
 
-### Requirement: Elementary modes of a network are enumerated
-With the extra `polyhedra` installed, the library SHALL enumerate the elementary modes of a network: the steady-state
-flux vectors with minimal support in which every irreversible process runs in its declared direction. It SHALL take the
-directions from the bounds and switches, compute exactly, and return a table indexed by mode and process, normalised to
-a chosen process.
+### Requirement: Misused programs are reported before compilation
+`PassCompiler` SHALL report a relation that is not linear in the variables or whose coefficient reads a state
+(`linear-program-form`) and two merged laws that both hold objectives (`linear-program-objectives`), each with its path
+and fix.
+
+#### Scenario: Nonlinear relation
+- **WHEN** a constraint holds the product of two variables
+- **THEN** the report holds an issue with the code `linear-program-form` that names the relation and both variables
+
+#### Scenario: Two objectives
+- **WHEN** two laws over shared variables both hold objectives
+- **THEN** the report holds an issue with the code `linear-program-objectives` that names both paths
+
+### Requirement: Elementary modes and extreme pathways are enumerated
+`ElementaryModeAnalysis` SHALL enumerate exactly, for the kind `'modes'`, the steady-state vectors of a program with
+minimal support in which every irreversible variable runs in its declared direction, and, for the kind `'pathways'`,
+the generators of the cone with every reversible internal variable split and each exchange kept in its direction. It
+SHALL take the directions from the bounds at the initial values, and SHALL stop after a time limit with
+`EnumerationLimitError`.
 
 #### Scenario: Toy network modes
-- **WHEN** the elementary modes of Raman's toy network of Table 8.2 are enumerated and normalised to the uptake `b1`
-- **THEN** there are exactly 2 modes, one through `v1` and one through `v2` and `v3`, both with `v4 = 11/12`,
-  `v5 = 1/12`, `v6 = 5/3`, `v7 = 1/6`, `b2 = 5/3`, and `vbio = 1/12`, and each satisfies every pool balance exactly
+- **WHEN** the elementary modes of Raman's toy network are enumerated and normalised to the uptake `b1`
+- **THEN** there are exactly 2 modes, one through `v1` and one through `v2` and `v3`, both with `vbio = 1/12` and
+  `v6 = 5/3`, and each satisfies every balance exactly
 
 #### Scenario: Optimum as a combination of modes
-- **WHEN** the FBA optimum of the toy network, growth 50, is decomposed over its 2 modes by non-negative least squares
-- **THEN** the residual is below 1e-9, and the growth equals 1000 divided by the ratio `v6 / vbio = 20` of both modes,
-  since the bound on `v6` binds
+- **WHEN** the optimum of the toy network, growth 50, is decomposed over its 2 modes by non-negative least squares
+- **THEN** the residual is below 1e-9, and the growth equals 1000 divided by the ratio `v6 / vbio = 20` of both modes
 
 #### Scenario: Domain-agnostic circulation
-- **WHEN** a network declares one pool per node and one irreversible process per arc of the complete directed graph on 4
+- **WHEN** a program has one balance per node and one irreversible variable per arc of the complete directed graph on 4
   nodes
 - **THEN** its 20 elementary modes are the 20 simple cycles that NetworkX finds in that graph
 
@@ -170,85 +161,26 @@ a chosen process.
 - **THEN** only the mode through `v2` and `v3` remains
 
 #### Scenario: Non-zero balance
-- **WHEN** a network whose pool `A` has a balance of 5 is enumerated
-- **THEN** a named error names the network and the pool, and says that modes are defined for steady state only
-
-### Requirement: Extreme pathways of a network are enumerated
-With the extra `polyhedra` installed, the library SHALL compute the extreme pathways of a network: the minimal set of
-generators of its flux cone after every reversible internal process is split into two irreversible ones, with each
-exchange process kept as one column in its declared direction. A process SHALL count as an exchange when it touches one
-pool, unless the network names its exchanges. Generators of a cone that is not pointed SHALL be returned as lines,
-apart from the pathways.
+- **WHEN** a program whose balance of `A` has the right side 5 is enumerated
+- **THEN** a named error names the balance and says that modes are defined at steady state
 
 #### Scenario: Pathways and modes
 - **WHEN** the extreme pathways and elementary modes of the toy network are computed
-- **THEN** every extreme pathway is an elementary mode, every elementary mode is a non-negative combination of extreme
-  pathways, and for this network both sets hold the same 2 vectors
-
-### Requirement: Enumeration is bounded in time
-An enumeration SHALL stop after a time limit, 60 s by default, and SHALL then raise a named error that names the
-network, its number of processes, and the limit, and suggests closing exchanges or enumerating a subnetwork.
+- **THEN** every pathway is a mode, every mode is a non-negative combination of pathways, and both sets hold the same 2
+  vectors
 
 #### Scenario: Genome-scale network
-- **WHEN** the elementary modes of the full E. coli core model are enumerated with a limit of 5 s
-- **THEN** the enumeration raises the named error within 6 s
+- **WHEN** the elementary modes of the E. coli core model are enumerated with a limit of 5 s
+- **THEN** the analysis raises `EnumerationLimitError` within 6 s
 
-### Requirement: Enumeration runs as a simulation
-A network declared for enumeration SHALL be a system under static time that compiles to an enumeration problem whose
-run records one frame per mode or pathway, ordered by a declared ratio such as the growth yield on a substrate, with the mode's fluxes and the ratio.
-
-#### Scenario: Modes as frames
-- **WHEN** the toy network's modes run through `Simulation`
-- **THEN** the trajectory's axis is `mode`, it has 2 frames, and the fluxes of frame `k` equal row `k` of the table the
-  analysis function returns
-
-### Requirement: The extras are optional and named
-The default install SHALL NOT install or import any library that the extras provide. Every capability that needs an
-extra SHALL raise a named error when it is missing. The error SHALL name the capability and its extra, `metabolism` or
-`polyhedra`, give the install command, and list the capabilities that run without it. Labelling simulation and flux
-estimation SHALL need neither extra.
+### Requirement: The extra is optional and named
+The default install SHALL NOT install or import COBRApy, StrainDesign, or MICOM. Every class that needs them SHALL raise
+`MissingExtraError` naming the class, the extra `metabolism`, and the install command.
 
 #### Scenario: Missing extra
-- **WHEN** a user without the extra calls flux variability
-- **THEN** a named error says that flux variability needs `pip install 'scikit-complexity[metabolism]'`, and that
-  network solves, joint networks, FSEOF, SteadyCom, labelling simulation, and flux estimation run without it
-
-#### Scenario: Missing polyhedra extra
-- **WHEN** a user without the extra `polyhedra` enumerates elementary modes
-- **THEN** a named error says that elementary modes need `pip install 'scikit-complexity[polyhedra]'`
+- **WHEN** a user without the extra runs `CobraAnalysis(kind='variability')`
+- **THEN** `MissingExtraError` says that it needs `pip install 'scikit-complexity[metabolism]'`
 
 #### Scenario: Default install stays importable
-- **WHEN** the package and its model catalog are imported without the extras
-- **THEN** no module of the extras is imported, and every model that needs an extra is listed in the catalog
-
-### Requirement: Fluxes are recorded in trajectories
-A run SHALL record each network's fluxes, objective values, and switch values per frame under dotted names, with one
-value per site for lattice networks. It SHALL record the pool duals only on request.
-
-#### Scenario: Flux series
-- **WHEN** a user asks a dynamic FBA trajectory for `cell.flux.EX_glc__D_e`
-- **THEN** it returns the glucose exchange flux at every frame, and it is zero after glucose depletion
-
-### Requirement: Constraint primitives declare their requirements and support
-The constraint network, the bound, enumerate, and estimate laws, and the solvers `HighsLP`, `ConstraintStepper`,
-`ModeStepper`, `EmuSolver`, and `EstimationStepper` SHALL declare their requirements or support, so that `validate()`
-reports their misuse before compilation, each issue with a stable code, the path of the element or law, and a fix. The
-enumerate and estimate laws SHALL require static time and SHALL NOT share a system with laws of another kind.
-
-#### Scenario: Bound without a network
-- **WHEN** an interaction returns a bound law on a flux that no network of the system declares
-- **THEN** `validate()` reports one error whose path is the law and whose message names the flux
-
-#### Scenario: Network on edges
-- **WHEN** a constraint network is placed in a group on the edges of a network space
-- **THEN** `validate()` reports that constraint networks live on sites, and its fix is a group on sites
-
-#### Scenario: Enumeration beside dynamics
-- **WHEN** a system holds a network declared for enumeration and a nested system with rate laws
-- **THEN** `validate()` reports the enumeration's path and says that an enumeration runs in a system of its own, before
-  compilation
-
-#### Scenario: Declared in the compatibility table
-- **WHEN** the documentation's compatibility table is generated
-- **THEN** it lists `HighsLP` as valid for equation, bound, and objective laws under static, continuous, and discrete
-  time
+- **WHEN** the package and its model catalog are imported without the extra
+- **THEN** no module of the extra is imported, and every model that needs it is listed in the catalog

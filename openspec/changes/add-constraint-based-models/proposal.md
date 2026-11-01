@@ -3,128 +3,94 @@
 ## Why
 
 The survey of Raman (2021) found seven models blocked on one missing feature: constraint-based modelling. A
-constraint-based model is a linear system `S v = b` over flux variables `v` with bounds `l ≤ v ≤ u` and an objective,
+constraint-based model is a linear system `S v = b` over flow variables `v` with bounds `l ≤ v ≤ u` and an objective,
 solved as a linear program at a point in time (Raman 2021 §8.2, Eq. 8.3). Metabolism uses it as flux balance analysis.
 The same structure describes flow networks, supply chains, and input-output economies. Raman uses it in three ways:
 - statically: flux balance, flux variability, parsimonious fluxes, knock-outs, MoMA, ROOM, OptKnock, and synthetic
-  lethals (ch. 8–10);
-- coupled to dynamics: dynamic FBA with a solve per time step (§9.6, Eqs. 9.8–9.9), regulatory FBA alternating with
+  lethals (ch. 8 to 10),
+- coupled to dynamics: dynamic FBA with a solve per time step (§9.6, Eqs. 9.8 and 9.9), regulatory FBA alternating with
   Boolean gene rules (§9.4.1, Eq. 9.7), multi-species dynamics, and COMETS on a lattice with diffusing metabolites
-  (§11.1.3.4);
+  (§11.1.3.4),
 - for communities: joint FBA, community FBA, and SteadyCom (§11.1.3, Eq. 11.3).
 
-Genome-scale models come as SBML and BiGG JSON files. The framework has no decision variable, no linear program, and
-no way to read these files.
+Two more models of Raman, elementary flux modes (§9.8) and carbon-13 metabolic flux analysis (§9.7), are recorded in
+the inventory as blocked on this change. One enumerates the generators of the cone `{v : S v = 0, v_irr ≥ 0}`, which
+also finds the simple cycles of a flow network, and the other fits fluxes to labelling data.
 
-Two more models of Raman were recorded as out of scope, because they are not integrated in time. They are first-class
-models now, and they need two more general capabilities on the same networks:
-- elementary flux modes and extreme pathways (§9.8) enumerate the generators of the flux cone `{v : S v = 0, v_irr ≥ 0}`.
-  The same enumeration finds the simple cycles of a flow network or the conserved moieties of a reaction network;
-- carbon-13 metabolic flux analysis (§9.7) simulates how labelled atoms of a tracer spread through a network with atom
-  transitions, and estimates the fluxes by least squares from measured labelling patterns, with confidence intervals.
-  The same simulation traces any labelled unit through a network of transformations.
+The current code already provides the ground these need, so this change no longer adds it:
+- algebraic states, which equations alone determine, come from `add-acausal-components`, and the flows of a program
+  are such states,
+- bounded adaptive parameters (`ParameterSpec(adaptive=True)`) hold switches, and `UpdateLaw`s set them,
+- `GroupElement(on='sites')` on a `LatticeSpace` puts one copy of an element on every site, `DiffusionInteraction`
+  diffuses metabolites, and `CoSimulationSolver` runs an ODE partition beside a discrete-time partition with held
+  inputs,
+- `CallSpec` values, the issues of `PassCompiler`, `ImageVisual` for values per site, and the analysis layer
+  `skcomplex.analysis`, whose surface is classes, run what the rest needs,
+- the Boolean gene networks of `biology/systems_biology` give regulation.
 
-**Rebased on `redesign-system-model`.** The redesign already provides several parts this change first planned to add:
-- static time (`StaticTime`) and the `Objective` law kind in the constraint class, so a network alone is a static
-  system and its objectives are `Objective` laws rather than a new `Solve` law;
-- adaptive parameters (`parameter(adaptive=True)`), so switches are adaptive parameters set by algebraic `Equation`
-  laws of interactions, and the separate `Switch` law is dropped;
-- groups on sites (`Group(on='sites')` on a `LatticeSpace`), so a per-site network is a site group, not a network with
-  its own `space=` argument;
-- simulations that take observables, and the declarations and `validate()` pass, which report the invalid mixes the
-  compiler used to reject.
-
-This change still adds the constraint network and its linear solve, the `Bound` law, the coupling of solves to rates,
-maps, partitions, and site groups, the enumeration of flux cones, labelling simulation and flux estimation, and their
-visuals. The metabolism-specific analyses built on COBRApy, StrainDesign, and MICOM, and FSEOF and SteadyCom, move to
-the biology realizations of the library, so the core keeps only general primitives.
+So the plan drops the `ConstraintNetwork` component, the `Bound`, `Objective`, `Enumerate`, and `Estimate` laws and
+their law kinds, the solvers `HighsLP`, `ConstraintStepper`, `ModeStepper`, `EmuSolver`, and `EstimationStepper`, frames
+indexed by mode or iteration or a shared trajectory axis, and the public functions `join_networks`, `elementary_modes`,
+`extreme_pathways`, `simulate_labelling`, and `estimate_fluxes`. Isotope labelling is a field case, so it moves to the
+one model package that uses it.
 
 ## What Changes
 
-- Add constraint networks, declared from the framework's symbols: pools, processes with stoichiometric coefficients
-  and bounds, extra linear constraints, switches with Boolean rules that gate processes (gene-reaction rules in
-  metabolism), and linear objectives, solved in sequence when there are several. A network is an `Element` in
-  `core.components`. It contributes its balances as algebraic `Equation` laws, its objectives as `Objective` laws, and
-  its switches as adaptive parameters with the domain `{0, 1}`.
-- Add the `Bound` law in `core.laws`, a new law kind of the constraint class, so interactions set flux bounds from other
-  elements, as a medium limits uptake. Switches are set from other elements, as a Boolean network regulates genes, by
-  `Equation` laws on the adaptive switch parameters.
-- Add the linear solve of networks under every time kind:
-  - under `StaticTime`, a network alone is solved once per frame from its current parameters;
-  - under `ContinuousTime`, a network in the same system as rate laws is solved inside the ODE right-hand side;
-  - a network in a sibling nested system co-simulates, and its fluxes are held between synchronisation points, which
-    is Raman's static optimisation approach;
-  - a network element in a `Group(on='sites')` of a `LatticeSpace` is solved per site.
-- Solve linear programs with HiGHS through `highspy` (MIT), a new runtime dependency, which keeps the default install
-  free of copyleft code. `HighsLP` and `ConstraintStepper` in `core.solvers` declare their `Supports`, and every new law
-  and component declares its `Requires`, so `validate()` reports misuse before compilation.
-- Add an optional extra `metabolism` with COBRApy, StrainDesign, and MICOM, used by the library realizations in
-  `skcomplex.models.biology.realizations`:
-  - static analyses: FVA, pFBA, single and double deletions, MoMA, ROOM, and synthetic lethals;
-  - strain design: OptKnock and minimal cut sets;
-  - community models: cooperative trade-off;
-  - import and export of SBML and BiGG JSON.
-  These libraries are imported lazily. A missing extra raises a named error that names the extra.
-- Add, in house on the core solve and without the extra: FSEOF and SteadyCom in the biology realizations, and joint
-  community FBA by composition (`join_networks`) in `core.analysis`.
-- Add Rerun visuals for fluxes: a bar chart per frame, a pool-process graph whose edges scale with the flux, and images
-  of per-site fluxes.
-- Enumerate elementary modes and extreme pathways of a network in exact arithmetic with the Parma Polyhedra Library
-  through `pplpy` (GPL-3.0+), behind a new extra `polyhedra`, with a time limit and a named error. A network declared
-  for enumeration runs as a static simulation whose frames are its modes.
-- Add atom maps on processes, labelling simulation at isotopic steady state by elementary metabolite units, and flux
-  estimation by weighted least squares with linearised and profile confidence intervals and a chi-square test. These are
-  built in house on SciPy's sparse solvers and `least_squares`, because no maintained library installs from PyPI on
-  Python 3.12–3.13. A labelling experiment runs as a static simulation whose frames are the iterations of the fit.
-- Stream enumeration and estimation runs on a `mode` or `iteration` timeline instead of `sim_time`, and draw labelling
-  fits as measured and simulated distributions with the residual series.
-- Add library models with gallery examples: `flux_balance`, `metabolic_perturbations`, `regulatory_fba`,
-  `dynamic_fba`, `elementary_flux_modes`, and `carbon_13_mfa` in `biology/systems_biology`, and
-  `dynamic_multispecies_fba`, `comets`, and `community_fba` in `biology/ecology`.
+- Add `LinearProgramLaw` in `core.laws`: it sets algebraic states, its variables, to an optimal solution of a linear
+  program whose constraints are Sage relations linear in the variables and whose objectives, `ObjectiveSpec`s of
+  `skcomplex.specs`, are solved in order. The programs of laws that share variables merge, so an interaction adds
+  constraints, such as an uptake bound, to the program of an element.
+- Lower the programs in `skcomplex.engine`: a compile pass extracts the constant matrix and compiles the right sides and
+  bounds, and a kernel solves them with HiGHS through `highspy`, warm-started, once per evaluation of an ODE right side
+  or per step of a map, per member of a group, and only where an activity condition holds.
+- Add `InfeasibleError` and `MissingExtraError` to `skcomplex.errors`, and the issues `linear-program-form` and
+  `linear-program-objectives` to `PassCompiler`.
+- Add `LinearProgramVisual` in `skcomplex.engine.viz`: a bar chart of the variables, the objective values, and a graph
+  of constraints and variables.
+- Add `ElementaryModeAnalysis` in `skcomplex.analysis`, with the kinds `'modes'` and `'pathways'`, which enumerates the
+  generators of the steady-state cone of a program exactly with `passagemath-polyhedra`.
+- Add the family `skcomplex.models.biology.common.metabolism`, shared by `systems_biology` and `ecology`: the
+  metabolic network element on `LinearProgramLaw`, model import and export, and analyses on COBRApy, StrainDesign, and
+  MICOM behind the optional extra `metabolism`, with FSEOF and SteadyCom in house.
+- Add isotope labelling to `skcomplex.models.biology.systems_biology`: atom maps, tracers, and fragments, and
+  `LabellingAnalysis`, which simulates labelling by elementary metabolite units and estimates fluxes with intervals and
+  a goodness-of-fit test.
+- Add the models `flux_balance`, `metabolic_perturbations`, `regulatory_fba`, `dynamic_fba`, `elementary_flux_modes`,
+  and `carbon_13_mfa` in `biology/systems_biology`, and `dynamic_multispecies_fba`, `comets`, and `community_fba` in
+  `biology/ecology`, with gallery examples.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `constraint-based-models`: constraint networks, their solve, the bound law and switches as adaptive parameters,
-  dynamic and per-site coupling, the declarations and validation of these primitives, the enumeration of elementary
-  modes and extreme pathways, and the optional extras.
-- `isotope-labelling`: atom maps, labelling simulation, and flux estimation with intervals and a goodness-of-fit test.
+- `constraint-based-models`: linear program laws, their merging, solve, coupling to dynamics, members, and validation,
+  the elementary mode analysis, and the optional extra.
+- `isotope-labelling`: atom maps, labelling simulation, and flux estimation in the model library.
 
 ### Modified Capabilities
 
-- `model-compilation`: networks lower to a constraint problem, and decide how a network couples with rate and update
-  laws. The enumerate and estimate laws lower to problems indexed by mode and iteration.
-- `rerun-visualization`: flux visuals, timelines by mode or iteration, and labelling fit visuals.
-- `model-library`: the nine constraint-based models, their gallery examples, and the metabolism realizations on the
-  optional extra: static analyses, strain design, community trade-off, model import, FSEOF, and SteadyCom.
+- `model-compilation`: linear program laws keep the form of the system that holds them.
+- `rerun-visualization`: the visual of linear programs.
+- `model-library`: the nine constraint-based models and the metabolism family.
 
 ## Impact
 
-- New parts of the core:
-  - `skcomplex.core.components`: `ConstraintNetwork`, `Process`, `Constraint`, `FluxModes`, `AtomMap`, `Tracer`,
-    `Fragment`, and `LabellingExperiment`;
-  - `skcomplex.core.laws`: `Bound`, `Enumerate`, and `Estimate`, with the law kinds `BOUND`, `ENUMERATE`, and
-    `ESTIMATE` of the constraint class in `core.base`, and the expression `total_flux`;
-  - `skcomplex.core.compile`: `ConstraintProblem` and `LabellingProblem`;
-  - `skcomplex.core.solvers`: `HighsLP`, `ConstraintStepper`, `ModeStepper`, `EmuSolver`, and `EstimationStepper`;
-  - `skcomplex.core.viz`: `FluxVisual` and `LabellingVisual`;
-  - `skcomplex.core.analysis`: `join_networks`, `elementary_modes`, `extreme_pathways`, `simulate_labelling`, and
-    `estimate_fluxes`, with the `pplpy` adapter as a private module of the analysis package;
-  - `skcomplex.core.base`: `MissingExtraError`, `InfeasibleError`, and `EnumerationLimitError`.
-- New parts of the library, in `skcomplex.models.biology.realizations`, shared by `systems_biology` and `ecology`: the
-  COBRApy, StrainDesign, and MICOM adapters, `fseof`, and `steadycom`.
+- `skcomplex.core.laws`: `LinearProgramLaw`. `skcomplex.specs`: `ObjectiveSpec`. `skcomplex.errors`:
+  `InfeasibleError` and `MissingExtraError`.
+- `skcomplex.engine`: the linear program pass and kernel, the issues, and `LinearProgramVisual`.
+- `skcomplex.analysis`: `ElementaryModeAnalysis`.
+- `skcomplex.models.biology`: `common/metabolism`, the labelling of `systems_biology`, and the nine models, with
+  `common/metabolism` among the families of the field.
 - Dependencies:
-  - `highspy>=1.15.1` becomes a runtime dependency, so the constitution's Project Profile must list it;
-  - the new extra is `metabolism = ["cobra>=0.32.1", "straindesign>=1.19.1", "micom>=0.39.1"]`;
-  - the second new extra is `polyhedra = ["pplpy>=0.9.0"]`, which brings GPL-3.0 PPL and LGPL-3.0 `gmpy2` and
-    `cysignals`;
-  - the SciPy floor rises from 1.13 to 1.16, the first release whose `least_squares` takes a `callback`;
+  - `highspy>=1.15.1` and `passagemath-polyhedra>=10.8.13` become runtime dependencies, since the engine and the
+    analysis layer use them, and the Project Profile lists them and widens the Sage import rule to
+    `sage.all__sagemath_polyhedra`,
+  - the new extra is `metabolism = ["cobra>=0.32.1", "straindesign>=1.19.1", "micom>=0.39.1"]`, which only the models
+    use,
   - mfapy (MIT), which is not on PyPI, joins the test dependency group from a pinned Git commit as the reference for
-    labelling simulation;
+    labelling simulation,
   - `cobra` 0.32.1 caps `pandas<3.0`, so a lock with the extra resolves pandas 2.3.
-- Uses co-simulation for held fluxes, site groups on lattices for COMETS, and the Boolean networks of
-  `biology/systems_biology` for regulatory FBA. Depends on `redesign-system-model` for static time, adaptive
-  parameters, site groups, and validation, and shares the trajectory `axis` and the static form with
-  `add-static-models`. The models depend on `add-model-gallery` for their examples.
-- The inventory entries `elementary_flux_modes` and `carbon_13_mfa` move from out of scope to implemented.
+- Depends on `add-acausal-components` for algebraic states, or adds them first if it lands first, and on
+  `add-static-models` for the static form `FormKind.STATIC` in which a program alone under `StaticTime` solves. Sweeps
+  of a bound are an `Experiment` over a `GridDesign`, so no trajectory axis is shared.
+- `MissingExtraError` is added by whichever of `add-molecular-structures` and this change lands first.
