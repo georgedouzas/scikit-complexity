@@ -3417,6 +3417,82 @@ print(len(space.check().prepare().hyperedges_), np.round(drift, 3).tolist())
 The compiler reports an interaction whose size no hyperedge of the network has, and an edge group whose edge does not
 join the first two members of a hyperedge, with the issue code `binding`.
 
+#### Symbolic groupings
+
+`GroupingInteraction(form='symbolic', write=..., function=..., reduce='sum')` runs a function of one group on the
+same path as the laws per hyperedge: the groups of a step are its hyperedges. The function reads the namespace of one
+group, `s.member`, the member it gives a value to, `s.others`, and `s.members`, and returns the value of the state
+`write` for that member in the next step, so the system runs in discrete time. A member takes the sum, or with
+`reduce='mean'` the mean, of the values of the groups that hold it, and a member in no group keeps its value.
+
+- `'pairs'` and `'partition'` are drawn again at every step from the random stream of the simulation, so two runs
+  with one seed draw the same groups, on the NumPy and the Numba backends alike.
+- `'neighborhood'` takes every member and the members around it in the space, fixed for the run.
+- `'state'` groups the members that share a value of the state `by`, and every reduction over `s.members` reads only
+  them.
+
+`act` and `capacity` belong to the agent form, and `check()` rejects them in the symbolic form. The Galam majority
+rule on random groups of three, and the public goods of the groups of a lattice summed into a payoff:
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.interactions import GroupingInteraction
+from skcomplex.core.laws.utils import mean, where
+from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class PlayerElement(Element):
+    def __init__(
+        self,
+        label,
+        *,
+        s: Annotated[float, StateSpec()] = 0.0,
+        payoff: Annotated[float, StateSpec()] = 0.0,
+    ):
+        super().__init__(label)
+        self.s = s
+        self.payoff = payoff
+
+
+opinions = (np.random.default_rng(0).random(30) < 0.7).astype(float)
+voters = GroupElement('voters', element=PlayerElement, size=30, values={'s': opinions})
+galam = GroupingInteraction(
+    'galam',
+    target='voters',
+    groups='partition',
+    size=3,
+    form='symbolic',
+    write='s',
+    function=lambda g: where(mean(g.members.s, over=g.members) > 1 / 2, 1, 0),
+)
+run = Simulation(System(elements=[voters], interactions=[galam]), random_state=0).check().prepare().run(until=5)
+print(run.trajectory_.values('voters.s').mean(axis=1).round(2).tolist())
+
+players = LatticeElement(
+    'players',
+    element=PlayerElement,
+    space=LatticeSpace((10, 10), neighborhood='von_neumann'),
+    values={'s': (np.random.default_rng(1).random(100) < 0.5).astype(float)},
+)
+goods = GroupingInteraction(
+    'goods',
+    target='players',
+    groups='neighborhood',
+    form='symbolic',
+    write='payoff',
+    function=lambda g: 4.5 * mean(g.members.s, over=g.members) - g.member.s,
+)
+run = Simulation(System(elements=[players], interactions=[goods])).check().prepare().run(until=1)
+print(run.trajectory_.values('players.payoff')[-1][:5].round(2).tolist())
+```
+
 ### Reductions over neighbourhoods
 
 `neighbors(expression, over=..., reduce=..., weight=...)` reduces an expression written for one neighbour, through

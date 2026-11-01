@@ -39,7 +39,7 @@ def after_one_round(share, seed):
         .prepare()
         .run(until=1)
     )
-    return run.trajectory_.agents('citizens', 1).values['opinion'].mean()
+    return run.trajectory_.values('citizens.opinion')[1].mean()
 
 
 shares = np.linspace(0.05, 0.95, 10)

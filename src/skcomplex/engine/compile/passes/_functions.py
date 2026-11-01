@@ -166,7 +166,7 @@ class FunctionsPass(BasePass):
         if draws is not None and update is not None:
             update = FunctionsPass._stochastic_update(update, draws)
         accelerated = lowering.accelerated
-        if ((draws is not None and draws.sampled) or sweeps) and accelerated is not None:
+        if ((draws is not None and (draws.sampled or draws.orders)) or sweeps) and accelerated is not None:
             accelerated = replace(accelerated, iterate=None)
         main = {
             FormKind.ODE: kernels[RateLaw],

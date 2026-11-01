@@ -13,6 +13,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...errors import ValidationError
 from ...specs._base_spec import BaseSpec
+from ...types import Indices
 from ._problem_spec import ProblemSpec
 from ._reference_spec import PairsSearch, ReferenceSpec
 from ._set_symbol_spec import SetSymbolSpec
@@ -63,6 +64,13 @@ class KernelSpec(BaseSpec):
         hyperedge:
             `'member'` for the laws of the focal member of every hyperedge of a hyperedge interaction, `'hyperedge'`
             for its laws of the member of a group on hyperedges or edges, or `None` for other components.
+
+        reduce:
+            `'sum'` or `'mean'` for the update laws of a grouping, which set every member to the sum or the mean of
+            their values over the groups that hold it, or `None`.
+
+        counts:
+            The number of groups that hold the member of every row of a grouping, or `None`.
     """
 
     owner: str
@@ -78,6 +86,8 @@ class KernelSpec(BaseSpec):
     aligned: tuple[str, ...] = ()
     edges: KernelSpec | None = field(default=None, compare=False, repr=False)
     hyperedge: str | None = None
+    reduce: str | None = None
+    counts: Indices | None = field(default=None, compare=False, repr=False)
 
     def _target_references(self, target: object) -> list[ReferenceSpec]:
         """Return the references of the state components a law targets."""

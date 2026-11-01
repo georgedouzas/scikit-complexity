@@ -1,17 +1,23 @@
 """Test the `_grouping` module of `skcomplex.core.interactions`."""
 
+from collections.abc import Callable
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 import pytest
 
-from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import GroupingInteraction
+from skcomplex.core.laws.utils import count, mean, total, where
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.engine.backends import BaseBackend, NumbaBackend, NumpyBackend
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.errors import ValidationError
 from skcomplex.specs import StateSpec, VisualSpec
+
+BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 
 
 class OpinionElement(Element):
@@ -52,9 +58,9 @@ def _run(system: System, until: int) -> Trajectory:
     return Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
 
 
-def _voters(values: dict[str, object], size: int, **settings: object) -> GroupElement:
+def _voters(values: dict[str, object], size: int, location: object = None) -> GroupElement:
     """Return a group of voters."""
-    return GroupElement('voters', element=OpinionElement, size=size, values=values, **settings)
+    return GroupElement('voters', element=OpinionElement, size=size, values=values, location=location)
 
 
 def test_act_on_galam_groups_of_three_adopt_their_majority():
@@ -130,5 +136,143 @@ def test_act_on_without_an_action_raises():
 )
 def test_check_rejects_invalid_arguments(arguments):
     """Test that unknown groups, a small size, a missing state, a capacity below one, and a bad action are rejected."""
+    with pytest.raises(ValidationError):
+        GroupingInteraction('groups', target='voters', **arguments).check()
+
+
+def _symbolic(
+    groups: str,
+    function: Callable[[SimpleNamespace], object],
+    *,
+    size: int = 2,
+    by: str | None = None,
+    reduce: str = 'sum',
+) -> GroupingInteraction:
+    """Return a symbolic grouping of the voters that writes their opinion."""
+    return GroupingInteraction(
+        'groups',
+        target='voters',
+        groups=groups,
+        size=size,
+        by=by,
+        form='symbolic',
+        write='s',
+        function=function,
+        reduce=reduce,
+    )
+
+
+def _majority(group: SimpleNamespace) -> object:
+    """Return 1 when more than half of the members of a group hold 1, and 0 otherwise."""
+    return where(mean(group.members.s, over=group.members) > 1 / 2, 1, 0)
+
+
+def _total(group: SimpleNamespace) -> object:
+    """Return the total opinion of the members of a group."""
+    return total(group.members.s, over=group.members)
+
+
+def _size(group: SimpleNamespace) -> object:
+    """Return the number of members of a group."""
+    return count(over=group.members)
+
+
+def _weighted(group: SimpleNamespace) -> object:
+    """Return the opinion of the member of a group times the total opinion of the group."""
+    return group.member.s * total(group.members.s, over=group.members)
+
+
+def _symbolic_run(system: System, until: int, backend: BaseBackend, seed: int = 0) -> np.ndarray:
+    """Return the opinions of the voters at every frame of a run of a symbolic grouping."""
+    simulation = Simulation(system, random_state=seed, backend=backend).check().prepare().run(until=until)
+    return simulation.trajectory_.values('voters.s')
+
+
+@BACKENDS
+def test_get_laws_symbolic_partitions_set_every_group_to_its_majority(backend):
+    """Test that after one step every group of the drawn partition holds the majority opinion it had."""
+    opinions = np.random.default_rng(1).integers(0, 2, 30).astype(float)
+    galam = _symbolic('partition', _majority, size=3)
+    values = _symbolic_run(System(elements=[_voters({'s': opinions}, 30)], interactions=[galam]), 1, backend)
+    groups = np.random.default_rng(0).permutation(30).reshape(10, 3)
+    expected = np.repeat((opinions[groups].sum(axis=1) >= 2).astype(float), 3)
+    assert values[1][groups.ravel()].tolist() == expected.tolist()
+
+
+@BACKENDS
+def test_get_laws_symbolic_partitions_are_drawn_from_the_random_stream(backend):
+    """Test that two runs with one seed draw the same partitions, and runs with two seeds draw different ones."""
+    opinions = np.random.default_rng(2).integers(0, 2, 60).astype(float)
+    system = System(elements=[_voters({'s': opinions}, 60)], interactions=[_symbolic('partition', _majority, size=3)])
+    first, second, third = (_symbolic_run(system, 3, backend, seed) for seed in (0, 0, 1))
+    assert np.array_equal(first, second)
+    assert not np.array_equal(first, third)
+
+
+@BACKENDS
+def test_get_laws_symbolic_pairs_leave_an_odd_member_unchanged(backend):
+    """Test that the members of a pair take the total of the pair and the odd member out keeps its value."""
+    voters = _voters({'s': [1.0, 2.0, 3.0, 4.0, 5.0]}, 5)
+    values = _symbolic_run(System(elements=[voters], interactions=[_symbolic('pairs', _total)]), 1, backend)
+    order = np.random.default_rng(0).permutation(5)
+    expected = np.arange(1.0, 6.0)
+    for first, second in order[:4].reshape(2, 2):
+        expected[[first, second]] = first + second + 2
+    assert values[1].tolist() == expected.tolist()
+
+
+@BACKENDS
+def test_get_laws_symbolic_remainder_of_a_partition_forms_a_smaller_group(backend):
+    """Test that a partition of seven into threes gives every member the size of its group."""
+    values = _symbolic_run(System(elements=[_voters({}, 7)], interactions=[_symbolic('partition', _size)]), 1, backend)
+    assert sorted(values[1].tolist()) == [1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+
+
+@BACKENDS
+@pytest.mark.parametrize('reduce', ['sum', 'mean'])
+def test_get_laws_symbolic_neighborhoods_reduce_over_the_groups_of_a_member(backend, reduce):
+    """Test that a member takes the sum or the mean over its neighbourhood groups of a function of each group."""
+    values = np.arange(16.0)
+    space = LatticeSpace((4, 4), neighborhood='von_neumann', boundary='fixed')
+    grid = LatticeElement('voters', element=OpinionElement, space=space, values={'s': values})
+    grouping = _symbolic('neighborhood', _weighted, reduce=reduce)
+    result = _symbolic_run(System(elements=[grid], interactions=[grouping]), 1, backend)[1]
+    rows, columns = np.divmod(np.arange(16), 4)
+    groups = [
+        [site, *np.flatnonzero(np.abs(rows - rows[site]) + np.abs(columns - columns[site]) == 1).tolist()]
+        for site in range(16)
+    ]
+    contributions = [[values[site] * values[group].sum() for group in groups if site in group] for site in range(16)]
+    expected = [np.sum(items) if reduce == 'sum' else np.mean(items) for items in contributions]
+    assert np.allclose(result, expected, atol=1e-12)
+
+
+@BACKENDS
+def test_get_laws_symbolic_groups_by_state_reduce_over_the_members_sharing_it(backend):
+    """Test that groups by state give every member the total of the members that share its value of the state."""
+    keyed = _symbolic('state', _total, by='seen')
+    voters = _voters({'s': [1.0, 2.0, 3.0, 4.0, 5.0], 'seen': [0.0, 1.0, 0.0, 1.0, 1.0]}, 5)
+    values = _symbolic_run(System(elements=[voters], interactions=[keyed]), 1, backend)
+    assert values[1].tolist() == [4.0, 11.0, 4.0, 11.0, 11.0]
+
+
+@pytest.mark.parametrize(
+    ('arguments', 'match'),
+    [
+        ({'act': _count, 'write': 's', 'function': _majority}, '`act`, a setting of the agent form'),
+        ({'capacity': 2, 'write': 's', 'function': _majority}, '`capacity`, a setting of the agent form'),
+        ({'write': 's'}, 'Pass the name of the state'),
+        ({'write': 's', 'function': _majority, 'reduce': 'max'}, 'Unknown reduction'),
+    ],
+)
+def test_check_rejects_settings_of_the_symbolic_form(arguments, match):
+    """Test that a symbolic grouping with an agent setting, no function, or an unknown reduction raises an error."""
+    with pytest.raises(ValidationError, match=match):
+        GroupingInteraction('groups', target='voters', form='symbolic', **arguments).check()
+
+
+@pytest.mark.parametrize('arguments', [{'form': 'mixed'}, {'write': 's'}, {'function': _majority}])
+def test_check_rejects_an_unknown_form_and_symbolic_settings_of_the_agent_form(arguments):
+    """Test that an unknown form, and a state or function given to the agent form, raise an error."""
     with pytest.raises(ValidationError):
         GroupingInteraction('groups', target='voters', **arguments).check()

@@ -32,6 +32,12 @@ from ._confidence_coupling import ConfidenceCouplingInteraction
 from ._conventions import NamerElement, NamingGamesInteraction, naming_game
 from ._diffusion import AdopterElement, AdoptionInteraction, BelieverElement, influentials, threshold_adoption
 from ._discussant_view import DiscussantView
+from ._hypergraph_consensus import (
+    OpinionElement,
+    ScheduleElement,
+    ThreeBodyConsensusInteraction,
+    hypergraph_consensus,
+)
 from ._influencee_view import InfluenceeView
 from ._kinetic_opinion import (
     OpinionEncountersInteraction,
@@ -98,16 +104,19 @@ __all__: list[str] = [
     'NamerElement',
     'NamerView',
     'NamingGamesInteraction',
+    'OpinionElement',
     'OpinionEncountersInteraction',
     'PersuaderElement',
     'PersuaderView',
     'PersuasionInteraction',
     'RandomPairsInteraction',
+    'ScheduleElement',
     'SeparationInteraction',
     'SocialImpactInteraction',
     'StandardizationInteraction',
     'ThinkerElement',
     'ThinkerView',
+    'ThreeBodyConsensusInteraction',
     'TieElement',
     'VariantVoterElement',
     'VariantVoterView',
@@ -125,6 +134,7 @@ __all__: list[str] = [
     'deffuant',
     'galam_majority',
     'hegselmann_krause',
+    'hypergraph_consensus',
     'influentials',
     'join_a_club',
     'kinetic_opinion',

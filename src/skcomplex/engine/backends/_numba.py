@@ -230,6 +230,7 @@ class NumbaBackend(BaseBackend):
         text = '\n'.join([_HEADER, *lines, *loops]) + '\n'
         module = self._load(text, printer.functions_, self.cache_dir)
         layout = printer.layout(self._layout_entries(used, reductions))
+        orders = [(int(layout[2 * printer.slots_[name]]), order) for name, order in printer.orders_.items()]
         lowering = self._lowering(
             form,
             needed,
@@ -238,7 +239,7 @@ class NumbaBackend(BaseBackend):
             changes=inputs.jump_changes,
             size=size,
             module=module,
-            layout=layout,
+            layout=(layout, orders),
             reductions=reductions,
         )
         if has_loop:
@@ -256,14 +257,25 @@ class NumbaBackend(BaseBackend):
         changes: Mapping[int, list[tuple[ReferenceSpec, float]]],
         size: int,
         module: ModuleType,
-        layout: np.ndarray,
+        layout: tuple[np.ndarray, list[tuple[int, np.ndarray]]],
         reductions: ReductionScheduleSpec,
     ) -> LoweredFunctionsSpec:
-        """Return the lowering that binds the compiled functions to the layout, with NumPy fallbacks."""
+        """Return the lowering that binds the compiled functions to the layout, with NumPy fallbacks.
+
+        The layout comes with the orders drawn at every step and the start of their data in it, which a bound function
+        copies into the layout before every call.
+        """
+        data, orders = layout
 
         def bind(name: str) -> Callable[[float, Array, Array], Array]:
             function = getattr(module, name)
-            return lambda t, x, p: function(t, x, p, layout)
+
+            def call(t: float, x: Array, p: Array) -> Array:
+                for start, order in orders:
+                    data[start : start + order.size] = order
+                return function(t, x, p, data)
+
+            return call
 
         numpy: dict[type, Callable[[], VectorFunction]] = {
             RateLaw: lambda: BaseBackend._adding_function(used[RateLaw], size),

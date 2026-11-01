@@ -63,6 +63,9 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
 
         data_:
             The integer data appended to the layout, by name.
+
+        orders_:
+            The orders drawn at every step that gather tables read through, by the name of their data.
     """
 
     code_: list[str]
@@ -76,6 +79,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         self.slots_: dict[str, int] = {}
         self.functions_: dict[str, object] = {}
         self.data_: dict[str, np.ndarray] = {}
+        self.orders_: dict[str, np.ndarray] = {}
         if context is not None and context.steps:
             self._reduce_function(context, self.parallel)
 
@@ -367,15 +371,22 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
     def _gathered_member(self, reference: ReferenceSpec) -> str:
         """Return the code of the member a gathered reference reads at the row `_m_`, from its table in the layout.
 
-        A table whose members change during a run holds positions in a parameter entry, which holds the members.
+        A table whose members change during a run holds positions in a parameter entry, which holds the members, and
+        a table of the positions in an order drawn at every step reads the member at its position in the order, whose
+        data the layout holds after the tables.
         """
         read = reference.shifted
-        table = read.table
-        digest = hashlib.sha256(np.asarray(table, dtype=np.int64).tobytes()).hexdigest()[:16]
-        slot = self._data_slot(f'__gather_{digest}', table)
-        if read.entry is None:
-            return f'L[_L{2 * slot}_ + _m_]'
-        return f'int(p[_L{2 * self._slot(read.entry)}_ + L[_L{2 * slot}_ + _m_]])'
+        digest = hashlib.sha256(np.asarray(read.table, dtype=np.int64).tobytes()).hexdigest()[:16]
+        slot = self._data_slot(f'__gather_{digest}', read.table)
+        row = f'L[_L{2 * slot}_ + _m_]'
+        if read.entry is not None:
+            row = f'int(p[_L{2 * self._slot(read.entry)}_ + {row}])'
+        if read.order is None:
+            return row
+        name = f'__order_{id(read.order)}'
+        self.orders_[name] = read.order
+        order = self._data_slot(name, read.order)
+        return f'L[_L{2 * order}_ + {row}]'
 
     def _output_count(self, kernel: LawKernel) -> str:
         """Return the code of the number of values a member kernel writes, its outputs times its rows."""
@@ -505,6 +516,24 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             return f'{INDENT * 2}out[{index}] += ({value}) - x[{index}]'
         return f'{INDENT * 2}out[{index}] = {value}'
 
+    def _reduced(self, output: OutputSpec, index: str, value: str) -> str:
+        """Return the line that adds the share of the row `_m_` of an output that reduces over rows to its member."""
+        counts = np.asarray(output.counts, dtype=np.int64)
+        digest = hashlib.sha256(counts.tobytes()).hexdigest()[:16]
+        count = f'L[_L{2 * self._data_slot(f"__counts_{digest}", counts)}_ + _m_]'
+        if output.reduce == 'sum':
+            return f'{INDENT * 2}out[{index}] += ({value}) - x[{index}] / {count}'
+        return f'{INDENT * 2}out[{index}] += (({value}) - x[{index}]) / {count}'
+
+    def _member_written(self, output: OutputSpec, value: str, mode: str) -> str:
+        """Return the line that writes the value of an output of a member kernel for the row `_m_`."""
+        target = self._target_of(output)
+        member = '_m_' if target.source is ReadKind.MEMBER else None
+        member = self._gathered_member(target) if NumbaPrinter._is_gathered(target) else member
+        if output.reduce is not None:
+            return self._reduced(output, self._index(target, member), value)
+        return NumbaPrinter._written(output, self._index(target, member), value, mode)
+
     def _member_kernel(self, kernel: LawKernel, name: str, mode: str, parallel: bool) -> None:
         """Add the source of a kernel evaluated once per member, for adding, assigning, or concatenating outputs."""
         member_entry = next(
@@ -555,10 +584,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             elif index in sums:
                 lines.append(f'{INDENT * 2}_sum{index}_ += {value}')
             else:
-                target = self._target_of(output)
-                member = '_m_' if target.source is ReadKind.MEMBER else None
-                member = self._gathered_member(target) if NumbaPrinter._is_gathered(target) else member
-                lines.append(NumbaPrinter._written(output, self._index(target, member), value, mode))
+                lines.append(self._member_written(output, value, mode))
         for index in sums:
             target = self._target_of(kernel.outputs[index])
             lines.append(f'{INDENT}out[{self._index(target, None)}] += _sum{index}_')

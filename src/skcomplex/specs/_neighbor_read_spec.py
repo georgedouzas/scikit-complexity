@@ -36,6 +36,10 @@ class NeighborReadSpec(BaseSpec):
         entry:
             The parameter entry whose flat values at the table hold the member of every row, for members that change
             during a run, such as those of a growing hypergraph, or `None` when the table holds the members.
+
+        order:
+            The member at every position of an order drawn again at every step, whose positions the table holds, or
+            `None` for a table of members.
     """
 
     table: Indices
@@ -44,9 +48,10 @@ class NeighborReadSpec(BaseSpec):
     steps: IntTuple | None
     mode: int
     entry: EntrySpec | None = None
+    order: Indices | None = None
 
     def members(self, p: Array) -> Indices:
-        """Return the member every row reads, from the table or from the parameter entry at the table.
+        """Return the member every row reads, from the table or the parameter entry at the table, through the order.
 
         Args:
             p:
@@ -56,9 +61,8 @@ class NeighborReadSpec(BaseSpec):
             members:
                 The member index of every row.
         """
-        if self.entry is None:
-            return self.table
-        return self.entry.view(p).ravel()[self.table].astype(np.intp)
+        rows = self.table if self.entry is None else self.entry.view(p).ravel()[self.table].astype(np.intp)
+        return rows if self.order is None else self.order[rows]
 
     def read(self, column: npt.NDArray[np.float64], p: Array) -> npt.NDArray[np.float64]:
         """Return the neighbour's value of every member from the column of values.
