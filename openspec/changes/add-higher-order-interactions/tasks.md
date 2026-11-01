@@ -19,7 +19,7 @@
 
 ## 3. Symbolic groupings
 
-- [ ] 3.1 Add `form`, `write`, `function`, and `reduce` to `GroupingInteraction`, lowering the symbolic form to an
+- [x] 3.1 Add `form`, `write`, `function`, and `reduce` to `GroupingInteraction`, lowering the symbolic form to an
   `UpdateLaw` on the hyperedge path with per-step tables for pairs and partitions, fixed tables for neighbourhoods, and
   keyed reductions for groups by state; verify the majority in partitions and the agent setting scenarios
 

@@ -11,7 +11,7 @@ import numpy.typing as npt
 from scipy import stats
 
 from ...specs import DrawSpec, RunStateSpec, SampledDrawSpec
-from ...types import Array
+from ...types import Array, Indices
 from ._base import BaseKernel
 
 
@@ -29,14 +29,25 @@ class DrawKernel(BaseKernel):
         sampled:
             The draws from `scipy.stats` distributions, stored after the uniform and normal values and taken after
             them.
+
+        orders:
+            The orders of the members that gather tables read through, each drawn again in place as a random
+            permutation after the other draws.
     """
 
     values_: None
 
-    def __init__(self, offset: int, normal: npt.NDArray[np.bool_], sampled: tuple[SampledDrawSpec, ...] = ()) -> None:
+    def __init__(
+        self,
+        offset: int,
+        normal: npt.NDArray[np.bool_],
+        sampled: tuple[SampledDrawSpec, ...] = (),
+        orders: tuple[Indices, ...] = (),
+    ) -> None:
         self.offset = offset
         self.normal = normal
         self.sampled = sampled
+        self.orders = orders
 
     @property
     def size(self) -> int:
@@ -61,7 +72,8 @@ class DrawKernel(BaseKernel):
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Draw fresh values into the extended parameter vector of the state, uniform and normal runs as they come.
 
-        The arguments of draws from `scipy.stats` distributions read the time and the state vector of the state.
+        The arguments of draws from `scipy.stats` distributions read the time and the state vector of the state. The
+        orders are drawn last, in place.
         """
         self.values_ = None
         state = self._state_of(inputs)
@@ -75,6 +87,8 @@ class DrawKernel(BaseKernel):
             q[self.offset + start : self.offset + end] = values
         for item in self.sampled:
             q[item.start : item.start + item.rows] = item.sample(t, x, q, rng)
+        for order in self.orders:
+            order[:] = rng.permutation(order.size)
 
     @staticmethod
     def _sample_draw(draw: DrawSpec, arguments: Sequence[npt.ArrayLike], size: int, rng: np.random.Generator) -> Array:

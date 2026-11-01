@@ -10,7 +10,7 @@ from ...base import BaseConfig
 from ...errors import ValidationError
 from ...specs import LoweredFunctionsSpec, RunStateSpec, SupportSpec
 from ...types import Array, Indices, VectorFunction
-from ..problems import LoweredKernelsSpec, ReferenceSpec
+from ..problems import LoweredKernelsSpec, OutputSpec, ReferenceSpec
 from ..problems._law_kernel import LawKernel
 from ..types import OptionalPairs, ReadKind
 
@@ -130,7 +130,7 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
         """Return the function that sets the outputs of kernels on a copy of the state vector.
 
         An output that combines with an earlier output of its target adds its change from the state to the value set
-        before it.
+        before it, and an output that reduces over rows adds the share of every row to the member it writes.
 
         Args:
             kernels:
@@ -147,7 +147,9 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
             for kernel in kernels:
                 _, values = BaseBackend._outputs_of(kernel, RunStateSpec(t, x, p))
                 for item, value in zip(kernel.outputs, values, strict=True):
-                    if item.combined:
+                    if item.reduce is not None:
+                        BaseBackend._reduce_into(output, x, item, value, p)
+                    elif item.combined:
                         BaseBackend._assign_change_into(output, x, item.target, value, p)
                     else:
                         BaseBackend._assign_into(output, item.target, value, p)
@@ -281,10 +283,47 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
             error_msg = 'An output assigned into a vector needs a target component.'
             raise ValidationError(error_msg)
         if target.source is ReadKind.NEIGHBOR:
-            table = target.shifted.members(p)
-            output[target.members][table] += values - x[target.members][table]
+            indices = target.shifted.members(p)
+            np.add.at(output[target.members], indices, values - x[target.members][indices])
             return
         if target.source is not ReadKind.MEMBER:
             output[target.index] += values[0] - x[target.index]
             return
         output[target.members] += values - x[target.members]
+
+    @staticmethod
+    def _reduce_into(output: Array, x: Array, item: OutputSpec, values: Array, p: Array) -> None:
+        """Add the share of every row of an output that reduces over rows to the member it writes.
+
+        A member written by `m` rows over every kernel takes `x + sum_r (v_r - x / m)`, the sum of its rows, or
+        `x + sum_r (v_r - x) / m`, their mean, and a member written by no row keeps its value.
+
+        Args:
+            output:
+                The flat vector to write to, a copy of the state.
+
+            x:
+                The state.
+
+            item:
+                The output, with its target read through a gather table and the number of rows that write the member
+                of every row.
+
+            values:
+                One value per row.
+
+            p:
+                The parameter vector, which holds the members of tables that change during a run.
+
+        Raises:
+            ValidationError:
+                The output has no target read through a gather table, or no counts.
+        """
+        target, counts = item.target, item.counts
+        if target is None or target.source is not ReadKind.NEIGHBOR or counts is None:
+            error_msg = 'An output that reduces over rows needs a target read through a gather table and its counts.'
+            raise ValidationError(error_msg)
+        indices = target.shifted.members(p)
+        state = x[target.members][indices]
+        shares = values - state / counts if item.reduce == 'sum' else (values - state) / counts
+        np.add.at(output[target.members], indices, shares)

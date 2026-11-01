@@ -4,15 +4,17 @@
 # License: MIT
 
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import NN, ZZ, oo
+from sage.all__sagemath_symbolics import NN, ZZ, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
 from ....core.interactions import GroupingInteraction, MapInteraction
+from ....core.laws.utils import mean, where
 from ....core.spaces import LatticeSpace, NetworkSpace
 from ....core.system import System
 from ....core.types import AgentViewProtocol, ModelViewProtocol
@@ -158,9 +160,10 @@ class CitizenElement(Element):
 
 
 class DiscussionsInteraction(GroupingInteraction):
-    """Discussions of the Galam model, which split the agents into random groups that adopt their majority opinion.
+    """Discussions of the Galam model, which split the citizens into random groups that adopt their majority opinion.
 
-    A tie in a group of even size goes to opinion 0, the status quo.
+    It is a symbolic `GroupingInteraction` of random partitions, drawn again at every step. A tie in a group of even
+    size goes to opinion 0, the status quo.
 
     Args:
         label:
@@ -170,41 +173,28 @@ class DiscussionsInteraction(GroupingInteraction):
             The path of the group of citizens.
 
         size:
-            The number of agents in each discussion group, the last group holding the remainder.
-
-        phase:
-            The phase of the step the discussions run in, or `None` for the default phase.
+            The number of citizens in each discussion group, the last group holding the remainder.
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import DiscussionsInteraction
-        >>> DiscussionsInteraction('talks', target='citizens', size=4).size
-        4
+        >>> DiscussionsInteraction('talks', target='citizens', size=4).check().write
+        'opinion'
     """
 
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        size: int = 3,
-        phase: str | None = None,
-    ) -> None:
-        super().__init__(label, target=target, groups='partition', size=size, phase=phase)
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], size: int = 3) -> None:
+        super().__init__(
+            label,
+            target=target,
+            groups='partition',
+            size=size,
+            form='symbolic',
+            write='opinion',
+            function=self._get_majority,
+        )
 
-    def act_on(self, members: list[AgentViewProtocol], model: ModelViewProtocol) -> None:
-        """Give every member of a discussion group the majority opinion of the group.
-
-        Args:
-            members:
-                The citizens of the group.
-
-            model:
-                The model view of the rule.
-        """
-        citizens = [member for member in members if isinstance(member, CitizenView)]
-        majority = float(2 * sum(citizen.opinion for citizen in citizens) > len(citizens))
-        for citizen in citizens:
-            citizen.opinion = majority
+    def _get_majority(self, group: SimpleNamespace) -> Expression:
+        """Return 1 when more than half of the members of a group hold opinion 1, and 0 otherwise."""
+        return where(mean(group.members.opinion, over=group.members) > 1 / 2, 1, 0)
 
 
 class InfluenceeElement(Element):

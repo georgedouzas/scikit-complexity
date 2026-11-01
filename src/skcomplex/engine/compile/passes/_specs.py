@@ -12,7 +12,13 @@ import numpy as np
 from sage.all__sagemath_symbolics import RR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.interactions import BaseInteraction, HyperedgeInteraction, NeighborInteraction, PairInteraction
+from ....core.interactions import (
+    BaseInteraction,
+    GroupingInteraction,
+    HyperedgeInteraction,
+    NeighborInteraction,
+    PairInteraction,
+)
 from ....core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ....core.specs import NodeSpec
 from ....errors import LabelError, RoleError, ValidationError
@@ -37,7 +43,7 @@ from .._base import BasePass
 from .._compilation import Compilation
 from .._observables import ObservableEvaluator
 from .._observer import Observer
-from ._hyperedges import HyperedgeTables, Tables
+from ._hyperedges import MEMBER_LAWS, HyperedgeTables, Tables
 from ._layout import LayoutPass
 
 END_SUFFIXES = ('__source', '__target')
@@ -778,17 +784,19 @@ class SpecsPass(BasePass):
         alias: str,
         table: Indices | None,
         entry: EntrySpec | None = None,
+        order: Indices | None = None,
     ) -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
         """Return the namespace of one slot of a hyperedge, whose symbols read a group through a gather table.
 
         The slot of the members of the hyperedge has no table, and its symbols, which only reductions over the members
         read, have no references. A table of positions in the entry of the members of a growing hypergraph reads its
-        members from that entry.
+        members from that entry, and a table of positions in an order drawn at every step reads the members at those
+        positions of the order.
         """
         namespace, references = SpecsPass._namespace(block, ReadKind.NEIGHBOR, alias=alias)
         if table is None:
             return namespace, {}
-        read = NeighborReadSpec(table, None, None, None, 0, entry)
+        read = NeighborReadSpec(table, None, None, None, 0, entry, order)
         return namespace, {item: replace(reference, neighbor=read) for item, reference in references.items()}
 
     @staticmethod
@@ -797,21 +805,27 @@ class SpecsPass(BasePass):
         roles: tuple[BlockSpec, BlockSpec | None],
         tables: tuple[str, Tables],
         time: Expression,
+        *,
         growing: BlockSpec | None = None,
+        order: Indices | None = None,
     ) -> KernelSpec:
         """Return the spec of the laws of one kind and one size of hyperedge, read through the tables of its rows.
 
         On a network whose hyperedges are the rows of a variable group, the members read their nodes from the entry of
-        the members of the group, and the spec reads the activity of the hyperedge of every row.
+        the members of the group, and the spec reads the activity of the hyperedge of every row. The tables of a
+        grouping drawn at every step hold positions in an order, which the spec reads through.
         """
         nodes, second = roles
         mode, (focal, others, hyperedges, edges) = tables
         entry = None if growing is None else growing.entries[MEMBERS]
         parameters, references = SpecsPass._namespace(block, ReadKind.SINGLE)
         namespaces: dict[str, object] = {}
-        namespaces['member'], gathered = SpecsPass._gathered(nodes, '__member', focal, entry)
+        namespaces['member'], gathered = SpecsPass._gathered(nodes, '__member', focal, entry, order)
         references.update(gathered)
-        read = [SpecsPass._gathered(nodes, f'__other{position}', table, entry) for position, table in enumerate(others)]
+        read = [
+            SpecsPass._gathered(nodes, f'__other{position}', table, entry, order)
+            for position, table in enumerate(others)
+        ]
         namespaces['others'] = tuple(namespace for namespace, _ in read)
         for _, gathered in read:
             references.update(gathered)
@@ -860,14 +874,7 @@ class SpecsPass(BasePass):
         """
         node = block.node
         roles = SpecsPass._hyperedge_roles(node, elements)
-        parameters, _ = SpecsPass._namespace(block, ReadKind.SINGLE)
-        clashes = sorted(set(vars(parameters)) & set(HYPEREDGE_NAMES))
-        if clashes:
-            error_msg = (
-                f'Hyperedge interaction {node.path} declares the parameters {", ".join(clashes)}, whose names its laws '
-                'read as the slots of a hyperedge. Rename them.'
-            )
-            raise LabelError(error_msg)
+        SpecsPass._check_slot_names(block)
         growing = next(
             (
                 item
@@ -884,9 +891,68 @@ class SpecsPass(BasePass):
                 for tables in HyperedgeTables._tables_of(node, *roles)
             ]
         return [
-            SpecsPass._hyperedge_spec(block, roles, tables, time, growing)
+            SpecsPass._hyperedge_spec(block, roles, tables, time, growing=growing)
             for tables in HyperedgeTables._growing_tables_of(node, *roles, growing)
         ]
+
+    @staticmethod
+    def _check_slot_names(block: BlockSpec) -> None:
+        """Raise an error for a parameter of an interaction named like a slot of a hyperedge.
+
+        Raises:
+            LabelError:
+                The interaction declares a parameter named like a slot of a hyperedge.
+        """
+        parameters, _ = SpecsPass._namespace(block, ReadKind.SINGLE)
+        clashes = sorted(set(vars(parameters)) & set(HYPEREDGE_NAMES))
+        if clashes:
+            error_msg = (
+                f'Interaction {block.node.path} declares the parameters {", ".join(clashes)}, whose names its laws '
+                'read as the slots of a hyperedge or a group. Rename them.'
+            )
+            raise LabelError(error_msg)
+
+    @staticmethod
+    def _grouping_specs(block: BlockSpec, elements: dict[str, BlockSpec], time: Expression) -> list[KernelSpec]:
+        """Return the specs of a symbolic grouping, one per size of its groups, whose rows are the members of a group.
+
+        Pairs and partitions read the members at positions of an order drawn at every step, and neighbourhoods read
+        the members of the groups of the space.
+
+        Args:
+            block:
+                The block of the grouping.
+
+            elements:
+                The blocks of the elements and groups by path.
+
+            time:
+                The time symbol.
+
+        Returns:
+            specs:
+                One spec per size of group, whose update laws reduce over the groups that hold a member.
+
+        Raises:
+            RoleError:
+                The target is not a group, or its groups do not fit its space.
+        """
+        node = block.node
+        component = node.component
+        assert isinstance(component, GroupingInteraction)
+        nodes = SpecsPass._resolve_role(node, 'target', elements)
+        SpecsPass._check_slot_names(block)
+        groups = HyperedgeTables._groups_of(node, nodes)
+        order = None if component.groups == 'neighborhood' else np.arange(nodes.rows, dtype=np.intp)
+        counts = np.bincount(np.concatenate([members.ravel() for members in groups]), minlength=nodes.rows)
+        specs = []
+        for members in groups:
+            ids = np.arange(members.shape[0], dtype=np.intp)
+            focal, others, hyperedges, _ = HyperedgeTables._tables(members, ids, MEMBER_LAWS)
+            tables = (MEMBER_LAWS, (focal, others, hyperedges, None))
+            spec = SpecsPass._hyperedge_spec(block, (nodes, None), tables, time, order=order)
+            specs.append(replace(spec, reduce=component.reduce, counts=counts[focal]))
+        return specs
 
     @staticmethod
     def _member_spec(block: BlockSpec, time: Expression) -> KernelSpec:
@@ -1133,8 +1199,10 @@ class SpecsPass(BasePass):
             return SpecsPass._separate_specs(block, bound, elements, time, observer), declarations
         if isinstance(component, NeighborInteraction) and bound:
             return SpecsPass._edge_specs(block, elements, declarations)
-        if isinstance(component, HyperedgeInteraction) and bound:
-            return SpecsPass._hyperedge_specs(block, elements, time), declarations
+        grouped = isinstance(component, GroupingInteraction) and component.form == 'symbolic'
+        if (isinstance(component, HyperedgeInteraction) and bound) or (grouped and component.groups != 'state'):
+            gathered = SpecsPass._grouping_specs if grouped else SpecsPass._hyperedge_specs
+            return gathered(block, elements, time), declarations
         if isinstance(block.node.component, PairInteraction):
             return [SpecsPass._pair_spec(block, elements, time)], declarations
         return SpecsPass._interaction_specs(block, elements, time, observer), declarations

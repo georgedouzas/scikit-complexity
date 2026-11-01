@@ -167,6 +167,47 @@ in discrete time, and `act` and `capacity` belong to the agent form alone, which
   `synergy * total(strategy) / 5 - strategy` to every member, summed over the five groups a member belongs to, followed
   by the Fermi imitation of `ImitationInteraction`.
 
+Implementation (November 2026):
+
+- `SpecsPass` routes a symbolic grouping of pairs, partitions, or neighbourhoods to `HyperedgeTables._groups_of`,
+  which returns the groups by size, and builds one spec of the focal member per size with
+  `SpecsPass._hyperedge_spec`. A partition of `N` members into groups of `k` has a last group of `N mod k` members, and
+  an odd member forms no pair, as in the agent form.
+- Pairs and partitions hold positions, not members. `NeighborReadSpec` gains `order`, an array of the members at every
+  position, and the property `indices`, the member every row reads. `DrawLowering` collects the orders of the specs
+  into `DrawKernel(orders=...)`, which draws every order again in place with `rng.permutation` after the other draws,
+  so a problem with orders is stochastic. The Numba printer reads a position through the order as
+  `L[order + L[table + row]]`, and the Numba backend copies every order into the layout before every call of a bound
+  function. Since the orders are drawn in Python, the compiled loop `iterate_random` is not used for such problems.
+- A member takes the sum or the mean of its groups through shares, so the kernels of the sizes stay independent:
+  `KernelSpec` and `OutputSpec` gain `reduce` and `counts`, the number of groups that hold the member of every row,
+  and every row adds `v - x / m` for a sum, or `(v - x) / m` for a mean, to the copy of the state. A member in no group
+  keeps its value. `KernelsPass` exempts these update laws from the check of one update law per state.
+- Groups by state stay in the core: `GroupingInteraction._get_laws` runs the function on the namespace of the target,
+  with `members` the other member of its reductions and no `others`, and adds the condition that the other member
+  shares the value of `by` to every reduction over the members.
+- The NumPy writer of a combined update law of a gathered target now adds with `np.add.at`, as the Numba writer adds
+  row by row, so the changes of several rows of one member add on both backends.
+- `galam_majority` runs on the symbolic grouping, `DiscussionsInteraction` setting `opinion` to
+  `where(mean(opinion) > 1/2, 1, 0)` over partitions. Its test and gallery example read the states of the group, since
+  a symbolic group has no agent snapshots. Over 20 seeds from shares 0.4 and 0.6, the mean share at every step agrees
+  with the agent form within 1.1 standard errors.
+- `public_goods_game` keeps its `LocalRuleInteraction`. A discrete map updates every state from the state at the start
+  of the step, so a grouping that writes the payoffs and an imitation that reads them imitate the payoffs of the step
+  before. Over 20 seeds the rebuilt model ends with a share of cooperators of 0.95 against 0.49 at synergy 4.5, but
+  the comparison also carries a bias of `ImitationInteraction(rule='fermi', form='probability')` in `development`:
+  with equal payoffs, a member of state 1 never switches and a member of state 0 copies a neighbour of state 1 with
+  probability `k / degree` instead of `k / (2 degree)`. Its weights, its stay weight, and a uniform draw compared with
+  them are right when evaluated alone, and the categorical draw over them is not, since the drawn index depends on the
+  state of the member. The rebuild waits for the fix of that draw and for a decision on payoffs of the step before.
+- `simplicial_contagion` runs `JumpLaw`s of the focal member per link and per triangle in a
+  `SimplicialInfectionInteraction`, and `hypergraph_consensus` runs the rate of the focal member per triangle in a
+  `ThreeBodyConsensusInteraction` whose second role binds a group on the hyperedges holding the phase of the schedule
+  of every triangle. `hypergraph_public_goods` and `simplicial_social_dilemmas` wait on the same two points as the
+  public goods game, and `hypergraph_exposure_sis` and `simplicial_social_dilemmas` read, in the update of a node, a
+  reduction over the hyperedges around it in the same step, which the reduction `hyperedges` of task 2.3 now gives,
+  so they are open.
+
 ### Triadic regulation
 
 Regulation is a composition. The links carry a Boolean activity in a group on the edges of the network. Each regulated

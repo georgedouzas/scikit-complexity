@@ -4,12 +4,13 @@
 # License: MIT
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from sage.all__sagemath_symbolics import Expression
 
 from ...specs._base_spec import BaseSpec
 from ...specs._noise_process_spec import NoiseProcessSpec
+from ...types import Indices
 from ..types import NumericFunction
 from ._reference_spec import ReferenceSpec
 
@@ -43,6 +44,14 @@ class OutputSpec(BaseSpec):
         combined:
             Whether an assigned output adds its change from the state to the value an earlier output set, so that
             several update laws of one state combine.
+
+        reduce:
+            `'sum'` or `'mean'` for an assigned output that sets every member it writes to the sum or the mean of the
+            values of the rows that write it, or `None`.
+
+        counts:
+            The number of rows, over every kernel, that write the member of every row of an output that reduces, or
+            `None`.
     """
 
     target: ReferenceSpec | None
@@ -53,3 +62,5 @@ class OutputSpec(BaseSpec):
     components: int = 1
     process: NoiseProcessSpec | None = None
     combined: bool = False
+    reduce: str | None = None
+    counts: Indices | None = field(default=None, compare=False, repr=False)

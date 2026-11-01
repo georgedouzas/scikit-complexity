@@ -237,9 +237,10 @@ class KernelsPass(BasePass):
                     raise ValidationError(error_msg)
                 targets = spec._target_references(law._get_targets()[0])
                 once = KernelsPass._is_once(spec, law)
+                reduced = isinstance(law, UpdateLaw) and spec.reduce is not None
                 combined = (
                     KernelsPass._check_assignments(spec, law, targets, assigned[type(law)], once=once)
-                    if isinstance(law, _ASSIGNED_KINDS)
+                    if isinstance(law, _ASSIGNED_KINDS) and not reduced
                     else set()
                 )
                 law_outputs = KernelsPass._law_outputs(spec, law, targets, declarations, lowered_outputs)
@@ -247,6 +248,8 @@ class KernelsPass(BasePass):
                     replace(item, combined=True) if position in combined else item
                     for position, item in enumerate(law_outputs)
                 ]
+                if reduced:
+                    law_outputs = [replace(item, reduce=spec.reduce, counts=spec.counts) for item in law_outputs]
                 laws_of.update({id(item): (spec, law) for item in law_outputs})
                 outputs[(KernelsPass._kind_of(law), once)].extend(law_outputs)
             for (kind, once), kind_outputs in outputs.items():

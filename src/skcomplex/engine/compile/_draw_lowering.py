@@ -15,8 +15,8 @@ from scipy import stats
 from ...core.laws import BaseLaw, UpdateLaw
 from ...core.laws.utils import draws_in, where
 from ...errors import ValidationError
-from ...specs import CallSpec, DrawSpec, EntrySpec, SampledDrawSpec
-from ...types import Array
+from ...specs import CallSpec, DrawSpec, EntrySpec, NeighborReadSpec, SampledDrawSpec
+from ...types import Array, Indices
 from .._utils import components_of, symbol, symbols_of, vector
 from ..problems import ExpressionPrinter, KernelSpec, ReferenceSpec
 from ..problems._draw_kernel import DrawKernel
@@ -103,7 +103,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
                 One draw name has two declarations in a component.
         """
         self.lowered_ = [(spec, self._lower(spec, laws)) for spec, laws in inputs or []]
-        self._allocate()
+        self._allocate(DrawLowering._orders_of([spec for spec, _ in self.lowered_]))
 
     def _slots(self, spec: KernelSpec, laws: list[BaseLaw]) -> dict[str, Expression]:
         """Return the value symbol of every draw of a component, after checking that each name has one declaration.
@@ -208,13 +208,25 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             replacements[call] = self._replacement(draw, list(draw.arguments), slot)
         return expression.subs(replacements) if replacements else expression
 
-    def _allocate(self) -> None:
+    @staticmethod
+    def _orders_of(specs: list[KernelSpec]) -> tuple[Indices, ...]:
+        """Return the distinct orders drawn at every step that the gather tables of kernel specs read through."""
+        orders: dict[int, Indices] = {}
+        for spec in specs:
+            for reference in spec.references.values():
+                read = reference.neighbor
+                if isinstance(read, NeighborReadSpec) and read.order is not None:
+                    orders.setdefault(id(read.order), read.order)
+        return tuple(orders.values())
+
+    def _allocate(self, orders: tuple[Indices, ...]) -> None:
         """Place the drawn values after the parameters, by component path, draw name, and member index.
 
         The reference of every drawn value is noted for the spec of its component, and the draws taken at every step
-        are kept in `draws_`, which stays `None` when no update law draws.
+        are kept in `draws_` with the orders drawn at every step, which stays `None` when no update law draws and no
+        table reads through an order.
         """
-        if not self.requests_:
+        if not self.requests_ and not orders:
             return
         start, flags = self.offset_, []
         ordered = sorted(self.requests_, key=lambda item: (item.draw is not None, item.owner, item.name))
@@ -238,7 +250,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             if request.draw is not None:
                 sampled.append(SampledDrawSpec(position, request.rows, self._sampler(request)))
                 position += request.rows
-        self.draws_ = DrawKernel(self.offset_, np.array(flags, dtype=bool), tuple(sampled)).check().prepare()
+        self.draws_ = DrawKernel(self.offset_, np.array(flags, dtype=bool), tuple(sampled), orders).check().prepare()
 
     @staticmethod
     def _replacement(draw: DrawSpec, arguments: list[Expression], slot: Expression) -> Expression:
