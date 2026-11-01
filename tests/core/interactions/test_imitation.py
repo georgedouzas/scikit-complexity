@@ -116,6 +116,59 @@ def test_fermi_copies_with_the_probability_of_the_payoff_difference():
     assert switched[1::2].mean() == pytest.approx(0.8 * expit(-1.0), abs=0.015)
 
 
+def _fermi_switching(strategies, final):
+    """Return the switching frequency and the exact Fermi probability of the members of each state on a torus."""
+    differing = sum(np.roll(strategies, shift, axis) != strategies for shift in (1, -1) for axis in (0, 1))
+    switched = final != strategies
+    exact = differing / 4 * expit(np.where(strategies == 0, 1.0, -1.0))
+    return [(switched[strategies == own].mean(), exact[strategies == own].mean()) for own in (0.0, 1.0)]
+
+
+def test_fermi_copies_a_random_neighbour_with_the_fermi_probability_from_either_state():
+    """Test that in one step members of both states on a mixed lattice switch with the exact Fermi probability."""
+    strategies = (np.random.default_rng(7).random((150, 150)) < 0.5).astype(float)
+    system = System(
+        elements=[
+            LatticeElement(
+                'players',
+                element=PlayerElement,
+                space=LatticeSpace((150, 150), neighborhood='von_neumann'),
+                values={'state': strategies.ravel(), 'payoff': strategies.ravel()},
+            ),
+        ],
+        interactions=[ImitationInteraction('imitation', target='players', rule='fermi', form='probability')],
+        time=DiscreteTime(),
+    )
+    trajectory = Simulation(system, dt=1.0, random_state=0).check().prepare().run(until=1.0).trajectory_
+    final = trajectory.values('players.state')[-1].reshape(strategies.shape)
+    for switched, exact in _fermi_switching(strategies, final):
+        assert switched == pytest.approx(exact, abs=0.01)
+
+
+def test_agents_copy_a_random_neighbour_with_the_fermi_probability_from_either_state():
+    """Test that in one step agents of both states on a mixed grid switch with the exact Fermi probability."""
+    size = 60
+    strategies = (np.random.default_rng(7).random((size, size)) < 0.5).astype(float)
+    cells = [(x, y) for x in range(size) for y in range(size)]
+    group = GroupElement(
+        'players',
+        element=PlayerElement,
+        size=len(cells),
+        values={'state': strategies.ravel(), 'payoff': strategies.ravel()},
+        location=cells,
+    )
+    system = System(
+        elements=[group],
+        interactions=[ImitationInteraction('imitation', target='players', rule='fermi', form='agent')],
+        space=LatticeSpace((size, size), boundary='periodic', neighborhood='von_neumann'),
+        time=DiscreteTime(),
+    )
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    final = np.asarray(trajectory.agents('players', 1).values['state'], dtype=float).reshape(strategies.shape)
+    for switched, exact in _fermi_switching(strategies, final):
+        assert switched == pytest.approx(exact, abs=0.03)
+
+
 def test_fermi_copies_at_the_rate_times_the_fermi_probability():
     """Test that in a short time a member copies a neighbour at the rate times its Fermi probability."""
     values = _alternating(20000)

@@ -12,7 +12,7 @@
 
 ## 2. Rebuilds the core already allows
 
-- [ ] 2.1 Rebuild the meadow, ants, trails, angiogenesis, agent predation, and stigmergic plants on the member schedule, cell transfers, site deposits, and life cycles; verify each over 20 seeds.
+- [x] 2.1 Rebuild the meadow, ants, trails, angiogenesis, agent predation, and stigmergic plants on the member schedule, cell transfers, site deposits, and life cycles; verify each over 20 seeds.
 - [x] 2.2 Rebuild the degree-class mean fields on callable coupling weights; verify against their previous trajectories.
 - [x] 2.3 Find why the commons herders differ after the life-cycle rebuild, and rebuild them or record why they stay; verify over 20 seeds.
 - [x] 2.4 Decompose the large single-element ODE models of oncology, neuroscience, physiology, and systems biology into rate and reaction interactions, with `biology/common/pharmacokinetics` and `biology/common/kinetics` where several packages share them; verify each against its previous trajectory.
@@ -21,10 +21,11 @@
 - [x] 2.7 Make `plot_bouchaud_mezard_wealth`, `plot_credit_networks`, and `plot_multiplicative_process` run within the gallery budget of 60 s, and restore the uniform band of `plot_unbounded_alphabet_automaton`; verify the docs build.
 - [x] 2.8 Move the parameters of the economics transfer subclasses (circuit, supply link, retail demand, brewery) to their elements and build each remaining mechanism as its own `RateInteraction` or `MapInteraction` in the factory; verify the beer game and the stock-flow consistent economy are identical.
 - [x] 2.9 Add the choice variant whose proposals include the current option, the agent form of `MapInteraction` on vector states, periodic schedules, and counts grouped by cell; rebuild standardization, segregation blocks, beliefs, the employee, obesity, and trafficking on them and on the visits activation; verify their tests, over 20 seeds where draws change.
-- [ ] 2.10 Let the agent forms of the general interactions resolve their roles through the subclass, so a thin subclass names its own roles in both forms; rebuild the meadow with grazing as a transfer subclass with roles `pasture` and `cows`; verify its unchanged tests and 20 seeds against the current model.
+- [x] 2.10 Let the agent forms of the general interactions resolve their roles through the subclass, so a thin subclass names its own roles in both forms; rebuild the meadow with grazing as a transfer subclass with roles `pasture` and `cows`; verify its unchanged tests and 20 seeds against the current model.
 
 ## 3. Conventions and integration
 
 - [ ] 3.1 Split every model module that holds several classes into one class per private module, re-exported unchanged; verify the catalog test and every model test.
 - [x] 3.2 Update `uv` to 0.13.4 or later in `pdm.lock` for PYSEC-2026-4321; verify pip-audit reports nothing.
-- [ ] 3.3 Run the checks session and the full suite with doctests; verify only the known timing tests fail.
+- [ ] 3.3 Derive the random stream of `Simulation` from `SeedSequence(random_state).spawn(...)`, so dynamics never reuse the numbers a user or factory drew from `default_rng(random_state)` for initial states; update the tests whose expected values depend on the old stream; verify the Fermi regression test passes with one shared seed.
+- [ ] 3.4 Run the checks session and the full suite with doctests; verify only the known timing tests fail.

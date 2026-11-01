@@ -599,7 +599,7 @@ class CouplingInteraction(NeighborInteraction):
         model: ModelViewProtocol,
     ) -> tuple[Array | None, int | None]:
         """Return the sum of the reduced terms of the radii of the highest priority that hold another agent."""
-        groups = set(model.groups('source' if self.source is not None else 'target'))
+        groups = set(model.groups(self._get_role('source' if self.source is not None else 'target')))
         found: dict[float, list[AgentViewProtocol]] = {}
         levels: dict[int, list[Array]] = {}
         for spec in self.radii:
@@ -675,7 +675,7 @@ class CouplingInteraction(NeighborInteraction):
                 The laws of the coupling.
         """
         if self.form == 'agent':
-            return [RuleLaw(self._update_member, phase=self.phase, members='target')]
+            return [RuleLaw(self._update_member, phase=self.phase, members=self._get_role('target'))]
         if self._is_per_edge():
             return self._get_edge_laws(namespace)
         target = namespace.target

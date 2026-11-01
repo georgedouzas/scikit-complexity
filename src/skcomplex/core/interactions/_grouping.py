@@ -268,7 +268,7 @@ class GroupingInteraction(Interaction):
 
     def _get_groups(self, model: ModelViewProtocol) -> list[list[AgentViewProtocol]]:
         """Return the groups of one step."""
-        agents = [agent for agent in model.agents('target') if agent.alive]
+        agents = [agent for agent in model.agents(self._get_role('target')) if agent.alive]
         if self.groups == 'pairs':
             return [group for group in self._get_partition(agents, PAIR, model) if len(group) == PAIR]
         if self.groups == 'partition':

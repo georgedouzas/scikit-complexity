@@ -173,7 +173,7 @@ class SignAdjustmentInteraction(Interaction):
             model:
                 The model view of the interaction.
         """
-        agents = list(model.agents('target'))
+        agents = list(model.agents(self._get_role('target')))
         values = [self._get_value(agent, model) for agent in agents]
         for agent, value in zip(agents, values, strict=True):
             setattr(agent, self.state, value)

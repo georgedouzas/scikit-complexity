@@ -194,7 +194,7 @@ class MapInteraction(Interaction):
             model:
                 The model view of the interaction.
         """
-        agents = list(model.agents('target'))
+        agents = list(model.agents(self._get_role('target')))
         if self.schedule == 'synchronous':
             values = [self._get_value(agent, model) for agent in agents]
             for agent, value in zip(agents, values, strict=True):
@@ -224,7 +224,7 @@ class MapInteraction(Interaction):
                 The update law of the state, or the rule that runs the map of the agents.
         """
         if self.form == 'agent' and self.schedule == 'member':
-            return [RuleLaw(self._update_member, phase=self.phase, members='target')]
+            return [RuleLaw(self._update_member, phase=self.phase, members=self._get_role('target'))]
         if self.form == 'agent':
             return [RuleLaw(self.update, phase=self.phase)]
         value = getattr(namespace.target, self.state)

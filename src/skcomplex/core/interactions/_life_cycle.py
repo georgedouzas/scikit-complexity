@@ -298,11 +298,11 @@ class LifeCycleInteraction(Interaction):
         if self.mutate is not None:
             values = self.mutate(values, model)
         if self.group is not None:
-            model.create('group', place, **values)
+            model.create(self._get_role('group'), place, **values)
         elif agent is not None:
             agent.create(None, place, **values)
         else:
-            model.create('target', place, **values)
+            model.create(self._get_role('target'), place, **values)
 
     def _bear(self, agent: AgentViewProtocol, places: list[object], model: ModelViewProtocol) -> None:
         """Create the new agents of a parent at their places, with inherited, given, split, and mutated values."""
@@ -327,7 +327,7 @@ class LifeCycleInteraction(Interaction):
     def _remove_kin(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
         """Remove the first or a random member of the group of the cycle that is kin of an agent, if there is one."""
         kin = self.kin
-        group = 'target' if self.group is None else 'group'
+        group = self._get_role('target' if self.group is None else 'group')
         members = (item for item in model.agents(group) if item.alive and (kin is None or kin(agent, item)))
         if self.pick == 'random':
             candidates = list(members)
@@ -390,12 +390,12 @@ class LifeCycleInteraction(Interaction):
         if not agent.alive:
             return
         neighbor = self.placement == 'neighbor'
-        occupied = {other.location_key for other in model.agents('target')} if neighbor else set()
+        occupied = {other.location_key for other in model.agents(self._get_role('target'))} if neighbor else set()
         self._act(agent, occupied, model)
 
     def _live(self, model: ModelViewProtocol) -> None:
         """Remove or renew the agents that die and create the offspring of those that give birth, by the schedule."""
-        agents = model.agents('target')
+        agents = model.agents(self._get_role('target'))
         occupied = {agent.location_key for agent in agents} if self.placement == 'neighbor' else set()
         births = deaths = 0
         order = model.rng.permutation(len(agents)) if self.schedule == 'random-sequential' else range(len(agents))
@@ -421,5 +421,5 @@ class LifeCycleInteraction(Interaction):
                 The rule that removes and creates agents every step.
         """
         if self.schedule == 'member':
-            return [RuleLaw(self._live_member, phase=self.phase, members='target')]
+            return [RuleLaw(self._live_member, phase=self.phase, members=self._get_role('target'))]
         return [RuleLaw(self._live, phase=self.phase)]

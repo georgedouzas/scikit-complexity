@@ -292,7 +292,7 @@ class ImitationInteraction(NeighborInteraction):
 
     def _imitate(self, model: ModelViewProtocol) -> None:
         """Let every agent imitate its neighbours with the probability of imitation, all agents at once."""
-        agents = list(model.agents('target'))
+        agents = list(model.agents(self._get_role('target')))
         probability = model.parameter('probability')
         members = {agent.id for agent in agents}
         choices: list[float | None] = []

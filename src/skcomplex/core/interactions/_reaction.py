@@ -405,7 +405,7 @@ class ReactionInteraction(JumpInteraction):
             model:
                 The model view of the interaction.
         """
-        agents = list(model.agents('target'))
+        agents = list(model.agents(self._get_role('target')))
         steps = [(self._get_agent_changes(agent, model), self._get_agent_propensity(agent, model)) for agent in agents]
         for agent, (changes, propensity) in zip(agents, steps, strict=True):
             scale = self._get_agent_scale(propensity, model)

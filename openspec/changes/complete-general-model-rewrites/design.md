@@ -51,6 +51,15 @@ counting only the radii of the highest priority that hold a neighbour, then a `C
 norm; `combine(agent, model, reduction, priority)` defaults to `v + reduction`. Winners take all, LEGION, the power
 grid lines, the contour cell, boids, and the Couzin model run on it.
 
+### Roles resolved through the subclass (2.10)
+
+`BaseInteraction._get_role(role)` returns the role unchanged by default; every agent-form lookup of a role by a fixed
+name (`model.agents`, `model.groups`, `model.create`, `model.deposit`, `RuleLaw(members=...)`) and the default
+`TransferInteraction._get_holders` go through it, so a subclass that only renames its roles overrides `_get_role` in
+both forms. The meadow's `GrazingInteraction` (a cell-paired transfer from `pasture` to a sink) and
+`HerdingInteraction` (a movement to the nearest free grown patch, removing a cow with none) run on it, equal over 20
+seeds with unchanged tests. Parameters are still read by fixed names, so a movement subclass declares `probability`.
+
 ### Core extensions and social rebuilds (2.9)
 
 `ChoiceInteraction(proposal='all')` draws proposals over all options including the current one (`'fermi'` with
@@ -169,6 +178,14 @@ entries whose size is the same in the replicated and the original problem.
 - **The obesity `EaterElement` stays in its model.** Its meal pairs a partner within reach or else the nearest
   restaurant and credits both ends from one draw, a rule specific to that model, like the hierarchy contest and the
   queue service.
+
+### Independent random streams (2026-11-01)
+
+Models seeded their initial states with `default_rng(s)` and ran `Simulation(random_state=s)`, so the first draws of
+the dynamics repeated the numbers that built the initial state. `Simulation` derives its stream from
+`SeedSequence(random_state).spawn(...)` instead, which fixes it for user code as well as for the library. Every seeded
+trajectory changes once, so tests with fixed expected values take new numbers. It runs after the rebuilds that
+compare against the current trajectories.
 
 ## Migration Plan
 
