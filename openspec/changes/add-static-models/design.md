@@ -2,265 +2,153 @@
 
 ## Context
 
-The parts of the framework that this change builds on, after `redesign-system-model`:
-- A system is `System(label, components=, interactions=, space=, time=)`. Its time is `ContinuousTime()`,
-  `DiscreteTime(...)`, or `StaticTime()`, and validation already reports a static system that holds a law outside the
-  constraint class. The redesign defines static time but no solver for it, and leaves the static form and its root and
-  optimisation solvers to this change.
-- Laws are classified by time semantics through `LawKind.law_class`. The constraint class holds algebraic `Equation`,
-  `Boundary`, `Invariant`, and `Objective`, valid under any time.
-- Every primitive declares `Requires`, every solver and backend declares `Supports`, and `validate()` reports each
-  misuse as an `Issue` with a code, path, message, and fix before compilation.
-- The compiler lowers validated laws to an internal `Form`, and a stepper per form advances a `Simulation` frame by
-  frame. The `Trajectory` records `times`, states, parameters, and the observables given to the simulation, and
-  `RerunObserver` logs each frame on the `step` and `sim_time` timelines.
-- Laws are Sage expressions, lowered to NumPy and Numba. `Equation` already solves implicit relations for the highest
-  derivatives.
-- `schedule` sets a parameter from a function of time at every frame. The archived `add-experiments` runs replicates
-  with independent streams, and designs and summaries over them.
-- Groups give vectorised members, reductions such as `total` and `mean` reduce over them, and `PointsVisual` draws
-  members in a `ContinuousSpace`.
-- `Sample` already compiles Metropolis acceptance, with Glauber and heat-bath as the general alternatives.
-
-The six models (see proposal.md) have no time derivative and no update law. They need a frame axis that is a swept
-parameter or the iteration of an algorithm, and adapters to the libraries that solve them.
+The parts of the current code this change builds on:
+- `StaticTime` in `skcomplex.core.spaces`, whose `_get_frames` gives one frame. `EquationLaw(lhs, rhs, target=)` in
+  `skcomplex.core.laws` requires `ContinuousTime` or `StaticTime`, but no solver supports `StaticTime`, so a static
+  system does not compile today.
+- `PassCompiler` in `skcomplex.engine.compile`, whose report already holds a `law-time` issue for a law whose time
+  requirement the system does not meet, and `SupportSpec(time=, space=, laws=)`, the support of a solver.
+- `Experiment(source, design=GridDesign(), bounds=, replicates=, observables=)` in `skcomplex.experiments`, which runs
+  a model over a grid of parameter values and replicates with independent random streams, and `ExperimentResult`.
+- Factories that draw quenched disorder from their `random_state` argument, such as the spin glasses of
+  `physics/statistical_mechanics`.
+- The reductions `total`, `mean`, `maximum`, and `neighbors` of `skcomplex.core.laws.utils`.
+- `ChoiceInteraction(rule='best' | 'logit')`, `ReinforcementInteraction(rule='cumulative')`, `RateInteraction`, and
+  `EvolutionInteraction` in `skcomplex.core.interactions`, and `SamplingInteraction` with the `'gaussian'` move.
+- Agent rules, `RuleLaw(function)`, which an interaction runs once per step as `function(model)`, and interactions
+  that report values per step, such as `LifeCycleInteraction`.
+- `ClusterAnalysis` with the kinds `'labels'`, `'sizes'`, `'percolation'`, and `'spanning'` on grids and graphs, and
+  `ScalingAnalysis(kind='power')`.
 
 ## Goals / Non-Goals
 
 **Goals:**
-
-- Fit solved, sampled, enumerated, and optimised models into the existing `System`, `Simulation`, and `Trajectory`
-  interface, without a parallel runtime, and without a fake time axis.
-- Take every numerical method from a mature library, with the core holding only the adapters.
-- Keep each construct domain-agnostic. A game is not an oligopoly, a constraint problem is not a perceptron, and a
-  point pattern is not a set of disks. Physics and economics realizations, such as Boltzmann averages and learning
-  heuristics, live in `skcomplex.models.<field>.realizations`.
-- Declare the requirements of every new primitive and the support of every new solver, so validation reports misuse.
+- Fit solved, sampled, and optimised models into `System`, `Simulation`, `Experiment`, and `Trajectory` without a new
+  runtime and without a fake time axis.
+- Take every numerical method from a mature library and keep only the adapter in the codebase.
+- Name every new core class for its operation, and keep field quantities in the model packages.
 
 **Non-Goals:**
-
-- Equilibria of games with more than two players. The m-firm pricing model is solved from its indifference
-  condition, which is algebraic. Gambit, the one mature solver for n-player games, is noted below.
-- Message-passing solvers for constraint problems, such as belief or survey propagation. SAT solvers decide the
-  sizes the gallery needs.
-- Gradient training of deep networks. `Learner` wraps estimators that learn by `partial_fit`. The Elman network stays
-  blocked on its own change.
-- Multi-objective search. pymoo supports it, and a later change can expose it.
+- A sweep axis inside a simulation. A sweep is an `Experiment` with `GridDesign`, and a disorder average is its
+  `replicates`.
+- Equilibria of finite games by support or vertex enumeration. No model needs them, and the learning dynamics of games
+  are compositions of `ChoiceInteraction` and `ReinforcementInteraction`.
+- Estimators trained by epochs, which `add-learning-dynamics` covers, so the real-weight perceptron is left to it.
+- Message-passing solvers for constraint problems, and multi-objective search.
 
 ## Decisions
 
-### How a model without time fits the runtime
+### The static form
 
-Three frame axes cover the six models. Each is the real axis of the model, not time in disguise.
+`PassCompiler` compiles a system under `StaticTime` to a `ProblemSpec` of the new form `FormKind.STATIC`
+(`'static solution'`), whose default solver is `RootSolver`. Its laws are `EquationLaw`s with a `target` and no time
+derivative. The equations of one target from every element and interaction add, as they already do for equations in
+derivatives. A group target gives one unknown per member, and reductions such as `total` and `neighbors` couple the
+members as they do in rates.
 
-| Axis | Meaning of a frame | `run` | Trajectory | Models |
-|---|---|---|---|---|
-| sweep of a parameter | one value of the control parameter, solved once | `Simulation(..., sweep=Sweep('lq.dose', values)).run()` | `axis == 'lq.dose'`, `times` hold the doses | `lq_cell_survival`, `random_energy_model`, `oligopoly_equilibria`, `continuum_percolation` |
-| iteration of an algorithm | one generation, epoch, or round | `run(until=n)` under `DiscreteTime()` | `axis == 'iteration'` | `evolutionary_optimisers`, the learning dynamics of games, the real perceptron |
-| growing problem | one more revealed constraint, or more revealed points | a sweep of the revealed count | `axis` is the count parameter | `perceptron_satisfiability`, `continuum_percolation` |
+At compile time Sage's `solve` is tried on the whole set. A unique explicit solution turns the equations into
+expressions printed through the existing printers and evaluated once. Otherwise `RootSolver` calls
+`scipy.optimize.root` on the compiled residual and its symbolic Jacobian, from the initial state as the guess. A failure
+to converge raises a `SolverError` that names the equations and the largest residual. A system under static time with
+no equations solves to its initial state, so observables of quenched states run in one frame.
 
-- Static models declare `time=StaticTime()`, or omit it and have it inferred from their constraint laws. The internal
-  `Form.STATIC` ('static solution') holds systems whose laws are `Define` and algebraic `Equation`, and the elements
-  solved as a whole, `Satisfiability` and `PointProcess`. Its solver `Evaluation` solves the system once per frame from
-  the current parameters and sets the state vector to the solution. With no sweep, `run(until=0)` gives one frame.
-- Procedures run under `DiscreteTime()`. `Search`, `Learner`, and a `Game` with a learning dynamic each hold one law of
-  the new kind `LawKind.PROCEDURE`, in the discrete class, which is one `step` of an external algorithm. The internal
-  `Form.PROCEDURE` ('iterative procedure') holds such systems, and `ProcedureStepper` calls one `step` of each such
-  element per time step with the run's random stream.
-- `Sweep(parameter, values)` is a setting of `Simulation`, never of the system, stored unmodified. `Simulation` sets
-  the parameter through the same path as `update_parameters`, so domain checks apply, and records the value in place
-  of the time. The catalog's defaults may hold a `sweep`, so `run('lq_cell_survival')` sweeps the dose with no
-  arguments. A sweep of a growing problem sweeps an integer parameter, such as the number of revealed patterns.
-- `Trajectory` gains `axis`, `'time'` by default, so analysis code and the gallery's plots label the axis correctly.
-- Disorder averages are ensembles of the existing experiments over seeds. A quenched parameter is drawn once per run,
-  so replicates average over draws with no new machinery.
+`RootSolver` declares `SupportSpec(time={StaticTime}, laws={EquationLaw})`. A rate law under static time is already
+reported with the code `law-time`. The new code `equation-target` reports an equation under static time with no target,
+or with a target that is not a state of the system, with the path of the law.
 
-### Declarations and validation
+A sweep of the dose of `lq_cell_survival` is `Experiment(source=lq_cell_survival, design=GridDesign(),
+bounds={'dose': values})`, one static run per value.
 
-| Primitive or solver | Package | Declaration | Issue reported by `validate()` |
-|---|---|---|---|
-| `Define` | `core.laws` | `LawKind.DEFINE`, constraint class, `Requires(domains=NUMERIC_DOMAINS)` | definitions that form a cycle, naming the states, with the fix of an algebraic `Equation` |
-| algebraic `Equation` with `unknowns` | `core.laws` | `LawKind.EQUATION`, read as constraint class when it holds no derivative | an unknown that is not a state of the system, or more unknowns than equations |
-| `Quenched` | `core.components` | `Requires()` | a distribution that is not a frozen `scipy.stats` distribution |
-| `PointProcess` | `core.components` | `Requires(space={SpaceKind.CONTINUOUS})` | a point process outside a continuous space, with the fix `space=ContinuousSpace(...)` |
-| `Satisfiability` | `core.components` | `Requires(time={TimeKind.STATIC}, domains={DomainKind.BOOLEAN})` | a `reveal` parameter that is not an integer parameter |
-| `Game` | `core.components` | `Requires(time={TimeKind.STATIC, TimeKind.DISCRETE})`; discrete time only with a learning dynamic | a learning dynamic under static time, or discrete time without one |
-| `Learner`, `Search` | `core.components` | `Requires(time={TimeKind.DISCRETE})` | the element under continuous or static time, with the fix `DiscreteTime()` |
-| `Evaluation` | `core.solvers` | `Supports(time={TimeKind.STATIC}, laws={DEFINE, EQUATION, OBJECTIVE}, domains={REAL, INTEGER, BOOLEAN})` | a static system with a law it does not support |
-| `ProcedureStepper` | `core.solvers` | `Supports(time={TimeKind.DISCRETE}, laws={PROCEDURE, UPDATE})` | a procedure law with a solver that does not support it, listing `ProcedureStepper` |
-
-`Sweep` is a run setting, and `Simulation` checks that its parameter exists and is not adaptive, since a law that
-changes the swept parameter would contradict the axis.
-
-Alternatives considered:
-- A separate `Solver` API outside `Simulation`, returning a result object. It would split the library into two
-  interfaces, and the models would lose Rerun streaming, observers, ensembles, and the catalog.
-- The `schedule` argument with time standing for the swept value. It works mechanically, but labels a dose or a
-  temperature as time in the trajectory and in Rerun.
+Alternative considered: a separate definition law and a sweep setting of `Simulation`, as first planned. An
+`EquationLaw` with an explicit solution already is a definition, and `Experiment` already is a sweep, so both would be
+second ways.
 
 ### Library survey
 
-Checked on 2026-10-19 against PyPI's JSON API, GitHub, and the libraries' documentation, with spike installs in a
-Python 3.13 environment on macOS arm64:
+Checked on 2026-10-19 against PyPI, GitHub, and spike installs in Python 3.13 on macOS arm64:
 
-| Library | Version (date) | Licence | Wheels for Linux and macOS, 3.12–3.13 | Maintenance | Role | Decision |
-|---|---|---|---|---|---|---|
-| SciPy | 1.18.1 (2026-08-21) | BSD-3-Clause | cp312 and cp313, manylinux and macOS | very active | `optimize.root`, `special.logsumexp`, `stats` distributions, `spatial.cKDTree`, `sparse.csgraph.connected_components` | use, already a dependency |
-| scikit-learn | already pinned | BSD-3-Clause | yes | very active | `partial_fit` estimators, such as `Perceptron` | use, already a dependency |
-| Sage (passagemath) | already pinned | GPL | yes | active | exact `solve` of algebraic equations | use, already the symbolic layer |
-| nashpy | 0.0.43 (2025-11-06) | MIT | pure Python | maintained by its author, releases 2023–2025 | support and vertex enumeration, Lemke-Howson, fictitious play, stochastic fictitious play, replicator dynamics, Moran processes, two players only | adopt as a runtime dependency |
-| pygambit (Gambit) | 16.7.0 (2026-07-11) | GPL-2.0-or-later | Windows only. Linux and macOS build the C++ library from source | active | n-player equilibria | reject, no wheels on the supported platforms and not needed by any model |
-| PySAT (`python-sat`) | 1.9.dev16 (2026-10-15) | MIT, with permissively licensed bundled solvers (CaDiCaL, Glucose, MiniSat, Lingeling, Maple family) | cp312 and cp313 for manylinux x86_64 and aarch64 and macOS x86_64 and arm64 | very active, last push 2026-10-15, 462 stars | incremental SAT with `add_clause`, assumptions, `enum_models`, and cardinality encodings in `pysat.card` without `pypblib` | adopt as a runtime dependency |
-| OR-Tools CP-SAT | 9.15 (2026-01-14) | Apache-2.0 | cp312 and cp313 | very active | constraint programming and linear Boolean constraints | reject, pulls `protobuf`, `absl-py`, and `pandas` pins for a feature PySAT covers |
-| pymoo | 0.6.2 (2026-06-28) | Apache-2.0 | cp312 and cp313, manylinux and macOS | active, releases 2024–2026 | GA, DE, PSO, ES, CMA-ES, pattern search, with an ask-and-tell interface | adopt as a runtime dependency |
-| DEAP | 1.4.4 (2026-04-17) | LGPL-3.0 | pure Python | active | evolutionary toolkit with hand-written loops | reject, pymoo gives the same algorithms ready-made with ask and tell |
-| pygmo | 2.20.0 (2026-10-06) | MPL-2.0 | manylinux only, no macOS wheels | active | many algorithms through `evolve` | reject, no macOS wheels |
-| nevergrad | 1.0.12 (2025-04-23) | MIT | pure Python | slowing | ask-and-tell optimisers, no GA or SA by those names | reject, pins `bayesian-optimization==1.4.0` |
-| `cma` | 4.5.0 (2026-09-13) | BSD-3-Clause | pure Python | active | CMA-ES | transitive through pymoo |
-| Gradient-Free-Optimizers | 1.13.0 (2026-05-15) | MIT | pure Python | active | ask-and-tell SA, GA, DE, PSO | reject, far less used than pymoo, and SA reuses the framework's own acceptance |
-| simanneal | 0.5.0 (2019-08-03) | BSD | pure Python | inactive since 2019 | SA | reject |
+| Library | Licence | Role | Decision |
+|---|---|---|---|
+| SciPy | BSD-3-Clause | `optimize.root`, `special.logsumexp`, `spatial.cKDTree`, `sparse.csgraph` | already a dependency |
+| Sage (passagemath) | GPL | exact `solve` of algebraic equations | already the symbolic layer |
+| PySAT 1.9.dev16 | MIT, with permissive bundled solvers | incremental SAT with `add_clause` and cardinality encodings in `pysat.card` | adopt as a runtime dependency |
+| OR-Tools CP-SAT 9.15 | Apache-2.0 | constraint programming | reject: pulls `protobuf`, `absl-py`, and `pandas` pins for a feature PySAT covers |
+| pymoo 0.6.2 | Apache-2.0 | DE, PSO, ES, CMA-ES with ask and tell | adopt as a runtime dependency |
+| DEAP 1.4.4 | LGPL-3.0 | evolutionary toolkit | reject: hand-written loops where pymoo gives the algorithms |
+| pygmo 2.20 | MPL-2.0 | many algorithms | reject: no macOS wheels |
+| nevergrad 1.0.12 | MIT | ask-and-tell optimisers | reject: pins `bayesian-optimization==1.4.0` |
+| nashpy 0.0.43 | MIT | two-player equilibria | reject: no model needs equilibrium enumeration |
 
-Under the project's rule that a library the core uses is a runtime dependency whatever its licence, and that only a
-library a model alone needs goes into an extra, the three adopted libraries are runtime dependencies. No model needs
-an extra.
+PySAT publishes only `.dev` versions, so the manifest pins `python-sat>=1.9.dev16`, which admits pre-releases for that
+package in pip, uv, and PDM. The spike measured a mean critical load of 0.85 at `N = 21` over 20 draws, at 0.11 s per
+draw, against 0.83 in the limit, and DE reaching 0.0 on the 2-D Rastrigin function by generation 50 with 40
+candidates.
 
-The spike measured:
-- Random energy model, `N = 20`, 10 draws of 2^20 energies, with `logsumexp`: entropy per spin 0.074, 0.108, 0.211,
-  0.450, and 0.631 at `T` = 0.3, 0.4, 0.6, 1, and 2, against the theory 0, 0, 0, 0.443, and 0.631, with
-  `T_g = 0.6006`. All draws and temperatures took 0.8 s.
-- Binary perceptron, patterns revealed one at a time into one CaDiCaL 1.9.5 solver with sequential-counter
-  cardinality encodings, 20 draws: mean critical load 0.76, 0.83, 0.85, and 0.85 at `N` = 11, 15, 21, and 25, against
-  0.83 in the limit. One draw took 0.11 s at `N = 21` and 0.5 s at `N = 25`.
-- Real-weight perceptron, `N = 25`, separability by a HiGHS feasibility LP over 60 draws: 1.0, 0.97, 0.40, 0.017,
-  and 0 at loads 1, 1.5, 2, 2.5, and 3, against Cover's critical load 2. scikit-learn's `Perceptron.partial_fit`
-  reached zero training error on 12 patterns within 4 epochs in all 20 draws.
-- Continuum percolation, disks of radius 1, `cKDTree.query_pairs` and `connected_components`, 50 draws: spanning
-  fractions 0, 0.06, 0.52, 0.94, and 1.0 at filling factors 0.9, 1.0, 1.128, 1.25, and 1.4 in a square of side 60.
-  All draws took 0.16 s.
-- pymoo ask and tell on the 2-D Rastrigin function, 40 candidates, seed 1: DE reached 0.0 by generation 50, PSO 0.0,
-  and GA 1.4e-4 by generation 100, at about 1.2 ms per generation.
-- nashpy: matching pennies gave the single equilibrium (1/2, 1/2) by support enumeration, and fictitious play reached
-  frequencies within 0.02 of 1/2 after 1000 rounds in three seeds. Lemke-Howson enumeration on a 100 by 100
-  discretised pricing game did not terminate in 10 minutes, because the game is degenerate. The pricing model is
-  therefore solved from its indifference condition, and the discretised game runs fictitious play.
+### Log-sum-exp
 
-### Definitions and algebraic equations
+`log_sum_exp(expression, over=None)` reduces over the members of a group like `total`, as `log sum_j exp(a_j)`, lowered
+to `scipy.special.logsumexp` on NumPy and to a max-shifted sum on Numba, so energies of order 10^4 do not overflow. The
+Boltzmann averages of the random energy model are written with it in its package, so the core names no Boltzmann
+weight.
 
-- `Define(state, expression)` is a law of the constraint class, in `core.laws`. The compiler orders definitions by
-  their dependencies, and validation reports a cycle, naming the states. They lower through the existing printers to
-  one NumPy or Numba function.
-- Algebraic equations reuse the redesign's `Equation`, with `unknowns=` naming the states it solves for and an
-  optional `guess`. This replaces the `Balance` law this change first proposed. At compile time, Sage's `solve` is
-  tried. A unique explicit solution turns the equations into definitions. Otherwise the solver calls
-  `scipy.optimize.root` with the compiled residual and its symbolic Jacobian, starting from the previous frame's
-  solution or `guess`. A failure raises `SolveError`, a named error in `skcomplex.core.base`.
-- `best_response(payoff, strategy)` returns the relation `diff(payoff, strategy) == 0`, so a continuous game is a set of
-  algebraic `Equation`s of its players' best responses.
+### Contact clusters of points
 
-### Random ensembles
+`ClusterAnalysis(kind, radius=None)` reads, when `radius` is given, the positions of the agents of a group from a
+trajectory or an array of points, builds the contact graph with `cKDTree.query_pairs(2 * radius)`, and labels it with
+`connected_components`. The kinds `'sizes'`, `'percolation'`, and `'spanning'` then read that graph, and a cluster spans
+along `axis` when it holds points within `radius` of both faces of the space. A random pattern is a group of points
+whose positions the factory draws from its `random_state`.
 
-- `Quenched(distribution, shape)` declares a parameter drawn from a `scipy.stats` frozen distribution with the run's
-  generator, once, in `Simulation._prepare`. Its draw is part of `parameters_`, so it appears in frames and is
-  recorded once in the trajectory.
-- `log_sum_exp(expression)` is a general reduction over a group, beside `total` and `mean`, lowered to
-  `scipy.special.logsumexp` on NumPy and to a max-shifted sum on Numba.
-- `log_partition(energy, temperature)` and `boltzmann_mean(value, energy, temperature)` are physics realizations in
-  `skcomplex.models.physics.realizations`, built on `log_sum_exp` of `-energy / temperature`. The core names no
-  Boltzmann weight.
-- `PointProcess(intensity=None, count=None, maximum=...)` is a group of points in the system's `ContinuousSpace`. It
-  draws the largest pattern of the sweep once, in arrival order, and a frame reveals the first `Poisson(intensity *
-  volume)` points of it, drawn by a quenched count, so sweeps are nested.
-- `clusters(points, radius, span=axis)` in `skcomplex.core.analysis` builds the contact graph with
-  `cKDTree.query_pairs` and labels it with `connected_components`. It returns the labels, the sizes, and whether one
-  label touches both faces. It also builds observables, so `Simulation(observables=...)` or a catalog entry streams the
-  largest cluster and the spanning flag per frame.
+### Satisfiability
 
-### Games
+`SatisfiabilityInteraction(label, *, target, state, constraints, reveal=1, solver='cadical153')` binds a group whose
+`state` is Boolean. A constraint is a frozen spec of `skcomplex.specs`: `ClauseSpec(literals)`, a disjunction, and
+`CardinalitySpec(literals, bound, sense='at-least' | 'at-most')`, where a literal is a member index from 1, negative for
+the negation. It lowers to a `RuleLaw` of the model that adds the next `reveal` constraints to one PySAT solver each
+step, encoding cardinalities with `pysat.card.CardEnc` and a shared `IDPool`, calls `solve`, and sets the state of every
+member to the model when one exists. The solver keeps what it learned across steps. The interaction reports
+`satisfiable`, 1 or 0, and `revealed`, the number of active constraints, every step. A non-Boolean state raises a
+`ValidationError` that the compiler reports with the code `law-domain`.
 
-- `Game(players=('row', 'column'), strategies=..., payoffs=...)` is an element. Payoffs are arrays or Sage
-  expressions of the strategy symbols, tabulated on the strategy grids.
-- `equilibria(game, method='support' | 'vertex' | 'lemke-howson')` in `skcomplex.core.analysis` returns the mixed
-  equilibria through `nashpy.Game`.
-- `Game(dynamics=...)` makes the element a procedure. A dynamic is any object with a `step`. The core ships none: the
-  fictitious play, stochastic fictitious play, and replicator dynamics are learning heuristics, so they are
-  realizations in `skcomplex.models.economics.realizations`. Each step advances the matching nashpy generator by one
-  item, with NumPy's legacy seed set from the run's stream because nashpy draws from the global state. The states are
-  the play counts or the population shares.
+### Optimisation
 
-### Constraint satisfaction and learning
+`OptimizationInteraction(label, *, target, state, objective, bounds, algorithm=DifferentialEvolutionSpec())` binds a
+group of candidates, each holding a vector `state` in the box `bounds`, and an `objective(values)` that takes the array
+of candidates and returns their values. The algorithm is a frozen spec of `skcomplex.specs` holding the settings of one
+pymoo algorithm: `DifferentialEvolutionSpec(variant, weight, crossover)`, `ParticleSwarmSpec(inertia, cognitive,
+social)`, `EvolutionStrategySpec(offspring)`, or `CovarianceAdaptationSpec(sigma)`. The interaction runs each as its own
+private method, chosen by the type of the spec, as `MatchingInteraction` runs its rules. It lowers to a `RuleLaw` of the
+model that calls `ask`, evaluates the objective, calls `tell`, and writes the population into the members, once per
+step, with pymoo seeded from the model's random stream. It reports `best` and `mean` every step. Genetic algorithms
+stay with `EvolutionInteraction`, so no genetic algorithm spec is added.
 
-- `Satisfiability(variables, constraints, reveal=None)` is an element. Its constraints are a sequence of `clause(...)`,
-  `at_least(literals, k)`, and `at_most(literals, k)`. Literals are Boolean states or their negation by `~`. `reveal`
-  names the integer parameter that sets how many constraints are active, so a sweep of it adds constraints frame by
-  frame.
-- The adapter keeps one PySAT solver (CaDiCaL 1.9.5 by default) for the run. Each frame adds only the newly revealed
-  constraints, encoding cardinalities with `pysat.card.CardEnc` and a shared `IDPool`, and calls `solve`. A frame that
-  reveals fewer constraints than the last rebuilds the solver.
-- `satisfiable` is a Boolean state of the element, and the other states hold the model. `enumerate_solutions(system,
-  limit)` uses `enum_models` on a copy of the solver.
-- `Learner(estimator, data, target)` is an element that clones a scikit-learn estimator with `partial_fit`. Each step
-  is one epoch over the data in a random order from the run's stream. The states are `coef_`, `intercept_`, and
-  `training_error`.
+### Annealing
 
-### Search processes
-
-- `Search(variables, bounds, objective, algorithm, population=40)` is an element. The objective is the redesign's
-  `Objective` law over a Sage expression of the variables, lowered to a vectorised function over the population.
-- For `'ga'`, `'de'`, `'pso'`, `'es'`, and `'cmaes'`, the adapter sets up the pymoo algorithm with the run's seed and
-  calls `ask`, evaluates the compiled objective, and calls `tell`, once per step. These are optimisation algorithms,
-  engineering terms like solvers, so they stay in the core. The candidates are the members of a group, so
-  `PointsVisual` draws them on the landscape, and the catalog entry declares the reductions `best` and `mean` as
-  observables.
-- `'annealing'` reuses the Metropolis acceptance that `Sample` already compiles, applied to a Gaussian proposal per
-  candidate, with a temperature parameter that the run's `schedule` cools. No library offers a steppable classical
-  simulated annealing that is widely used, and the framework already has the acceptance rule.
-
-### Rerun
-
-- `RerunObserver` sets a timeline named after the sweep's parameter. Rerun timelines hold integers or times, so the
-  value is logged as a duration in the parameter's units, and `step` is logged as before.
-- No new visual is needed. Curves against the swept parameter are time series on that timeline. Search candidates and
-  point patterns are points, perceptron weights and payoff tables are images, and the energy histogram of the random
-  energy model is a bar chart through `ScalarsVisual`.
+`SamplingInteraction(cooling=None)` takes a function of the time symbol that multiplies the temperature, such as
+`lambda t: 0.99**t`. Simulated annealing of a continuous objective is then a group of candidates on a one-dimensional
+`LatticeSpace` whose energy reads no neighbours, with the `'gaussian'` move and one `SamplingInteraction` per state.
 
 ### Library models
 
-| Model | Field path | Construction | Default run | Thumbnail and analysis plot |
-|---|---|---|---|---|
-| `lq_cell_survival` | `biology/oncology` | `StaticTime()`, `Define` of survival `exp(-alpha D - beta G D^2)`, the Lea-Catcheside factor `G = 2(x - 1 + e^-x)/x^2` with `x = lambda T`, and BED (Eqs. 6.6–6.8) | sweep of the dose over 0–10 Gy | survival on a log scale against dose, and BED of fractionation schemes |
-| `random_energy_model` | `physics/statistical_mechanics` | `Quenched` Gaussian energies of variance `N J^2/2` on 2^N members, with the physics realization `log_partition` as catalog observables | sweep of `T` over 0.2–2 | entropy and free energy against `T` with the theory and `T_g`, averaged over draws |
-| `oligopoly_equilibria` | `economics/markets` | Cournot best responses as algebraic `Equation`s (Eqs. 21.5–21.6), the m-firm indifference condition as an algebraic `Equation` for `F(P)`, and the discretised duopoly as a `Game` with the fictitious play realization | sweep of the incentive weight `lambda` | sales against `lambda`, and the empirical price distribution of fictitious play against `F(P)` |
-| `perceptron_satisfiability` | `computer_science/neural_networks` | `Satisfiability` with one `at_least` per pattern, and a real-weight `Learner` variant | sweep of the number of revealed patterns | satisfiable fraction against `p/N` for several `N`, with the critical loads 0.83 and 2 |
-| `evolutionary_optimisers` | `computer_science/evolutionary_computation` | `Search` on Rastrigin or Rosenbrock with a chosen algorithm | 100 generations | the population on the landscape, and the best value per generation for each algorithm |
-| `continuum_percolation` | `physics/statistical_mechanics` | `PointProcess` of disks and `clusters` | sweep of the filling factor over 0.8–1.5 | the disks coloured by cluster, and the spanning probability against the filling factor for two sizes, crossing near 1.128 |
+| Model | Field path | Construction |
+|---|---|---|
+| `lq_cell_survival` | `biology/oncology` | `StaticTime`, `EquationLaw`s for the survival `exp(-alpha D - beta G D^2)`, the Lea-Catcheside factor `G`, and the BED (Eqs. 6.6–6.8) |
+| `random_energy_model` | `physics/statistical_mechanics` | `StaticTime`, a group of 2^N members with Gaussian energies drawn from `random_state`, and observables of the log partition function and entropy built on `log_sum_exp` |
+| `oligopoly_equilibria` | `economics/markets` | Cournot best responses as `EquationLaw`s (Eqs. 21.5–21.6) and the m-firm price distribution `F(P)` from its indifference condition, and with `dynamics='fictitious-play'` the discretised duopoly as `ChoiceInteraction(rule='best')` on beliefs counted by `ReinforcementInteraction(rule='cumulative')` |
+| `von_thunen` | `economics/resources` | `StaticTime`, a `FieldElement` around one market whose crop per cell is the `EquationLaw` of the highest bid rent `Y_i (p_i - c_i) - Y_i f_i d` |
+| `perceptron_satisfiability` | `computer_science/neural_networks` | a group of `N` Boolean weights and a `SatisfiabilityInteraction` with one `CardinalitySpec` per random pattern, one pattern revealed per step |
+| `evolutionary_optimisers` | `computer_science/evolutionary_computation` | `OptimizationInteraction` on Rastrigin or Rosenbrock with a chosen algorithm, and annealing through `SamplingInteraction` with `cooling` |
+| `continuum_percolation` | `physics/statistical_mechanics` | `StaticTime`, a group of disks drawn from `random_state` in a `ContinuousSpace`, read by `ClusterAnalysis(radius=...)` |
+| `gravity_urban_scaling` | `social/organizations` | `StaticTime`, a group of residents in a disc of area `A ∝ N^alpha` with the `EquationLaw` of each resident's interaction, a sum of `r^-gamma` over the others |
+| `mandelbrot_least_effort` | `social/language` | `StaticTime`, a group of words with costs, probabilities `exp(-lambda c_i) / Z` as `EquationLaw`s, and `lambda` solved from the stationarity of cost over entropy |
 
-The inventory gains `random_energy_model` and `perceptron_satisfiability`, and the four existing entries change from
-out of scope to pending this change.
+The sweeps of the gallery examples are `Experiment`s with `GridDesign`, and the disorder averages are their
+`replicates`.
 
 ## Risks / Trade-offs
 
-- [PySAT publishes only `.dev` versions, which resolvers skip by default] → The manifest pins `python-sat>=1.9.dev16`.
-  A specifier that names a pre-release admits pre-releases for that package in pip, uv, and PDM.
-- [nashpy draws from NumPy's global random state] → The adapter seeds it from the run's stream before every step,
-  and the runs in parallel experiments use processes, not threads.
-- [Lemke-Howson stalls on degenerate games] → The documentation says so, `equilibria` takes a step limit and raises
-  `SolveError` at it, and the library's pricing model does not depend on it.
-- [The SAT cost grows exponentially near the critical load] → The gallery uses `N` of at most 21, 0.11 s per draw in
-  the spike.
-- [Three new runtime dependencies] → nashpy and PySAT are small, and pymoo brings `cma`, `autograd`, `moocore`, and
-  `matplotlib`, which the documentation already installs. deptry learns that they are used.
-
-## Open Questions
-
-- **Is `Game` a core primitive or a library realization?** Game theory is mathematics, so this design keeps `Game` and
-  `equilibria` in the core and moves only the learning dynamics to the economics realizations. Games are, however,
-  used only by economics and social models, and the redesign moved markets and learning heuristics out of the core.
-  Keeping or moving `Game` (and the `nashpy` adapter with it) needs a product decision.
-- **Does `Define` stay a law of its own?** The redesign's algebraic `Equation` with a unique explicit solution already
-  becomes a definition, and the redesign added named expressions. `Define` is kept here for its dependency ordering
-  and its cycle report; folding it into algebraic `Equation` would turn cyclic definitions into simultaneous equations
-  instead of an issue.
-- **Law class of algebraic `Equation`.** The redesign lists `Equation` both as a continuous law (implicit, in
-  derivatives) and as a constraint law (algebraic), but `LawKind.EQUATION` has one law class, continuous. This design
-  reads an equation without derivatives as the constraint class; whether that becomes a separate law kind is left to
-  the redesign's owners, and `add-acausal-components` relies on the same reading.
+- [The SAT cost grows exponentially near the critical load] → The gallery uses `N` of at most 21.
+- [Two new runtime dependencies] → PySAT is small, and pymoo brings `cma`, `autograd`, `moocore`, and `matplotlib`,
+  which the documentation already installs. deptry learns that they are used.
+- [Sage's `solve` may be slow on large groups] → The compiler tries it only on systems below a size limit and falls back
+  to the numerical solve, which a scenario checks.

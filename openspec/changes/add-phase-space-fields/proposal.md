@@ -4,52 +4,67 @@
 
 Kinetic equations evolve a distribution `f(t, x, v)` over position and velocity, or over position and orientation.
 Particles stream through space at their velocity, forces push them through velocity, and collisions redistribute them
-in velocity at a fixed position (Bellomo et al. 2017 §2.2–2.4). The framework has fields over lattices, networks, and
-meshes, but every axis of a field is a position. No field has velocity or orientation axes, no law reads the moments of
-a distribution over those axes, and no law expresses a collision operator. So the inventory of
-`organize-model-library` records these models as blocked on this change:
-- the Boltzmann, BGK, Vlasov, and Enskog equations (Bellomo et al. 2017 §2.2–2.3);
+in velocity at a fixed position (Bellomo et al. 2017 §2.2–2.4). The model inventory records five models as blocked on
+this change:
+- the Boltzmann, BGK, Vlasov, and Enskog equations (Bellomo et al. 2017 §2.2–2.3),
 - the Bertin-Droz-Grégoire kinetic theory of flocking (Marchetti et al. 2013, arXiv 1207.2929 §V.2.3).
 
-The active change `add-kinetic-models` covers distributions over a discrete activity variable, without position, and
-lists spatial kinetic models with velocity and position as a non-goal. This change fills that gap and nothing else.
+The core already provides most of what these models are made of, so this change builds on it and drops it from its
+scope:
+- `DensityElement` is the value `f` of a density at one point of a grid, and `FieldElement` holds it at every site of
+  a `LatticeSpace` with finite-difference, spectral, or finite-volume operators,
+- `EncounterInteraction` gives bilinear encounters of densities over classes, conservative, destructive, or
+  proliferative, with a rate `eta[h, k]` and a kernel `kernel[h, k, i]`,
+- `AdvectionInteraction` carries a state by a drift in conservative form, `moment` reduces a group over a grid of
+  coordinates, `RelaxationInteraction` relaxes a state towards a goal, and `inverse_laplacian` and `gradient` solve and
+  differentiate on a position lattice.
 
-**Rebased on `redesign-system-model`.** The redesign replaces `Field` with a group on the sites of a space, keeps
-differential operators as expressions, moves observables to simulations and catalog entries, and records distribution
-states as site groups on a lattice over a product space. This change therefore adds no component: a phase-space field
-is `Group(on='sites')` over a `PhaseSpace`, which is a lattice space, and moments are reductions passed as observables.
-Its scope is otherwise unchanged, with names placed in the new core packages and `Requires`/`Supports` declarations and
-validation added for its laws and steppers.
+What phase-space fields add beyond them is the product of position axes with class axes, so that a density depends on
+both. Concretely the change adds:
+- a lattice whose axes are not all positions, with a coordinate grid and a boundary per axis, so encounters and
+  moments act along the class axes at every position while transport acts along the position axes,
+- coordinates that laws read, so a drift along a position axis can be the velocity coordinate of each site,
+- moments over the class axes only, which are fields over position,
+- the binary collision integral on continuous velocity grids, where the dense kernel of `EncounterInteraction` would
+  need `N³` entries for `N` velocity points, and the maximum-entropy equilibrium with the moments of a density,
+- the solvers that kinetic equations need, a semi-Lagrangian transport step and Strang splitting of transport and
+  collisions.
 
 ## What Changes
 
-- Add phase spaces: the product of a position lattice and velocity or orientation axes, with uniform velocity grids and
-  periodic orientation grids. A phase space is a lattice space, so a site group over it holds one value per point of
-  the product.
-- Add phase coordinates as symbols in laws, so a law can read the velocity or the orientation of the point it updates.
-- Add transport operators: free streaming `v · ∇x f` along the position axes and acceleration `F · ∇v f` along the
-  velocity axes, lowered to the existing upwind, finite-volume, and spectral discretizations.
-- Add velocity moments as reductions in laws and as observables of simulations and catalog entries: density, mean velocity or polarization, and
-  temperature or nematic order, as fields over the position lattice.
-- Add collision operators: BGK relaxation toward the local Maxwellian with exact discrete conservation, the Boltzmann
-  collision operator by the fast Fourier spectral method with an optional Enskog density factor, and angular collision
-  and self-diffusion operators on orientation axes.
-- Add mean-field coupling: a phase-space law reads a field over the position lattice, such as an electric field solved
-  from a moment by the Poisson equation.
-- Add a semi-Lagrangian transport stepper and Strang splitting of transport and collisions.
-- Declare what the collision laws require and what the steppers support, and report misuse through validation: a
-  collision law or transport operator on a lattice without the matching axes, a phase space over the size limit, and a
-  stepper chosen for a system it does not support.
-- Stream phase-space slices and moments to Rerun as images.
-- Add library models: the Boltzmann, BGK, Vlasov-Poisson, and local Enskog equations, and Bertin-Droz-Grégoire
-  kinetic flocking.
+- Add `PhaseSpace(position, axes)` to `skcomplex.core.spaces`, a lattice space that is the product of a position
+  `LatticeSpace` and class axes, each an `AxisSpec(name, size, low, high, periodic=False)` of `skcomplex.specs` with
+  its own coordinate grid and boundary.
+- Add the law utility `coordinate(name)`, the coordinate of the site a law updates along a named axis.
+- Let `moment` take `axes`, reducing over the class axes of a phase space into a field over position that laws read
+  and observables record.
+- Let `EncounterInteraction` run at every position of a phase space, over its class axes, and take no `field`, for a
+  linear redistribution at a rate `eta[h]` with a kernel `kernel[h, i]`.
+- Add `CollisionInteraction(target, state, cross_section, factor=None)` to `skcomplex.core.interactions`, the binary
+  collision integral of a density over the continuous class axes of a phase space, lowered to a new `CollisionLaw` by
+  the fast spectral method with an optional factor of the local density.
+- Add the law utility `maximum_entropy(expression, axes, order=2)`, the density on the class axes with the largest
+  entropy whose moments up to the order equal those of the expression at every position.
+- Add `sources` roles to `ConservationInteraction` and `AdvectionInteraction`, so a drift reads a field over the
+  position lattice, broadcast along the class axes.
+- Add `SemiLagrangianSolver` and `StrangSplittingSolver(transport, collision)` to `skcomplex.engine.solvers`, each
+  with its `SupportSpec`.
+- Report through the compile report a phase space larger than its size limit, a `coordinate` or a `moment` over axes
+  in a law whose group is not on a `PhaseSpace`, and a collision law on a phase space without continuous class axes.
+- Let `ImageVisual` take a `slice` of two axes and log moments over position, so a phase-space field streams to Rerun
+  as its position-velocity image.
+- Add library models built on these classes: the Boltzmann, BGK, Vlasov-Poisson, and local Enskog equations in
+  `physics/fluids`, with `BhatnagarGrossKrookInteraction`, a `RelaxationInteraction` towards the maximum-entropy
+  equilibrium, and the Bertin-Droz-Grégoire kinetic flocking in `physics/active_matter`, with angular alignment and
+  angular diffusion as `EncounterInteraction` subclasses.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `phase-space-fields`: phase spaces, phase coordinates, transport operators, velocity moments, collision operators,
-  mean-field coupling, the semi-Lagrangian and split steppers, and their visualization.
+- `phase-space-fields`: phase spaces, coordinates in laws, moments over class axes, per-position and linear
+  encounters, the binary collision integral, maximum-entropy equilibria, transport of phase-space fields, the
+  semi-Lagrangian and split solvers, and their visualization.
 
 ### Modified Capabilities
 
@@ -57,16 +72,18 @@ validation added for its laws and steppers.
 
 ## Impact
 
-- `skcomplex.core.space` gains `PhaseSpace`, `VelocityAxis`, and `OrientationAxis`. `skcomplex.core.laws` gains the
-  expressions `streaming`, `acceleration`, and `moment` and the laws `BGK`, `Collision`, and `AngularCollision`, each
-  with its `Requires` declaration. Site groups accept a `PhaseSpace` as any lattice space.
-- `skcomplex.core.compile` lowers the new operators and moments for the NumPy and Numba backends, and
-  `skcomplex.core.solvers` gains `SemiLagrangian` and `StrangSplitting`, each with its `Supports` declaration.
-  `skcomplex.core.viz` gains the `slice` argument of `ImageVisual`.
+- `skcomplex.core.spaces` gains `PhaseSpace`, and `skcomplex.specs` gains `AxisSpec`. `skcomplex.core.laws.utils`
+  gains `coordinate` and `maximum_entropy`, and `moment` gains `axes`. `skcomplex.core.laws` gains `CollisionLaw` with
+  its `RequirementSpec`, and `skcomplex.core.interactions` gains `CollisionInteraction`. `EncounterInteraction` takes
+  an optional `field`, and `ConservationInteraction` and `AdvectionInteraction` take `sources`.
+- `skcomplex.engine.compile` and `skcomplex.engine.problems` lower coordinates, partial moments, per-position
+  encounters, the maximum-entropy equilibrium, and collision kernels for the NumPy and Numba backends.
+  `skcomplex.engine.solvers` gains `SemiLagrangianSolver` and `StrangSplittingSolver`, and `skcomplex.engine.viz`
+  gains the `slice` and `moments` arguments of `ImageVisual`.
 - No new runtime dependency: transport and collisions use `scipy.fft` and `scipy.ndimage`, which the project already
   declares. The design records the libraries surveyed and why each was not wrapped.
 - `skcomplex.models.physics.fluids` and `skcomplex.models.physics.active_matter` gain the models, and the inventory
   moves them from `blocked add-phase-space-fields` to implemented.
-- Builds on `redesign-system-model` for site groups, lattice spaces, and validation. Does not depend on
-  `add-kinetic-models`, and shares only the `moment` reduction with it. The Enskog shift of the collision partners'
-  positions waits for `add-nonlocal-operators`.
+- Shares with `adopt-pyclaw-finite-volumes` the source rates that `ProblemSpec` keeps apart from the flux differences,
+  added by whichever change lands first. The Enskog shift of the collision partners' positions waits for
+  `add-nonlocal-operators`.

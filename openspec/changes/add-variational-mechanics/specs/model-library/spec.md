@@ -2,33 +2,27 @@
 
 ## ADDED Requirements
 
-### Requirement: Mechanics models
-The library SHALL provide simple, double, and coupled pendulums, the Kepler problem, the restricted three-body problem,
-and Hénon-Heiles as registered factories built from canonical or variational interactions under continuous time, and
-the Chirikov standard map as a symplectic map under discrete time. Their catalog entries SHALL pass the relative drift
-of the energy as an observable.
+### Requirement: Hamiltonian mechanics models
+The library SHALL build the Kepler problem `two_body_orbit`, the restricted three-body problem, and Hénon-Heiles on
+`HamiltonianInteraction`, and their catalog entries SHALL pass the Hamiltonian as an observable with an invariant
+tolerance, so the `InvariantObserver` checks its drift.
 
 #### Scenario: Kepler orbit
-- **WHEN** the Kepler problem runs for ten periods of a bound orbit with the Yoshida solver
+- **WHEN** `two_body_orbit` runs for ten periods of a bound orbit with `Yoshida4Solver`
 - **THEN** the orbit closes on itself within 1e-6 relative error and the energy drift stays below 1e-8
 
-### Requirement: Variational mechanics models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
-inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
-model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
-twice.
+#### Scenario: Hénon-Heiles below the escape energy
+- **WHEN** `henon_heiles` runs from an energy of 1/12 to time 1000
+- **THEN** the orbit stays bounded and the energy stays within its invariant tolerance
 
-#### Scenario: Inventory models registered
+### Requirement: Variational mechanics models are recorded in the model inventory
+Every model this change rebuilds SHALL keep its name and field path in the model inventory, and SHALL list the
+`variational-mechanics` primitive.
+
+#### Scenario: Inventory models rebuilt
 - **WHEN** the change is applied and the inventory check runs
-- **THEN** these entries are rebuilt on the new formalism under their names and field paths, and marked implemented:
-  - `pendulum` in `physics/mechanics`
-  - `double_pendulum` in `physics/mechanics`
-  - `coupled_pendulums` in `physics/mechanics`
+- **THEN** these entries are rebuilt on `HamiltonianInteraction` under their names and field paths, list the primitive
+  `variational-mechanics`, and are marked implemented:
   - `two_body_orbit` in `physics/celestial_mechanics`
   - `restricted_three_body` in `physics/celestial_mechanics`
-  - `standard_map` in `mathematics/dynamical_systems`
   - `henon_heiles` in `physics/nonlinear_oscillators`
-
-#### Scenario: New model recorded
-- **WHEN** the change registers a model with no inventory entry
-- **THEN** the inventory check fails until the entry is added with its sources and field path

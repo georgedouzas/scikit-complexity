@@ -2,63 +2,56 @@
 
 ## Why
 
-Agents today run on the Mesa backend on a lattice, on a network, or in a two-dimensional continuous box. Two models in
-the library inventory need more:
+Two models of the inventory are blocked on agent spaces:
 - Downey's boids fly in three dimensions (Think Complexity ch. 10).
-- Zanbaka et al. place one agent per resident of Kauai from census shapefiles. Agents live and work at points on the
-  map and move to favourite places drawn from another shapefile (Carmichael et al. 2019 ch. 3).
+- Zanbaka et al. place one agent per resident of Kauai from census regions. Agents live and work at points on the map
+  and move to favourite places drawn from another layer of regions (Carmichael et al. 2019 ch. 3).
 
-Both models are recorded as blocked on this change, and neither can be written in the model package without support
-the core does not have. Mesa, already a dependency, has an N-dimensional continuous space. Its companion project
-`mesa-geo` adds geographic spaces on top of GeoPandas and Shapely. The core only needs the adapters.
-
-**Rebased on `redesign-system-model`.** The redesign made agent spaces the same space kinds as every other system, and
-`ContinuousSpace(*sides, boundary=...)` already takes any number of dimensions with periodic, reflecting, or open
-boundaries, so this change no longer adds a `depth` argument or a three-dimensional variant of the space. Agents are
-elements with `Rule` laws in variable groups, and Mesa is a backend, so there is no `AgentType` to extend. This change
-still adds: three-dimensional continuous spaces on the Mesa backend, a geographic space kind, groups created from
-layer features, geographic queries for rules, their trajectories and drawing, the `geo` extra, and the two models.
+The core already gives agents everything but the space, so this change builds on it and drops it from its scope:
+`ContinuousSpace(extent, boundary=...)` takes any number of sides, `MovementInteraction` moves agents by Gaussian,
+Lévy, best-cell, or user steps with a vision and the `'member'` schedule, and the agent forms of `MapInteraction`,
+`TransitionInteraction`, `TransferInteraction`, and the other agent interactions act on the members of a group through
+the `AgentView` and `ModelView` of `MesaSolver`. Two gaps remain. `MesaSolver` builds Mesa's continuous space from the
+first two sides of the extent alone, and places, measures, and reports agents in two dimensions. And no space holds the
+regions of a map, so an agent cannot be placed in a region, ask which regions contain it, or move to one.
 
 ## What Changes
 
-- Let the Mesa backend run agent groups in a continuous space of three dimensions, so positions, radius neighbour
-  queries, periodic wrapping, and random placement work on three coordinates, and declare that support. Two-dimensional
-  spaces keep working unchanged.
-- Add a geographic space, `GeoSpace`, in `core.space`, of a new space kind. It has a coordinate reference system, and
-  vector layers loaded from GeoPandas data frames or files. Members of groups on it are located at geometries in that
-  system. Only the Mesa backend declares support for it.
-- Let groups be created from the features of a vector layer, one member per feature or a given number of members per
-  feature. Feature attributes become initial state values, and the members are placed at points inside the feature.
-- Let rules query a geographic agent's neighbours within a distance in the space's units, find the layer features
-  that contain the agent, and move the agent to a point or to a feature.
-- Report agent locations in three-dimensional and geographic spaces in trajectories, and draw them in Rerun as
-  `Points3D` and as projected `Points2D` over the layer outlines.
-- Report through validation a geographic space with a solver or backend that does not support it, a location whose
-  length does not fit its space, and a missing `geo` extra.
-- Add the `geo` optional extra, which installs `mesa-geo` and with it GeoPandas, Shapely, pyproj, and rasterio.
-- Add the library models this unblocks: boids in three dimensions and a Kauai population sentiment model on
-  geographic layers.
+- Let `MesaSolver` run agent groups in a `ContinuousSpace` of three sides: Mesa's bounds, random placement, periodic
+  wrapping, radius queries, `ModelView.dimensions`, and the agent locations of a trajectory cover every side. Two
+  dimensional spaces keep their results.
+- Reject before the first frame a continuous space on `MesaSolver` with more than three sides or no extent, and report
+  in the compile report an initial location whose length differs from the dimension of its space.
+- Add `regions` to `ContinuousSpace`, a mapping from a layer name to a sequence of Shapely polygons in the coordinates
+  of the space. `prepare` indexes them with Shapely's `STRtree`.
+- Let a location of a member, in `GroupElement(location=...)`, in `ModelView.create`, and in `AgentView.move_to`, be a
+  Shapely polygon, which places the agent at a random point inside it drawn from the simulation's generator.
+- Add `AgentView.regions_here(layer)`, the indices of the regions of a layer that contain the agent, and
+  `ModelView.region(layer, index)`, the polygon of a region, so a `MovementInteraction` step moves an agent to a region
+  and an agent-form interaction reads where it stands.
+- Draw agents in a three-dimensional space as `Points3D`, and the regions of a space once as static `LineStrips2D`
+  under the agents' `Points2D`.
+- Add the library models this unblocks, built on `MovementInteraction` and agent-form interactions: boids in three
+  dimensions and a Kauai population sentiment model on region layers, with a small synthetic island in its package.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `agent-spaces`: three-dimensional continuous spaces and geographic spaces for agent groups, with placement,
-  neighbour queries, movement, validation, trajectories, and visualization of agents in them.
+- `agent-spaces`: three-dimensional continuous spaces and region layers for agent groups, with placement, neighbour
+  and region queries, movement, validation, trajectories, and visualization of agents in them.
 
 ### Modified Capabilities
 
-- `model-library`: boids in three dimensions and the Kauai population model on geographic data.
+- `model-library`: boids in three dimensions and the Kauai population model on region layers.
 
 ## Impact
 
-- `skcomplex.core.space` gains `GeoSpace`, and `SpaceKind` in `skcomplex.core.base` gains the geographic kind.
-  `skcomplex.core.components.Group` gains `from_layer`.
-- The Mesa backend in `skcomplex.core.backends` maps continuous spaces of three dimensions to Mesa's
-  `ContinuousSpace` and `GeoSpace` to `mesa_geo.GeoSpace`, declares support for both, and its agent view gains
-  `features_here` and `move_to_feature`.
-- `skcomplex.core.viz.AgentsVisual` draws three-dimensional and geographic agents.
-- New optional extra `geo` with `mesa-geo`. The Project Profile lists it, and states that the extra needs
-  macOS 14 on Apple silicon and macOS 15 on Intel, the oldest systems with pyproj wheels for Python 3.13.
+- `skcomplex.core.spaces.ContinuousSpace` gains `regions` and the derived `regions_` index. No space class and no
+  dependency are added, since Shapely is already a runtime dependency.
+- `MesaSolver` in `skcomplex.engine.solvers` builds Mesa's continuous space from every side, rejects unsupported
+  continuous spaces in `_unsupported`, places agents in polygons, and its views gain `regions_here` and `region`.
+- `PassCompiler` gains the issue `location-dimension`. `SpaceError` widens to a location that does not fit its space.
+- `AgentsVisual` in `skcomplex.engine.viz` draws three-dimensional agents and region outlines.
 - `skcomplex.models.biology.collective_behaviour` gains three-dimensional boids, and
   `skcomplex.models.social.organizations` is created with the Kauai model and a small synthetic island dataset.

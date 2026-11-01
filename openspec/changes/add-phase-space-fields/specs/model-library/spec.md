@@ -5,7 +5,8 @@
 ### Requirement: Kinetic equations of gases and plasmas
 The library SHALL provide the spatially inhomogeneous Boltzmann equation, its BGK model, the Vlasov-Poisson equation
 with Landau damping and two-stream set-ups, and the local Enskog equation as registered factories under
-`physics/fluids` (Bellomo et al. 2017 §2.2–2.3). The inventory SHALL record them as implemented.
+`physics/fluids` (Bellomo et al. 2017 §2.2–2.3), built on `PhaseSpace`, `AdvectionInteraction`,
+`CollisionInteraction`, and `RelaxationInteraction`. The inventory SHALL record them as implemented.
 
 #### Scenario: Sod shock tube near the fluid limit
 - **WHEN** the BGK model runs the Sod shock tube in one position and one velocity dimension at a Knudsen number of 1e-4
@@ -18,7 +19,8 @@ with Landau damping and two-stream set-ups, and the local Enskog equation as reg
 
 ### Requirement: Kinetic theory of flocking
 The library SHALL provide the Bertin-Droz-Grégoire kinetic theory of flocking over position and orientation as a
-registered factory under `physics/active_matter` (Marchetti et al. 2013, arXiv 1207.2929 §V.2.3). The inventory SHALL
+registered factory under `physics/active_matter` (Marchetti et al. 2013, arXiv 1207.2929 §V.2.3), whose angular
+diffusion and binary alignment are `EncounterInteraction` subclasses on a periodic class axis. The inventory SHALL
 record it as implemented.
 
 #### Scenario: Flocking onset

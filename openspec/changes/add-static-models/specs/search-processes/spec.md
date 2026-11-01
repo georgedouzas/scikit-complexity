@@ -7,34 +7,26 @@ generation per time step.
 
 ## ADDED Requirements
 
-### Requirement: Searches declare variables, bounds, objective, and algorithm
-Elements SHALL declare a search by its decision variables with bounds, an objective law over a symbolic expression
-compiled like any law, an algorithm, and a population size. The algorithms SHALL include a genetic algorithm,
-differential evolution, particle swarm optimisation, an evolution strategy, and simulated annealing. A search SHALL
-require discrete time, and validation SHALL report it under any other time.
-
-#### Scenario: Unknown algorithm
-- **WHEN** a search names an algorithm that is not provided
-- **THEN** construction raises a named error that lists the provided algorithms
-
-#### Scenario: Search under static time
-- **WHEN** a search is placed in a system with `StaticTime()`
-- **THEN** validation reports the search and suggests `DiscreteTime()`
-
-### Requirement: Generations are time steps
-A run SHALL advance a search by one generation per step of discrete time. The frame SHALL hold the candidates as the
-members of a group and their objective values, and the catalog entry SHALL declare the reductions `best` and `mean` as
-observables. Runs with the same seed SHALL be identical.
+### Requirement: Optimisation moves a population of candidates
+`OptimizationInteraction` SHALL bind a group of candidates holding a vector state in a box, an objective of the array of
+candidates, and an algorithm spec, `DifferentialEvolutionSpec`, `ParticleSwarmSpec`, `EvolutionStrategySpec`, or
+`CovarianceAdaptationSpec`. It SHALL advance the population by one generation per step of discrete time, write the
+candidates into the members, and report the `best` and `mean` objective values every step. Runs with the same seed
+SHALL be identical.
 
 #### Scenario: Differential evolution on Rastrigin
-- **WHEN** differential evolution with 40 candidates searches the two-dimensional Rastrigin function on `[-5.12, 5.12]`
-  with `random_state=1`
-- **THEN** the best value is below 1e-3 by frame 50, and it never increases from one frame to the next
+- **WHEN** `OptimizationInteraction` with `DifferentialEvolutionSpec()` moves 40 candidates on the two-dimensional
+  Rastrigin function in `[-5.12, 5.12]` with `random_state=1`
+- **THEN** the reported best value is below 1e-3 by step 50 and never increases from one step to the next
 
-### Requirement: Annealing follows a temperature schedule
-Simulated annealing SHALL accept a worse candidate with the Metropolis probability of the sampling law at the current
-temperature, and the temperature SHALL follow a schedule over frames.
+#### Scenario: Algorithm that is not a spec
+- **WHEN** an `OptimizationInteraction` takes the string `'ga'` as its algorithm
+- **THEN** checking it raises a `ValidationError` that lists the algorithm specs
+
+### Requirement: Annealing follows a cooling temperature
+`SamplingInteraction` SHALL take `cooling`, a function of time that multiplies its temperature, so a Metropolis
+acceptance with the `'gaussian'` move anneals a group of candidates whose energy reads no neighbours.
 
 #### Scenario: Cooling
-- **WHEN** simulated annealing runs with a temperature that falls geometrically to 1e-3
-- **THEN** the fraction of accepted worse moves falls below 0.05 in the last tenth of the run
+- **WHEN** simulated annealing runs with `cooling` falling geometrically to 1e-3 of the initial temperature
+- **THEN** the share of accepted moves that raise the energy falls below 0.05 in the last tenth of the run

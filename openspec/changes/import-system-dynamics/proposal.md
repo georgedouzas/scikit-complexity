@@ -3,58 +3,68 @@
 ## Why
 
 System dynamics has decades of published models in Vensim (`.mdl`) and XMILE (Stella, iThink, Vensim exports) files,
-and modellers keep their work in those tools. The library already models stocks and flows (`TransferLaw`,
-`lookup`, `distributed_delay`, `pulse`, `step`, `ramp`), checks conserved quantities, and ranks feedback
-loops, but a modeller must retype every equation to use it. PySD already parses both formats into a language-neutral
-abstract model, so reading that abstract model turns any of those files into a `System` without writing a parser.
+and modellers keep their work in those tools. PySD already parses both formats into a language-neutral abstract model,
+so translating that abstract model turns any of those files into a model of the library without writing a parser.
+
+The core already holds everything a stock-and-flow model is made of, so this change adds no modelling primitive:
+- `TransferInteraction` moves amounts between the states of one element, or between a state and `Source()` or
+  `Sink()`, and names its flows with `flow=` and the fourth item of a leg, reported as `<element>.<flow>` when source
+  and target are one element,
+- `RateInteraction` adds the rest of a stock's net rate, and `RelaxationInteraction` the goal-seeking rate
+  `(goal - x) / time`,
+- the law utilities hold `lookup`, `where`, `step`, `ramp`, `pulse`, `pulse_train`, `delay1`, `delay3`, `smooth`,
+  `distributed_delay`, `delayed`, `clip`, `minimum`, `maximum`, `total`, and the draws `uniform` and `normal`,
+- `ObservableSpec` records auxiliaries, `LoopAnalysis` lists feedback loops and their dominance, and
+  `Simulation(invariants=...)` checks conserved totals.
+
+What is missing is only the translation from a file to those names.
 
 ## What Changes
 
-- **Reading a model file:** `read_vensim(path)` and `read_xmile(path)` return the `System` of a system dynamics model
-  and the run settings its control section declares (start time, final time, time step, saving period).
-- **Translation from PySD's abstract model:** the readers call PySD's translators (`VensimFile`, `XmileFile`) and
-  build the system from the `AbstractModel` they return, never from the Python code PySD generates or its runtime:
-  - a stock (`INTEG`) becomes a state of one element, with its initial value;
-  - a flow that leaves one stock and enters another becomes a `TransferLaw` from the first to the second, a flow
-    that touches one stock becomes a `TransferLaw` with the environment, and what remains of a stock's net rate becomes
-    a `RateLaw`;
-  - an auxiliary becomes an expression in the laws, and an observable of the run, so the trajectory records it
-    under its name;
-  - a constant becomes a parameter, and a lookup becomes a `lookup` table;
-  - the built-in functions map to the library's own: `IF THEN ELSE` to `where`, `STEP`, `RAMP`, `PULSE`, and
-    `PULSE TRAIN` to `step`, `ramp`, `pulse`, and `pulse_train`, `DELAY1`, `DELAY3`, `DELAY N`, `SMOOTH`, and
-    `SMOOTH N` to `distributed_delay`, `DELAY FIXED` to `delayed`, and the random functions to draws;
-  - a variable subscripted over one range becomes a group with one member per subscript, and sums over the range
-    become totals.
-- **Named errors for what does not translate:** functions without a counterpart, such as `GAME`, `ALLOCATE`, the
-  vector functions, and data read from spreadsheets, macros, and variables subscripted over more than one range raise
-  one error that lists every unsupported construct with its variable.
-- **Dependency:** PySD becomes a runtime dependency, imported lazily on the first read.
-- **Roadmap of integrations.** This change is the first of a series that connects the library to the ecosystem
-  around it, each a change of its own. The order and the place of each are in the design.
-  - **Importing models:** PySD, this change; SBML through libRoadRunner or Tellurium; FMI units through FMPy; NetLogo
-    models through pynetlogo.
-  - **Solvers and backends:** JAX with diffrax; SciML through diffeqpy and ModelingToolkit; QuTiP; SUNDIALS.
-  - **Data and interoperability:** xarray and pandas exports; igraph or graph-tool; NetCDF or Zarr storage.
-  - **Inference, calibration, and uncertainty:** SALib; PyMC or NumPyro with ArviZ; Optuna or `scipy.optimize`.
-  - **Scale-out:** Dask or Ray.
+- **Translating a model file:** `SystemDynamicsTranslator(path)` in a new package `skcomplex.engine.translators`
+  follows the three verbs of `BaseConfig`. `run()` sets `source_` to the Python source of a model module built only
+  from public names of the library, which the user saves and imports like any model, and `settings_` to the run
+  settings of the file's control section.
+- **Translation from PySD's abstract model:** the translator calls PySD's translators (`VensimFile`, `XmileFile`) and
+  reads the `AbstractModel` they return, never the Python code PySD generates or its runtime:
+  - the stocks become the states of one element class, and the constants its parameters,
+  - a flow variable that leaves one stock and enters another becomes a `TransferInteraction` between the two states
+    of that element, named by `flow=`, so the trajectory reports it as `<element>.<flow>`,
+  - a flow variable that touches one stock becomes a `TransferInteraction` with `Source()` or `Sink()`,
+  - what remains of a stock's net rate becomes a `RelaxationInteraction` when it has the goal-seeking form
+    `(goal - stock) / time`, and a `RateInteraction` otherwise,
+  - an auxiliary becomes a private function of the element's namespace that the laws call, and an `ObservableSpec`
+    recorded under its name,
+  - a lookup becomes a `lookup` table,
+  - the built-in functions map to the law utilities: `IF THEN ELSE`, `ZIDZ`, and `XIDZ` to `where`, `STEP`, `RAMP`,
+    `PULSE`, and `PULSE TRAIN` to `step`, `ramp`, `pulse`, and `pulse_train`, `DELAY1`, `DELAY3`, and `SMOOTH` to
+    `delay1`, `delay3`, and `smooth`, `DELAY N` and `SMOOTH N` to `distributed_delay`, `DELAY FIXED` to `delayed`,
+    `MIN` and `MAX` to `minimum` and `maximum`, a `MIN` of a `MAX` to `clip`, and the random functions to draws,
+  - a model whose stocks are all subscripted over one range becomes a group with one member per subscript, and sums
+    over the range become `total`.
+- **Named errors for what does not translate:** functions without a counterpart, such as `GAME`, `ALLOCATE`, and the
+  vector functions, data read from spreadsheets, macros, variables subscripted over more than one range, and models
+  that mix subscripted and unsubscripted stocks raise one error that lists every unsupported construct with its
+  variable.
+- **Dependency:** PySD becomes a runtime dependency, since `skcomplex.engine` imports it.
 
 ## Capabilities
 
 ### New Capabilities
-- `system-dynamics-import`: reading Vensim and XMILE files into systems, the mapping of stocks, flows, auxiliaries,
-  constants, lookups, built-in functions, and subscripts, the run settings of the file, and the errors for what does
-  not translate.
+- `system-dynamics-import`: translating Vensim and XMILE files into model modules, the mapping of stocks, flows,
+  auxiliaries, constants, lookups, built-in functions, and subscripts onto the core's interactions and utilities, the
+  run settings of the file, and the errors for what does not translate.
 
 ### Modified Capabilities
 
 ## Impact
 
-- **Code:** a new module under `skcomplex.core.system` with `read_vensim` and `read_xmile`, built only from the
-  existing stocks-and-flows laws and `ElementComponent.define`.
-- **Dependencies:** `pysd` in `[project] dependencies`, since library code outside `skcomplex.models` imports it, and
-  its own dependencies (`parsimonious`, `xarray`, `pandas`). The import is lazy, so `import skcomplex` stays fast.
+- **Code:** a new package `skcomplex.engine.translators` with `SystemDynamicsTranslator`, and a frozen
+  `RunSettingsSpec(start, until, dt, save_every)` in `skcomplex.specs`. The import-linter contracts place the package
+  in the engine's layers. No core class changes.
+- **Dependencies:** `pysd` in `[project] dependencies`, with its own dependencies, such as `parsimonious`, `xarray`,
+  and `pandas`.
 - **Tests:** small Vensim and XMILE fixtures under `tests/fixtures`, including the classic teacup and SIR models, each
-  compared against PySD's own run of the same file.
-- **Docs:** a user-guide section on importing models and one gallery example that imports a published model, runs it,
-  and lists its feedback loops.
+  translated, imported from a temporary directory, and compared against PySD's own run of the same file.
+- **Docs:** a user-guide section on translating models and one gallery example that translates a published model,
+  runs it, and plots the dominance of its loops.

@@ -2,31 +2,25 @@
 
 ## ADDED Requirements
 
-### Requirement: Canonical and variational interactions generate laws
-An interaction SHALL declare a function over canonical pairs of coordinates and momenta, from which the framework
-derives Hamilton's equations as rate laws, or a function over coordinates of order 2 and their velocities, from which
-it derives the Euler-Lagrange equations as equation laws, symbolically. Both interactions SHALL require continuous time
-and real or angle coordinates, and validation SHALL report a coordinate without a momentum or a coordinate of order 1
-in a variational interaction.
+### Requirement: Hamiltonian interactions generate rate laws
+`HamiltonianInteraction` SHALL derive Hamilton's equations symbolically from a function of canonical coordinates and
+momenta, states of order 1 that are real or angles, as one `RateLaw` per coordinate and per momentum. The Hamiltonians
+of separate interactions on one state SHALL sum. A misuse SHALL raise `ValidationError` naming the state.
 
-#### Scenario: Pendulum from a variational function
-- **WHEN** a pendulum declares `L = m l² ω² / 2 + m g l cos θ` with an angle coordinate `θ`
-- **THEN** the derived equation is `dω/dt = -(g / l) sin θ`
+#### Scenario: Oscillator from a Hamiltonian
+- **WHEN** an element with states `q` and `p` takes `HamiltonianInteraction` with `H = p^2 / (2 m) + k q^2 / 2`
+- **THEN** its laws are `RateLaw(q, p / m)` and `RateLaw(p, -k q)`
 
-#### Scenario: Double pendulum chaos
-- **WHEN** a double pendulum declared by its variational function runs from two initial angles that differ by 1e-9
-- **THEN** the trajectories separate exponentially, and the energy stays constant within 1e-6 relative drift with the
-  Yoshida solver
+#### Scenario: Coupling Hamiltonians sum
+- **WHEN** two oscillators each take their own `HamiltonianInteraction`, and a third interaction binds both with the
+  Hamiltonian `c (q1 - q2)^2 / 2`
+- **THEN** the rate of `p1` is `-k q1 - c (q1 - q2)`, the sum of the terms of the two interactions
 
 #### Scenario: Coordinate without a momentum
-- **WHEN** a canonical interaction lists two coordinates and one momentum
-- **THEN** `validate()` reports one error whose path is the interaction and whose message names the unpaired coordinate
+- **WHEN** a `HamiltonianInteraction` lists two coordinates and one momentum
+- **THEN** `check()` raises `ValidationError` whose message names the unpaired coordinate
 
-#### Scenario: Coordinate of order 1
-- **WHEN** a variational interaction names a coordinate declared with order 1
-- **THEN** `validate()` reports the state, and its fix is `state(order=2)`
-
-#### Scenario: Non-separable function
-- **WHEN** a system whose canonical function couples coordinates and momenta in one term is validated with the solver
-  `Yoshida4`
-- **THEN** the report says that the solver needs a separable function and lists solvers that do not
+#### Scenario: Coordinate of order 2
+- **WHEN** a `HamiltonianInteraction` names a coordinate declared with `StateSpec(order=2)`
+- **THEN** the compiler's report holds one error at the path of the interaction that names the state and gives the fix
+  `StateSpec(order=1)` or `EulerLagrangeInteraction`

@@ -1,57 +1,53 @@
 # Tasks
 
-## 1. Runtime axes
+## 1. Static form
 
-- [ ] 1.1 Add the internal `Form.STATIC` and `Form.PROCEDURE`, the law kind `PROCEDURE`, and the `Evaluation` and
-  `ProcedureStepper` solvers with their `Supports` declarations, and verify the procedure frames and unsupported solver
-  scenarios
-- [ ] 1.2 Add `Sweep` as a run setting of `Simulation` and the catalog, and `Trajectory.axis`, and verify the dose
-  sweep scenario
-- [ ] 1.3 Log the sweep axis as a Rerun timeline, and verify the survival curve scenario
+- [ ] 1.1 Add `FormKind.STATIC` to `skcomplex.types` and the compilation of static systems in `PassCompiler`, with the
+  exact solve through Sage and the summed equations of one target per element and per group member, and verify the
+  survival at a dose, static system without equations, exact linear solution, and cyclic equations scenarios
+- [ ] 1.2 Add `RootSolver` to `skcomplex.engine.solvers` over `scipy.optimize.root` with the symbolic Jacobian and its
+  `SupportSpec`, and verify the numerical solution and no solution scenarios
+- [ ] 1.3 Add the issue `equation-target` to `PassCompiler`, and verify the target that is not a state and rate law
+  under static time scenarios
+- [ ] 1.4 Document the static form and sweeps through `Experiment` in the user guide with a runnable example, and verify
+  the documentation test passes
 
-## 2. Algebraic models
+## 2. Random ensembles
 
-- [ ] 2.1 Add `Define` with the law kind `DEFINE` in the constraint class, dependency ordering, and the cycle issue of
-  validation, and verify the survival and cyclic definition scenarios
-- [ ] 2.2 Add `unknowns` and `guess` to algebraic `Equation`, with Sage's exact solve and SciPy's `root` as the
-  fallback, `SolveError`, and `best_response`, and verify the exact, numerical, no-solution, wrong unknown, and Cournot
-  scenarios
+- [ ] 2.1 Add `log_sum_exp` to `skcomplex.core.laws.utils` with its NumPy and Numba lowering, and verify the large
+  values and random energy model entropy scenarios
+- [ ] 2.2 Add `radius` to `ClusterAnalysis` with the contact graph of points, and verify the spanning probability and
+  isolated points scenarios
 
-## 3. Random ensembles
+## 3. Satisfiability and search
 
-- [ ] 3.1 Add `Quenched` parameters drawn in `_prepare`, and verify the same-seed and disorder average scenarios
-- [ ] 3.2 Add the `log_sum_exp` reduction on NumPy and Numba, and `log_partition` and `boltzmann_mean` to
-  `skcomplex.models.physics.realizations`, and verify the entropy and large energy scenarios
-- [ ] 3.3 Add `PointProcess` with its space requirement and the `clusters` analysis and observables, and verify the
-  nested sweep, outside a continuous space, and spanning scenarios
+- [ ] 3.1 Add `python-sat>=1.9.dev16` and `pymoo>=0.6.2` to the runtime dependencies and the Project Profile, and verify
+  `pdm install`, `deptry`, and `pip-audit` pass
+- [ ] 3.2 Add `ClauseSpec` and `CardinalitySpec` to `skcomplex.specs` and `SatisfiabilityInteraction` to
+  `skcomplex.core.interactions`, and verify the perceptron pattern, real state, small perceptron, and capacity scenarios
+- [ ] 3.3 Add `DifferentialEvolutionSpec`, `ParticleSwarmSpec`, `EvolutionStrategySpec`, and
+  `CovarianceAdaptationSpec` to `skcomplex.specs` and `OptimizationInteraction` to `skcomplex.core.interactions`, and
+  verify the differential evolution and algorithm that is not a spec scenarios
+- [ ] 3.4 Add `cooling` to `SamplingInteraction`, and verify the cooling scenario
 
-## 4. Games, constraints, and search
+## 4. Library
 
-- [ ] 4.1 Add `nashpy` as a runtime dependency, `Game` with its time requirement, `equilibria`, and the learning
-  dynamics in `skcomplex.models.economics.realizations`, and verify the payoff, matching pennies, fictitious play, and
-  dynamic under static time scenarios
-- [ ] 4.2 Add `python-sat` as a runtime dependency, `Satisfiability` with incremental reveal and enumeration, and
-  verify the pattern constraint, small perceptron, and capacity scenarios
-- [ ] 4.3 Add `Learner` over scikit-learn `partial_fit` with its time requirement, and verify the separable patterns
-  scenario
-- [ ] 4.4 Add `pymoo` as a runtime dependency, `Search` over an `Objective` with the pymoo algorithms and annealing on
-  the Metropolis acceptance of `Sample`, and verify the unknown algorithm, search under static time, Rastrigin, and
-  cooling scenarios
+- [ ] 4.1 Add `lq_cell_survival`, `random_energy_model`, `continuum_percolation`, and `von_thunen`, and verify the
+  fractionation, glass transition, percolation threshold, and von Thünen rings scenarios and the conformance suite
+- [ ] 4.2 Add `oligopoly_equilibria` with its static and fictitious-play dynamics, and verify the mixed price
+  equilibrium and fictitious play scenarios and the conformance suite
+- [ ] 4.3 Add `perceptron_satisfiability` and `evolutionary_optimisers`, and verify the satisfiable fraction and
+  algorithms compared scenarios and the conformance suite
+- [ ] 4.4 Add `gravity_urban_scaling` and the package `skcomplex.models.social.language` with
+  `mandelbrot_least_effort`, and verify the urban scaling exponent and least-effort frequencies scenarios and the
+  conformance suite
+- [ ] 4.5 Mark the nine entries implemented in `docs/overview/inventory.toml`, add a gallery example per model with an
+  analysis plot from an `Experiment`, and verify the inventory check and the gallery coverage, budget, and screenshot
+  checks pass
 
-## 5. Library
+## 5. Documentation and gate
 
-- [ ] 5.1 Add `lq_cell_survival`, `random_energy_model`, `oligopoly_equilibria`, `perceptron_satisfiability`,
-  `evolutionary_optimisers`, `continuum_percolation`, and `von_thunen` as registered factories with default sweeps or
-  iteration counts and catalog observables, and verify the fractionation, mixed price equilibrium, von Thünen rings,
-  and glass transition scenarios and the conformance suite
-- [ ] 5.2 Add the inventory entries for `random_energy_model` and `perceptron_satisfiability` and mark the six models
-  implemented, and verify the inventory check passes
-- [ ] 5.3 Add a gallery example per model with a Rerun thumbnail and the analysis plot of the design, and verify the
-  gallery coverage, budget, and screenshot checks pass
-
-## 6. Documentation and gate
-
-- [ ] 6.1 Document the static form, sweeps, procedures, ensembles, games, constraint problems, learners, and searches
-  in the user guide, add the dependencies to the Project Profile and the changelog, and verify the documentation test
-  passes
-- [ ] 6.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
+- [ ] 5.1 Document `log_sum_exp`, contact clusters, `SatisfiabilityInteraction`, `OptimizationInteraction`, and
+  annealing in the user guide, add the changelog entry, and verify the documentation test and the changelog session pass
+- [ ] 5.2 Run `nox -s formatting`, `nox -s checks`, `nox -s docs`, and `nox -s tests` in that order, and verify all of
+  them pass

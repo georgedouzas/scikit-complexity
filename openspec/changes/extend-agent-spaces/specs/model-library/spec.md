@@ -2,15 +2,16 @@
 
 ## ADDED Requirements
 
-### Requirement: Agent models in three-dimensional and geographic spaces
-The library SHALL provide, as registered factories:
-- boids in three dimensions under `biology/collective_behaviour` (Think Complexity ch. 10);
-- the Kauai population sentiment model on geographic layers under `social/organizations` (Carmichael et al. 2019
-  ch. 3), with a small synthetic island dataset in its package.
+### Requirement: Agent models in three-dimensional spaces and on region layers
+The library SHALL provide, as registered factories built on `MovementInteraction` and agent-form interactions:
+- boids in three dimensions under `biology/collective_behaviour` (Think Complexity ch. 10),
+- the Kauai population sentiment model on region layers under `social/organizations` (Carmichael et al. 2019 ch. 3),
+  with a small synthetic island dataset in its package.
 
 #### Scenario: Boids align in three dimensions
-- **WHEN** 50 boids with random headings fly in a periodic three-sided `ContinuousSpace` with only the alignment rule for 200 steps
-- **THEN** the polarization, the norm of the mean unit velocity, rises from below 0.3 to above 0.9, and the depth
+- **WHEN** 50 boids with random headings fly in a periodic three-sided `ContinuousSpace` with only the alignment rule
+  for 200 steps
+- **THEN** the polarization, the norm of the mean unit velocity, rises from below 0.3 to above 0.9, and the third
   coordinates of the boids still spread over more than half of the box depth
 
 #### Scenario: Population follows the census layer

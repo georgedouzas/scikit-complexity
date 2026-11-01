@@ -5,8 +5,8 @@
 ### Requirement: Elman simple recurrent network
 The library SHALL provide Elman's simple recurrent network (Gros 2015 §10.5.1, Eq. 10.18, and Elman 1990) as a
 registered factory of a system under discrete time in epochs. It SHALL nest the discrete map
-`s(t) = σ(A s(t-1) + D x(t) + b)`, `y(t) = σ(W s(t) + c)` with adaptive matrix parameters, and train it with a
-gradient-step law on the squared error of predicting the next input, by default on Elman's temporal XOR stream.
+`s(t) = σ(A s(t-1) + D x(t) + b)`, `y(t) = σ(W s(t) + c)` with adaptive shaped parameters, and train it with a
+`TrainingInteraction` on the squared error of predicting the next input, by default on Elman's temporal XOR stream.
 
 #### Scenario: Temporal XOR
 - **WHEN** `run('elman_network', settings={'until': 200, 'random_state': 0})` trains 4 hidden units with Adam on a
@@ -27,17 +27,25 @@ gradient-step law on the squared error of predicting the next input, by default 
   shows the mean squared prediction error at each position of the bit triple before and after training, with the
   third position alone near 0 after training
 
+### Requirement: The generalized Lotka-Volterra matrix is a parameter
+`generalized_lotka_volterra` SHALL hold its interaction matrix as a shaped parameter of a `CouplingInteraction`, so a
+schedule or an experiment changes it, and SHALL keep its trajectory.
+
+#### Scenario: Rebuilt community keeps its trajectory
+- **WHEN** `generalized_lotka_volterra` runs with its catalog defaults
+- **THEN** its trajectory equals the trajectory of the previous constant matrix within 1e-10
+
+#### Scenario: Matrix swept by an experiment
+- **WHEN** a grid experiment sets the matrix parameter to two matrices that differ off the diagonal
+- **THEN** the two members of the experiment differ in their final abundances
+
 ### Requirement: Learning models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
-inventory, and a model the inventory records as pending this change SHALL register under the name of its entry.
+Every model this change implements SHALL register under the field path of its subfield and SHALL have an entry in the
+model inventory, and a model the inventory records as blocked by this change SHALL register under the name of its
+entry.
 
 #### Scenario: Inventory models registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** this entry is registered under its field path and marked implemented, with the sources Gr 10.5.1 and
   Elman 1990:
   - `elman_network` in `computer_science/neural_networks`
-
-#### Scenario: Out-of-scope entry moved
-- **WHEN** the change starts
-- **THEN** the inventory entry of `elman_network` changes from out of scope to `pending add-learning-dynamics`, with no
-  reason and no library, and the inventory check passes
