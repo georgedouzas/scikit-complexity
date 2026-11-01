@@ -166,7 +166,7 @@ class ReinforcementInteraction(Interaction):
         """Return the new scores of an agent, every score or only that of its chosen option moved by its payoff."""
         old = self._read(agent)
         options = range(len(old)) if self.chosen is None else [int(getattr(agent, self.chosen))]
-        rate = 1.0 if self.rule == 'cumulative' else model.parameter('rate')
+        rate = 1.0 if self.rule == 'cumulative' else self._get_parameter_value('rate', model)
         change = np.zeros_like(old)
         for k in options:
             payoff = float(self.payoff(agent, model, k))
@@ -217,7 +217,11 @@ class ReinforcementInteraction(Interaction):
         for index, name in enumerate(self.scores):
             score = getattr(self._get_member(namespace, 'target'), name)
             payoff = self.payoff(namespace, index)
-            change = payoff if self.rule == 'cumulative' else namespace.rate * (payoff - score)
+            change = (
+                payoff
+                if self.rule == 'cumulative'
+                else self._get_parameter_symbol('rate', namespace) * (payoff - score)
+            )
             if self.chosen is not None:
                 change = where(getattr(self._get_member(namespace, 'target'), self.chosen) == index, change, 0)
             laws.append(UpdateLaw(score, score + change))

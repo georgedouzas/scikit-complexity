@@ -10,6 +10,7 @@ from ...errors import ValidationError
 from ...specs import ParameterSpec, StateSpec
 from ..base import BasePart
 from ..spaces import BaseSpace
+from ..types import ModelViewProtocol
 
 
 class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
@@ -22,6 +23,8 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
     hyperedges of a network space. A general interaction reads the members of its roles, such as `'source'` or
     `'target'`, by the name `_get_role` returns for them, the role itself by default, so a subclass that names its
     roles otherwise returns its own names, in the agent forms and, through `_get_member`, in the symbolic forms.
+    It reads its parameters by the name `_get_parameter` returns for them, and a parameter the class does not declare
+    reads the plain attribute, so a subclass renames a parameter or fixes its value by setting the attribute.
 
     Args:
         label:
@@ -89,6 +92,61 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         """
         member: SimpleNamespace = getattr(namespace, self._get_role(role))
         return member
+
+    def _get_parameter(self, name: str) -> str:
+        """Return the name of the parameter a subclass reads in place of a parameter of its general interaction.
+
+        Args:
+            name:
+                The name of the parameter in the general interaction, such as `'probability'`.
+
+        Returns:
+            parameter:
+                The name of the parameter of the subclass, the name itself by default.
+        """
+        return name
+
+    def _declares(self, name: str) -> bool:
+        """Return whether the class declares a name as a parameter."""
+        return isinstance(type(self)._get_specs().get(name), ParameterSpec)
+
+    def _get_parameter_value(self, name: str, model: ModelViewProtocol) -> float:
+        """Return the value of a parameter in an agent form, the plain attribute when the class does not declare it.
+
+        Args:
+            name:
+                The name of the parameter in the general interaction.
+
+            model:
+                The model view of the interaction.
+
+        Returns:
+            value:
+                The value of the parameter of the model, or of the attribute of the interaction.
+        """
+        parameter = self._get_parameter(name)
+        if self._declares(parameter):
+            return model.parameter(parameter)
+        return float(getattr(self, parameter))
+
+    def _get_parameter_symbol(self, name: str, namespace: SimpleNamespace) -> object:
+        """Return the symbol of a parameter in a symbolic form, the plain attribute when the class does not declare it.
+
+        Args:
+            name:
+                The name of the parameter in the general interaction.
+
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            symbol:
+                The symbol of the parameter, or the value of the attribute of the interaction.
+        """
+        parameter = self._get_parameter(name)
+        if self._declares(parameter):
+            return getattr(namespace, parameter)
+        return getattr(self, parameter)
 
     def _check_states(self) -> None:
         """Raise an error for a type that declares states or adaptive parameters without a shape."""

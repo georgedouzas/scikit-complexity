@@ -6,19 +6,25 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.elements import LatticeElement
+from skcomplex.core.elements import GroupElement, LatticeElement
 from skcomplex.core.interactions import (
     BaseInteraction,
+    ChoiceInteraction,
     CrossingInteraction,
+    ImitationInteraction,
     ImpulseInteraction,
     JumpInteraction,
     LocalRuleInteraction,
     MapInteraction,
     RateInteraction,
+    ReactionInteraction,
+    ReinforcementInteraction,
     RelaxationInteraction,
+    SamplingInteraction,
     SignAdjustmentInteraction,
     TransitionInteraction,
 )
+from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -53,6 +59,26 @@ RENAMED = {
         lambda role: {'state': 'x', 'rule': lambda *values: 1.0 - values[0], 'neighborhood': VonNeumannNeighborhood()},
         True,
     ),
+    'choice': (
+        ChoiceInteraction,
+        lambda role: {'state': 'x', 'options': (0.0, 1.0), 'utility': lambda n, option: option},
+        True,
+    ),
+    'sampling': (
+        SamplingInteraction,
+        lambda role: {'state': 'x', 'energy': lambda n: -getattr(n, role).x * neighbors(getattr(n, role).other.x)},
+        True,
+    ),
+    'reinforcement': (ReinforcementInteraction, lambda role: {'scores': ('x',), 'payoff': lambda n, index: 1.0}, True),
+}
+AGENTS = {
+    'choice': (
+        ChoiceInteraction,
+        {'state': 'x', 'options': (0.0, 1.0), 'utility': lambda agent, model, option: option},
+    ),
+    'reinforcement': (ReinforcementInteraction, {'scores': ('x',), 'payoff': lambda agent, model, index: 1.0}),
+    'reaction': (ReactionInteraction, {'reactants': {'x': 1}, 'products': {}}),
+    'imitation': (ImitationInteraction, {'state': 'x', 'payoff': 'x', 'probability': 0.5}),
 }
 
 
@@ -67,6 +93,31 @@ class GrowthInteraction(BaseInteraction):
     def _get_laws(self, namespace):
         """Return no laws."""
         return []
+
+
+def _get_fixed(interaction):
+    """Return a subclass of a general interaction that declares no parameter, so it reads its attributes."""
+
+    class FixedInteraction(interaction):
+        """Interaction that declares no parameter."""
+
+        def __init__(self, label, *, target: Annotated[str, RoleSpec()], **arguments):
+            super().__init__(label, target=target, **arguments)
+
+    return FixedInteraction
+
+
+def _run_agents(interaction):
+    """Return the final values of the state `x` of four agents on a lattice driven by an agent form."""
+    agents = GroupElement(
+        'nodes',
+        element=NodeElement,
+        size=4,
+        location=[(0, 0), (0, 1), (1, 0), (1, 1)],
+        values={'x': np.array([0.0, 1.0, 0.0, 1.0])},
+    )
+    system = System(elements=[agents], interactions=[interaction], space=LatticeSpace((2, 2)), time=DiscreteTime())
+    return Simulation(system, random_state=0).check().prepare().run(until=5).trajectory_.agents('nodes', 5).values['x']
 
 
 def _get_renamed(interaction):
@@ -158,3 +209,12 @@ def test_get_member_reads_a_renamed_target_in_the_symbolic_form(name):
     plain = _run_nodes(interaction(name, target='nodes', **arguments('target')), discrete)
     renamed = _run_nodes(_get_renamed(interaction)(name, stock='nodes', **arguments('stock')), discrete)
     np.testing.assert_allclose(renamed, plain)
+
+
+@pytest.mark.parametrize('name', AGENTS)
+def test_get_parameter_value_reads_the_attributes_of_undeclared_parameters(name):
+    """Test that the agent form of a subclass that declares no parameter runs as the plain interaction."""
+    interaction, arguments = AGENTS[name]
+    plain = _run_agents(interaction(name, target='nodes', form='agent', **arguments))
+    fixed = _run_agents(_get_fixed(interaction)(name, target='nodes', form='agent', **arguments))
+    np.testing.assert_array_equal(fixed, plain)

@@ -281,7 +281,7 @@ class ReactionInteraction(JumpInteraction):
         """Return the propensity of the reaction, by the user's function or by mass action at the rate constant `k`."""
         if self.propensity is not None:
             return SR(self.propensity(namespace))
-        return self._get_mass_action(namespace, namespace.k)
+        return self._get_mass_action(namespace, self._get_parameter_symbol('k', namespace))
 
     def _get_langevin_laws(self, propensity: Expression, changes: dict[Expression, float]) -> list[BasePart]:
         """Return the drift of the reaction and the noise of its one Wiener process on every state it changes."""
@@ -388,7 +388,7 @@ class ReactionInteraction(JumpInteraction):
         """Return the propensity of an agent, by the user's function or by mass action at the rate constant `k`."""
         if self.propensity is not None:
             return self._get_number(self.propensity, agent, model)
-        propensity = model.parameter('k')
+        propensity = self._get_parameter_value('k', model)
         for entries in (self._get_reactants(), self._get_modifiers()):
             for entry, coefficient in (entries or {}).items():
                 value = float(getattr(agent, self._get_state(entry)))

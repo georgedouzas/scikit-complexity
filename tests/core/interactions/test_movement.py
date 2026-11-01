@@ -13,7 +13,7 @@ from skcomplex.core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.errors import ValidationError
-from skcomplex.specs import RoleSpec, StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class BudgetElement(Element):
@@ -28,6 +28,25 @@ class BudgetElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.level = level
+
+
+class BoldWalkInteraction(MovementInteraction):
+    """Walk whose move probability is the parameter `boldness`."""
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], boldness: Annotated[float, ParameterSpec()]):
+        super().__init__(label, target=target)
+        self.boldness = boldness
+
+    def _get_parameter(self, name: str) -> str:
+        """Return `boldness` for the move probability."""
+        return {'probability': 'boldness'}.get(name, name)
+
+
+class SureWalkInteraction(MovementInteraction):
+    """Walk whose move probability is fixed to 1 without a parameter."""
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]):
+        super().__init__(label, target=target, probability=1.0)
 
 
 def _run(system: System, until: int) -> Trajectory:
@@ -244,3 +263,17 @@ def test_move_subclass_resolves_its_own_role_name(schedule):
     """Test that a subclass that names its role otherwise moves its agents under both schedules."""
     trajectory = _lattice_walk(1, StrollInteraction('stroll', strollers='walkers', schedule=schedule))
     assert [int(abs(cell - 4).sum()) for cell in trajectory.agents('walkers', 1).locations] == [1, 1, 1, 1]
+
+
+def test_get_parameter_reads_a_renamed_move_probability():
+    """Test that a walk that names its move probability `boldness` moves as the plain walk with that probability."""
+    plain = _lattice_walk(10, MovementInteraction('walk', target='walkers', probability=0.3), size=50)
+    bold = _lattice_walk(10, BoldWalkInteraction('walk', target='walkers', boldness=0.3), size=50)
+    np.testing.assert_array_equal(plain.agents('walkers', 10).locations, bold.agents('walkers', 10).locations)
+
+
+def test_get_parameter_value_reads_a_fixed_move_probability():
+    """Test that a walk that fixes its move probability to 1 without a parameter moves every walker every step."""
+    trajectory = _lattice_walk(1, SureWalkInteraction('walk', target='walkers'), size=50)
+    locations = np.asarray(trajectory.agents('walkers', 1).locations)
+    assert (np.abs(locations - 4).sum(axis=1) == 1).all()

@@ -187,9 +187,9 @@ class ImitationInteraction(NeighborInteraction):
 
     def _copies(self, member: SimpleNamespace, other: SimpleNamespace, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the copies of the state of the other end of an edge by a member, chosen among its neighbours."""
-        value, rate = getattr(member, self.state), namespace.rate / member.degree
+        value, rate = getattr(member, self.state), self._get_parameter_symbol('rate', namespace) / member.degree
         if self.rule == 'fermi':
-            rate = rate * self._get_fermi(member, other, namespace.intensity)
+            rate = rate * self._get_fermi(member, other, self._get_parameter_symbol('intensity', namespace))
         return self._switches(value, rate, getattr(other, self.state))
 
     def _get_jumps(self, namespace: SimpleNamespace) -> list[BaseLaw]:
@@ -198,23 +198,26 @@ class ImitationInteraction(NeighborInteraction):
         if self.rule == 'majority':
             leads = self._get_majority(namespace)
             return [
-                JumpLaw(namespace.rate * where(value == first, 1, 0) * leads[second], {value: second - first})
+                JumpLaw(
+                    self._get_parameter_symbol('rate', namespace) * where(value == first, 1, 0) * leads[second],
+                    {value: second - first},
+                )
                 for first, second in itertools.permutations(self.options, 2)
             ]
         if self.rule == 'best':
             best, better = self._get_best(namespace)
-            return self._switches(value, namespace.rate * better, best)
+            return self._switches(value, self._get_parameter_symbol('rate', namespace) * better, best)
         source, target = namespace.source, namespace.target
         return [*self._copies(target, source, namespace), *self._copies(source, target, namespace)]
 
     def _draw_copy(self, namespace: SimpleNamespace) -> Expression:
         """Return the next state of the target by the random or the Fermi rule, from the option it copies or its own."""
         source, target, value = namespace.source, namespace.target, getattr(namespace.target, self.state)
-        probability, over = namespace.probability, self._get_neighborhood()
+        probability, over = self._get_parameter_symbol('probability', namespace), self._get_neighborhood()
         counts = self._get_counts(namespace)
         degree = sum(counts.values(), SR(0))
         if self.rule == 'fermi':
-            fermi = self._get_fermi(target, source, namespace.intensity)
+            fermi = self._get_fermi(target, source, self._get_parameter_symbol('intensity', namespace))
             weights = [
                 probability * neighbors(where(getattr(source, self.state) == option, 1, 0) * fermi, over=over)
                 for option in self.options
@@ -242,7 +245,11 @@ class ImitationInteraction(NeighborInteraction):
         return [
             UpdateLaw(
                 value,
-                where(uniform(f'{value}_imitation') < namespace.probability, imitated, value),
+                where(
+                    uniform(f'{value}_imitation') < self._get_parameter_symbol('probability', namespace),
+                    imitated,
+                    value,
+                ),
                 phase=self.phase,
             ),
         ]
@@ -287,13 +294,13 @@ class ImitationInteraction(NeighborInteraction):
         difference = float(getattr(other, self.payoff)) - own
         if self.rule == 'better':
             return float(getattr(other, self.state)) if difference > 0 else None
-        fermi = 1 / (1 + np.exp(-model.parameter('intensity') * difference))
+        fermi = 1 / (1 + np.exp(-self._get_parameter_value('intensity', model) * difference))
         return float(getattr(other, self.state)) if rng.random() < fermi else None
 
     def _imitate(self, model: ModelViewProtocol) -> None:
         """Let every agent imitate its neighbours with the probability of imitation, all agents at once."""
         agents = list(model.agents(self._get_role('target')))
-        probability = model.parameter('probability')
+        probability = self._get_parameter_value('probability', model)
         members = {agent.id for agent in agents}
         choices: list[float | None] = []
         for agent in agents:

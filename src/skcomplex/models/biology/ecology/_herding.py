@@ -19,7 +19,8 @@ class HerdingInteraction(MovementInteraction):
     """Weekly move of every cow, in random order, to the nearest free patch with enough grass, or death.
 
     It is a movement of the cows whose step leads every cow to the patch nearest to it that no other cow occupies and
-    whose grass reaches `threshold`, and removes a cow that finds none.
+    whose grass reaches `threshold`, and removes a cow that finds none. Every cow moves every week, the probability
+    of movement fixed to 1 without a parameter.
 
     Args:
         label:
@@ -34,9 +35,6 @@ class HerdingInteraction(MovementInteraction):
         threshold:
             The least grass a patch needs for a cow to move there.
 
-        probability:
-            The probability that a cow moves in a week.
-
     Examples:
         >>> from skcomplex.models.biology.ecology import HerdingInteraction
         >>> HerdingInteraction('herding', cows='cows', pasture='pasture').threshold
@@ -50,9 +48,8 @@ class HerdingInteraction(MovementInteraction):
         cows: Annotated[str, RoleSpec()],
         pasture: Annotated[str, RoleSpec()],
         threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
-        probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
     ) -> None:
-        super().__init__(label, target=cows, step=self._herd, probability=probability)
+        super().__init__(label, target=cows, step=self._herd)
         self.cows = cows
         self.pasture = pasture
         self.threshold = threshold

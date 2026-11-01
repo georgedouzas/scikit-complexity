@@ -216,10 +216,10 @@ class ChoiceInteraction(Interaction):
         state = getattr(self._get_member(namespace, 'target'), self.state)
         utilities = [SR(self.utility(namespace, option)) for option in self.options]
         if self.rule == 'logit':
-            return self._draw_softmax(state, utilities, namespace.intensity)
+            return self._draw_softmax(state, utilities, self._get_parameter_symbol('intensity', namespace))
         if self.rule == 'best':
             return self._draw_best(state, utilities)
-        return self._draw_proposal(state, utilities, namespace.intensity)
+        return self._draw_proposal(state, utilities, self._get_parameter_symbol('intensity', namespace))
 
     def _get_utilities(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> np.ndarray:
         """Return the utility of every option for an agent."""
@@ -256,8 +256,8 @@ class ChoiceInteraction(Interaction):
 
     def _choose_member(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
         """Set the state of one agent to the option it draws if it revises, in its own activation."""
-        if agent.alive and self._is_active(model, model.parameter('activity')):
-            setattr(agent, self.state, self._draw_agent(agent, model, model.parameter('intensity')))
+        if agent.alive and self._is_active(model, self._get_parameter_value('activity', model)):
+            setattr(agent, self.state, self._draw_agent(agent, model, self._get_parameter_value('intensity', model)))
 
     def choose(self, model: ModelViewProtocol) -> None:
         """Set the state of every agent that revises in this step to the option it draws, by the schedule.
@@ -267,7 +267,10 @@ class ChoiceInteraction(Interaction):
                 The model view of the interaction.
         """
         agents = list(model.agents(self._get_role('target')))
-        intensity, activity = model.parameter('intensity'), model.parameter('activity')
+        intensity, activity = self._get_parameter_value('intensity', model), self._get_parameter_value(
+            'activity',
+            model,
+        )
         if self.schedule == 'random-sequential':
             for index in model.rng.permutation(len(agents)):
                 if self._is_active(model, activity):
@@ -296,5 +299,9 @@ class ChoiceInteraction(Interaction):
         if self.form == 'agent':
             return [RuleLaw(self.choose, phase=self.phase)]
         state = getattr(self._get_member(namespace, 'target'), self.state)
-        revised = where(uniform(f'{state}_activity') < namespace.activity, self._draw_symbolic(namespace), state)
+        revised = where(
+            uniform(f'{state}_activity') < self._get_parameter_symbol('activity', namespace),
+            self._draw_symbolic(namespace),
+            state,
+        )
         return [UpdateLaw(state, revised)]

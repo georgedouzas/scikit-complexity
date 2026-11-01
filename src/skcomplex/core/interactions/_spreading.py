@@ -134,9 +134,11 @@ class SpreadingInteraction(TransitionInteraction):
         held = neighbors(where(getattr(member.other, self.state) == self.active, 1, 0), over=over, reduce=reduce)
         recovered = self.inactive if self.removed is None else self.removed
         laws: list[BaseLaw] = [
-            self._get_jump(value, self.inactive, self.active, namespace.beta * held),
-            self._get_jump(value, self.active, recovered, namespace.gamma),
+            self._get_jump(value, self.inactive, self.active, self._get_parameter_symbol('beta', namespace) * held),
+            self._get_jump(value, self.active, recovered, self._get_parameter_symbol('gamma', namespace)),
         ]
         if self.removed is not None:
-            laws.append(self._get_jump(value, self.removed, self.inactive, namespace.omega))
+            laws.append(
+                self._get_jump(value, self.removed, self.inactive, self._get_parameter_symbol('omega', namespace)),
+            )
         return laws

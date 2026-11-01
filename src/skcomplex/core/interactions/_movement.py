@@ -278,9 +278,11 @@ class MovementInteraction(Interaction):
             return cells[int(rng.integers(len(cells)))] if cells else None
         position = np.asarray(agent.location, dtype=float)
         if self.step == 'gaussian':
-            return position + rng.normal(0.0, model.parameter('scale'), position.shape)
+            return position + rng.normal(0.0, self._get_parameter_value('scale', model), position.shape)
         direction = rng.normal(size=position.shape)
-        length = model.parameter('scale') * (1.0 + rng.pareto(model.parameter('exponent')))
+        length = self._get_parameter_value('scale', model) * (
+            1.0 + rng.pareto(self._get_parameter_value('exponent', model))
+        )
         return position + length * direction / np.linalg.norm(direction)
 
     def _charge(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
@@ -329,13 +331,13 @@ class MovementInteraction(Interaction):
             occupied = (
                 {other.location_key for other in model.agents(self._get_role('target'))} if self.exclusive else set()
             )
-            self._move(agent, model, model.parameter('probability'), occupied)
+            self._move(agent, model, self._get_parameter_value('probability', model), occupied)
 
     def _move_all(self, model: ModelViewProtocol) -> None:
         """Move every agent of the group whose condition holds, in their order or in random order."""
         agents = model.agents(self._get_role('target'))
         occupied = {agent.location_key for agent in agents} if self.exclusive else set()
-        probability = model.parameter('probability')
+        probability = self._get_parameter_value('probability', model)
         order = model.rng.permutation(len(agents)) if self.schedule == 'random-sequential' else range(len(agents))
         for index in order:
             agent = agents[int(index)]

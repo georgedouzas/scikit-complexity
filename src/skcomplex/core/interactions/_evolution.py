@@ -241,10 +241,10 @@ class EvolutionInteraction(Interaction):
 
     def _value(self, name: str, model: ModelViewProtocol) -> float:
         """Return a probability, the parameter of the model when the class declares it as one."""
-        if isinstance(type(self)._get_specs().get(name), ParameterSpec):
-            return model.parameter(name)
-        value = getattr(self, name)
-        return float(value) if isinstance(value, int | float) else 0.0
+        value = getattr(self, self._get_parameter(name))
+        if self._declares(self._get_parameter(name)) or isinstance(value, int | float):
+            return self._get_parameter_value(name, model)
+        return 0.0
 
     def _evaluate(self, strategies: Array, model: ModelViewProtocol) -> Array | None:
         """Return the fitness of every row of strategies by the evaluation, or `None` when there is none.

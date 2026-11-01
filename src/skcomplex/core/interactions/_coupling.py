@@ -374,9 +374,9 @@ class CouplingInteraction(NeighborInteraction):
         """Return the term of one other member, with the delay and the lag applied to the read state."""
         member_values, other_values = dict(vars(member)), dict(vars(other))
         if self.delay != 0:
-            other_values[self.read] = delayed(other_values[self.read], namespace.delay)
+            other_values[self.read] = delayed(other_values[self.read], self._get_parameter_symbol('delay', namespace))
         if self.lag != 0:
-            member_values[self.read] = member_values[self.read] + namespace.lag
+            member_values[self.read] = member_values[self.read] + self._get_parameter_symbol('lag', namespace)
         if self.function is None:
             return other_values[self.read] - member_values[self.read]
         return self.function(
@@ -558,7 +558,8 @@ class CouplingInteraction(NeighborInteraction):
         """Return the term of one hyperedge around a member, with the lag applied to the read state of the member."""
         member = around.member
         if self.lag != 0:
-            member = SimpleNamespace(**{**vars(member), self.read: getattr(member, self.read) + namespace.lag})
+            lag = self._get_parameter_symbol('lag', namespace)
+            member = SimpleNamespace(**{**vars(member), self.read: getattr(member, self.read) + lag})
         if self.function is None:
             members = around.members
             own = getattr(around.member, self.read)
