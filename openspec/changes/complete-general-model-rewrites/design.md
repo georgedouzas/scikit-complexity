@@ -52,6 +52,14 @@ per step, mode `'jump'` fires at most once per member per step with probability 
 convention of the agent form of `TransitionInteraction`, and mode `'langevin'` is refused. No current model uses the
 agent form yet. The rats' `NervousnessInteraction` became `AlarmInteraction` plus a plain calming reaction.
 
+### Ecology agents and herders (2.1, 2.3)
+
+Agent predation, trails, ants, angiogenesis, and the stigmergic plants and animals run on member interactions, equal
+over 20 seeds or identical. The herders differed earlier for two reasons: placement `'here'` put new cows at the
+herder's cell instead of a random one, and `reset` applies only after a birth; a placement function and member maps
+fix both. The meadow stays: a thin subclass cannot rename the roles of its general class (`cows` and `pasture` for
+`source` and `target`), and its nested-farm test reads `interaction.pasture`.
+
 ### Social classes still on their own laws (2.5)
 
 Rebuilt: majority rule, coevolving voter, join a club, social force walls, evacuation crowding and guidance,

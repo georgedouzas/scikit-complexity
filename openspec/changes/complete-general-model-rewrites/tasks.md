@@ -14,7 +14,7 @@
 
 - [ ] 2.1 Rebuild the meadow, ants, trails, angiogenesis, agent predation, and stigmergic plants on the member schedule, cell transfers, site deposits, and life cycles; verify each over 20 seeds.
 - [x] 2.2 Rebuild the degree-class mean fields on callable coupling weights; verify against their previous trajectories.
-- [ ] 2.3 Find why the commons herders differ after the life-cycle rebuild, and rebuild them or record why they stay; verify over 20 seeds.
+- [x] 2.3 Find why the commons herders differ after the life-cycle rebuild, and rebuild them or record why they stay; verify over 20 seeds.
 - [ ] 2.4 Decompose the large single-element ODE models of oncology, neuroscience, physiology, and systems biology into rate and reaction interactions, with `biology/common/pharmacokinetics` and `biology/common/kinetics` where several packages share them; verify each against its previous trajectory.
 - [ ] 2.5 Rebuild the remaining social classes (voter diffusion, coevolution, standardization, crowding, walls, recruitment, the spatial games, the organizations package, and segregation blocks) on the general classes; verify their tests.
 - [x] 2.6 Rebuild the transitions of the epidemiology `PersonElement` on `TransitionInteraction` with the incubation timing of the general class, and state the convention in its docstring; verify its tests and the match with its compartment model.
