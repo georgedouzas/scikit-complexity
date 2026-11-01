@@ -38,6 +38,11 @@ The parts of the current code this change builds on:
 
 ## Decisions
 
+- **Reference numbers are checked before they become thresholds.** The urban scaling exponent and the fictitious-play
+  distance are first reproduced from the cited source; when a run disagrees, the scenario uses the measured value
+  with a tolerance from the spread over seeds, and design.md records the source, the measured value, and why they
+  differ. Decided on 2026-11-01.
+
 ### The static form
 
 `PassCompiler` compiles a system under `StaticTime` to a `ProblemSpec` of the new form `FormKind.STATIC`

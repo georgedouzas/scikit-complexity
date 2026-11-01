@@ -35,10 +35,22 @@ A model whose draws change is compared over 20 seeds against its previous trajec
   first and records the model as staying if the difference is a property of its order of draws.
 - **[Trade-off] Splitting modules renames private modules.** Public names do not change, since packages re-export them.
 
+### Decisions of 2026-11-01
+
+- **`PersonElement` takes the timing of `TransitionInteraction`.** Exposed people become infectious when their age in
+  the exposed state reaches `incubation`, counted by the general class, which shifts the onset by half a step from the
+  hand-kept clock. The model docstring states the convention and its tests take the new trajectory; the agent model
+  still matches its compartment model within the existing tolerance.
+- **Times and neighbourhoods leave `skcomplex.core.spaces`.** `BaseTime` and `BaseNeighborhood` do not subclass
+  `BaseSpace`, so each concept gets its own package: `skcomplex.core.times` (`BaseTime`, `ContinuousTime`,
+  `DiscreteTime`, `StaticTime`) and `skcomplex.core.neighborhoods` (`BaseNeighborhood` and its eleven subclasses).
+  `skcomplex.core.spaces` keeps only spaces and no compatibility re-exports. The open changes that import times or
+  neighbourhoods from `spaces` use the new packages when they are applied.
+
 ## Migration Plan
 
 Work on `development`, with parallel agents on disjoint packages merging back as they report.
 
 ## Open Questions
 
-- The incubation timing of `PersonElement` (a half-step shift) waits on the maintainer.
+- None.

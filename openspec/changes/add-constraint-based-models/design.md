@@ -49,6 +49,9 @@ ODEs over `Δt`, which is a co-simulation of a discrete-time partition beside an
 
 ## Decisions
 
+- **`highspy` and `passagemath-polyhedra` are runtime dependencies,** and the Sage import rule of the Project Profile
+  widens to `sage.all__sagemath_polyhedra` and the modules it loads. Decided on 2026-11-01.
+
 ### Library survey
 
 Checked on 2026-10-19 against PyPI, GitHub, and spike installs on macOS arm64 with Python 3.13:

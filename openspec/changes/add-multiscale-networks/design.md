@@ -23,6 +23,11 @@ its `'variance-mean'` kind.
 
 ## Decisions
 
+- **Reference numbers are checked before they become thresholds.** The superlinear exponent of the urban scaling
+  scenario is first reproduced from the cited source; when a run disagrees, the scenario uses the measured value with
+  a tolerance from the spread over seeds, and design.md records the source, the measured value, and why they differ.
+  Decided on 2026-11-01.
+
 ### Attachment weights that read the new node
 
 In the action `'add-node'`, the namespace that `toward` receives holds the candidate node, as it does today, and the

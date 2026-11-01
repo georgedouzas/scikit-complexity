@@ -45,6 +45,9 @@ change to the adapter, not a new engine.
 
 ## Decisions
 
+- **Regions are Shapely geometries.** Shapely is a runtime dependency, and neither mesa-geo nor pyproj is added; a
+  user projects coordinates before building the space. Decided on 2026-11-01.
+
 ### Library survey
 
 Three-dimensional continuous space:

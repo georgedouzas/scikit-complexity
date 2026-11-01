@@ -17,8 +17,12 @@
 - [ ] 2.3 Find why the commons herders differ after the life-cycle rebuild, and rebuild them or record why they stay; verify over 20 seeds.
 - [ ] 2.4 Decompose the large single-element ODE models of oncology, neuroscience, physiology, and systems biology into rate and reaction interactions, with `biology/common/pharmacokinetics` and `biology/common/kinetics` where several packages share them; verify each against its previous trajectory.
 - [ ] 2.5 Rebuild the remaining social classes (voter diffusion, coevolution, standardization, crowding, walls, recruitment, the spatial games, the organizations package, and segregation blocks) on the general classes; verify their tests.
+- [ ] 2.6 Rebuild the transitions of the epidemiology `PersonElement` on `TransitionInteraction` with the incubation timing of the general class, and state the convention in its docstring; verify its tests and the match with its compartment model.
+- [ ] 2.7 Make `plot_bouchaud_mezard_wealth`, `plot_credit_networks`, and `plot_multiplicative_process` run within the gallery budget of 60 s, and restore the uniform band of `plot_unbounded_alphabet_automaton`; verify the docs build.
 
 ## 3. Conventions and integration
 
-- [ ] 3.1 Split every model module that holds several classes into one class per private module, re-exported unchanged; verify the catalog test and every model test.
-- [ ] 3.2 Run the checks session and the full suite with doctests; verify only the known timing tests fail.
+- [ ] 3.1 Move the times to `skcomplex.core.times` and the neighbourhoods to `skcomplex.core.neighborhoods`, leaving only spaces in `skcomplex.core.spaces`, and update every import in `src`, `tests`, and `docs`; verify the import-linter contracts and the full suite.
+- [ ] 3.2 Split every model module that holds several classes into one class per private module, re-exported unchanged; verify the catalog test and every model test.
+- [ ] 3.3 Update `uv` to 0.13.4 or later in `pdm.lock` for PYSEC-2026-4321; verify pip-audit reports nothing.
+- [ ] 3.4 Run the checks session and the full suite with doctests; verify only the known timing tests fail.

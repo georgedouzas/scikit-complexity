@@ -47,3 +47,12 @@ An agent rule SHALL read the recorded values of an observable at earlier rounds.
 #### Scenario: Attendance history
 - **WHEN** a choice reads the bar attendance of the previous rounds
 - **THEN** no reporter-only interaction records it
+
+### Requirement: One concept per core package
+`skcomplex.core.spaces` SHALL hold only spaces, `skcomplex.core.times` only times, and `skcomplex.core.neighborhoods`
+only neighbourhoods.
+
+#### Scenario: Times and neighbourhoods have their own packages
+- **WHEN** a user imports `DiscreteTime` and `MooreNeighborhood`
+- **THEN** they come from `skcomplex.core.times` and `skcomplex.core.neighborhoods`, and `skcomplex.core.spaces`
+  exports no time or neighbourhood

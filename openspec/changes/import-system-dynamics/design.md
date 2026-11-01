@@ -44,6 +44,9 @@
 
 ## Decisions
 
+- **The translator writes source.** It returns the model as module source in `source_`, never a system built at run
+  time. Decided on 2026-11-01.
+
 ### Library survey
 - **PySD 3, chosen.** It is the maintained Python reader of Vensim and XMILE, MIT licensed, and its abstract model is a
   documented, language-neutral boundary.

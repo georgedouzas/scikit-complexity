@@ -35,8 +35,7 @@
 - [ ] 4.1 Record the linear drift of every axis on the problem, and add `SemiLagrangianSolver` with its `SupportSpec`
   on `scipy.fft` shifts and `scipy.ndimage.map_coordinates`, and verify the large transport steps and nonlinear flux
   scenarios
-- [ ] 4.2 Keep the source rates of `ProblemSpec` apart from the flux differences unless `adopt-pyclaw-finite-volumes`
-  already did, add `StrangSplittingSolver` with its `SupportSpec`, and verify the second order splitting scenario
+- [ ] 4.2 Keep the source rates of `ProblemSpec` apart from the flux differences, add `StrangSplittingSolver` with its `SupportSpec`, and verify the second order splitting scenario
 - [ ] 4.3 Add the `slice` and `moments` arguments of `ImageVisual`, and verify the two-stream viewer scenario with a
   recording in memory
 

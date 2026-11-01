@@ -49,6 +49,9 @@ loss over an unrolled run, and a law that changes the weights by that gradient.
 
 ## Decisions
 
+- **JAX, Optax, and Diffrax are runtime dependencies.** The Project Profile's platforms narrow to Linux and macOS 13
+  or later on Apple silicon, since `jaxlib` publishes no wheels for macOS on Intel. Decided on 2026-11-01.
+
 ### Learning is a system whose time is the epoch
 
 A learning system is an ordinary system:

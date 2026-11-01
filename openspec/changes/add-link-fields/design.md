@@ -66,6 +66,11 @@ NetworkX, and Numba, which the project already depends on.
 
 ## Decisions
 
+- **Reference numbers are checked before they become thresholds.** The topological Kuramoto gap and the U(1)
+  plaquette tolerance are first reproduced from the cited source; when a run disagrees, the scenario uses the measured
+  value with a tolerance from the spread over seeds, and design.md records the source, the measured value, and why
+  they differ. Decided on 2026-11-01.
+
 ### Cell complexes are network spaces
 
 `CellComplexSpace(space, *, faces=None, dimension=2, label='space')` derives from `NetworkSpace`, so every group,

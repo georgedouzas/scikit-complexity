@@ -49,5 +49,4 @@ None.
   it creates. The coupling of fields by a kernel belongs to `add-nonlocal-operators`, matrix-valued weights to
   `add-learning-dynamics`, and laws per hyperedge to `add-higher-order-interactions`.
 - **Not in scope:** non-numeric agent states, such as queues and sets, which stay in their models because observables
-  and snapshots record numbers only, and the incubation timing of the epidemiology `PersonElement`, which waits on a
-  decision by the maintainer.
+  and snapshots record numbers only.

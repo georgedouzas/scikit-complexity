@@ -84,6 +84,5 @@ both. Concretely the change adds:
   declares. The design records the libraries surveyed and why each was not wrapped.
 - `skcomplex.models.physics.fluids` and `skcomplex.models.physics.active_matter` gain the models, and the inventory
   moves them from `blocked add-phase-space-fields` to implemented.
-- Shares with `adopt-pyclaw-finite-volumes` the source rates that `ProblemSpec` keeps apart from the flux differences,
-  added by whichever change lands first. The Enskog shift of the collision partners' positions waits for
+- Adds the source rates that `ProblemSpec` keeps apart from the flux differences. The Enskog shift of the collision partners' positions waits for
   `add-nonlocal-operators`.

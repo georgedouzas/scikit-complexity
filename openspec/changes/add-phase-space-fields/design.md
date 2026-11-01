@@ -176,8 +176,7 @@ field through the `sources` of `RateInteraction`.
   compile pass records the drift of every axis of such a field on the problem.
 - `StrangSplittingSolver(transport, collision)` composes a half transport step, a full collision step, and a half
   transport step. The transport solver advances the flux differences and the collision solver the source rates, which
-  `ProblemSpec` keeps apart from the flux differences. That split is shared with `adopt-pyclaw-finite-volumes`, and
-  whichever change lands first adds it.
+  `ProblemSpec` keeps apart from the flux differences, a split this change adds.
 
 Both live in `skcomplex.engine.solvers` and declare:
 
