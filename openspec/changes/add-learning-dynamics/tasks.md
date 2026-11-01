@@ -53,7 +53,7 @@
 
 ## 6. Models
 
-- [ ] 6.1 Add `elman_network` to `computer_science/neural_networks` built only from public names, with its catalog
+- [x] 6.1 Add `elman_network` to `computer_science/neural_networks` built only from public names, with its catalog
   observables, and mark its inventory entry implemented; verify the temporal XOR and Elman's original rule scenarios
   and the inventory check
 - [ ] 6.2 Add `docs/examples/computer_science/neural_networks/plot_elman_network.py` with the loss thumbnail and the
