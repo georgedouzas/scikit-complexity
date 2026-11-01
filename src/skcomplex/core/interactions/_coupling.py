@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated, cast
 
@@ -43,6 +43,11 @@ class CouplingInteraction(NeighborInteraction):
 
     - `'edges'`: the neighbours of `i` along the edges of its lattice or network, or within the `neighborhood`.
     - `'group'`: every other member of the group, or every member of the group `source` when it is given.
+
+    In the mode `'group'` the roles may also bind separate elements. A target that lists elements couples every element
+    to the other elements of the list, a single target element is a hub that reduces over every member of the group
+    `source`, and a source that is one element or a list of elements couples every member of the target to them. The
+    reduction over separate elements is written out term by term.
     - `'next'`: the next member of the group in member order, the first after the last.
 
     With `include_self`, the reduction also runs over `j = i`. Every term `f_ij` has a weight `w_ij`: on edges, the
@@ -65,10 +70,12 @@ class CouplingInteraction(NeighborInteraction):
             The label of the interaction, unique among the parts of its system.
 
         target:
-            The path of the group of the members.
+            The path of the group of the members, or in the mode `'group'` the path of one element or the paths of
+            separate elements.
 
         source:
-            The path of the group of the other members in the mode `'group'`, or `None` for the group of the members.
+            The path of the group, the element, or the paths of the separate elements of the other members in the mode
+            `'group'`, or `None` for the members of the target.
 
         read:
             The name of the state that the default function, the delay, and the lag read.
@@ -133,8 +140,8 @@ class CouplingInteraction(NeighborInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
-        source: Annotated[str | None, RoleSpec(optional=True)] = None,
+        target: Annotated[str | Sequence[str], RoleSpec()],
+        source: Annotated[str | Sequence[str] | None, RoleSpec(optional=True)] = None,
         read: str = 'x',
         write: str = 'x',
         function: NamespaceFunction | None = None,
@@ -185,10 +192,15 @@ class CouplingInteraction(NeighborInteraction):
         if self.source is not None and self.mode != 'group':
             error_msg = f'The source {self.source!r} of coupling needs the mode group, but the mode is {self.mode!r}.'
             raise ValidationError(error_msg)
+        if not isinstance(self.target, str) and self.mode != 'group':
+            error_msg = (
+                f'The coupling of the separate elements {self.target!r} needs the mode group, not {self.mode!r}.'
+            )
+            raise ValidationError(error_msg)
         if self.mode == 'next' and self.reduce not in SUMS:
             error_msg = f'The coupling to the next member reduces by sum or mean, not {self.reduce!r}.'
             raise ValidationError(error_msg)
-        if self.reduce in EXTREMES and self.mode == 'group' and self._excludes_self():
+        if self.reduce in EXTREMES and self.mode == 'group' and self._excludes_self() and isinstance(self.target, str):
             error_msg = (
                 f'The {self.reduce} of coupling over its own group runs over every member. Pass include_self=True or '
                 'a separate source group.'
@@ -253,18 +265,18 @@ class CouplingInteraction(NeighborInteraction):
         edge: SimpleNamespace | None = None,
     ) -> Target:
         """Return the term of one other member, with the delay and the lag applied to the read state."""
-        read_member, read_other = getattr(member, self.read), getattr(other, self.read)
+        member_values, other_values = dict(vars(member)), dict(vars(other))
         if self.delay != 0:
-            read_other = delayed(read_other, namespace.delay)
+            other_values[self.read] = delayed(other_values[self.read], namespace.delay)
         if self.lag != 0:
-            read_member = read_member + namespace.lag
+            member_values[self.read] = member_values[self.read] + namespace.lag
         if self.function is None:
-            return read_other - read_member
+            return other_values[self.read] - member_values[self.read]
         return self.function(
             SimpleNamespace(
                 **self._parameters(namespace),
-                member=SimpleNamespace(**{**vars(member), self.read: read_member}),
-                other=SimpleNamespace(**{**vars(other), self.read: read_other}),
+                member=SimpleNamespace(**member_values),
+                other=SimpleNamespace(**other_values),
                 edge=edge,
             ),
         )
@@ -339,9 +351,48 @@ class CouplingInteraction(NeighborInteraction):
             )
         return reduction
 
+    @staticmethod
+    def _get_extreme(values: list[Target], extreme: Callable[..., Expression]) -> Target:
+        """Return the largest or smallest of several values, component by component for vectors."""
+        if len(values) == 1:
+            return values[0]
+        first = values[0]
+        if isinstance(first, FreeModuleElement):
+            columns = zip(*[list(value) for value in values], strict=True)
+            return first.parent()([extreme(*[SR(item) for item in column]) for column in columns])
+        return extreme(*[SR(value) for value in values])
+
+    @staticmethod
+    def _get_sum(pairs: list[tuple[Target, Target]], part: Part) -> Target:
+        """Return the sum of a part of the weighted terms of separate elements."""
+        parts = [part(value, weight) for value, weight in pairs]
+        return sum(parts[1:], parts[0])
+
+    def _get_separate_reduction(self, namespace: SimpleNamespace) -> Target:
+        """Return the reduction over the separate elements of `namespace.source`, written out term by term."""
+        if self._has_matrix():
+            error_msg = (
+                'A matrix of weights of coupling needs groups. Give the weights of separate elements as a callable.'
+            )
+            raise ValidationError(error_msg)
+        target = namespace.target
+        others = [*namespace.source, *([target] if self.include_self else [])]
+        pairs = [
+            (self._get_term(namespace, target, other), self._get_weight(namespace, target, other)) for other in others
+        ]
+        if not pairs:
+            error_msg = f'The coupling {self.label!r} of separate elements has no other element. Bind two or more.'
+            raise ValidationError(error_msg)
+        if self.reduce in EXTREMES:
+            extreme = maximum if self.reduce == 'max' else minimum
+            return self._get_extreme([value * weight for value, weight in pairs], extreme)
+        return self._get_reduced(lambda part: self._get_sum(pairs, part), SR(len(pairs)))
+
     def _get_group_reduction(self, namespace: SimpleNamespace) -> Target:
         """Return the reduction over every other member of the group, or every member of the source group."""
         source, target = namespace.source, namespace.target
+        if isinstance(source, tuple):
+            return self._get_separate_reduction(namespace)
         if self.reduce in EXTREMES:
             extreme = maximum if self.reduce == 'max' else minimum
             value = self._get_term(namespace, target, source) * self._get_weight(namespace, target, source)

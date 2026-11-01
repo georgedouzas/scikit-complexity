@@ -7,6 +7,7 @@ from typing import Annotated
 import networkx as nx
 import numpy as np
 import pytest
+import scipy.integrate
 import scipy.optimize
 from sage.all__sagemath_symbolics import SR, I, atan2, cos, exp, pi, sin, vector
 
@@ -424,3 +425,69 @@ def test_check_rejects_unknown_variants_and_mismatched_structures(arguments, mat
     """Test that unknown variants, functions that cannot be called, and weights that do not suit the mode fail."""
     with pytest.raises(ValidationError, match=match):
         CouplingInteraction('coupling', target='oscillators', **arguments).check()
+
+
+def test_coupling_separate_elements_to_each_other():
+    """Test that a coupling of separate elements gives each the sum of the terms of the other elements."""
+    phases = [0.0, 1.0, 2.5]
+    oscillators = [OscillatorElement(f'o{index}', theta=phase) for index, phase in enumerate(phases)]
+    sine = CouplingInteraction(
+        'sine',
+        target=['o0', 'o1', 'o2'],
+        read='theta',
+        write='theta',
+        function=lambda s: sin(s.other.theta - s.member.theta),
+        mode='group',
+    )
+    system = System(elements=oscillators, interactions=[sine])
+    trajectory = Simulation(system, dt=0.01).check().prepare().run(until=1.0).trajectory_
+    found = [trajectory.values(f'o{index}.theta')[-1] for index in range(3)]
+    expected = scipy.integrate.solve_ivp(
+        lambda _, theta: np.sin(theta[None, :] - theta[:, None]).sum(axis=1),
+        (0.0, 1.0),
+        phases,
+        rtol=1e-10,
+        atol=1e-12,
+    ).y[:, -1]
+    np.testing.assert_allclose(found, expected, atol=1e-6)
+
+
+def test_coupling_hub_by_largest_value_of_group():
+    """Test that a hub element coupled to a group by the largest value gets the largest term over the group."""
+    cells = GroupElement('cells', element=CellElement, size=3, values={'u': [1.0, 3.0, 2.0]})
+    drive = CouplingInteraction(
+        'drive',
+        target='hub',
+        source='cells',
+        read='u',
+        write='u',
+        function=lambda s: s.other.u,
+        reduce='max',
+        mode='group',
+    )
+    system = System(elements=[cells, CellElement('hub')], interactions=[drive])
+    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=1.0).trajectory_
+    assert trajectory.values('hub.u')[-1] == pytest.approx(3.0)
+
+
+def test_coupling_group_to_hub_element():
+    """Test that the members of a group coupled to a hub element each get the term of the hub."""
+    cells = GroupElement('cells', element=CellElement, size=2, values={'u': [0.0, 1.0]})
+    inhibition = CouplingInteraction(
+        'inhibition',
+        target='cells',
+        source='hub',
+        read='u',
+        write='u',
+        function=lambda s: -s.other.u,
+        mode='group',
+    )
+    system = System(elements=[cells, CellElement('hub', u=2.0)], interactions=[inhibition])
+    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=1.0).trajectory_
+    np.testing.assert_allclose(trajectory.values('cells.u')[-1], [-2.0, -1.0])
+
+
+def test_check_separate_elements_need_group_mode():
+    """Test that a coupling of separate elements outside the mode group is rejected."""
+    with pytest.raises(ValidationError, match='separate elements'):
+        CouplingInteraction('sine', target=['a', 'b'], mode='next').check()

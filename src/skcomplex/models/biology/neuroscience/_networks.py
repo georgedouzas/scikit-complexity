@@ -13,14 +13,16 @@ from sage.sets.real_set import RealSet
 from scipy.ndimage import convolve
 
 from ....core.elements import Element, FieldElement
-from ....core.interactions import Interaction, RateInteraction
+from ....core.interactions import CouplingInteraction, RateInteraction
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import delayed, laplacian, logistic, maximum
+from ....core.laws.utils import delayed, laplacian, logistic
 from ....core.spaces import LatticeSpace
 from ....core.system import System
+from ....core.types import Target
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._inhibitor_drive import InhibitorDriveInteraction
 from ._spike_reset import SpikeResetInteraction
 
 NEAREST = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
@@ -316,22 +318,21 @@ class InhibitorElement(Element):
         return [RateLaw(s.z, -s.phi * s.z)]
 
 
-class GlobalInhibitionInteraction(Interaction):
-    """Coupling of a lattice of oscillators to a global inhibitor that the most active oscillator drives.
+class GlobalInhibitionInteraction(CouplingInteraction):
+    """Inhibition of every oscillator of a lattice by a global inhibitor, once the inhibitor exceeds its threshold.
 
-    The inhibitor follows `z' = phi (sigma - z)`, where `sigma` is the largest activity `m H(x - theta_x)` of the
-    oscillators, so it is driven when at least one stimulated oscillator is active. Once the inhibitor exceeds
-    `theta_z` it inhibits every oscillator by `W_z`.
+    Every oscillator gets `-W_z H(z - theta_z)` from the inhibitor, a smooth step of width `kappa` of the oscillator.
+    It is the coupling of the members of a group to a hub element, and `InhibitorDriveInteraction` drives the hub.
 
     Args:
         label:
             The label of the interaction.
 
-        inhibitor:
-            The path of the inhibitor.
-
         oscillators:
             The path of the lattice of oscillators.
+
+        inhibitor:
+            The path of the inhibitor.
 
         W_z:
             The strength of the inhibition.
@@ -349,34 +350,28 @@ class GlobalInhibitionInteraction(Interaction):
         self,
         label: str,
         *,
-        inhibitor: Annotated[str, RoleSpec()],
         oscillators: Annotated[str, RoleSpec()],
+        inhibitor: Annotated[str, RoleSpec()],
         W_z: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
         theta_z: Annotated[float, ParameterSpec()] = 0.1,
     ) -> None:
-        super().__init__(label)
-        self.inhibitor = inhibitor
+        super().__init__(
+            label,
+            target=oscillators,
+            source=inhibitor,
+            write='x',
+            function=self._get_inhibition,
+            mode='group',
+        )
         self.oscillators = oscillators
+        self.inhibitor = inhibitor
         self.W_z = W_z
         self.theta_z = theta_z
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the drive of the inhibitor by the most active oscillator and the inhibition of every oscillator.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        oscillator, inhibitor = s.oscillators, s.inhibitor
-        activity = maximum(oscillator.m * logistic(oscillator.x - oscillator.theta_x, 0, oscillator.kappa))
-        return [
-            RateLaw(oscillator.x, -s.W_z * logistic(inhibitor.z - s.theta_z, 0, oscillator.kappa)),
-            RateLaw(inhibitor.z, inhibitor.phi * activity),
-        ]
+    @staticmethod
+    def _get_inhibition(namespace: SimpleNamespace) -> Target:
+        """Return the inhibition `-W_z H(z - theta_z)` of an oscillator."""
+        return -namespace.W_z * logistic(namespace.other.z - namespace.theta_z, 0, namespace.member.kappa)
 
 
 @register_model(
@@ -527,5 +522,6 @@ def legion(
         boundary={'x': ('fixed', SILENT), 'y': 'zero-flux'},
         values=values,
     )
+    drive = InhibitorDriveInteraction('drive', inhibitor='inhibitor', oscillators='oscillators')
     inhibition = GlobalInhibitionInteraction('inhibition', inhibitor='inhibitor', oscillators='oscillators', W_z=W_z)
-    return System(elements=[oscillators, InhibitorElement('inhibitor')], interactions=[inhibition])
+    return System(elements=[oscillators, InhibitorElement('inhibitor')], interactions=[drive, inhibition])

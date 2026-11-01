@@ -2,6 +2,7 @@
 
 from ._conductances import FitzHughNagumoNeuronElement, HodgkinHuxleyElement, fitzhugh_nagumo_ode, hodgkin_huxley
 from ._excitable import ExcitableElement, kinouchi_copelli
+from ._inhibitor_drive import InhibitorDriveInteraction
 from ._networks import (
     DelayedSynapseInteraction,
     GlobalInhibitionInteraction,
@@ -34,6 +35,7 @@ __all__: list[str] = [
     'FitzHughNagumoNeuronElement',
     'GlobalInhibitionInteraction',
     'HodgkinHuxleyElement',
+    'InhibitorDriveInteraction',
     'InhibitorElement',
     'IzhikevichElement',
     'LeakyIntegrateAndFireElement',

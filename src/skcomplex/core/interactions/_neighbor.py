@@ -35,6 +35,11 @@ class NeighborInteraction(BaseInteraction):
     second group, which `namespace.source` reads, without edges. A role declared `RoleSpec(optional=True)` and bound to
     `None` binds nothing.
 
+    The roles may also bind separate elements. When the first role binds one element or a list of elements, the laws
+    run once per element, which `namespace.target` reads. When the second role binds a group, `namespace.source` reads
+    its members inside reductions, and otherwise `namespace.source` is the tuple of the namespaces of the elements the
+    second role binds, or of the other elements of the list the first role binds.
+
     Args:
         label:
             The label of the interaction, unique among the parts of its system.
