@@ -13,12 +13,16 @@ from collections.abc import Sequence
 from sage.all__sagemath_symbolics import SR, Expression, function, oo, vector
 from sage.modules.free_module_element import FreeModuleElement
 
+from ....errors import ValidationError
+
 laplacian = function('laplacian', nargs=1, latex_name=r'\nabla^2')
 partial = function('partial', nargs=2)
 upwind = function('upwind', nargs=3)
-inverse_helmholtz = function('inverse_helmholtz', nargs=2)
+INVERSE_HELMHOLTZ = function('inverse_helmholtz')
 CONVOLVE = function('convolve', nargs=3)
 SHIFTED = function('shifted')
+INVERSION_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
+ORDERS = (1, 3)
 
 
 def gradient(expression: object, n_dim: int = 2) -> FreeModuleElement:
@@ -88,6 +92,49 @@ def advection(expression: object, velocity: Sequence[object] | FreeModuleElement
     return sum((upwind(SR(expression), SR(axis), SR(item)) for axis, item in enumerate(velocity)), SR(0))
 
 
+def inverse_helmholtz(expression: object, screening: object, boundary: object = None) -> Expression:
+    """Return the solution `psi` of the modified-Helmholtz equation `(laplacian - screening**2) psi = expression`.
+
+    Args:
+        expression:
+            An expression of the states and parameters of a field.
+
+        screening:
+            The screening, a non-negative expression of the parameters.
+
+        boundary:
+            The boundary condition of the solution, `'periodic'`, `'zero-flux'`, or `('fixed', value)`, or `None` for
+            the boundary condition of the states of the expression.
+
+    Returns:
+        solution:
+            The call `inverse_helmholtz(expression, screening)`, followed for a given boundary by its position in
+            `INVERSION_BOUNDARIES` and its fixed value, 0 for the other boundaries.
+
+    Raises:
+        ValidationError:
+            The boundary is not one of `INVERSION_BOUNDARIES` or a fixed boundary with its value.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.laws.utils import inverse_helmholtz
+        >>> inverse_helmholtz(var('q'), 2)
+        inverse_helmholtz(q, 2)
+        >>> inverse_helmholtz(var('q'), 2, ('fixed', 0.5))
+        inverse_helmholtz(q, 2, 2, 0.5)
+    """
+    if boundary is None:
+        return INVERSE_HELMHOLTZ(SR(expression), SR(screening))
+    kind, *values = boundary if isinstance(boundary, tuple) else (boundary,)
+    if kind not in INVERSION_BOUNDARIES or (kind == 'fixed') != bool(values) or len(values) > 1:
+        error_msg = (
+            f"The boundary of the inversion is {boundary!r}. Use 'periodic', 'zero-flux', or ('fixed', value), or None."
+        )
+        raise ValidationError(error_msg)
+    code = SR(INVERSION_BOUNDARIES.index(kind))
+    return INVERSE_HELMHOLTZ(SR(expression), SR(screening), code, SR(values[0] if values else 0))
+
+
 def inverse_laplacian(expression: object) -> Expression:
     """Return the solution of the Poisson equation `laplacian(psi) = expression`, the unscreened inverse Helmholtz.
 
@@ -105,7 +152,7 @@ def inverse_laplacian(expression: object) -> Expression:
         >>> inverse_laplacian(var('q'))
         inverse_helmholtz(q, 0)
     """
-    return inverse_helmholtz(SR(expression), SR(0))
+    return INVERSE_HELMHOLTZ(SR(expression), SR(0))
 
 
 def displacement(axis: int) -> Expression:
@@ -153,7 +200,7 @@ def convolve(expression: object, kernel: object, radius: object = None) -> Expre
     return CONVOLVE(SR(expression), SR(kernel), oo if radius is None else SR(radius))
 
 
-def shifted(expression: object, offset: Sequence[object]) -> Expression:
+def shifted(expression: object, offset: Sequence[object], order: int = 1) -> Expression:
     """Return a field expression read at a physical displacement from every site, one component per axis.
 
     Args:
@@ -163,14 +210,27 @@ def shifted(expression: object, offset: Sequence[object]) -> Expression:
         offset:
             The displacement along every axis, numbers or expressions of the states and parameters.
 
+        order:
+            The order of the spline that interpolates between sites, 1 for linear or 3 for cubic.
+
     Returns:
         read:
-            The call `shifted(expression, *offset)`.
+            The call `shifted(expression, *offset)`, followed by the order when it is 3.
+
+    Raises:
+        ValidationError:
+            The order is not 1 or 3.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws.utils import shifted
         >>> shifted(var('u'), [var('v'), 1])
         shifted(u, v, 1)
+        >>> shifted(var('u'), [var('v'), 1], order=3)
+        shifted(u, v, 1, 3)
     """
-    return SHIFTED(SR(expression), *[SR(item) for item in offset])
+    if order not in ORDERS:
+        error_msg = f'The order of a shifted read is {order!r}. Use 1 for linear or 3 for cubic interpolation.'
+        raise ValidationError(error_msg)
+    orders = [SR(order)] if order != 1 else []
+    return SHIFTED(SR(expression), *[SR(item) for item in offset], *orders)

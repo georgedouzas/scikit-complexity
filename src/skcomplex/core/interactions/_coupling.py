@@ -71,7 +71,9 @@ class CouplingInteraction(NeighborInteraction):
     value of `write` every step of discrete time to `combine(namespace, reduction)`, where `namespace.member` reads the
     states of `i` and the namespace holds the parameters and the time, or to the reduction itself by default. The sum
     and the mean of the rate on the edges of a lattice or network run once per edge along both directions, and every
-    other coupling runs once per member.
+    other coupling runs once per member. On a `FieldElement`, a rate that is a constant times the difference of the
+    ends becomes that constant times the field's Laplacian times its squared spacing, and on a lattice the other end is
+    read across the field's boundary conditions, so beyond fixed edges it reads the fixed value.
 
     In the form `'agent'` the target is a group of agents, and every agent runs the coupling in its own activation in
     the phase `phase`. Every `RadiusSpec` of `radii` gives the vector `function(agent, other, model)` of every other

@@ -12,6 +12,8 @@ from ._izhikevich import IzhikevichElement
 from ._leaky_integrate_and_fire import LeakyIntegrateAndFireElement
 from ._mutual_inhibition import MutualInhibitionInteraction
 from ._networks import delayed_lif_network, legion
+from ._neural_field_site import NeuralFieldSiteElement
+from ._neural_fields import amari_neural_field
 from ._neurons import integrate_and_fire, izhikevich
 from ._polyhomeostatic_neuron import PolyhomeostaticNeuronElement
 from ._populations import polyhomeostatic_neuron, theta_neurons, wilson_cowan, winners_take_all
@@ -36,6 +38,7 @@ __all__: list[str] = [
     'IzhikevichElement',
     'LeakyIntegrateAndFireElement',
     'MutualInhibitionInteraction',
+    'NeuralFieldSiteElement',
     'PolyhomeostaticNeuronElement',
     'PulseCouplingInteraction',
     'RateUnitElement',
@@ -45,6 +48,7 @@ __all__: list[str] = [
     'ThetaNeuronElement',
     'WilsonCowanElement',
     'adaptrode',
+    'amari_neural_field',
     'delayed_lif_network',
     'fitzhugh_nagumo_ode',
     'hodgkin_huxley',

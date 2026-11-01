@@ -42,7 +42,7 @@
 
 ## 5. Couplings on fields
 
-- [ ] 5.1 Lower a constant times `(other.x - member.x)` in a `CouplingInteraction` on a `FieldElement` to `laplacian`, so
+- [x] 5.1 Lower a constant times `(other.x - member.x)` in a `CouplingInteraction` on a `FieldElement` to `laplacian`, so
   spectral and finite-element fields keep their own operator, and make couplings on fields read a fixed boundary value
   as `laplacian` does; verify the linear exchange and diffusive coupling scenarios, and agreement with the edge kernel
   away from fixed edges
@@ -52,7 +52,7 @@
 
 ## 6. Models
 
-- [ ] 6.1 Add `amari_neural_field` under `skcomplex.models.biology.neuroscience`; verify the Amari bump scenario
+- [x] 6.1 Add `amari_neural_field` under `skcomplex.models.biology.neuroscience`; verify the Amari bump scenario
 - [ ] 6.2 Add `double_gyre` under `skcomplex.models.earth.oceanography`, streaming the streamfunction through an
   observable of its catalog entry; verify the double gyre circulation scenario
 - [ ] 6.3 Add `gkt_traffic` under `skcomplex.models.engineering.traffic`; verify the stop-and-go waves scenario

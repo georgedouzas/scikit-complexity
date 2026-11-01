@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.base import BasePart
-from ....core.elements import GroupElement
+from ....core.elements import FieldElement, GroupElement
 from ....core.laws import (
     BaseLaw,
     BoundaryLaw,
@@ -27,7 +27,8 @@ from ....core.laws import (
     TransferLaw,
     UpdateLaw,
 )
-from ....core.laws.utils import hyperedges_in, neighborhoods_in, reductions_in
+from ....core.laws.utils import hyperedges_in, laplacian, neighborhoods_in, reductions_in, shifted
+from ....core.spaces import LatticeSpace
 from ....core.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ....core.system import System
 from ....errors import SkcomplexError, ValidationError
@@ -405,6 +406,162 @@ class CensusPass(BasePass):
         return substituted.check()
 
     @staticmethod
+    def _own_end(edges: KernelSpec, law: BaseLaw) -> str | None:
+        """Return the end of an edge whose state a rate law per edge targets, or `None` for another law."""
+        if not isinstance(law, RateLaw) or not isinstance(law.value, Expression):
+            return None
+        target = law._get_targets()[0]
+        reference = edges.references.get(target) if isinstance(target, Expression) else None
+        if reference is None:
+            return None
+        return {ReadKind.FIRST: 'source', ReadKind.SECOND: 'target'}.get(reference.source)
+
+    @staticmethod
+    def _ends_of(edges: KernelSpec) -> dict[Expression, tuple[Expression, bool]]:
+        """Return the symbol of the member and whether it is a state, by the symbol of the other member."""
+        found = {}
+        for item, reference in edges.references.items():
+            if reference.source in {ReadKind.FIRST, ReadKind.SECOND}:
+                member, other = SpecsPass._end_symbols(item)
+                found[other] = (member, reference.is_state)
+        return found
+
+    @staticmethod
+    def _difference(edges: KernelSpec, value: Expression) -> tuple[Expression, Expression] | None:
+        """Return the coefficient and the state of a rate that is a constant times the difference of the ends.
+
+        The coefficient reads no state and nothing of the other member.
+
+        Args:
+            edges:
+                The spec of the edges.
+
+            value:
+                The rate of the member, in the symbols of the member and of the other member.
+
+        Returns:
+            difference:
+                The coefficient and the symbol of the state of the member, or `None`.
+        """
+        ends = CensusPass._ends_of(edges)
+        states = {member for member, is_state in ends.values() if is_state}
+        found = [item for item in value.variables() if item in ends]
+        if len(found) != 1 or not ends[found[0]][1]:
+            return None
+        other, member = found[0], ends[found[0]][0]
+        coefficient = SR(value.diff(other))
+        if any(item in ends or item in states for item in coefficient.variables()):
+            return None
+        if not SR(value - coefficient * (other - member)).expand().is_zero():
+            return None
+        return coefficient, member
+
+    @staticmethod
+    def _squared_spacing(place: FieldElement) -> float | None:
+        """Return the factor that turns the Laplacian of a field into the sum of the differences over its neighbours.
+
+        It is the squared spacing of a lattice with one spacing, `None` for a lattice with several, and 1 elsewhere.
+        """
+        space = place.space
+        if not isinstance(space, LatticeSpace):
+            return 1.0
+        spacings = set(space.check().prepare().spacings_)
+        return spacings.pop() ** 2 if len(spacings) == 1 else None
+
+    @staticmethod
+    def _shifted_law(edges: KernelSpec, law: RateLaw, end: str, space: LatticeSpace) -> RateLaw:
+        """Return a rate per edge of a lattice field as a sum over the axes of shifted reads of the other end.
+
+        The target of an edge is one site ahead of its source along an axis, so the other end of a rate of the target
+        is one site behind, and that of a rate of the source one site ahead.
+
+        Args:
+            edges:
+                The spec of the edges.
+
+            law:
+                The rate in the symbols of the member and of the other member.
+
+            end:
+                `'source'` or `'target'`, the end the rate belongs to.
+
+            space:
+                The lattice.
+
+        Returns:
+            law:
+                The rate of the member.
+        """
+        value = SR(law.value)
+        ends = {
+            other: member for other, (member, _) in CensusPass._ends_of(edges).items() if other in value.variables()
+        }
+        sign = 1 if end == 'source' else -1
+        dimensions = space.check().prepare().n_dim_
+        total = SR(0)
+        for axis, step in enumerate(space.spacings_):
+            offset = [sign * step if index == axis else 0 for index in range(dimensions)]
+            total += value.subs({other: shifted(member, offset) for other, member in ends.items()})
+        return BasePass._replaced(law, value=total).check()
+
+    @staticmethod
+    def _field_laws(edges: KernelSpec, laws: list[BaseLaw]) -> tuple[list[BaseLaw], list[BaseLaw]]:
+        """Return the rates per edge of a field lowered to laws of the member, and the laws that stay per edge.
+
+        Two rates of both ends that are the same constant times the difference of the ends lower to the field's
+        Laplacian times its squared spacing. Other rates on a lattice lower to whole-site shifted reads.
+
+        Args:
+            edges:
+                The spec of the edges, whose `place` is the field.
+
+            laws:
+                The laws per edge.
+
+        Returns:
+            laws:
+                The laws of the member, and the laws that stay per edge.
+        """
+        place = edges.place
+        if place is None:
+            return [], laws
+        written: dict[int, tuple[str, RateLaw]] = {}
+        for index, law in enumerate(laws):
+            end = CensusPass._own_end(edges, law)
+            item = CensusPass._end_law(edges, law, end) if end is not None else None
+            if end is not None and isinstance(item, RateLaw):
+                written[index] = (end, item)
+        scale = CensusPass._squared_spacing(place)
+        lowered: list[BaseLaw] = []
+        taken: set[int] = set()
+        for index, (end, law) in written.items():
+            partner = next(
+                (
+                    other
+                    for other, (side, item) in written.items()
+                    if other not in taken
+                    and side != end
+                    and str(item._get_targets()[0]) == str(law._get_targets()[0])
+                    and SR(SR(item.value) - SR(law.value)).is_zero()
+                ),
+                None,
+            )
+            difference = CensusPass._difference(edges, SR(law.value))
+            if index in taken or partner is None or difference is None or scale is None:
+                continue
+            coefficient, member = difference
+            lowered.append(BasePass._replaced(law, value=coefficient * scale * laplacian(member)).check())
+            taken |= {index, partner}
+        if isinstance(place.space, LatticeSpace):
+            lowered += [
+                CensusPass._shifted_law(edges, law, end, place.space)
+                for index, (end, law) in written.items()
+                if index not in taken
+            ]
+            taken |= set(written)
+        return lowered, [law for index, law in enumerate(laws) if index not in taken]
+
+    @staticmethod
     def _targets_second(spec: KernelSpec, law: BaseLaw) -> bool:
         """Check whether a law of a hyperedge interaction targets the member of its group on hyperedges or edges."""
         path = spec.roles.get('hyperedge', spec.roles.get('edge'))
@@ -486,19 +643,29 @@ class CensusPass(BasePass):
             )
             raise ValidationError(error_msg)
         if isinstance(spec.pairs, EdgeSearch):
-            declared = [law for law in declared if CensusPass._end_of(spec, law) is None]
+            declared = CensusPass._field_laws(spec, [law for law in declared if CensusPass._end_of(spec, law) is None])[
+                1
+            ]
         if spec.edges is not None:
             edges = spec.edges
-            if edges.pairs is None and any(CensusPass._end_of(edges, law) is None for law in declared):
+            lowered, kept = CensusPass._field_laws(
+                edges,
+                [law for law in declared if CensusPass._end_of(edges, law) is None],
+            )
+            if edges.pairs is None and kept:
                 error_msg = (
                     f'Interaction {spec.owner} over neighbours has laws per edge, but its members live on a space '
-                    'without edges. Give the group a lattice or network space, or write laws of one end.'
+                    'without edges. Give the group a lattice or network space, write laws of one end, or on a field '
+                    'write a constant times the difference of the ends.'
                 )
                 raise ValidationError(error_msg)
             declared = [
-                CensusPass._end_law(edges, law, end)
-                for law in declared
-                if (end := CensusPass._end_of(edges, law)) is not None
+                *(
+                    CensusPass._end_law(edges, law, end)
+                    for law in declared
+                    if (end := CensusPass._end_of(edges, law)) is not None
+                ),
+                *lowered,
             ]
         edge_kinds = (RateLaw, NoiseLaw, JumpLaw, UpdateLaw, BoundaryLaw)
         if isinstance(spec.pairs, EdgeSearch) and not all(isinstance(law, edge_kinds) for law in declared):

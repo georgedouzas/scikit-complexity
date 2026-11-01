@@ -13,6 +13,7 @@ from ._history import delayed, derivative, lag, residence
 from ._lookups import lookup
 from ._moments import moment
 from ._operators import (
+    INVERSION_BOUNDARIES,
     advection,
     convolve,
     displacement,
@@ -46,6 +47,7 @@ from ._reductions import (
 from ._signals import pulse, pulse_train, ramp, series, step
 
 __all__: list[str] = [
+    'INVERSION_BOUNDARIES',
     'NEIGHBOR_REDUCTIONS',
     'advection',
     'bernoulli',
