@@ -17,6 +17,7 @@ from ._evolution import EvolutionInteraction
 from ._feedback import FeedbackInteraction
 from ._gradient import GradientInteraction
 from ._grouping import GroupingInteraction
+from ._hamiltonian import HamiltonianInteraction
 from ._hyperedge import HyperedgeInteraction
 from ._imitation import ImitationInteraction
 from ._impulse import ImpulseInteraction
@@ -56,6 +57,7 @@ __all__: list[str] = [
     'FeedbackInteraction',
     'GradientInteraction',
     'GroupingInteraction',
+    'HamiltonianInteraction',
     'HyperedgeInteraction',
     'ImitationInteraction',
     'ImpulseInteraction',

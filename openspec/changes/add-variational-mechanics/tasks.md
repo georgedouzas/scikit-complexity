@@ -2,7 +2,7 @@
 
 ## 1. Hamiltonian interaction
 
-- [ ] 1.1 Add `HamiltonianInteraction` in `core/interactions/_hamiltonian.py`, exported from
+- [x] 1.1 Add `HamiltonianInteraction` in `core/interactions/_hamiltonian.py`, exported from
   `skcomplex.core.interactions`, with the `_get_hamiltonian` hook, vector and angle states, and the errors of unpaired,
   mismatched, and higher-order states, with tests in `tests/core/interactions/test_hamiltonian.py`; verify the
   oscillator, coupling, unpaired coordinate, and order 2 scenarios
