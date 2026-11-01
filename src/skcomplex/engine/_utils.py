@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 import inspect
 from collections.abc import Iterable, Mapping
 
@@ -219,6 +220,16 @@ def declared_variables(part: object) -> dict[str, tuple[VariableSpec, object]]:
     if not issubclass(cls, BasePart):
         error_msg = f'{cls.__name__} is not a part, so it declares no variables.'
         raise TypeError(error_msg)
+    return dict(_class_variables(cls))
+
+
+@functools.cache
+def _class_variables(cls: type[BasePart]) -> dict[str, tuple[VariableSpec, object]]:
+    """Return the declaration and the default of every variable of a part class, read once per class.
+
+    Rules read the declarations of their agents every step, such as the group a reference state names, so the
+    signature and the annotations of a class are parsed once. Callers receive a copy from `declared_variables`.
+    """
     parameters = inspect.signature(cls).parameters
     variables: dict[str, tuple[VariableSpec, object]] = {}
     for name, spec in cls._get_specs().items():
