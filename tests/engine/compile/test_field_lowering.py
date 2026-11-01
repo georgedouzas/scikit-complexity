@@ -618,3 +618,79 @@ def test_shifted_reads_the_fixed_value_beyond_the_edge():
     )
     assert rate[-2:] == pytest.approx([0.2, 0.2])
     assert rate[0] == pytest.approx(0.5 * (field[2] + field[3]))
+
+
+def test_inverse_helmholtz_solves_with_the_boundary_it_is_given():
+    """Test that an inversion given a fixed boundary solves its stencil with the fixed value, whatever the operand's."""
+    field = np.random.default_rng(0).random((12, 10))
+    space = LatticeSpace((12, 10), spacing=0.5)
+
+    def law(s):
+        solution = inverse_helmholtz(s.u, s.k, ('fixed', 0.3))
+        return laplacian(solution) - s.k**2 * solution
+
+    rate = _rate(law, space, {'u': field, 'k': 1.5}, boundary={'u': 'zero-flux'})
+    assert np.abs(rate - np.ravel(field)).max() < 1e-10
+
+
+def test_inverse_helmholtz_converges_with_a_given_boundary():
+    """Test that an inversion given fixed zero edges converges at second order with a zero-flux operand."""
+    errors = []
+    for n in (32, 64):
+        x, y, space = _basin(n)
+        solution = np.sin(np.pi * x) * np.sin(2 * np.pi * y)
+        rate = _rate(
+            lambda s: inverse_helmholtz(s.u, 2, ('fixed', 0.0)),
+            space,
+            {'u': -(5 * np.pi**2 + 4) * solution},
+            boundary={'u': 'zero-flux'},
+        )
+        errors.append(np.abs(rate - np.ravel(solution)).max())
+    assert errors[0] / errors[1] > 3.8
+
+
+def test_inverse_helmholtz_with_a_boundary_takes_states_of_several_boundaries():
+    """Test that an inversion of states with different boundaries solves with the zero-flux boundary it is given."""
+    first, second = np.random.default_rng(1).random((2, 16))
+    space = LatticeSpace(16, spacing=0.25)
+
+    def law(s):
+        solution = inverse_helmholtz(s.u + s.v, 2, 'zero-flux')
+        return laplacian(solution) - 4 * solution
+
+    rate = _rate(law, space, {'u': first, 'v': second}, boundary={'u': ('fixed', 1.0), 'v': 'zero-flux'})
+    assert np.abs(rate - (first + second)).max() < 1e-10
+    with pytest.raises(ValidationError, match='different boundary conditions'):
+        _rate(
+            lambda s: inverse_helmholtz(s.u + s.v, 2),
+            space,
+            {'u': first, 'v': second},
+            boundary={'u': ('fixed', 1.0), 'v': 'zero-flux'},
+        )
+
+
+def test_inverse_helmholtz_rejects_a_fixed_boundary_on_a_spectral_field():
+    """Test that a spectral inversion given a fixed boundary raises an error that names the discretization."""
+    with pytest.raises(ValidationError, match='not periodic'):
+        _rate(
+            lambda s: inverse_helmholtz(s.u, 1, ('fixed', 0.0)),
+            LatticeSpace(16),
+            {'u': np.zeros(16)},
+            discretization='spectral',
+        )
+
+
+def test_shifted_interpolates_at_fourth_order_with_cubic_splines():
+    """Test that a cubic shifted read of a sine at a state-dependent distance converges at fourth order."""
+    errors = []
+    for n in (50, 100):
+        spacing = 2 * np.pi / n
+        positions = np.arange(n) * spacing
+        reach = 0.3 + 0.2 * np.cos(positions)
+        rate = _rate(
+            lambda s, spacing=spacing: shifted(sin(s.u), [0.37 * spacing + s.v], order=3),
+            LatticeSpace(n, spacing=spacing),
+            {'u': positions, 'v': reach},
+        )
+        errors.append(np.abs(rate - np.sin(positions + 0.37 * spacing + reach)).max())
+    assert errors[0] / errors[1] > 12

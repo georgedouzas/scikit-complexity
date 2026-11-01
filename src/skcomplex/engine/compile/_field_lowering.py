@@ -21,7 +21,7 @@ from skfem.models.poisson import laplace, mass
 
 from ...core.elements import FieldElement
 from ...core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
-from ...core.laws.utils import displacement, where
+from ...core.laws.utils import INVERSION_BOUNDARIES, displacement, where
 from ...core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import ValidationError
 from ...specs import NeighborReadSpec
@@ -78,6 +78,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
 
         tables_:
             The neighbour tables, by their axis, offset, boundary, and space.
+
+        solution_boundaries_:
+            The boundary condition given to an inversion, by the symbol of its solution.
     """
 
     fields_: Mapping[str, FieldElement]
@@ -88,6 +91,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
     volume_limits_: list[DiffusiveLimitSpec]
     written_: dict[tuple[str, int], list[tuple[Expression, Expression]]]
     tables_: dict[tuple[object, ...], tuple[Indices, float | None]]
+    solution_boundaries_: dict[Expression, tuple[str, object]]
 
     def __init__(self, spec: KernelSpec) -> None:
         self.spec = spec
@@ -110,7 +114,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             raise ValidationError(error_msg)
         self.fields_ = self._field_entries(declarations)
         self.initial_ = self._initial_values(self.spec, declarations)
-        self.shifted_, self.derived_, self.tables_ = {}, {}, {}
+        self.shifted_, self.derived_, self.tables_, self.solution_boundaries_ = {}, {}, {}, {}
         self.limits_, self.volume_limits_ = [], []
         self.written_ = defaultdict(list)
 
@@ -293,6 +297,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         """Return the boundary conditions of the field states an expression reads, through derived values."""
         found = []
         for item in SR(expression).variables():
+            if item in self.solution_boundaries_:
+                found.append(self.solution_boundaries_[item])
+                continue
             if item in self.derived_:
                 found += self._boundaries(self.derived_[item][1].operand)
                 continue
@@ -311,7 +318,8 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         if len(found) > 1:
             error_msg = (
                 f'A law of {self.spec.owner} applies a nonlocal operator to {expression}, whose states have different '
-                'boundary conditions. Give the states of the operand one boundary condition.'
+                'boundary conditions. Give the states of the operand one boundary condition, or give an inversion '
+                'the boundary of its solution.'
             )
             raise ValidationError(error_msg)
         return found.pop() if found else place._get_boundary('')
@@ -468,7 +476,8 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         if place.discretization == 'spectral':
             return self._spectral(name, operands, place)
         if name == 'inverse_helmholtz':
-            return self._inverse(SR(operands[0]), self._screening(SR(operands[1])), place)
+            given = self._given_boundary(operands[2:])
+            return self._inverse(SR(operands[0]), self._screening(SR(operands[1])), place, given)
         if place.discretization == 'finite-element':
             return self._finite_element(name, SR(operands[0]), place)
         return self._stencil(name, operands)
@@ -509,6 +518,12 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         if name == 'upwind':
             velocity = SR(operands[2])
             return velocity * self._spectral('partial', [operands[0], operands[1]], place)
+        if name == 'inverse_helmholtz' and self._given_boundary(operands[2:]) not in {None, ('periodic', 0.0)}:
+            error_msg = (
+                f'A law of {self.spec.owner} inverts on a spectral field with a boundary that is not periodic. Give '
+                'the inversion no boundary, or use the finite-difference discretization.'
+            )
+            raise ValidationError(error_msg)
         axis = int(SR(operands[1])) if name == 'partial' else 0
         if name == 'partial' and not 0 <= axis < space.n_dim_:
             error_msg = f'A law of {self.spec.owner} takes a derivative along axis {axis} of a {space.n_dim_}D lattice.'
@@ -563,11 +578,55 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             raise ValidationError(error_msg)
         return float(value)
 
-    def _inverse(self, operand: Expression, screening: float, place: FieldElement) -> Expression:
-        """Return the symbol of the solution of a modified-Helmholtz equation on a lattice, a network, or a mesh."""
+    def _given_boundary(self, operands: list[object]) -> tuple[str, float] | None:
+        """Return the boundary condition given to an inversion by its code and value, or `None` when none is given."""
+        if not operands:
+            return None
+        code, value = SR(operands[0]), SR(operands[1])
+        if code.variables() or value.variables() or not 0 <= int(code) < len(INVERSION_BOUNDARIES):
+            error_msg = (
+                f'A law of {self.spec.owner} inverts with the boundary code {code} and value {value}. Give '
+                '`inverse_helmholtz` its boundary as `boundary=`, with a number as the fixed value.'
+            )
+            raise ValidationError(error_msg)
+        return INVERSION_BOUNDARIES[int(code)], float(value)
+
+    def _inverse(
+        self,
+        operand: Expression,
+        screening: float,
+        place: FieldElement,
+        given: tuple[str, float] | None = None,
+    ) -> Expression:
+        """Return the symbol of the solution of a modified-Helmholtz equation on a lattice, a network, or a mesh.
+
+        Args:
+            operand:
+                The right-hand side.
+
+            screening:
+                The screening, a non-negative number.
+
+            place:
+                The field.
+
+            given:
+                The boundary condition of the solution, or `None` for the boundary condition of the operand's states.
+
+        Returns:
+            solution:
+                The symbol of the solution.
+
+        Raises:
+            ValidationError:
+                The field's space or the boundary has no inversion, such as a boundary given on a network.
+        """
         space = place.space
-        kind, value = self._boundary(operand, place)
+        kind, value = self._boundary(operand, place) if given is None else given
         apply: Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]
+        if isinstance(space, NetworkSpace) and given is not None:
+            error_msg = f'A law of {self.spec.owner} inverts on a network with a boundary. Give the inversion none.'
+            raise ValidationError(error_msg)
         if isinstance(space, MeshSpace):
             apply = self._mesh_inverse(space, screening, kind, value)
         elif isinstance(space, NetworkSpace):
@@ -581,7 +640,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             )
             raise ValidationError(error_msg)
         read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply).check().prepare()
-        return self._derived(place, read)
+        solution = self._derived(place, read)
+        if given is not None:
+            self.solution_boundaries_[solution] = (kind, value)
+        return solution
 
     def _kernel_weights(
         self,
@@ -690,11 +752,30 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             total = total + csr_matrix(selection, shape=(size, size))
         return csr_matrix(total)
 
-    def _shifted(self, operand: Expression, offset: list[Expression]) -> Expression:
-        """Return an expression read at a physical displacement, a neighbour read for whole sites, else interpolated."""
+    def _shifted(self, operand: Expression, operands: list[Expression]) -> Expression:
+        """Return an expression read at a physical displacement, a neighbour read for whole sites, else interpolated.
+
+        Args:
+            operand:
+                The expression.
+
+            operands:
+                The displacement along every axis, followed by the order of the interpolation when it is not 1.
+
+        Returns:
+            read:
+                The expression read at the displacement.
+
+        Raises:
+            ValidationError:
+                The field is not on a lattice, the displacement does not have one component per axis, or a fixed edge
+                has no number.
+        """
         place = self._place(operand)
         space = place.space
-        if not isinstance(space, LatticeSpace) or len(offset) != space.n_dim_:
+        dimensions = space.n_dim_ if isinstance(space, LatticeSpace) else 0
+        offset, orders = operands[:dimensions], operands[dimensions:]
+        if not isinstance(space, LatticeSpace) or len(offset) != space.n_dim_ or len(orders) > 1:
             error_msg = (
                 f'A law of {self.spec.owner} reads {operand} at a shifted position, which needs a field on a lattice '
                 'space and one displacement per axis. Give the field a lattice space.'
@@ -713,6 +794,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             space.spacings_,
             kind,
             float(value) if isinstance(value, float) else 0.0,
+            int(orders[0]) if orders else 1,
         )
         read = FieldOperatorKernel(
             operand=operand,
@@ -907,8 +989,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         spacings: tuple[float, ...],
         kind: str,
         fill: float,
+        order: int = 1,
     ) -> Callable[[npt.NDArray[np.float64], npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
-        """Return the function that reads the values of a lattice at displaced positions by linear interpolation.
+        """Return the function that reads the values of a lattice at displaced positions by spline interpolation.
 
         Args:
             dimensions:
@@ -923,6 +1006,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             fill:
                 The value beyond fixed edges.
 
+            order:
+                The order of the spline, 1 for linear or 3 for cubic.
+
         Returns:
             apply:
                 The function of the values and the displacement along every axis at every site.
@@ -933,7 +1019,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         def apply(values: npt.NDArray[np.float64], offset: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
             grid = np.reshape(values, dimensions)
             positions = sites + np.reshape(offset, sites.shape) / steps
-            return np.asarray(map_coordinates(grid, positions, order=1, mode=SHIFTED_MODES[kind], cval=fill))
+            return np.asarray(map_coordinates(grid, positions, order=order, mode=SHIFTED_MODES[kind], cval=fill))
 
         return apply
 
