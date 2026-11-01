@@ -402,7 +402,11 @@ class NumbaBackend(BaseBackend):
     def _is_compilable(kernel: LawKernel) -> bool:
         """Check whether every output of a kernel can be compiled, so it has no Python callable."""
         lattice = all(
-            (reference.source is not ReadKind.NEIGHBOR or reference.shifted.sizes is not None)
+            (
+                reference.source is not ReadKind.NEIGHBOR
+                or reference.shifted.sizes is not None
+                or NumbaPrinter._is_gathered(reference)
+            )
             and reference.source is not ReadKind.DERIVED
             for reference in kernel.references.values()
         )

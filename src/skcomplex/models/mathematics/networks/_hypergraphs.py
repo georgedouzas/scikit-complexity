@@ -1,0 +1,152 @@
+"""Processes on hypergraphs: the size-biased random walk that crosses hyperedges in proportion to their sizes."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from types import SimpleNamespace
+from typing import Annotated
+
+import networkx as nx
+import numpy as np
+import xgi
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.elements import Element, LatticeElement
+from ....core.interactions import HyperedgeInteraction
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import total
+from ....core.spaces import NetworkSpace
+from ....core.system import System
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ..._catalog import register_model
+
+
+class WalkerDensityElement(Element):
+    """Probability that a random walker is at a node of a hypergraph, with the weight `D` of the node.
+
+    Args:
+        label:
+            The label of the node or the group on the nodes.
+
+        visual:
+            How the node is drawn, or `None` for `default_visual_`.
+
+        p:
+            The probability of the walker at the node.
+
+        D:
+            The total weight of the moves out of the node, the sum of `(|e| - 1)^2` over its hyperedges `e`.
+
+    Attributes:
+        default_visual_:
+            The visual of the node when it sets none.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.networks import WalkerDensityElement
+        >>> WalkerDensityElement('node', D=4.0).D
+        4.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        p: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
+        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.p = p
+        self.D = D
+
+
+class SizeBiasedMoveInteraction(HyperedgeInteraction):
+    """Moves of a random walker across a hyperedge, to every other member with weight `|e| - 1`.
+
+    A walker at node `i` moves to node `j` at rate `T_ij = k_ij / D_i`, where `k_ij = sum_e (|e| - 1)` over the
+    hyperedges `e` that hold both, and `D_i = sum_j k_ij`. On a hyperedge, the focal member gains `(|e| - 1) p_j / D_j`
+    from every other member `j` and loses `(|e| - 1)^2 p_i / D_i`.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the group of walker densities on the nodes.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.networks import SizeBiasedMoveInteraction
+        >>> SizeBiasedMoveInteraction('moves', target='nodes').target
+        'nodes'
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the flow into and out of the focal member across one hyperedge."""
+        weight = len(s.others)
+        member = s.member
+        inflow = total(s.members.p / s.members.D, over=s.members) - member.p / member.D
+        return [RateLaw(member.p, weight * inflow - weight**2 * member.p / member.D)]
+
+
+@register_model(
+    field='mathematics/networks',
+    tags=('hypergraph', 'random walk', 'master equation', 'ode'),
+    references=('Carletti et al. 2020', 'Majhi et al. 2022'),
+    defaults={'until': 20.0, 'dt': 0.1},
+)
+def hypergraph_random_walk(
+    hypergraph: xgi.Hypergraph | None = None,
+    *,
+    source: int = 0,
+    seed: int = 0,
+) -> System:
+    """Return the size-biased random walk on a hypergraph, `p_j' = sum_i p_i T_ij - p_j`, from one node.
+
+    A walker at node `i` moves to node `j` at rate `T_ij = k_ij / sum_l k_il`, with `k_ij = sum_e (|e| - 1) e_i e_j`
+    over the hyperedges `e` of the incidence matrix, so large hyperedges carry more of the walk, as in Carletti et al.
+    The probability of the walker spreads from the source, keeps its sum of 1, and settles on the stationary
+    distribution `p_i = D_i / sum_l D_l`, with `D_i = sum_e (|e| - 1)^2 e_i` the weight of the hyperedges of `i`.
+
+    Args:
+        hypergraph:
+            The XGI hypergraph, or `None` for a random hypergraph of 30 nodes with hyperedges of sizes 2 to 5.
+
+        source:
+            The node the walker starts at.
+
+        seed:
+            The seed of the random hypergraph.
+
+    Returns:
+        system:
+            The model, with the probabilities `nodes.p` and the weights `nodes.D`.
+
+    Examples:
+        >>> import xgi
+        >>> from skcomplex.models.mathematics.networks import hypergraph_random_walk
+        >>> system = hypergraph_random_walk(xgi.Hypergraph([[0, 1, 2], [2, 3]]))
+        >>> system.elements[0].values['D'].tolist()
+        [4.0, 4.0, 5.0, 1.0]
+    """
+    if hypergraph is None:
+        hypergraph = xgi.fast_random_hypergraph(30, [0.1, 0.01, 0.001, 0.0005], seed=seed)
+    space = NetworkSpace(nx.empty_graph(sorted(hypergraph.nodes)), hyperedges=hypergraph)
+    prepared = space.check().prepare()
+    weights = np.zeros(prepared.size_)
+    for hyperedge in prepared.hyperedges_:
+        weights[list(hyperedge)] += (len(hyperedge) - 1) ** 2
+    probabilities = np.zeros(prepared.size_)
+    probabilities[source] = 1.0
+    nodes = LatticeElement(
+        'nodes',
+        element=WalkerDensityElement,
+        space=space,
+        values={'p': probabilities, 'D': np.maximum(weights, 1.0)},
+        visual=VisualSpec('sites', {'states': ['p'], 'low': 0.0, 'high': 1.0}),
+    )
+    return System(elements=[nodes], interactions=[SizeBiasedMoveInteraction('moves', target='nodes')])

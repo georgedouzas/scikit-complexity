@@ -13,6 +13,7 @@ from ._chaos import (
     aggregate_averaging_synchronization,
     coupled_rossler,
 )
+from ._hypergraphs import SimplexCouplingInteraction, hypergraph_kuramoto
 from ._kuramoto import (
     DelayedCouplingInteraction,
     delayed_kuramoto,
@@ -49,6 +50,7 @@ __all__: list[str] = [
     'LogisticNodeElement',
     'LogisticUnitElement',
     'RosslerOscillatorElement',
+    'SimplexCouplingInteraction',
     'SwarmalatorCouplingInteraction',
     'WinfreeMeanFieldInteraction',
     'aggregate_averaging_synchronization',
@@ -56,6 +58,7 @@ __all__: list[str] = [
     'coupled_rossler',
     'delayed_kuramoto',
     'heterogeneous_global_coupling',
+    'hypergraph_kuramoto',
     'kuramoto',
     'kuramoto_on_networks',
     'kuramoto_sakaguchi_chimera',

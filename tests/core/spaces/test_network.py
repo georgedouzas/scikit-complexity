@@ -1,10 +1,12 @@
 """Test the `_network` module of `skcomplex.core.spaces`."""
 
+import itertools
 from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import pytest
+import xgi
 
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import UpdateLaw
@@ -191,3 +193,40 @@ def test_reductions_read_the_edges_of_their_layer(backend):
     after = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     assert problem.states.read(after, 'g.contacts').tolist() == [10.0, 101.0, 1010.0, 100.0]
     assert problem.states.read(after, 'g.colleagues').tolist() == [1000.0, 100.0, 10.0, 1.0]
+
+
+def test_network_space_takes_the_triangles_of_an_xgi_hypergraph():
+    """Test that the triangles of a complete graph on five nodes give 10 hyperedges of size 3, 6 around every node."""
+    triangles = xgi.Hypergraph([list(nodes) for nodes in itertools.combinations(range(5), 3)])
+    space = NetworkSpace(nx.complete_graph(5), hyperedges=triangles).check().prepare()
+    assert len(space.hyperedges_) == 10
+    assert {len(hyperedge) for hyperedge in space.hyperedges_} == {3}
+    assert [len(memberships) for memberships in space.memberships_] == [6] * 5
+    assert space.incidence_.shape == (5, 10)
+    assert np.array_equal(space.incidence_.sum(axis=0), np.full(10, 3.0))
+    assert space._count_parts('hyperedges') == 10
+
+
+def test_network_space_takes_the_faces_of_an_xgi_simplicial_complex():
+    """Test that a simplicial complex gives its faces of at least two nodes, members in the order of the graph."""
+    complex_ = xgi.SimplicialComplex([['c', 'a', 'b'], ['b', 'd']])
+    graph = nx.Graph([('a', 'b'), ('b', 'c'), ('a', 'c'), ('b', 'd')])
+    space = NetworkSpace(graph, hyperedges=complex_).check().prepare()
+    order = list(graph.nodes)
+    named = sorted(tuple(order[index] for index in hyperedge) for hyperedge in space.hyperedges_)
+    assert named == [('a', 'b'), ('a', 'b', 'c'), ('a', 'c'), ('b', 'c'), ('b', 'd')]
+    assert all(list(hyperedge) == sorted(hyperedge) for hyperedge in space.hyperedges_)
+
+
+def test_network_space_rejects_an_xgi_hyperedge_outside_its_nodes():
+    """Test that an XGI hyperedge with a node outside the graph raises an error."""
+    with pytest.raises(ValidationError, match='at least two nodes'):
+        NetworkSpace(nx.path_graph(3), hyperedges=xgi.Hypergraph([[0, 1, 9]])).check()
+
+
+def test_network_space_without_hyperedges_has_an_empty_incidence():
+    """Test that a network without hyperedges has no hyperedges and an incidence matrix with no columns."""
+    space = NetworkSpace(nx.path_graph(3)).check().prepare()
+    assert space.hyperedges_ == ()
+    assert space.incidence_.shape == (3, 0)
+    assert space.memberships_ == ((), (), ())

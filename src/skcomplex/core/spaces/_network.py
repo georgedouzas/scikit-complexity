@@ -8,6 +8,8 @@ from collections.abc import Sequence
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
+import scipy.sparse
+import xgi
 
 from ...errors import SpaceError, ValidationError
 from ...specs import LayerSpec
@@ -41,8 +43,9 @@ class NetworkSpace(BaseSpace):
             The value lattice rules read in the padding slots of nodes with fewer neighbours than the largest degree.
 
         hyperedges:
-            The hyperedges of the network, each a sequence of at least two nodes, which hyperedge interactions and
-            groups on hyperedges read.
+            The hyperedges of the network, which hyperedge interactions and groups on hyperedges read: sequences of at
+            least two nodes, an XGI `Hypergraph`, or an XGI `SimplicialComplex`, whose faces of at least two nodes are
+            its hyperedges. The members of an XGI hyperedge follow the order of the nodes of the graph.
 
         label:
             The label of the space in its system.
@@ -59,6 +62,15 @@ class NetworkSpace(BaseSpace):
             neighbours of every node with the number of entries last, the sorted neighbours of every node in turn, the
             successors on a directed graph, and the edge that joins every node to every neighbour.
 
+        hyperedges_:
+            The node index of every member of every hyperedge, in the order of the hyperedges.
+
+        incidence_:
+            The sparse incidence matrix of the hyperedges, with one row per node and one column per hyperedge.
+
+        memberships_:
+            The indices of the hyperedges every node belongs to, in increasing order.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.spaces import NetworkSpace
@@ -73,6 +85,12 @@ class NetworkSpace(BaseSpace):
         [[0, 1], [1, 2]]
         >>> [item.tolist() for item in space.adjacency_[None]]
         [[0, 1, 3, 4], [1, 0, 2, 1], [0, 0, 1, 1]]
+        >>> import itertools
+        >>> import xgi
+        >>> triangles = xgi.Hypergraph([list(nodes) for nodes in itertools.combinations(range(5), 3)])
+        >>> space = NetworkSpace(nx.complete_graph(5), hyperedges=triangles).check().prepare()
+        >>> len(space.hyperedges_), space.hyperedges_[0], space.memberships_[0]
+        (10, (0, 1, 2), (0, 1, 2, 3, 4, 5))
     """
 
     def __init__(
@@ -82,7 +100,7 @@ class NetworkSpace(BaseSpace):
         layers: Sequence[LayerSpec] = (),
         capacity: int | None = None,
         fill: float = 0.0,
-        hyperedges: Sequence[Sequence[object]] = (),
+        hyperedges: Sequence[Sequence[object]] | xgi.Hypergraph = (),
         label: str = 'space',
     ) -> None:
         super().__init__(label)
@@ -112,6 +130,18 @@ class NetworkSpace(BaseSpace):
         indptr = np.concatenate([np.zeros(1, dtype=np.intp), np.cumsum(counts)]).astype(np.intp)
         return indptr, others[order].astype(np.intp), ids[order].astype(np.intp)
 
+    def _get_hyperedges(self) -> list[tuple[object, ...]]:
+        """Return the nodes of every hyperedge, those of an XGI hyperedge in the order of the nodes of the graph."""
+        if not isinstance(self.hyperedges, xgi.Hypergraph):
+            return [tuple(hyperedge) for hyperedge in self.hyperedges]
+        order = {node: number for number, node in enumerate(self.graph.nodes)}
+        members = self.hyperedges.edges.members()
+        return [
+            tuple(sorted(hyperedge, key=lambda node: order.get(node, len(order))))
+            for hyperedge in members
+            if len(hyperedge) >= MIN_HYPEREDGE_NODES
+        ]
+
     def _count_parts(self, on: str, layer: str | None = None) -> int:
         """Return the number of nodes, of edges of a layer, or of hyperedges, which a group has one member on.
 
@@ -136,14 +166,14 @@ class NetworkSpace(BaseSpace):
                 error_msg = f'The network has no layer {layer!r}. Its layers are {known}.'
                 raise SpaceError(error_msg)
             return int(self.edges_[layer][0].size)
-        if on == 'hyperedges' and self.hyperedges:
-            return len(self.hyperedges)
+        if on == 'hyperedges' and self.hyperedges_:
+            return len(self.hyperedges_)
         return super()._count_parts(on, layer)
 
     def _check(self) -> None:
         """Raise an error for a hyperedge or a layer that does not fit the nodes of the graph."""
         nodes = set(self.graph.nodes)
-        for hyperedge in self.hyperedges:
+        for hyperedge in self._get_hyperedges():
             if len(hyperedge) < MIN_HYPEREDGE_NODES or not set(hyperedge) <= nodes:
                 error_msg = f'The hyperedge {tuple(hyperedge)} needs at least two nodes of the graph.'
                 raise ValidationError(error_msg)
@@ -182,6 +212,18 @@ class NetworkSpace(BaseSpace):
         else:
             layout = nx.circular_layout(self.graph)
             self.positions_ = np.asarray([layout[node] for node in self.graph.nodes], dtype=float).reshape(-1, 2)
+        index = {node: number for number, node in enumerate(self.graph.nodes)}
+        self.hyperedges_ = tuple(tuple(index[node] for node in hyperedge) for hyperedge in self._get_hyperedges())
+        rows = [node for hyperedge in self.hyperedges_ for node in hyperedge]
+        columns = [number for number, hyperedge in enumerate(self.hyperedges_) for _ in hyperedge]
+        shape = (self.size_, len(self.hyperedges_))
+        incidence = scipy.sparse.csr_array((np.ones(len(rows)), (rows, columns)), shape=shape)
+        incidence.sort_indices()
+        self.incidence_ = incidence
+        self.memberships_ = tuple(
+            tuple(int(item) for item in self.incidence_.indices[start:stop])
+            for start, stop in zip(self.incidence_.indptr[:-1], self.incidence_.indptr[1:], strict=True)
+        )
 
     def _default_neighborhood(self) -> AdjacencyNeighborhood:
         """Return the neighbours along the edges of the graph."""

@@ -59,6 +59,10 @@ class KernelSpec(BaseSpec):
         edges:
             The spec of the edges of an interaction over neighbours, whose laws that read one end of an edge the spec
             evaluates once per member of the group on the nodes, or `None`.
+
+        hyperedge:
+            `'member'` for the laws of the focal member of every hyperedge of a hyperedge interaction, `'hyperedge'`
+            for its laws of the member of a group on hyperedges or edges, or `None` for other components.
     """
 
     owner: str
@@ -73,6 +77,7 @@ class KernelSpec(BaseSpec):
     set_index: int = 0
     aligned: tuple[str, ...] = ()
     edges: KernelSpec | None = field(default=None, compare=False, repr=False)
+    hyperedge: str | None = None
 
     def _target_references(self, target: object) -> list[ReferenceSpec]:
         """Return the references of the state components a law targets."""

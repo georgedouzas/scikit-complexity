@@ -600,6 +600,54 @@ class PassCompiler(BaseCompiler):
         return [IssueSpec('binding', node.path, message, fix)]
 
     @staticmethod
+    def _hyperedge_issues(node: NodeSpec, space: NetworkSpace, edges: NodeSpec | None) -> list[IssueSpec]:
+        """Return the issues of a hyperedge interaction whose size, or whose edge group, its hyperedges do not fit.
+
+        Args:
+            node:
+                The hyperedge interaction.
+
+            space:
+                The network of its nodes.
+
+            edges:
+                The group on edges its second role binds, or `None`.
+
+        Returns:
+            issues:
+                The issue of a size no hyperedge has, or of the first two members of a hyperedge joined by no edge.
+        """
+        size = getattr(node.component, 'size', None)
+        sizes = sorted({len(hyperedge) for hyperedge in space.hyperedges_})
+        if size is not None and size not in sizes:
+            known = ', '.join(map(str, sizes))
+            message = (
+                f'The interaction runs on hyperedges of size {size}, but the network has hyperedges of size {known}.'
+            )
+            fix = f'Give the interaction one of the sizes {known}, or add hyperedges of size {size}.'
+            return [IssueSpec('binding', node.path, message, fix)]
+        if edges is None:
+            return []
+        layer = getattr(edges.component, 'layer', None)
+        graph = space.graphs_.get(layer)
+        if graph is None:
+            return []
+        missing = [
+            hyperedge[:2]
+            for hyperedge in space.hyperedges_
+            if (size is None or len(hyperedge) == size)
+            and not graph.has_edge(*(list(space.graph.nodes)[index] for index in hyperedge[:2]))
+        ]
+        if not missing:
+            return []
+        message = (
+            f'The edge group {edges.path} has no edge between the first two members of the hyperedges at the nodes '
+            f'{missing[:3]}.'
+        )
+        fix = 'Order every hyperedge so an edge of the layer of the edge group joins its first two members.'
+        return [IssueSpec('binding', node.path, message, fix)]
+
+    @staticmethod
     def _binding_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the interactions over hyperedges, or over neighbours with an edge group, on a space without them.
 
@@ -627,9 +675,7 @@ class PassCompiler(BaseCompiler):
             offered = (
                 isinstance(space, LatticeSpace | NetworkSpace | CayleySpace)
                 if over == 'neighbors'
-                else bool(
-                    getattr(space, 'hyperedges', ()),
-                )
+                else bool(getattr(space, 'hyperedges_', ()))
             )
             if not offered and over == 'neighbors' and len(members) == len(bound):
                 continue
@@ -637,6 +683,10 @@ class PassCompiler(BaseCompiler):
                 needs = 'a lattice or network space' if over == 'neighbors' else 'a network space with hyperedges'
                 message = f'The binding over {over} needs {needs}, but the bound members live on {space!r}.'
                 issues.append(IssueSpec('binding', node.path, message, f'Give the bound group {needs}.'))
+                continue
+            if over == 'hyperedges' and isinstance(space, NetworkSpace):
+                edges = next((item for item in bound if item is not None and item not in members), None)
+                issues += PassCompiler._hyperedge_issues(node, space, edges)
                 continue
             issues += PassCompiler._layer_issues(node, space)
         return issues
