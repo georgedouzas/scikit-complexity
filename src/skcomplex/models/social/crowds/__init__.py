@@ -16,6 +16,7 @@ from ._criminality import (
 )
 from ._evacuation import (
     CrowdingInteraction,
+    GuidanceInteraction,
     WalkingInteraction,
     building_of,
     crowding_table,
@@ -33,6 +34,7 @@ __all__: list[str] = [
     'CriminalContagionInteraction',
     'CrowdingInteraction',
     'DeterrenceInteraction',
+    'GuidanceInteraction',
     'MotivationInteraction',
     'RecruitmentInteraction',
     'SecurityAgentsElement',

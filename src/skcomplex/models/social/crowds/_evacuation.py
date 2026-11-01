@@ -14,8 +14,7 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import DensityElement, GroupElement
-from ....core.interactions import EncounterInteraction, Interaction
-from ....core.laws import BaseLaw, EncounterLaw
+from ....core.interactions import EncounterInteraction
 from ....core.laws.utils import moment
 from ....core.spaces import ContinuousTime, LatticeSpace
 from ....core.system import System
@@ -281,22 +280,21 @@ class WalkingInteraction(EncounterInteraction):
         return walking_table(building, 0, int(self.speeds))[1]
 
 
-class CrowdingInteraction(Interaction):
-    """Encounters that slow pedestrians down in crowded rooms, and the exit signs that speed them up again.
+class CrowdingInteraction(EncounterInteraction):
+    """Encounters that slow pedestrians down in crowded rooms.
 
-    Two pedestrians in the same room meet at the rate `crowding`, and the candidate slows down one speed class. A
-    pedestrian meets the exit signs at the rate `recovery` and speeds up one class. Pedestrians outside keep their
-    speed.
+    It is an `EncounterInteraction` of the crowd with itself. Two pedestrians in the same room meet at the rate
+    `crowding`, and the candidate slows down one speed class. Pedestrians outside keep their speed.
 
     Args:
         label:
             The label of the interaction.
 
-        crowd:
+        candidate:
             The path of the crowd, a distribution over rooms and speed classes.
 
-        signs:
-            The path of the group of one member whose fixed density is the guidance of the exit signs.
+        field:
+            The path of the crowd that the candidates meet, the crowd again.
 
         rooms:
             The number of rooms.
@@ -307,12 +305,9 @@ class CrowdingInteraction(Interaction):
         crowding:
             The rate of the encounters within a room that slow pedestrians down.
 
-        recovery:
-            The rate at which pedestrians speed up again.
-
     Examples:
         >>> from skcomplex.models.social.crowds import CrowdingInteraction
-        >>> CrowdingInteraction('crowding', crowd='crowd', signs='signs').crowding
+        >>> CrowdingInteraction('crowding', candidate='crowd', field='crowd').crowding
         2.0
     """
 
@@ -320,39 +315,79 @@ class CrowdingInteraction(Interaction):
         self,
         label: str,
         *,
-        crowd: Annotated[str, RoleSpec()],
-        signs: Annotated[str, RoleSpec()],
+        candidate: Annotated[str, RoleSpec()],
+        field: Annotated[str, RoleSpec()],
         rooms: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 7,
         speeds: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
         crowding: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        recovery: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:
-        super().__init__(label)
-        self.crowd = crowd
-        self.signs = signs
+        super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
         self.rooms = rooms
         self.speeds = speeds
         self.crowding = crowding
+
+    def _get_rate(self, s: SimpleNamespace) -> object:
+        """Return the rate of the slowing encounters of every pair of classes within a room."""
+        return crowding_table(int(self.rooms), int(self.speeds), -1)[0] * s.crowding
+
+    def _get_kernel(self, s: SimpleNamespace) -> object:
+        """Return the table that moves a pedestrian down one speed class."""
+        return crowding_table(int(self.rooms), int(self.speeds), -1)[1]
+
+
+class GuidanceInteraction(EncounterInteraction):
+    """Encounters with the exit signs that speed pedestrians up again.
+
+    It is an `EncounterInteraction` of the crowd with the exit signs. A pedestrian meets the exit signs at the rate
+    `recovery` and speeds up one class. Pedestrians outside keep their speed.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        candidate:
+            The path of the crowd, a distribution over rooms and speed classes.
+
+        field:
+            The path of the group of one member whose fixed density is the guidance of the exit signs.
+
+        rooms:
+            The number of rooms.
+
+        speeds:
+            The number of speed classes.
+
+        recovery:
+            The rate at which pedestrians speed up again.
+
+    Examples:
+        >>> from skcomplex.models.social.crowds import GuidanceInteraction
+        >>> GuidanceInteraction('guidance', candidate='crowd', field='signs').recovery
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        candidate: Annotated[str, RoleSpec()],
+        field: Annotated[str, RoleSpec()],
+        rooms: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 7,
+        speeds: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 3,
+        recovery: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, candidate=candidate, field=field, rate=self._get_rate, kernel=self._get_kernel)
+        self.rooms = rooms
+        self.speeds = speeds
         self.recovery = recovery
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the slowing encounters within rooms and the recovery with the exit signs.
+    def _get_rate(self, s: SimpleNamespace) -> object:
+        """Return the rate of the encounters of every class with the exit signs."""
+        return crowding_table(int(self.rooms), int(self.speeds), 1)[0] * s.recovery
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        rooms, speeds = int(self.rooms), int(self.speeds)
-        slow_pattern, slow_table = crowding_table(rooms, speeds, -1)
-        fast_pattern, fast_table = crowding_table(rooms, speeds, 1)
-        return [
-            EncounterLaw(s.crowd.f, s.crowd.f, slow_pattern * s.crowding, slow_table),
-            EncounterLaw(s.crowd.f, s.signs.f, fast_pattern * s.recovery, fast_table),
-        ]
+    def _get_kernel(self, s: SimpleNamespace) -> object:
+        """Return the table that moves a pedestrian up one speed class."""
+        return crowding_table(int(self.rooms), int(self.speeds), 1)[1]
 
 
 def _sizes_of(system: System) -> tuple[int, int]:
@@ -432,7 +467,8 @@ def evacuation(
 
     Returns:
         system:
-            The model, with the crowd `crowd`, the exit signs `signs`, and the interactions `walking` and `crowding`.
+            The model, with the crowd `crowd`, the exit signs `signs`, and the interactions `walking`, `crowding`, and
+            `guidance`.
             Its standard observables are the evacuated fraction and the mean walking speed.
 
     Examples:
@@ -467,11 +503,18 @@ def evacuation(
             ),
             CrowdingInteraction(
                 'crowding',
-                crowd='crowd',
-                signs='signs',
+                candidate='crowd',
+                field='crowd',
                 rooms=rooms,
                 speeds=speeds,
                 crowding=crowding,
+            ),
+            GuidanceInteraction(
+                'guidance',
+                candidate='crowd',
+                field='signs',
+                rooms=rooms,
+                speeds=speeds,
                 recovery=recovery,
             ),
         ],

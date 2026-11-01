@@ -13,8 +13,7 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import DensityElement, Element, GroupElement
-from ....core.interactions import EncounterInteraction, Interaction
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import EncounterInteraction, RateInteraction
 from ....core.laws.utils import moment
 from ....core.spaces import ContinuousTime, LatticeSpace
 from ....core.system import System
@@ -309,21 +308,22 @@ class DeterrenceInteraction(EncounterInteraction):
         return deterrence_table(int(self.classes), int(self.forces))[1]
 
 
-class RecruitmentInteraction(Interaction):
+class RecruitmentInteraction(RateInteraction):
     """Recruitment of security agents in proportion to the mean criminality, a macro-scale external action.
 
-    The security forces grow at the rate `recruitment m share_k` in efficacy class `k`, where `m` is the mean
-    criminality of the citizens, a moment of their distribution, and retire at the rate `retirement`.
+    It is a `RateInteraction` of the density `f` of the security forces that reads the citizens. The security forces
+    grow at the rate `recruitment m share_k` in efficacy class `k`, where `m` is the mean criminality of the citizens,
+    a moment of their distribution, and retire at the rate `retirement`.
 
     Args:
         label:
             The label of the interaction.
 
+        target:
+            The path of the distribution of the security forces over efficacy.
+
         citizens:
             The path of the distribution of citizens.
-
-        security:
-            The path of the distribution of the security forces over efficacy.
 
         classes:
             The number of criminality classes.
@@ -336,7 +336,7 @@ class RecruitmentInteraction(Interaction):
 
     Examples:
         >>> from skcomplex.models.social.crowds import RecruitmentInteraction
-        >>> RecruitmentInteraction('recruitment', citizens='citizens', security='security').retirement
+        >>> RecruitmentInteraction('recruitment', target='security', citizens='citizens').retirement
         0.1
     """
 
@@ -344,32 +344,23 @@ class RecruitmentInteraction(Interaction):
         self,
         label: str,
         *,
+        target: Annotated[str, RoleSpec()],
         citizens: Annotated[str, RoleSpec()],
-        security: Annotated[str, RoleSpec()],
         classes: Annotated[int, ParameterSpec(domain=RealSet.open(0, oo))] = 5,
         recruitment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         retirement: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, target=target, state='f', rate=self._get_rate)
         self.citizens = citizens
-        self.security = security
         self.classes = classes
         self.recruitment = recruitment
         self.retirement = retirement
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate of the security forces.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        criminality = moment(s.citizens.f, 1, criminality_grid(int(self.classes)), normalized=True)
-        return [RateLaw(s.security.f, s.recruitment * criminality * s.security.share - s.retirement * s.security.f)]
+    def _get_rate(self, s: SimpleNamespace) -> Expression:
+        """Return the recruitment in proportion to the mean criminality of the citizens, less the retirement."""
+        security, citizens = s.target, s.citizens
+        criminality = moment(citizens.f, 1, criminality_grid(int(self.classes)), normalized=True)
+        return s.recruitment * criminality * security.share - s.retirement * security.f
 
 
 def _sizes_of(system: System) -> tuple[int, int]:
@@ -505,8 +496,8 @@ def criminality(
             ),
             RecruitmentInteraction(
                 'recruitment',
+                target='security',
                 citizens='citizens',
-                security='security',
                 classes=classes,
                 recruitment=recruitment,
                 retirement=retirement,

@@ -8,12 +8,16 @@ from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression, exp, oo, vector
+from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import GroupElement, PointElement
-from ....core.interactions import BaseInteraction, Interaction, PairCouplingInteraction, RelaxationInteraction
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import (
+    BaseInteraction,
+    GradientInteraction,
+    PairCouplingInteraction,
+    RelaxationInteraction,
+)
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.solvers import RK4Solver
@@ -72,11 +76,12 @@ class MotivationInteraction(RelaxationInteraction):
         return namespace.tau
 
 
-class WallsInteraction(Interaction):
+class WallsInteraction(GradientInteraction):
     """Repulsion of walkers by two walls of a corridor at `y = 0` and `y = width`.
 
-    The force per unit mass from a wall at distance `d` is `strength * exp((radius - d) / falloff)`, pointing away from
-    the wall.
+    It is a `GradientInteraction` of the position `x` down the potential
+    `strength falloff (exp((radius - y) / falloff) + exp((radius - width + y) / falloff))`, so the force per unit mass
+    from a wall at distance `d` is `strength * exp((radius - d) / falloff)`, pointing away from the wall.
 
     Args:
         label:
@@ -113,27 +118,16 @@ class WallsInteraction(Interaction):
         falloff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
         radius: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(label, target=target, potential=self._get_potential)
         self.width = width
         self.strength = strength
         self.falloff = falloff
         self.radius = radius
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the repulsion of both walls.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
+    def _get_potential(self, s: SimpleNamespace) -> Expression:
+        """Return the potential of both walls at the position of a walker."""
         y = s.target.x[1]
-        push = s.strength * (exp((s.radius - y) / s.falloff) - exp((s.radius - s.width + y) / s.falloff))
-        return [RateLaw(s.target.x, vector(SR, [0, push]))]
+        return s.strength * s.falloff * (exp((s.radius - y) / s.falloff) + exp((s.radius - s.width + y) / s.falloff))
 
 
 class SocialRepulsionInteraction(PairCouplingInteraction):
