@@ -3,12 +3,14 @@
 import dataclasses
 from typing import Annotated
 
+import numpy as np
 import pytest
 
-from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.elements import Element, FieldElement, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw, RuleLaw
-from skcomplex.core.laws.utils import total
+from skcomplex.core.laws.utils import inverse_helmholtz, total
+from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import ObservableEvaluator, PassCompiler, compile_system
@@ -16,7 +18,7 @@ from skcomplex.engine.compile.passes._quantum_compiler import QuantumCompiler
 from skcomplex.errors import RoleError
 from skcomplex.models import catalog, create, describe
 from skcomplex.models.biology.common.populations import PopulationElement
-from skcomplex.specs import RoleSpec, StateSpec, VisualSpec
+from skcomplex.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class ObservedValueElement(Element):
@@ -191,3 +193,32 @@ def test_held_reduction_reads_only_agents():
     (issue,) = PassCompiler().check().prepare(_village(interaction)).report_.errors
     assert issue.code == 'reduction'
     assert 'n_land_soil' in issue.message
+
+
+def _field_streamfunction(s):
+    """Return the streamfunction of a site, the inversion of its vorticity with walls at rest."""
+    return inverse_helmholtz(s.u, 0, ('fixed', 0))
+
+
+def _field_values(values):
+    """Return the values of every site."""
+    return np.array(values)
+
+
+def test_observable_evaluator_lowers_field_operators():
+    """Test that an observable of a field applies a field inversion at every site, as a law of the field would."""
+
+    class SiteElement(Element):
+        def __init__(self, label, u: Annotated[float, StateSpec()] = 0.0):
+            super().__init__(label)
+            self.u = u
+
+    values = np.sin(np.pi * np.arange(1, 9) / 9)
+    space = LatticeSpace(8, boundary='fixed')
+    field = FieldElement('field', element=SiteElement, space=space, values={'u': values}, boundary={'u': ('fixed', 0)})
+    observable = ObservableSpec('psi', _field_streamfunction, group='field', reduce=_field_values)
+    problem = compile_system(System(elements=[field]), observables=[observable])
+    evaluator = ObservableEvaluator(problem).prepare()
+    psi = evaluator.evaluate(0.0, problem.initial_state, problem.initial_parameters)['psi']
+    stencil = np.diff(np.concatenate([[0.0], psi, [0.0]]), 2)
+    np.testing.assert_allclose(stencil, values, atol=1e-12)

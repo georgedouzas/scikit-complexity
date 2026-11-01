@@ -53,7 +53,7 @@
 ## 6. Models
 
 - [x] 6.1 Add `amari_neural_field` under `skcomplex.models.biology.neuroscience`; verify the Amari bump scenario
-- [ ] 6.2 Add `double_gyre` under `skcomplex.models.earth.oceanography`, streaming the streamfunction through an
+- [x] 6.2 Add `double_gyre` under `skcomplex.models.earth.oceanography`, streaming the streamfunction through an
   observable of its catalog entry; verify the double gyre circulation scenario
 - [ ] 6.3 Add `gkt_traffic` under `skcomplex.models.engineering.traffic`; verify the stop-and-go waves scenario
 - [ ] 6.4 Add `active_viscoelastic_gel` under `skcomplex.models.physics.active_matter`; verify the contractile gel

@@ -17,7 +17,7 @@ from ...core.laws.utils import has_operator, local_operator
 from ...core.specs import NodeSpec
 from ...core.system import System
 from ...errors import ValidationError
-from ...specs import EntrySpec, NeighborReadSpec, ObservableSpec, ReadSpec, StateSpec
+from ...specs import EntrySpec, NeighborReadSpec, ObservableSpec, ReadSpec, RunStateSpec, StateSpec
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...types import Array, FormKind, Indices, VariableKind
 from .._utils import bound_labels, declarations_of, symbol, symbols_of
@@ -29,6 +29,7 @@ from ..problems import (
     ReductionScheduleSpec,
     ReferenceSpec,
 )
+from ..problems._law_kernel import LawKernel
 from ..problems._quantum_kernel import QuantumKernel
 from ..problems._quantum_lowering import QuantumLowering
 from ..problems._recorded_spec import _RecordedSpec
@@ -253,8 +254,11 @@ class ObservableEvaluator:
             if observable.group is None and observable.expression is None:
                 error_msg = f'ObservableSpec {path} has neither an expression nor a group. Give one of them.'
                 raise ValidationError(error_msg)
+            observed = self.problem.observed if isinstance(self.problem, ProblemSpec) else {}
             if observable.group is None:
                 self.getters_[path] = self._expression_getter(scope, path, observable)
+            elif path in observed:
+                self.getters_[path] = self._observed_getter(observed[path], observable)
             else:
                 self.getters_[path] = self._reduction_getter(scope, path, observable)
         problems = (self.problem, *self.problem.partition_problems)
@@ -486,6 +490,17 @@ class ObservableEvaluator:
             return ReductionKernel._reduce_values(values, observable.reduce)
 
         return read_expression
+
+    @staticmethod
+    def _observed_getter(kernel: LawKernel, observable: ObservableSpec) -> ObservableFunction:
+        """Return the getter of a reduction of an expression of a field with field operators, from its kernel."""
+
+        def read_field(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
+            del done
+            _, _, values = kernel.run(RunStateSpec(t, x, p)).values_
+            return ReductionKernel._reduce_values(values[0], observable.reduce)
+
+        return read_field
 
     def _agent_getter(self, group: str, path: str, observable: ObservableSpec) -> ObservableFunction:
         """Return the getter of a reduction over an agent group, which the evaluation's agents give."""

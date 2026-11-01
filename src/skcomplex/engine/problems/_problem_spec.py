@@ -30,6 +30,7 @@ from ._draw_kernel import DrawKernel
 from ._event_kernel import EventKernel
 from ._finite_volume_kernel import FiniteVolumeKernel
 from ._jacobian_kernel import JacobianKernel
+from ._law_kernel import LawKernel
 from ._linear_term_spec import LinearTermSpec
 from ._partition_spec import PartitionSpec
 from ._reduction_kernel import ReductionKernel
@@ -124,6 +125,10 @@ class ProblemSpec(BaseProblemSpec):
         linear:
             The linear terms with constant coefficients of the rates of fields, which implicit and exponential solvers
             treat exactly while the rest of the rates is the nonlinear remainder.
+
+        observed:
+            The kernels of the observables of fields whose expressions apply field operators, such as a streamfunction
+            inverted from a vorticity, by the path of the observable, each giving the expression at every site.
 
         volumes:
             The conservation laws of finite-volume fields, whose flux differences the drift includes.
@@ -224,6 +229,7 @@ class ProblemSpec(BaseProblemSpec):
     stable_step: float | None = None
     diffusive_limits: tuple[DiffusiveLimitSpec, ...] = field(default=(), repr=False)
     linear: tuple[LinearTermSpec, ...] = field(default=(), repr=False)
+    observed: Mapping[str, LawKernel] = field(default_factory=dict, repr=False)
     volumes: tuple[FiniteVolumeKernel, ...] = field(default=(), repr=False)
     constrained: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     reductions: tuple[ReductionKernel, ...] = field(default=(), repr=False)
