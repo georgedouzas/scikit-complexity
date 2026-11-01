@@ -6,6 +6,7 @@
 
 import numpy as np
 import numpy.typing as npt
+import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression, max_symbolic, min_symbolic
 
 from ..base import BaseConfig
@@ -14,7 +15,7 @@ from ..engine._utils import components_of, domain_of, symbol
 from ..engine.problems import ProblemSpec
 from ..engine.problems._reduction_kernel import ReductionKernel
 from ..errors import ValidationError
-from ..specs import EntrySpec
+from ..specs import EntrySpec, ReadSpec
 
 
 class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
@@ -144,8 +145,18 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
             terms.append(SR(reduction.argument).subs(mapping))
             condition = SR(reduction.condition).subs(mapping) if reduction.condition is not None else None
             selected.append(condition)
-        self.shared_[key] = self._reduce(reduction, terms, selected, reader)
+        row = self._weights_row(reduction, reader) if reduction.weights is not None else None
+        self.shared_[key] = self._reduce(reduction, terms, selected, row)
         return self.shared_[key]
+
+    def _weights_row(self, reduction: ReductionKernel, reader: int | None) -> npt.NDArray[np.float64]:
+        """Return the weights of the members of a reduction for one reader, from a matrix or a shaped parameter."""
+        weights, position = reduction.weights, reader if reader is not None else 0
+        if not isinstance(weights, ReadSpec) or weights.entry is None:
+            return np.asarray(scipy.sparse.csr_array(weights).toarray()[position], dtype=np.float64)
+        values = self.parameters_ if self.parameters_.size else self.problem_.initial_parameters
+        source = values if not weights.is_state else self.problem_.initial_state
+        return np.asarray(source[weights.index], dtype=np.float64).reshape(weights.entry.shape)[position]
 
     @staticmethod
     def _chosen(term: Expression, condition: Expression | None, otherwise: object) -> Expression:
@@ -157,14 +168,13 @@ class _Expansion(BaseConfig[ProblemSpec, tuple[set[str], int]]):
         reduction: ReductionKernel,
         terms: list[Expression],
         selected: list[Expression | None],
-        reader: int | None,
+        row: npt.NDArray[np.float64] | None,
     ) -> Expression:
-        """Return the explicit value of a reduction from the terms and conditions of its members."""
+        """Return the explicit value of a reduction from the terms and conditions of its members, with their weights."""
         counted = sum((_Expansion._chosen(SR(1), condition, 0) for condition in selected), SR(0))
         if reduction.kind == 'count':
             return counted
-        if reduction.weights is not None:
-            row = reduction.weights.toarray()[reader if reader is not None else 0]
+        if row is not None:
             weighted = sum(
                 (
                     SR(float(weight)) * _Expansion._chosen(term, condition, 0)

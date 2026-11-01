@@ -10,7 +10,7 @@ import jax.numpy as jnp
 import numpy as np
 import scipy.sparse
 
-from ...core.laws import EquationLaw, RateLaw, UpdateLaw
+from ...core.laws import EquationLaw, GradientStepLaw, RateLaw, UpdateLaw
 from ...core.spaces import ContinuousTime, DiscreteTime
 from ...errors import BackendError, ValidationError
 from ...specs import LoweredFunctionsSpec, ReadSpec, SupportSpec
@@ -18,14 +18,12 @@ from ...types import Array, FormKind, OrderKind
 from ..problems import ExpressionPrinter, LoweredKernelsSpec, ReductionScheduleSpec, ReferenceSpec
 from ..problems._law_kernel import LawKernel
 from ..problems._reduction_kernel import ReductionKernel
-from ..types import ReadKind
+from ..types import ReadKind, TracedArray, TracedFunction
 from ._base import BaseBackend
 
 FORMS = (FormKind.ODE, FormKind.DISCRETE)
 MEMBER_READS = (ReadKind.MEMBER, ReadKind.REDUCED)
 
-type TracedArray = jax.Array
-type TracedFunction = Callable[[object, TracedArray, TracedArray], TracedArray]
 type TracedRead = Callable[[TracedArray, TracedArray], TracedArray]
 type TracedValues = Callable[[object, TracedArray, TracedArray], list[TracedArray]]
 
@@ -65,7 +63,7 @@ class JaxBackend(BaseBackend):
         return SupportSpec(
             time={ContinuousTime, DiscreteTime},
             space={None},
-            laws={EquationLaw, RateLaw, UpdateLaw},
+            laws={EquationLaw, GradientStepLaw, RateLaw, UpdateLaw},
             noise=frozenset(),
             orders=frozenset({OrderKind.INTEGER}),
         )

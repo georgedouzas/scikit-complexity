@@ -2,7 +2,7 @@
 
 ## 1. Dependencies
 
-- [ ] 1.1 Add `jax>=0.11.2`, `optax>=0.2.8`, and `diffrax>=0.7.2` to the runtime dependencies in `pyproject.toml`, and
+- [x] 1.1 Add `jax>=0.11.2`, `optax>=0.2.8`, and `diffrax>=0.7.2` to the runtime dependencies in `pyproject.toml`, and
   name them, the JAX backend, and the macOS platform on Apple silicon in the Project Profile; verify `pdm install` and
   the checks session, including `deptry`, pass
 
@@ -30,35 +30,35 @@
 
 ## 4. Training law and learning solver
 
-- [ ] 4.1 Add `GradientStepLaw` in `core/laws/_gradient_step.py`, `TrainingInteraction` in
+- [x] 4.1 Add `GradientStepLaw` in `core/laws/_gradient_step.py`, `TrainingInteraction` in
   `core/interactions/_training.py` with `OPTIMIZERS` and its hyperparameters, `DatasetSpec` in `skcomplex.specs`, and
   `FormKind.LEARNING`; verify the unknown optimizer scenario and that `GradientInteraction` is unchanged
-- [ ] 4.2 Compile a system holding the law into a `LearningProblemSpec` with the nested system as its inner problem,
+- [x] 4.2 Compile a system holding the law into a `LearningProblemSpec` with the nested system as its inner problem,
   and add the learning issues to the pass compiler; verify the untrained parameter path, parameter not adaptive,
   unknown loss, shape mismatch, and not differentiable scenarios
-- [ ] 4.3 Add `GradientDescentSolver` in `engine/solvers/_gradient_descent.py` with `lax.scan` unrolls, diffrax ODE
+- [x] 4.3 Add `GradientDescentSolver` in `engine/solvers/_gradient_descent.py` with `lax.scan` unrolls, diffrax ODE
   unrolls, truncation, double precision, injected hyperparameters, and optimizer state reset, and map
   `FormKind.LEARNING` to it in `DEFAULT_SOLVERS`; verify the gradient against finite differences, gradient through an
   ODE, truncation, zero learning rate, learning rate schedule, automatic solver, and unsupported solver scenarios
-- [ ] 4.4 Run systems holding the law through `Simulation` with whole-epoch `dt`, seeded shuffling, and the recorded
+- [x] 4.4 Run systems holding the law through `Simulation` with whole-epoch `dt`, seeded shuffling, and the recorded
   loss and metrics; verify the epochs as frames, time between frames, loss at the start, masked steps, same seed, and
   updates per epoch scenarios
-- [ ] 4.5 Verify the trained model agrees with training, Lotka-Volterra fit, Oja's rule, and tensor trains scenarios
+- [x] 4.5 Verify the trained model agrees with training, Lotka-Volterra fit, Oja's rule, and tensor trains scenarios
 
 ## 5. Visualization
 
-- [ ] 5.1 Add `MatrixVisual` in `engine/viz/_matrices.py`, chosen by `VisualSpec('matrix')`, the visual of a system
+- [x] 5.1 Add `MatrixVisual` in `engine/viz/_matrices.py`, chosen by `VisualSpec('matrix')`, the visual of a system
   that trains, and its place first in the default blueprint of `RerunObserver`; verify the recurrent weights, first
   view, and default blueprint scenarios
 
 ## 6. Models
 
-- [ ] 6.1 Add `elman_network` to `computer_science/neural_networks` built only from public names, with its catalog
+- [x] 6.1 Add `elman_network` to `computer_science/neural_networks` built only from public names, with its catalog
   observables, and mark its inventory entry implemented; verify the temporal XOR and Elman's original rule scenarios
   and the inventory check
 - [ ] 6.2 Add `docs/examples/computer_science/neural_networks/plot_elman_network.py` with the loss thumbnail and the
   error-by-position figure; verify the gallery example scenario and the gallery checks
-- [ ] 6.3 Rebuild `GeneralizedLotkaVolterraInteraction` on `CouplingInteraction(mode='group')` with a shaped matrix
+- [x] 6.3 Rebuild `GeneralizedLotkaVolterraInteraction` on `CouplingInteraction(mode='group')` with a shaped matrix
   parameter and the growth as a `RateInteraction`; verify the rebuilt community and matrix swept scenarios
 - [ ] 6.4 Add `higher_order_random_lotka_volterra` to `biology/ecology` on a shaped tensor parameter and `contraction`,
   with a curated gallery example, and mark its inventory entry implemented in place of `pending

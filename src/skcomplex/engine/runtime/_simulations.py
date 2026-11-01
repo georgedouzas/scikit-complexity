@@ -35,7 +35,9 @@ _DEFAULT_DT = 0.01
 _MAX_FRAMES = 1000
 _FRAME_MANTISSAS = (1, 2, 5)
 TIME_TOLERANCE = 1e-9
-_STEPWISE_FORMS = frozenset({FormKind.DISCRETE, FormKind.AGENT, FormKind.LATTICE, FormKind.MONTE_CARLO})
+_STEPWISE_FORMS = frozenset(
+    {FormKind.DISCRETE, FormKind.AGENT, FormKind.LATTICE, FormKind.MONTE_CARLO, FormKind.LEARNING},
+)
 
 
 class Simulation(BaseConfig[None, float]):
@@ -183,6 +185,12 @@ class Simulation(BaseConfig[None, float]):
         dt = default if self.dt is None else self.dt
         if not EntrySpec._contains(RealSet.open(0, oo), dt):
             error_msg = f'dt = {dt!r} must be a positive number.'
+            raise ValidationError(error_msg)
+        if problem.form == FormKind.LEARNING and not EntrySpec._contains(ZZ, dt):
+            error_msg = (
+                f'dt = {dt!r} is not a whole number. The time between frames of a system that trains is a positive '
+                'whole number of epochs.'
+            )
             raise ValidationError(error_msg)
         if stepwise and not EntrySpec._contains(ZZ, dt):
             error_msg = f'dt = {dt!r} must be a positive integer for a {problem.form}.'

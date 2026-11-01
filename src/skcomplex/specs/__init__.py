@@ -14,6 +14,7 @@ from ._cascade_record_spec import CascadeRecordSpec
 from ._clamp_spec import ClampSpec
 from ._continuous_clearing_spec import ContinuousClearingSpec
 from ._control_solution_spec import ControlSolutionSpec
+from ._dataset_spec import DatasetSpec
 from ._dialect_spec import DialectSpec
 from ._draw_spec import DrawSpec
 from ._energy_spec import EnergySpec
@@ -108,6 +109,7 @@ __all__ = [
     'ClampSpec',
     'ContinuousClearingSpec',
     'ControlSolutionSpec',
+    'DatasetSpec',
     'DialectSpec',
     'DrawSpec',
     'EnergySpec',

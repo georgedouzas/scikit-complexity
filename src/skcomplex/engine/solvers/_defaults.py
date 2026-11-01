@@ -8,6 +8,7 @@ from ._base import BaseSolver
 from ._euler_maruyama import EulerMaruyamaSolver
 from ._fractional_abm import FractionalABMSolver
 from ._gillespie import GillespieSolver
+from ._gradient_descent import GradientDescentSolver
 from ._lattice import LatticeSolver
 from ._lindblad import LindbladSolver
 from ._maps import IterationSolver
@@ -27,4 +28,5 @@ DEFAULT_SOLVERS: dict[FormKind, type[BaseSolver]] = {
     FormKind.MONTE_CARLO: MonteCarloSolver,
     FormKind.AGENT: MesaSolver,
     FormKind.QUANTUM: LindbladSolver,
+    FormKind.LEARNING: GradientDescentSolver,
 }
