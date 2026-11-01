@@ -3,213 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from types import SimpleNamespace
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import exp, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import exp
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import MapInteraction, TopologyInteraction
+from ....core.interactions import MapInteraction
 from ....core.laws.utils import neighbors, uniform, where
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._club_member import ClubMemberElement
+from ._coevolving_voter import OPINION_VISUAL, CoevolvingVoterElement
+from ._separation import SMALLEST_DEGREE, SeparationInteraction
+from ._tie import TieElement
 
-SMALLEST_DEGREE = 1e-9
 FIRST_OPINION_SHARE = 0.5
-OPINION_VISUAL = VisualSpec('sites', {'states': ['opinion'], 'low': 0.0, 'high': 1.0})
-
-
-class TieElement(Element):
-    """Edge of a coevolving network, which holds no state of its own.
-
-    Args:
-        label:
-            The label of the edge group.
-
-    Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import TieElement
-        >>> TieElement('ties').label
-        'ties'
-    """
-
-
-class CoevolvingVoterElement(Element):
-    """Voter of a coevolving network, with a binary opinion, its degree, and its number of discordant neighbours.
-
-    Every step a voter is active with probability `activity` and picks a random neighbour. When the neighbour
-    disagrees, the voter copies its opinion with probability `1 - rewiring`, and otherwise the interaction
-    `SeparationInteraction` moves the edge to a random voter who agrees with it.
-
-    Args:
-        label:
-            The label of the voter or the group.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
-        opinion:
-            The opinion, 0 or 1.
-
-        degree:
-            The number of neighbours, read at the start of every step.
-
-        activity:
-            The probability that a voter acts in a step.
-
-        rewiring:
-            The probability that an active voter with a discordant neighbour rewires instead of copying.
-
-    Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import CoevolvingVoterElement
-        >>> CoevolvingVoterElement('voters', rewiring=0.3).rewiring
-        0.3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = OPINION_VISUAL,
-        *,
-        opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        activity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        rewiring: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.opinion = opinion
-        self.degree = degree
-        self.activity = activity
-        self.rewiring = rewiring
-
-
-class SeparationInteraction(TopologyInteraction):
-    """Rewiring of discordant edges by one end, which keeps the edge and moves its other end to a like-minded node.
-
-    It is a `TopologyInteraction` that rewires the edges of the voters. The end `keep` acts on an edge with
-    probability `activity / degree` per step, and when it holds the opinion `opinion` and the other end does not, it
-    rewires the edge with probability `rewiring`, drawing a new end among the voters of the opinion `opinion`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        voters:
-            The path of the voters on the nodes.
-
-        keep:
-            The end of an edge that acts and keeps the edge, `'source'` or `'target'`.
-
-        opinion:
-            The opinion of the end that acts, 0 or 1.
-
-    Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import SeparationInteraction
-        >>> SeparationInteraction('separation', voters='voters', keep='target', opinion=0).check().action
-        'rewire'
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        voters: Annotated[str, RoleSpec()],
-        keep: str = 'source',
-        opinion: float = 1.0,
-    ) -> None:
-        super().__init__(
-            label,
-            target=voters,
-            action='rewire',
-            probability=self._get_chance,
-            toward=self._get_weight,
-            keep=keep,
-        )
-        self.voters = voters
-        self.keep = keep
-        self.opinion = opinion
-
-    def _get_weight(self, node: SimpleNamespace) -> object:
-        """Return the weight of a candidate node as a new end, 1 when it holds the opinion of the acting end."""
-        return node.opinion if self.opinion == 1 else 1 - node.opinion
-
-    def _get_chance(self, namespace: SimpleNamespace) -> object:
-        """Return the probability that the acting end rewires the edge, when the ends hold different opinions."""
-        actor, other = (namespace.source, namespace.target)[:: 1 if self.keep == 'source' else -1]
-        chance = actor.activity * actor.rewiring / (actor.degree + SMALLEST_DEGREE)
-        if self.opinion == 1:
-            return chance * actor.opinion * (1 - other.opinion)
-        return chance * (1 - actor.opinion) * other.opinion
-
-
-class ClubMemberElement(Element):
-    """Agent that is in a club (spin 1) or out of it (spin 0), aligned by a heat bath with the agents it knows.
-
-    Every step an agent reconsiders with probability `deciding` and then joins with probability
-    `1 / (1 + exp(-2 β h))`, where the field `h` counts the acquaintances in the club minus those out of it, plus the
-    appeal of the club. The interaction `SeparationInteraction` dissolves acquaintances between a member and an outsider
-    and reforms them towards an agent of the same side.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
-        opinion:
-            1 for a member of the club and 0 for an outsider.
-
-        degree:
-            The number of acquaintances, read at the start of every step.
-
-        beta:
-            The inverse temperature of the heat bath.
-
-        appeal:
-            The field of the club on every agent, positive for an attractive club.
-
-        deciding:
-            The probability that an agent reconsiders its choice in a step.
-
-        activity:
-            The probability that an acquaintance is reconsidered in a step.
-
-        rewiring:
-            The probability that a reconsidered acquaintance across the club boundary dissolves and reforms.
-
-    Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import ClubMemberElement
-        >>> ClubMemberElement('agents', beta=2.0).beta
-        2.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = OPINION_VISUAL,
-        *,
-        opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        appeal: Annotated[float, ParameterSpec()] = 0.0,
-        deciding: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        activity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        rewiring: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.opinion = opinion
-        self.degree = degree
-        self.beta = beta
-        self.appeal = appeal
-        self.deciding = deciding
-        self.activity = activity
-        self.rewiring = rewiring
 
 
 def _count_neighbors(namespace: SimpleNamespace) -> object:

@@ -4,109 +4,20 @@
 # License: MIT
 
 
-from typing import Annotated
-
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement, LatticeElement
+from ....core.elements import GroupElement, LatticeElement
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....core.types import AgentViewProtocol, ModelViewProtocol
-from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....specs import VisualSpec
 from ..._catalog import register_model
 from ._confidence_coupling import ConfidenceCouplingInteraction
-from ._discussant_view import DiscussantView
-from ._random_pairs import RandomPairsInteraction
+from ._confident import ConfidentElement
+from ._discussant import DiscussantElement
+from ._encounters import EncountersInteraction
 
 PAIR = 2
-
-
-class DiscussantElement(Element):
-    """Agent of the Deffuant model, with a continuous opinion and a confidence bound.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
-        opinion:
-            The initial opinion, between 0 and 1.
-
-        confidence:
-            The largest opinion difference at which two agents still compromise.
-
-        convergence:
-            The fraction of the opinion difference by which each agent of a compromising pair moves.
-
-    Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import DiscussantElement
-        >>> group = GroupElement('people', element=DiscussantElement, size=10, values={'opinion': 0.5})
-        >>> group.label, group.element.__name__, group.size
-        ('people', 'DiscussantElement', 10)
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)}),
-        *,
-        opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        confidence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        convergence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.opinion = opinion
-        self.confidence = confidence
-        self.convergence = convergence
-
-    @classmethod
-    def _get_view(cls) -> type[DiscussantView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
-        return DiscussantView
-
-
-class EncountersInteraction(RandomPairsInteraction):
-    """Random binary encounters of the Deffuant model, as many per step as there are agents.
-
-    In every encounter two random agents whose opinions differ by less than the confidence bound move towards each
-    other by the convergence fraction of their difference.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the group of discussants.
-
-        phase:
-            The phase of the step the encounters run in, or `None` for the default phase.
-
-    Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import EncountersInteraction
-        >>> EncountersInteraction('meetings', target='people').target
-        'people'
-    """
-
-    def act_on(self, members: list[AgentViewProtocol], model: ModelViewProtocol) -> None:
-        """Move the opinions of a pair towards each other when they differ by less than the confidence bound.
-
-        Args:
-            members:
-                The two discussants of the encounter.
-
-            model:
-                The model view of the rule.
-        """
-        first, second = [member for member in members if isinstance(member, DiscussantView)]
-        difference = second.opinion - first.opinion
-        if abs(difference) < first.confidence:
-            first.opinion += first.convergence * difference
-            second.opinion -= first.convergence * difference
 
 
 @register_model(
@@ -156,44 +67,6 @@ def deffuant(
         visual=visual,
     )
     return System(elements=[people], interactions=[EncountersInteraction('meetings', target='people')])
-
-
-class ConfidentElement(Element):
-    """Agent of the Hegselmann-Krause model, with an opinion and the confidence within which it trusts neighbours.
-
-    `ConfidenceCouplingInteraction` moves every agent each step to the mean opinion of the neighbours, itself
-    included, whose opinions differ from its own by less than `confidence`.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
-        opinion:
-            The opinion, between 0 and 1.
-
-        confidence:
-            The largest opinion difference of a neighbour an agent still listens to.
-
-    Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import ConfidentElement
-        >>> ConfidentElement('people', confidence=0.1).confidence
-        0.1
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('histograms', {'color_range': (0.0, 1.0), 'histogram_first': True}),
-        *,
-        opinion: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        confidence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.opinion = opinion
-        self.confidence = confidence
 
 
 @register_model(

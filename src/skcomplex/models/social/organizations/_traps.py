@@ -4,18 +4,18 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
-from ....core.elements import Element
 from ....core.interactions import TransferInteraction
 from ....core.laws import Sink, Source
 from ....core.laws.utils import distributed_delay, lookup, where
 from ....core.system import System
-from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec
 from ..._catalog import register_model
+from ._arms_race import ArmsRaceElement
+from ._burden import BurdenElement
+from ._contest import ContestElement
 
 ALLOCATION_TABLE = ((0.0, 0.0), (0.2, 0.05), (0.5, 0.5), (0.8, 0.95), (1.0, 1.0))
 
@@ -50,26 +50,6 @@ def _depreciation_b(s: SimpleNamespace) -> Expression:
     return s.source.b / s.source.lifetime
 
 
-class ContestElement(Element):
-    """Contest element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        a: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='resources')] = 55.0,
-        b: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='resources')] = 45.0,
-        budget: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
-        lifetime: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.a = a
-        self.b = b
-        self.budget = budget
-        self.lifetime = lifetime
-
-
 def _symptom(s: SimpleNamespace) -> Expression:
     """Return the symptom, the gap between the desired and the current state of the problem."""
     return s.desired - s.capability - s.intervention
@@ -89,32 +69,6 @@ def _building(s: SimpleNamespace) -> Expression:
 def _erosion(s: SimpleNamespace) -> Expression:
     """Return the erosion of capability by the intervention."""
     return s.source.erosion * s.source.intervention * s.source.capability
-
-
-class BurdenElement(Element):
-    """Burden element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        capability: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='capability')] = 0.5,
-        intervention: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='intervention')] = 0.0,
-        desired: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        fix_rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        build_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        solution_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        erosion: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.capability = capability
-        self.intervention = intervention
-        self.desired = desired
-        self.fix_rate = fix_rate
-        self.build_time = build_time
-        self.solution_delay = solution_delay
-        self.erosion = erosion
 
 
 def _desired_a(s: SimpleNamespace) -> Expression:
@@ -139,28 +93,6 @@ def _build_b(s: SimpleNamespace) -> Expression:
     race = s.source
     desired = _desired_b(race)
     return where(desired > race.b, desired - race.b, 0) / race.adjustment_time
-
-
-class ArmsRaceElement(Element):
-    """Arms race element."""
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        a: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='arms')] = 10.0,
-        b: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='arms')] = 10.5,
-        margin: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        adjustment_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        perception_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.a = a
-        self.b = b
-        self.margin = margin
-        self.adjustment_time = adjustment_time
-        self.perception_delay = perception_delay
 
 
 @register_model(

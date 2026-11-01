@@ -1,22 +1,18 @@
 """Cooperation: evolutionary games between neighbours, in hyperedges, and in tournaments, with imitation."""
 
-from ._hypergraph_games import (
-    DilemmaElement,
-    HyperedgeGoodsInteraction,
-    SimplicialDilemmaInteraction,
-    hypergraph_public_goods,
-    simplicial_social_dilemmas,
-)
-from ._spatial_games import (
-    ContributorElement,
-    PrisonerElement,
-    PrisonersDilemmaInteraction,
-    PublicGoodsInteraction,
-    public_goods_game,
-    spatial_prisoners_dilemma,
-)
+from ._contributor import ContributorElement
+from ._dilemma import DilemmaElement
+from ._hyperedge_goods import HyperedgeGoodsInteraction
+from ._hypergraph_games import hypergraph_public_goods, simplicial_social_dilemmas
+from ._prisoner import PrisonerElement
+from ._prisoners_dilemma import PrisonersDilemmaInteraction
+from ._public_goods import PublicGoodsInteraction
+from ._simplicial_dilemma import SimplicialDilemmaInteraction
+from ._spatial_games import public_goods_game, spatial_prisoners_dilemma
+from ._strategist import StrategistElement
 from ._strategist_view import StrategistView
-from ._tournaments import StrategistElement, TournamentInteraction, play, prisoners_dilemma_tournament
+from ._tournament import TournamentInteraction, play
+from ._tournaments import prisoners_dilemma_tournament
 
 __all__: list[str] = [
     'ContributorElement',

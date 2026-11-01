@@ -3,24 +3,26 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, ZZ, oo
+from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement
+from ....core.elements import GroupElement
 from ....core.interactions import ChoiceInteraction, MapInteraction
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....core.types import ModelViewProtocol
-from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec
 from ....types import AnyArray, Array
 from ..._catalog import register_model
+from ._complex_agent import ComplexAgentElement
 from ._complex_agent_view import ComplexAgentView
 
 MARKED = 2
+
+
 PHASE = 'default'
 
 
@@ -29,59 +31,9 @@ def _standardization(spins: AnyArray) -> float:
     return float(np.mean(np.abs(spins)))
 
 
-def _spins_of(configurations: Array) -> Array:
-    """Return the spin of each configuration: 1 for configuration 0, -1 for configuration 1, and 0 otherwise."""
-    return np.select([configurations == 0, configurations == 1], [1.0, -1.0], 0.0)
-
-
 def _spin_of(agent: ComplexAgentView, model: ModelViewProtocol) -> float:
     """Return the spin of the configuration of an agent."""
-    return float(_spins_of(np.array(agent.configuration)))
-
-
-class ComplexAgentElement(Element):
-    """Agent with many internal configurations, of which two show a characteristic with the spin `1` or `-1`.
-
-    Configuration 0 has the spin `S = 1`, configuration 1 the spin `S = -1`, and the configurations from 2 to `H + 1`
-    the spin 0. In `standardized_agents`, a `MapInteraction` sets the spin after every change of configuration.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the agent is drawn, or `None` for `default_visual_`.
-
-        configuration:
-            The internal configuration, from 0 to `H + 1`.
-
-        spin:
-            The spin of the configuration.
-
-    Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import ComplexAgentElement
-        >>> GroupElement(
-        ...     'agents', element=ComplexAgentElement, size=10, values={'configuration': 5.0, 'spin': 0.0}
-        ... ).size
-        10
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        configuration: Annotated[float, StateSpec(domain=NN)] = 2.0,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.configuration = configuration
-        self.spin = spin
-
-    @classmethod
-    def _get_view(cls) -> type[ComplexAgentView]:
-        """Return the class of the views of the agents, whose attributes are the states and parameters."""
-        return ComplexAgentView
+    return float(StandardizationInteraction._spins_of(np.array(agent.configuration)))
 
 
 class StandardizationInteraction(ChoiceInteraction):
@@ -158,10 +110,17 @@ class StandardizationInteraction(ChoiceInteraction):
         """Return the utility of a configuration for an agent, from the counts of the configurations of the others."""
         counts = model.composition('target', 'configuration')
         up, down = counts.get(0.0, 0), counts.get(1.0, 0)
-        spin, new = float(_spins_of(np.array(agent.configuration))), float(_spins_of(np.array(option)))
+        spin, new = float(StandardizationInteraction._spins_of(np.array(agent.configuration))), float(
+            StandardizationInteraction._spins_of(np.array(option)),
+        )
         standardizing = model.parameter('K') * abs(new) * (up + down - abs(spin))
         ordering = model.parameter('J') * new * (up - down - spin)
         return (standardizing + ordering) / sum(counts.values())
+
+    @staticmethod
+    def _spins_of(configurations: Array) -> Array:
+        """Return the spin of each configuration: 1 for configuration 0, -1 for configuration 1, and 0 otherwise."""
+        return np.select([configurations == 0, configurations == 1], [1.0, -1.0], 0.0)
 
 
 @register_model(
@@ -234,7 +193,7 @@ def standardized_agents(
                 'agents',
                 element=ComplexAgentElement,
                 size=agents,
-                values={'configuration': configurations, 'spin': _spins_of(configurations)},
+                values={'configuration': configurations, 'spin': StandardizationInteraction._spins_of(configurations)},
             ),
         ],
         interactions=[

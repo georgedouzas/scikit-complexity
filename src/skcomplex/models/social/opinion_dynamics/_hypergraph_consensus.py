@@ -6,137 +6,18 @@
 import itertools
 import math
 from types import SimpleNamespace
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import exp, oo, pi, sin
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement, LatticeElement
-from ....core.interactions import HyperedgeInteraction
-from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import where
+from ....core.elements import GroupElement, LatticeElement
 from ....core.spaces import NetworkSpace
 from ....core.system import System
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec, VisualSpec
 from ..._catalog import register_model
-
-TRIANGLE = 3
-
-
-class OpinionElement(Element):
-    """Node of a consensus process with a continuous opinion.
-
-    Args:
-        label:
-            The label of the node or the group.
-
-        visual:
-            How the node is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial opinion.
-
-    Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import OpinionElement
-        >>> OpinionElement('node', x=0.5).x
-        0.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-
-
-class ScheduleElement(Element):
-    """Triangle of a temporal hypergraph, active in every other half of a period from its own phase.
-
-    Args:
-        label:
-            The label of the triangle or the group.
-
-        visual:
-            How the triangle is drawn, or `None` for `default_visual_`.
-
-        phase:
-            The phase of the schedule, in radians.
-
-    Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import ScheduleElement
-        >>> ScheduleElement('triangle', phase=1.0).phase
-        1.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        phase: Annotated[float, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.phase = phase
-
-
-class ThreeBodyConsensusInteraction(HyperedgeInteraction):
-    """Nonlinear three-body consensus of Neuhäuser, Mellor, and Lambiotte, on the triangles active at the time.
-
-    The focal node `i` of an active triangle `ijk` moves towards the two others at the rate `s(|x_j - x_k|) (x_j + x_k -
-    2 x_i)`, with `s(d) = exp(reinforcement * d)`, so a pair that agrees pulls harder for a negative reinforcement. A
-    triangle is active when `sin(2 pi t / period + phase) > 0`, with the phase of the triangle member of the group on
-    hyperedges.
-
-    Args:
-        label:
-            The label of the interaction, unique among the parts of its system.
-
-        target:
-            The path of the group of nodes.
-
-        triangles:
-            The path of the group of the schedules of the triangles.
-
-        reinforcement:
-            The exponent of the modulating function `s`.
-
-        period:
-            The period of the schedules.
-
-    Examples:
-        >>> from skcomplex.models.social.opinion_dynamics import ThreeBodyConsensusInteraction
-        >>> ThreeBodyConsensusInteraction('consensus', target='nodes', triangles='triangles').check().size
-        3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        triangles: Annotated[str, RoleSpec()],
-        reinforcement: Annotated[float, ParameterSpec()] = 0.0,
-        period: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, size=TRIANGLE)
-        self.target = target
-        self.triangles = triangles
-        self.reinforcement = reinforcement
-        self.period = period
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the pull of the two other members of an active triangle on the focal node."""
-        x = s.member.x
-        first, second = (other.x for other in s.others)
-        active = where(sin(2 * pi * s.t / s.period + s.hyperedge.phase) > 0, 1, 0)
-        pull = exp(s.reinforcement * abs(first - second)) * (first + second - 2 * x)
-        return [RateLaw(x, active * pull)]
+from ._opinion import OpinionElement
+from ._schedule import ScheduleElement
+from ._three_body_consensus import TRIANGLE, ThreeBodyConsensusInteraction
 
 
 def _spread(s: SimpleNamespace) -> object:
