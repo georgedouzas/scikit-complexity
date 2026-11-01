@@ -1,51 +1,49 @@
 # Tasks
 
-## 1. Three-dimensional continuous spaces on the Mesa backend
+## 1. Three-dimensional continuous spaces on `MesaSolver`
 
-- [ ] 1.1 Pass one bound per side of a `ContinuousSpace` to Mesa's `ContinuousSpace` in the Mesa backend, and place,
-  move, and query agents over every coordinate, and verify the three-dimensional box, depth boundary, and depth
-  distance scenarios
-- [ ] 1.2 Extend the Mesa backend's `Supports` declaration to continuous spaces of two and three dimensions, add the
-  `location-dimension` validation issue, widen `SpaceError` to locations that do not fit their space, and verify the
-  wrong number of coordinates and unsupported dimension scenarios
-- [ ] 1.3 Record the trajectories of an existing two-dimensional continuous model before the change and compare them
-  after it, and verify the two-dimensional space unchanged scenario
-
-## 2. Geographic spaces and the `geo` extra
-
-- [ ] 2.1 Add the `geo` optional extra with `mesa-geo` to `pyproject.toml`, install it in the development and CI
-  environments, and verify `pdm install`, `deptry`, and `pip-audit` pass on Linux and macOS for Python 3.12 and 3.13
-- [ ] 2.2 Add `SpaceKind.GEOGRAPHIC` to `skcomplex.core.base` and `GeoSpace` with its `Requires` declaration to
-  `skcomplex.core.space`, and add its adapter to `mesa_geo.GeoSpace` in the Mesa backend, with the lazy import, layer
-  reprojection, and `Supports` declaration, and verify the layer reprojected, unknown reference system, unsupported
-  solver, and extra missing scenarios
-- [ ] 2.3 Add `Group.from_layer` to `skcomplex.core.components`, the `layer-missing` validation issue, and the placement
-  of members at random points inside features from the model's generator, and verify the agents per census region,
-  missing layer, and reproducible placement scenarios
-- [ ] 2.4 Add the distance neighbours, `features_here`, `move_to`, and `move_to_feature` behaviour of the agent view in
-  geographic spaces, and verify the distance neighbours and move to a favourite place scenarios
-
-## 3. Trajectories and visualization
-
-- [ ] 3.1 Report three-dimensional and geographic locations in `AgentSnapshot`, and verify the three coordinates per
+- [ ] 1.1 Record the trajectories of an existing two-dimensional continuous agent model with random state 0, and verify
+  they load in a test
+- [ ] 1.2 Pass one bound per side of a `ContinuousSpace` to Mesa in `MesaSolver._build_space`, and place, measure, and
+  report agents over every side in `_place`, `ModelView.dimensions`, and `AgentView.displacement_to`, and verify the
+  three-dimensional box, depth boundary, depth distance, Gaussian steps in depth, and two-dimensional space unchanged
+  scenarios
+- [ ] 1.3 List continuous spaces of more than three sides or without an extent in `MesaSolver._unsupported`, add the
+  `location-dimension` issue to `PassCompiler`, widen `SpaceError` to locations that do not fit their space, and
+  verify the wrong number of coordinates and unsupported dimension scenarios
+- [ ] 1.4 Report three coordinates per agent in `AgentSnapshotSpec.locations`, and verify the three coordinates per
   agent scenario
-- [ ] 3.2 Draw three-dimensional agents as `Points3D`, and geographic layers as static `LineStrips2D` with agents as
+
+## 2. Region layers
+
+- [ ] 2.1 Add `regions` to `ContinuousSpace` with the derived `regions_` index of Shapely `STRtree`s and the check of
+  valid polygons, and verify the regions are indexed and invalid region scenarios
+- [ ] 2.2 Let `GroupElement(location=...)`, `ModelView.create`, and `AgentView.move_to` take a polygon, placed at a
+  random point inside it from the model's generator, and verify the agents per census region and reproducible
+  placement scenarios
+- [ ] 2.3 Add `AgentView.regions_here`, `ModelView.region`, and `ModelView.regions`, and verify the move to a favourite
+  place scenario with a `MovementInteraction`
+
+## 3. Visualization
+
+- [ ] 3.1 Draw three-dimensional agents as `Points3D`, and region layers as static `LineStrips2D` under the agents'
   `Points2D`, in `AgentsVisual`, and verify the boids in 3D and island map scenarios with a recording in memory
 
 ## 4. Models
 
-- [ ] 4.1 Add three-dimensional boids to `biology/collective_behaviour` as a registered factory, and verify the boids
-  align in three dimensions scenario
-- [ ] 4.2 Create `social/organizations` with the Kauai sentiment model and the synthetic island GeoJSON layers, and
-  verify the population follows the census layer and positive event raises sentiment scenarios
-- [ ] 4.3 Mark both models as implemented in the inventory with their vocabulary tags, and verify the inventory test
-  against the catalog passes
-- [ ] 4.4 Run the model conformance and layout tests, and verify both new models pass and import only public core names
+- [ ] 4.1 Add three-dimensional boids to `biology/collective_behaviour` as a registered factory built on an agent-form
+  `MapInteraction` and a `MovementInteraction` under the `'member'` schedule, and verify the boids align in three
+  dimensions scenario
+- [ ] 4.2 Create `social/organizations` with the Kauai sentiment model, built on `MovementInteraction` and agent-form
+  interactions, and the synthetic island GeoJSON layers, and verify the population follows the census layer and
+  positive event raises sentiment scenarios
+- [ ] 4.3 Mark `boids_3d` and `kauai_population` as implemented in `docs/overview/inventory.toml`, rename the primitive
+  `geographic-spaces` to `region-layers` with its description, retag both models, and verify the inventory check against the catalog passes
+- [ ] 4.4 Run the model conformance and layout tests, and verify both new models pass and import only public names
 
 ## 5. Documentation and gate
 
-- [ ] 5.1 Document three-dimensional and geographic spaces, the `geo` extra, and loading real census shapefiles in the
-  user guide with runnable examples, regenerate the compatibility table, and verify the documentation test passes
-- [ ] 5.2 Add the `geo` extra and its macOS floor to the Project Profile in a constitution amendment, and the change to
-  the changelog, and verify the changelog session builds
-- [ ] 5.3 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
+- [ ] 5.1 Document three-dimensional spaces, region layers, and how to reproject census shapefiles before passing their
+  polygons in the user guide with runnable examples, add the changelog entry, and verify the documentation build runs
+  the examples
+- [ ] 5.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
