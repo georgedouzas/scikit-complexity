@@ -15,7 +15,7 @@
 
 ## 3. Conservation and symmetry
 
-- [ ] 3.1 Add `SymmetrySpec` in `skcomplex.specs` and `InvariantAnalysis` in `analysis/_invariants.py` with the kinds
+- [x] 3.1 Add `SymmetrySpec` in `skcomplex.specs` and `InvariantAnalysis` in `analysis/_invariants.py` with the kinds
   `'brackets'`, `'conservation'`, and `'symmetry'` and the numeric fallback, with tests in
   `tests/analysis/test_invariants.py`; verify the energy and angular momentum, Jacobi integral, brackets without
   canonical pairs, rotation invariance, and broken symmetry scenarios

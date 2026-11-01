@@ -20,6 +20,7 @@ from ._ergodicity import ErgodicityAnalysis
 from ._events import EventAnalysis
 from ._fit import FitAnalysis
 from ._information import InformationAnalysis
+from ._invariants import InvariantAnalysis
 from ._irreversibility import IrreversibilityAnalysis
 from ._kramers_moyal import KramersMoyalAnalysis
 from ._large_deviations import LargeDeviationAnalysis
@@ -68,6 +69,7 @@ __all__: list[str] = [
     'EventAnalysis',
     'FitAnalysis',
     'InformationAnalysis',
+    'InvariantAnalysis',
     'IrreversibilityAnalysis',
     'KramersMoyalAnalysis',
     'LargeDeviationAnalysis',
