@@ -18,10 +18,10 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
+from skcomplex.analysis import DistributionAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
-from skcomplex.models.economics.markets._sugarscape import gini
 
 MODEL = 'sugarscape'
 
@@ -61,7 +61,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().pr
 
 trajectory = simulation.trajectory_
 times = trajectory.times
-initial = gini(trajectory.agents('foragers', 0).values['sugar'])
+initial = DistributionAnalysis('gini').check().prepare(trajectory.agents('foragers', 0).values['sugar']).run().gini_
 inequality = np.r_[initial, trajectory.values('census.gini')[1:]]
 wealth = np.sort(trajectory.agents('foragers', len(times) - 1).values['sugar'])
 lorenz = np.r_[0.0, np.cumsum(wealth) / wealth.sum()]

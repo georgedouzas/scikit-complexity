@@ -130,7 +130,7 @@ class MeanPulseInteraction(Interaction):
         ]
 
 
-class MeanFieldCouplingInteraction(Interaction):
+class MeanCouplingInteraction(Interaction):
     """Mean field coupling interaction."""
 
     def __init__(
@@ -213,7 +213,7 @@ def _kuramoto(size, *, observables=False):
         return (
             System(
                 elements=[oscillators],
-                interactions=[MeanFieldCouplingInteraction('coupling', target='oscillators', X='X', Y='Y', K=2.0)],
+                interactions=[MeanCouplingInteraction('coupling', target='oscillators', X='X', Y='Y', K=2.0)],
             ),
             theta,
             omega,

@@ -385,7 +385,7 @@ def _hutchinson_run(jacobian):
 SIZE = 400
 
 
-class ThresholdInteraction(Interaction):
+class LevelInteraction(Interaction):
     """Threshold interaction."""
 
     def __init__(
@@ -464,7 +464,7 @@ def _event_time(size, jacobian):
         Simulation(
             System(
                 elements=[field],
-                interactions=[ThresholdInteraction('threshold', line='line', level=1.5 * initial.sum())],
+                interactions=[LevelInteraction('threshold', line='line', level=1.5 * initial.sum())],
             ),
             solver=ScipyODESolver(method='BDF', jacobian=jacobian),
             dt=1.0,
