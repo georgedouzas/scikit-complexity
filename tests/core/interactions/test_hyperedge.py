@@ -226,3 +226,50 @@ def test_edge_group_of_a_hyperedge_without_an_edge_is_reported():
     assert 'no edge between the first two members' in issue.message
     with pytest.raises(ValidationError, match='no edge between'):
         compile_system(system)
+
+
+def _growing(interaction):
+    """Return a network of four nodes whose groups on the nodes and on the triangles are variable."""
+    nodes = GroupElement('nodes', element=NodeElement, on='sites', variable=True, capacity=8)
+    triangles = GroupElement('triangles', element=LinkElement, on='hyperedges', variable=True, capacity=4)
+    space = NetworkSpace(nx.complete_graph(4), hyperedges=[[0, 1, 2]])
+    return System(elements=[nodes, triangles], interactions=[interaction], space=space)
+
+
+@BACKENDS
+def test_hyperedge_law_reads_the_hyperedges_of_a_growing_network(backend):
+    """Test that the drift follows the hyperedges written into the rows of a variable group, without its free rows."""
+    problem = compile_system(_growing(PullInteraction('pull', nodes='nodes')), backend=backend)
+    hyperedges = [[0, 1, 2], [1, 2, 3], [0, 2, 3]]
+    parameters = np.array(problem.initial_parameters, dtype=float)
+    _, members = problem.parameters.locate('triangles._members')
+    _, active = problem.parameters.locate('triangles._active')
+    parameters[members] = np.ravel([*hyperedges, [5, 5, 5]])
+    parameters[active] = [1.0, 1.0, 1.0, 0.0]
+    state = np.random.default_rng(1).random(np.size(problem.initial_state))
+    values = problem.states.read(state, 'nodes.x')
+    expected = np.zeros(8)
+    for hyperedge in hyperedges:
+        expected[hyperedge] += values[hyperedge].sum() - 3 * values[hyperedge]
+    drift = problem.states.read(problem.drift(0.0, state, parameters), 'nodes.x')
+    np.testing.assert_allclose(drift, expected, atol=1e-12)
+
+
+def test_hyperedge_update_of_the_focal_member_of_a_growing_network_is_reported():
+    """Test that an update of the focal member on hyperedges that change is reported."""
+
+    class SetInteraction(HyperedgeInteraction):
+        """Update of every member to the mean of its hyperedge."""
+
+        def __init__(self, label: str, nodes: Annotated[str, RoleSpec()]) -> None:
+            super().__init__(label)
+            self.nodes = nodes
+
+        def _get_laws(self, s):
+            """Return the update of the focal member."""
+            return [UpdateLaw(s.member.x, mean(s.members.x, over=s.members))]
+
+    system = _growing(SetInteraction('set', nodes='nodes'))
+    system.time = DiscreteTime()
+    with pytest.raises(ValidationError, match='change during a run'):
+        Simulation(system).check()

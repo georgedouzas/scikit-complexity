@@ -1,4 +1,4 @@
-"""Processes on hypergraphs: the size-biased random walk that crosses hyperedges in proportion to their sizes."""
+"""Hypergraphs: the size-biased random walk across hyperedges, and the simplicial complex that grows by triangles."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,14 +12,15 @@ import xgi
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, LatticeElement
-from ....core.interactions import HyperedgeInteraction
-from ....core.laws import BaseLaw, RateLaw
+from ....core.elements import Element, GroupElement, LatticeElement
+from ....core.interactions import HyperedgeInteraction, TopologyInteraction
+from ....core.laws import BaseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import total
-from ....core.spaces import NetworkSpace
+from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._growth import LinkElement, VertexElement, _get_bookkeeping
 
 
 class WalkerDensityElement(Element):
@@ -150,3 +151,121 @@ def hypergraph_random_walk(
         visual=VisualSpec('sites', {'states': ['p'], 'low': 0.0, 'high': 1.0}),
     )
     return System(elements=[nodes], interactions=[SizeBiasedMoveInteraction('moves', target='nodes')])
+
+
+class SimplexElement(Element):
+    """Triangle of a growing simplicial complex, with its age in steps.
+
+    Args:
+        label:
+            The label of the triangle or the group on the triangles.
+
+        visual:
+            How the triangle is drawn, or `None` for `default_visual_`.
+
+        age:
+            The number of steps since the triangle joined.
+
+    Attributes:
+        default_visual_:
+            The visual of the triangle when it sets none.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.networks import SimplexElement
+        >>> SimplexElement('triangles').age
+        0.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.age = age
+
+
+class SimplexAgeingInteraction(HyperedgeInteraction):
+    """Ageing of every triangle of a simplicial complex by one per step.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        nodes:
+            The path of the group on the nodes.
+
+        triangles:
+            The path of the group on the triangles.
+
+    Examples:
+        >>> from skcomplex.models.mathematics.networks import SimplexAgeingInteraction
+        >>> SimplexAgeingInteraction('ageing', nodes='nodes', triangles='triangles').size
+        3
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        nodes: Annotated[str, RoleSpec()],
+        triangles: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label, size=3)
+        self.nodes = nodes
+        self.triangles = triangles
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the ageing of the triangle."""
+        return [UpdateLaw(s.hyperedge.age, s.hyperedge.age + 1)]
+
+
+@register_model(
+    field='mathematics/networks',
+    tags=('simplicial complex', 'hypergraph', 'growth', 'network geometry', 'scale-free'),
+    references=('Bianconi and Rahmede 2016', 'Majhi et al. 2022'),
+    defaults={'until': 300},
+)
+def growing_simplicial_complex(n_nodes: int = 303) -> System:
+    """Return a simplicial complex that grows by gluing one triangle per step along an edge drawn uniformly.
+
+    The complex starts as one triangle, and every step one node joins and forms a triangle with the ends of an edge
+    drawn uniformly, adding two edges, as the network geometry with flavor `s = 0` of Bianconi and Rahmede in two
+    dimensions. A node gains triangles in proportion to its degree, so the degrees follow the power law
+    `P(k) ~ k^-3` of preferential attachment, and every triangle ages by one per step.
+
+    Args:
+        n_nodes:
+            The number of nodes the complex holds room for.
+
+    Returns:
+        system:
+            The model, with the groups `nodes`, `links`, and `triangles`, and the arrival `growth`.
+
+    Examples:
+        >>> from skcomplex.engine.runtime import Simulation
+        >>> from skcomplex.models.mathematics.networks import growing_simplicial_complex
+        >>> simulation = Simulation(growing_simplicial_complex(13), random_state=0).check().prepare()
+        >>> simulation.run(until=10).trajectory_.network(-1).hyperedges.shape
+        (11, 3)
+    """
+    nodes = GroupElement(
+        'nodes',
+        element=VertexElement,
+        on='sites',
+        variable=True,
+        capacity=n_nodes,
+        values={'age': 1.0},
+    )
+    links = GroupElement('links', element=LinkElement, on='edges', variable=True, capacity=2 * n_nodes)
+    triangles = GroupElement('triangles', element=SimplexElement, on='hyperedges', variable=True, capacity=n_nodes)
+    growth = TopologyInteraction('growth', action='add-node', hyperedge=3)
+    ageing = SimplexAgeingInteraction('triangle_ageing', nodes='nodes', triangles='triangles')
+    return System(
+        elements=[nodes, links, triangles],
+        interactions=[growth, ageing, *_get_bookkeeping()],
+        space=NetworkSpace(nx.complete_graph(3), hyperedges=[[0, 1, 2]]),
+        time=DiscreteTime(),
+    )

@@ -487,10 +487,12 @@ def test_hilbert_spec_checks_its_space(spec, message):
         (TopologyRequestSpec('rewire', keep='middle'), 'source or the target'),
         (TopologyRequestSpec('add-node', edges=1.5), 'whole number'),
         (TopologyRequestSpec('add-node', edges=-1), 'whole number'),
+        (TopologyRequestSpec('add-node', hyperedge=1), 'at least 2 members'),
+        (TopologyRequestSpec('add-edge', hyperedge=3), 'forms no hyperedge'),
     ],
 )
 def test_topology_request_spec_checks_its_kind_end_and_edges(spec, message):
-    """Test that a topology request needs a known kind and kept end and a whole number of edges."""
+    """Test that a topology request needs a known kind and kept end, whole edges, and a hyperedge of a new node."""
     with pytest.raises(ValidationError, match=message):
         spec.check()
 

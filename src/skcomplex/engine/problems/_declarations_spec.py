@@ -17,6 +17,7 @@ from ._block_spec import BlockSpec
 
 _ACTIVE = '_active'
 ENDS = ('_source', '_target')
+MEMBERS = '_members'
 
 
 @dataclass(frozen=True)

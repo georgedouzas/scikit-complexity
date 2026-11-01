@@ -14,7 +14,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class NetworkSnapshotSpec(BaseSpec):
-    """Nodes and edges of a network layer at one frame.
+    """Nodes, edges, and hyperedges of a network layer at one frame.
 
     Args:
         nodes:
@@ -28,12 +28,17 @@ class NetworkSnapshotSpec(BaseSpec):
 
         edges:
             The row of every edge present in its edge group.
+
+        hyperedges:
+            The member nodes of every hyperedge present, one row per hyperedge, or `None` for a network whose
+            hyperedges do not change.
     """
 
     nodes: npt.NDArray[np.intp]
     sources: npt.NDArray[np.intp]
     targets: npt.NDArray[np.intp]
     edges: npt.NDArray[np.intp]
+    hyperedges: npt.NDArray[np.intp] | None = None
 
     def graph(self) -> nx.Graph:
         """Return the NetworkX graph of the snapshot, whose nodes are the node rows present.

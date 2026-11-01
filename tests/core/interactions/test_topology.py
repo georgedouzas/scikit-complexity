@@ -7,12 +7,16 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.interactions import TopologyInteraction
-from skcomplex.core.spaces import NetworkSpace
+from skcomplex.core.interactions import BaseInteraction, HyperedgeInteraction, TopologyInteraction
+from skcomplex.core.laws import UpdateLaw
+from skcomplex.core.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.errors import ValidationError
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import RoleSpec, StateSpec, VisualSpec
+
+BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 
 
 class MarkedElement(Element):
@@ -27,6 +31,48 @@ class MarkedElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.mark = mark
+
+
+class TriangleElement(Element):
+    """Triangle with its age in steps."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        age: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.age = age
+
+
+class AgeingInteraction(HyperedgeInteraction):
+    """Ageing of every triangle by one per step."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        nodes: Annotated[str, RoleSpec()],
+        triangles: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label, size=3)
+        self.nodes = nodes
+        self.triangles = triangles
+
+    def _get_laws(self, s):
+        """Return the ageing of the triangle."""
+        return [UpdateLaw(s.hyperedge.age, s.hyperedge.age + 1)]
+
+
+def _triangles(*interactions: BaseInteraction, capacity: int = 60) -> System:
+    """Return a network of one triangle whose groups on nodes, edges, and triangles are variable."""
+    nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=capacity)
+    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=3 * capacity)
+    triangles = GroupElement('triangles', element=TriangleElement, on='hyperedges', variable=True, capacity=capacity)
+    space = NetworkSpace(nx.complete_graph(3), hyperedges=[[0, 1, 2]])
+    return System(elements=[nodes, links, triangles], interactions=list(interactions), space=space, time=DiscreteTime())
 
 
 def _run(graph: nx.Graph, change: TopologyInteraction, until: float, dt: float = 1.0, **values: object) -> Trajectory:
@@ -131,6 +177,51 @@ def test_get_laws_rate_removes_edges_by_jumps():
     assert _sizes(trajectory, 40)[1] / 400 == pytest.approx(np.exp(-1.0), abs=0.06)
 
 
+@BACKENDS
+def test_get_laws_add_node_with_a_hyperedge_attaches_a_triangle_per_step(backend):
+    """Test that 50 nodes added with triangles to one triangle give 51 triangles, each new node in one of them."""
+    growth = TopologyInteraction('growth', action='add-node', hyperedge=3)
+    ageing = AgeingInteraction('ageing', nodes='nodes', triangles='triangles')
+    simulation = Simulation(_triangles(growth, ageing), backend=backend, random_state=0).check().prepare()
+    trajectory = simulation.run(until=50).trajectory_
+    network = trajectory.network(-1)
+    graph = network.graph()
+    assert network.hyperedges.shape == (51, 3)
+    assert (len(network.nodes), len(network.sources)) == (53, 3 + 2 * 50)
+    assert set(range(3, 53)) <= set(network.hyperedges.ravel().tolist())
+    assert all(graph.has_edge(first, second) for first, second, _ in network.hyperedges)
+    assert all(graph.has_edge(member, new) for *ends, new in network.hyperedges for member in ends)
+    ages = np.asarray(trajectory.values('triangles.age')[-1])
+    assert sorted(ages[~np.isnan(ages)].tolist()) == list(range(51))
+
+
+def test_get_laws_remove_node_removes_the_hyperedges_that_hold_it():
+    """Test that a removed node takes the triangles that hold it with it."""
+    removal = TopologyInteraction(
+        'removal',
+        target='nodes',
+        action='remove-node',
+        condition=lambda s: s.source.mark > 0,
+    )
+    system = _triangles(removal)
+    system.elements[0].values = {'mark': [1.0, 0.0, 0.0]}
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    assert trajectory.network(0).hyperedges.shape == (1, 3)
+    assert trajectory.network(1).hyperedges.shape == (0, 3)
+
+
+def test_get_laws_add_node_with_a_hyperedge_needs_a_hyperedge_group_of_its_size():
+    """Test that growth by hyperedges of another size than the group, or without one, is reported."""
+    growth = TopologyInteraction('growth', action='add-node', hyperedge=4)
+    with pytest.raises(ValidationError, match='size 3'):
+        Simulation(_triangles(growth), random_state=0).check().prepare()
+    nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=8)
+    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=24)
+    system = System(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.complete_graph(3)))
+    with pytest.raises(ValidationError, match='variable group on its hyperedges'):
+        Simulation(system, random_state=0).check().prepare()
+
+
 def test_check_rejects_an_edge_action_without_target():
     """Test that an action other than a node addition needs a target."""
     with pytest.raises(ValidationError):
@@ -146,6 +237,8 @@ def test_check_rejects_an_edge_action_without_target():
         {'toward': 'degree'},
         {'keep': 'both'},
         {'edges': -1},
+        {'action': 'add-edge', 'hyperedge': 3},
+        {'action': 'add-node', 'hyperedge': 1},
     ],
 )
 def test_check_rejects_invalid_arguments(arguments):

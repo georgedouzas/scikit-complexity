@@ -225,7 +225,7 @@ class LawKernel(BaseKernel):
     ) -> object:
         """Return the values of a symbol read at neighbouring sites or derived by a global operator."""
         if reference.source is ReadKind.NEIGHBOR:
-            return reference.shifted.read(reference.column_of(x, p))
+            return reference.shifted.read(reference.column_of(x, p), p)
         read = reference.derived
         values = [self._gather(item, x, p, pairs, t) for item in read.symbols]
         return read.run(RunStateSpec(t, read.operand_values(t, values, reference.entry.rows), p)).values_
@@ -519,6 +519,12 @@ class LawKernel(BaseKernel):
             ends = pairs.sources if reference.source is ReadKind.FIRST else pairs.targets
             return (reference.entry.start + ends * reference.entry.columns + reference.column).astype(np.intp)
         if reference.source is ReadKind.NEIGHBOR:
+            if reference.shifted.entry is not None:
+                error_msg = (
+                    f'A law targets {reference.entry.name} at the members of hyperedges that change during a run, '
+                    'whose members a fixed channel cannot follow. Write a rate or an update in place of a jump.'
+                )
+                raise ValidationError(error_msg)
             table = np.asarray(reference.shifted.table, dtype=np.intp)
             inside = table < reference.entry.rows
             flat = reference.entry.start + table * reference.entry.columns + reference.column

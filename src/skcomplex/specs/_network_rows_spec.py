@@ -17,7 +17,7 @@ from ._network_snapshot_spec import NetworkSnapshotSpec
 
 @dataclass(frozen=True)
 class NetworkRowsSpec(BaseSpec):
-    """Variable groups of one network: the groups on its nodes and the edge group of every changing layer.
+    """Variable groups of one network: the groups on its nodes, the edge group of every changing layer, and hyperedges.
 
     Args:
         nodes:
@@ -28,11 +28,15 @@ class NetworkRowsSpec(BaseSpec):
 
         directed:
             Whether the edges of every layer are directed.
+
+        hyperedges:
+            The variable group on the hyperedges of the network, or `None` for hyperedges that do not change.
     """
 
     nodes: tuple[CapacityRowsSpec, ...]
     edges: Mapping[str | None, CapacityRowsSpec]
     directed: Mapping[str | None, bool]
+    hyperedges: CapacityRowsSpec | None = None
 
     def present(self, p: Array) -> npt.NDArray[np.bool_]:
         """Return whether every node row holds a node.
@@ -108,9 +112,13 @@ class NetworkRowsSpec(BaseSpec):
         edges = self.edges[layer]
         present = edges.present(p)
         sources, targets = edges.ends(p)
+        hyperedges = None
+        if self.hyperedges is not None:
+            hyperedges = self.hyperedges.hyperedges(p)[self.hyperedges.present(p)]
         return NetworkSnapshotSpec(
             np.flatnonzero(self.present(p)).astype(np.intp),
             sources[present],
             targets[present],
             np.flatnonzero(present).astype(np.intp),
+            hyperedges,
         )
