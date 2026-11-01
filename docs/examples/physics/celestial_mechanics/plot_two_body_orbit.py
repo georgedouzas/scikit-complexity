@@ -6,15 +6,16 @@ approach and crawling at its farthest point, so that the line to the star sweeps
 """
 
 # %%
-# The planet starts at its closest approach, 10 units from the star, with the speed of an orbit of eccentricity 0.6.
-# Its period is `2π sqrt(a^3 / (G M))`, about 24.8 for the semi-major axis `a = 25`, and the run covers one period.
-# The default blueprint shows the bodies in the plane, with the path of the planet.
+# The planet moves in its coordinate relative to the star, under the Hamiltonian `H = |p|^2 / 2 - G M / |q|` of the
+# Kepler problem. It starts at its closest approach, 10 units from the star, with the speed of an orbit of eccentricity
+# 0.6. Its period is `2π sqrt(a^3 / (G M))`, about 24.8 for the semi-major axis `a = 25`, and the run covers one period
+# with the symplectic Yoshida solver of fourth order. The default blueprint shows the star and the path of the planet.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4Solver
+from skcomplex.engine.solvers import Yoshida4Solver
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
 
@@ -22,23 +23,24 @@ MODEL = 'two_body_orbit'
 
 system = create(MODEL, eccentricity=0.6, mass=1000.0, radius=10.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.05, solver=RK4Solver(), observers=[observer]).check().prepare().run(until=24.8)
+simulation = (
+    Simulation(system, dt=0.05, solver=Yoshida4Solver(), observers=[observer]).check().prepare().run(until=24.8)
+)
 
 # %%
 # Kepler's first and second laws
 # ------------------------------
 # The orbit should lie on the ellipse `r(θ) = p / (1 + e cos θ)` with `p = 10 (1 + e)`, and the areal velocity
-# `|x v_y - y v_x| / 2` should stay constant along the orbit.
+# `|x p_y - y p_x| / 2`, half the angular momentum, should stay constant along the orbit.
 
 trajectory = simulation.trajectory_
-relative = np.asarray(trajectory.values('planet.x')) - np.asarray(trajectory.values('star.x'))
-velocity = np.asarray(trajectory.values('planet.x_d1')) - np.asarray(trajectory.values('star.x_d1'))
-areal = np.abs(relative[:, 0] * velocity[:, 1] - relative[:, 1] * velocity[:, 0]) / 2
+x, y, px, py = (np.ravel(trajectory.values(f'planet.{name}')) for name in ('x', 'y', 'px', 'py'))
+areal = np.abs(x * py - y * px) / 2
 angles = np.linspace(0, 2 * np.pi, 400)
 radius = 10 * 1.6 / (1 + 0.6 * np.cos(angles))
 fig, (orbit, area) = plt.subplots(1, 2, figsize=(10, 4))
 orbit.plot(radius * np.cos(angles), radius * np.sin(angles), color='black', linewidth=3, alpha=0.3, label='ellipse')
-orbit.plot(relative[:, 0], relative[:, 1], label='simulated')
+orbit.plot(x, y, label='simulated')
 orbit.plot(0, 0, '*', color='orange', markersize=12, label='star')
 orbit.set_aspect('equal')
 orbit.set_xlabel('x')

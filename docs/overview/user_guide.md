@@ -1537,7 +1537,7 @@ visuals are parts of the engine, beside those of every other kind.
 | kinetics | `EncounterLaw`, `moment` | the encounter passes, `KineticSolver` |
 | fractional | `StateSpec(order=...)` in `(0, 1)`, `FractionalNoiseLaw` | the fractional passes, `FractionalABMSolver`, `GrunwaldLetnikovSolver`, `FractionalEulerMaruyamaSolver` |
 | topology | `TopologyRequestSpec` | the topology passes |
-| particles | `PointElement`, `GradientInteraction`, `PairCouplingInteraction` | `VelocityVerletSolver`, `LammpsSolver` |
+| particles | `PointElement`, `GradientInteraction`, `PairCouplingInteraction` | `VelocityVerletSolver`, `Yoshida4Solver`, `LammpsSolver` |
 | control | `ParameterSpec(adaptive=True, bounds=...)` | `PontryaginSolver`, `CollocationSolver` |
 
 Every compiler derives from `BaseCompiler`: `check()` validates its settings, `prepare(system)` validates the system and
@@ -1750,6 +1750,60 @@ lagrangian = lambda s: derivative(s.target.q, 1) ** 2 / 2 + cos(s.target.q)
 swing = EulerLagrangeInteraction('swing', target='bob', states='q', lagrangian=lagrangian)
 system = System(elements=[AngleElement('bob')], interactions=[swing])
 print(round(float(Simulation(system, dt=0.01).check().prepare().run(until=3.2).trajectory_.values('bob.q')[-1]), 2))
+```
+
+`HamiltonianInteraction(target, coordinates='q', momenta='p', hamiltonian=None)` writes Hamilton's equations
+`q' = dH/dp` and `p' = -dH/dq` of a Hamiltonian as rate laws of canonical coordinates and momenta, states of order 1
+that may be angles. The rates of one state add, so the Hamiltonians of separate interactions sum. `Yoshida4Solver`
+integrates a separable Hamiltonian at fourth order by three velocity Verlet steps, after splitting the states into two
+blocks whose rates read only the other block, and keeps its energy bounded over long runs. `InvariantAnalysis`
+computes Poisson brackets over the canonical pairs, decides whether expressions given as `ObservableSpec`s are
+conserved, and checks a `SymmetrySpec` against the Hamiltonian or the Lagrangian, with its Noether charge.
+
+```python
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import sqrt
+
+from skcomplex.analysis import InvariantAnalysis
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import HamiltonianInteraction
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import Yoshida4Solver
+from skcomplex.specs import ObservableSpec, StateSpec, SymmetrySpec
+
+
+class PlanetElement(Element):
+    def __init__(
+        self,
+        label,
+        *,
+        x: Annotated[float, StateSpec()] = 1.0,
+        y: Annotated[float, StateSpec()] = 0.0,
+        px: Annotated[float, StateSpec()] = 0.0,
+        py: Annotated[float, StateSpec()] = 1.0,
+    ):
+        super().__init__(label)
+        self.x = x
+        self.y = y
+        self.px = px
+        self.py = py
+
+
+def kepler(s):
+    return (s.target.px**2 + s.target.py**2) / 2 - 1 / sqrt(s.target.x**2 + s.target.y**2)
+
+
+coordinates, momenta = ('x', 'y'), ('px', 'py')
+gravity = HamiltonianInteraction('gravity', target='sun', coordinates=coordinates, momenta=momenta, hamiltonian=kepler)
+system = System(elements=[PlanetElement('sun')], interactions=[gravity])
+trajectory = Simulation(system, solver=Yoshida4Solver(dt=0.01), dt=1.0).check().prepare().run(until=6.2832).trajectory_
+print(round(float(trajectory.values('sun.x')[-1]), 6))
+momentum = ObservableSpec('angular_momentum', lambda s: s.sun.x * s.sun.py - s.sun.y * s.sun.px)
+print(InvariantAnalysis(expressions=[momentum]).check().prepare(system).run().conserved_)
+rotation = SymmetrySpec('rotation', lambda s: {'sun.x': -s.sun.y, 'sun.y': s.sun.x})
+print(InvariantAnalysis('symmetry', symmetry=rotation).check().prepare(system).run().charge_)
 ```
 
 `ConservationInteraction(target, state, flux, source=None, limiter='minmod', riemann='rusanov')` conserves a state of

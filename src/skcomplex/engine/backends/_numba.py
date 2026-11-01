@@ -223,7 +223,11 @@ class NumbaBackend(BaseBackend):
         has_loop = bool(accelerated_loop) and all(compiled[kind] for kind in needed)
         bounded = 'HAS_BOUNDARY = True\n' if BoundaryLaw in needed else NO_BOUNDARY
         loops = (
-            [bounded, LOOPS[accelerated_loop], LOOPS['velocity_verlet'] if form == FormKind.ODE else '']
+            [
+                bounded,
+                LOOPS[accelerated_loop],
+                *([LOOPS['velocity_verlet'], LOOPS['yoshida4']] if form == FormKind.ODE else []),
+            ]
             if has_loop
             else []
         )
@@ -337,9 +341,20 @@ class NumbaBackend(BaseBackend):
         """Return the compiled stepper loop of a form bound to the layout."""
         function = getattr(module, loop)
         if loop == 'rk4':
-            verlet = module.velocity_verlet
+            verlet, yoshida4 = module.velocity_verlet, module.yoshida4
             return AcceleratedSpec(
                 rk4=lambda t, x, p, until, h: function(t, x, p, layout, until, h),
+                yoshida4=lambda t, x, p, until, h, first, second, weights: yoshida4(
+                    t,
+                    x,
+                    p,
+                    layout,
+                    until,
+                    h,
+                    first,
+                    second,
+                    weights,
+                ),
                 velocity_verlet=lambda t, x, p, until, h, positions, velocities: verlet(
                     t,
                     x,

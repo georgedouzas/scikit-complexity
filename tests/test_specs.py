@@ -52,6 +52,7 @@ from skcomplex.specs import (
     ScheduleSpec,
     StableMatchingSpec,
     StateSpec,
+    SymmetrySpec,
     TopologyRequestSpec,
     VisualSpec,
     WienerProcessSpec,
@@ -809,5 +810,15 @@ def test_matching_rule_specs_reject_invalid_settings(spec, message):
 )
 def test_check_agent_coupling_specs_reject_invalid_settings(spec, message):
     """Test that a radius or a clamp with an invalid setting raises an error naming it."""
+    with pytest.raises(ValidationError, match=message):
+        spec.check()
+
+
+@pytest.mark.parametrize(
+    ('spec', 'message'),
+    [(SymmetrySpec('', lambda s: {}), 'empty label'), (SymmetrySpec('rotation', 'turn'), 'generator')],
+)
+def test_check_symmetry_spec_rejects_invalid_settings(spec, message):
+    """Test that a symmetry with an empty label or a generator that is not callable raises an error naming it."""
     with pytest.raises(ValidationError, match=message):
         spec.check()

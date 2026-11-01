@@ -74,6 +74,7 @@ from ._state_spec import StateSpec
 from ._step_spec import StepSpec
 from ._structure_state_spec import StructureStateSpec
 from ._support_spec import SupportSpec
+from ._symmetry_spec import SymmetrySpec
 from ._table_spec import TableSpec
 from ._table_values_spec import TableValuesSpec
 from ._topology_request_spec import EDGE_KINDS, ENDS, TOPOLOGY_KINDS, TopologyRequestSpec
@@ -168,6 +169,7 @@ __all__ = [
     'StepSpec',
     'StructureStateSpec',
     'SupportSpec',
+    'SymmetrySpec',
     'TableSpec',
     'TableValuesSpec',
     'TopologyRequestSpec',

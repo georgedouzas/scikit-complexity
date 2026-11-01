@@ -4,17 +4,38 @@
 # License: MIT
 
 
-from sage.all__sagemath_symbolics import cos
+from types import SimpleNamespace
 
-from ....core.interactions import RateInteraction
+from sage.all__sagemath_symbolics import Expression, cos
+
+from ....core.interactions import HamiltonianInteraction, RateInteraction
 from ....core.laws.utils import derivative
 from ....core.system import System
+from ....engine.solvers import Yoshida4Solver
+from ....specs import ObservableSpec
 from ..._catalog import register_model
 from ..common.oscillators import StuartLandauElement
 from ._adler_phase import AdlerPhaseElement
 from ._duffing import DuffingElement
 from ._henon_heiles import HenonHeilesElement
 from ._van_der_pol import VanDerPolElement
+
+
+def _get_henon_heiles_energy(star: SimpleNamespace) -> Expression:
+    """Return the Hénon-Heiles energy `(px² + py²) / 2 + (x² + y²) / 2 + x² y - y³ / 3` of a star."""
+    kinetic = (star.px**2 + star.py**2) / 2
+    return kinetic + (star.x**2 + star.y**2) / 2 + star.x**2 * star.y - star.y**3 / 3
+
+
+def _get_henon_heiles_hamiltonian(s: SimpleNamespace) -> Expression:
+    """Return the Hénon-Heiles Hamiltonian of the target."""
+    return _get_henon_heiles_energy(s.target)
+
+
+def _get_henon_heiles_observables(system: System) -> list[ObservableSpec]:
+    """Return the energy of the star."""
+    del system
+    return [ObservableSpec('energy', _get_henon_heiles_energy, element='star')]
 
 
 @register_model(
@@ -118,12 +139,15 @@ def van_der_pol(x: float = 2.0, v: float = 0.0, *, mu: float = 1.0) -> System:
 
 @register_model(
     field='physics/nonlinear_oscillators',
-    tags=('chaos', 'ode', 'second order', 'hamiltonian'),
+    tags=('chaos', 'ode', 'hamiltonian'),
     references=('Hénon and Heiles 1964', 'Datseris and Parlitz 2022'),
-    defaults={'until': 200.0, 'dt': 0.05},
+    defaults={'until': 200.0, 'dt': 0.05, 'solver': Yoshida4Solver(dt=0.01), 'invariants': {'star.energy': 1e-6}},
+    observables=_get_henon_heiles_observables,
 )
 def henon_heiles(x: float = 0.0, y: float = 0.1, px: float = 0.35, py: float = 0.0) -> System:
     """Return the Hénon-Heiles model of a star in a galactic potential, whose motion is chaotic at higher energies.
+
+    The star moves under the Hamiltonian `H = (px² + py²) / 2 + (x² + y²) / 2 + x² y - y³ / 3`, which is conserved.
 
     Args:
         x:
@@ -140,15 +164,25 @@ def henon_heiles(x: float = 0.0, y: float = 0.1, px: float = 0.35, py: float = 0
 
     Returns:
         system:
-            The model, with the coordinates `star.x` and `star.y` of order 2 and their momenta `star.x_d1` and
-            `star.y_d1`.
+            The model, with the coordinates `star.x` and `star.y` and their momenta `star.px` and `star.py`.
 
     Examples:
         >>> from skcomplex.models.physics.nonlinear_oscillators import henon_heiles
-        >>> henon_heiles(px=0.3).elements[0].x_d1
+        >>> henon_heiles(px=0.3).elements[0].px
         0.3
     """
-    return System(elements=[HenonHeilesElement('star', x=x, y=y, x_d1=px, y_d1=py)])
+    return System(
+        elements=[HenonHeilesElement('star', x=x, y=y, px=px, py=py)],
+        interactions=[
+            HamiltonianInteraction(
+                'motion',
+                target='star',
+                coordinates=('x', 'y'),
+                momenta=('px', 'py'),
+                hamiltonian=_get_henon_heiles_hamiltonian,
+            ),
+        ],
+    )
 
 
 @register_model(

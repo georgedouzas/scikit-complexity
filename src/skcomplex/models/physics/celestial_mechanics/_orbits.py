@@ -11,14 +11,15 @@ from types import SimpleNamespace
 import numpy as np
 from sage.all__sagemath_symbolics import Expression, cos, sqrt
 
-from ....core.interactions import EulerLagrangeInteraction, GradientInteraction
-from ....core.laws.utils import derivative
+from ....core.interactions import GradientInteraction, HamiltonianInteraction
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
-from ....engine.solvers import RK4Solver
+from ....engine.solvers import RK4Solver, Yoshida4Solver
 from ....errors import ValidationError
+from ....specs import ObservableSpec
 from ..._catalog import register_model
 from ..common.particles import GravityInteraction, MassPointElement
+from ._kepler_body import KeplerBodyElement
 from ._rotating_frame_body import RotatingFrameBodyElement
 from ._sitnikov_body import SitnikovBodyElement
 from .types import Preset
@@ -54,14 +55,39 @@ INNER_SOLAR_SYSTEM: Preset = (
 PRESETS = {'figure_eight': FIGURE_EIGHT, 'inner_solar_system': INNER_SOLAR_SYSTEM}
 
 
-def _get_rotating_frame_lagrangian(s: SimpleNamespace) -> Expression:
-    """Return the Lagrangian of a light body in the frame that rotates with two primaries at unit angular velocity."""
-    body = s.target
-    vx, vy = derivative(body.x, 1), derivative(body.y, 1)
+def _get_kepler_energy(body: SimpleNamespace) -> Expression:
+    """Return the energy `|p|^2 / 2 - G M / |q|` per unit mass of a planet relative to its star."""
+    return (body.px**2 + body.py**2) / 2 - body.G * body.mass / sqrt(body.x**2 + body.y**2)
+
+
+def _get_kepler_hamiltonian(s: SimpleNamespace) -> Expression:
+    """Return the Hamiltonian of the Kepler problem of the target."""
+    return _get_kepler_energy(s.target)
+
+
+def _get_rotating_frame_energy(body: SimpleNamespace) -> Expression:
+    """Return the Hamiltonian of a light body in the frame that rotates with two primaries at unit angular velocity."""
     first = sqrt((body.x + body.mu) ** 2 + body.y**2)
     second = sqrt((body.x - 1 + body.mu) ** 2 + body.y**2)
-    kinetic = (vx**2 + vy**2) / 2 + body.x * vy - body.y * vx + (body.x**2 + body.y**2) / 2
-    return kinetic + (1 - body.mu) / first + body.mu / second
+    kinetic = (body.px**2 + body.py**2) / 2 + body.y * body.px - body.x * body.py
+    return kinetic - (1 - body.mu) / first - body.mu / second
+
+
+def _get_rotating_frame_hamiltonian(s: SimpleNamespace) -> Expression:
+    """Return the Hamiltonian of the rotating frame of the target."""
+    return _get_rotating_frame_energy(s.target)
+
+
+def _get_kepler_observables(system: System) -> list[ObservableSpec]:
+    """Return the energy of the planet."""
+    del system
+    return [ObservableSpec('energy', _get_kepler_energy, element='planet')]
+
+
+def _get_rotating_frame_observables(system: System) -> list[ObservableSpec]:
+    """Return the Hamiltonian of the light body, minus half its Jacobi constant."""
+    del system
+    return [ObservableSpec('energy', _get_rotating_frame_energy, element='body')]
 
 
 def _get_sitnikov_potential(s: SimpleNamespace) -> Expression:
@@ -80,9 +106,10 @@ def _preset(name: str) -> Preset:
 
 @register_model(
     field='physics/celestial_mechanics',
-    tags=('mechanics', 'ode', 'gravity'),
+    tags=('mechanics', 'ode', 'gravity', 'hamiltonian'),
     references=('Kepler 1609', 'Newton 1687'),
-    defaults={'until': 6.0, 'dt': 0.01, 'solver': RK4Solver()},
+    defaults={'until': 6.0, 'dt': 0.01, 'solver': Yoshida4Solver(), 'invariants': {'planet.energy': 1e-6}},
+    observables=_get_kepler_observables,
 )
 def two_body_orbit(
     eccentricity: float = 0.0,
@@ -91,7 +118,11 @@ def two_body_orbit(
     mass: float = 1000.0,
     radius: float = 10.0,
 ) -> System:
-    """Return a light planet orbiting a heavy star under Newtonian gravity.
+    """Return a light planet orbiting a heavy star under Newtonian gravity, as the Kepler problem of their separation.
+
+    The planet moves in the coordinate `(x, y)` relative to the star with the canonical momenta `(px, py)` per unit
+    mass, under the Hamiltonian `H = (px² + py²) / 2 - G M / sqrt(x² + y²)`, which is separable. The energy and the
+    angular momentum `x py - y px` are conserved, and a bound orbit is an ellipse with the star at a focus.
 
     Args:
         eccentricity:
@@ -108,21 +139,25 @@ def two_body_orbit(
 
     Returns:
         system:
-            The model, with the particles `star` and `planet` in two dimensions.
+            The model, with the coordinates `planet.x` and `planet.y` and the momenta `planet.px` and `planet.py`.
 
     Examples:
         >>> from skcomplex.models.physics.celestial_mechanics import two_body_orbit
         >>> [element.label for element in two_body_orbit().elements]
-        ['star', 'planet']
+        ['planet']
     """
     speed = float(np.sqrt(G * mass * (1 + eccentricity) / radius))
     return System(
-        elements=[
-            MassPointElement('star', m=mass),
-            MassPointElement('planet', x=[radius, 0.0], x_d1=[0.0, speed], m=1e-6),
+        elements=[KeplerBodyElement('planet', x=radius, y=0.0, px=0.0, py=speed, G=G, mass=mass)],
+        interactions=[
+            HamiltonianInteraction(
+                'gravity',
+                target='planet',
+                coordinates=('x', 'y'),
+                momenta=('px', 'py'),
+                hamiltonian=_get_kepler_hamiltonian,
+            ),
         ],
-        interactions=[GravityInteraction('gravity', first='star', second='planet', G=G)],
-        space=ContinuousSpace(n_dim=2),
     )
 
 
@@ -199,9 +234,10 @@ def n_body(
 
 @register_model(
     field='physics/celestial_mechanics',
-    tags=('mechanics', 'ode', 'second order', 'gravity', 'chaos', 'rotating frame'),
+    tags=('mechanics', 'ode', 'gravity', 'chaos', 'rotating frame', 'hamiltonian'),
     references=('Dilão 2023', 'Szebehely 1967'),
-    defaults={'until': 20.0, 'dt': 0.02},
+    defaults={'until': 20.0, 'dt': 0.02, 'solver': RK4Solver(), 'invariants': {'body.energy': 1e-6}},
+    observables=_get_rotating_frame_observables,
 )
 def restricted_three_body(
     x: float = 0.5,
@@ -213,10 +249,11 @@ def restricted_three_body(
 ) -> System:
     """Return a light body moving in the plane of two primaries on circular orbits, in the frame that rotates with them.
 
-    The primaries of masses `1 - μ` and `μ` sit at `(-μ, 0)` and `(1 - μ, 0)`, and the light body follows
-    `x'' = 2 y' + x - (1 - μ)(x + μ) / r1³ - μ (x - 1 + μ) / r2³` and `y'' = -2 x' + y - (1 - μ) y / r1³ - μ y / r2³`,
-    with the Coriolis and centrifugal forces of the rotating frame. The Jacobi constant
-    `x² + y² + 2 (1 - μ) / r1 + 2 μ / r2 - x'² - y'²` is conserved. The default `μ` is that of the Earth and the Moon.
+    The primaries of masses `1 - μ` and `μ` sit at `(-μ, 0)` and `(1 - μ, 0)`, and the light body moves under the
+    Hamiltonian `H = (px² + py²) / 2 + y px - x py - (1 - μ) / r1 - μ / r2` of the rotating frame, with the momenta
+    `px = x' - y` and `py = y' + x`. Its terms `y px - x py` couple the coordinates and the momenta, so the Hamiltonian
+    is not separable. It equals minus half the Jacobi constant `x² + y² + 2 (1 - μ) / r1 + 2 μ / r2 - x'² - y'²`, which
+    is conserved. The default `μ` is that of the Earth and the Moon.
 
     The default start has the Jacobi constant 2.835, below that of the neck towards the Moon, and its orbit is chaotic:
     it passes near the Moon after 3.5 time units and wanders between the two primaries, with a Lyapunov exponent near
@@ -241,7 +278,7 @@ def restricted_three_body(
 
     Returns:
         system:
-            The model, with the coordinates `body.x` and `body.y` of order 2.
+            The model, with the coordinates `body.x` and `body.y` and the momenta `body.px` and `body.py`.
 
     Examples:
         >>> from skcomplex.models.physics.celestial_mechanics import restricted_three_body
@@ -249,13 +286,14 @@ def restricted_three_body(
         0.1
     """
     return System(
-        elements=[RotatingFrameBodyElement('body', x=x, y=y, x_d1=vx, y_d1=vy, mu=mu)],
+        elements=[RotatingFrameBodyElement('body', x=x, y=y, px=vx - y, py=vy + x, mu=mu)],
         interactions=[
-            EulerLagrangeInteraction(
+            HamiltonianInteraction(
                 'motion',
                 target='body',
-                states=('x', 'y'),
-                lagrangian=_get_rotating_frame_lagrangian,
+                coordinates=('x', 'y'),
+                momenta=('px', 'py'),
+                hamiltonian=_get_rotating_frame_hamiltonian,
             ),
         ],
     )

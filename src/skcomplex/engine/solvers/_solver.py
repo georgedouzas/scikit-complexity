@@ -9,6 +9,7 @@ from collections.abc import Callable
 import numpy as np
 
 from ...errors import SolverError
+from ...specs import AcceleratedSpec
 from ...types import Array, VectorFunction
 from ..problems import ProblemSpec
 from ._base import BaseSolver
@@ -91,30 +92,35 @@ class Solver(BaseSolver[ProblemSpec]):
             time = bound
         return state
 
-    def _warm(self, problem: ProblemSpec) -> None:
-        """Call every numeric function of the problem once, so compiled backends finish compiling before a run."""
-        x, p = self.initial_state_.copy(), problem.initial_parameters.copy()
+    @staticmethod
+    def _warm_loops(accelerated: AcceleratedSpec, x: Array, p: Array, drawn: tuple[np.random.Generator, ...]) -> None:
+        """Call every compiled stepper loop of a problem once, so it finishes compiling before a run."""
         rng = np.random.default_rng(0)
-        drawn = (rng,) if problem.stochastic else ()
-        for function in (problem.drift, problem.diffusion, problem.propensities, problem.boundary):
-            if function is not None:
-                function(0.0, x, p)
-        if problem.update is not None:
-            problem.update(0.0, x, p, *drawn)
-        accelerated = problem.accelerated
-        if accelerated is None:
-            return
+        empty = np.zeros(0, dtype=np.int64)
         if accelerated.rk4 is not None:
             accelerated.rk4(0.0, x, p, 0.0, 1.0)
         if accelerated.velocity_verlet is not None:
-            empty = np.zeros(0, dtype=np.int64)
             accelerated.velocity_verlet(0.0, x, p, 0.0, 1.0, empty, empty)
+        if accelerated.yoshida4 is not None:
+            accelerated.yoshida4(0.0, x, p, 0.0, 1.0, empty, empty, np.ones(1))
         if accelerated.euler_maruyama is not None:
             accelerated.euler_maruyama(0.0, x, p, 0.0, 1.0, rng)
         if accelerated.gillespie is not None:
             accelerated.gillespie(0.0, x, p, 0.0, rng)
         if accelerated.iterate is not None:
             accelerated.iterate(0.0, x, p, 0.0, *drawn)
+
+    def _warm(self, problem: ProblemSpec) -> None:
+        """Call every numeric function of the problem once, so compiled backends finish compiling before a run."""
+        x, p = self.initial_state_.copy(), problem.initial_parameters.copy()
+        drawn = (np.random.default_rng(0),) if problem.stochastic else ()
+        for function in (problem.drift, problem.diffusion, problem.propensities, problem.boundary):
+            if function is not None:
+                function(0.0, x, p)
+        if problem.update is not None:
+            problem.update(0.0, x, p, *drawn)
+        if problem.accelerated is not None:
+            self._warm_loops(problem.accelerated, x, p, drawn)
 
     def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the stepper for a problem and call its numeric functions once, so compiled backends compile.
