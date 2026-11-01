@@ -3,10 +3,11 @@
 ## ADDED Requirements
 
 ### Requirement: Nonlocal field models
-The library SHALL provide, as registered factories:
-- the Amari neural field, under `biology/neuroscience` (2112.12147 §1.3.1);
-- the quasi-geostrophic double gyre, under `earth/oceanography` (1910.00583 §III.6.1);
-- the gas-kinetic-based non-local traffic model, under `engineering/traffic` (cond-mat/0012229 §III.E.4).
+The library SHALL provide, as registered factories built on the general interactions and the nonlocal operators:
+- `amari_neural_field` under `biology/neuroscience` (2112.12147 §1.3.1);
+- `double_gyre` under `earth/oceanography` (1910.00583 §III.6.1);
+- `gkt_traffic` under `engineering/traffic` (cond-mat/0012229 §III.E.4);
+- `active_viscoelastic_gel` under `physics/active_matter` (2306.08868 VI).
 
 #### Scenario: Amari bump
 - **WHEN** the Amari neural field `tau u_t = -u + convolve(H(u), w) + h` runs on a line with a lateral-inhibition
@@ -26,3 +27,16 @@ The library SHALL provide, as registered factories:
   density of 15 vehicles per kilometre and once at a density in its unstable range
 - **THEN** the perturbation decays at the low density, and at the unstable density it grows into congested clusters
   whose downstream fronts move upstream at between 10 and 20 kilometres per hour
+
+#### Scenario: Contractile gel
+- **WHEN** the active viscoelastic gel runs from a small perturbation of uniform cell density above its contractile
+  threshold
+- **THEN** the density concentrates into peaks, and the velocity at every step solves the force balance within 1e-10
+
+### Requirement: Field couplings are interactions
+`legion` and `nanotube_gap_junction_exchange` SHALL write the coupling of their fields with `CouplingInteraction`, so
+`TermanWangElement` and `ExchangingCellElement` hold only the dynamics of one site, and SHALL keep their trajectories.
+
+#### Scenario: Rebuilt couplings keep the trajectories
+- **WHEN** `legion` and `nanotube_gap_junction_exchange` run with their catalog defaults
+- **THEN** their trajectories equal the trajectories of the previous elements within 1e-10

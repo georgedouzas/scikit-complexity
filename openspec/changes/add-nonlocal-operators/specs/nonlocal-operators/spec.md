@@ -4,15 +4,16 @@
 
 Lets a user write field laws that read beyond the nearest neighbours: convolutions of field expressions with kernels,
 reads at shifted and state-dependent positions, and the inversion of modified-Helmholtz (screened Poisson) equations,
-all symbolic in the laws and lowered for every discretization that supports them.
+all symbolic in the laws and lowered for every discretization that supports them, and lets a coupling over the
+neighbours of a field lower on the field.
 
 ## ADDED Requirements
 
 ### Requirement: Fields convolve with kernels
-Laws of fields, groups on the sites of a lattice, SHALL convolve an expression of the field's states with a kernel written as a symbolic
-function of the displacement, whose free symbols are the displacement and parameters of the model. The convolution
-SHALL approximate the integral over the domain by the sum over sites weighted by the cell volume, and a kernel MAY
-declare a radius beyond which it is zero.
+Laws of a `FieldElement` on a lattice SHALL convolve an expression of the field's states with a kernel written as a
+symbolic function of the displacement, whose free symbols are the displacement and parameters of the model. The
+convolution SHALL approximate the integral over the domain by the sum over sites weighted by the cell volume, and a
+kernel MAY declare a radius beyond which it is zero.
 
 #### Scenario: Gaussian smoothing
 - **WHEN** a Gaussian profile of width 1 on a periodic line of length 40 and 400 sites is convolved with a normalised
@@ -21,7 +22,8 @@ declare a radius beyond which it is zero.
 
 #### Scenario: Kernel that reads a state
 - **WHEN** a kernel's expression contains a state of the field
-- **THEN** validation reports an issue whose path is the law and whose message names the state, before compilation
+- **THEN** the compiler's report holds an issue with the code `kernel-state` whose path is the law and whose message
+  names the state
 
 ### Requirement: Convolutions respect the lattice edges
 On periodic lattices a convolution SHALL wrap around. At fixed or zero-flux edges the integral SHALL cover the lattice
@@ -72,7 +74,8 @@ SHALL equal the inverse Laplacian.
 
 #### Scenario: Negative screening
 - **WHEN** a law inverts with a screening whose square can be negative, or that depends on a state
-- **THEN** validation reports an issue whose path is the law and whose message names the screening
+- **THEN** the compiler's report holds an issue with the code `screening` whose path is the law and whose message
+  names the screening
 
 ### Requirement: Inversion runs on every discretization
 The inversion SHALL be available on spectral fields, on finite-difference fields on lattices with periodic,
@@ -102,16 +105,33 @@ SHALL combine into one multiplier.
 - **THEN** the gradient converges at second order to the exact gradient of the solution
 
 ### Requirement: Unsupported combinations fail clearly
-Each nonlocal operator SHALL declare the space kinds it requires: a lattice for convolutions and shifted reads, and a
-lattice, network, or mesh for inversions. Validation SHALL report, before compilation and with the law's path, the
-operator, and a fix, every use where an operator has no meaning: a convolution or a shifted read on a network or a mesh,
-a spectral convolution or inversion on a lattice without periodic edges, or an operator whose operand reads groups of
-more than one space.
+The compiler SHALL report, in its report and with the law's path, the operator, and a fix, every use where a nonlocal
+operator has no meaning: a convolution or a shifted read on a network or a mesh, a spectral convolution or inversion on
+a lattice without periodic edges, or an operator whose operand reads fields of more than one space.
 
 #### Scenario: Convolution on a network
-- **WHEN** a law of a site group on a network convolves a state with a kernel
-- **THEN** validation reports an issue that names the law and says the convolution needs a lattice space
+- **WHEN** a law of a field on a network convolves a state with a kernel
+- **THEN** the compiler's report holds an issue with the code `law-space` that names the law and says the convolution
+  needs a lattice space
 
 #### Scenario: All misuses at once
 - **WHEN** one system convolves on a network and inverts with a negative screening in two laws
-- **THEN** `Simulation` raises one `ValidationError` that lists both issues, each with its law's path
+- **THEN** running the compiler raises one `ValidationError` that lists both issues, each with its law's path
+
+### Requirement: Couplings lower on fields
+`CouplingInteraction` with a `FieldElement` target SHALL lower its reduction over the neighbours of every site to
+whole-site shifted reads on a lattice and to a gather over the neighbour table on a network, and SHALL lower a constant
+times the difference of the ends to `laplacian`.
+
+#### Scenario: Function of both ends on a lattice
+- **WHEN** a coupling on a periodic lattice field sums `logistic(source.x - theta)` over the four nearest sites
+- **THEN** the compiled rate equals a direct sum over the four neighbours within 1e-12, and the kernel compiles to Numba
+
+#### Scenario: Linear exchange on a network
+- **WHEN** a coupling on a network field sums `g (source.x - target.x) + xi source.x` over the neighbours
+- **THEN** the compiled rate equals `g L x + xi A x` with the graph Laplacian `L` and the adjacency matrix `A` within
+  1e-12
+
+#### Scenario: Diffusive coupling on a spectral field
+- **WHEN** a coupling on a spectral field sums `D (source.x - target.x)`
+- **THEN** it lowers to `D laplacian(x)`, the Fourier multiplier of the field
