@@ -139,7 +139,7 @@ class LowerFieldsPass(BasePass):
     ) -> Terms | None:
         """Return the linear terms of an operator applied to a linear expression, or `None`."""
         inner = LowerFieldsPass._linear(operands[0], states)
-        if inner is None:
+        if inner is None or (name == 'inverse_helmholtz' and not SR(operands[1]).is_zero()):
             return None
         axis = int(operands[1]) if name == 'partial' else 0
         return [(coefficient, ((name, axis), *chain), state) for coefficient, chain, state in inner]
@@ -206,11 +206,14 @@ class LowerFieldsPass(BasePass):
                 if any(item in states or references.get(item, None) is None for item in coefficient.variables()):
                     continue
                 source = states[state]
+                place = fields[source.entry.name]
+                if place.discretization != 'spectral' and any(name == 'inverse_helmholtz' for name, _ in chain):
+                    continue
                 terms.append(
                     LinearTermSpec(
                         target,
                         source,
-                        fields[source.entry.name],
+                        place,
                         chain,
                         coefficient,
                         {item: references[item] for item in coefficient.variables()},

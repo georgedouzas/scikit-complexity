@@ -33,7 +33,7 @@ SETTINGS = {
     'dispersion': {'at'},
 }
 """Settings every kind reads, besides `kind`."""
-OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_laplacian')
+OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_helmholtz', 'convolve', 'shifted')
 EIGENVALUE = symbol('_eigenvalue_')
 ZERO = 1e-9
 MEMBER_LIMIT = 64

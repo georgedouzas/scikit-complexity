@@ -11,7 +11,19 @@ from ._delays import delay1, delay3, delay_parts, distributed_delay, smooth
 from ._history import delayed, derivative, lag, residence
 from ._lookups import lookup
 from ._moments import moment
-from ._operators import advection, divergence, gradient, inverse_laplacian, laplacian, partial, upwind
+from ._operators import (
+    advection,
+    convolve,
+    displacement,
+    divergence,
+    gradient,
+    inverse_helmholtz,
+    inverse_laplacian,
+    laplacian,
+    partial,
+    shifted,
+    upwind,
+)
 from ._pointwise import clip, hill, logistic, sign
 from ._quantum import dagger, has_operator, local_operator, operator_product
 from ._reductions import (
@@ -41,6 +53,7 @@ __all__: list[str] = [
     'circular_mean',
     'clip',
     'components',
+    'convolve',
     'count',
     'dagger',
     'delay1',
@@ -48,6 +61,7 @@ __all__: list[str] = [
     'delay_parts',
     'delayed',
     'derivative',
+    'displacement',
     'distributed_delay',
     'divergence',
     'draw',
@@ -58,6 +72,7 @@ __all__: list[str] = [
     'hill',
     'hyperedges',
     'hyperedges_in',
+    'inverse_helmholtz',
     'inverse_laplacian',
     'lag',
     'laplacian',
@@ -83,6 +98,7 @@ __all__: list[str] = [
     'residence',
     'series',
     'shift_member',
+    'shifted',
     'sign',
     'smooth',
     'step',

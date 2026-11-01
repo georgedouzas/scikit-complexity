@@ -14,7 +14,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from sklearn.base import clone
 
 from ...base import BaseConfig
-from ...core.elements import GroupElement
+from ...core.elements import FieldElement, GroupElement
 from ...core.interactions import HyperedgeInteraction, NeighborInteraction
 from ...core.laws import EncounterLaw, JumpLaw, NoiseLaw, ProliferationLaw
 from ...core.laws.utils import hyperedges_in, neighborhoods_in, reductions_in
@@ -53,13 +53,14 @@ from ...specs import (
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...specs._issue_spec import _ERROR
 from ...types import DomainKind, FormKind, NoiseKind, ProcessKey, VariableKind
-from .._utils import declarations_of, symbol
+from .._utils import declarations_of, default_of, symbol
 from ..backends import BaseBackend
 from ..problems import BaseProblemSpec, PartitionSpec, ProblemSpec
 from ..problems._neighborhood_kernel import NeighborhoodKernel
 from ..problems._topology_kernel import TopologyKernel
 from ._base import _FIXES, BaseCompiler, BasePass
 from ._compilation import Compilation
+from ._field_lowering import FieldLowering
 from ._observables import _check_held_reads, _held_observables, _with_held_observables, _with_held_reductions
 from .passes._compile_encounters import CompileEncountersPass
 from .passes._conserved_noise import ConservedNoisePass
@@ -436,6 +437,7 @@ class PassCompiler(BaseCompiler):
         issues += PassCompiler._law_issues(records, FractionalFormPass._declared_times(system))
         issues += PassCompiler._neighborhood_issues(records, nodes)
         issues += PassCompiler._around_issues(records)
+        issues += PassCompiler._nonlocal_issues(records, nodes)
         issues += PassCompiler._space_issues(system, nodes)
         issues += LatticeProblemPass._schedule_issues(compilation)
         issues += ConservedNoisePass._conserved_issues(compilation)
@@ -809,6 +811,100 @@ class PassCompiler(BaseCompiler):
                     )
                     fix = f'Reduce over hyperedges of one of the sizes {", ".join(map(str, sizes))}.'
                     issues.append(IssueSpec('binding', record.path, message, fix))
+        return issues
+
+    @staticmethod
+    def _field_symbols(nodes: list[NodeSpec]) -> tuple[dict[str, FieldElement], dict[str, float]]:
+        """Return the field of every state symbol of a field, and the number of every parameter symbol that has one."""
+        fields: dict[str, FieldElement] = {}
+        numbers: dict[str, float] = {}
+        for node in nodes:
+            component = node.component
+            label = getattr(component, 'label', '')
+            if isinstance(component, FieldElement):
+                for name in declarations_of(node.component_type, VariableKind.STATE):
+                    fields[f'{name}_{label}'] = component
+            values = component.values or {} if isinstance(component, FieldElement) else {}
+            for name in declarations_of(node.component_type, VariableKind.PARAMETER):
+                value = values.get(name, getattr(component, name, default_of(node.component_type, name)))
+                if isinstance(value, int | float) and not isinstance(value, bool):
+                    numbers[f'{name}_{label}'] = float(value)
+        return fields, numbers
+
+    @staticmethod
+    def _is_negative(screening: Expression, fields: Mapping[str, FieldElement], numbers: Mapping[str, float]) -> bool:
+        """Check whether a screening reads a state or has a negative square at the numbers of its parameters."""
+        if any(str(item) in fields for item in screening.variables()):
+            return True
+        known = {item: numbers[str(item)] for item in screening.variables() if str(item) in numbers}
+        squared = (screening**2).subs(known)
+        return not squared.variables() and (not squared.is_real() or float(squared) < 0)
+
+    @staticmethod
+    def _operator_issue(
+        record: CensusRecordSpec,
+        call: Expression,
+        fields: Mapping[str, FieldElement],
+        numbers: Mapping[str, float],
+    ) -> IssueSpec | None:
+        """Return the issue of one call of a nonlocal operator in a law of a field, or `None`."""
+        name = getattr(call.operator(), 'name', lambda: '')()
+        law = PassCompiler._law_name(record)
+        operands = call.operands()
+        places = {id(fields[str(item)]): fields[str(item)] for item in operands[0].variables() if str(item) in fields}
+        if len({id(place.space) for place in places.values()}) > 1:
+            message = f'The {law} applies {name} to {operands[0]}, which reads fields of more than one space.'
+            return IssueSpec('operator-spaces', record.path, message, 'Apply the operator to the states of one field.')
+        if name == 'convolve':
+            states = sorted(str(item) for item in operands[1].variables() if str(item) in fields)
+            if states:
+                message = f'The {law} convolves with a kernel that reads the state {", ".join(states)}.'
+                fix = 'Write the kernel in the displacements and the parameters only.'
+                return IssueSpec('kernel-state', record.path, message, fix)
+        if name == 'inverse_helmholtz' and PassCompiler._is_negative(SR(operands[1]), fields, numbers):
+            message = (
+                f'The {law} inverts with the screening {operands[1]}, whose square can be negative or that reads a '
+                'state.'
+            )
+            fix = 'Use a screening of parameters whose square is non-negative.'
+            return IssueSpec('screening', record.path, message, fix)
+        return PassCompiler._place_issue(record, name, next(iter(places.values()))) if places else None
+
+    @staticmethod
+    def _place_issue(record: CensusRecordSpec, name: str, place: FieldElement) -> IssueSpec | None:
+        """Return the issue of a nonlocal operator that the space or discretization of its field lacks, or `None`."""
+        law = PassCompiler._law_name(record)
+        space = place.space
+        if name in {'convolve', 'shifted'} and not isinstance(space, LatticeSpace):
+            verb = 'convolution' if name == 'convolve' else 'shifted read'
+            message = (
+                f'The {law} uses a {verb}, which needs a lattice space, but the field lives on {type(space).__name__}.'
+            )
+            return IssueSpec('law-space', record.path, message, 'Give the field a lattice space.')
+        periodic = isinstance(space, LatticeSpace) and space.boundary == 'periodic'
+        if place.discretization == 'spectral' and name in {'convolve', 'inverse_helmholtz'} and not periodic:
+            message = f'The {law} applies the spectral {name} on a lattice without periodic edges.'
+            fix = "Give the lattice periodic edges, or use the 'finite-difference' discretization."
+            return IssueSpec('law-space', record.path, message, fix)
+        return None
+
+    @staticmethod
+    def _nonlocal_issues(records: list[CensusRecordSpec], nodes: list[NodeSpec]) -> list[IssueSpec]:
+        """Return the convolutions, shifted reads, and inversions of laws whose space, kernel, or screening is wrong."""
+        fields, numbers = PassCompiler._field_symbols(nodes)
+        issues = []
+        for record in records:
+            include = ('rate',) if isinstance(record.law, JumpLaw) else ('value',)
+            for value in record.law._get_values(include=include):
+                if not FieldLowering._has_operators(value):
+                    continue
+                calls = [
+                    call
+                    for name in ('convolve', 'shifted', 'inverse_helmholtz')
+                    for call in FieldLowering._operator_calls(SR(value), name)
+                ]
+                found = [PassCompiler._operator_issue(record, call, fields, numbers) for call in calls]
+                issues += [issue for issue in found if issue is not None]
         return issues
 
     @staticmethod

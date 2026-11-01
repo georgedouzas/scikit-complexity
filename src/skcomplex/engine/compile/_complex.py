@@ -11,7 +11,7 @@ from ...errors import ValidationError
 from ..types import Parts
 from ._members import _SHIFT
 
-_LINEAR = frozenset({'laplacian', 'inverse_laplacian', 'partial', 'upwind', 'derivative', 'lag', 'delayed'})
+_LINEAR = frozenset({'laplacian', 'inverse_helmholtz', 'partial', 'upwind', 'derivative', 'lag', 'delayed'})
 _SUMS = frozenset({'total', 'mean'})
 _REAL_OPERANDS = frozenset(
     {

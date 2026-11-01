@@ -10,13 +10,27 @@ from sage.all__sagemath_symbolics import sin, tanh
 from skcomplex.core.elements import Element, FieldElement, GroupElement
 from skcomplex.core.interactions import PairCouplingInteraction
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.laws.utils import count, laplacian, maximum, mean, minimum, total, variance, where
+from skcomplex.core.laws.utils import (
+    convolve,
+    count,
+    displacement,
+    inverse_helmholtz,
+    laplacian,
+    maximum,
+    mean,
+    minimum,
+    partial,
+    total,
+    variance,
+    where,
+)
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace, MeshSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.compile._field_lowering import FieldLowering
-from skcomplex.engine.solvers import IMEXEulerSolver
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import IMEXEulerSolver, ScipyODESolver
 from skcomplex.errors import ValidationError
 from skcomplex.models.biology.ecology import FisherKPPElement
 from skcomplex.models.chemistry.pattern_formation import gray_scott
@@ -298,3 +312,57 @@ def test_exact_jacobian_of_callable_law_raises():
     with pytest.raises(ValidationError, match=r"line.*jacobian='auto'"):
         problem.jacobian.prepare(problem)
     assert problem.jacobian.pattern().toarray().all()
+
+
+def _nonlocal_line(law, size=40, **settings):
+    """Return a field on a line of fixed zero edges whose state changes at the rate `law(s)`."""
+
+    class NonlocalElement(Element):
+        """Nonlocal element."""
+
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            u: Annotated[object, StateSpec()] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.u = u
+
+        def _get_laws(self, s):
+            """Return the law of the nonlocal element."""
+            return [RateLaw(s.u, law(s))]
+
+    space = LatticeSpace(size, spacing=1 / (size + 1), boundary='fixed')
+    return System(elements=[FieldElement('line', element=NonlocalElement, space=space, **settings)])
+
+
+def test_pattern_marks_inversions_dense_and_convolutions_within_their_radius():
+    """Test that an inversion couples every site and a convolution of radius two the sites within two spacings."""
+    inverted = compile_system(_nonlocal_line(lambda s: partial(inverse_helmholtz(s.u, 1), 0)), backend=NumpyBackend())
+    assert inverted.jacobian.pattern().toarray().all()
+    convolved = compile_system(
+        _nonlocal_line(lambda s: convolve(s.u, 1 + displacement(0) ** 2, 2 / 41)),
+        backend=NumpyBackend(),
+    )
+    rows, columns = convolved.jacobian.pattern().nonzero()
+    assert set(np.abs(rows - columns)) == {0, 1, 2}
+
+
+def test_implicit_solver_agrees_with_explicit_on_screened_diffusion():
+    """Test that BDF agrees with RK45 within 1e-6 on a diffusion relaxed by its screened inversion."""
+    positions = np.arange(1, 41) / 41
+    system = _nonlocal_line(
+        lambda s: laplacian(s.u) / 100 + inverse_helmholtz(s.u, 3),
+        values={'u': np.sin(np.pi * positions) + 0.3 * np.sin(4 * np.pi * positions)},
+    )
+    finals = [
+        Simulation(system, dt=0.5, solver=ScipyODESolver(method, rtol=1e-10, atol=1e-12), backend=NumpyBackend())
+        .check()
+        .prepare()
+        .run(until=0.5)
+        .state_
+        for method in ('BDF', 'RK45')
+    ]
+    assert np.abs(finals[0] - finals[1]).max() < 1e-6

@@ -1,7 +1,16 @@
 """Test the general compiler: its settings, its report on a system, and the problem it runs to."""
 
-import pytest
+from typing import Annotated
 
+import networkx as nx
+import pytest
+from sage.all__sagemath_symbolics import sqrt
+
+from skcomplex.core.elements import Element, FieldElement
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.laws.utils import convolve, displacement, inverse_helmholtz
+from skcomplex.core.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, QuantumCompiler
 from skcomplex.engine.problems import ProblemSpec
@@ -10,7 +19,7 @@ from skcomplex.errors import NotCheckedError, SolverError, ValidationError
 from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.models.mathematics.fractals import RewritingCompiler
 from skcomplex.models.physics.common.quantum import QubitElement
-from skcomplex.specs import ObservableSpec, ValidationReportSpec
+from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, ValidationReportSpec, VisualSpec
 
 
 def _growth():
@@ -77,3 +86,106 @@ def test_compiler_reports_an_observable_of_a_missing_system():
     observable = ObservableSpec('village/size', lambda s: s.rabbits.n)
     report = PassCompiler(observables=[observable]).check().prepare(_growth()).report_
     assert [issue.code for issue in report.errors] == ['observable-path']
+
+
+def _nonlocal_field(label, law, space, **settings):
+    """Return a field of one state `u` and one parameter `k` whose state changes at the rate `law(s)`."""
+
+    class NonlocalElement(Element):
+        """Nonlocal element."""
+
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            u: Annotated[object, StateSpec()] = 0.0,
+            k: Annotated[object, ParameterSpec()] = -1.0,
+        ) -> None:
+            super().__init__(label, visual=visual)
+            self.u = u
+            self.k = k
+
+        def _get_laws(self, s):
+            """Return the law of the nonlocal element."""
+            return [RateLaw(s.u, law(s))]
+
+    return FieldElement(label, element=NonlocalElement, space=space, **settings)
+
+
+def test_compiler_reports_a_negative_screening():
+    """Test that a screening whose square is negative, or that reads a state, is a `screening` issue of the law."""
+    for screening in (lambda s: sqrt(s.k), lambda s: s.u):
+        field = _nonlocal_field(
+            'm',
+            lambda s, screening=screening: inverse_helmholtz(s.u, screening(s)),
+            LatticeSpace(8),
+        )
+        report = PassCompiler().check().prepare(System(elements=[field])).report_
+        assert [(issue.code, issue.path) for issue in report.errors] == [('screening', 'm')]
+        assert 'screening' in report.errors[0].message
+
+
+def test_compiler_reports_a_kernel_that_reads_a_state():
+    """Test that a convolution kernel that reads a state is a `kernel-state` issue naming the state."""
+    field = _nonlocal_field('m', lambda s: convolve(s.u, s.u * displacement(0)), LatticeSpace(8))
+    report = PassCompiler().check().prepare(System(elements=[field])).report_
+    assert [(issue.code, issue.path) for issue in report.errors] == [('kernel-state', 'm')]
+    assert 'u_m' in report.errors[0].message
+
+
+def test_compiler_reports_a_convolution_on_a_network():
+    """Test that a convolution on a network is a `law-space` issue saying it needs a lattice space."""
+    field = _nonlocal_field('net', lambda s: convolve(s.u, displacement(0)), NetworkSpace(nx.path_graph(4)))
+    report = PassCompiler().check().prepare(System(elements=[field])).report_
+    assert [(issue.code, issue.path) for issue in report.errors] == [('law-space', 'net')]
+    assert 'lattice space' in report.errors[0].message
+
+
+def test_compiler_reports_spectral_operators_on_edges_that_are_not_periodic():
+    """Test that a spectral inversion on a lattice with fixed edges is a `law-space` issue."""
+    field = _nonlocal_field(
+        'm',
+        lambda s: inverse_helmholtz(s.u, 1),
+        LatticeSpace(8, boundary='fixed'),
+        discretization='spectral',
+    )
+    report = PassCompiler().check().prepare(System(elements=[field])).report_
+    assert [issue.code for issue in report.errors] == ['law-space']
+
+
+class _CrossInteraction(Interaction):
+    """Inversion of the sum of the states of two fields."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+
+    def _get_laws(self, s):
+        """Return the rate of the first field."""
+        return [RateLaw(s.first.u, inverse_helmholtz(s.first.u + s.second.u, 1))]
+
+
+def test_compiler_reports_an_operand_over_two_spaces():
+    """Test that an operand reading fields of two spaces is an `operator-spaces` issue."""
+    other = _nonlocal_field('b', lambda s: 0 * s.u, LatticeSpace(8))
+    field = _nonlocal_field('a', lambda s: 0 * s.u, LatticeSpace(8))
+    system = System(elements=[field, other], interactions=[_CrossInteraction('cross', first='a', second='b')])
+    report = PassCompiler().check().prepare(system).report_
+    assert [issue.code for issue in report.errors] == ['operator-spaces']
+
+
+def test_compiler_raises_every_nonlocal_issue_at_once():
+    """Test that a convolution on a network and a negative screening raise one error that lists both laws."""
+    network = _nonlocal_field('net', lambda s: convolve(s.u, displacement(0)), NetworkSpace(nx.path_graph(4)))
+    lattice = _nonlocal_field('grid', lambda s: inverse_helmholtz(s.u, sqrt(s.k)), LatticeSpace(8))
+    compiler = PassCompiler().check().prepare(System(elements=[network, lattice]))
+    with pytest.raises(ValidationError, match=r'(?s)net: .*law-space.*grid: .*screening'):
+        compiler.run()

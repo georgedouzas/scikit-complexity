@@ -2,41 +2,41 @@
 
 ## 1. Inversion
 
-- [ ] 1.1 Add `inverse_helmholtz` to `skcomplex.core.laws.utils`, make `inverse_laplacian` its zero-screening case, and
+- [x] 1.1 Add `inverse_helmholtz` to `skcomplex.core.laws.utils`, make `inverse_laplacian` its zero-screening case, and
   add the `screening` issue to the pass compiler; verify the negative screening scenario and that the spectral flow
   models still pass
-- [ ] 1.2 Lower the inversion in `FieldLowering` on spectral fields and on finite-difference lattices with `scipy.fft`
+- [x] 1.2 Lower the inversion in `FieldLowering` on spectral fields and on finite-difference lattices with `scipy.fft`
   (`rfftn`, `dstn`, `dctn`) using the eigenvalues of the discrete stencil; verify the single Fourier mode, closed basin,
   and unscreened periodic inversion scenarios
-- [ ] 1.3 Lower the inversion on networks and finite-element meshes with a cached `scipy.sparse.linalg.factorized`
+- [x] 1.3 Lower the inversion on networks and finite-element meshes with a cached `scipy.sparse.linalg.factorized`
   factorisation of the graph Laplacian or the scikit-fem matrices; verify a manufactured solution on an L-shaped mesh
   converges at second order and the network solution has zero mean
 
 ## 2. Composition
 
-- [ ] 2.1 Let `FieldLowering._shift` read the values of a `FieldOperatorKernel` at neighbouring sites; verify the
+- [x] 2.1 Let `FieldLowering._shift` read the values of a `FieldOperatorKernel` at neighbouring sites; verify the
   velocity from vorticity in a basin scenario
-- [ ] 2.2 Mark convolutions and inversions in the sparsity pattern of `ProblemSpec.jacobian`; verify an implicit solver
+- [x] 2.2 Mark convolutions and inversions in the sparsity pattern of `ProblemSpec.jacobian`; verify an implicit solver
   agrees with an explicit one on a screened diffusion problem within 1e-6
 
 ## 3. Convolution
 
-- [ ] 3.1 Add `convolve` and `displacement` to `skcomplex.core.laws.utils` with the `kernel-state` issue; verify the
+- [x] 3.1 Add `convolve` and `displacement` to `skcomplex.core.laws.utils` with the `kernel-state` issue; verify the
   kernel that reads a state scenario
-- [ ] 3.2 Sample kernels from the current parameters and lower them with `scipy.fft` on periodic lattices,
+- [x] 3.2 Sample kernels from the current parameters and lower them with `scipy.fft` on periodic lattices,
   `scipy.signal.oaconvolve` with padding at fixed and zero-flux edges, and `scipy.ndimage.convolve` for small kernels;
   verify the Gaussian smoothing, truncated domain, and wider kernel scenarios
-- [ ] 3.3 Compose convolutions with the other Fourier multipliers on spectral fields; verify a convolution of a
+- [x] 3.3 Compose convolutions with the other Fourier multipliers on spectral fields; verify a convolution of a
   Laplacian matches the Laplacian of the convolution within 1e-10
-- [ ] 3.4 Report convolutions and shifted reads on networks and meshes, spectral operators on non-periodic lattices,
+- [x] 3.4 Report convolutions and shifted reads on networks and meshes, spectral operators on non-periodic lattices,
   and operands over several spaces with the codes `law-space` and `operator-spaces`; verify the convolution on a network
   and all misuses at once scenarios
 
 ## 4. Shifted reads
 
-- [ ] 4.1 Add `shifted` to `skcomplex.core.laws.utils`, lowering whole-site displacements to neighbour tables; verify
+- [x] 4.1 Add `shifted` to `skcomplex.core.laws.utils`, lowering whole-site displacements to neighbour tables; verify
   the whole-site shift scenario and that the kernel still compiles to Numba
-- [ ] 4.2 Add the `displacement` operand of `FieldOperatorKernel` and lower other displacements to
+- [x] 4.2 Add the `displacement` operand of `FieldOperatorKernel` and lower other displacements to
   `scipy.ndimage.map_coordinates` with the boundary mapped to its modes; verify the look-ahead interpolation and
   look-ahead beyond a fixed edge scenarios
 
