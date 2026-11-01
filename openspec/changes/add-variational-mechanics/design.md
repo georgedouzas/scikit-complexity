@@ -2,85 +2,126 @@
 
 ## Context
 
-Potentials already derive forces from energies by symbolic gradients, which is the canonical idea restricted to
-particles with Cartesian positions. Sage differentiates, solves linear systems, and simplifies.
+`EulerLagrangeInteraction(target, states, lagrangian, dissipation=None, forcing=None)` in `skcomplex.core.interactions`
+derives the Euler-Lagrange equation of every coordinate of order 2 as an `EquationLaw` with a `target`, and the compiler
+adds the equations of one coordinate from every interaction before it solves for the highest derivatives. A subclass
+overrides `_get_lagrangian`. The pendulums of `physics/mechanics` (`DoublePendulumInteraction`,
+`PendulumSpringInteraction`, `CartPendulumInteraction`, `ParametricPendulumInteraction`) and the rotating frame of
+`restricted_three_body` are built on it.
 
-After `redesign-system-model`, a system is `System(label, components=, interactions=, space=, time=)`, interactions are
-stateless and return laws, states of order 2 are declared with `state(order=2)`, observables are given to
-`Simulation(observables=...)` and catalog entries, and every interaction and solver declares `Requires` or `Supports`
-for `validate()`. Core names are mathematical or modelling terms, and the redesign renamed the quantum `Hamiltonian`
-law to `Generator` for that reason.
+`VelocityVerletSolver` integrates states of order 2 symplectically at second order and declares its `SupportSpec`.
+`StabilityAnalysis('fixed-points')` derives the divergence of a vector field. `InvariantObserver` checks at every frame
+that observables stay within a tolerance of their first value, and a catalog entry passes it through
+`defaults={'invariants': ...}` with the `observables` of `register_model`. A compiler reports the errors a part raises
+while it declares its laws as `IssueSpec`s of its `report_`.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Mechanical models written as one scalar function in any coordinates.
-- Conservation and symmetry as checks that users can run on any system with a canonical or variational interaction, or
+- Mechanical models written as one scalar function of canonical coordinates and momenta.
+- Conservation and symmetry as checks a user runs on any system with a Hamiltonian or an Euler-Lagrange interaction, or
   on any expression of its states.
 
 **Non-Goals:**
 
-- Field theories and Lagrangian densities. Site groups on lattices can adopt a variational form later.
-- Constrained systems with Lagrange multipliers beyond holonomic coordinates, and quantum mechanics, which the
-  redesign's `Generator` covers.
+- A second variational interaction, since `EulerLagrangeInteraction` is the Lagrangian form.
+- Field theories and Hamiltonian densities, constrained systems with Lagrange multipliers, and quantum mechanics, which
+  `GeneratorLaw` covers.
+- Discrete canonical maps from generating functions. The Chirikov standard map stays a map of update laws.
 
 ## Decisions
 
-### Canonical and variational interactions
+### Hamilton's equations as rate laws
 
-`Canonical(coordinates, momenta, function)` in `core.interactions` derives `Rate(q, ∂H/∂p)` and `Rate(p, -∂H/∂q)` for
-every pair, with `H` the function. `Variational(coordinates, function)` derives the Euler-Lagrange equations over
-coordinates of order 2, `state(order=2)`, whose companion `<q>_d1` states are the velocities. It returns them as
-`Equation` laws, so the joint solve for the highest derivatives inverts the mass matrix `∂²L/∂v∂v`, with `L` the
-function, symbolically or numerically per step. Coordinates and momenta are states of the components the interaction
-binds with `over = 'members'`, so these interactions compose with forces and dissipation written as ordinary laws.
+`HamiltonianInteraction(label, *, target, coordinates='q', momenta='p', hamiltonian=None)` derives
+`RateLaw(q, dH/dp)` and `RateLaw(p, -dH/dq)` for every canonical pair, with `H = hamiltonian(ns)`. The coordinates and
+the momenta are states of order 1 of every role that binds one element or group, `target` by default, paired in
+order, and every component of a vector state is a coordinate or a momentum, as in `EulerLagrangeInteraction`. A
+subclass overrides `_get_hamiltonian(namespace)` to derive the function from its parameters. Coordinates may be angle
+states, which wrap as every angle does.
 
-The names follow the redesign's application-agnostic rule: the redesign rejected keeping `Hamiltonian` as a core name,
-so the interactions are named for the structure they derive, canonical pairs and the variational principle. The user
-guide gives the physics names of the functions.
+The rate laws of one state add, so the Hamiltonians of separate interactions sum: a coupling between two oscillators is
+an interaction whose Hamiltonian holds only the coupling energy, and dissipation or forcing is a `RateInteraction` on
+the momenta. The class takes no `form`, since agent models do not use it, and no `divisor`, since the Hamiltonian holds
+the masses.
 
-Declarations and validation:
+The name follows `EulerLagrangeInteraction`: both name the mathematical construction that derives the equations, not
+a quantity of a field. It does not collide with the quantum laws, whose generator is `GeneratorLaw`, and
+`SymbolicAnalysis('hamiltonian')` keeps its quantum meaning.
 
-| Interaction | `Requires` | Issue when misused |
-|---|---|---|
-| `Canonical` | `time={CONTINUOUS}`, `domains={REAL, ANGLE}`, `bindings={MEMBERS}` | a coordinate without a momentum, or a coordinate of another domain, naming the state |
-| `Variational` | `time={CONTINUOUS}`, `domains={REAL, ANGLE}`, `bindings={MEMBERS}` | a coordinate not declared of order 2, with the fix `state(order=2)` |
+Misuse:
+- Coordinates and momenta of different counts raise `ValidationError` in `_check`, naming the unpaired state.
+- A coordinate and its momentum of different sizes, or a state of order other than 1, raise `ValidationError` from
+  `_get_laws`, naming the state, with the fix `StateSpec(order=1)` or `EulerLagrangeInteraction` for a coordinate of
+  order 2. The compiler reports the error as an issue of the interaction's path.
 
-### Brackets, conservation, and symmetry
+### Conservation and symmetry as an analysis
 
-`poisson_bracket(f, g, system)` in `core.analysis` sums over the canonical pairs of the system's `Canonical`
-interactions. `is_conserved(f, system)` checks that `df/dt = ∂f/∂t + {f, H}` simplifies to zero for canonical systems,
-and that the Lie derivative along the vector field vanishes for others, returning the simplified remainder when it does
-not.
+`InvariantAnalysis(kind='conservation', *, expressions=(), symmetry=None, samples=16)` in `skcomplex.analysis` reads a
+system, as `SymbolicAnalysis` and `StabilityAnalysis` do, and takes the expressions as `ObservableSpec`s, the existing
+spec of a named expression of a system's namespace. The kinds:
 
-`Symmetry(generator)` in `core.analysis` is an infinitesimal transformation of coordinates. It is not part of the system,
-which holds only components, interactions, space, and time. `is_invariant(symmetry, system)` confirms that the function
-of the system's canonical or variational interaction is invariant, and `noether_charge(symmetry, system)` returns the
-conserved quantity `Σ ∂L/∂v · δq`.
+- `'brackets'`: `brackets_` maps every pair of labels to the Poisson bracket `{f, g}`, summed over the canonical pairs
+  of the system's `HamiltonianInteraction`s. A system without one raises `AnalysisError`.
+- `'conservation'`: `rates_` maps every label to `df/dt`, which is `diff(f, t) + {f, H}` for a system whose dynamics all
+  come from Hamiltonian interactions, and the Lie derivative along the vector field of the equations of
+  `SymbolicAnalysis('equations')` otherwise. `conserved_` maps every label to whether its rate simplifies to zero, and
+  `methods_` to `'symbolic'`, or `'numeric'` when simplification does not decide and the rate vanishes within a
+  tolerance at `samples` random states drawn by `random_state`.
+- `'symmetry'`: `symmetry` is a `SymmetrySpec(label, generator)`, whose `generator` is a function of the namespace that
+  maps the path of every coordinate it moves to its infinitesimal variation `dq`. `invariant_` says whether the
+  Hamiltonian, or the summed Lagrangian of the system's `EulerLagrangeInteraction`s, is unchanged to first order, with
+  the `remainder_` when it is not, and `charge_` is the Noether charge, `sum p dq` for a Hamiltonian and
+  `sum dL/dq' dq` for a Lagrangian.
 
-### Solver and drift
+The symmetry is an argument of the analysis, not a part of the system, since a system is defined by elements,
+interactions, and laws. `SymmetrySpec` lives in `skcomplex.specs` because it names no core type. The analysis is one
+class with kinds, as `SymbolicAnalysis` is, and no public function stands outside it.
 
-`Yoshida4(dt)` in `core.solvers` composes three velocity Verlet steps with the Yoshida coefficients for separable
-functions. It declares `Supports(time={CONTINUOUS}, laws={RATE}, domains={REAL, ANGLE, VECTOR})`, and `validate()`
-reports a system whose canonical function is not separable, or which holds noise or jump laws, with the fix of a
-non-symplectic solver.
+### The Yoshida solver
 
-`relative_drift(expression)` in `core.analysis` is an observable of the relative drift of an expression from its first
-frame. The mechanics models' catalog entries pass the drift of their canonical function to the simulation.
+`Yoshida4Solver(dt=1e-3, *, random_state=None, until=inf)` in `skcomplex.engine.solvers` composes three velocity Verlet
+steps with the coefficients `w1 = 1 / (2 - 2^(1/3))` and `w0 = 1 - 2 w1`, which gives fourth order and keeps the
+symplectic structure. At `prepare` it splits the states into two blocks from the sparsity of `ProblemSpec.jacobian`:
+a state of order 2 splits into its position and velocity, as in `VelocityVerletSolver`, and states of order 1 split so
+that the rates of each block read only the other block, as the coordinates and momenta of a separable Hamiltonian do.
+A system that admits no such split raises `SolverError` naming the state whose rate reads its own block, with the fix of
+a solver that does not need a split, such as `RK4Solver`. Its `SupportSpec` declares continuous time, the laws
+`RateLaw`, `EquationLaw`, and `BoundaryLaw`, and integer orders, so noise and jumps are refused by the existing
+`solver-unsupported` issue.
+
+### Drift through the invariant observer
+
+No drift observable is added. A model passes its Hamiltonian as an `ObservableSpec` through the `observables` of
+`register_model` and its tolerance through `defaults={'invariants': {'energy': ...}}`, and the existing
+`InvariantObserver` raises `ConservationError` when the drift exceeds it.
+
+### Models
+
+- `two_body_orbit` in `physics/celestial_mechanics`: a `HamiltonianInteraction` of the relative coordinate with
+  `H = norm(p)^2 / 2 - G M / norm(q)`. It is separable and runs on `Yoshida4Solver`.
+- `restricted_three_body` in `physics/celestial_mechanics`: a `HamiltonianInteraction` of the rotating frame, whose
+  Coriolis terms couple coordinates and momenta. It is not separable, runs on `RK4Solver`, and its Hamiltonian is the
+  Jacobi integral.
+- `henon_heiles` in `physics/nonlinear_oscillators`: a `HamiltonianInteraction` with
+  `H = (px^2 + py^2) / 2 + V(x, y)`. `HenonHeilesElement` declares the states `x`, `y`, `px`, and `py` of order 1 in
+  place of `x` and `y` of order 2, and loses its own laws.
+
+`n_body` keeps `GravityInteraction` of `physics/common/particles`, so the pair gravity stays an example after
+`two_body_orbit` moves to the canonical form. The Sitnikov problem stays on `GradientInteraction`. The standard map
+stays a map of the update laws of `StandardMapElement`, since it is a discrete symplectic map that no continuous
+Hamiltonian generates without kicks.
 
 ## Risks / Trade-offs
 
-- [Symbolic mass-matrix inversion grows fast] → The numeric per-step solve is the fallback, chosen automatically above a
-  size threshold.
-- [Simplification may not prove zero] → `is_conserved` falls back to a numeric check at random states, and reports
+- [Simplification may not prove zero] → `InvariantAnalysis` falls back to a numeric check at random states and reports
   which method decided.
-- [Generic names are less familiar to physicists] → The user guide and the docstrings name the Hamiltonian and the
-  Lagrangian as the functions the interactions take.
+- [Renamed states of Hénon-Heiles] → The momenta `x_d1` and `y_d1` become `px` and `py`, so the trajectory variables
+  change name. The model's tests and gallery example change with it.
+- [`two_body_orbit` loses the star as a body] → The Kepler problem in the relative coordinate is the reduced two-body
+  problem, and `n_body` keeps the bodies of the pair form.
 
 ## Open Questions
 
-- How the Chirikov standard map is rebuilt. It is a discrete-time map, while `Canonical` and `Variational` require
-  continuous time under the redesign's law classes. Either it is written as a symplectic map of `Update` laws under
-  `DiscreteTime`, which this design assumes, or the change adds a discrete canonical form (a generating function),
-  which would be a new law and is not settled here.
+- None.
