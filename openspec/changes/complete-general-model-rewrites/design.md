@@ -86,6 +86,16 @@ and the sabotage supervisors. Kept, each lacking a capability:
 - `ExecutionInteraction`: selection of one member per step by a service policy.
 - `DailyMovementsInteraction`: counts grouped by cell and periodic schedules.
 
+### Visits, compositions, and histories (1.4, 1.6)
+
+`PhaseSpec(visits=...)` with the activation `'visits'` runs `int(visits * size)` visits per phase, each drawing an
+agent with replacement and running its phase rules, with `ModelView.time` at `k + i/n` during visit `i`; the earlier
+perishables rewrite failed because it aged products at whole-step time. `ModelView.composition(name, state)` keeps
+counts by value, and `ModelView.history(name)` returns the values of a run observable at earlier steps. Observables and
+`agents_` receive agent views. `ChoiceInteraction` and `ReinforcementInteraction` gain `schedule='member'`,
+`ReinforcementInteraction` gains `chosen`, and `LifeCycleInteraction` gains `pick` for culls. The reporter-only
+interactions of El Farol, Sugarscape, and the labour market stay until their tests read observables instead.
+
 ### Experiments replicate interactions (1.7)
 
 `BaseExperiment._replicate` accepts plain single elements with their interactions: the replicated system holds shallow
