@@ -12,6 +12,7 @@ import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import RR, SR, Expression, I
 from sage.modules.free_module_element import FreeModuleElement
+from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import both, neighborhoods_in, reductions_in
@@ -519,6 +520,43 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, 0, ReadKind.REDUCED))
         return compiled.symbol
 
+    def _separated(
+        self,
+        reduction: ReductionSpec,
+        spec: KernelSpec,
+        argument: Expression,
+        others: set[Expression],
+    ) -> Expression | None:
+        """Return a sum or mean over pairs whose terms factor into a reader part and an other part, else `None`.
+
+        A sum or mean over the other members `j` of `sum_k a_k(i) b_k(j)` is `sum_k a_k(i)` times the sum or mean of
+        `b_k(j)`, so it runs as one reduction per `b_k` over the members, at a cost linear in their number instead of
+        one value per pair.
+        """
+        if reduction.kind not in {'sum', 'mean'} or reduction.weights is not None:
+            return None
+        expanded = argument.expand()
+        terms = expanded.operands() if expanded.operator() is add_vararg else [expanded]
+        parts: dict[str, tuple[Expression, Expression]] = {}
+        for term in terms:
+            factors = term.operands() if term.operator() is mul_vararg else [term]
+            reader, other = SR(1), SR(1)
+            for factor in factors:
+                symbols = symbols_of([factor]) - {self.declarations_.time}
+                if not symbols & others:
+                    reader = reader * factor
+                elif any(self._reads_reader(item, spec) for item in symbols - others):
+                    return None
+                else:
+                    other = other * factor
+            key = str(other)
+            total = parts.get(key, (other, SR(0)))[1]
+            parts[key] = (other, total + reader)
+        reduced = [
+            reader * self._compiled(replace(reduction, argument=other), spec) for other, reader in parts.values()
+        ]
+        return SR(sum(reduced, SR(0)))
+
     def _compiled(self, reduction: ReductionSpec, spec: KernelSpec) -> Expression:
         """Return the placeholder of a reduction of a real expression, compiling it the first time it is found."""
         argument = SR(self._lower(reduction.argument, spec))
@@ -530,6 +568,9 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             if (reference := self._reference_of(item, spec)) is not None and reference.source is ReadKind.OTHER
         }
         if any(self._reads_reader(item, spec) for item in symbols - others) and others:
+            separated = self._separated(reduction, spec, argument, others) if condition is None else None
+            if separated is not None:
+                return separated
             return self._pairwise(reduction, spec, argument, condition, others)
         group = self._group(reduction, spec, symbols)
         activity = MaskRequestsPass._activity_symbol(spec, group) if group in self.declarations_.capacity else None
