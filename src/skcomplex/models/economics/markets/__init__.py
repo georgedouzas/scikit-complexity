@@ -31,7 +31,9 @@ from ._sugarscape import ForagerElement, SugarPatchElement, sugarscape
 from ._supply_chains import (
     BreweryInteraction,
     EchelonElement,
+    FactoryElement,
     RetailDemandInteraction,
+    RetailerElement,
     SupplyLinkInteraction,
     beer_game,
 )
@@ -54,6 +56,7 @@ __all__: list[str] = [
     'EchelonElement',
     'EmployerElement',
     'ExchangeInteraction',
+    'FactoryElement',
     'ForagerElement',
     'GoodsTraderElement',
     'HeuristicPricingInteraction',
@@ -64,6 +67,7 @@ __all__: list[str] = [
     'QuadraticSupplyMarketElement',
     'ResidentElement',
     'RetailDemandInteraction',
+    'RetailerElement',
     'ShopperElement',
     'StallElement',
     'StoreElement',
