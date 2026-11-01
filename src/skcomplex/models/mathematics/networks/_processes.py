@@ -3,139 +3,21 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from types import SimpleNamespace
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, FieldElement, GroupElement
+from ....core.elements import FieldElement, GroupElement
 from ....core.interactions import CouplingInteraction, DiffusionInteraction, MovementInteraction
 from ....core.spaces import NetworkSpace
 from ....core.system import System
 from ....core.types import AgentViewProtocol, ModelViewProtocol
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._network_walker import NetworkWalkerElement
 from ._network_walker_view import NetworkWalkerView
-
-
-class NodeContentElement(Element):
-    """Content of a node of a network, which diffuses along the links with the coefficient `D`.
-
-    Args:
-        label:
-            The label of the node or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        u:
-            The initial content.
-
-        D:
-            The diffusion coefficient of every link.
-
-    Examples:
-        >>> from skcomplex.models.mathematics.networks import NodeContentElement
-        >>> NodeContentElement('node', D=0.5).D
-        0.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.u = u
-        self.D = D
-
-
-class NodeRankElement(Element):
-    """Page of a network with its PageRank, its degree, the number of pages, and the damping of the surfer.
-
-    Args:
-        label:
-            The label of the page or the field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        rank:
-            The initial rank.
-
-        damping:
-            The probability that the surfer follows a link rather than jumping to a random page.
-
-        degree:
-            The number of links of the page.
-
-        n_nodes:
-            The number of pages of the network.
-
-    Examples:
-        >>> from skcomplex.models.mathematics.networks import NodeRankElement
-        >>> NodeRankElement('page', damping=0.9).damping
-        0.9
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        rank: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        damping: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.85,
-        degree: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        n_nodes: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.rank = rank
-        self.damping = damping
-        self.degree = degree
-        self.n_nodes = n_nodes
-
-
-class NetworkWalkerElement(Element):
-    """Walker on the nodes of a network, which counts the steps it takes.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        steps:
-            The initial number of steps taken.
-
-    Examples:
-        >>> from skcomplex.models.mathematics.networks import NetworkWalkerElement
-        >>> group = GroupElement('walkers', element=NetworkWalkerElement, size=5)
-        >>> group.label, group.element.__name__, group.size
-        ('walkers', 'NetworkWalkerElement', 5)
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'steps'}),
-        *,
-        steps: Annotated[float, StateSpec(domain=NN)] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.steps = steps
-
-    @classmethod
-    def _get_view(cls) -> type[NetworkWalkerView]:
-        """Return the view of the agents, which types their states."""
-        return NetworkWalkerView
+from ._node_content import NodeContentElement
+from ._node_rank import NodeRankElement
 
 
 def _count_step(agent: AgentViewProtocol, model: ModelViewProtocol) -> None:

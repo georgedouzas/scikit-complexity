@@ -6,9 +6,11 @@ kernels, a compiler, a solver, and a visual on the engine bases. A rewriting sys
 """
 
 from ._affine_spec import AffineSpec
+from ._cantor_element import CantorElement
 from ._chaos_game import ChaosPointElement, chaos_game
 from ._geometry_spec import GeometrySpec
 from ._geometry_visual import GeometryVisual
+from ._koch_element import KochElement
 from ._module_spec import Letters, ModuleSpec
 from ._patch_element import PatchElement
 from ._patch_structure_spec import PatchStructureSpec
@@ -20,14 +22,8 @@ from ._rewriting_compiler import RewritingCompiler
 from ._rewriting_error import RewritingError
 from ._rewriting_problem_spec import RewritingProblemSpec
 from ._rewriting_solver import RewritingSolver
-from ._substitution import (
-    CantorElement,
-    KochElement,
-    SierpinskiElement,
-    cantor_set,
-    koch_curve,
-    sierpinski_substitution,
-)
+from ._sierpinski_element import SierpinskiElement
+from ._substitution import cantor_set, koch_curve, sierpinski_substitution
 from ._substitution_law import SubstitutionLaw
 from ._word_element import WordElement
 from ._word_structure_spec import WordStructureSpec

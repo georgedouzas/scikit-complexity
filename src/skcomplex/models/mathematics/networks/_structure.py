@@ -4,146 +4,29 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.real_set import RealSet
 
 from ....analysis import MotifAnalysis, NetworkAnalysis
-from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.elements import GroupElement
 from ....core.spaces import NetworkSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
-from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec
 from ..._catalog import register_model
+from ._network_measures import NetworkMeasuresElement
+from ._network_node import NetworkNodeElement
 
 BLOCKS = 4
+
+
 BLOCK_SIZE = 100
+
+
 IN_DEGREE = 16
+
+
 OUT_DEGREE = 2
-
-
-class NetworkMeasuresElement(Element):
-    """Measures of a whole network, held as parameters that the observables of the model report.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        path_length:
-            The mean shortest path length of the largest component.
-
-        assortativity:
-            The degree assortativity.
-
-        modularity:
-            The modularity of the communities found.
-
-        agreement:
-            The agreement of the communities found with a reference partition.
-
-        triangle_zscore:
-            The z-score of the number of triangles against degree-preserving edge switches.
-
-    Examples:
-        >>> from skcomplex.models.mathematics.networks import NetworkMeasuresElement
-        >>> NetworkMeasuresElement('measures', modularity=0.4).modularity
-        0.4
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        path_length: Annotated[float, ParameterSpec()] = 0.0,
-        assortativity: Annotated[float, ParameterSpec()] = 0.0,
-        modularity: Annotated[float, ParameterSpec()] = 0.0,
-        agreement: Annotated[float, ParameterSpec()] = 0.0,
-        triangle_zscore: Annotated[float, ParameterSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.path_length = path_length
-        self.assortativity = assortativity
-        self.modularity = modularity
-        self.agreement = agreement
-        self.triangle_zscore = triangle_zscore
-
-
-class NetworkNodeElement(Element):
-    """Node of a network that carries its degree, clustering, betweenness, and community.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        degree:
-            The degree of the node.
-
-        clustering:
-            The clustering coefficient of the node.
-
-        betweenness:
-            The normalized betweenness centrality of the node.
-
-        community:
-            The index of the community of the node.
-
-    Examples:
-        >>> from skcomplex.models.mathematics.networks import NetworkNodeElement
-        >>> group = GroupElement('nodes', element=NetworkNodeElement, size=3)
-        >>> group.label, group.element.__name__, group.size
-        ('nodes', 'NetworkNodeElement', 3)
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'community'}),
-        *,
-        degree: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        clustering: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        betweenness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        community: Annotated[float, StateSpec(domain=NN)] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.degree = degree
-        self.clustering = clustering
-        self.betweenness = betweenness
-        self.community = community
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rule that keeps the node in place.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.stay)]
-
-    def stay(self, agent: AgentView, model: ModelView) -> None:
-        """Keep the node and its measures unchanged.
-
-        Args:
-            agent:
-                The node.
-
-            model:
-                The model.
-        """
 
 
 def _path_length(s: SimpleNamespace) -> object:

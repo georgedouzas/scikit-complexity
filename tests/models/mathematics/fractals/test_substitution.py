@@ -1,4 +1,4 @@
-"""Test the `substitution` module of `skcomplex.models.mathematics.fractals`."""
+"""Test the `_substitution` module of `skcomplex.models.mathematics.fractals`."""
 
 import numpy as np
 import pytest

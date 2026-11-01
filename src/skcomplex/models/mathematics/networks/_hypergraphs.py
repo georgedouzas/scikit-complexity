@@ -3,95 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import xgi
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement, LatticeElement
-from ....core.interactions import HyperedgeInteraction, TopologyInteraction
-from ....core.laws import BaseLaw, RateLaw, UpdateLaw
-from ....core.laws.utils import total
+from ....core.elements import GroupElement, LatticeElement
+from ....core.interactions import TopologyInteraction
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import VisualSpec
 from ..._catalog import register_model
-from ._growth import LinkElement, VertexElement, _get_bookkeeping
-
-
-class WalkerDensityElement(Element):
-    """Probability that a random walker is at a node of a hypergraph, with the weight `D` of the node.
-
-    Args:
-        label:
-            The label of the node or the group on the nodes.
-
-        visual:
-            How the node is drawn, or `None` for `default_visual_`.
-
-        p:
-            The probability of the walker at the node.
-
-        D:
-            The total weight of the moves out of the node, the sum of `(|e| - 1)^2` over its hyperedges `e`.
-
-    Attributes:
-        default_visual_:
-            The visual of the node when it sets none.
-
-    Examples:
-        >>> from skcomplex.models.mathematics.networks import WalkerDensityElement
-        >>> WalkerDensityElement('node', D=4.0).D
-        4.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        p: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.p = p
-        self.D = D
-
-
-class SizeBiasedMoveInteraction(HyperedgeInteraction):
-    """Moves of a random walker across a hyperedge, to every other member with weight `|e| - 1`.
-
-    A walker at node `i` moves to node `j` at rate `T_ij = k_ij / D_i`, where `k_ij = sum_e (|e| - 1)` over the
-    hyperedges `e` that hold both, and `D_i = sum_j k_ij`. On a hyperedge, the focal member gains `(|e| - 1) p_j / D_j`
-    from every other member `j` and loses `(|e| - 1)^2 p_i / D_i`.
-
-    Args:
-        label:
-            The label of the interaction, unique among the parts of its system.
-
-        target:
-            The path of the group of walker densities on the nodes.
-
-    Examples:
-        >>> from skcomplex.models.mathematics.networks import SizeBiasedMoveInteraction
-        >>> SizeBiasedMoveInteraction('moves', target='nodes').target
-        'nodes'
-    """
-
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label)
-        self.target = target
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the flow into and out of the focal member across one hyperedge."""
-        weight = len(s.others)
-        member = s.member
-        inflow = total(s.members.p / s.members.D, over=s.members) - member.p / member.D
-        return [RateLaw(member.p, weight * inflow - weight**2 * member.p / member.D)]
+from ._growth import _get_bookkeeping
+from ._link import LinkElement
+from ._simplex import SimplexElement
+from ._simplex_ageing import SimplexAgeingInteraction
+from ._size_biased_move import SizeBiasedMoveInteraction
+from ._vertex import VertexElement
+from ._walker_density import WalkerDensityElement
 
 
 @register_model(
@@ -151,75 +80,6 @@ def hypergraph_random_walk(
         visual=VisualSpec('sites', {'states': ['p'], 'low': 0.0, 'high': 1.0}),
     )
     return System(elements=[nodes], interactions=[SizeBiasedMoveInteraction('moves', target='nodes')])
-
-
-class SimplexElement(Element):
-    """Triangle of a growing simplicial complex, with its age in steps.
-
-    Args:
-        label:
-            The label of the triangle or the group on the triangles.
-
-        visual:
-            How the triangle is drawn, or `None` for `default_visual_`.
-
-        age:
-            The number of steps since the triangle joined.
-
-    Attributes:
-        default_visual_:
-            The visual of the triangle when it sets none.
-
-    Examples:
-        >>> from skcomplex.models.mathematics.networks import SimplexElement
-        >>> SimplexElement('triangles').age
-        0.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.age = age
-
-
-class SimplexAgeingInteraction(HyperedgeInteraction):
-    """Ageing of every triangle of a simplicial complex by one per step.
-
-    Args:
-        label:
-            The label of the interaction, unique among the parts of its system.
-
-        nodes:
-            The path of the group on the nodes.
-
-        triangles:
-            The path of the group on the triangles.
-
-    Examples:
-        >>> from skcomplex.models.mathematics.networks import SimplexAgeingInteraction
-        >>> SimplexAgeingInteraction('ageing', nodes='nodes', triangles='triangles').size
-        3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        nodes: Annotated[str, RoleSpec()],
-        triangles: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(label, size=3)
-        self.nodes = nodes
-        self.triangles = triangles
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the ageing of the triangle."""
-        return [UpdateLaw(s.hyperedge.age, s.hyperedge.age + 1)]
 
 
 @register_model(

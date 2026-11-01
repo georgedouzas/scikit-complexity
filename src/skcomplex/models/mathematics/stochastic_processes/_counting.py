@@ -4,99 +4,12 @@
 # License: MIT
 
 
-from typing import Annotated
-
-from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
-from sage.sets.real_set import RealSet
-
-from ....core.elements import Element, GroupElement
+from ....core.elements import GroupElement
 from ....core.interactions import JumpInteraction, MapInteraction
 from ....core.system import System
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-from ._bernoulli_trial_view import BernoulliTrialView
-
-
-class PoissonCounterElement(Element):
-    """Counter of the events of a Poisson process, with the rate of events it is counted at.
-
-    Args:
-        label:
-            The label of the counter or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        count:
-            The initial number of events.
-
-        rate:
-            The rate of events, which the jump of the counter reads.
-
-    Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import PoissonCounterElement
-        >>> PoissonCounterElement('counter', rate=2.0).rate
-        2.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        count: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.count = count
-        self.rate = rate
-
-
-class BernoulliTrialElement(Element):
-    """Sequence of independent trials, each a success with the same probability, and the count of its successes.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        outcome:
-            The initial outcome, 1 for a success and 0 for a failure.
-
-        successes:
-            The initial number of successes.
-
-        p:
-            The probability of a success.
-
-    Examples:
-        >>> from skcomplex.models.mathematics.stochastic_processes import BernoulliTrialElement
-        >>> group = GroupElement('trials', element=BernoulliTrialElement, size=4, values={'p': 0.2})
-        >>> group.label, group.element.__name__, group.size
-        ('trials', 'BernoulliTrialElement', 4)
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('histograms', {'color_by': 'successes'}),
-        *,
-        outcome: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        successes: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.outcome = outcome
-        self.successes = successes
-        self.p = p
-
-    @classmethod
-    def _get_view(cls) -> type[BernoulliTrialView]:
-        """Return the view of the agents, which types their states and parameters."""
-        return BernoulliTrialView
+from ._bernoulli_trial import BernoulliTrialElement
+from ._poisson_counter import PoissonCounterElement
 
 
 @register_model(
