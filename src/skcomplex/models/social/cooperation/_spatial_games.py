@@ -116,8 +116,9 @@ class PrisonerElement(Element):
 class ContributorElement(Element):
     """Player of the spatial public goods game, a cooperator at 1 and a defector at 0, with its payoff.
 
-    The play is a `PublicGoodsInteraction` of the lattice, and the imitation an `ImitationInteraction` that reads the
-    payoffs of the same step, which `public_goods_game` adds.
+    The play is a `PublicGoodsInteraction` of the lattice or a `HyperedgeGoodsInteraction` of a hypergraph, and the
+    imitation an `ImitationInteraction` that reads the payoffs of the same step, which `public_goods_game` and
+    `hypergraph_public_goods` add.
 
     Args:
         label:
@@ -130,7 +131,7 @@ class ContributorElement(Element):
             The initial strategy, 1 or 0.
 
         payoff:
-            The payoff of the last play, the sum of the shares of its five groups minus its contributions.
+            The payoff of the last play, the sum of the shares of its groups minus its contributions.
 
         synergy:
             The factor that multiplies the contributions of a group.

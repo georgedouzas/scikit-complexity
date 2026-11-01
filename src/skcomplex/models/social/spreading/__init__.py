@@ -1,6 +1,7 @@
-"""Spreading: rumours, cascades, and the growth of texts."""
+"""Spreading: rumours, cascades, contagions on hypergraphs, and the growth of texts."""
 
 from ._cascades import ThresholdNodeElement, watts_cascades
+from ._exposure import ExposureInteraction, ParticipantElement, hypergraph_exposure_sis
 from ._growing_word_view import GrowingWordView
 from ._growth import GrowingWordElement, WritingInteraction, simon_yule
 from ._rumours import ListenersElement, RumourContactsInteraction, maki_thompson
@@ -9,16 +10,19 @@ from ._threshold_activation import ThresholdActivationInteraction
 from ._threshold_node_view import ThresholdNodeView
 
 __all__: list[str] = [
+    'ExposureInteraction',
     'GrowingWordElement',
     'GrowingWordView',
     'InfectiveElement',
     'ListenersElement',
+    'ParticipantElement',
     'RumourContactsInteraction',
     'SimplicialInfectionInteraction',
     'ThresholdActivationInteraction',
     'ThresholdNodeElement',
     'ThresholdNodeView',
     'WritingInteraction',
+    'hypergraph_exposure_sis',
     'maki_thompson',
     'simon_yule',
     'simplicial_contagion',

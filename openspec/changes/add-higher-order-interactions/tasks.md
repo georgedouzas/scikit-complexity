@@ -34,13 +34,13 @@
 
 ## 5. Models
 
-- [ ] 5.1 Add `hypergraph_kuramoto`, `simplicial_contagion`, and `triadic_percolation` with curated gallery examples;
+- [x] 5.1 Add `hypergraph_kuramoto`, `simplicial_contagion`, and `triadic_percolation` with curated gallery examples;
   verify the explosive synchronization and bistable contagion scenarios
-- [ ] 5.2 Add `hypergraph_consensus`, `simplicial_social_dilemmas`, `hypergraph_public_goods`,
+- [x] 5.2 Add `hypergraph_consensus`, `simplicial_social_dilemmas`, `hypergraph_public_goods`,
   `hypergraph_exposure_sis`, `hypergraph_random_walk`, and `growing_simplicial_complex`; verify each model's tests
-- [ ] 5.3 Rebuild `galam_majority` and `public_goods_game` on the symbolic grouping, `DiscussionsInteraction` as a thin
+- [x] 5.3 Rebuild `galam_majority` and `public_goods_game` on the symbolic grouping, `DiscussionsInteraction` as a thin
   subclass; verify the Galam scenario and the public goods game over 20 seeds
-- [ ] 5.4 Mark the nine probe entries implemented in `docs/overview/inventory.toml`; verify the inventory check passes
+- [x] 5.4 Mark the nine probe entries implemented in `docs/overview/inventory.toml`; verify the inventory check passes
 
 ## 6. Documentation and gate
 

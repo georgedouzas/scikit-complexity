@@ -572,6 +572,20 @@ def test_check_agent_form_needs_radii_and_takes_them_alone(arguments, match):
         CouplingInteraction('coupling', target='agents', **arguments).check()
 
 
+def test_check_rejects_a_phase_of_the_rate_form():
+    """Test that the rate form takes no phase, which only the agent and the map forms run in."""
+    with pytest.raises(ValidationError, match='agent and the map forms'):
+        CouplingInteraction('coupling', target='agents', phase='play').check()
+
+
+def test_coupling_map_form_runs_in_its_phase():
+    """Test that the next value of the map form is an update law in the phase of the coupling."""
+    source, target = SimpleNamespace(x=SR.var('a')), SimpleNamespace(x=SR.var('b'))
+    coupling = CouplingInteraction('coupling', target='cells', form='map', mode='group', phase='play')
+    laws = coupling.check().prepare().run(SimpleNamespace(source=source, target=target)).laws_
+    assert [law.phase for law in laws] == ['play']
+
+
 HYPEREDGES = [(0, 1, 2), (1, 2, 3, 4), (3, 4, 5), (0, 2, 4, 5), (2, 5)]
 
 

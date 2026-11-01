@@ -225,13 +225,56 @@ Implementation (November 2026):
   at synergy 4.0, final shares 0.101 and 0.091. With the simulation seeded like the strategies, both models carry the
   correlation, each in its own way, and differ by up to 13 standard errors at step one (final shares 0.558 and 0.494),
   so the seeding of the factory awaits the maintainer's decision. Decided on 2026-11-01.
+- The seeding question closed when `Simulation` began to spawn its stream from the seed: the dynamics no longer reuse
+  the numbers of the initial strategies. A later 40-seed comparison found about 2 points more cooperators at synergy 4.5
+  (0.527 against 0.505, late-window p = 0.046), which is sampling noise and no difference of definition. In one step
+  from a fixed state, the payoffs of the rebuild equal the five-group sums of the previous model within 4e-15, and the
+  switching frequency of every site over 400 seeds equals `1/4 sum_j [s_j != s_i] / (1 + exp((P_i - P_j) / K))`
+  within 2 standard errors: the same four von Neumann neighbours, the group of five with the centre, the division by
+  five, the strict copy of the drawn neighbour, and the payoffs of the same step. Over seeds 0 to 99 (the previous model
+  with its stream seeded `seed + 1000`), the final shares are 0.517 and 0.510 at synergy 4.5 (late-window p = 0.39,
+  largest gap 1.28 standard errors over the steps) and 0.102 and 0.097 at synergy 4.0 (p = 0.37, 1.34). A NumPy loop
+  of the previous definition over 400 seeds gives 0.518 and 0.103, which the rebuild over 200 seeds matches (p = 0.67
+  and 0.96); its first 40 seeds sit 1 standard error high, which made the earlier gap. Decided on 2026-11-01.
 - `simplicial_contagion` runs `JumpLaw`s of the focal member per link and per triangle in a
   `SimplicialInfectionInteraction`, and `hypergraph_consensus` runs the rate of the focal member per triangle in a
   `ThreeBodyConsensusInteraction` whose second role binds a group on the hyperedges holding the phase of the schedule
-  of every triangle. `hypergraph_public_goods` and `simplicial_social_dilemmas` wait on the same two points as the
-  public goods game, and `hypergraph_exposure_sis` and `simplicial_social_dilemmas` read, in the update of a node, a
-  reduction over the hyperedges around it in the same step, which the reduction `hyperedges` of task 2.3 now gives,
-  so they are open.
+  of every triangle.
+- **The map form of `CouplingInteraction` takes a phase.** A payoff over the hyperedges around a node is the map form
+  of `CouplingInteraction(mode='hyperedges')`, the reduction `hyperedges` of task 2.3, and the imitation that reads it
+  runs in a later phase, so the map form passes `phase` to its update law, as the symbolic grouping and the probability
+  form of `ImitationInteraction` do. The rate form still rejects a phase. A law of the focal member of a
+  `HyperedgeInteraction` adds into the member as a rate, noise, or jump, and only the symbolic grouping reduces update
+  laws over groups, so the three remaining models couple over hyperedges instead of subclassing `HyperedgeInteraction`.
+  Decided on 2026-11-01.
+- `hypergraph_public_goods` (Alvarez-Rodriguez et al. 2021) plays in the phase `play` a `HyperedgeGoodsInteraction`,
+  a thin map coupling over hyperedges of any size whose term is `synergy * total(strategy) / m - strategy`, and copies
+  a random neighbour, a member of a shared hyperedge in the clique projection, by the Fermi rule in the phase
+  `imitate`. Its payoffs equal a loop over the hyperedges within 2e-15 on both backends, and cooperation dies out at
+  synergy 2 and takes over at synergy 6 on hyperedges of sizes 3 and 5. Its hypergraph draws the members of every
+  hyperedge at random with NumPy: `xgi.uniform_erdos_renyi_hypergraph` returns no hyperedges of size 10 or more on
+  1000 nodes. Decided on 2026-11-01.
+- `simplicial_social_dilemmas` (Guo et al. 2021, Eq. 11 of the review) grows its network by triangle attachment from
+  a complete graph on five nodes and fills a share `simplices` of its triangles as hyperedges of size 3, writing every
+  other triangle as three hyperedges of size 2, so one coupling over hyperedges of every size, the
+  `SimplicialDilemmaInteraction`, plays game 1 along links and games 2 and 3 in 2-simplices from the number of
+  cooperating other members. Two readings differ from the review. The review picks game 2 when `s_ki = s_kj`, which
+  for a pair of differing strategies never holds if `s` marks the strategies of a pair, and would leave `T2` and `S2`
+  without effect, against its Fig. 5; the model plays game 2 when the third member shares the strategy of the player.
+  The review takes the mean over the links of a player of the mean over the triangles of each link, `1 / (k_i k_ij)`,
+  which needs the triangle count of a link inside a reduction over hyperedges, which no reduction reads; the model
+  divides the sum over the two links of every triangle around a player by twice its number of triangles. Payoffs equal
+  a loop within 3e-16 on both backends; the dilemma of game 1 alone loses every cooperator, and an allied harmony game
+  on 2-simplices keeps about half. Decided on 2026-11-01.
+- `hypergraph_exposure_sis` (St-Onge et al. 2021) is the map coupling `ExposureInteraction` over hyperedges, whose term
+  is the dose `rate * rho ** exponent` of one environment from the share `rho` of its other infected members, and whose
+  next value infects a susceptible participant with probability `1 - exp(-D)` of the sum of its doses and lets an
+  infected one recover with probability `recovery`, both from one uniform draw. The kernel stands for the result of
+  heterogeneous exposure rather than drawing exposure times. Small environments make the kernel linear at low
+  prevalence, since one infected member is already a share `1 / (m - 1)`, so the defaults take environments of 10,
+  20, and 30 and the exponent 2, where a seed of 1 % dies out and one of 50 % stays endemic. The infection frequency
+  of every participant over 200 seeds follows its doses within 4 standard errors on both backends. Decided on
+  2026-11-01.
 
 ### Triadic regulation
 
@@ -271,10 +314,10 @@ simplicial complex does. The hyperedge tables of a network whose groups are vari
 |---|---|---|
 | `hypergraph_kuramoto` | `physics/synchronization` | `CouplingInteraction(mode='hyperedges', size=3)` |
 | `hypergraph_consensus` | `social/opinion_dynamics` | `HyperedgeInteraction`, a hyperedge group of activities |
-| `simplicial_social_dilemmas` | `social/cooperation` | `CouplingInteraction` on edges and hyperedges |
-| `hypergraph_public_goods` | `social/cooperation` | `HyperedgeInteraction`, `ImitationInteraction` |
+| `simplicial_social_dilemmas` | `social/cooperation` | `CouplingInteraction(mode='hyperedges')`, phases |
+| `hypergraph_public_goods` | `social/cooperation` | `CouplingInteraction(mode='hyperedges')`, phases |
 | `simplicial_contagion` | `social/spreading` | `TransitionInteraction` with `hyperedges` |
-| `hypergraph_exposure_sis` | `social/spreading` | `HyperedgeInteraction` on a hyperedge group of doses |
+| `hypergraph_exposure_sis` | `social/spreading` | `CouplingInteraction(mode='hyperedges')`, draws |
 | `triadic_percolation` | `mathematics/networks` | `HyperedgeInteraction` with an edge role |
 | `hypergraph_random_walk` | `mathematics/networks` | `JumpInteraction` with `hyperedges` weights |
 | `growing_simplicial_complex` | `mathematics/networks` | `TopologyInteraction(hyperedge=3)` |

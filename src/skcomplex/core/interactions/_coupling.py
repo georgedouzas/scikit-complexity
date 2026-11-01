@@ -147,7 +147,7 @@ class CouplingInteraction(NeighborInteraction):
             The clamp of the turn and the norm of the vector of the agent form, or `None`.
 
         phase:
-            The phase of the step the agent form runs in, or `None` for the default phase.
+            The phase of the step the agent and the map forms run in, or `None` for the default phase.
 
     Raises:
         ValidationError:
@@ -286,12 +286,18 @@ class CouplingInteraction(NeighborInteraction):
             raise ValidationError(error_msg)
 
     def _check_agent(self) -> None:
-        """Raise an error for radii, a clamp, a phase, or several written states outside the agent form, or no radii."""
+        """Raise an error for radii, a clamp, or several written states outside the agent form, or no radii."""
         if self.form != 'agent':
-            if self.radii or self.clamp is not None or self.phase is not None or not isinstance(self.write, str):
+            if self.radii or self.clamp is not None or not isinstance(self.write, str):
                 error_msg = (
-                    f'The coupling {self.label!r} takes radii, a clamp, a phase, and several written states in the '
-                    f'agent form only, but its form is {self.form!r}.'
+                    f'The coupling {self.label!r} takes radii, a clamp, and several written states in the agent form '
+                    f'only, but its form is {self.form!r}.'
+                )
+                raise ValidationError(error_msg)
+            if self.phase is not None and self.form != 'map':
+                error_msg = (
+                    f'The coupling {self.label!r} takes a phase in the agent and the map forms, but its form is '
+                    f'{self.form!r}.'
                 )
                 raise ValidationError(error_msg)
             return
@@ -684,6 +690,6 @@ class CouplingInteraction(NeighborInteraction):
             return [RateLaw(getattr(target, self._get_written()), reduction)]
         state = getattr(target, self._get_written())
         if self.combine is None:
-            return [UpdateLaw(state, reduction)]
+            return [UpdateLaw(state, reduction, phase=self.phase)]
         member = SimpleNamespace(**self._parameters(namespace), member=target)
-        return [UpdateLaw(state, cast(Combination, self.combine)(member, reduction))]
+        return [UpdateLaw(state, cast(Combination, self.combine)(member, reduction), phase=self.phase)]
