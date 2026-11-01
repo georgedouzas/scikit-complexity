@@ -1,6 +1,6 @@
 """Econophysics: wealth exchange between agents."""
 
-from ._el_farol import BarInteraction, PatronElement, PredictorPoolElement, el_farol, forecasts
+from ._el_farol import PatronElement, PredictorPoolElement, el_farol, forecasts
 from ._exchange import TraderElement, boltzmann_wealth
 from ._kinetic import DebtExchangeInteraction, SavingExchangeInteraction, SavingTraderElement, kinetic_wealth_exchange
 from ._kolkata import CrowdAvoidanceInteraction, DinerElement, RestaurantsInteraction, kolkata_restaurant
@@ -19,7 +19,6 @@ from ._welfare import (
 )
 
 __all__: list[str] = [
-    'BarInteraction',
     'CrowdAvoidanceInteraction',
     'DebtExchangeInteraction',
     'DinerElement',

@@ -17,7 +17,7 @@ from ._exchange import cobb_douglas, marginal_rate, trade_goods
 from ._fair_food import ConsumerElement, fair_food
 from ._goods_traders import ExchangeInteraction, GoodsTraderElement, goods_traders
 from ._inventory import CarDealershipElement, car_dealer
-from ._labour import EmployerElement, JobseekerElement, SearchCountInteraction, hire, labour_market
+from ._labour import EmployerElement, JobseekerElement, hire, labour_market
 from ._perishables import (
     CustomerElement,
     ProductElement,
@@ -27,11 +27,13 @@ from ._prices import QuadraticSupplyMarketElement, riccati_prices
 from ._produce import ShopperElement, StallElement, produce_market
 from ._queues import CarElement, CarWashOperationInteraction, TillElement, WasherElement, car_wash
 from ._shops import ResidentElement, StoreElement, shops
-from ._sugarscape import ForagerCensusInteraction, ForagerElement, SugarPatchElement, sugarscape
+from ._sugarscape import ForagerElement, SugarPatchElement, sugarscape
 from ._supply_chains import (
     BreweryInteraction,
     EchelonElement,
+    FactoryElement,
     RetailDemandInteraction,
+    RetailerElement,
     SupplyLinkInteraction,
     beer_game,
 )
@@ -54,7 +56,7 @@ __all__: list[str] = [
     'EchelonElement',
     'EmployerElement',
     'ExchangeInteraction',
-    'ForagerCensusInteraction',
+    'FactoryElement',
     'ForagerElement',
     'GoodsTraderElement',
     'HeuristicPricingInteraction',
@@ -65,7 +67,7 @@ __all__: list[str] = [
     'QuadraticSupplyMarketElement',
     'ResidentElement',
     'RetailDemandInteraction',
-    'SearchCountInteraction',
+    'RetailerElement',
     'ShopperElement',
     'StallElement',
     'StoreElement',

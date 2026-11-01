@@ -14,12 +14,12 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import ChoiceInteraction, FeedbackInteraction, ReinforcementInteraction
+from ....core.interactions import ChoiceInteraction, ReinforcementInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
-from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
 from ..common.forecasting import heuristics
@@ -85,10 +85,11 @@ def forecasts(history: npt.ArrayLike) -> Array:
 class PredictorPoolElement(Element):
     """Pool of Arthur's predictors, with the forecast and the accuracy of every predictor that the patrons share.
 
-    The accuracy of a predictor depends only on the history of attendance that the bar reports, so one member holds
-    it for every patron. Every week the pool forecasts the attendance with every predictor, from ten random weeks it
-    draws at the first week followed by the reported attendances, and a `ReinforcementInteraction` moves the error of
-    every predictor towards its last absolute error, a discounted mean of the errors.
+    The accuracy of a predictor depends only on the history of attendance, the observable `attendance` of the run,
+    so one member holds it for every patron. Every week the pool forecasts the attendance with every predictor, from
+    ten random weeks it draws at the first week followed by the observed attendances, and a
+    `ReinforcementInteraction` moves the error of every predictor towards its last absolute error, a discounted mean
+    of the errors.
 
     Args:
         label:
@@ -109,7 +110,7 @@ class PredictorPoolElement(Element):
         1
     """
 
-    bar: ClassVar[str] = 'bar'
+    attendance: ClassVar[str] = 'attendance'
 
     def __init__(
         self,
@@ -147,7 +148,7 @@ class PredictorPoolElement(Element):
         if not isinstance(seeded, np.ndarray):
             seeded = model.rng.integers(0, int(MAX_ATTENDANCE) + 1, N_SEEDED_WEEKS).astype(float)
             model.storage['seeded'] = seeded
-        return np.concatenate([seeded, model.history(f'{self.bar}.attendance')])
+        return np.concatenate([seeded, model.history(self.attendance)])
 
     def forecast(self, agent: PredictorPoolView, model: ModelView) -> None:
         """Forecast next week's attendance with every predictor of the pool.
@@ -179,7 +180,7 @@ class PredictorPoolElement(Element):
             error:
                 The absolute error of the forecast of the predictor.
         """
-        attendance = model.history(f'{PredictorPoolElement.bar}.attendance')
+        attendance = model.history(PredictorPoolElement.attendance)
         if not len(attendance):
             return float(np.ravel(agent.errors)[index])
         return float(abs(np.ravel(agent.forecasts)[index] - attendance[-1]))
@@ -207,6 +208,9 @@ class PatronElement(Element):
         attends:
             Whether the patron went to the bar this week, 1 or 0.
 
+        capacity:
+            The attendance above which the bar is too crowded to enjoy.
+
     Examples:
         >>> from skcomplex.models.economics.econophysics import PatronElement
         >>> GroupElement('patrons', element=PatronElement, size=100, values={'predictors': 7}).size
@@ -223,11 +227,13 @@ class PatronElement(Element):
         predictors: Annotated[float, StateSpec(domain=NN)] = 1,
         forecast: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         attends: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        capacity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 60.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.predictors = predictors
         self.forecast = forecast
         self.attends = attends
+        self.capacity = capacity
 
     @classmethod
     def _get_view(cls) -> type[PatronView]:
@@ -264,61 +270,12 @@ class PatronElement(Element):
         agent.forecast = float(predicted[held[int(np.argmin(errors[held]))]])
 
 
-class BarInteraction(FeedbackInteraction[ModelView]):
-    """El Farol bar, which counts its patrons every week and reports the attendance.
-
-    Args:
-        label:
-            The label of the bar.
-
-        rule:
-            The function of the model view that acts, unused since the bar overrides `act`.
-
-        phase:
-            The phase in which the bar counts its patrons.
-
-        capacity:
-            The attendance above which the bar is too crowded to enjoy.
-
-        patrons:
-            The path of the group of patrons.
-
-    Examples:
-        >>> from skcomplex.models.economics.econophysics import BarInteraction
-        >>> BarInteraction('bar', patrons='patrons').capacity
-        60.0
-    """
-
-    reports: ClassVar[tuple[str, ...]] = ('attendance',)
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        rule: Callable[[ModelView], None] | None = None,
-        phase: str | None = 'count',
-        capacity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 60.0,
-        patrons: str = 'patrons',
-    ) -> None:
-        super().__init__(label, rule=rule, phase=phase)
-        self.capacity = capacity
-        self.patrons = patrons
-
-    def act(self, model: ModelView) -> None:
-        """Count the patrons in the bar and report the attendance.
-
-        Args:
-            model:
-                The model view of the bar.
-        """
-        model.report('attendance', sum(agent.attends for agent in model.agents(self.patrons, PatronView)))
-
-
 @register_model(
     field='economics/econophysics',
     tags=('el farol', 'agents', 'inductive reasoning', 'bounded rationality'),
     references=('Arthur 1994', 'Yakovenko and Rosser 2009', 'Carmichael and Hadzikadic 2019 ch. 9'),
     defaults={'until': 200},
+    observables=lambda system: [ObservableSpec('attendance', group='patrons', variable='attends', reduce='sum')],
 )
 def el_farol(
     n_agents: int = 100,
@@ -332,7 +289,8 @@ def el_farol(
 
     Every patron holds a random set of predictors of next week's attendance, drawn from a pool of 46, and acts on
     its currently most accurate one, going when it forecasts room in the bar. The attendance is random-looking, yet
-    its mean settles near the capacity.
+    its mean settles near the capacity. The patrons read the past attendances from the observable `attendance` of
+    the run, which the catalog lists, so a run passes it in `observables`.
 
     Args:
         n_agents:
@@ -353,8 +311,8 @@ def el_farol(
     Returns:
         system:
             The model, with the group `patrons`, the one-member group `pool` of the forecasts and the errors of the
-            predictors, the reinforcement `scoring` of the errors, the choice `choice` to go when the forecast is below
-            the capacity, and the institution `bar`, which reports the attendance `bar.attendance`.
+            predictors, the reinforcement `scoring` of the errors, and the choice `choice` to go when the forecast is
+            below the capacity of the patrons.
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import el_farol
@@ -366,7 +324,12 @@ def el_farol(
         float(sum(1 << int(index) for index in rng.choice(len(PREDICTORS), n_predictors, replace=False)))
         for _ in range(n_agents)
     ]
-    patrons = GroupElement('patrons', element=PatronElement, size=n_agents, values={'predictors': masks})
+    patrons = GroupElement(
+        'patrons',
+        element=PatronElement,
+        size=n_agents,
+        values={'predictors': masks, 'capacity': capacity},
+    )
     pool = GroupElement(
         'pool',
         element=PredictorPoolElement,
@@ -387,17 +350,17 @@ def el_farol(
         target='patrons',
         state='attends',
         options=(0.0, 1.0),
-        utility=lambda agent, model, option: option if agent.forecast < model.parameters['bar.capacity'] else -option,
+        utility=lambda agent, model, option: option if agent.forecast < agent.capacity else -option,
         rule='best',
         form='agent',
         phase='decide',
     )
     return System(
         elements=[patrons, pool],
-        interactions=[scoring, choice, BarInteraction('bar', capacity=capacity)],
+        interactions=[scoring, choice],
         time=DiscreteTime(
             schedule=PhasesScheduleSpec(
-                [PhaseSpec(name) for name in ('learn', 'forecast', 'predict', 'decide', 'count')],
+                [PhaseSpec(name) for name in ('learn', 'forecast', 'predict', 'decide')],
             ),
         ),
     )

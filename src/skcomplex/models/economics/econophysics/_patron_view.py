@@ -9,9 +9,10 @@ from ....engine.solvers import AgentView
 class PatronView(AgentView):
     """Patron as the rules of the bar see it, with its predictors, forecast, and attendance.
 
-    It reads the bit mask of its `predictors`, its `forecast`, and whether it `attends`.
+    It reads the bit mask of its `predictors`, its `forecast`, whether it `attends`, and the `capacity` of the bar.
     """
 
     predictors: float
     forecast: float
     attends: float
+    capacity: float

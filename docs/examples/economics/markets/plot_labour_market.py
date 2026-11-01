@@ -62,7 +62,7 @@ simulation = (
 
 trajectory = simulation.trajectory_
 times, unemployment = trajectory.times, trajectory.values('unemployment')
-hires, searching = trajectory.values('labour.volume'), trajectory.values('office.searching')
+hires, searching = trajectory.values('labour.volume'), trajectory.values('searching')
 window = slice(50, None)
 finding = np.nansum(hires[window]) / np.nansum(searching[window])
 balance = SEPARATION / (SEPARATION + finding)

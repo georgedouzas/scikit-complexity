@@ -11,15 +11,36 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import TransferInteraction
-from ....core.laws import BaseLaw, Sink, Source, UpdateLaw
+from ....core.interactions import MapInteraction, TransferInteraction
+from ....core.laws import Sink, Source
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 
+def _consumption(households: SimpleNamespace, firms: SimpleNamespace) -> Expression:
+    """Return the consumption of a period, a share of the wages and a share of the deposits of the households."""
+    return households.alpha_income * firms.wage_share * firms.sales + households.alpha_wealth * households.deposits
+
+
+def _lending(firms: SimpleNamespace, bank: SimpleNamespace) -> Expression:
+    """Return the new loans of a period, in proportion to the sales of the firms."""
+    return bank.credit * firms.sales
+
+
+def _next_loans(s: SimpleNamespace) -> Expression:
+    """Return the loans of the firms after a period, the new loans added and the repayments taken."""
+    firms, bank = s.target, s.sources[0]
+    return firms.loans + _lending(firms, bank) - firms.repayment * firms.loans
+
+
+def _next_sales(s: SimpleNamespace) -> Expression:
+    """Return the sales of the firms of a period, the consumption of the households."""
+    return _consumption(s.sources[0], s.target)
+
+
 class HouseholdsElement(Element):
-    """Households sector, whose deposits are money.
+    """Households sector, whose deposits are money, and which consumes out of its wages and its deposits.
 
     Args:
         label:
@@ -30,6 +51,12 @@ class HouseholdsElement(Element):
 
         deposits:
             The deposits of the households.
+
+        alpha_income:
+            The propensity to consume out of wages.
+
+        alpha_wealth:
+            The propensity to consume out of deposits.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import HouseholdsElement
@@ -43,13 +70,17 @@ class HouseholdsElement(Element):
         visual: VisualSpec | None = None,
         *,
         deposits: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='money')] = 60.0,
+        alpha_income: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
+        alpha_wealth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
     ) -> None:
         super().__init__(label, visual=visual)
         self.deposits = deposits
+        self.alpha_income = alpha_income
+        self.alpha_wealth = alpha_wealth
 
 
 class FirmsElement(Element):
-    """Firms sector, with its deposits, its loans, and the sales of the last period.
+    """Firms sector, with its deposits, its loans, and the sales of the last period, which pays wages and profits.
 
     Args:
         label:
@@ -67,6 +98,15 @@ class FirmsElement(Element):
         sales:
             The sales of the last period.
 
+        wage_share:
+            The share of sales paid as wages.
+
+        distribution:
+            The share of the firms' deposits distributed as profits per period.
+
+        repayment:
+            The share of loans repaid per period.
+
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import FirmsElement
         >>> FirmsElement('firms').loans
@@ -81,15 +121,21 @@ class FirmsElement(Element):
         deposits: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='money')] = 20.0,
         loans: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
         sales: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 40.0,
+        wage_share: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
+        distribution: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        repayment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
     ) -> None:
         super().__init__(label, visual=visual)
         self.deposits = deposits
         self.loans = loans
         self.sales = sales
+        self.wage_share = wage_share
+        self.distribution = distribution
+        self.repayment = repayment
 
 
 class MonetaryBankElement(Element):
-    """Bank of a stock-flow consistent economy, whose own funds are money.
+    """Bank of a stock-flow consistent economy, whose own funds are money, and which lends and charges interest.
 
     Args:
         label:
@@ -100,6 +146,15 @@ class MonetaryBankElement(Element):
 
         deposits:
             The own funds of the bank.
+
+        interest:
+            The interest rate on loans per period.
+
+        payout:
+            The share of the bank's funds paid out as dividends per period.
+
+        credit:
+            The new loans per unit of sales.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import MonetaryBankElement
@@ -113,17 +168,23 @@ class MonetaryBankElement(Element):
         visual: VisualSpec | None = None,
         *,
         deposits: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='money')] = 10.0,
+        interest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
+        payout: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        credit: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
         super().__init__(label, visual=visual)
         self.deposits = deposits
+        self.interest = interest
+        self.payout = payout
+        self.credit = credit
 
 
 class CircuitInteraction(TransferInteraction):
     """Circuit of money between households, firms, and a bank, one period per step.
 
     The flows of a period are the legs of one transfer between the deposits of the sectors, consumption, wages,
-    interest, dividends, and profits, lending from the environment, and repayments to it, while the loans and the
-    sales of the firms follow as maps. Every leg is named by its flow, so the reporters `<label>.<flow>` record it.
+    interest, dividends, and profits, lending from the environment, and repayments to it, each reading the parameters
+    of the sectors. Every leg is named by its flow, so the reporters `<label>.<flow>` record it.
 
     Args:
         label:
@@ -138,34 +199,10 @@ class CircuitInteraction(TransferInteraction):
         bank:
             The path of the bank.
 
-        alpha_income:
-            The propensity to consume out of wages.
-
-        alpha_wealth:
-            The propensity to consume out of deposits.
-
-        wage_share:
-            The share of sales paid as wages.
-
-        interest:
-            The interest rate on loans per period.
-
-        payout:
-            The share of the bank's funds paid out as dividends per period.
-
-        distribution:
-            The share of the firms' deposits distributed as profits per period.
-
-        credit:
-            The new loans per unit of sales.
-
-        repayment:
-            The share of loans repaid per period.
-
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import CircuitInteraction
-        >>> CircuitInteraction('circuit', households='households', firms='firms', bank='bank').credit
-        0.1
+        >>> CircuitInteraction('circuit', households='households', firms='firms', bank='bank').bank
+        'bank'
     """
 
     def __init__(
@@ -175,14 +212,6 @@ class CircuitInteraction(TransferInteraction):
         households: Annotated[str, RoleSpec()],
         firms: Annotated[str, RoleSpec()],
         bank: Annotated[str, RoleSpec()],
-        alpha_income: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
-        alpha_wealth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
-        wage_share: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
-        interest: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
-        payout: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        distribution: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        credit: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        repayment: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
     ) -> None:
         super().__init__(
             label,
@@ -190,60 +219,29 @@ class CircuitInteraction(TransferInteraction):
             target=firms,
             state='households.deposits',
             into='firms.deposits',
-            amount=self._get_consumption,
+            amount=lambda s: _consumption(s.households, s.firms),
             flow='consumption',
             legs=[
-                ('firms.deposits', 'households.deposits', lambda s: s.wage_share * s.firms.sales, 'wages'),
-                ('firms.deposits', 'bank.deposits', lambda s: s.interest * s.firms.loans, 'interest'),
-                ('bank.deposits', 'households.deposits', lambda s: s.payout * s.bank.deposits, 'dividends'),
-                ('firms.deposits', 'households.deposits', lambda s: s.distribution * s.firms.deposits, 'profits'),
-                (Source('lending'), 'firms.deposits', self._get_lending, 'lending'),
-                ('firms.deposits', Sink('repayment'), lambda s: s.repayment * s.firms.loans, 'repayments'),
+                ('firms.deposits', 'households.deposits', lambda s: s.firms.wage_share * s.firms.sales, 'wages'),
+                ('firms.deposits', 'bank.deposits', lambda s: s.bank.interest * s.firms.loans, 'interest'),
+                ('bank.deposits', 'households.deposits', lambda s: s.bank.payout * s.bank.deposits, 'dividends'),
+                (
+                    'firms.deposits',
+                    'households.deposits',
+                    lambda s: s.firms.distribution * s.firms.deposits,
+                    'profits',
+                ),
+                (Source('lending'), 'firms.deposits', lambda s: _lending(s.firms, s.bank), 'lending'),
+                ('firms.deposits', Sink('repayment'), lambda s: s.firms.repayment * s.firms.loans, 'repayments'),
             ],
         )
         self.households = households
         self.firms = firms
         self.bank = bank
-        self.alpha_income = alpha_income
-        self.alpha_wealth = alpha_wealth
-        self.wage_share = wage_share
-        self.interest = interest
-        self.payout = payout
-        self.distribution = distribution
-        self.credit = credit
-        self.repayment = repayment
-
-    @staticmethod
-    def _get_consumption(s: SimpleNamespace) -> Expression:
-        """Return the consumption of a period, a share of the wages and a share of the deposits of the households."""
-        return s.alpha_income * s.wage_share * s.firms.sales + s.alpha_wealth * s.households.deposits
-
-    @staticmethod
-    def _get_lending(s: SimpleNamespace) -> Expression:
-        """Return the new loans of a period, in proportion to the sales of the firms."""
-        return s.credit * s.firms.sales
 
     def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
         """Return the households and the firms, the first pair of the circuit, whose other legs name their roles."""
         return [(namespace.households, namespace.firms)]
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the transfers of one period and the maps of the loans and the sales.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the circuit.
-        """
-        firms = namespace.firms
-        return [
-            *super()._get_laws(namespace),
-            UpdateLaw(firms.loans, firms.loans + self._get_lending(namespace) - namespace.repayment * firms.loans),
-            UpdateLaw(firms.sales, self._get_consumption(namespace)),
-        ]
 
 
 @register_model(
@@ -277,7 +275,8 @@ def stock_flow_consistent_economy(
     funds as dividends. Lending creates money and
     repayment destroys it, the only flows with the environment, so the total money changes exactly by lending minus
     repayment, in the spirit of the models of Godley and Lavoie (2007) and the balance sheets of Caiani et al. (2016).
-    Loans approach `credit * sales / repayment` and sales settle where the stocks stop growing.
+    Loans approach `credit * sales / repayment` and sales settle where the stocks stop growing. The circuit moves the
+    money of a period, and the maps `loans` and `sales` set the loans and the sales of the firms.
 
     Args:
         household_deposits:
@@ -324,7 +323,7 @@ def stock_flow_consistent_economy(
             The model, with the deposits `households.deposits`, `firms.deposits`, and `bank.deposits`, the loans
             `firms.loans`, the sales `firms.sales`, the flows `circuit.consumption`, `circuit.wages`,
             `circuit.interest`, `circuit.dividends`, `circuit.profits`, `circuit.lending`, and `circuit.repayments`,
-            and the net money created `__boundary.money`.
+            the maps `loans` and `sales`, and the net money created `__boundary.money`.
 
     Examples:
         >>> from skcomplex.models.economics.macroeconomics import stock_flow_consistent_economy
@@ -333,24 +332,26 @@ def stock_flow_consistent_economy(
     """
     return System(
         elements=[
-            HouseholdsElement('households', deposits=household_deposits),
-            FirmsElement('firms', deposits=firm_deposits, loans=loans, sales=sales),
-            MonetaryBankElement('bank', deposits=bank_deposits),
-        ],
-        interactions=[
-            CircuitInteraction(
-                'circuit',
-                households='households',
-                firms='firms',
-                bank='bank',
+            HouseholdsElement(
+                'households',
+                deposits=household_deposits,
                 alpha_income=alpha_income,
                 alpha_wealth=alpha_wealth,
+            ),
+            FirmsElement(
+                'firms',
+                deposits=firm_deposits,
+                loans=loans,
+                sales=sales,
                 wage_share=wage_share,
-                interest=interest,
-                payout=payout,
                 distribution=distribution,
-                credit=credit,
                 repayment=repayment,
             ),
+            MonetaryBankElement('bank', deposits=bank_deposits, interest=interest, payout=payout, credit=credit),
+        ],
+        interactions=[
+            CircuitInteraction('circuit', households='households', firms='firms', bank='bank'),
+            MapInteraction('loans', target='firms', state='loans', function=_next_loans, sources=['bank']),
+            MapInteraction('sales', target='firms', state='sales', function=_next_sales, sources=['households']),
         ],
     )
