@@ -13,20 +13,21 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement, GroupElement
-from ....core.laws import BaseLaw, RateLaw, UpdateLaw
-from ....core.laws.utils import hill, laplacian, shift_member
+from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import hill, laplacian
 from ....core.spaces import ContinuousTime, DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._contour_uptake import ContourUptakeInteraction
 
 
 class ContourCellElement(Element):
     """Logistic cell of a closed contour that takes up the signalling molecules of the next cell through a power map.
 
-    The concentration of cell `i` follows `x_i <- (1 - c_i) r x_i (1 - x_i) + c_i x_{i+1}^{p_i}`, where the logistic
-    map is the intracellular dynamics, `c_i` the share of the exchange with the environment between the cells, and
-    `p_i` the affinity of the cell for the uptake. The last cell of the contour takes up from the first.
+    `ContourUptakeInteraction` iterates `x_i <- (1 - c_i) r x_i (1 - x_i) + c_i x_{i+1}^{p_i}`, where the logistic map
+    is the intracellular dynamics, `c_i` the share of the exchange with the environment between the cells, and `p_i`
+    the affinity of the cell for the uptake. The last cell of the contour takes up from the first.
 
     Args:
         label:
@@ -68,19 +69,6 @@ class ContourCellElement(Element):
         self.r = r
         self.c = c
         self.p = p
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the logistic intracellular map and the uptake from the next cell of the contour.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [UpdateLaw(s.x, (1 - s.c) * s.r * s.x * (1 - s.x) + s.c * shift_member(s.x, 1) ** s.p)]
 
 
 class ExchangingCellElement(Element):
@@ -216,7 +204,8 @@ def closed_contour_cell_exchange(
             'p': np.broadcast_to(np.asarray(p, dtype=float), n_cells).copy(),
         },
     )
-    return System(elements=[cells], time=DiscreteTime())
+    uptake = ContourUptakeInteraction('uptake', target='cells')
+    return System(elements=[cells], interactions=[uptake], time=DiscreteTime())
 
 
 @register_model(

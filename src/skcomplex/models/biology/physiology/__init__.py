@@ -3,6 +3,7 @@
 from ._adaptivity import AdaptiveResponderElement, adaptive_response_costs
 from ._cardiac import AlievPanfilovElement, aliev_panfilov
 from ._circulation import ChamberElement, ResistiveFlowInteraction, cardiovascular
+from ._contour_uptake import ContourUptakeInteraction
 from ._exchange import (
     ContourCellElement,
     ExchangingCellElement,
@@ -25,6 +26,7 @@ __all__: list[str] = [
     'ChamberElement',
     'CoagulationElement',
     'ContourCellElement',
+    'ContourUptakeInteraction',
     'DrugToxicityElement',
     'ExchangingCellElement',
     'FitzHughNagumoElement',

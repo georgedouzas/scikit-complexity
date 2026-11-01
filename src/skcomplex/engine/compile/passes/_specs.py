@@ -974,6 +974,71 @@ class SpecsPass(BasePass):
         return specs
 
     @staticmethod
+    def _binds_separate(block: BlockSpec, bound: list[str], elements: dict[str, BlockSpec]) -> bool:
+        """Check whether an interaction over neighbours binds a role to an element set or to a single element."""
+        node = block.node
+        for role in bound:
+            label = getattr(node.component, role)
+            if isinstance(label, list | tuple):
+                return True
+            if SpecsPass._resolve_member(node, role, label, elements) is not None:
+                continue
+            if SpecsPass._resolve_role(node, role, elements).node.members is None:
+                return True
+        return False
+
+    @staticmethod
+    def _separate_specs(
+        block: BlockSpec,
+        bound: list[str],
+        elements: dict[str, BlockSpec],
+        time: Expression,
+        observer: Observer,
+    ) -> list[KernelSpec]:
+        """Return the specs of an interaction over neighbours that binds separate elements, one per element of a set.
+
+        The first role binds `namespace.target`. When the second role binds a group, `namespace.source` reads its
+        members, and otherwise it is the tuple of the namespaces of the elements the second role binds, or of the other
+        elements of the set the first role binds.
+        """
+        node = block.node
+        first, second = bound[0], next(iter(bound[1:]), None)
+        sources = getattr(node.component, second or first)
+        separate = second is None or SpecsPass._binds_separate(block, [second], elements)
+        specs = []
+        for spec in SpecsPass._interaction_specs(block, elements, time, observer):
+            namespace = dict(vars(spec.namespace))
+            namespace['target'] = namespace.pop(first)
+            if second is not None:
+                namespace['source'] = namespace.pop(second)
+            references = dict(spec.references)
+            if separate:
+                others = [sources] if isinstance(sources, str) else list(sources)
+                if second is None:
+                    others = [label for index, label in enumerate(others) if index != spec.set_index]
+                namespace['source'] = tuple(
+                    SpecsPass._other_namespace(node, second or first, label, elements, references) for label in others
+                )
+            specs.append(replace(spec, namespace=SimpleNamespace(**namespace), references=references))
+        return specs
+
+    @staticmethod
+    def _other_namespace(
+        node: NodeSpec,
+        role: str,
+        label: str,
+        elements: dict[str, BlockSpec],
+        references: dict[Expression, ReferenceSpec],
+    ) -> SimpleNamespace:
+        """Return the namespace of one separate element that the reductions of an interaction over neighbours read."""
+        other, other_references = SpecsPass._namespace(
+            SpecsPass._resolve_path(node, role, label, elements),
+            ReadKind.SINGLE,
+        )
+        references.update(other_references)
+        return other
+
+    @staticmethod
     def _specs_of(
         block: BlockSpec,
         elements: dict[str, BlockSpec],
@@ -1004,6 +1069,8 @@ class SpecsPass(BasePass):
             return [SpecsPass._member_spec(block, time)], declarations
         component = block.node.component
         bound = [role for role in declarations_of(component, VariableKind.ROLE) if getattr(component, role) is not None]
+        if isinstance(component, NeighborInteraction) and SpecsPass._binds_separate(block, bound, elements):
+            return SpecsPass._separate_specs(block, bound, elements, time, observer), declarations
         if isinstance(component, NeighborInteraction) and bound:
             return SpecsPass._edge_specs(block, elements, declarations)
         if isinstance(component, HyperedgeInteraction) and bound:

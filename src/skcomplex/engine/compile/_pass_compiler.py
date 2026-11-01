@@ -664,10 +664,12 @@ class PassCompiler(BaseCompiler):
             else:
                 continue
             roles = declarations_of(type(interaction), VariableKind.ROLE)
+            labels = [getattr(interaction, name, None) for name in roles]
             bound = [
-                by_path.get(f'{node.scope}{getattr(interaction, name)}')
-                for name in roles
-                if getattr(interaction, name, None) is not None
+                by_path.get(f'{node.scope}{label}')
+                for value in labels
+                if value is not None
+                for label in (value if isinstance(value, list | tuple) else [value])
             ]
             members = [item for item in bound if item is not None and getattr(item.component, 'on', None) != 'edges']
             target = next(iter(members), None)

@@ -13,10 +13,11 @@ from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction, RateInteraction, RelaxationInteraction
+from ....core.interactions import CouplingInteraction, Interaction, RateInteraction, RelaxationInteraction
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import logistic, mean, total
+from ....core.laws.utils import logistic, mean
 from ....core.system import System
+from ....core.types import Target
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
@@ -339,8 +340,11 @@ class RateUnitElement(Element):
         return [RateLaw(s.x, s.x * (s.I - s.x) / s.tau)]
 
 
-class MutualInhibitionInteraction(Interaction):
+class MutualInhibitionInteraction(CouplingInteraction):
     """Inhibition of every unit by the summed activity of all the other units, `-beta x_i sum_{j != i} x_j / tau_i`.
+
+    It is the coupling of the units to each other, as separate elements or as the members of a group, with the term
+    `-beta x_i x_j / tau_i` of every other unit `j`.
 
     Args:
         label:
@@ -365,23 +369,15 @@ class MutualInhibitionInteraction(Interaction):
         units: Annotated[str | Sequence[str], RoleSpec()],
         beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, target=units, function=self._get_inhibition, mode='group')
         self.units = units
         self.beta = beta
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rate `-beta x_i (sum_j x_j - x_i) / tau_i`.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        unit = s.units
-        return [RateLaw(unit.x, -s.beta * unit.x * (total(unit.x) - unit.x) / unit.tau)]
+    @staticmethod
+    def _get_inhibition(namespace: SimpleNamespace) -> Target:
+        """Return the inhibition of the unit by one other unit, `-beta x_i x_j / tau_i`."""
+        member = namespace.member
+        return -namespace.beta * member.x * namespace.other.x / member.tau
 
 
 class PolyhomeostaticNeuronElement(Element):

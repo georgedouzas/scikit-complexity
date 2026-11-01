@@ -7,6 +7,7 @@ from typing import Annotated
 import networkx as nx
 import numpy as np
 import pytest
+import scipy.integrate
 import scipy.optimize
 from sage.all__sagemath_symbolics import SR, I, atan2, cos, exp, pi, sin, vector
 
@@ -21,7 +22,7 @@ from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.errors import ValidationError
-from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.specs import ClampSpec, ObservableSpec, ParameterSpec, RadiusSpec, RoleSpec, StateSpec, VisualSpec
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 GAMMA = 0.5
@@ -424,3 +425,144 @@ def test_check_rejects_unknown_variants_and_mismatched_structures(arguments, mat
     """Test that unknown variants, functions that cannot be called, and weights that do not suit the mode fail."""
     with pytest.raises(ValidationError, match=match):
         CouplingInteraction('coupling', target='oscillators', **arguments).check()
+
+
+def test_coupling_separate_elements_to_each_other():
+    """Test that a coupling of separate elements gives each the sum of the terms of the other elements."""
+    phases = [0.0, 1.0, 2.5]
+    oscillators = [OscillatorElement(f'o{index}', theta=phase) for index, phase in enumerate(phases)]
+    sine = CouplingInteraction(
+        'sine',
+        target=['o0', 'o1', 'o2'],
+        read='theta',
+        write='theta',
+        function=lambda s: sin(s.other.theta - s.member.theta),
+        mode='group',
+    )
+    system = System(elements=oscillators, interactions=[sine])
+    trajectory = Simulation(system, dt=0.01).check().prepare().run(until=1.0).trajectory_
+    found = [trajectory.values(f'o{index}.theta')[-1] for index in range(3)]
+    expected = scipy.integrate.solve_ivp(
+        lambda _, theta: np.sin(theta[None, :] - theta[:, None]).sum(axis=1),
+        (0.0, 1.0),
+        phases,
+        rtol=1e-10,
+        atol=1e-12,
+    ).y[:, -1]
+    np.testing.assert_allclose(found, expected, atol=1e-6)
+
+
+def test_coupling_hub_by_largest_value_of_group():
+    """Test that a hub element coupled to a group by the largest value gets the largest term over the group."""
+    cells = GroupElement('cells', element=CellElement, size=3, values={'u': [1.0, 3.0, 2.0]})
+    drive = CouplingInteraction(
+        'drive',
+        target='hub',
+        source='cells',
+        read='u',
+        write='u',
+        function=lambda s: s.other.u,
+        reduce='max',
+        mode='group',
+    )
+    system = System(elements=[cells, CellElement('hub')], interactions=[drive])
+    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=1.0).trajectory_
+    assert trajectory.values('hub.u')[-1] == pytest.approx(3.0)
+
+
+def test_coupling_group_to_hub_element():
+    """Test that the members of a group coupled to a hub element each get the term of the hub."""
+    cells = GroupElement('cells', element=CellElement, size=2, values={'u': [0.0, 1.0]})
+    inhibition = CouplingInteraction(
+        'inhibition',
+        target='cells',
+        source='hub',
+        read='u',
+        write='u',
+        function=lambda s: -s.other.u,
+        mode='group',
+    )
+    system = System(elements=[cells, CellElement('hub', u=2.0)], interactions=[inhibition])
+    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=1.0).trajectory_
+    np.testing.assert_allclose(trajectory.values('cells.u')[-1], [-2.0, -1.0])
+
+
+def test_check_separate_elements_need_group_mode():
+    """Test that a coupling of separate elements outside the mode group is rejected."""
+    with pytest.raises(ValidationError, match='separate elements'):
+        CouplingInteraction('sine', target=['a', 'b'], mode='next').check()
+
+
+class HeadingElement(Element):
+    """Agent with a velocity of two components and no rules of its own."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        vx: Annotated[object, StateSpec()] = 0.0,
+        vy: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.vx = vx
+        self.vy = vy
+
+
+def _velocities(locations, velocities, **arguments):
+    """Return the velocities of agents after one step of an agent coupling over radii."""
+    agents = GroupElement(
+        'agents',
+        element=HeadingElement,
+        size=len(locations),
+        values={'vx': [item[0] for item in velocities], 'vy': [item[1] for item in velocities]},
+        location=locations,
+    )
+    coupling = CouplingInteraction('coupling', target='agents', write=('vx', 'vy'), form='agent', **arguments)
+    space = ContinuousSpace(extent=(10.0, 10.0))
+    system = System(elements=[agents], interactions=[coupling], space=space, time=DiscreteTime())
+    snapshot = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_.agents('agents', 1)
+    return np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
+
+
+def test_coupling_agents_over_radii_by_priority():
+    """Test that only the radii of the highest priority that hold another agent add their reduced terms."""
+    radii = (
+        RadiusSpec(1.0, lambda agent, other, model: (1.0, 0.0), priority=1),
+        RadiusSpec(5.0, lambda agent, other, model: (0.0, 1.0)),
+        RadiusSpec(5.0, lambda agent, other, model: (0.0, 2.0), reduce='mean'),
+    )
+    found = _velocities([(1.0, 1.0), (1.5, 1.0), (4.0, 1.0)], [(0.0, 0.0)] * 3, radii=radii)
+    np.testing.assert_allclose(found, [[1.0, 0.0], [1.0, 0.0], [0.0, 4.0]])
+
+
+def test_coupling_agents_with_clamped_turn_and_norm():
+    """Test that the agent coupling turns the vector by at most the largest angle and clips its norm."""
+    radii = (RadiusSpec(5.0, lambda agent, other, model: (-1.0, 3.0)),)
+    clamp = ClampSpec(max_angle=0.5, max_norm=2.0)
+    found = _velocities([(1.0, 1.0), (2.0, 1.0)], [(1.0, 0.0)] * 2, radii=radii, clamp=clamp)
+    np.testing.assert_allclose(found, [[2 * math.cos(0.5), 2 * math.sin(0.5)]] * 2)
+
+
+def test_coupling_agents_combine_reduction_and_priority():
+    """Test that the combination of the agent form reads the reduction and its priority, or `None` for no agent."""
+    radii = (RadiusSpec(1.0, lambda agent, other, model: (1.0, 0.0), priority=2),)
+
+    def combine(agent, model, reduction, priority):
+        return (0.0, -1.0) if reduction is None else (float(priority), 0.0)
+
+    found = _velocities([(1.0, 1.0), (1.5, 1.0), (8.0, 8.0)], [(0.0, 0.0)] * 3, radii=radii, combine=combine)
+    np.testing.assert_allclose(found, [[2.0, 0.0], [2.0, 0.0], [0.0, -1.0]])
+
+
+@pytest.mark.parametrize(
+    ('arguments', 'match'),
+    [
+        ({'form': 'agent'}, 'at least one radius'),
+        ({'clamp': ClampSpec(max_norm=1.0)}, 'agent form only'),
+    ],
+)
+def test_check_agent_form_needs_radii_and_takes_them_alone(arguments, match):
+    """Test that the agent form needs radii, and that the other forms take no radii, clamp, or phase."""
+    with pytest.raises(ValidationError, match=match):
+        CouplingInteraction('coupling', target='agents', **arguments).check()
