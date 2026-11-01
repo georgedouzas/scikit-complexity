@@ -20,9 +20,7 @@ from ._inventory import CarDealershipElement, car_dealer
 from ._labour import EmployerElement, JobseekerElement, SearchCountInteraction, hire, labour_market
 from ._perishables import (
     CustomerElement,
-    PerishableTradeInteraction,
     ProductElement,
-    ShopElement,
     perishable_goods_duopoly,
 )
 from ._prices import QuadraticSupplyMarketElement, riccati_prices
@@ -63,13 +61,11 @@ __all__: list[str] = [
     'HeuristicTraderElement',
     'JobseekerElement',
     'MarketElement',
-    'PerishableTradeInteraction',
     'ProductElement',
     'QuadraticSupplyMarketElement',
     'ResidentElement',
     'RetailDemandInteraction',
     'SearchCountInteraction',
-    'ShopElement',
     'ShopperElement',
     'StallElement',
     'StoreElement',
