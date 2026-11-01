@@ -9,6 +9,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...core.laws import BaseLaw, BoundaryLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...core.laws.utils import draws_in, shift_member
 from ...core.spaces import LatticeNeighborhood, LatticeSpace
 from ...core.spaces._lattice import BOUNDARIES
 from ...errors import ValidationError
@@ -27,7 +28,9 @@ class MemberLowering(BaseLowering[list[BaseLaw]]):
     """Lowering of the member offset reads of the laws of one component to neighbour reads of its group's index table.
 
     `prepare(compilation)` reads the time of the compilation, and `run(laws)` sets `lowered_`, the laws with every
-    member offset read replaced by a symbol that reads the offset member, whose reference it notes for the spec.
+    member offset read replaced by a symbol that reads the offset member, whose reference it notes for the spec. A
+    parameter of a single element or interaction is the same at every member and stays as it is. A draw read at an
+    offset stays a member offset read of the draw, which the lowering of draws reads at the offset member.
 
     Args:
         spec:
@@ -88,6 +91,23 @@ class MemberLowering(BaseLowering[list[BaseLaw]]):
                 result.append(law)
         self.lowered_ = result
 
+    def _is_single(self, item: Expression) -> bool:
+        """Check whether a symbol is the time or a parameter of a single element or interaction, alike for all."""
+        reference = self.spec.references.get(item)
+        single = reference is not None and reference.source is ReadKind.SINGLE and not reference.is_state
+        return item == self.time_ or single
+
+    def _shift_draws(self, expression: Expression, offset: int, boundary: str, fill: float) -> Expression:
+        """Return an expression with every draw wrapped in a member offset read, which the lowering of draws reads."""
+        draws = draws_in(expression)
+        if draws and BasePass._calls_of(expression, _SHIFT):
+            error_msg = (
+                f'A law of {self.spec.owner} nests member offsets around a draw. Read a draw at one member offset.'
+            )
+            raise ValidationError(error_msg)
+        calls = {draw.call: shift_member(draw.call, offset, boundary=boundary, fill=fill) for draw in draws}
+        return expression.subs(calls) if calls else expression
+
     def _member(self, item: Expression) -> tuple[Expression, int, str | None, float]:
         """Return the member symbol a symbol reads, with the offset, boundary, and fill it is already read at."""
         if item in self.shifted_:
@@ -145,8 +165,8 @@ class MemberLowering(BaseLowering[list[BaseLaw]]):
             ValidationError:
                 The expression reads a single element, two groups, or nests reads with different boundaries.
         """
-        expression = SR(expression)
-        members = {item: self._member(item) for item in expression.variables() if item != self.time_}
+        expression = self._shift_draws(SR(expression), offset, boundary, fill)
+        members = {item: self._member(item) for item in expression.variables() if not self._is_single(item)}
         groups = {self.spec.references[base].entry.name.rpartition('.')[0] for base, *_ in members.values()}
         if len(groups) > 1:
             error_msg = (

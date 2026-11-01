@@ -105,13 +105,14 @@ class KernelsPass(BasePass):
         spec: KernelSpec,
         law: BaseLaw,
         targets: list[ReferenceSpec],
-        assigned: dict[tuple[str, int], list[BaseLaw]],
+        assigned: dict[tuple[object, ...], list[BaseLaw]],
         *,
         once: bool,
     ) -> set[int]:
         """Raise an error for an update or boundary law that sums over members or sets a component it cannot share.
 
-        Returns the positions of the targets that an earlier law sets, whose changes this law adds to.
+        Returns the positions of the targets that an earlier law sets, whose changes this law adds to. A law of one
+        member of a group meets the laws of every member, and a law of every member the laws of each one.
         """
         kind = type(law).__name__
         combined = set()
@@ -125,7 +126,8 @@ class KernelsPass(BasePass):
             if target.source is ReadKind.SINGLE and spec.rows > 1 and not once:
                 error_msg = f'A {kind} law of {spec.owner} targets a single element from a group, which has no meaning.'
                 raise ValidationError(error_msg)
-            laws = assigned[(target.entry.name, target.column)]
+            keys = KernelsPass._assignment_keys(target)
+            laws = assigned[keys[0]] + assigned[keys[1]]
             if laws and not KernelsPass._combines([*laws, law]):
                 error_msg = (
                     f'A {kind} law of {spec.owner} sets {target.entry.name} a second time. Each takes one law, unless '
@@ -134,8 +136,22 @@ class KernelsPass(BasePass):
                 raise ValidationError(error_msg)
             if laws:
                 combined.add(position)
-            laws.append(law)
+            for key in keys[1:]:
+                assigned[key].append(law)
         return combined
+
+    @staticmethod
+    def _assignment_keys(target: ReferenceSpec) -> tuple[tuple[object, ...], ...]:
+        """Return the keys of the laws an assignment of a target meets, the first two, and holds, all but the first.
+
+        The laws of every member of a group are held under the component, and the laws of one member under the
+        component and the member and under the laws of single members, so each meets the other.
+        """
+        name = target.entry.name
+        if target.source is ReadKind.MEMBER or target.entry.members is None:
+            return ((name, target.column, 'one'), (name, target.column))
+        member, column = divmod(target.column, target.entry.columns)
+        return ((name, column), (name, column, member), (name, column, 'one'))
 
     @staticmethod
     def _is_once(spec: KernelSpec, law: BaseLaw) -> bool:
@@ -201,7 +217,7 @@ class KernelsPass(BasePass):
         kernels: defaultdict[type, list[LawKernel]] = defaultdict(list)
         jump_changes: dict[int, list[tuple[ReferenceSpec, float]]] = {}
         laws_of: dict[int, tuple[KernelSpec, BaseLaw]] = {}
-        assigned: dict[type, defaultdict[tuple[str, int], list[BaseLaw]]] = defaultdict(lambda: defaultdict(list))
+        assigned: dict[type, defaultdict[tuple[object, ...], list[BaseLaw]]] = defaultdict(lambda: defaultdict(list))
         for spec, laws in specs:
             outputs: dict[tuple[type, bool], list[OutputSpec]] = defaultdict(list)
             for law in laws:

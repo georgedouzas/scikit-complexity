@@ -17,7 +17,7 @@ from ...core.laws.utils import has_operator, local_operator
 from ...core.specs import NodeSpec
 from ...core.system import System
 from ...errors import ValidationError
-from ...specs import EntrySpec, ObservableSpec, ReadSpec, StateSpec
+from ...specs import EntrySpec, NeighborReadSpec, ObservableSpec, ReadSpec, StateSpec
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...types import Array, FormKind, Indices, VariableKind
 from .._utils import bound_labels, declarations_of, symbol, symbols_of
@@ -34,10 +34,11 @@ from ..problems._quantum_lowering import QuantumLowering
 from ..problems._recorded_spec import _RecordedSpec
 from ..problems._reduction_kernel import ReductionKernel
 from ..types import AgentsFunction, Declared, ObservableFunction, ReadKind
-from ._base import BaseCompiler
+from ._base import BaseCompiler, BasePass
 from ._complex import _is_zero, _split_complex
 from ._flows import TransferLowering
 from ._member_reductions import _MemberReductions
+from ._members import MemberLowering
 
 
 def _role_paths(system: System, scope: str = '') -> set[str]:
@@ -318,9 +319,12 @@ class ObservableEvaluator:
         return get
 
     def _recorded_getter(self, recorded: _RecordedSpec) -> ObservableFunction:
-        """Return the getter of a flow or an objective, one value for a single component and one per group member."""
-        members: dict[Expression, Callable[[Array, Array], Array]] = {}
-        for item in symbols_of([recorded.expression]) - {self.problem.time}:
+        """Return the getter of a flow or an objective, one value for a single component and one per group member.
+
+        A flow along the edges of a group reads members at an offset, which the getter reads from the member columns.
+        """
+        expression, members = self._read_offsets(recorded)
+        for item in symbols_of([expression]) - {self.problem.time} - set(members):
             reference = recorded.references.get(item)
             if reference is None or reference.source not in {ReadKind.SINGLE, ReadKind.MEMBER}:
                 error_msg = (
@@ -330,10 +334,32 @@ class ObservableEvaluator:
                 raise ValidationError(error_msg)
             entry = reference.entry
             indices: int | Indices = entry.start + reference.column
-            if reference.entry.members is not None:
+            if reference.entry.members is not None and reference.source is ReadKind.MEMBER:
                 indices = entry.start + np.arange(entry.members or 1) * entry.columns + reference.column
             members[item] = self._from_vector(reference.is_state, indices)
-        return self._compile(recorded.path, recorded.expression, {}, members)
+        return self._compile(recorded.path, expression, {}, members)
+
+    def _read_offsets(
+        self,
+        recorded: _RecordedSpec,
+    ) -> tuple[object, dict[Expression, Callable[[Array, Array], Array]]]:
+        """Return a recorded expression with every member offset read replaced by a symbol, and its reader."""
+        expression = recorded.expression
+        if not isinstance(expression, Expression):
+            return expression, {}
+        members: dict[Expression, Callable[[Array, Array], Array]] = {}
+        for index, call in enumerate(BasePass._calls_of(expression, 'shift_member')):
+            base, offset, boundary, fill = MemberLowering._shift_arguments(call)
+            reference = recorded.references.get(base)
+            if reference is None or reference.source is not ReadKind.MEMBER:
+                error_msg = f'{recorded.path} reads {base} at a member offset, but it is no variable of a group member.'
+                raise ValidationError(error_msg)
+            read = MemberLowering._neighbor_read(reference.entry.rows, offset, boundary, fill)
+            column = self._from_vector(reference.is_state, reference.flat_indices)
+            item = symbol(f'_recorded_shift{index}')
+            members[item] = self._from_offset(column, read)
+            expression = SR(expression).subs({call: item})
+        return expression, members
 
     def _expression_getter(self, scope: str, path: str, observable: ObservableSpec) -> ObservableFunction:
         """Return the getter of an expression of the system's symbols."""
@@ -689,6 +715,14 @@ class ObservableEvaluator:
     def _read_of(read: ReadSpec) -> Callable[[Array, Array], Array]:
         """Return a reader of the values a reduction read stands for, from the state or the extended parameters."""
         return ObservableEvaluator._from_vector(read.is_state, read.index)
+
+    @staticmethod
+    def _from_offset(
+        column: Callable[[Array, Array], Array],
+        read: NeighborReadSpec,
+    ) -> Callable[[Array, Array], Array]:
+        """Return a reader of the values of a member column at the member an offset away from every member."""
+        return lambda x, p: read.read(column(x, p))
 
     @staticmethod
     def _from_vector(is_state: bool, indices: int | Indices) -> Callable[[Array, Array], Array]:

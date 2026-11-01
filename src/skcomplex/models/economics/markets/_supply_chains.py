@@ -11,8 +11,8 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
+from ....core.interactions import TransferInteraction
+from ....core.laws import BaseLaw, RateLaw, Sink, Source
 from ....core.laws.utils import distributed_delay, maximum, minimum, step
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -41,45 +41,9 @@ def _echelon_laws(s: SimpleNamespace) -> list[BaseLaw]:
     ]
 
 
-def _link_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the laws of a link, the mail of orders upstream and the shipping of beer downstream."""
-    orders = _orders(s.downstream)
-    shipments = _shipments(s.upstream)
-    received = distributed_delay(orders, order=3, time=s.mail_delay)
-    arrivals = distributed_delay(shipments, order=3, time=s.shipping_delay)
-    return [
-        RateLaw(s.downstream.supply_line, orders - arrivals),
-        RateLaw(s.upstream.backlog, received),
-        RateLaw(s.upstream.expected, s.upstream.theta * received),
-        TransferLaw(s.upstream.inventory, s.downstream.in_transit, shipments, label='shipments'),
-        TransferLaw(s.downstream.in_transit, s.downstream.inventory, arrivals, label='arrivals'),
-    ]
-
-
 def _customer_orders(s: SimpleNamespace) -> Expression:
     """Return the orders of the customers, their demand after its step."""
     return s.demand + step(s.t, s.step_time, s.demand_step)
-
-
-def _customer_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the laws of the customers, whose demand reaches the retailer and who take its shipments."""
-    demand = _customer_orders(s)
-    return [
-        RateLaw(s.retailer.backlog, demand),
-        RateLaw(s.retailer.expected, s.retailer.theta * demand),
-        TransferLaw(s.retailer.inventory, Sink('customers'), _shipments(s.retailer), label='sales'),
-    ]
-
-
-def _brewery_laws(s: SimpleNamespace) -> list[BaseLaw]:
-    """Return the laws of the brewery, which brews the orders of the factory over the production delay."""
-    orders = _orders(s.factory)
-    completions = distributed_delay(orders, order=3, time=s.production_delay)
-    return [
-        RateLaw(s.factory.supply_line, orders - completions),
-        TransferLaw(Source('brewery'), s.factory.in_transit, orders, label='starts'),
-        TransferLaw(s.factory.in_transit, s.factory.inventory, completions, label='completions'),
-    ]
 
 
 class EchelonElement(Element):
@@ -174,11 +138,13 @@ class EchelonElement(Element):
         return _echelon_laws(s)
 
 
-class SupplyLinkInteraction(Interaction):
+class SupplyLinkInteraction(TransferInteraction):
     """Link of a supply chain, which mails the orders of the downstream echelon upstream and ships beer back.
 
     Orders reach the upstream echelon through a third-order delay of the mail delay, raising its backlog and its
     expected demand, and its shipments reach the downstream echelon through a third-order delay of the shipping delay.
+    The shipments and their arrivals are the legs of one transfer, from the inventory of the upstream echelon to the
+    beer in transit to the downstream echelon and on to its inventory.
 
     Args:
         label:
@@ -211,28 +177,61 @@ class SupplyLinkInteraction(Interaction):
         mail_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
         shipping_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
     ) -> None:
-        super().__init__(label)
+        super().__init__(
+            label,
+            source=upstream,
+            target=downstream,
+            state='inventory',
+            into='in_transit',
+            amount=self._get_shipments,
+            flow='shipments',
+            legs=[('downstream.in_transit', 'downstream.inventory', self._get_arrivals, 'arrivals')],
+        )
         self.downstream = downstream
         self.upstream = upstream
         self.mail_delay = mail_delay
         self.shipping_delay = shipping_delay
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+    @staticmethod
+    def _get_shipments(s: SimpleNamespace) -> Expression:
+        """Return the shipments of the upstream echelon."""
+        return _shipments(s.upstream)
+
+    @staticmethod
+    def _get_arrivals(s: SimpleNamespace) -> Expression:
+        """Return the arrivals at the downstream echelon, the shipments after a third-order shipping delay."""
+        return distributed_delay(_shipments(s.upstream), order=3, time=s.shipping_delay)
+
+    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
+        """Return the upstream echelon, which ships, and the downstream echelon, which receives."""
+        return [(namespace.upstream, namespace.downstream)]
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the mail of orders upstream and the shipping of beer downstream.
 
         Args:
-            s:
+            namespace:
                 The namespace of the symbols the laws can use.
 
         Returns:
             laws:
                 The laws of the component.
         """
-        return _link_laws(s)
+        orders = _orders(namespace.downstream)
+        received = distributed_delay(orders, order=3, time=namespace.mail_delay)
+        upstream = namespace.upstream
+        return [
+            RateLaw(namespace.downstream.supply_line, orders - self._get_arrivals(namespace)),
+            RateLaw(upstream.backlog, received),
+            RateLaw(upstream.expected, upstream.theta * received),
+            *super()._get_laws(namespace),
+        ]
 
 
-class RetailDemandInteraction(Interaction):
+class RetailDemandInteraction(TransferInteraction):
     """Customers of a supply chain, whose demand reaches the retailer and who take its shipments.
+
+    The sales are a transfer from the inventory of the retailer to the customers.
 
     Args:
         label:
@@ -265,28 +264,53 @@ class RetailDemandInteraction(Interaction):
         demand_step: Annotated[float, ParameterSpec()] = 4.0,
         step_time: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
     ) -> None:
-        super().__init__(label)
+        super().__init__(
+            label,
+            source=retailer,
+            target=retailer,
+            state='inventory',
+            into=Sink('customers'),
+            amount=self._get_sales,
+            flow='sales',
+        )
         self.retailer = retailer
         self.demand = demand
         self.demand_step = demand_step
         self.step_time = step_time
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+    @staticmethod
+    def _get_sales(s: SimpleNamespace) -> Expression:
+        """Return the sales, the shipments of the retailer."""
+        return _shipments(s.retailer)
+
+    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
+        """Return the retailer, whose inventory the customers take."""
+        return [(namespace.retailer, namespace.retailer)]
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the demand that reaches the retailer and the sales to the customers.
 
         Args:
-            s:
+            namespace:
                 The namespace of the symbols the laws can use.
 
         Returns:
             laws:
                 The laws of the component.
         """
-        return _customer_laws(s)
+        demand = _customer_orders(namespace)
+        retailer = namespace.retailer
+        return [
+            RateLaw(retailer.backlog, demand),
+            RateLaw(retailer.expected, retailer.theta * demand),
+            *super()._get_laws(namespace),
+        ]
 
 
-class BreweryInteraction(Interaction):
+class BreweryInteraction(TransferInteraction):
     """Brewery of a supply chain, which brews the orders of the factory over the production delay.
+
+    The brewing is a transfer from the brewery into the beer in production at the factory and on to its inventory.
 
     Args:
         label:
@@ -311,22 +335,49 @@ class BreweryInteraction(Interaction):
         factory: Annotated[str, RoleSpec()],
         production_delay: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
     ) -> None:
-        super().__init__(label)
+        super().__init__(
+            label,
+            source=factory,
+            target=factory,
+            state=Source('brewery'),
+            into='in_transit',
+            amount=self._get_starts,
+            flow='starts',
+            legs=[('in_transit', 'inventory', self._get_completions, 'completions')],
+        )
         self.factory = factory
         self.production_delay = production_delay
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+    @staticmethod
+    def _get_starts(s: SimpleNamespace) -> Expression:
+        """Return the brews started, the orders of the factory."""
+        return _orders(s.factory)
+
+    @staticmethod
+    def _get_completions(s: SimpleNamespace) -> Expression:
+        """Return the brews completed, the orders after a third-order production delay."""
+        return distributed_delay(_orders(s.factory), order=3, time=s.production_delay)
+
+    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
+        """Return the factory, whose beer in production and inventory the brewery fills."""
+        return [(namespace.factory, namespace.factory)]
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the brewing of the orders of the factory.
 
         Args:
-            s:
+            namespace:
                 The namespace of the symbols the laws can use.
 
         Returns:
             laws:
                 The laws of the component.
         """
-        return _brewery_laws(s)
+        orders = _orders(namespace.factory)
+        return [
+            RateLaw(namespace.factory.supply_line, orders - self._get_completions(namespace)),
+            *super()._get_laws(namespace),
+        ]
 
 
 @register_model(

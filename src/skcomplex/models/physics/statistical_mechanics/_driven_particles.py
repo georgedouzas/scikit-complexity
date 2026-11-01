@@ -13,9 +13,9 @@ from sage.all__sagemath_symbolics import NN, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, LatticeElement
-from ....core.interactions import BaseInteraction, Interaction
-from ....core.laws import BaseLaw, JumpLaw
-from ....core.laws.utils import shift_member, where
+from ....core.interactions import BaseInteraction, TransferInteraction
+from ....core.laws import Source
+from ....core.laws.utils import where
 from ....core.spaces import ContinuousSpace, LatticeSpace
 from ....core.system import System
 from ....engine.backends import NumbaBackend
@@ -120,10 +120,11 @@ class TreeNodeElement(ParticleSiteElement):
         self.x = x
 
 
-class ZeroRangeHopInteraction(Interaction):
+class ZeroRangeHopInteraction(TransferInteraction):
     """Hop of one particle along a link, forward at rate `p u(n)` and backward at rate `q u(n')`.
 
-    The rate depends only on the occupation of the departure site, through `u(n) = 1 + b / n`.
+    The rate depends only on the occupation of the departure site, through `u(n) = 1 + b / n`. It is a transfer of one
+    particle from the first site to the second, with jumps back at the reverse rate.
 
     Args:
         label:
@@ -156,34 +157,41 @@ class ZeroRangeHopInteraction(Interaction):
         q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
     ) -> None:
-        super().__init__(label)
+        super().__init__(
+            label,
+            source='',
+            target='',
+            state='n',
+            amount=1.0,
+            rate=self._get_forward_rate,
+            reverse_rate=self._get_backward_rate,
+        )
         self.link = link
         self.p = p
         self.q = q
         self.b = b
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the forward and the backward hop.
+    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
+        """Return the two sites of the link, the departure and the arrival of a forward hop."""
+        first, second = namespace.link
+        return [(first, second)]
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+    @staticmethod
+    def _get_forward_rate(s: SimpleNamespace) -> Expression:
+        """Return the rate `p u(n)` of a hop from the first site."""
+        return s.p * _departure_rate(s.source.n, s.b)
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        first, second = (site.n for site in s.link)
-        return [
-            JumpLaw(s.p * _departure_rate(first, s.b), {first: -1, second: 1}),
-            JumpLaw(s.q * _departure_rate(second, s.b), {second: -1, first: 1}),
-        ]
+    @staticmethod
+    def _get_backward_rate(s: SimpleNamespace) -> Expression:
+        """Return the rate `q u(n')` of a hop from the second site."""
+        return s.q * _departure_rate(s.target.n, s.b)
 
 
-class ZeroRangeHopsInteraction(Interaction):
+class ZeroRangeHopsInteraction(TransferInteraction):
     """Hops of one particle from every site of a ring, to the right at rate `p u(n)` and to the left at rate `q u(n)`.
 
-    The rate depends only on the occupation `n` of the departure site, through `u(n) = 1 + b / n`.
+    The rate depends only on the occupation `n` of the departure site, through `u(n) = 1 + b / n`. It is a transfer of
+    one particle along every edge of the ring, to the right and back.
 
     Args:
         label:
@@ -216,35 +224,41 @@ class ZeroRangeHopsInteraction(Interaction):
         q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
     ) -> None:
-        super().__init__(label)
+        super().__init__(
+            label,
+            source=sites,
+            target=sites,
+            state='n',
+            amount=1.0,
+            rate=self._get_right_rate,
+            reverse_rate=self._get_left_rate,
+            offset=1,
+        )
         self.sites = sites
         self.p = p
         self.q = q
         self.b = b
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the hops to the right and to the left.
+    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
+        """Return the sites, whose every member hops to the next one and back."""
+        return [(namespace.sites, namespace.sites)]
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+    @staticmethod
+    def _get_right_rate(s: SimpleNamespace) -> Expression:
+        """Return the rate `p u(n)` of a hop to the right."""
+        return s.p * _departure_rate(s.source.n, s.b)
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        n = s.sites.n
-        rate = _departure_rate(n, s.b)
-        return [
-            JumpLaw(s.p * rate, {n: -1, shift_member(n, 1): 1}),
-            JumpLaw(s.q * rate, {n: -1, shift_member(n, -1): 1}),
-        ]
+    @staticmethod
+    def _get_left_rate(s: SimpleNamespace) -> Expression:
+        """Return the rate `q u(n)` of a hop to the left, from the site on the right."""
+        return s.q * _departure_rate(s.target.n, s.b)
 
 
-class ExclusionHopsInteraction(Interaction):
+class ExclusionHopsInteraction(TransferInteraction):
     """Hops of a particle from every site of a line to an empty neighbour, to the right at rate `p` and left at `q`.
 
-    No particle hops past the ends of the line.
+    No particle hops past the ends of the line. It is a transfer of one particle along every edge of the line, to the
+    right and back, from an occupied site to an empty one.
 
     Args:
         label:
@@ -273,34 +287,41 @@ class ExclusionHopsInteraction(Interaction):
         p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
     ) -> None:
-        super().__init__(label)
+        super().__init__(
+            label,
+            source=sites,
+            target=sites,
+            state='n',
+            amount=1.0,
+            rate=self._get_right_rate,
+            reverse_rate=self._get_left_rate,
+            offset=1,
+            boundary='fixed',
+        )
         self.sites = sites
         self.p = p
         self.q = q
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the hops to the right and to the left.
+    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
+        """Return the sites, whose every member hops to the next one and back."""
+        return [(namespace.sites, namespace.sites)]
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+    @staticmethod
+    def _get_right_rate(s: SimpleNamespace) -> Expression:
+        """Return the rate of a hop to the right, `p` from an occupied site to an empty one."""
+        return s.p * s.source.n * (1 - s.target.n)
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        n = s.sites.n
-        right, left = (shift_member(n, step, boundary='fixed', fill=1.0) for step in (1, -1))
-        return [
-            JumpLaw(s.p * n * (1 - right), {n: -1, shift_member(n, 1, boundary='fixed'): 1}),
-            JumpLaw(s.q * n * (1 - left), {n: -1, shift_member(n, -1, boundary='fixed'): 1}),
-        ]
+    @staticmethod
+    def _get_left_rate(s: SimpleNamespace) -> Expression:
+        """Return the rate of a hop to the left, `q` from an occupied site to an empty one."""
+        return s.q * s.target.n * (1 - s.source.n)
 
 
-class ReservoirInteraction(Interaction):
+class ReservoirInteraction(TransferInteraction):
     """Reservoir that adds one particle to each of its sites at rate `inflow` and removes one at rate `outflow`.
 
-    A particle leaves only an occupied site. With exclusion a particle enters only an empty site.
+    A particle leaves only an occupied site. With exclusion a particle enters only an empty site. It is a transfer of
+    one particle from the environment into every site, with jumps back to the environment at the outflow rate.
 
     Args:
         label:
@@ -333,28 +354,33 @@ class ReservoirInteraction(Interaction):
         outflow: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
         exclusion: bool = False,
     ) -> None:
-        super().__init__(label)
+        super().__init__(
+            label,
+            source='',
+            target='',
+            state=Source(),
+            into='n',
+            amount=1.0,
+            rate=self._get_entry_rate,
+            reverse_rate=self._get_exit_rate,
+        )
         self.sites = sites
         self.inflow = inflow
         self.outflow = outflow
         self.exclusion = exclusion
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the entry and the exit of a particle at every site.
+    def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
+        """Return every site as the target of its own entries."""
+        return [(site, site) for site in namespace.sites]
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+    def _get_entry_rate(self, s: SimpleNamespace) -> Expression:
+        """Return the rate at which a particle enters a site, only an empty one under exclusion."""
+        return s.inflow * (1 - s.target.n if self.exclusion else 1)
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        laws: list[BaseLaw] = []
-        for site in s.sites:
-            room = 1 - site.n if self.exclusion else 1
-            laws += [JumpLaw(s.inflow * room, {site.n: 1}), JumpLaw(s.outflow * where(site.n > 0, 1, 0), {site.n: -1})]
-        return laws
+    @staticmethod
+    def _get_exit_rate(s: SimpleNamespace) -> Expression:
+        """Return the rate at which a particle leaves an occupied site."""
+        return s.outflow * where(s.target.n > 0, 1, 0)
 
 
 @register_model(

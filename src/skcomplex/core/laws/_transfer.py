@@ -10,6 +10,8 @@ from ...errors import ValidationError
 from ...specs import RequirementSpec
 from ._base import BaseLaw
 
+SHIFT = 'shift_member'
+
 
 class Source:
     """Environment a transfer draws a quantity from, outside the system, such as a bank that creates money.
@@ -51,14 +53,18 @@ class TransferLaw(BaseLaw):
     A transfer is one outflow of its source and one inflow of its sink. Its amount is a rate in a system of rate laws,
     the amount moved per step in a system of update laws, and the size of every jump when a `rate` is given. The
     trajectory records the amount at every frame under `<path>.<label>`, the path of the part that declares the
-    transfer, or `owner` when given.
+    transfer, or `owner` when given. One holder may be a state of a group read by `shift_member` at a member offset, so
+    every member transfers with the member that many places along the group order. Past the ends of a fixed boundary
+    no member is there, and the transfer moves nothing.
 
     Args:
         source:
-            The symbol of the state the quantity leaves, or `Source()` for the environment.
+            The symbol of the state the quantity leaves, the symbol read at a member offset, or `Source()` for the
+            environment.
 
         sink:
-            The symbol of the state the quantity enters, or `Sink()` for the environment.
+            The symbol of the state the quantity enters, the symbol read at a member offset, or `Sink()` for the
+            environment.
 
         amount:
             The symbolic amount, a rate, a per-step amount, or a jump size.
@@ -108,17 +114,28 @@ class TransferLaw(BaseLaw):
         """Return what the law requires of a system: nothing, since it holds in any time."""
         return RequirementSpec()
 
+    @staticmethod
+    def _is_shifted(holder: object) -> bool:
+        """Check whether a holder is the symbol of a state read at a member offset by `shift_member`."""
+        if not isinstance(holder, Expression) or holder.operator() is None:
+            return False
+        operand = holder.operands()[0]
+        return getattr(holder.operator(), 'name', lambda: '')() == SHIFT and operand.operator() is None
+
     def _check_holders(self) -> None:
         """Raise an error for a holder that is neither a scalar state symbol nor the environment of its side."""
         for name, holder, environment in (('source', self.source, Source), ('sink', self.sink, Sink)):
-            if isinstance(holder, environment):
+            if isinstance(holder, environment) or self._is_shifted(holder):
                 continue
             if not isinstance(holder, Expression) or holder.operator() is not None:
                 error_msg = (
-                    f'The {name} of a transfer must be the symbol of a scalar state or `{environment.__name__}()`, '
-                    f'but got {holder!r}.'
+                    f'The {name} of a transfer must be the symbol of a scalar state, the symbol read at a member '
+                    f'offset, or `{environment.__name__}()`, but got {holder!r}.'
                 )
                 raise ValidationError(error_msg)
+        if self._is_shifted(self.source) and self._is_shifted(self.sink):
+            error_msg = 'Both holders of a transfer are read at a member offset. Read one of them at the member itself.'
+            raise ValidationError(error_msg)
         if isinstance(self.source, Source) and isinstance(self.sink, Sink):
             error_msg = (
                 'A transfer moves a quantity into or out of a state, but both of its holders are the environment.'

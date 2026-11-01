@@ -8,14 +8,15 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, ZZ, oo
+from sage.all__sagemath_symbolics import NN, ZZ, Expression, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, LatticeElement
-from ....core.interactions import LocalRuleInteraction
-from ....core.laws import BaseLaw, DriveLaw, LocalRuleLaw, RuleLaw
-from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
+from ....core.interactions import LocalRuleInteraction, TransferInteraction
+from ....core.laws import BaseLaw, LocalRuleLaw, RuleLaw, Sink, Source
+from ....core.laws.utils import bernoulli
+from ....core.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -49,30 +50,19 @@ def _spread(infected: Array, *around: Array, rate: float | Array, tau: float | A
     return np.where(infected == 1, np.where(recovers, 0.0, 1.0), np.where(infects, 1.0, 0.0))
 
 
-def _hop_ring(occupied: Array, *, random: np.random.Generator, p: float | Array) -> Array:
-    """Return the occupations of a ring after one parallel update of the exclusion process."""
-    hops = (occupied == 1) & (np.roll(occupied, -1) == 0) & (random.binomial(1, p, occupied.shape) == 1)
-    return occupied - hops + np.roll(hops, 1)
+def _hop(s: SimpleNamespace) -> Expression:
+    """Return 1 where a particle hops to the empty next site with probability `p`, one draw per edge, or 0."""
+    return s.source.occupied * (1 - s.target.occupied) * bernoulli('hop', s.source.p)
 
 
-def _hop_open(
-    occupied: Array,
-    *,
-    random: np.random.Generator,
-    p: float | Array,
-    alpha: float | Array,
-    beta: float | Array,
-) -> Array:
-    """Return the occupations of an open line after one parallel update with entry at the left and exit at the right."""
-    free = np.append(occupied[1:], 1.0) == 0
-    hops = (occupied == 1) & free & (random.binomial(1, p, occupied.shape) == 1)
-    exits = (occupied[-1] == 1) & (random.binomial(1, np.ravel(beta)[-1]) == 1)
-    enters = (occupied[0] == 0) & (random.binomial(1, np.ravel(alpha)[0]) == 1)
-    following = occupied - hops
-    following[1:] += hops[:-1]
-    following[-1] -= exits
-    following[0] += enters
-    return following
+def _enter(s: SimpleNamespace) -> Expression:
+    """Return 1 where a particle enters the empty first site with probability `alpha`, and 0 otherwise."""
+    return (1 - s.target.occupied) * bernoulli('entry', s.target.alpha)
+
+
+def _leave(s: SimpleNamespace) -> Expression:
+    """Return 1 where the particle on the last site leaves with probability `beta`, and 0 otherwise."""
+    return s.source.occupied * bernoulli('exit', s.source.beta)
 
 
 class Q2RSpinElement(Element):
@@ -220,8 +210,8 @@ class ContactSiteElement(Element):
 class ExclusionSiteElement(Element):
     """Site of the totally asymmetric simple exclusion process, empty at 0 or holding one particle at 1.
 
-    Every step all particles whose right neighbour is empty hop to it with probability `p` at once. On an open
-    line particles enter the first site with probability `alpha` and leave the last site with probability `beta`.
+    It holds the probabilities of a hop, of an entry at the left end of an open line, and of an exit at its right end,
+    which the transfers of the process read.
 
     Args:
         label:
@@ -242,13 +232,10 @@ class ExclusionSiteElement(Element):
         beta:
             The probability of an exit at the right end of an open line.
 
-        ring:
-            Whether the line is a ring instead of an open line.
-
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import ExclusionSiteElement
-        >>> ExclusionSiteElement('site').ring
-        False
+        >>> ExclusionSiteElement('site').p
+        0.5
     """
 
     def __init__(
@@ -260,27 +247,12 @@ class ExclusionSiteElement(Element):
         p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
-        ring: bool = False,
     ) -> None:
         super().__init__(label, visual=visual)
         self.occupied = occupied
         self.p = p
         self.alpha = alpha
         self.beta = beta
-        self.ring = ring
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the parallel update of hops, entries, and exits.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [DriveLaw(s.occupied, _hop_ring if self.ring else _hop_open)]
 
 
 class WalkerElement(Element):
@@ -529,8 +501,11 @@ def tasep(
 ) -> System:
     """Return the totally asymmetric simple exclusion process with parallel update, on an open line or a ring.
 
-    On a ring at density `rho` the current is `(1 - sqrt(1 - 4 p rho (1 - rho))) / 2`. On an open line the entry
-    and exit probabilities select the low-density, high-density, or maximal-current phase.
+    Every step all particles whose right neighbour is empty hop to it with probability `p` at once, a transfer along
+    every edge of the lane with one draw per edge. On an open line particles enter the first site with probability
+    `alpha` and leave the last site with probability `beta`. On a ring at density `rho` the current is
+    `(1 - sqrt(1 - 4 p rho (1 - rho))) / 2`. On an open line the entry and exit probabilities select the low-density,
+    high-density, or maximal-current phase.
 
     Args:
         n_sites:
@@ -556,24 +531,47 @@ def tasep(
 
     Returns:
         system:
-            The model, with the occupations `lane.occupied`.
+            The model, with the occupations `lane.occupied` and the hops `lane.hops`, and on an open line the
+            entries `entry.flow_0` and the exits `exit.flow_0`.
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import tasep
-        >>> tasep(20, ring=True).elements[0].values['ring']
-        True
+        >>> [interaction.label for interaction in tasep(20).interactions]
+        ['hops', 'entry', 'exit']
     """
     rng = np.random.default_rng(random_state)
     occupied = np.zeros(n_sites)
     occupied[rng.choice(n_sites, round(density * n_sites), replace=False)] = 1.0
-    space = LatticeSpace(n_sites, boundary='periodic' if ring else 'fixed')
+    boundary = 'periodic' if ring else 'fixed'
     lane = LatticeElement(
         'lane',
         element=ExclusionSiteElement,
-        space=space,
-        values={'occupied': occupied, 'p': p, 'alpha': alpha, 'beta': beta, 'ring': ring},
+        space=LatticeSpace(n_sites, boundary=boundary),
+        values={'occupied': occupied, 'p': p, 'alpha': alpha, 'beta': beta},
     )
-    return System(elements=[lane])
+    hops = TransferInteraction(
+        'hops',
+        source='lane',
+        target='lane',
+        state='occupied',
+        amount=_hop,
+        flow='hops',
+        offset=1,
+        boundary=boundary,
+    )
+    if ring:
+        return System(elements=[lane], interactions=[hops], time=DiscreteTime())
+    first, last = 'lane[0]', f'lane[{n_sites - 1}]'
+    entry = TransferInteraction(
+        'entry',
+        source=first,
+        target=first,
+        state=Source(),
+        into='occupied',
+        amount=_enter,
+    )
+    leaving = TransferInteraction('exit', source=last, target=last, state='occupied', into=Sink(), amount=_leave)
+    return System(elements=[lane], interactions=[hops, entry, leaving], time=DiscreteTime())
 
 
 @register_model(
