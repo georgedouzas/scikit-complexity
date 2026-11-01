@@ -722,7 +722,7 @@ class ObservableEvaluator:
         read: NeighborReadSpec,
     ) -> Callable[[Array, Array], Array]:
         """Return a reader of the values of a member column at the member an offset away from every member."""
-        return lambda x, p: read.read(column(x, p))
+        return lambda x, p: read.read(column(x, p), p)
 
     @staticmethod
     def _from_vector(is_state: bool, indices: int | Indices) -> Callable[[Array, Array], Array]:
