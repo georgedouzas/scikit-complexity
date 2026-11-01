@@ -1,5 +1,7 @@
 """Test motif counts of three and four nodes and their z-scores against null ensembles."""
 
+import itertools
+
 import networkx as nx
 import numpy as np
 import pytest
@@ -31,6 +33,24 @@ def test_motif_zscores_feed_forward_loop():
     np.testing.assert_array_equal(list(repeated.values()), list(scores.values()))
     configuration = _motifs('z-scores', graph, null='configuration', samples=20, random_state=0)
     assert configuration.z_scores_[0]['030T'] > 3
+
+
+def test_motif_counts_of_three_nodes_match_the_triadic_census():
+    """Test that directed triads match the triadic census and undirected ones the triangles and wedges."""
+    directed = nx.gnm_random_graph(40, 120, seed=1, directed=True)
+    census = {name: count for name, count in nx.triadic_census(directed).items() if name not in {'003', '012', '102'}}
+    assert _motifs('counts', directed).counts_ == [census]
+    undirected = nx.gnm_random_graph(40, 120, seed=1)
+    triangles = sum(nx.triangles(undirected).values()) // 3
+    wedges = sum(degree * (degree - 1) // 2 for _, degree in undirected.degree())
+    assert _motifs('counts', undirected).counts_ == [{'path': wedges - 3 * triangles, 'triangle': triangles}]
+
+
+def test_motif_counts_of_four_nodes_sum_to_the_connected_sets():
+    """Test that the four-node motifs of a random graph add up to its connected sets of four nodes."""
+    graph = nx.gnm_random_graph(15, 30, seed=2)
+    connected = sum(nx.is_connected(graph.subgraph(nodes)) for nodes in itertools.combinations(graph.nodes(), 4))
+    assert sum(_motifs('counts', graph, size=4).counts_[0].values()) == connected
 
 
 def test_motif_counts_of_four_nodes():

@@ -3,11 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 import itertools
-from collections import Counter
 
 import networkx as nx
 import numpy as np
+import numpy.typing as npt
 
 from ..errors import AnalysisError
 from ..types import DataKind
@@ -25,6 +26,7 @@ SETTINGS = {
 }
 """Settings every kind reads, besides `kind`."""
 SWAPS_PER_EDGE = 3
+UNDIRECTED_THREE = {2: 'path', 3: 'triangle'}
 UNDIRECTED_FOUR = {
     (3, (1, 1, 1, 3)): 'star',
     (3, (1, 1, 2, 2)): 'path',
@@ -33,6 +35,8 @@ UNDIRECTED_FOUR = {
     (5, (2, 2, 3, 3)): 'diamond',
     (6, (3, 3, 3, 3)): 'clique',
 }
+ISOCLASSES = {(3, False): 4, (3, True): 16, (4, False): 11, (4, True): 218}
+"""The number of isomorphism classes of igraph of every size, undirected and directed."""
 PERMUTATIONS = tuple(itertools.permutations(range(4)))
 
 
@@ -139,43 +143,8 @@ class MotifAnalysis(BaseAnalysis):
         self.z_scores_ = [values for _, _, _, values in scores]
 
     @staticmethod
-    def _extend(
-        graph: nx.Graph,
-        subgraph: set[object],
-        extension: set[object],
-        root: object,
-        size: int,
-    ) -> list[frozenset]:
-        """Return the connected node sets of a size that grow from a set by Wernicke's ESU enumeration."""
-        if len(subgraph) == size:
-            return [frozenset(subgraph)]
-        found = []
-        candidates = set(extension)
-        order = {node: index for index, node in enumerate(graph.nodes())}
-        neighbourhood = {other for node in subgraph for other in graph.neighbors(node)} | subgraph
-        while candidates:
-            node = candidates.pop()
-            exclusive = {
-                other for other in graph.neighbors(node) if order[other] > order[root] and other not in neighbourhood
-            }
-            found.extend(MotifAnalysis._extend(graph, subgraph | {node}, candidates | exclusive, root, size))
-        return found
-
-    @staticmethod
-    def _connected_sets(graph: nx.Graph, size: int) -> list[frozenset]:
-        """Return every connected set of nodes of a size, once."""
-        undirected = graph.to_undirected(as_view=True)
-        order = {node: index for index, node in enumerate(undirected.nodes())}
-        found = []
-        for root in undirected.nodes():
-            extension = {other for other in undirected.neighbors(root) if order[other] > order[root]}
-            found.extend(MotifAnalysis._extend(undirected, {root}, extension, root, size))
-        return found
-
-    @staticmethod
-    def _directed_code(graph: nx.DiGraph, nodes: tuple[object, ...]) -> str:
-        """Return a name of the isomorphism class of a directed subgraph of four nodes, its smallest adjacency code."""
-        adjacency = nx.to_numpy_array(graph, nodelist=list(nodes), dtype=int)
+    def _directed_code(adjacency: npt.NDArray[np.int64]) -> str:
+        """Return a name of the isomorphism class of a directed motif of four nodes, its smallest adjacency code."""
         codes = []
         for permutation in PERMUTATIONS:
             permuted = adjacency[np.ix_(permutation, permutation)]
@@ -183,34 +152,43 @@ class MotifAnalysis(BaseAnalysis):
         return f'directed_{min(codes)}'
 
     @staticmethod
-    def _four_node_name(graph: nx.Graph, nodes: frozenset) -> str:
-        """Return the name of the motif a connected set of four nodes induces."""
-        subgraph = graph.subgraph(nodes)
-        if graph.is_directed():
-            return MotifAnalysis._directed_code(subgraph, tuple(nodes))
-        key = (subgraph.number_of_edges(), tuple(sorted(degree for _, degree in subgraph.degree())))
-        return UNDIRECTED_FOUR[key]
+    def _motif_name(adjacency: npt.NDArray[np.int64], directed: bool) -> str:
+        """Return the name of the connected motif of an adjacency matrix of three or four nodes."""
+        if directed and len(adjacency) == TRIAD_SIZE:
+            census = nx.triadic_census(nx.from_numpy_array(adjacency, create_using=nx.DiGraph))
+            return next(name for name, count in census.items() if count)
+        if directed:
+            return MotifAnalysis._directed_code(adjacency)
+        edges = int(adjacency.sum()) // 2
+        if len(adjacency) == TRIAD_SIZE:
+            return UNDIRECTED_THREE[edges]
+        return UNDIRECTED_FOUR[(edges, tuple(sorted(adjacency.sum(axis=0).tolist())))]
 
     @staticmethod
-    def _three_node_counts(graph: nx.Graph) -> dict[str, int]:
-        """Return the triadic census of a directed graph, or the open and closed triads of an undirected one."""
-        if graph.is_directed():
-            census = nx.triadic_census(graph)
-            return {name: int(count) for name, count in census.items() if name not in {'003', '012', '102'}}
-        triangles = sum(nx.triangles(graph).values()) // 3
-        wedges = sum(degree * (degree - 1) // 2 for _, degree in graph.degree())
-        return {'path': int(wedges - 3 * triangles), 'triangle': int(triangles)}
+    @functools.cache
+    def _motif_names(size: int, directed: bool) -> tuple[str | None, ...]:
+        """Return the name of every isomorphism class of igraph of a size, `None` for the classes not connected."""
+        graph = BaseAnalysis._import('igraph').Graph
+        names: list[str | None] = []
+        for isoclass in range(ISOCLASSES[(size, directed)]):
+            motif = graph.Isoclass(size, isoclass, directed=directed)
+            adjacency = np.asarray(motif.get_adjacency().data, dtype=np.int64)
+            names.append(MotifAnalysis._motif_name(adjacency, directed) if motif.is_connected(mode='weak') else None)
+        return tuple(names)
 
     @staticmethod
     def _motif_counts(graph: nx.Graph, size: int) -> dict[str, int]:
-        """Return the number of connected induced subgraphs of every kind of three or four nodes."""
-        if size == TRIAD_SIZE:
-            return MotifAnalysis._three_node_counts(graph)
-        return dict(
-            Counter(
-                MotifAnalysis._four_node_name(graph, nodes) for nodes in MotifAnalysis._connected_sets(graph, size)
-            ),
-        )
+        """Return the number of connected induced subgraphs of every kind of three or four nodes.
+
+        Every kind of three nodes is counted, and only the kinds of four nodes that occur.
+        """
+        names = MotifAnalysis._motif_names(size, graph.is_directed())
+        counts = BaseAnalysis._import('igraph').Graph.from_networkx(graph).motifs_randesu(size=size)
+        return {
+            name: int(count)
+            for name, count in zip(names, counts, strict=True)
+            if name is not None and (size == TRIAD_SIZE or count)
+        }
 
     @staticmethod
     def _null_graph(graph: nx.Graph, null: str, rng: np.random.Generator) -> nx.Graph:

@@ -264,8 +264,9 @@ to fill in as the project takes shape.
   for ordinal patterns, `nolds` for fluctuation analyses and Rosenstein's exponent, `powerlaw` for power-law fits,
   `ennemi` for nearest-neighbour transfer entropy, `tidynamics` for displacements, `mrestimator` for branching
   ratios, `kramersmoyal` for Kramers-Moyal coefficients, `deeptime` for Markov state models, `dit` for discrete
-  multivariate information and partial information decomposition, `pydmd` for dynamic mode decomposition, `pysindy` for
-  sparse identification of nonlinear dynamics, and `reservoirpy` for reservoir computing. Rerun is a core dependency,
+  multivariate information and partial information decomposition, `igraph` for network motif counts, `pydmd` for
+  dynamic mode decomposition, `pysindy` for sparse identification of nonlinear dynamics, and `reservoirpy` for
+  reservoir computing. Rerun is a core dependency,
   and spawning a local viewer happens only on request, so it is not a real-world side effect.
 - Model gallery: the `gallery` dependency group holds `pillow` 11.0 or later for encoding the screenshots and
   `playwright` 1.50 or later for the web capture backend in headless Chromium, next to `mkdocs-gallery` in the `docs`

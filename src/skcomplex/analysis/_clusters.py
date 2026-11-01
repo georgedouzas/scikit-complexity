@@ -8,7 +8,8 @@ from collections.abc import Sequence
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
-from scipy import ndimage
+from scipy import ndimage, sparse
+from scipy.sparse import csgraph
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
@@ -185,25 +186,20 @@ class ClusterAnalysis(BaseAnalysis):
             self.probability_ = float(np.mean(spans))
 
     @staticmethod
-    def _merge(labels: IntArray, axis: int) -> None:
-        """Merge clusters that touch across the periodic edges of an axis, in place."""
-        parent = np.arange(labels.max() + 1)
-
-        def find(item: int) -> int:
-            while parent[item] != item:
-                parent[item] = parent[parent[item]]
-                item = int(parent[item])
-            return item
-
-        for first, last in zip(
-            np.take(labels, 0, axis=axis).ravel(),
-            np.take(labels, -1, axis=axis).ravel(),
-            strict=True,
-        ):
-            if first and last:
-                parent[find(int(first))] = find(int(last))
-        roots = np.asarray([find(int(item)) for item in range(parent.size)])
-        labels[...] = roots[labels]
+    def _merge(labels: IntArray, structure: npt.NDArray[np.bool_]) -> IntArray:
+        """Return the labels with the clusters joined by a neighbour of the structure across the periodic edges."""
+        centre = np.ones(structure.ndim, dtype=int)
+        sources, targets = [], []
+        for offset in np.argwhere(structure) - centre:
+            shifted = np.roll(labels, tuple(offset), axis=tuple(range(labels.ndim)))
+            both = (labels > 0) & (shifted > 0)
+            sources.append(labels[both])
+            targets.append(shifted[both])
+        nodes = int(labels.max()) + 1
+        rows, columns = np.concatenate(sources), np.concatenate(targets)
+        adjacency = sparse.coo_array((np.ones(rows.size), (rows, columns)), shape=(nodes, nodes))
+        _, components = csgraph.connected_components(adjacency, directed=False)
+        return np.where(labels > 0, components[labels] + 1, 0)
 
     @staticmethod
     def _label(grid: npt.ArrayLike, *, periodic: bool, diagonal: bool) -> tuple[IntArray, IntArray]:
@@ -212,8 +208,7 @@ class ClusterAnalysis(BaseAnalysis):
         structure = ndimage.generate_binary_structure(occupied.ndim, occupied.ndim if diagonal else 1)
         labels, _ = ndimage.label(occupied, structure=structure)
         if periodic:
-            for axis in range(occupied.ndim):
-                ClusterAnalysis._merge(labels, axis)
+            labels = ClusterAnalysis._merge(labels, structure)
         distinct = np.unique(labels[labels > 0])
         relabelled = np.zeros_like(labels)
         relabelled[labels > 0] = np.searchsorted(distinct, labels[labels > 0]) + 1

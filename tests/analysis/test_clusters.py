@@ -85,6 +85,32 @@ def test_periodic_clusters_merge_across_edges():
     assert not _clusters('labels', grid).spanning_
 
 
+def test_periodic_clusters_merge_diagonally_across_edges():
+    """Test that cells touching only diagonally across a periodic edge join one cluster only with diagonal links."""
+    grid = np.zeros((4, 4), dtype=bool)
+    grid[0, 1] = grid[3, 2] = True
+    assert _clusters('labels', grid, periodic=True, diagonal=True).sizes_.tolist() == [2]
+    assert _clusters('labels', grid, periodic=True).sizes_.tolist() == [1, 1]
+    assert _clusters('labels', grid, diagonal=True).sizes_.tolist() == [1, 1]
+
+
+def test_periodic_clusters_merge_across_corners_in_three_dimensions():
+    """Test that opposite corners of a cube join through the wrapped corner only with diagonal links."""
+    grid = np.zeros((3, 3, 3), dtype=bool)
+    grid[0, 0, 0] = grid[2, 2, 2] = True
+    assert _clusters('sizes', grid, periodic=True, diagonal=True).sizes_.tolist() == [2]
+    assert _clusters('sizes', grid, periodic=True).sizes_.tolist() == [1, 1]
+
+
+def test_periodic_clusters_merge_through_faces_in_three_dimensions():
+    """Test that cells facing each other across every periodic face join, and labels keep empty cells at zero."""
+    grid = np.zeros((4, 4, 4), dtype=bool)
+    grid[0, 1, 1] = grid[3, 1, 1] = grid[1, 0, 2] = grid[1, 3, 2] = grid[2, 2, 0] = grid[2, 2, 3] = True
+    result = _clusters('labels', grid, periodic=True)
+    assert result.sizes_.tolist() == [2, 2, 2]
+    assert np.count_nonzero(result.labels_) == 6
+
+
 def test_invalid_settings_and_sources_are_rejected():
     """Test an unknown kind, an ignored setting, and a graph for labels."""
     with pytest.raises(AnalysisError, match='labels, sizes'):
