@@ -4,17 +4,26 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import Expression
 
 from ....core.elements import FieldElement, GroupElement
+from ....core.interactions import CouplingInteraction
 from ....core.spaces import ContinuousTime, DiscreteTime, NetworkSpace
 from ....core.system import System
 from ..._catalog import register_model
 from ._contour_cell import ContourCellElement
 from ._contour_uptake import ContourUptakeInteraction
 from ._exchanging_cell import ExchangingCellElement
+
+
+def _exchange(s: SimpleNamespace) -> Expression:
+    """Return the exchange of a cell with a neighbour, through their gap junction and the nanotube between them."""
+    exchange: Expression = s.member.g * (s.other.x - s.member.x) + s.member.xi * s.other.x
+    return exchange
 
 
 @register_model(
@@ -150,7 +159,7 @@ def nanotube_gap_junction_exchange(
         'beta': beta,
         'g': g,
         'xi': xi,
-        'degree': np.array([graph.degree[node] for node in graph.nodes], dtype=float),
     }
     cells = FieldElement('cells', element=ExchangingCellElement, space=NetworkSpace(graph), values=values)
-    return System(elements=[cells], time=ContinuousTime())
+    exchange = CouplingInteraction('exchange', target='cells', read='x', write='x', function=_exchange)
+    return System(elements=[cells], interactions=[exchange], time=ContinuousTime())
