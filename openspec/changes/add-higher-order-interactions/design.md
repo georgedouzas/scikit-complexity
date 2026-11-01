@@ -32,6 +32,12 @@
 
 ## Decisions
 
+- **Symbolic updates run in ordered phases within a step.** Every symbolic update of a step reads the states at its
+  start, so a payoff and the imitation that reads it need two steps. Phases of symbolic laws, as the agent form already
+  has, run one after another within a step, each reading the states the previous phase wrote. The public goods game,
+  `hypergraph_public_goods`, `simplicial_social_dilemmas`, and `triadic_percolation` (which alternates by step parity)
+  use them. Decided on 2026-11-01.
+
 - **Connected components are a core reduction.** Percolation and the giant component are a fundamental graph operation
   used across domains (epidemic thresholds, infrastructure failure, habitat connectivity, social cohesion), so
   `skcomplex.core.laws.utils` gains a reduction over the connected components of a network's active links, giving

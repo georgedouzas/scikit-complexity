@@ -161,6 +161,15 @@ entries whose size is the same in the replicated and the original problem.
   schedules, and counts grouped by cell beside `composition`. The hierarchy contest and the queue service stay in their
   models; the employee is a composition of existing classes.
 
+### Decisions of 2026-11-01, third round
+
+- **Thin subclasses name their own roles in both forms.** The agent forms of the general interactions resolve their
+  roles through the subclass, as `_get_holders` does for the symbolic transfer, so the meadow's grazing is a transfer
+  subclass with the roles `pasture` and `cows` and its test stays unchanged.
+- **The obesity `EaterElement` stays in its model.** Its meal pairs a partner within reach or else the nearest
+  restaurant and credits both ends from one draw, a rule specific to that model, like the hierarchy contest and the
+  queue service.
+
 ## Migration Plan
 
 Work on `development`, with parallel agents on disjoint packages merging back as they report.
