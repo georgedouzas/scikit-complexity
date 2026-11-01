@@ -205,7 +205,8 @@ Implementation (November 2026):
   `ThreeBodyConsensusInteraction` whose second role binds a group on the hyperedges holding the phase of the schedule
   of every triangle. `hypergraph_public_goods` and `simplicial_social_dilemmas` wait on the same two points as the
   public goods game, and `hypergraph_exposure_sis` and `simplicial_social_dilemmas` read, in the update of a node, a
-  reduction over the hyperedges around it in the same step, which the reduction `hyperedges` of task 2.3 gives.
+  reduction over the hyperedges around it in the same step, which the reduction `hyperedges` of task 2.3 now gives,
+  so they are open.
 
 ### Triadic regulation
 
