@@ -9,7 +9,9 @@ can hold the states.
 # %%
 # The ring has 101 cells and the rule runs for 50 steps from a single 1. The model's space-time view shows the raw
 # values, in which the last rows outshine all others. After the run the same space-time diagram is logged once more on a
-# logarithmic colour scale, and the blueprint puts it first, as the primary view.
+# logarithmic colour scale, and the blueprint puts it first, as the primary view. Since every value only moves right,
+# the logarithmic view draws the cells the rule reaches, `C(t, k)` for `k <= t`, with row `t` shifted left by half a
+# cell per step, so the rows stack into the familiar symmetric Pascal triangle.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -37,7 +39,11 @@ observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, i
 simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().prepare().run(until=50)
 values = simulation.trajectory_.lattice('cells.value')
 logarithm = np.where(values > 0, np.log10(np.maximum(values, 1)) + 1, 0)
-image = plt.get_cmap('magma')(logarithm / logarithm.max())[:, :, :3]
+start, steps_run = values.shape[1] // 2, values.shape[0] - 1
+triangle = np.zeros((steps_run + 1, 2 * (steps_run + 1)))
+for t in range(steps_run + 1):
+    triangle[t, steps_run - t : steps_run + t + 2] = np.repeat(logarithm[t, start : start + t + 1], 2)
+image = plt.get_cmap('magma')(triangle / triangle.max())[:, :, :3]
 observer.recording_.log('log_values', rr.Image((255 * image).astype(np.uint8)), static=True)
 observer.recording_.flush()
 

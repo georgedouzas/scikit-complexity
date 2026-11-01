@@ -305,9 +305,21 @@ class LenderElement(Element):
 
     @staticmethod
     def _get_borrowers(agent: LenderView, model: ModelView) -> list[FirmView]:
-        """Return the firms bound to the role `sources` that borrowed from a bank in the step."""
-        firms = model.agents('sources', FirmView)
-        return [firm for firm in firms if firm.loan > 0 and firm.referenced('partner') is agent]
+        """Return the firms bound to the role `sources` that borrowed from a bank in the step.
+
+        The firms are grouped by their bank once per step of each settlement map, which reads but does not change them.
+        """
+        step = (model.time, model.round)
+        cached = model.storage.get('borrowers')
+        if not (isinstance(cached, tuple) and cached[0] == step):
+            borrowers: dict[int, list[FirmView]] = {}
+            for firm in model.agents('sources', FirmView):
+                bank = firm.referenced('partner') if firm.loan > 0 else None
+                if bank is not None:
+                    borrowers.setdefault(bank.id, []).append(firm)
+            cached = (step, borrowers)
+            model.storage['borrowers'] = cached
+        return list(cached[1].get(agent.id, []))
 
     @staticmethod
     def get_income(agent: LenderView, model: ModelView) -> float:

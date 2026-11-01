@@ -213,10 +213,19 @@ class ReflectingFloorInteraction(MapInteraction):
         super().__init__(label, target=target, state='x', function=self._get_floored, form='agent', phase=phase)
         self.c = c
 
+    def _get_floor(self, model: ModelView) -> float:
+        """Return the floor of the step, `c` times the mean size of the group before it, computed once per step."""
+        cached = model.storage.get('floor')
+        if isinstance(cached, tuple) and cached[0] == model.time:
+            return float(cached[1])
+        previous = [firm.previous for firm in model.agents('target', GibratFirmView)]
+        floor = model.parameter('c') * float(np.mean(previous))
+        model.storage['floor'] = (model.time, floor)
+        return floor
+
     def _get_floored(self, agent: GibratFirmView, model: ModelView) -> float:
         """Return the size of a firm raised to the floor, `c` times the mean size of its group before the step."""
-        previous = [firm.previous for firm in model.agents('target', GibratFirmView)]
-        return max(agent.x, model.parameter('c') * float(np.mean(previous)))
+        return max(agent.x, self._get_floor(model))
 
 
 @register_model(
