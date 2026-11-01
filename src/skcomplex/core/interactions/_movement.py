@@ -326,12 +326,14 @@ class MovementInteraction(Interaction):
     def _move_member(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
         """Move one agent whose condition holds, in its own activation."""
         if agent.alive and (self.condition is None or self.condition(agent, model)):
-            occupied = {other.location_key for other in model.agents('target')} if self.exclusive else set()
+            occupied = (
+                {other.location_key for other in model.agents(self._get_role('target'))} if self.exclusive else set()
+            )
             self._move(agent, model, model.parameter('probability'), occupied)
 
     def _move_all(self, model: ModelViewProtocol) -> None:
         """Move every agent of the group whose condition holds, in their order or in random order."""
-        agents = model.agents('target')
+        agents = model.agents(self._get_role('target'))
         occupied = {agent.location_key for agent in agents} if self.exclusive else set()
         probability = model.parameter('probability')
         order = model.rng.permutation(len(agents)) if self.schedule == 'random-sequential' else range(len(agents))
@@ -352,5 +354,5 @@ class MovementInteraction(Interaction):
                 The rule that moves the agents every step.
         """
         if self.schedule == 'member':
-            return [RuleLaw(self._move_member, phase=self.phase, members='target')]
+            return [RuleLaw(self._move_member, phase=self.phase, members=self._get_role('target'))]
         return [RuleLaw(self._move_all, phase=self.phase)]

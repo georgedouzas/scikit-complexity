@@ -204,11 +204,11 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
                 self._read(agent, quantities[0], 1.0),
                 self._read(agent, self.budget, math.inf),
             )
-            for agent in model.agents('requesters')
+            for agent in model.agents(self._get_role('requesters'))
         ]
         providers = [
             _Offer(agent, self._read(agent, limits[1], 0.0), self._read(agent, quantities[1], 1.0))
-            for agent in model.agents('providers')
+            for agent in model.agents(self._get_role('providers'))
         ]
         return [offer for offer in requesters if offer.quantity > 0], [
             offer for offer in providers if offer.quantity > 0

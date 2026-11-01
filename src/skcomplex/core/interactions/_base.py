@@ -19,7 +19,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
     spec `RoleSpec` or `ParameterSpec`, and stores each under its own name, as in scikit-learn. It returns its
     laws from `_get_laws`, where `namespace.<role>` is the namespace of the element bound to the role and
     `namespace.<parameter>` is a symbol. Interactions hold no state: state on couplings lives in groups on the edges or
-    hyperedges of a network space.
+    hyperedges of a network space. A general interaction reads the members of its roles, such as `'source'` or
+    `'target'`, by the name `_get_role` returns for them, the role itself by default, so a subclass that names its
+    roles otherwise returns its own names.
 
     Args:
         label:
@@ -57,6 +59,19 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
                 The namespace of the symbols the laws can use.
         """
         self.laws_ = self._laws_of(inputs)
+
+    def _get_role(self, role: str) -> str:
+        """Return the name of the role a subclass binds in place of a role of its general interaction.
+
+        Args:
+            role:
+                The name of the role in the general interaction, such as `'source'` or `'target'`.
+
+        Returns:
+            name:
+                The name of the role of the subclass, the role itself by default.
+        """
+        return role
 
     def _check_states(self) -> None:
         """Raise an error for a type that declares states or adaptive parameters, which interactions do not hold."""

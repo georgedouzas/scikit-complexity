@@ -266,7 +266,7 @@ class ChoiceInteraction(Interaction):
             model:
                 The model view of the interaction.
         """
-        agents = list(model.agents('target'))
+        agents = list(model.agents(self._get_role('target')))
         intensity, activity = model.parameter('intensity'), model.parameter('activity')
         if self.schedule == 'random-sequential':
             for index in model.rng.permutation(len(agents)):
@@ -292,7 +292,7 @@ class ChoiceInteraction(Interaction):
                 The update law of the state, or the rule that runs the choice of the agents.
         """
         if self.form == 'agent' and self.schedule == 'member':
-            return [RuleLaw(self._choose_member, phase=self.phase, members='target')]
+            return [RuleLaw(self._choose_member, phase=self.phase, members=self._get_role('target'))]
         if self.form == 'agent':
             return [RuleLaw(self.choose, phase=self.phase)]
         state = getattr(namespace.target, self.state)

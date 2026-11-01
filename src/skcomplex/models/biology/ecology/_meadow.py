@@ -4,31 +4,23 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import MovementInteraction, TransferInteraction
+from ....core.laws import BaseLaw, RuleLaw, Sink
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.solvers import AgentView, ModelView
+from ....core.types import AgentViewProtocol, ModelViewProtocol
+from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._cow_view import CowView
 from ._pasture_view import PastureView
-
-
-def _cell(agent: AgentView) -> tuple[int, ...]:
-    """Return the cell of an agent as a tuple of integers."""
-    location = agent.location
-    if not isinstance(location, tuple):
-        error_msg = f'The agent is located at a {type(location).__name__}, not at the coordinates of a lattice cell.'
-        raise TypeError(error_msg)
-    return tuple(int(item) for item in location)
 
 
 class PastureElement(Element):
@@ -132,8 +124,11 @@ class CowElement(Element):
         return CowView
 
 
-class GrazingInteraction(Interaction):
+class GrazingInteraction(TransferInteraction):
     """Weekly meal of every cow, which eats its bite of the grass of the patch in its cell.
+
+    It is a transfer of the grass of every patch, the bite of the cow in its cell or what grass is left, to the
+    environment.
 
     Args:
         label:
@@ -158,39 +153,35 @@ class GrazingInteraction(Interaction):
         cows: Annotated[str, RoleSpec()],
         pasture: Annotated[str, RoleSpec()],
     ) -> None:
-        super().__init__(label)
+        super().__init__(
+            label,
+            source=pasture,
+            target=cows,
+            state='grass',
+            into=Sink(),
+            amount=self._get_bite,
+            pairing='cell',
+            form='agent',
+        )
         self.cows = cows
         self.pasture = pasture
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the grazing rule.
+    def _get_role(self, role: str) -> str:
+        """Return the patches as the source of the grass and the cows as its target."""
+        return {'source': 'pasture', 'target': 'cows'}.get(role, role)
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.graze)]
-
-    def graze(self, model: ModelView) -> None:
-        """Make every cow eat grass from the patch of its cell.
-
-        Args:
-            model:
-                The model.
-        """
-        patches = {_cell(patch): patch for patch in model.agents('pasture', PastureView)}
-        for cow in model.agents('cows', CowView):
-            patch = patches.get(_cell(cow))
-            if patch is not None:
-                patch.grass = max(patch.grass - cow.bite, 0.0)
+    @staticmethod
+    def _get_bite(patch: AgentViewProtocol, cow: AgentViewProtocol, model: ModelViewProtocol) -> float:
+        """Return the grass a cow eats from the patch of its cell, its bite or what grass is left."""
+        del model
+        return min(cast(PastureView, patch).grass, cast(CowView, cow).bite)
 
 
-class HerdingInteraction(Interaction):
+class HerdingInteraction(MovementInteraction):
     """Weekly move of every cow, in random order, to the nearest free patch with enough grass, or death.
+
+    It is a movement of the cows whose step leads every cow to the patch nearest to it that no other cow occupies and
+    whose grass reaches `threshold`, and removes a cow that finds none.
 
     Args:
         label:
@@ -205,6 +196,9 @@ class HerdingInteraction(Interaction):
         threshold:
             The least grass a patch needs for a cow to move there.
 
+        probability:
+            The probability that a cow moves in a week.
+
     Examples:
         >>> from skcomplex.models.biology.ecology import HerdingInteraction
         >>> HerdingInteraction('herding', cows='cows', pasture='pasture').threshold
@@ -218,51 +212,41 @@ class HerdingInteraction(Interaction):
         cows: Annotated[str, RoleSpec()],
         pasture: Annotated[str, RoleSpec()],
         threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+        probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
     ) -> None:
-        super().__init__(label)
+        super().__init__(label, target=cows, step=self._herd, probability=probability)
         self.cows = cows
         self.pasture = pasture
         self.threshold = threshold
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the herding rule.
+    def _get_role(self, role: str) -> str:
+        """Return the cows as the target of the movement."""
+        return 'cows' if role == 'target' else role
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+    @staticmethod
+    def _cell(agent: AgentViewProtocol) -> tuple[int, ...]:
+        """Return the cell of an agent as a tuple of integers."""
+        location = agent.location
+        if not isinstance(location, tuple):
+            error_msg = (
+                f'The agent is located at a {type(location).__name__}, not at the coordinates of a lattice cell.'
+            )
+            raise TypeError(error_msg)
+        return tuple(int(item) for item in location)
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.herd)]
-
-    def herd(self, model: ModelView) -> None:
-        """Move every cow to the nearest free patch with enough grass, and remove the cows that find none.
-
-        Args:
-            model:
-                The model.
-        """
-        patches = model.agents('pasture', PastureView)
-        cells = [_cell(patch) for patch in patches]
+    def _herd(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> tuple[int, ...] | None:
+        """Return the cell of the nearest free patch with enough grass, or remove the cow that finds none."""
+        patches = [cast(PastureView, patch) for patch in model.agents('pasture')]
+        cells = [self._cell(patch) for patch in patches]
         index = {cell: number for number, cell in enumerate(cells)}
-        positions = np.asarray(cells, dtype=float)
-        grown = np.asarray([patch.grass for patch in patches]) >= model.parameter('threshold')
-        cows = model.agents('cows', CowView)
         occupied = np.zeros(len(cells), dtype=bool)
-        occupied[[index[_cell(cow)] for cow in cows]] = True
-        for number in model.rng.permutation(len(cows)):
-            cow = cows[number]
-            occupied[index[_cell(cow)]] = False
-            free = grown & ~occupied
-            if not free.any():
-                cow.remove()
-                continue
-            distances = np.hypot(*(positions - np.asarray(_cell(cow), dtype=float)).T)
-            target = int(np.argmin(np.where(free, distances, np.inf)))
-            cow.move_to(cells[target])
-            occupied[target] = True
+        occupied[[index[self._cell(cow)] for cow in model.agents('cows') if cow.alive and cow.id != agent.id]] = True
+        free = (np.asarray([patch.grass for patch in patches]) >= model.parameter('threshold')) & ~occupied
+        if not free.any():
+            agent.remove()
+            return None
+        distances = np.hypot(*(np.asarray(cells, dtype=float) - np.asarray(self._cell(agent), dtype=float)).T)
+        return cells[int(np.argmin(np.where(free, distances, np.inf)))]
 
 
 @register_model(
