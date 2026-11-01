@@ -387,7 +387,7 @@ class TransitionInteraction(Interaction):
             model:
                 The model view of the interaction.
         """
-        agents = list(model.agents('target'))
+        agents = list(model.agents(self._get_role('target')))
         if self.schedule == 'synchronous':
             moves = [move for agent in agents for move in self._get_moves(agent, model)]
             self._apply(moves, model)
@@ -408,7 +408,7 @@ class TransitionInteraction(Interaction):
                 The law of the move, or the rule that moves the agents.
         """
         if self.form == 'agent' and self.schedule == 'member':
-            return [RuleLaw(self._move_member, phase=self.phase, members='target')]
+            return [RuleLaw(self._move_member, phase=self.phase, members=self._get_role('target'))]
         if self.form == 'agent':
             return [RuleLaw(self.move, phase=self.phase)]
         value = getattr(namespace.target, self.state)

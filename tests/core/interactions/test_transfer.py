@@ -556,3 +556,57 @@ def test_transfer_reverse_rate_returns_units_to_the_environment():
     levels = np.asarray(trajectory.values('tank.level'))
     assert np.allclose(levels, np.round(levels))
     assert levels[50:].mean() == pytest.approx(2.0, rel=0.25)
+
+
+class GiftInteraction(TransferInteraction):
+    """Gift of one unit of level from every donor to a receiver, a transfer whose roles have names of their own."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        donors: Annotated[str, RoleSpec()],
+        receivers: Annotated[str, RoleSpec()],
+        pairing: str = 'members',
+        form: str = 'symbolic',
+        schedule: str = 'random-sequential',
+    ) -> None:
+        super().__init__(
+            label,
+            source=donors,
+            target=receivers,
+            state='level',
+            amount=1.0,
+            pairing=pairing,
+            form=form,
+            schedule=schedule,
+            actor='target',
+        )
+        self.donors = donors
+        self.receivers = receivers
+
+    def _get_role(self, role: str) -> str:
+        """Return the donors as the source and the receivers as the target."""
+        return {'source': 'donors', 'target': 'receivers'}.get(role, role)
+
+
+@pytest.mark.parametrize(
+    ('form', 'pairing', 'schedule'),
+    [
+        ('symbolic', 'members', 'random-sequential'),
+        ('agent', 'members', 'random-sequential'),
+        ('agent', 'random', 'member'),
+    ],
+)
+def test_transfer_subclass_resolves_its_own_role_names_in_both_forms(form, pairing, schedule):
+    """Test that a subclass that names its roles otherwise transfers in the symbolic and the agent form."""
+    variable = form == 'agent'
+    donors = GroupElement('givers', element=StockElement, size=1, values={'level': 4.0}, variable=variable)
+    receivers = GroupElement('takers', element=StockElement, size=1, variable=variable)
+    gift = GiftInteraction('gift', donors='givers', receivers='takers', pairing=pairing, form=form, schedule=schedule)
+    trajectory = _run(System(elements=[donors, receivers], interactions=[gift]), 1)
+    if variable:
+        assert _levels(trajectory, 1, 'givers') + _levels(trajectory, 1, 'takers') == [3.0, 1.0]
+    else:
+        assert np.asarray(trajectory.values('givers.level'))[-1] == pytest.approx([3.0])
+        assert np.asarray(trajectory.values('takers.level'))[-1] == pytest.approx([1.0])

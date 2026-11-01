@@ -57,8 +57,8 @@ class TransferInteraction(Interaction):
       is one draw per edge, which both of its ends read, so the amounts of a step move in parallel. A leg end
       `'<role>.<state>'` names the state of the element or group another role binds, so one transfer moves amounts
       between several holders, such as the payments of a circuit of sectors, and a subclass that declares parameters
-      reads them in its amounts. A subclass that names its roles otherwise returns the namespaces of the source and
-      the target of every pair from `_get_holders`.
+      reads them in its amounts. A subclass that names its roles otherwise returns their names from `_get_role`, or
+      the namespaces of the source and the target of every pair from `_get_holders`.
     - `'agent'` lowers to an agent rule, whose amounts and guard are numbers or functions of the source agent, the
       target agent, and the model view. The pairing `'members'` pairs member `i` of both groups, `'random'` pairs every
       source member with a random target member, `'pairs'` draws disjoint random pairs, `'neighbors'` pairs every
@@ -69,7 +69,7 @@ class TransferInteraction(Interaction):
       role binds a field, and every source member moves its amounts into the site of the field at its cell or node, so
       a negative amount takes from the site. The functions of this pairing take the cell of the source agent in place
       of a target agent. With `remove`, the source or the target member of every pair that transfers is removed, as an
-      agent eaten whole.
+      agent eaten whole. A subclass that names its roles otherwise returns their names from `_get_role`.
 
     Under the schedule `'random-sequential'` the pairs act in random order. Under `'member'` every member of the
     `actor` role acts in its own activation, together with the rules of its element and the other member
@@ -369,7 +369,7 @@ class TransferInteraction(Interaction):
 
     def _get_holders(self, namespace: SimpleNamespace) -> list[tuple[SimpleNamespace, SimpleNamespace]]:
         """Return the namespaces of the source and the target of every pair the symbolic form transfers between."""
-        return [(namespace.source, namespace.target)]
+        return [(getattr(namespace, self._get_role('source')), getattr(namespace, self._get_role('target')))]
 
     def _shift(self, holder: SimpleNamespace) -> SimpleNamespace:
         """Return the namespace of a group with every symbol read at the member the offset names."""
@@ -430,10 +430,10 @@ class TransferInteraction(Interaction):
 
     def _get_pairs(self, model: ModelViewProtocol) -> list[tuple[AgentViewProtocol, AgentViewProtocol]]:
         """Return the pairs of source and target agents of one step in random order."""
-        sources = model.agents('source')
-        targets = sources if self.source == self.target else model.agents('target')
+        sources = model.agents(self._get_role('source'))
+        targets = sources if self.source == self.target else model.agents(self._get_role('target'))
         if self.fallback is not None and not any(target.alive for target in targets):
-            targets = model.agents('fallback')
+            targets = model.agents(self._get_role('fallback'))
         pairs: list[tuple[AgentViewProtocol, AgentViewProtocol]] = []
         if self.pairing == 'members':
             pairs = list(zip(sources, targets, strict=False))
@@ -547,17 +547,18 @@ class TransferInteraction(Interaction):
             return
         legs = self._get_legs()
         amounts = [self._evaluate(amount, agent, cell, model) for _, _, amount, _ in legs]
+        field = self._get_role('target')
         for (state, into, _, _), amount in zip(legs, amounts, strict=True):
             if isinstance(state, str):
                 setattr(agent, state, getattr(agent, state) - amount)
             if isinstance(into, str):
-                model.deposit(f'target.{into}', cell, amount)
+                model.deposit(f'{field}.{into}', cell, amount)
 
     def _get_partners(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> list[AgentViewProtocol]:
         """Return the partners of an actor by the pairing, or the number of them drawn at random."""
         if self.pairing == 'members':
             return [agent]
-        role = 'source' if self.actor == 'target' else 'target'
+        role = self._get_role('source' if self.actor == 'target' else 'target')
         if self.pairing == 'cell':
             groups = set(model.groups(role))
             others = [other for other in agent.agents_here() if other.group in groups]
@@ -585,7 +586,7 @@ class TransferInteraction(Interaction):
     def _transfer_pairs(self, model: ModelViewProtocol) -> None:
         """Transfer between every pair of agents of one step, or into the sites of the source agents."""
         if self.pairing == 'site':
-            sources = model.agents('source')
+            sources = model.agents(self._get_role('source'))
             for index in model.rng.permutation(len(sources)):
                 self._deposit(sources[int(index)], model)
             return
@@ -604,7 +605,7 @@ class TransferInteraction(Interaction):
                 A transfer law per leg, or the rule that transfers between the pairs of agents.
         """
         if self.form == 'agent' and self.schedule == 'member':
-            return [RuleLaw(self._transfer_member, phase=self.phase, members=self.actor)]
+            return [RuleLaw(self._transfer_member, phase=self.phase, members=self._get_role(self.actor))]
         if self.form == 'agent':
             return [RuleLaw(self._transfer_pairs, phase=self.phase)]
         return self._get_transfer_laws(namespace)

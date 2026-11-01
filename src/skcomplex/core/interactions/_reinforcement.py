@@ -193,7 +193,7 @@ class ReinforcementInteraction(Interaction):
             model:
                 The model view of the interaction.
         """
-        agents = list(model.agents('target'))
+        agents = list(model.agents(self._get_role('target')))
         scores = [self._get_scores(agent, model) for agent in agents]
         for agent, new in zip(agents, scores, strict=True):
             self._write(agent, new)
@@ -210,7 +210,7 @@ class ReinforcementInteraction(Interaction):
                 The update laws of the scores, or the rule that reinforces the scores of the agents.
         """
         if self.form == 'agent' and self.schedule == 'member':
-            return [RuleLaw(self._reinforce_member, phase=self.phase, members='target')]
+            return [RuleLaw(self._reinforce_member, phase=self.phase, members=self._get_role('target'))]
         if self.form == 'agent':
             return [RuleLaw(self.reinforce, phase=self.phase)]
         laws: list[BasePart] = []

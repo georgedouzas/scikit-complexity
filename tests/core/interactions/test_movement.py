@@ -13,7 +13,7 @@ from skcomplex.core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.errors import ValidationError
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import RoleSpec, StateSpec, VisualSpec
 
 
 class BudgetElement(Element):
@@ -218,3 +218,29 @@ def test_check_rejects_invalid_arguments(arguments):
     """Test that an unknown step, a bad rate, a best step without score, and bad functions are rejected."""
     with pytest.raises(ValidationError):
         MovementInteraction('walk', target='walkers', **arguments).check()
+
+
+class StrollInteraction(MovementInteraction):
+    """Stroll of every walker to a neighbouring cell, a movement whose role has a name of its own."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        strollers: Annotated[str, RoleSpec()],
+        probability: float = 1.0,
+        schedule: str = 'random-sequential',
+    ) -> None:
+        super().__init__(label, target=strollers, probability=probability, schedule=schedule)
+        self.strollers = strollers
+
+    def _get_role(self, role: str) -> str:
+        """Return the strollers as the target."""
+        return 'strollers' if role == 'target' else role
+
+
+@pytest.mark.parametrize('schedule', ['random-sequential', 'member'])
+def test_move_subclass_resolves_its_own_role_name(schedule):
+    """Test that a subclass that names its role otherwise moves its agents under both schedules."""
+    trajectory = _lattice_walk(1, StrollInteraction('stroll', strollers='walkers', schedule=schedule))
+    assert [int(abs(cell - 4).sum()) for cell in trajectory.agents('walkers', 1).locations] == [1, 1, 1, 1]
