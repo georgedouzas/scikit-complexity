@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from scipy.special import expit
 
-from skcomplex.core.elements import Element, LatticeElement
+from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import ImitationInteraction
 from skcomplex.core.spaces import ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
@@ -140,12 +140,37 @@ def test_best_in_discrete_time_climbs_to_the_local_payoff_maximum():
     assert final.tolist() == [0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0]
 
 
+@pytest.mark.parametrize('rule', ['best', 'better'])
+def test_agents_copy_the_neighbour_of_larger_payoff_in_the_agent_form(rule):
+    """Test that agents on a grid copy only a neighbour of larger payoff, so the option spreads to its neighbours."""
+    cells = [(x, y) for x in range(3) for y in range(3)]
+    payoffs = np.array([4.0 if cell == (1, 1) else 0.0 for cell in cells])
+    group = GroupElement(
+        'players',
+        element=PlayerElement,
+        size=len(cells),
+        values={'state': (payoffs > 0).astype(float), 'payoff': payoffs},
+        location=cells,
+    )
+    imitation = ImitationInteraction('imitation', target='players', rule=rule, form='agent')
+    system = System(
+        elements=[group],
+        interactions=[imitation],
+        space=LatticeSpace((3, 3), boundary='periodic', neighborhood='von_neumann'),
+        time=DiscreteTime(),
+    )
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=30).trajectory_
+    final = dict(zip(cells, trajectory.agents('players', 30).values['state'], strict=True))
+    assert {cell for cell, state in final.items() if state} == {(1, 1), (0, 1), (2, 1), (1, 0), (1, 2)}
+
+
 @pytest.mark.parametrize(
     ('arguments', 'match'),
     [
         ({'rule': 'copy'}, 'rule of imitation'),
         ({'form': 'events'}, 'form of imitation'),
         ({'options': (1.0, 1.0)}, 'two distinct'),
+        ({'rule': 'better'}, 'agent form only'),
     ],
 )
 def test_check_rejects_unknown_rules_and_equal_options(arguments, match):

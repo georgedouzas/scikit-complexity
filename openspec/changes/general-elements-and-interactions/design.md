@@ -40,6 +40,11 @@ Alternative considered: one core class per recurring mechanism, such as `Constan
 `ForagingInteraction`. Rejected, because each is a special case of a more general operation and binds the core to a
 field.
 
+### What enters the core
+A class enters the core when it is a fundamental paradigm, such as a variational principle, a conservation law, a
+Markov jump process, a reaction network, or imitation dynamics, and when it applies in principle to other domains than
+the one that first needs it. How many fields use it today does not decide it.
+
 ### Arguments: roles, state names, functions, divisor, variants
 - Roles bind groups: `target` is the role whose states the laws change, `sources` are roles they only read.
 - State arguments name the states read and written, so one class serves any meaning.
@@ -127,21 +132,26 @@ Choice and learning:
 | Class | Operation |
 | --- | --- |
 | `ChoiceInteraction(target, state, options, utility, rule='logit', intensity=1.0, schedule='synchronous', activity=1.0)` | draws an option by the logit, Metropolis, Fermi, or best rule, symbolic or agent |
-| `ImitationInteraction(target, state, payoff, options, rate, rule)` | copies a neighbour's state at random, by majority, from the best, or by the Fermi rule |
-| `ReinforcementInteraction(target, scores, payoff, rate)` | moves the score of every option towards its realized payoff |
-| `EvolutionInteraction(target, strategy, fitness, selection, replacement, crossover, mutation)` | selection by tournament, roulette, or rank, replacement of the generation, by Moran, or death-birth, crossover, and mutation over an alphabet, Gaussian, or a function |
+| `ImitationInteraction(target, state, payoff, options, rate, rule, intensity, form='rate', probability, layer, phase)` | copies a neighbour's state at random, by majority, from the best, from a random better neighbour (`'better'`, agent form), or by the Fermi rule, as jumps, per-step updates, or an agent rule (`form='agent'`) |
+| `ReinforcementInteraction(target, scores, payoff, rate, rule='average', form, phase)` | moves the score of every option towards its realized payoff, or adds it (`rule='cumulative'`); in the agent form the scores may be one vector state, and a one-member group holds scores several groups share |
+| `EvolutionInteraction(target, strategy, fitness, selection, replacement, crossover, mutation, ..., change='other', parents='survivors', fraction, period=1, evaluate=None, reset=None, phase)` | selection by tournament, roulette (minus the minimum), proportional, or rank; replacement of the generation, by Moran, death-birth among survivors or all, truncation of the least fit `fraction`, or best mutant; mutation to another symbol, a redrawn one, one gene, a step, a new label, Gaussian, or a function; every `period` steps; strategies over one or several states; fitness from a state, `None` (neutral), or `evaluate`/`_evaluate`; `reset` states of the replaced; `crossover`, `death`, `fraction` are parameters and subclasses may declare `mutation` one |
 
 Agents, groups, and exchange:
 
 | Class | Operation |
 | --- | --- |
 | `MovementInteraction(target, step, probability=1.0, rate=None, condition=None, accept=None, exclusive=False)` | moves agents by neighbour, Gaussian, Lévy, best-cell, or a user step |
+<<<<<<< HEAD
 | `TransferInteraction(source, target, state, into=None, amount, flow='', pairing='members', legs=(), fallback=None, guard=None, rate=None, form='symbolic', phase=None)` | moves amounts of states between members, cells, or a source and a sink, as a rate or as agent rules; pairs agents by members, random, disjoint pairs, neighbours, disjoint neighbour pairs, or cell, with a fallback group when no target lives; an agent leg end `'<reference>.<state>'` moves a state of the member a reference state names |
 | `LifeCycleInteraction(target, birth, death, offspring=1, placement='here', inherit=(), mutate=None)` | births by splitting or by condition, and deaths by condition |
+=======
+| `TransferInteraction(source, target, state, into=None, amount, flow='', pairing='members', legs=(), fallback=None, guard=None, rate=None, form='symbolic', phase=None)` | moves amounts of states between members, cells, or a source and a sink, as a rate or as agent rules; pairs agents by members, random, disjoint pairs, neighbours, disjoint neighbour pairs, or cell, with a fallback group when no target lives |
+| `LifeCycleInteraction(target, birth, death, rate=None, offspring=1, placement='here', inherit=(), split=(), mutate=None, phase=None, group=None, values=None, keep=None, reset=None, replace=False, renew=False, cull=None, kin=None, arrival=None)` | births by splitting, by condition, or at a rate, into the target's group or another, with inherited, given, split, and mutated values; deaths by condition, removal or renewal in place; parents replaced by offspring; removal of kin of another group; arrivals without a parent |
+>>>>>>> development
 | `GroupingInteraction(target, groups, act, size=2, capacity=None)` | draws pairs, a random partition, neighbourhoods, or groups by a chosen state each step, then acts on every group |
 | `MatchingInteraction(requesters, providers, rule, limit, quantity, budget, transfers, on_match)` | pairs requesters with providers by the algorithm its rule spec names, then transfers |
 | `FeedbackInteraction(rule)` | reads observables once per round and sets parameters |
-| `TopologyInteraction(target, action, rate=None, probability=None, condition=None, toward=None)` | adds or removes nodes and edges, and rewires, preferentially towards a weight |
+| `TopologyInteraction(target=None, action, rate=None, probability=None, condition=None, toward=None, edges=1, keep='source', values=None, layer=None)` | adds or removes nodes and edges, and rewires, preferentially towards a weight; without a target, adds one node per step from outside the network; new nodes and edges take values or draws |
 
 Transfer flows have names. Every leg of a symbolic `TransferInteraction` is a `TransferLaw`, which the trajectory
 records as a flow. A leg names its flow by `flow` (the first leg) or a fourth item `(state, into, amount, flow)`; a named
@@ -158,6 +168,11 @@ The matching rules are frozen specs of `skcomplex.specs` that hold only the sett
 `GreedyMatchingSpec(score, candidates, capacity, clearing)`. `MatchingInteraction` runs each algorithm as its own
 private method, chosen by the type of its `rule`, on the offers it reads directly, so no protocol class or round spec
 exists.
+
+Learning and evolution realizations stay thin subclasses that override `_evaluate` or `_mutate` (Moran, adaptive
+climbing, neutral speciation, bit-string reproduction), and the choice, reinforcement, imitation, and evolution of the
+minority game, El Farol, the order book, and the prisoner's dilemma tournament are separate general interactions in
+phases. Neighbour interactions may return agent rules, which run as model rules.
 
 ### Elements, laws, and utilities
 - Elements: `Element`, `GroupElement`, `FieldElement`, `LatticeElement`, `CompartmentElement`, whose state `n` a model renames by a
@@ -225,6 +240,21 @@ cap) and the produce market's sets of items (bit masks in float states, one mode
 queue state would need a non-float state kind that observables and snapshots do not record. A field-shared realization goes to `<field>/common/<family>`, as the
 inventory lists, such as `physics/common/oscillators`, `biology/common/pharmacokinetics`, and
 `economics/common/forecasting`.
+
+### Life cycle variants and growth from outside a network
+`LifeCycleInteraction` covers the variants of births and deaths by arguments whose defaults keep the plain cycle:
+`group` (an optional role, `RoleSpec(optional=True)`) makes births into another group, `values(parent, model)` gives
+the values of a new agent (a generation one higher, an owner, drawn states), `keep` the share of a split state the
+parent keeps (a random cut), `reset` the values of a parent after its birth (an age counter), `replace` removes a
+parent that gave birth (Galton-Watson, fission), `renew` renews a dying agent in place (re-entry of a bankrupt firm),
+`cull` with `kin` removes a member of another group the agent owns, `arrival` brings a Poisson number of agents
+without a parent, and a placement may be a function returning a location (an empty neighbouring cell, a random cell).
+It reports its `births`, `deaths`, and `arrivals`. A role declared `RoleSpec(optional=True)` may stay `None`, and a
+neighbour interaction with no bound role runs its laws once per step, so `TopologyInteraction(action='add-node')`
+without a target adds one node per step to the one network whose groups are variable (Barabási-Albert, Holme-Kim,
+vertex copying). Topology values given as functions of the generator are drawn for every new node or edge.
+The Tangled Nature step keeps its own rule: its attempts pick random organisms with replacement, `N / p_kill` times a
+generation, with kills interleaved, which a pass over every agent does not reproduce.
 
 ### Hyperedges
 The engine compiles the laws of a `HyperedgeInteraction` once per member and ignores the hyperedges. Laws run once per

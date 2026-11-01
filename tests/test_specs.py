@@ -360,6 +360,12 @@ def test_role_spec_is_variadic_or_a_noise_role():
         RoleSpec(variadic=True, noise=True).check()
 
 
+def test_role_spec_may_be_optional():
+    """Test that a role may be declared optional, so it may stay unbound."""
+    assert RoleSpec(optional=True).check().optional
+    assert not RoleSpec().check().optional
+
+
 def test_specs_are_frozen_records():
     """Test that the specs are frozen dataclasses that derive from the spec base, itself a configurable object."""
     assert issubclass(BaseSpec, BaseConfig)

@@ -14,11 +14,10 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
 from ....core.interactions import BaseInteraction, MapInteraction, TopologyInteraction
-from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import neighbors, total, where
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....specs import ParameterSpec, StateSpec, TopologyRequestSpec, VisualSpec
+from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
@@ -174,107 +173,6 @@ class CopyingVertexElement(VertexElement):
         self.inverse = inverse
 
 
-class AttachmentElement(Element):
-    """Arrival of one node per step, joined to `edges` nodes drawn by preferential attachment.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        edges:
-            The number of edges of every new node.
-
-    Examples:
-        >>> from skcomplex.models.mathematics.networks import AttachmentElement
-        >>> AttachmentElement('growth', edges=3).edges
-        3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        edges: Annotated[int, ParameterSpec(domain=NN)] = 2,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.edges = edges
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the arrival of a node with its edges.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [UpdateLaw(TopologyRequestSpec('add-node', edges=int(self.edges), toward=_degree), 1)]
-
-
-class CopyingElement(Element):
-    """Arrival of one node per step whose edges copy the edges of random prototypes.
-
-    Every edge of a new node joins a uniformly random node with probability `randomness`, and otherwise a random
-    neighbour of a uniformly random prototype, so a node is reached with weight `randomness + (1 - randomness) Σ_j
-    1 / k_j` over its neighbours `j`. Copying makes the probability of a new edge grow with the degree.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        edges:
-            The number of edges of every new node.
-
-        randomness:
-            The probability that an edge joins a random node instead of copying.
-
-    Examples:
-        >>> from skcomplex.models.mathematics.networks import CopyingElement
-        >>> CopyingElement('growth', randomness=0.1).randomness
-        0.1
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        edges: Annotated[int, ParameterSpec(domain=NN)] = 3,
-        randomness: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.edges = edges
-        self.randomness = randomness
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the arrival of a node with its copied edges.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        randomness = float(self.randomness)
-
-        def weight(node: SimpleNamespace) -> object:
-            """Return the chance that a copied edge or a random edge reaches a candidate node."""
-            return randomness + (1 - randomness) * neighbors(node.other.inverse)
-
-        return [UpdateLaw(TopologyRequestSpec('add-node', edges=int(self.edges), toward=weight), 1)]
-
-
 def _get_bookkeeping() -> list[MapInteraction]:
     """Return the maps that age every node and read its degree from the edges at the start of a step."""
     return [
@@ -305,7 +203,7 @@ def _nodes(element: type[VertexElement], capacity: int, **values: object) -> Gro
 
 def _grown(
     nodes: GroupElement,
-    growth: Element,
+    growth: TopologyInteraction,
     space: NetworkSpace,
     capacity: int,
     interactions: Sequence[BaseInteraction] = (),
@@ -313,8 +211,8 @@ def _grown(
     """Return a growing network of a group on its nodes, a variable edge group, the arrival of nodes, and its maps."""
     links = GroupElement('links', element=LinkElement, on='edges', variable=True, capacity=capacity)
     return System(
-        elements=[nodes, links, growth],
-        interactions=[*_get_bookkeeping(), *interactions],
+        elements=[nodes, links],
+        interactions=[growth, *_get_bookkeeping(), *interactions],
         space=space,
         time=DiscreteTime(),
     )
@@ -355,7 +253,8 @@ def barabasi_albert(n_nodes: int = 303, *, edges: int = 2, seed_nodes: int = 3) 
     """
     space = NetworkSpace(nx.complete_graph(seed_nodes))
     nodes = _nodes(VertexElement, n_nodes)
-    return _grown(nodes, AttachmentElement('growth', edges=edges), space, edges * n_nodes + seed_nodes**2)
+    growth = TopologyInteraction('growth', action='add-node', edges=edges, toward=_degree)
+    return _grown(nodes, growth, space, edges * n_nodes + seed_nodes**2)
 
 
 @register_model(
@@ -409,7 +308,7 @@ def holme_kim(n_nodes: int = 304, *, edges: int = 3, triad: float = 0.8, seed_no
         toward=_get_triad_weight,
         edges=edges - 1,
     )
-    growth = AttachmentElement('growth', edges=1)
+    growth = TopologyInteraction('growth', action='add-node', toward=_degree)
     return _grown(nodes, growth, space, edges * n_nodes + seed_nodes**2, [near, closure])
 
 
@@ -444,12 +343,17 @@ def vertex_copying(n_nodes: int = 304, *, edges: int = 3, randomness: float = 0.
 
     Examples:
         >>> from skcomplex.models.mathematics.networks import vertex_copying
-        >>> vertex_copying(20).elements[2].randomness
-        0.2
+        >>> vertex_copying(20).interactions[0].edges
+        3
     """
     space = NetworkSpace(nx.complete_graph(seed_nodes))
     nodes = _nodes(CopyingVertexElement, n_nodes)
-    growth = CopyingElement('growth', edges=edges, randomness=randomness)
+    growth = TopologyInteraction(
+        'growth',
+        action='add-node',
+        edges=edges,
+        toward=lambda node: randomness + (1 - randomness) * neighbors(node.other.inverse),
+    )
     inverse = MapInteraction(
         'inverse',
         target='nodes',

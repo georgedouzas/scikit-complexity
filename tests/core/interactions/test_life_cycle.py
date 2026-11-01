@@ -195,9 +195,134 @@ def test_live_inherits_and_mutates_the_states_of_offspring():
     assert values['reserve'].tolist() == [5.0, 0.0]
 
 
+def _cycle(life: LifeCycleInteraction, *groups: GroupElement, until: int = 1) -> Trajectory:
+    """Return the trajectory of groups of reserve members under a life cycle on a lattice."""
+    system = System(elements=list(groups), interactions=[life], space=LatticeSpace((3, 3)))
+    return Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
+
+
+def test_live_creates_offspring_in_another_group_with_given_values():
+    """Test that births into another group create members of it with the values of the parent's function."""
+    parents = GroupElement('parents', element=ReserveElement, size=2, values={'trait': [1.0, 2.0]})
+    young = GroupElement('young', element=ReserveElement, size=1, location=[(0, 0)], variable=True)
+    life = LifeCycleInteraction(
+        'life',
+        target='parents',
+        birth=1.0,
+        group='young',
+        values=lambda parent, model: {'trait': parent.trait * 10},
+    )
+    trajectory = _cycle(life, parents, young)
+    assert sorted(trajectory.agents('young', 1).values['trait'].tolist()) == [0.0, 10.0, 20.0]
+    assert len(trajectory.agents('parents', 1).values['trait']) == 2
+    assert trajectory.values('life.births')[-1] == 2
+
+
+def test_live_replaces_parents_by_their_offspring():
+    """Test that with replacement a parent is removed after its births, also when it has no offspring."""
+    parents = GroupElement('parents', element=ReserveElement, size=4, variable=True)
+    life = LifeCycleInteraction(
+        'life',
+        target='parents',
+        birth=1.0,
+        offspring=lambda parent, model: 2 if parent.id % 2 else 0,
+        values=lambda parent, model: {'trait': parent.trait + 1},
+        replace=True,
+    )
+    values = _cycle(life, parents).agents('parents', 1).values
+    assert values['trait'].tolist() == [1.0, 1.0, 1.0, 1.0]
+
+
+def test_live_keeps_a_share_of_the_split_states():
+    """Test that a parent keeps the share `keep` of a split state and its offspring take the rest."""
+    parents = GroupElement('parents', element=ReserveElement, size=1, values={'reserve': 8.0}, variable=True)
+    life = LifeCycleInteraction('life', target='parents', birth=1.0, offspring=2, split=('reserve',), keep=0.5)
+    assert _reserves_of(_cycle(life, parents)) == [2.0, 2.0, 4.0]
+
+
+def test_live_resets_a_parent_after_its_birth():
+    """Test that a parent takes the reset values after it gives birth, and a parent that does not keeps its own."""
+    parents = GroupElement('parents', element=ReserveElement, size=2, values={'reserve': [3.0, 1.0]}, variable=True)
+    life = LifeCycleInteraction(
+        'life',
+        target='parents',
+        birth=lambda parent, model: parent.reserve >= 2,
+        reset={'reserve': 0.0},
+        values=lambda parent, model: {'reserve': 0.5},
+    )
+    assert _reserves_of(_cycle(life, parents)) == [0.0, 0.5, 1.0]
+
+
+def test_live_renews_dying_agents_in_place():
+    """Test that a renewed agent keeps its identity and the states the new values leave out."""
+    parents = GroupElement(
+        'parents',
+        element=ReserveElement,
+        size=2,
+        values={'reserve': [-1.0, 2.0], 'trait': [7.0, 8.0]},
+        variable=True,
+    )
+    life = LifeCycleInteraction(
+        'life',
+        target='parents',
+        death=lambda agent, model: agent.reserve < 0,
+        renew=True,
+        values=lambda agent, model: {'reserve': 1.0},
+    )
+    trajectory = _cycle(life, parents)
+    values = trajectory.agents('parents', 1).values
+    assert values['reserve'].tolist() == [1.0, 2.0]
+    assert values['trait'].tolist() == [7.0, 8.0]
+    assert trajectory.values('life.deaths')[-1] == 1
+
+
+def test_live_culls_kin_of_another_group():
+    """Test that an agent removes the first member of the other group that is its kin."""
+    owners = GroupElement('owners', element=ReserveElement, size=2, values={'trait': [0.0, 1.0]})
+    owned = GroupElement('owned', element=ReserveElement, size=3, values={'trait': [1.0, 0.0, 1.0]}, variable=True)
+    life = LifeCycleInteraction(
+        'life',
+        target='owners',
+        group='owned',
+        cull=lambda owner, model: owner.trait == 1.0,
+        kin=lambda owner, member: member.trait == owner.trait,
+    )
+    assert _cycle(life, owners, owned).agents('owned', 1).values['trait'].tolist() == [0.0, 1.0]
+
+
+def test_live_brings_arrivals_at_placed_locations():
+    """Test that a Poisson number of arrivals join the group at the placement's locations with drawn values."""
+    members = GroupElement('members', element=ReserveElement, size=1, location=[(2, 1)], variable=True)
+    life = LifeCycleInteraction(
+        'life',
+        target='members',
+        arrival=lambda model: 50.0,
+        placement=lambda parent, model: (2, 1),
+        values=lambda parent, model: {'trait': float(model.rng.integers(5))},
+    )
+    trajectory = _cycle(life, members, until=4)
+    snapshot = trajectory.agents('members', 4)
+    assert (len(snapshot.values['trait']) - 1) / 4 == pytest.approx(50.0, rel=0.2)
+    assert {tuple(cell) for cell in np.asarray(snapshot.locations).tolist()} == {(2, 1)}
+    assert set(snapshot.values['trait'].tolist()) <= {0.0, 1.0, 2.0, 3.0, 4.0}
+
+
+def _reserves_of(trajectory: Trajectory) -> list[float]:
+    """Return the sorted reserves of the parents at the first frame."""
+    return sorted(trajectory.agents('parents', 1).values['reserve'].tolist())
+
+
 @pytest.mark.parametrize(
     'arguments',
-    [{'placement': 'far'}, {'birth': 0.5, 'rate': 1.0}, {'death': 'old'}, {'mutate': 3}],
+    [
+        {'placement': 'far'},
+        {'birth': 0.5, 'rate': 1.0},
+        {'death': 'old'},
+        {'mutate': 3},
+        {'keep': 'half'},
+        {'values': 1.0},
+        {'cull': 0.5},
+    ],
 )
 def test_check_rejects_invalid_arguments(arguments):
     """Test that an unknown placement, two kinds of birth, and values that are not numbers or functions are rejected."""

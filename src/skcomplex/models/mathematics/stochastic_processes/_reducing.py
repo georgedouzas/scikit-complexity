@@ -4,14 +4,13 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import LifeCycleInteraction
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -71,7 +70,7 @@ class ReducingBallElement(Element):
 
 
 class FragmentElement(Element):
-    """Fragment of integer size that breaks at a uniformly random point into two smaller fragments.
+    """Fragment of integer size, which the breaking of the model cuts at a uniformly random point into two fragments.
 
     Args:
         label:
@@ -110,21 +109,9 @@ class FragmentElement(Element):
         """Return the view of the agents, which types their states and parameters."""
         return FragmentView
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the breaking rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.split)]
-
-    def split(self, agent: FragmentView, model: ModelView) -> None:
-        """Break the fragment in two with the breaking probability.
+    @staticmethod
+    def breaks(agent: FragmentView, model: ModelView) -> float:
+        """Return the probability that a fragment breaks in a step, zero at size 1.
 
         Args:
             agent:
@@ -132,13 +119,30 @@ class FragmentElement(Element):
 
             model:
                 The model.
+
+        Returns:
+            probability:
+                The breaking probability, or zero for a fragment of size 1.
+        """
+        return agent.rate if round(agent.length) > 1 else 0.0
+
+    @staticmethod
+    def cut(agent: FragmentView, model: ModelView) -> float:
+        """Return the share of a breaking fragment that stays with it, cut at a uniformly random whole point.
+
+        Args:
+            agent:
+                The fragment.
+
+            model:
+                The model.
+
+        Returns:
+            share:
+                The share of the size left of the cut.
         """
         length = round(agent.length)
-        if length <= 1 or model.rng.random() >= agent.rate:
-            return
-        cut = int(model.rng.integers(1, length))
-        agent.length = float(cut)
-        agent.create(length=float(length - cut))
+        return int(model.rng.integers(1, length)) / length
 
 
 @register_model(
@@ -218,6 +222,15 @@ def fragmentation(size: int = 1000, *, rate: float = 0.5) -> System:
                 size=1,
                 values={'length': float(size), 'rate': rate},
                 variable=True,
+            ),
+        ],
+        interactions=[
+            LifeCycleInteraction(
+                'breaking',
+                target='fragments',
+                birth=FragmentElement.breaks,
+                split=('length',),
+                keep=FragmentElement.cut,
             ),
         ],
     )

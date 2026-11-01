@@ -135,6 +135,9 @@ class AgentViewProtocol(Protocol):
     def distance_to(self, other: AgentViewProtocol | object) -> float:
         """Return the distance to another agent or a location, the number of hops on a network."""
 
+    def neighbors(self, radius: float | None = None) -> Sequence[AgentViewProtocol]:
+        """Return the other agents in the neighbouring cells or nodes, or within a radius in a continuous space."""
+
     def move_to(self, location: object) -> None:
         """Move the agent to a cell, a node, or a position."""
 
@@ -165,6 +168,9 @@ class ModelViewProtocol(Protocol):
 
     def parameter(self, name: str) -> float:
         """Return the current value of a parameter of the owner."""
+
+    def create(self, group: str, location: object = None, **values: object) -> AgentViewProtocol:
+        """Create an agent of a group, a role of the owner or a path, at a location or by default a random place."""
 
     def report(self, name: str, value: float) -> None:
         """Publish a value of the owner as the reporter `<owner>.<name>`."""
