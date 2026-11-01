@@ -3,8 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Mapping
-from typing import Annotated, ClassVar
+from collections.abc import Mapping
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
@@ -12,18 +12,12 @@ from sage.sets.real_set import RealSet
 
 from ....analysis import DistributionAnalysis
 from ....core.elements import Element, GroupElement
-from ....core.interactions import (
-    FeedbackInteraction,
-    LifeCycleInteraction,
-    MovementInteraction,
-    TransferInteraction,
-)
+from ....core.interactions import LifeCycleInteraction, MovementInteraction, TransferInteraction
 from ....core.laws import Sink
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....core.types import AgentViewProtocol, ModelViewProtocol
-from ....engine.solvers import ModelView
-from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
 from ..common.resources import RegrowthInteraction
@@ -244,51 +238,9 @@ class ForagerElement(Element):
         return ForagerView
 
 
-class ForagerCensusInteraction(FeedbackInteraction[ModelView]):
-    """Census that reports the population of foragers and the Gini coefficient of their wealth.
-
-    Args:
-        label:
-            The label of the institution.
-
-        rule:
-            Unused, since the census overrides `act`.
-
-        phase:
-            The phase the census counts in.
-
-        foragers:
-            The path of the group of foragers.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets import ForagerCensusInteraction
-        >>> ForagerCensusInteraction('census', foragers='foragers').reports
-        ('population', 'gini')
-    """
-
-    reports: ClassVar[tuple[str, ...]] = ('population', 'gini')
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        rule: Callable[[ModelView], None] | None = None,
-        phase: str | None = None,
-        foragers: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(label, rule=rule, phase=phase)
-        self.foragers = foragers
-
-    def act(self, model: ModelView) -> None:
-        """Report the population and the Gini coefficient of wealth.
-
-        Args:
-            model:
-                The model view of the census.
-        """
-        wealth = [forager.sugar for forager in model.agents('foragers', ForagerView)]
-        model.report('population', len(wealth))
-        model.report('gini', DistributionAnalysis('gini').check().prepare(np.asarray(wealth, dtype=float)).run().gini_)
+def _gini(wealth: object) -> float:
+    """Return the Gini coefficient of the wealth of the foragers."""
+    return float(DistributionAnalysis('gini').check().prepare(np.asarray(wealth, dtype=float)).run().gini_)
 
 
 @register_model(
@@ -296,6 +248,10 @@ class ForagerCensusInteraction(FeedbackInteraction[ModelView]):
     tags=('sugarscape', 'wealth', 'agents', 'grid'),
     references=('Argun et al. 2021 sec. 16.2', 'Downey 2018 ch. 9'),
     defaults={'until': 100},
+    observables=lambda system: [
+        ObservableSpec('population', group='foragers', variable='sugar', reduce='count'),
+        ObservableSpec('gini', group='foragers', variable='sugar', reduce=_gini),
+    ],
 )
 def sugarscape(
     width: int = 50,
@@ -346,8 +302,8 @@ def sugarscape(
 
     Returns:
         system:
-            The model, with the groups `patches` and `foragers` and the census `census`, whose reporters are the
-            population `census.population` and the Gini coefficient of wealth `census.gini`.
+            The model, with the groups `patches` and `foragers`, whose catalog observables are the population
+            `population` and the Gini coefficient of wealth `gini`.
 
     Examples:
         >>> from skcomplex.models.economics.markets import sugarscape
@@ -382,7 +338,6 @@ def sugarscape(
         interactions=[
             *_get_foraging(),
             RegrowthInteraction('growback', target='patches', state='sugar', growth='growback', phase='growth'),
-            ForagerCensusInteraction('census', foragers='foragers', phase='growth'),
         ],
         space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'),
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('foraging'), PhaseSpec('growth')])),

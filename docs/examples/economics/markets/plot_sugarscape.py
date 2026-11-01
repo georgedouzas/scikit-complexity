@@ -18,10 +18,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import DistributionAnalysis
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'sugarscape'
 
@@ -36,8 +35,7 @@ landscape = rrb.Spatial2DView(
     },
 )
 census = rrb.TimeSeriesView(
-    origin='/reporters',
-    contents=['/reporters/census.population'],
+    origin='/population',
     name='population',
     axis_x=rrb.TimeAxis(view_range=rrb.TimeRange(start=whole, end=whole)),
 )
@@ -49,7 +47,12 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, width=50, height=50, n_foragers=400, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=100)
+simulation = (
+    Simulation(system, observers=[observer], random_state=0, observables=describe(MODEL).observables_of(system))
+    .check()
+    .prepare()
+    .run(until=100)
+)
 
 # %%
 # Carrying capacity and inequality
@@ -61,12 +64,11 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().pr
 
 trajectory = simulation.trajectory_
 times = trajectory.times
-initial = DistributionAnalysis('gini').check().prepare(trajectory.agents('foragers', 0).values['sugar']).run().gini_
-inequality = np.r_[initial, trajectory.values('census.gini')[1:]]
+inequality = trajectory.values('gini')
 wealth = np.sort(trajectory.agents('foragers', len(times) - 1).values['sugar'])
 lorenz = np.r_[0.0, np.cumsum(wealth) / wealth.sum()]
 fig, (population, gini_axis, lorenz_axis) = plt.subplots(1, 3, figsize=(13, 4))
-population.plot(times[1:], trajectory.values('census.population')[1:])
+population.plot(times, trajectory.values('population'))
 population.set_xlabel('step')
 population.set_ylabel('foragers')
 population.set_title('The population falls to a carrying capacity')

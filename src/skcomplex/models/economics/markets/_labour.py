@@ -4,14 +4,14 @@
 # License: MIT
 
 from collections.abc import Callable
-from typing import Annotated, ClassVar
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import FeedbackInteraction, MapInteraction, MatchingInteraction, TransitionInteraction
+from ....core.interactions import MapInteraction, MatchingInteraction, TransitionInteraction
 from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
@@ -21,7 +21,6 @@ from ....specs import (
     ParameterSpec,
     PhaseSpec,
     PhasesScheduleSpec,
-    RoleSpec,
     StableMatchingSpec,
     StateSpec,
     VisualSpec,
@@ -240,6 +239,9 @@ class JobseekerElement(Element):
 def hire(trade: MatchSpec, model: ModelView) -> None:
     """Record the employer, the wage, and the steps of the hire and of its offer on the hired worker.
 
+    The hired worker keeps its search flag `supply` until the next step, which the market lowered when it cleared, so
+    the observable `searching` counts every worker who searched in the step.
+
     Args:
         trade:
             The match of a firm, the requester of labour, with a worker, its provider.
@@ -251,52 +253,8 @@ def hire(trade: MatchSpec, model: ModelView) -> None:
     if not isinstance(worker, JobseekerView) or not isinstance(firm, EmployerView):
         return
     worker.employer, worker.wage, worker.duration = float(firm.id), trade.price, 0.0
+    worker.supply += trade.quantity
     worker.hired, worker.offer = model.time, firm.posted
-
-
-class SearchCountInteraction(FeedbackInteraction[ModelView]):
-    """Statistics office that counts the workers searching in a step before the labour market clears.
-
-    Args:
-        label:
-            The label of the institution.
-
-        rule:
-            Unused, since the office overrides `act`.
-
-        phase:
-            The phase the office counts in, which must precede the clearing of the market.
-
-        workers:
-            The path of the group of workers.
-
-    Examples:
-        >>> from skcomplex.models.economics.markets import SearchCountInteraction
-        >>> SearchCountInteraction('office', workers='workers', phase='matching').reports
-        ('searching',)
-    """
-
-    reports: ClassVar[tuple[str, ...]] = ('searching',)
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        rule: Callable[[ModelView], None] | None = None,
-        phase: str | None = None,
-        workers: Annotated[str, RoleSpec()],
-    ) -> None:
-        super().__init__(label, rule=rule, phase=phase)
-        self.workers = workers
-
-    def act(self, model: ModelView) -> None:
-        """Report the number of searching workers.
-
-        Args:
-            model:
-                The model view of the office.
-        """
-        model.report('searching', sum(worker.supply > 0 for worker in model.agents('workers', JobseekerView)))
 
 
 def _unemployment(employers: object) -> float:
@@ -311,6 +269,7 @@ def _unemployment(employers: object) -> float:
     defaults={'until': 200},
     observables=lambda system: [
         ObservableSpec('unemployment', group='workers', variable='employer', reduce=_unemployment),
+        ObservableSpec('searching', group='workers', variable='supply', reduce='sum'),
     ],
 )
 def labour_market(
@@ -368,8 +327,8 @@ def labour_market(
     Returns:
         system:
             The model, with the groups `firms` and `workers`, the market `labour` with the reporters `labour.price`
-            (the mean wage of the hires) and `labour.volume` (the hires), the reporter `office.searching`, and the
-            unemployment rate `unemployment`.
+            (the mean wage of the hires) and `labour.volume` (the hires), and the catalog observables of the
+            unemployment rate `unemployment` and of the searching workers `searching`.
 
     Examples:
         >>> from skcomplex.models.economics.markets import labour_market
@@ -434,7 +393,6 @@ def labour_market(
             *offers,
             losses,
             *spells,
-            SearchCountInteraction('office', workers='workers', phase='matching'),
             market,
         ],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('offers'), PhaseSpec('matching')])),

@@ -10,7 +10,7 @@ capacity of 60.
 # %%
 # Every patron holds six predictors of next week's attendance, drawn from a pool of 46: cycle detectors, moving
 # averages, trends, mirror images, and anchors on fixed levels. It goes when its currently most accurate predictor
-# forecasts fewer than 60 patrons. The bar counts the patrons and reports the attendance, which the blueprint shows.
+# forecasts fewer than 60 patrons. The run observes the attendance, which the patrons read and the blueprint shows.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,7 +18,7 @@ import rerun.blueprint as rrb
 
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.models import create, describe
 
 MODEL = 'el_farol'
 WEEKS, TRANSIENT, CAPACITY = 500, 100, 60
@@ -26,7 +26,7 @@ WEEKS, TRANSIENT, CAPACITY = 500, 100, 60
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(
-        origin='/reporters/bar.attendance',
+        origin='/attendance',
         name='attendance',
         axis_x=rrb.TimeAxis(view_range=whole_run),
     ),
@@ -36,7 +36,12 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
 system = create(MODEL, n_agents=100, capacity=CAPACITY, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=WEEKS)
+simulation = (
+    Simulation(system, observers=[observer], random_state=0, observables=describe(MODEL).observables_of(system))
+    .check()
+    .prepare()
+    .run(until=WEEKS)
+)
 
 # %%
 # Self-organization around the capacity
@@ -45,7 +50,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().pr
 # predictor that becomes popular defeats itself. The running mean after the transient should approach 60.
 
 times = simulation.trajectory_.times
-attendance = simulation.trajectory_.values('bar.attendance')
+attendance = simulation.trajectory_.values('attendance')
 settled = attendance[TRANSIENT:]
 running = np.cumsum(settled) / np.arange(1, len(settled) + 1)
 fig, (series, histogram) = plt.subplots(1, 2, figsize=(10, 4))
