@@ -15,7 +15,7 @@ from ...specs._base_spec import BaseSpec
 from ..types import Chain
 from ._reference_spec import ReferenceSpec
 
-OPERATORS = ('laplacian', 'partial', 'inverse_laplacian')
+OPERATORS = ('laplacian', 'partial', 'inverse_helmholtz')
 
 
 @dataclass(frozen=True, eq=False)

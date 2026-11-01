@@ -8,7 +8,7 @@ import pytest
 
 from skcomplex.core.elements import Element, FieldElement
 from skcomplex.core.laws import FluxLaw, RateLaw
-from skcomplex.core.laws.utils import inverse_laplacian, laplacian
+from skcomplex.core.laws.utils import laplacian
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
@@ -234,30 +234,6 @@ def test_symmetry_needs_periodic_lattice():
     rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(8, boundary='fixed'), symmetry={'u': ('odd',)})
     with pytest.raises(ValidationError, match='periodic lattice'):
         compile_system(System(elements=[rod]))
-
-
-def test_poisson_needs_spectral_field():
-    """Test that solving a Poisson equation on a finite-difference field is rejected."""
-
-    class PotentialElement(Element):
-        """Potential element."""
-
-        def __init__(
-            self,
-            label: str,
-            visual: VisualSpec | None = None,
-            *,
-            u: Annotated[object, StateSpec()] = 0.0,
-        ) -> None:
-            super().__init__(label, visual=visual)
-            self.u = u
-
-        def _get_laws(self, s):
-            """Return the laws of the potential element."""
-            return [RateLaw(s.u, inverse_laplacian(s.u))]
-
-    with pytest.raises(ValidationError, match='spectral field'):
-        compile_system(System(elements=[FieldElement('rod', element=PotentialElement, space=LatticeSpace(8))]))
 
 
 def test_swift_hohenberg_rolls():
