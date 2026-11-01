@@ -128,10 +128,11 @@ def formatting(session: nox.Session, file: str) -> None:
     """
     arg = check_cli(session, ['all', 'code', 'docstrings'])
     session.run('pdm', 'install', '-dG', 'formatting', '--no-default', external=True)
+    # Black runs last, since docformatter sets the blank lines around some docstrings differently.
+    if arg in ['docstrings', 'all']:
+        session.run('docformatter', file, success_codes=[0, 3])
     if arg in ['code', 'all']:
         session.run('black', file)
-    if arg in ['docstrings', 'all']:
-        session.run('docformatter', file)
 
 
 @nox.session(python=PYTHON_VERSIONS)
@@ -161,7 +162,8 @@ def checks(session: nox.Session, file: str) -> None:
         session.run('pydoclint', file)
     if arg in ['dependencies', 'all']:
         requirements_path = (Path(session.create_tmp()) / 'requirements.txt').as_posix()
-        args_groups = [['--prod']] + [['-dG', group] for group in ['tests', 'docs', 'maintenance']]
+        # The runtime dependencies are the default group, so only the development groups leave it out.
+        args_groups = [['--prod']] + [['-dG', group, '--no-default'] for group in ['tests', 'docs', 'maintenance']]
         requirements_types = zip(FILES, args_groups, strict=True)
         args = [
             'pdm',
@@ -169,7 +171,6 @@ def checks(session: nox.Session, file: str) -> None:
             '-f',
             'requirements',
             '--without-hashes',
-            '--no-default',
             '--pyproject',
             '-o',
             requirements_path,
