@@ -207,5 +207,8 @@ class ModelViewProtocol(Protocol):
     def composition(self, name: str, state: str) -> dict[float, int]:
         """Return the number of agents of a group, a role of the owner or a path, by value of a state."""
 
+    def occupancy(self, name: str) -> dict[Hashable, int]:
+        """Return the number of agents of a group, a role of the owner or a path, by the key of their location."""
+
     def report(self, name: str, value: float) -> None:
         """Publish a value of the owner as the reporter `<owner>.<name>`."""

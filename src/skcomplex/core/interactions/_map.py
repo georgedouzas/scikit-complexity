@@ -8,6 +8,8 @@ from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated, SupportsFloat
 
+import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ...errors import ValidationError
@@ -36,8 +38,8 @@ class MapInteraction(Interaction):
     In the `'symbolic'` form, `function(namespace)` returns a symbolic expression, or a vector of them for a vector
     state, where `namespace.target` holds the states and parameters of the target, `namespace.sources` the namespaces
     of the sources, and `namespace.t` the time, and may hold draws such as `normal('noise')`. In the `'agent'` form,
-    the target is an agent group and `function(agent, model)` returns the value as a number, so it can read the agent,
-    its neighbours, and the history and storage of the model view.
+    the target is an agent group and `function(agent, model)` returns the value as a number, or as an array of the
+    shape of a vector state, so it can read the agent, its neighbours, and the history and storage of the model view.
 
     Args:
         label:
@@ -69,8 +71,9 @@ class MapInteraction(Interaction):
 
     Raises:
         ValidationError:
-            The mode, the schedule, or the form is unknown, the symbolic form has the schedule `'member'`, or the
-            function is not callable.
+            The mode, the schedule, or the form is unknown, the symbolic form has the schedule `'member'`, the
+            function is not callable, or the agent form returns a value that does not match the state, raised by
+            `run` of the simulation.
 
     Examples:
         >>> from skcomplex.core.elements import Element
@@ -93,6 +96,18 @@ class MapInteraction(Interaction):
         >>> agents = MapInteraction('map', target='walkers', state='x', function=lambda a, m: a.x + 1, form='agent')
         >>> type(agents.check().prepare().run(SimpleNamespace()).laws_[0]).__name__
         'RuleLaw'
+        >>> from skcomplex.core.elements import GroupElement
+        >>> class WeightsElement(Element):
+        ...     def __init__(self, label, visual=None, *, w: Annotated[object, StateSpec(vector=True)] = 0.0):
+        ...         super().__init__(label, visual=visual)
+        ...         self.w = w
+        >>> group = GroupElement('weights', element=WeightsElement, size=1, values={'w': [1.0, 2.0]})
+        >>> doubling = MapInteraction(
+        ...     'double', target='weights', state='w', function=lambda a, m: [2 * x for x in a.w], form='agent'
+        ... )
+        >>> trajectory = Simulation(System(elements=[group], interactions=[doubling])).check().prepare().run(until=2)
+        >>> trajectory.trajectory_.agents('weights', 2).values['w'].tolist()
+        [[4.0, 8.0]]
     """
 
     def __init__(
@@ -144,8 +159,22 @@ class MapInteraction(Interaction):
             error_msg = f'The function of map {self.label!r} must be callable, but it is {self.function!r}.'
             raise ValidationError(error_msg)
 
-    def _get_value(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> float:
-        """Return the next value of the state of an agent."""
+    def _get_vector(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> npt.NDArray[np.float64]:
+        """Return the next value of a vector state of an agent."""
+        current = np.asarray(getattr(agent, self.state), dtype=np.float64)
+        value = np.asarray(self.function(agent, model), dtype=np.float64)
+        if value.shape != current.shape:
+            error_msg = (
+                f'The function of map {self.label!r} returns the shape {value.shape} for the state {self.state!r} of '
+                f'the shape {current.shape}. Return an array of the shape of the state.'
+            )
+            raise ValidationError(error_msg)
+        return current + value if self.mode == 'increment' else value
+
+    def _get_value(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> float | npt.NDArray[np.float64]:
+        """Return the next value of the state of an agent, a number or the array of a vector state."""
+        if np.ndim(getattr(agent, self.state)) > 0:
+            return self._get_vector(agent, model)
         found = self.function(agent, model)
         if not isinstance(found, SupportsFloat):
             error_msg = f'The function of map {self.label!r} returns {found!r} for an agent. Return a number.'

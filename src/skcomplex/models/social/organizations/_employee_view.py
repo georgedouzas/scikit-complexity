@@ -19,6 +19,7 @@ class EmployeeView(AgentView):
     first: float
     mean_feeling: float
     expectation: float
+    feeling: float
     turnover: float
     culture: float
     change: float

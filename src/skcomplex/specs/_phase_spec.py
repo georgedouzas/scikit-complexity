@@ -20,6 +20,8 @@ class PhaseSpec(BaseSpec):
     the start of the phase, each to an agent drawn at random with replacement, which runs its rules of the phase at
     the time `k + i / n` of visit `i` of `n` in step `k`. The rules of interactions and institutions in the phase run
     once after the agents. A phase with `repeat` above one runs that many rounds, such as intraday rounds within a day.
+    A phase runs in the steps `k`, counted from one, for which `k - offset` is a multiple of `period`, so the default
+    period of one runs it every step and a period of seven runs it once a week.
 
     Args:
         name:
@@ -38,10 +40,16 @@ class PhaseSpec(BaseSpec):
         visits:
             The number of visits of `'visits'` per agent of the groups at the start of the phase.
 
+        period:
+            The number of steps between two runs of the phase.
+
+        offset:
+            The step, modulo the period, in which the phase runs.
+
     Examples:
         >>> from skcomplex.specs import PhaseSpec
         >>> PhaseSpec('trade', activation='simultaneous', repeat=3)
-        PhaseSpec(name='trade', activation='simultaneous', repeat=3, groups=None, visits=1.0)
+        PhaseSpec(name='trade', activation='simultaneous', repeat=3, groups=None, visits=1.0, period=1, offset=0)
     """
 
     name: str
@@ -49,3 +57,5 @@ class PhaseSpec(BaseSpec):
     repeat: int = 1
     groups: Sequence[str] | None = None
     visits: float = 1.0
+    period: int = 1
+    offset: int = 0

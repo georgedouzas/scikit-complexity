@@ -936,6 +936,47 @@ def test_composition_counts_the_values_of_a_state():
     assert all(kept == counted for kept, counted in compositions)
 
 
+def test_periodic_phase_runs_every_period_steps_from_its_offset():
+    """Test that a phase of period three and offset one runs in the steps 1, 4, and 7 only."""
+    phase = PhaseSpec('visit', activation='sequential', period=3, offset=1)
+    system = System(
+        elements=[GroupElement('visited', element=VisitedElement, size=1)],
+        time=DiscreteTime(schedule=PhasesScheduleSpec([phase])),
+    )
+    simulation = Simulation(system, random_state=0).check().prepare().run(until=8)
+    assert simulation.stepper_.storage_['visited']['times'] == [1.0, 4.0, 7.0]
+
+
+class OccupancyReaderInteraction(Interaction):
+    """Interaction that stores, at every step, the counts of the walkers by cell."""
+
+    def _get_laws(self, s):
+        """Return the reading rule."""
+        return [RuleLaw(self.read)]
+
+    def read(self, model):
+        """Store the counts of the walkers by cell."""
+        model.storage.setdefault('occupancies', []).append(model.occupancy('walkers'))
+
+
+def test_occupancy_counts_the_agents_of_a_group_by_cell():
+    """Test that the occupancy of a group counts its agents in every cell that holds one, by the key of the cell."""
+    walkers = GroupElement('walkers', element=WalkerElement, size=3, location=[(0, 0), (0, 0), (2, 1)])
+    system = System(
+        elements=[walkers],
+        interactions=[OccupancyReaderInteraction('reader')],
+        space=LatticeSpace((4, 4), boundary='periodic'),
+    )
+    simulation = Simulation(system, random_state=0).check().prepare().run(until=2)
+    occupancies = simulation.stepper_.storage_['reader']['occupancies']
+    locations = simulation.trajectory_.agents('walkers', 2).locations.tolist()
+    expected = {}
+    for location in locations:
+        expected[tuple(location)] = expected.get(tuple(location), 0) + 1
+    assert occupancies[-1] == expected
+    assert sum(occupancies[0].values()) == 3
+
+
 class TotalReaderInteraction(Interaction):
     """Interaction that stores, at every step, the history of the observable it reads."""
 

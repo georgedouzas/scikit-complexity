@@ -30,12 +30,12 @@ class PhasesScheduleSpec(ScheduleSpec):
     phases: Sequence[PhaseSpec]
 
     def _check(self) -> None:
-        """Raise an error for a phase with an unknown activation, no round, or negative visits, or a repeated name.
+        """Raise an error for a phase with an unknown activation, no round, negative visits, or no period, or a repeat.
 
         Raises:
             ValidationError:
-                A phase repeats the name of another, has an unknown activation, runs no round, or a negative number of
-                visits.
+                A phase repeats the name of another, has an unknown activation, runs no round, a negative number of
+                visits, or a period below one.
         """
         names = [phase.name for phase in self.phases]
         if len(names) != len(set(names)):
@@ -49,6 +49,9 @@ class PhasesScheduleSpec(ScheduleSpec):
                 raise ValidationError(error_msg)
             if phase.visits < 0:
                 error_msg = f'Phase {phase.name!r} visits {phase.visits} times per agent. Give a number at least 0.'
+                raise ValidationError(error_msg)
+            if phase.period < 1:
+                error_msg = f'Phase {phase.name!r} runs every {phase.period} steps. Give a period of at least one step.'
                 raise ValidationError(error_msg)
             if phase.repeat < 1:
                 error_msg = f'Phase {phase.name!r} repeats {phase.repeat} times. Use at least one round.'

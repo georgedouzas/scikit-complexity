@@ -12,19 +12,24 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
+from ....core.interactions import Interaction, MapInteraction
 from ....core.laws import BaseLaw, RuleLaw
-from ....core.spaces import LatticeSpace
+from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
+from ....core.types import ModelViewProtocol
 from ....engine.solvers import ModelView
 from ....errors import SpaceError
-from ....specs import RoleSpec, StateSpec, VisualSpec
+from ....specs import PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._premises_view import PremisesView
 from ._traveller_view import TravellerView
 
 MONTH = 30
 QUARTER = 90
+DAILY = 'default'
+MONTHLY = 'trafficking'
+BILLING = 'billing'
+QUARTERLY = 'quarter'
 
 
 def _cell(location: object) -> tuple[int, int]:
@@ -33,11 +38,33 @@ def _cell(location: object) -> tuple[int, int]:
     return column, row
 
 
+def _heat(place: PremisesView, model: ModelViewProtocol) -> float:
+    """Return the growth of the bills of a premises in a day, `1 / (1 + exp(x0 - n))` for the `n` people inside."""
+    people = model.occupancy('sources').get(place.location_key, 0)
+    return float(1 / (1 + np.exp(place.efficiency - people)))
+
+
+def _count_day(place: PremisesView, model: ModelViewProtocol) -> float:
+    """Return one day."""
+    return 1.0
+
+
+def _record(place: PremisesView, model: ModelViewProtocol) -> float:
+    """Return the bills of the quarter that ends."""
+    return float(place.bills)
+
+
+def _reset(place: PremisesView, model: ModelViewProtocol) -> float:
+    """Return the bills at the start of a quarter."""
+    return 0.0
+
+
 class PremisesElement(Element):
     """House or brothel of the brothel movement model, whose energy bills grow with the people inside.
 
     Every day the bills grow by `1 / (1 + exp(x0 - n))` for the `n` people in the premises' cell, and every quarter
-    they are recorded and reset.
+    they are recorded and reset. In `trafficking`, maps of the bills read the counts of the women by cell every day,
+    and maps in a phase of a period of 90 days record and reset them.
 
     Args:
         label:
@@ -134,12 +161,11 @@ class TravellerElement(Element):
 
 
 class DailyMovementsInteraction(Interaction):
-    """Day of the brothel movement model.
+    """Movements of the women of the brothel movement model.
 
-    One random free woman moves to a random cell of a random city. Every month the traffickers move a random number
-    of the victims of every brothel to random brothels. A move between cities counts as a train trip. Then the bills
-    of every premises grow, and every quarter they are recorded and reset. The cities are vertical bands of equal
-    width of the grid.
+    Every day one random free woman moves to a random cell of a random city, and in the steps of the phase
+    `victims_phase` the traffickers move a random number of the victims of every brothel to random brothels. A move
+    between cities counts as a train trip. The cities are vertical bands of equal width of the grid.
 
     Args:
         label:
@@ -149,10 +175,16 @@ class DailyMovementsInteraction(Interaction):
             The path of the group of travellers.
 
         premises:
-            The path of the group of premises, which the rule reads and updates.
+            The path of the group of premises, whose brothels the victims move between.
 
         n_cities:
             The number of cities, vertical bands of equal width.
+
+        phase:
+            The phase of the step the free woman moves in, or `None` for the default phase.
+
+        victims_phase:
+            The phase of the step the victims move in, or `None` for the default phase.
 
     Examples:
         >>> from skcomplex.models.social.organizations import DailyMovementsInteraction
@@ -167,14 +199,18 @@ class DailyMovementsInteraction(Interaction):
         women: Annotated[str, RoleSpec()],
         premises: Annotated[str, RoleSpec()],
         n_cities: int = 3,
+        phase: str | None = None,
+        victims_phase: str | None = None,
     ) -> None:
         super().__init__(label)
         self.women = women
         self.premises = premises
         self.n_cities = n_cities
+        self.phase = phase
+        self.victims_phase = victims_phase
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the daily rule.
+        """Return the rules of the free woman and of the victims.
 
         Args:
             s:
@@ -184,7 +220,7 @@ class DailyMovementsInteraction(Interaction):
             laws:
                 The laws of the component.
         """
-        return [RuleLaw(self.pass_day)]
+        return [RuleLaw(self.move_free, phase=self.phase), RuleLaw(self.move_victims, phase=self.victims_phase)]
 
     def _city(self, location: object, width: int) -> int:
         """Return the city of a cell of a grid of a given width."""
@@ -206,9 +242,14 @@ class DailyMovementsInteraction(Interaction):
             woman.trips += 1
         woman.move_to(cell)
 
-    def _move_free(self, women: list[TravellerView], model: ModelView) -> None:
-        """Move a random free woman to a random cell of a random city."""
-        free = [woman for woman in women if not woman.victim]
+    def move_free(self, model: ModelView) -> None:
+        """Move a random free woman to a random cell of a random city.
+
+        Args:
+            model:
+                The model.
+        """
+        free = [woman for woman in model.agents('women', TravellerView) if not woman.victim]
         if not free:
             return
         width, height = self._shape(model)
@@ -217,37 +258,21 @@ class DailyMovementsInteraction(Interaction):
         cell = (int(model.rng.integers(start, stop)), int(model.rng.integers(height)))
         self._travel(free[int(model.rng.integers(len(free)))], cell, width)
 
-    def _move_victims(self, women: list[TravellerView], brothels: list[tuple[int, int]], model: ModelView) -> None:
-        """Move a random number of the victims of every brothel to random brothels."""
+    def move_victims(self, model: ModelView) -> None:
+        """Move a random number of the victims of every brothel to random brothels.
+
+        Args:
+            model:
+                The model.
+        """
+        women = model.agents('women', TravellerView)
+        brothels = [_cell(place.location) for place in model.agents('premises', PremisesView) if place.brothel]
         width = self._shape(model)[0]
         for brothel in brothels:
             victims = [woman for woman in women if woman.victim and _cell(woman.location) == brothel]
             moved = model.rng.permutation(len(victims))[: int(model.rng.integers(len(victims) + 1))]
             for index in moved:
                 self._travel(victims[index], brothels[int(model.rng.integers(len(brothels)))], width)
-
-    def pass_day(self, model: ModelView) -> None:
-        """Move the women of one day and update the bills.
-
-        Args:
-            model:
-                The model.
-        """
-        women, premises = model.agents('women', TravellerView), model.agents('premises', PremisesView)
-        if not premises:
-            return
-        day = premises[0].day + 1
-        self._move_free(women, model)
-        if day % MONTH == 0:
-            self._move_victims(women, [_cell(place.location) for place in premises if place.brothel], model)
-        counts: dict[tuple[int, int], int] = {}
-        for woman in women:
-            counts[_cell(woman.location)] = counts.get(_cell(woman.location), 0) + 1
-        for place in premises:
-            place.day = day
-            place.bills += 1 / (1 + np.exp(place.efficiency - counts.get(_cell(place.location), 0)))
-            if day % QUARTER == 0:
-                place.last_bills, place.bills = place.bills, 0.0
 
 
 @register_model(
@@ -325,9 +350,53 @@ def trafficking(
         values={'victim': victim},
         location=homes,
     )
-    day = DailyMovementsInteraction('day', women='women', premises='premises', n_cities=n_cities)
+    day = DailyMovementsInteraction(
+        'day',
+        women='women',
+        premises='premises',
+        n_cities=n_cities,
+        phase=DAILY,
+        victims_phase=MONTHLY,
+    )
+    bills = [
+        MapInteraction(
+            'days',
+            target='premises',
+            state='day',
+            function=_count_day,
+            mode='increment',
+            form='agent',
+            phase=BILLING,
+        ),
+        MapInteraction(
+            'bills',
+            target='premises',
+            state='bills',
+            function=_heat,
+            sources=['women'],
+            mode='increment',
+            form='agent',
+            phase=BILLING,
+        ),
+        MapInteraction(
+            'record',
+            target='premises',
+            state='last_bills',
+            function=_record,
+            form='agent',
+            phase=QUARTERLY,
+        ),
+        MapInteraction('reset', target='premises', state='bills', function=_reset, form='agent', phase=QUARTERLY),
+    ]
+    phases = [
+        PhaseSpec(DAILY, activation='sequential'),
+        PhaseSpec(MONTHLY, activation='sequential', period=MONTH),
+        PhaseSpec(BILLING, activation='sequential'),
+        PhaseSpec(QUARTERLY, activation='sequential', period=QUARTER),
+    ]
     return System(
         elements=[premises, women],
-        interactions=[day],
+        interactions=[day, *bills],
         space=LatticeSpace((width, height), boundary='fixed'),
+        time=DiscreteTime(schedule=PhasesScheduleSpec(phases)),
     )

@@ -4,7 +4,6 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -12,15 +11,16 @@ from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import Interaction
-from ....core.laws import BaseLaw, RuleLaw
-from ....core.spaces import LatticeSpace
+from ....core.interactions import MapInteraction, MovementInteraction
+from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
+from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....engine.solvers import ModelView
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....types import Array
+from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._dweller_view import DwellerView
+
+PHASE = 'default'
 
 
 def _block_of(location: object, side: int, columns: int) -> int:
@@ -40,7 +40,7 @@ class DwellerElement(Element):
             How the agent is drawn, or `None` for `default_visual_`.
 
         block:
-            The index of the agent's block, set by the moves.
+            The index of the agent's block, which `stochastic_schelling` sets after every move.
 
         beta:
             The inverse temperature of the moves.
@@ -85,13 +85,15 @@ class DwellerElement(Element):
         return DwellerView
 
 
-class BlockMovesInteraction(Interaction):
-    """Moves of the stochastic Schelling model, as many proposals per step as there are agents.
+class BlockMovesInteraction(MovementInteraction):
+    """Moves of the stochastic Schelling model, from an agent's cell to a random empty cell of another block.
 
-    A random agent proposes to move to a random empty cell of another block. With block densities `rho_i` before and
-    `rho_f'` after the move, the proposal is accepted with probability `1 / (1 + exp(beta * dU))`, where
-    `dU = (1 - altruism) * (u(rho_f') - u(rho_i)) + altruism * dU_global` and `dU_global` is the change of
-    `M * sum_q rho_q u(rho_q)` over the blocks of `M` cells.
+    A visited agent proposes to move to a random empty cell of the grid, and stays when the cell lies in its own block.
+    With block densities `rho_i` before and `rho_f'` after the move, the proposal is accepted with probability
+    `1 / (1 + exp(beta * dU))`, where `dU = (1 - altruism) * (u(rho_f') - u(rho_i)) + altruism * dU_global` and
+    `dU_global` is the change of `M * sum_q rho_q u(rho_q)` over the blocks of `M` cells. The densities are the counts
+    of the block states of the group. In `stochastic_schelling`, a phase of visits draws as many agents with
+    replacement as there are agents every step, and a `MapInteraction` sets the block of an agent after its move.
 
     Args:
         label:
@@ -109,10 +111,16 @@ class BlockMovesInteraction(Interaction):
         side:
             The side of a square block in cells, which divides the width and the height.
 
+        probability:
+            The probability that a visited agent proposes a move.
+
+        phase:
+            The phase of the step the moves run in, or `None` for the default phase.
+
     Examples:
         >>> from skcomplex.models.social.segregation import BlockMovesInteraction
-        >>> BlockMovesInteraction('moves', target='dwellers', side=4).side
-        4
+        >>> BlockMovesInteraction('moves', target='dwellers', side=4).check().schedule
+        'member'
     """
 
     def __init__(
@@ -123,61 +131,61 @@ class BlockMovesInteraction(Interaction):
         width: int = 20,
         height: int = 20,
         side: int = 5,
+        probability: float = 1.0,
+        phase: str | None = None,
     ) -> None:
-        super().__init__(label)
-        self.target = target
+        super().__init__(
+            label,
+            target=target,
+            step=self._propose,
+            probability=probability,
+            accept=self._accept,
+            schedule='member',
+            phase=phase,
+        )
         self.width = width
         self.height = height
         self.side = side
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the move rule.
+    def _propose(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> object:
+        """Return a random empty cell of another block than the agent's, or `None` to stay."""
+        if not isinstance(agent, DwellerView) or not isinstance(model, ModelView):
+            return None
+        cell = model.random_empty_cell()
+        return None if _block_of(cell, self.side, self.width // self.side) == agent.block else cell
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.move)]
-
-    def _change(self, agent: DwellerView, counts: Array, origin: int, destination: int) -> float:
-        """Return the utility change `dU` of a move between two blocks."""
+    def _accept(self, agent: AgentViewProtocol, cell: object, model: ModelViewProtocol) -> float:
+        """Return the probability `1 / (1 + exp(beta * dU))` of a move of an agent to a cell of another block."""
+        if not isinstance(agent, DwellerView):
+            return 0.0
+        counts = model.composition('target', 'block')
+        origin, destination = agent.block, float(_block_of(cell, self.side, self.width // self.side))
         cells = self.side**2
-        before = counts[[origin, destination]] / cells
-        after = (counts[[origin, destination]] + [-1, 1]) / cells
+        before = np.array([counts.get(origin, 0), counts.get(destination, 0)]) / cells
+        after = before + np.array([-1, 1]) / cells
         slope, intercept = agent.slope, agent.intercept
         own = slope * (after[1] - before[0])
         total = cells * float(
             (after * (slope * after + intercept)).sum() - (before * (slope * before + intercept)).sum(),
         )
-        return float((1 - agent.altruism) * own + agent.altruism * total)
+        change = (1 - agent.altruism) * own + agent.altruism * total
+        return float(1 / (1 + np.exp(np.clip(agent.beta * change, -50, 50))))
 
-    def move(self, model: ModelView) -> None:
-        """Run one move proposal per agent.
+    def get_block(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> float:
+        """Return the index of the block that holds the cell of an agent.
 
         Args:
+            agent:
+                The dweller.
+
             model:
-                The model.
+                The model view.
+
+        Returns:
+            block:
+                The index of the block.
         """
-        agents = model.agents(self.target, DwellerView)
-        columns = self.width // self.side
-        counts = np.zeros(columns * (self.height // self.side))
-        for agent in agents:
-            counts[_block_of(agent.location, self.side, columns)] += 1
-        for _ in range(len(agents)):
-            agent = agents[int(model.rng.integers(len(agents)))]
-            cell = model.random_empty_cell()
-            origin, destination = _block_of(agent.location, self.side, columns), _block_of(cell, self.side, columns)
-            if origin == destination:
-                continue
-            change = self._change(agent, counts, origin, destination)
-            if model.rng.random() < 1 / (1 + np.exp(np.clip(agent.beta * change, -50, 50))):
-                agent.move_to(cell)
-                agent.block = float(destination)
-                counts[[origin, destination]] += [-1, 1]
+        return float(_block_of(agent.location, self.side, self.width // self.side))
 
 
 @register_model(
@@ -255,9 +263,19 @@ def stochastic_schelling(
         },
         location=locations,
     )
-    moves = BlockMovesInteraction('moves', target='dwellers', width=width, height=height, side=side)
+    moves = BlockMovesInteraction('moves', target='dwellers', width=width, height=height, side=side, phase=PHASE)
+    block = MapInteraction(
+        'block',
+        target='dwellers',
+        state='block',
+        function=moves.get_block,
+        schedule='member',
+        form='agent',
+        phase=PHASE,
+    )
     return System(
         elements=[dwellers],
-        interactions=[moves],
+        interactions=[moves, block],
         space=LatticeSpace((width, height), boundary='fixed', capacity=1),
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec(PHASE, activation='visits', groups=('dwellers',))])),
     )

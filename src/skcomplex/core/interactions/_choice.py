@@ -24,6 +24,7 @@ from ._interaction import Interaction
 RULES = ('logit', 'metropolis', 'fermi', 'best')
 SCHEDULES = ('synchronous', 'random-sequential', 'member')
 FORMS = ('symbolic', 'agent')
+PROPOSALS = ('others', 'all')
 MIN_OPTIONS = 2
 
 
@@ -32,8 +33,10 @@ class ChoiceInteraction(Interaction):
 
     The rule `'logit'`, which is the heat-bath rule, draws option `k` of utility `u_k` with probability
     `exp(beta u_k) / sum_j exp(beta u_j)`, where `beta` is the intensity of choice. The rules `'metropolis'` and
-    `'fermi'` propose one of the other options uniformly and accept it with probability
-    `min(1, exp(beta (u_new - u_old)))` or `1 / (1 + exp(-beta (u_new - u_old)))`. The rule `'best'` draws uniformly
+    `'fermi'` propose one of the other options uniformly, or with the proposal `'all'` one of all the options
+    including the current one, and accept it with probability `min(1, exp(beta (u_new - u_old)))` or
+    `1 / (1 + exp(-beta (u_new - u_old)))`, so the rule `'fermi'` with the proposal `'all'` is the heat-bath rule of a
+    uniform proposal. The rule `'best'` draws uniformly
     among the options of largest utility. Every step, each member revises its choice with probability `activity` and
     keeps it otherwise.
 
@@ -76,6 +79,10 @@ class ChoiceInteraction(Interaction):
         activity:
             The probability that a member revises its choice in a step.
 
+        proposal:
+            The options the rules `'metropolis'` and `'fermi'` propose from, `'others'` for the options other than the
+            current one, or `'all'` for every option.
+
         form:
             `'symbolic'` for update laws of the states of a group, or `'agent'` for a rule over an agent group.
 
@@ -84,8 +91,8 @@ class ChoiceInteraction(Interaction):
 
     Raises:
         ValidationError:
-            The rule, the schedule, or the form is unknown, the schedule is not synchronous in the symbolic form,
-            there are fewer than two options, or the utility is not callable.
+            The rule, the schedule, the form, or the proposal is unknown, the schedule is not synchronous in the
+            symbolic form, there are fewer than two options, or the utility is not callable.
 
     Examples:
         >>> from skcomplex.core.interactions import ChoiceInteraction
@@ -100,6 +107,11 @@ class ChoiceInteraction(Interaction):
         ... )
         >>> type(agents.check().prepare().run(SimpleNamespace()).laws_[0]).__name__
         'RuleLaw'
+        >>> ChoiceInteraction(
+        ...     'heat-bath', target='spins', state='spin', options=(-1, 0, 1), utility=lambda s, o: o, rule='fermi',
+        ...     proposal='all'
+        ... ).check().proposal
+        'all'
     """
 
     def __init__(
@@ -116,6 +128,7 @@ class ChoiceInteraction(Interaction):
         activity: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
         form: str = 'symbolic',
         phase: str | None = None,
+        proposal: str = 'others',
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -128,13 +141,15 @@ class ChoiceInteraction(Interaction):
         self.activity = activity
         self.form = form
         self.phase = phase
+        self.proposal = proposal
 
     def _check_variants(self) -> None:
-        """Raise an error for an unknown rule, schedule, or form, or a symbolic choice that is not synchronous."""
+        """Raise an error for an unknown variant, or a symbolic choice that is not synchronous."""
         for name, value, variants in (
             ('rule', self.rule, RULES),
             ('schedule', self.schedule, SCHEDULES),
             ('form', self.form, FORMS),
+            ('proposal', self.proposal, PROPOSALS),
         ):
             if value not in variants:
                 error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {variants}.'
@@ -151,9 +166,9 @@ class ChoiceInteraction(Interaction):
 
         Raises:
             ValidationError:
-                The type declares states, the rule, the schedule, or the form is unknown, the schedule is
-                not synchronous in the symbolic form, there are fewer than two options, or the utility is not
-                callable.
+                The type declares states, the rule, the schedule, the form, or the proposal is unknown, the
+                schedule is not synchronous in the symbolic form, there are fewer than two options, or the utility is
+                not callable.
         """
         super()._check()
         self._check_variants()
@@ -182,8 +197,9 @@ class ChoiceInteraction(Interaction):
         return self._select(index, [SR(option) for option in self.options])
 
     def _draw_proposal(self, state: Expression, utilities: Sequence[Expression], intensity: Expression) -> Expression:
-        """Return a uniform proposal of another option, accepted by the Metropolis or the Fermi probability."""
-        index = categorical(f'{state}_proposal', [where(state == option, 0, 1) for option in self.options])
+        """Return a uniform proposal of an option, accepted by the Metropolis or the Fermi probability."""
+        weights = [SR(1) if self.proposal == 'all' else where(state == option, 0, 1) for option in self.options]
+        index = categorical(f'{state}_proposal', weights)
         proposal = self._select(index, [SR(option) for option in self.options])
         gain = self._select(index, utilities) - sum(
             (where(state == option, utility, 0) for option, utility in zip(self.options, utilities, strict=True)),
@@ -210,9 +226,9 @@ class ChoiceInteraction(Interaction):
         return np.array([float(self.utility(agent, model, option)) for option in self.options])
 
     def _draw_agent_proposal(self, agent: AgentViewProtocol, model: ModelViewProtocol, intensity: float) -> float:
-        """Return a uniform proposal of another option of an agent if accepted, or its current option."""
+        """Return a uniform proposal of an option of an agent if accepted, or its current option."""
         current = float(getattr(agent, self.state))
-        others = [option for option in self.options if option != current]
+        others = [option for option in self.options if self.proposal == 'all' or option != current]
         proposal = float(others[int(model.rng.integers(len(others)))])
         before = float(self.utility(agent, model, current)) if current in self.options else 0.0
         gain = float(self.utility(agent, model, proposal)) - before
