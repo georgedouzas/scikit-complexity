@@ -9,16 +9,33 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, FieldElement, GroupElement
+from ....core.interactions import CouplingInteraction, RateInteraction
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import laplacian, total
+from ....core.laws.utils import laplacian
 from ....core.spaces import NetworkSpace
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+
+
+def _recovery(namespace: SimpleNamespace) -> Expression:
+    """Return the recovery `-rho_k` of a degree class at rate 1."""
+    return -namespace.target.rho
+
+
+def _edge_weight(namespace: SimpleNamespace) -> Expression:
+    """Return the share `k P(k)` of the ends of edges that another degree class holds."""
+    return namespace.other.k * namespace.other.P
+
+
+def _infection(namespace: SimpleNamespace) -> Expression:
+    """Return the infection `lam k (1 - rho_k) rho_k'` of a degree class by the nodes of another class."""
+    member = namespace.member
+    return member.lam * member.k * (1 - member.rho) * namespace.other.rho
 
 
 class DegreeClassElement(Element):
@@ -26,7 +43,8 @@ class DegreeClassElement(Element):
 
     A node of degree `k` recovers at rate 1 and is infected at rate `lam k Theta`, where
     `Theta = sum_k k P(k) rho_k / <k>` is the probability that an edge points to an infected node, a total over the
-    degree classes, so `d rho_k / dt = -rho_k + lam k (1 - rho_k) Theta`. The classes are the members of a group.
+    degree classes, so `d rho_k / dt = -rho_k + lam k (1 - rho_k) Theta`. The classes are the members of a group, and
+    the recovery and the infection are interactions of the group, which `heterogeneous_mean_field_sis` adds.
 
     Args:
         label:
@@ -70,20 +88,6 @@ class DegreeClassElement(Element):
         self.lam = lam
         self.k = k
         self.P = P
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the recovery and the infection along edges of the class.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        theta = total(s.k * s.P * s.rho) / total(s.k * s.P)
-        return [RateLaw(s.rho, -s.rho + s.lam * s.k * (1 - s.rho) * theta)]
 
 
 class SubpopulationElement(Element):
@@ -216,7 +220,21 @@ def heterogeneous_mean_field_sis(
         size=len(degrees),
         values={'rho': rho, 'lam': lam, 'k': degrees, 'P': weights},
     )
-    return System(elements=[classes])
+    interactions = [
+        RateInteraction('recovery', target='network', state='rho', rate=_recovery),
+        CouplingInteraction(
+            'infection',
+            target='network',
+            read='rho',
+            write='rho',
+            function=_infection,
+            reduce='normalized-mean',
+            mode='group',
+            weights=_edge_weight,
+            include_self=True,
+        ),
+    ]
+    return System(elements=[classes], interactions=interactions)
 
 
 @register_model(

@@ -3,14 +3,13 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, LocalRuleLaw
+from ....core.interactions import LocalRuleInteraction
 from ....core.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.system import System
 from ....specs import StateSpec, VisualSpec
@@ -41,7 +40,8 @@ class WorkplaceElement(Element):
 
     Employers and workers alternate like the squares of a checkerboard. Every step each worker first takes the colour
     of the employer to its right, at `x + 1`. Then each employer turns black when at least three of its four workers
-    are blue, stays as it is when two are, and turns white otherwise.
+    are blue, stays as it is when two are, and turns white otherwise. The two phases are local rule interactions of
+    the lattice, which `employment_takeover` adds.
 
     Args:
         label:
@@ -73,23 +73,6 @@ class WorkplaceElement(Element):
         super().__init__(label, visual=visual)
         self.colour = colour
         self.employer = employer
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the worker phase and the employer phase.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        reads = (s.colour, s.employer)
-        return [
-            LocalRuleLaw(s.colour, NEIGHBORS, _follow_employer, reads=reads),
-            LocalRuleLaw(s.colour, NEIGHBORS, _follow_workers, reads=reads),
-        ]
 
 
 @register_model(
@@ -130,4 +113,15 @@ def employment_takeover(size: int = 32, *, random_state: int | np.random.Generat
         space=LatticeSpace((size, size)),
         values={'colour': colours, 'employer': employers},
     )
-    return System(elements=[cells])
+    phases = [
+        LocalRuleInteraction(
+            label,
+            target='cells',
+            state='colour',
+            rule=rule,
+            neighborhood=NEIGHBORS,
+            reads=('colour', 'employer'),
+        )
+        for label, rule in (('workers', _follow_employer), ('employers', _follow_workers))
+    ]
+    return System(elements=[cells], interactions=phases)

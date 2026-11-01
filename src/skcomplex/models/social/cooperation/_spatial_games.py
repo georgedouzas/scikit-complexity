@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -13,11 +12,11 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
-from ....core.laws import BaseLaw, LocalRuleLaw
+from ....core.interactions import LocalRuleInteraction
 from ....core.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.system import System
 from ....errors import ValidationError
-from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array, Pair
 from ..._catalog import register_model
 
@@ -82,9 +81,8 @@ def _random_strategies(
 class PrisonerElement(Element):
     """Player of the spatial prisoner's dilemma, a cooperator at 1 and a defector at 0.
 
-    Every step each player plays the weak dilemma, with reward 1, temptation `temptation`, and 0 otherwise, against
-    itself and its eight neighbours. It then copies the best player among them, or a random neighbour with the Fermi
-    probability `1 / (1 + exp((P_own - P_other) / noise))`.
+    The play and the imitation are a `PrisonersDilemmaInteraction` of the lattice, which `spatial_prisoners_dilemma`
+    adds.
 
     Args:
         label:
@@ -102,9 +100,6 @@ class PrisonerElement(Element):
         noise:
             The noise of the Fermi imitation.
 
-        imitation:
-            `'best'` for the best neighbour, or `'fermi'` for the Fermi rule.
-
     Examples:
         >>> from skcomplex.models.social.cooperation import PrisonerElement
         >>> PrisonerElement('player').temptation
@@ -119,57 +114,17 @@ class PrisonerElement(Element):
         strategy: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
         temptation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.85,
         noise: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
-        imitation: str = 'best',
     ) -> None:
         super().__init__(label, visual=visual)
         self.strategy = strategy
         self.temptation = temptation
         self.noise = noise
-        self.imitation = imitation
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the play and imitation rule over the 5 by 5 square around a player.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-
-        Raises:
-            ValidationError:
-                The imitation is unknown.
-        """
-        imitation = self.imitation
-        if imitation not in IMITATIONS:
-            error_msg = f'Unknown imitation {imitation!r}. Use one of {", ".join(IMITATIONS)}.'
-            raise ValidationError(error_msg)
-
-        def rule(*values: Array, temptation: float | Array, noise: float | Array, random: Array) -> Array:
-            cells = dict(zip(SQUARE.offsets, values, strict=True))
-
-            def payoff(center: Pair) -> Array:
-                own = cells[center]
-                around = sum(cells[_shift(center, offset)] for offset in (*MOORE, ORIGIN))
-                return own * around + (1 - own) * around * temptation
-
-            payoffs = [payoff(offset) for offset in MOORE]
-            strategies = [cells[offset] for offset in MOORE]
-            if imitation == 'best':
-                return _imitate_best(cells[ORIGIN], payoff(ORIGIN), payoffs, strategies)
-            return _imitate_fermi(cells[ORIGIN], payoff(ORIGIN), payoffs, strategies, noise=noise, random=random)
-
-        return [LocalRuleLaw(s.strategy, SQUARE, rule, stochastic=True)]
 
 
 class ContributorElement(Element):
     """Player of the spatial public goods game, a cooperator at 1 and a defector at 0.
 
-    Every player joins five groups, the one centred on itself and those centred on its four neighbours. In each group
-    a cooperator pays 1, and the pot multiplied by `synergy` is shared by the five members. A player then copies a
-    random neighbour with the Fermi probability `1 / (1 + exp((P_own - P_other) / noise))`.
+    The play and the imitation are a `PublicGoodsInteraction` of the lattice, which `public_goods_game` adds.
 
     Args:
         label:
@@ -207,34 +162,108 @@ class ContributorElement(Element):
         self.synergy = synergy
         self.noise = noise
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the play and imitation rule over the sites within three steps of a player.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class PrisonersDilemmaInteraction(LocalRuleInteraction):
+    """Play of the weak prisoner's dilemma between neighbours, and imitation of more successful neighbours.
 
-        Returns:
-            laws:
-                The laws of the component.
+    It is a stochastic `LocalRuleInteraction` of the strategies over the 5 by 5 square around a player, a cooperator
+    at 1 and a defector at 0. Every step each player plays the weak dilemma, with reward 1, temptation `temptation`,
+    and 0 otherwise, against itself and its eight neighbours. It then copies the best player among them, or a random
+    neighbour with the Fermi probability `1 / (1 + exp((P_own - P_other) / noise))`. The temptation and the noise are
+    parameters of the players.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the players on the lattice.
+
+        imitation:
+            `'best'` for the best neighbour, or `'fermi'` for the Fermi rule.
+
+    Raises:
+        ValidationError:
+            The imitation is unknown, raised by `check`.
+
+    Examples:
+        >>> from skcomplex.models.social.cooperation import PrisonersDilemmaInteraction
+        >>> PrisonersDilemmaInteraction('play', target='players', imitation='fermi').check().imitation
+        'fermi'
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], imitation: str = 'best') -> None:
+        super().__init__(label, target=target, state='strategy', rule=self._play, neighborhood=SQUARE, stochastic=True)
+        self.imitation = imitation
+
+    def _check(self) -> None:
+        """Raise an error for an unknown imitation.
+
+        Raises:
+            ValidationError:
+                The imitation is unknown.
         """
+        super()._check()
+        if self.imitation not in IMITATIONS:
+            error_msg = f'Unknown imitation {self.imitation!r}. Use one of {", ".join(IMITATIONS)}.'
+            raise ValidationError(error_msg)
 
-        def rule(*values: Array, synergy: float | Array, noise: float | Array, random: Array) -> Array:
-            cells = dict(zip(DIAMOND.offsets, values, strict=True))
-            group = (*VON_NEUMANN, ORIGIN)
+    def _play(self, *values: Array, temptation: float | Array, noise: float | Array, random: Array) -> Array:
+        """Return the strategies after the play of every player against its neighbours and the imitation."""
+        cells = dict(zip(SQUARE.offsets, values, strict=True))
 
-            def payoff(center: Pair) -> Array:
-                share = sum(
-                    sum(cells[_shift(_shift(center, host), member)] for member in group) * synergy / len(group)
-                    for host in group
-                )
-                return share - len(group) * cells[center]
+        def payoff(center: Pair) -> Array:
+            own = cells[center]
+            around = sum(cells[_shift(center, offset)] for offset in (*MOORE, ORIGIN))
+            return own * around + (1 - own) * around * temptation
 
-            payoffs = [payoff(offset) for offset in VON_NEUMANN]
-            strategies = [cells[offset] for offset in VON_NEUMANN]
-            return _imitate_fermi(cells[ORIGIN], payoff(ORIGIN), payoffs, strategies, noise=noise, random=random)
+        payoffs = [payoff(offset) for offset in MOORE]
+        strategies = [cells[offset] for offset in MOORE]
+        if self.imitation == 'best':
+            return _imitate_best(cells[ORIGIN], payoff(ORIGIN), payoffs, strategies)
+        return _imitate_fermi(cells[ORIGIN], payoff(ORIGIN), payoffs, strategies, noise=noise, random=random)
 
-        return [LocalRuleLaw(s.strategy, DIAMOND, rule, stochastic=True)]
+
+class PublicGoodsInteraction(LocalRuleInteraction):
+    """Play of the public goods game in groups of five neighbours, and Fermi imitation of a random neighbour.
+
+    It is a stochastic `LocalRuleInteraction` of the strategies over the sites within three steps of a player, a
+    cooperator at 1 and a defector at 0. Every player joins five groups, the one centred on itself and those centred on
+    its four neighbours. In each group a cooperator pays 1, and the pot multiplied by `synergy` is shared by the five
+    members. A player then copies a random neighbour with the Fermi probability
+    `1 / (1 + exp((P_own - P_other) / noise))`. The synergy and the noise are parameters of the players.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the players on the lattice.
+
+    Examples:
+        >>> from skcomplex.models.social.cooperation import PublicGoodsInteraction
+        >>> PublicGoodsInteraction('play', target='players').check().state
+        'strategy'
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label, target=target, state='strategy', rule=self._play, neighborhood=DIAMOND, stochastic=True)
+
+    def _play(self, *values: Array, synergy: float | Array, noise: float | Array, random: Array) -> Array:
+        """Return the strategies after the play of every player in its five groups and the imitation."""
+        cells = dict(zip(DIAMOND.offsets, values, strict=True))
+        group = (*VON_NEUMANN, ORIGIN)
+
+        def payoff(center: Pair) -> Array:
+            share = sum(
+                sum(cells[_shift(_shift(center, host), member)] for member in group) * synergy / len(group)
+                for host in group
+            )
+            return share - len(group) * cells[center]
+
+        payoffs = [payoff(offset) for offset in VON_NEUMANN]
+        strategies = [cells[offset] for offset in VON_NEUMANN]
+        return _imitate_fermi(cells[ORIGIN], payoff(ORIGIN), payoffs, strategies, noise=noise, random=random)
 
 
 @register_model(
@@ -290,10 +319,12 @@ def spatial_prisoners_dilemma(
             'strategy': _random_strategies(shape, share, random_state),
             'temptation': temptation,
             'noise': noise,
-            'imitation': imitation,
         },
     )
-    return System(elements=[players])
+    return System(
+        elements=[players],
+        interactions=[PrisonersDilemmaInteraction('play', target='players', imitation=imitation)],
+    )
 
 
 @register_model(
@@ -344,4 +375,4 @@ def public_goods_game(
         space=LatticeSpace(tuple(shape)),
         values={'strategy': strategies, 'synergy': synergy, 'noise': noise},
     )
-    return System(elements=[players])
+    return System(elements=[players], interactions=[PublicGoodsInteraction('play', target='players')])

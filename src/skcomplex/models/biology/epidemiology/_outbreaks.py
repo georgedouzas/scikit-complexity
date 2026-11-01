@@ -11,11 +11,31 @@ from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import total
+from ....core.interactions import CouplingInteraction, TransferInteraction
 from ....core.system import System
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+
+
+def _edge_weight(namespace: SimpleNamespace) -> Expression:
+    """Return the share `k P(k)` of the ends of edges that another degree class holds."""
+    return namespace.other.k * namespace.other.P
+
+
+def _infection(namespace: SimpleNamespace) -> Expression:
+    """Return the infection `beta k s_k (k' - 1) i_k' / k'` of a degree class by the nodes of another class."""
+    member, other = namespace.member, namespace.other
+    return member.beta * member.k * member.s * (other.k - 1) * other.i / other.k
+
+
+def _susceptible_loss(namespace: SimpleNamespace) -> Expression:
+    """Return the loss of susceptible density of a degree class to the infection by another class."""
+    return -_infection(namespace)
+
+
+def _recovery(namespace: SimpleNamespace) -> Expression:
+    """Return the recovery `mu i_k` of a degree class."""
+    return namespace.source.mu * namespace.source.i
 
 
 def _recovered_share(member: SimpleNamespace) -> Expression:
@@ -35,7 +55,8 @@ class ImmunizingDegreeClassElement(Element):
     `d i_k / dt = -mu i_k + beta k s_k theta` and `d r_k / dt = mu i_k`. On an uncorrelated network, the probability
     that a contact of a susceptible node is infected is `theta = sum_k (k - 1) P(k) i_k / <k>`, a total over the
     degree classes, since an infected neighbour of degree `k` has at most `k - 1` other contacts. The classes are the
-    members of a group.
+    members of a group, and the infections and the recoveries are interactions of the group, which
+    `heterogeneous_mean_field_sir` adds.
 
     Args:
         label:
@@ -97,22 +118,6 @@ class ImmunizingDegreeClassElement(Element):
         self.mu = mu
         self.k = k
         self.P = P
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the infections along contacts and the recoveries of the class.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        theta = total((s.k - 1) * s.P * s.i) / total(s.k * s.P)
-        infections = s.beta * s.k * s.s * theta
-        recoveries = s.mu * s.i
-        return [RateLaw(s.s, -infections), RateLaw(s.i, infections - recoveries), RateLaw(s.r, recoveries)]
 
 
 @register_model(
@@ -183,6 +188,29 @@ def heterogeneous_mean_field_sir(
         size=len(degrees),
         values={'s': 1.0 - infected, 'i': infected, 'r': 0.0, 'beta': beta, 'mu': mu, 'k': degrees, 'P': weights},
     )
-    return System(
-        elements=[classes],
-    )
+    interactions = [
+        CouplingInteraction(
+            'infection',
+            target='network',
+            read='i',
+            write='i',
+            function=_infection,
+            reduce='normalized-mean',
+            mode='group',
+            weights=_edge_weight,
+            include_self=True,
+        ),
+        CouplingInteraction(
+            'contagion',
+            target='network',
+            read='s',
+            write='s',
+            function=_susceptible_loss,
+            reduce='normalized-mean',
+            mode='group',
+            weights=_edge_weight,
+            include_self=True,
+        ),
+        TransferInteraction('recovery', source='network', target='network', state='i', into='r', amount=_recovery),
+    ]
+    return System(elements=[classes], interactions=interactions)

@@ -4,7 +4,6 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
@@ -14,7 +13,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, LatticeElement
-from ....core.laws import BaseLaw, LocalRuleLaw
+from ....core.interactions import LocalRuleInteraction
 from ....core.spaces import LatticeSpace, MooreNeighborhood, NetworkSpace
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, TotalisticSpec, VisualSpec
@@ -67,6 +66,8 @@ class VoterElement(Element):
 class MajorityVoterElement(Element):
     """Cell that takes the majority opinion of its Moore neighbourhood, itself included.
 
+    The majority rule is a `LocalRuleInteraction` of the lattice, which `majority_rule` adds.
+
     Args:
         label:
             The label of the cell or the lattice group.
@@ -92,21 +93,6 @@ class MajorityVoterElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.opinion = opinion
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the majority rule over the nine cells.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [
-            LocalRuleLaw(s.opinion, MooreNeighborhood(center=True), TotalisticSpec(lambda total: total >= MAJORITY)),
-        ]
 
 
 class VariantVoterElement(Element):
@@ -161,6 +147,11 @@ class VariantVoterElement(Element):
         return VariantVoterView
 
 
+def _is_majority(total: float) -> bool:
+    """Return whether the opinions 1 of the nine cells of a Moore neighbourhood are a majority."""
+    return total >= MAJORITY
+
+
 def _random_cells(shape: Sequence[int], density: float, random_state: int | np.random.Generator | None) -> Array:
     """Return cells that are 1 with a probability and 0 otherwise."""
     return (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
@@ -207,6 +198,15 @@ def majority_rule(
                 element=MajorityVoterElement,
                 space=LatticeSpace(tuple(shape)),
                 values={'opinion': values},
+            ),
+        ],
+        interactions=[
+            LocalRuleInteraction(
+                'majority',
+                target='voters',
+                state='opinion',
+                rule=TotalisticSpec(_is_majority),
+                neighborhood=MooreNeighborhood(center=True),
             ),
         ],
     )

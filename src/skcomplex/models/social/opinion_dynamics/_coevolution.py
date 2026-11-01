@@ -13,27 +13,16 @@ from sage.all__sagemath_symbolics import exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.interactions import NeighborInteraction
-from ....core.laws import BaseLaw, UpdateLaw
+from ....core.interactions import MapInteraction, TopologyInteraction
 from ....core.laws.utils import neighbors, uniform, where
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
+from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 
 SMALLEST_DEGREE = 1e-9
 FIRST_OPINION_SHARE = 0.5
 OPINION_VISUAL = VisualSpec('sites', {'states': ['opinion'], 'low': 0.0, 'high': 1.0})
-
-
-def _same(node: SimpleNamespace) -> object:
-    """Return the weight of a candidate node of opinion 1 as a new end, 1 for opinion 1 and 0 otherwise."""
-    return node.opinion
-
-
-def _opposite(node: SimpleNamespace) -> object:
-    """Return the weight of a candidate node of opinion 0 as a new end, 1 for opinion 0 and 0 otherwise."""
-    return 1 - node.opinion
 
 
 class TieElement(Element):
@@ -98,31 +87,13 @@ class CoevolvingVoterElement(Element):
         self.activity = activity
         self.rewiring = rewiring
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the degree and the copying of a discordant neighbour's opinion.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
+class SeparationInteraction(TopologyInteraction):
+    """Rewiring of discordant edges by one end, which keeps the edge and moves its other end to a like-minded node.
 
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        degree = neighbors(1)
-        discordant = neighbors(abs(s.other.opinion - s.opinion))
-        copying = s.activity * (1 - s.rewiring) * discordant / (degree + SMALLEST_DEGREE)
-        return [
-            UpdateLaw(s.degree, degree),
-            UpdateLaw(s.opinion, where(uniform('u') < copying, 1 - s.opinion, s.opinion)),
-        ]
-
-
-class SeparationInteraction(NeighborInteraction):
-    """Rewiring of discordant edges: the end that acts keeps the edge and moves its other end to a like-minded node.
-
-    An end acts on an edge with probability `activity / degree` per step, and rewires a discordant edge with
-    probability `rewiring`, keeping itself and drawing a new end among the voters who share its opinion.
+    It is a `TopologyInteraction` that rewires the edges of the voters. The end `keep` acts on an edge with
+    probability `activity / degree` per step, and when it holds the opinion `opinion` and the other end does not, it
+    rewires the edge with probability `rewiring`, drawing a new end among the voters of the opinion `opinion`.
 
     Args:
         label:
@@ -131,13 +102,16 @@ class SeparationInteraction(NeighborInteraction):
         voters:
             The path of the voters on the nodes.
 
-        ties:
-            The path of the variable group on the edges.
+        keep:
+            The end of an edge that acts and keeps the edge, `'source'` or `'target'`.
+
+        opinion:
+            The opinion of the end that acts, 0 or 1.
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import SeparationInteraction
-        >>> SeparationInteraction('separation', voters='voters', ties='ties').ties
-        'ties'
+        >>> SeparationInteraction('separation', voters='voters', keep='target', opinion=0).check().action
+        'rewire'
     """
 
     def __init__(
@@ -145,44 +119,32 @@ class SeparationInteraction(NeighborInteraction):
         label: str,
         *,
         voters: Annotated[str, RoleSpec()],
-        ties: Annotated[str, RoleSpec()],
+        keep: str = 'source',
+        opinion: float = 1.0,
     ) -> None:
-        super().__init__(label)
+        super().__init__(
+            label,
+            target=voters,
+            action='rewire',
+            probability=self._get_chance,
+            toward=self._get_weight,
+            keep=keep,
+        )
         self.voters = voters
-        self.ties = ties
+        self.keep = keep
+        self.opinion = opinion
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rewiring of a discordant edge by either end.
+    def _get_weight(self, node: SimpleNamespace) -> object:
+        """Return the weight of a candidate node as a new end, 1 when it holds the opinion of the acting end."""
+        return node.opinion if self.opinion == 1 else 1 - node.opinion
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        source, target = s.source, s.target
-        by_source = source.activity * source.rewiring / (source.degree + SMALLEST_DEGREE)
-        by_target = target.activity * target.rewiring / (target.degree + SMALLEST_DEGREE)
-        return [
-            UpdateLaw(
-                TopologyRequestSpec('rewire', keep='source', toward=_same),
-                by_source * source.opinion * (1 - target.opinion),
-            ),
-            UpdateLaw(
-                TopologyRequestSpec('rewire', keep='source', toward=_opposite),
-                by_source * (1 - source.opinion) * target.opinion,
-            ),
-            UpdateLaw(
-                TopologyRequestSpec('rewire', keep='target', toward=_same),
-                by_target * target.opinion * (1 - source.opinion),
-            ),
-            UpdateLaw(
-                TopologyRequestSpec('rewire', keep='target', toward=_opposite),
-                by_target * (1 - target.opinion) * source.opinion,
-            ),
-        ]
+    def _get_chance(self, namespace: SimpleNamespace) -> object:
+        """Return the probability that the acting end rewires the edge, when the ends hold different opinions."""
+        actor, other = (namespace.source, namespace.target)[:: 1 if self.keep == 'source' else -1]
+        chance = actor.activity * actor.rewiring / (actor.degree + SMALLEST_DEGREE)
+        if self.opinion == 1:
+            return chance * actor.opinion * (1 - other.opinion)
+        return chance * (1 - actor.opinion) * other.opinion
 
 
 class ClubMemberElement(Element):
@@ -249,27 +211,36 @@ class ClubMemberElement(Element):
         self.activity = activity
         self.rewiring = rewiring
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the degree and the heat-bath choice of joining the club.
 
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        field = neighbors(2 * s.other.opinion - 1) + s.appeal
-        joining = 1 / (1 + exp(-2 * s.beta * field))
-        choice = where(uniform('u') < joining, 1, 0)
-        return [
-            UpdateLaw(s.degree, neighbors(1)),
-            UpdateLaw(s.opinion, where(uniform('d') < s.deciding, choice, s.opinion)),
-        ]
+def _count_neighbors(namespace: SimpleNamespace) -> object:
+    """Return the number of neighbours of a voter."""
+    return neighbors(1)
 
 
-def _coevolving(element: type[Element], space: NetworkSpace, opinions: np.ndarray, **values: object) -> System:
+def _copy_discordant(namespace: SimpleNamespace) -> object:
+    """Return the opinion of a voter after it copies a random discordant neighbour, with its probability."""
+    voter = namespace.target
+    discordant = neighbors(abs(voter.other.opinion - voter.opinion))
+    copying = voter.activity * (1 - voter.rewiring) * discordant / (neighbors(1) + SMALLEST_DEGREE)
+    return where(uniform('u') < copying, 1 - voter.opinion, voter.opinion)
+
+
+def _choose_club(namespace: SimpleNamespace) -> object:
+    """Return the choice of an agent that reconsiders, joining by a heat bath in the field of its acquaintances."""
+    agent = namespace.target
+    field = neighbors(2 * agent.other.opinion - 1) + agent.appeal
+    joining = 1 / (1 + exp(-2 * agent.beta * field))
+    choice = where(uniform('u') < joining, 1, 0)
+    return where(uniform('d') < agent.deciding, choice, agent.opinion)
+
+
+def _coevolving(
+    element: type[Element],
+    space: NetworkSpace,
+    opinions: np.ndarray,
+    choice: MapInteraction,
+    **values: object,
+) -> System:
     """Return a coevolving network of agents with opinions and its variable ties, rewired by separation."""
     agents = GroupElement(
         'voters',
@@ -281,8 +252,16 @@ def _coevolving(element: type[Element], space: NetworkSpace, opinions: np.ndarra
         visual=OPINION_VISUAL,
     )
     ties = GroupElement('ties', element=TieElement, on='edges', variable=True)
-    separation = SeparationInteraction('separation', voters='voters', ties='ties')
-    return System(elements=[agents, ties], interactions=[separation], space=space, time=DiscreteTime())
+    interactions = [
+        MapInteraction('degree', target='voters', state='degree', function=_count_neighbors),
+        choice,
+        *(
+            SeparationInteraction(f'separation_{keep}_{int(opinion)}', voters='voters', keep=keep, opinion=opinion)
+            for keep in ('source', 'target')
+            for opinion in (1.0, 0.0)
+        ),
+    ]
+    return System(elements=[agents, ties], interactions=interactions, space=space, time=DiscreteTime())
 
 
 @register_model(
@@ -335,7 +314,8 @@ def coevolving_voter(
     rng = np.random.default_rng(random_state)
     space = NetworkSpace(nx.gnp_random_graph(n_voters, mean_degree / (n_voters - 1), seed=rng))
     opinions = (rng.random(n_voters) < FIRST_OPINION_SHARE).astype(float)
-    return _coevolving(CoevolvingVoterElement, space, opinions, rewiring=rewiring, activity=activity)
+    copying = MapInteraction('copying', target='voters', state='opinion', function=_copy_discordant)
+    return _coevolving(CoevolvingVoterElement, space, opinions, copying, rewiring=rewiring, activity=activity)
 
 
 @register_model(
@@ -392,4 +372,5 @@ def join_a_club(
     rng = np.random.default_rng(random_state)
     space = NetworkSpace(nx.gnp_random_graph(n_agents, mean_degree / (n_agents - 1), seed=rng))
     opinions = (rng.random(n_agents) < FIRST_OPINION_SHARE).astype(float)
-    return _coevolving(ClubMemberElement, space, opinions, beta=beta, appeal=appeal, rewiring=rewiring)
+    choice = MapInteraction('choice', target='voters', state='opinion', function=_choose_club)
+    return _coevolving(ClubMemberElement, space, opinions, choice, beta=beta, appeal=appeal, rewiring=rewiring)

@@ -13,13 +13,11 @@ class PersonView(AgentView):
     """
 
     health: float
-    clock: float
     d: float
     beta: float
     gamma: float
     mu: float
     alpha: float
-    incubation: float
     lockdown_start: float
     lockdown_length: float
     lockdown_d: float
