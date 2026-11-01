@@ -9,9 +9,8 @@ from sage.all__sagemath_symbolics import var
 from skcomplex.core.elements import DensityElement, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import EncounterLaw
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.system import System
-from skcomplex.core.times import ContinuousTime
 from skcomplex.engine.runtime import Simulation
 from skcomplex.specs import ParameterSpec, RoleSpec
 

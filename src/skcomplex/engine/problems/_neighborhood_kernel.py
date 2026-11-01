@@ -9,16 +9,20 @@ from collections.abc import Callable, Mapping
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
-from ...core.neighborhoods import (
+from ...core.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
+    BaseSpace,
+    CayleySpace,
     ConeNeighborhood,
+    ContinuousSpace,
     LatticeNeighborhood,
+    LatticeSpace,
     MemoryNeighborhood,
     NearestNeighborhood,
+    NetworkSpace,
     RadiusNeighborhood,
 )
-from ...core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, NetworkSpace
 from ...errors import ValidationError
 from ...specs import EntrySpec, HeadingSpec, PairReadSpec, RunStateSpec, VariableSpec
 from ...types import Array, Indices
@@ -242,8 +246,7 @@ class NeighborhoodKernel(BaseKernel):
         Examples:
             >>> import networkx as nx
             >>> from skcomplex.engine.problems._neighborhood_kernel import NeighborhoodKernel
-            >>> from skcomplex.core.neighborhoods import AdjacencyNeighborhood
-            >>> from skcomplex.core.spaces import NetworkSpace
+            >>> from skcomplex.core.spaces import AdjacencyNeighborhood, NetworkSpace
             >>> space = NetworkSpace(nx.path_graph(3)).check().prepare()
             >>> [item.tolist() for item in NeighborhoodKernel._network_rows(space, AdjacencyNeighborhood())]
             [[0, 1, 3, 4], [1, 0, 2, 1], [0, 0, 1, 1]]
@@ -278,8 +281,7 @@ class NeighborhoodKernel(BaseKernel):
 
         Examples:
             >>> from skcomplex.engine.problems._neighborhood_kernel import NeighborhoodKernel
-            >>> from skcomplex.core.neighborhoods import LatticeNeighborhood
-            >>> from skcomplex.core.spaces import LatticeSpace
+            >>> from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
             >>> space = LatticeSpace(3, boundary='fixed').check().prepare()
             >>> rows = NeighborhoodKernel._lattice_rows(space, LatticeNeighborhood(((-1,), (1,))))
             >>> [item.tolist() for item in rows]
@@ -366,7 +368,7 @@ class NeighborhoodKernel(BaseKernel):
             >>> from skcomplex.engine.problems._neighborhood_kernel import NeighborhoodKernel
             >>> from skcomplex.types import VariableKind
             >>> from skcomplex.engine._utils import declarations_of
-            >>> from skcomplex.core.neighborhoods import ConeNeighborhood
+            >>> from skcomplex.core.spaces import ConeNeighborhood
             >>> class BoidElement(Element):
             ...     def __init__(
             ...         self,
@@ -518,7 +520,7 @@ class NeighborhoodKernel(BaseKernel):
                 The space classes.
 
         Examples:
-            >>> from skcomplex.core.neighborhoods import RadiusNeighborhood
+            >>> from skcomplex.core.spaces import RadiusNeighborhood
             >>> from skcomplex.engine.problems._neighborhood_kernel import NeighborhoodKernel
             >>> NeighborhoodKernel._spaces_of(RadiusNeighborhood(1.0))
             (<class 'skcomplex.core.spaces._continuous.ContinuousSpace'>,)

@@ -9,7 +9,7 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
-from ..times import ContinuousTime
+from ..spaces import ContinuousTime
 from ..types import Process, Target
 from ._base import BaseLaw
 

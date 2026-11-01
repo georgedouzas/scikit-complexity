@@ -8,8 +8,7 @@ import networkx as nx
 import numpy as np
 
 from ....core.elements import LatticeElement
-from ....core.neighborhoods import AdjacencyNeighborhood
-from ....core.spaces import NetworkSpace
+from ....core.spaces import AdjacencyNeighborhood, NetworkSpace
 from ....core.system import System
 from ..._catalog import register_model
 from ..common.spins import IsingSamplingInteraction

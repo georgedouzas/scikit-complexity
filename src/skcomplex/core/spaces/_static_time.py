@@ -17,7 +17,7 @@ class StaticTime(BaseTime):
             The label of the time in its system.
 
     Examples:
-        >>> from skcomplex.core.times import StaticTime
+        >>> from skcomplex.core.spaces import StaticTime
         >>> StaticTime().check().prepare().schedule_ is None
         True
     """

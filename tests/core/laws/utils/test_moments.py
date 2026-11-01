@@ -11,9 +11,8 @@ from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import EncounterLaw, RateLaw
 from skcomplex.core.laws.utils import moment
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.system import System
-from skcomplex.core.times import ContinuousTime
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation

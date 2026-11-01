@@ -10,8 +10,7 @@ from collections.abc import Callable, Sequence
 import numpy as np
 import numpy.typing as npt
 
-from ..core.neighborhoods import LatticeNeighborhood, MemoryNeighborhood
-from ..core.spaces import BaseSpace, LatticeSpace
+from ..core.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, MemoryNeighborhood
 from ..core.types import AutomatonProtocol, LinearAutomatonProtocol, Reach, SubshiftProtocol
 from ..errors import AnalysisError
 from ..specs import TableSpec
@@ -187,8 +186,7 @@ class AutomatonAnalysis(BaseAnalysis):
     Examples:
         >>> from skcomplex.analysis import AutomatonAnalysis
         >>> from skcomplex.specs import TableSpec, TotalisticSpec
-        >>> from skcomplex.core.neighborhoods import BoxNeighborhood, LatticeNeighborhood
-        >>> from skcomplex.core.spaces import LatticeSpace
+        >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> from skcomplex.models.computer_science.automata import Automaton, Subshift
         >>> shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), TableSpec({(1,): 1}))
         >>> AutomatonAnalysis().check().prepare(shift).run().injective_

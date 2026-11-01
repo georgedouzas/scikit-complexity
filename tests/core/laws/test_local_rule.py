@@ -4,9 +4,7 @@ import pytest
 from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.laws import LocalRuleLaw
-from skcomplex.core.neighborhoods import BoxNeighborhood
-from skcomplex.core.spaces import CayleySpace, LatticeSpace
-from skcomplex.core.times import ContinuousTime, DiscreteTime
+from skcomplex.core.spaces import BoxNeighborhood, CayleySpace, ContinuousTime, DiscreteTime, LatticeSpace
 from skcomplex.errors import ValidationError
 from skcomplex.specs import TotalisticSpec
 

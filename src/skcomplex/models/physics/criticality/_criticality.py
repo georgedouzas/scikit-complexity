@@ -13,14 +13,15 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
 from ....core.interactions import CascadeInteraction, LocalRuleInteraction
-from ....core.neighborhoods import (
+from ....core.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
     LatticeNeighborhood,
+    LatticeSpace,
+    NetworkSpace,
     TriangularNeighborhood,
     VonNeumannNeighborhood,
 )
-from ....core.spaces import LatticeSpace, NetworkSpace
 from ....core.system import System
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array

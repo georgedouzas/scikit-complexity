@@ -20,8 +20,7 @@ from ...core.laws import (
     RateLaw,
     TransferLaw,
 )
-from ...core.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.times import ContinuousTime
+from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError, ValidationError
 from ...specs import SupportSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind

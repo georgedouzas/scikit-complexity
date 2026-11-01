@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
-from ..times import ContinuousTime, StaticTime
+from ..spaces import ContinuousTime, StaticTime
 from ._base import BaseLaw
 
 

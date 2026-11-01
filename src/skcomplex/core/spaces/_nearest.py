@@ -24,7 +24,7 @@ class NearestNeighborhood(BaseNeighborhood):
             The label of the neighbourhood.
 
     Examples:
-        >>> from skcomplex.core.neighborhoods import NearestNeighborhood
+        >>> from skcomplex.core.spaces import NearestNeighborhood
         >>> NearestNeighborhood(7).check().k
         7
     """

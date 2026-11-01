@@ -3,7 +3,7 @@
 import pytest
 
 from skcomplex.core.laws import RuleLaw
-from skcomplex.core.times import DiscreteTime
+from skcomplex.core.spaces import DiscreteTime
 from skcomplex.errors import ValidationError
 
 

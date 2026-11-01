@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import Expression, cos, sin
 
 from .....core.interactions import CouplingInteraction
 from .....core.laws.utils import count, total
-from .....core.neighborhoods import BaseNeighborhood
+from .....core.spaces import BaseNeighborhood
 from .....core.types import Target
 from .....specs import ParameterSpec, RoleSpec
 

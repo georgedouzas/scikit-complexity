@@ -7,8 +7,8 @@ import pytest
 
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import FractionalNoiseLaw, NoiseLaw, RateLaw
+from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
-from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.solvers import GrunwaldLetnikovSolver, L1Solver, RK4Solver

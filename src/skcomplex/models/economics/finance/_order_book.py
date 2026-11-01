@@ -15,9 +15,8 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement
 from ....core.interactions import ImitationInteraction, MapInteraction, MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
-from ....core.spaces import LatticeSpace
+from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
-from ....core.times import DiscreteTime
 from ....core.types import MatchingRule
 from ....engine.solvers import ModelView
 from ....specs import (

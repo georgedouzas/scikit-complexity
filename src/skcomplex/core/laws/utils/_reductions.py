@@ -20,7 +20,7 @@ from sage.symbolic.function import Function
 
 from ....errors import ValidationError
 from ....specs import LayerSpec, NeighborReductionSpec, ReductionSpec
-from ...neighborhoods import AdjacencyNeighborhood, BaseNeighborhood, LatticeNeighborhood, MemoryNeighborhood
+from ...spaces import AdjacencyNeighborhood, BaseNeighborhood, LatticeNeighborhood, MemoryNeighborhood
 from ...spaces._lattice import BOUNDARIES
 from ._conditions import both
 from ._pointwise import _largest, _smallest
@@ -528,7 +528,7 @@ def neighbors(
     Examples:
         >>> from sage.all__sagemath_symbolics import sin, var
         >>> from skcomplex.core.laws.utils import neighbors
-        >>> from skcomplex.core.neighborhoods import RadiusNeighborhood, VonNeumannNeighborhood
+        >>> from skcomplex.core.spaces import RadiusNeighborhood, VonNeumannNeighborhood
         >>> neighbors(sin(var('theta_other')), over=RadiusNeighborhood(1.0), reduce='mean')
         neighbors(sin(theta_other), over=RadiusNeighborhood(radius=1.0), reduce='mean')
         >>> neighbors(var('strategy_other'), reduce='argmax', weight=var('payoff_other'))

@@ -16,10 +16,8 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import BaseInteraction
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import neighbors, uniform, where
-from ....core.neighborhoods import RadiusNeighborhood
-from ....core.spaces import ContinuousSpace
+from ....core.spaces import ContinuousSpace, DiscreteTime, RadiusNeighborhood
 from ....core.system import System
-from ....core.times import DiscreteTime
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._heading_alignment import HeadingAlignmentInteraction

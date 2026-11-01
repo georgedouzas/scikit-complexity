@@ -9,7 +9,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression
 
 from .....core.laws.utils import neighbors
-from .....core.neighborhoods import BaseNeighborhood
+from .....core.spaces import BaseNeighborhood
 from .....specs import RoleSpec
 from ._spin_sampling import SpinSamplingInteraction
 

@@ -12,8 +12,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
 from ....core.interactions import MapInteraction
+from ....core.spaces import DiscreteTime
 from ....core.system import System
-from ....core.times import DiscreteTime
 from ....engine.solvers import ModelView
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model

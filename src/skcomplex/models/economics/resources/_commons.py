@@ -15,9 +15,8 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import FeedbackInteraction, MatchingInteraction
 from ....core.laws import BaseLaw, RuleLaw
 from ....core.laws.utils import transfer
-from ....core.spaces import LatticeSpace
+from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
-from ....core.times import DiscreteTime
 from ....core.types import MatchingRule
 from ....engine.solvers import ModelView
 from ....errors import SimulationError

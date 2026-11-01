@@ -12,10 +12,8 @@ from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import NeighborInteraction
 from skcomplex.core.laws import CascadeLaw, DriveLaw, JumpLaw, LocalRuleLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import delayed, mean
-from skcomplex.core.neighborhoods import AdjacencyNeighborhood, BoxNeighborhood
-from skcomplex.core.spaces import LatticeSpace, NetworkSpace
+from skcomplex.core.spaces import AdjacencyNeighborhood, BoxNeighborhood, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
-from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation

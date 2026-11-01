@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import SR
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
-from ..times import ContinuousTime
+from ..spaces import ContinuousTime
 from ._base import BaseLaw
 from .utils import has_operator
 

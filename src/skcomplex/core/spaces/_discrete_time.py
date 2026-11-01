@@ -26,7 +26,7 @@ class DiscreteTime(BaseTime):
             The label of the time in its system.
 
     Examples:
-        >>> from skcomplex.core.times import DiscreteTime
+        >>> from skcomplex.core.spaces import DiscreteTime
         >>> DiscreteTime(schedule='random-sequential').check().prepare().schedule_
         'random-sequential'
     """

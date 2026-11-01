@@ -8,8 +8,7 @@ import numpy as np
 import numpy.typing as npt
 import skfem
 
-from ..neighborhoods import BaseNeighborhood
-from ._base import BaseSpace
+from ._base import BaseNeighborhood, BaseSpace
 
 TRIANGLE_DIMENSIONS = 2
 

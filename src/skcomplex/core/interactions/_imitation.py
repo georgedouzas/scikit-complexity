@@ -16,7 +16,7 @@ from ...errors import ValidationError
 from ...specs import ParameterSpec, RoleSpec
 from ..laws import BaseLaw, JumpLaw, RuleLaw, UpdateLaw
 from ..laws.utils import categorical, neighbors, uniform, where
-from ..neighborhoods import AdjacencyNeighborhood
+from ..spaces import AdjacencyNeighborhood
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._neighbor import NeighborInteraction
 

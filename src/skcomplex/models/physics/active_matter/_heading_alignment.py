@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import SR, Expression, cos
 
 from ....core.interactions import CouplingInteraction
 from ....core.laws.utils import uniform, where
-from ....core.neighborhoods import RadiusNeighborhood
+from ....core.spaces import RadiusNeighborhood
 from ....core.types import Target
 from ....specs import RoleSpec
 

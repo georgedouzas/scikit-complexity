@@ -9,9 +9,8 @@ import pytest
 from skcomplex.core.elements import Element, FieldElement, GroupElement
 from skcomplex.core.interactions import TransferInteraction
 from skcomplex.core.laws import BaseLaw, RateLaw, RuleLaw, Sink, Source
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
-from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.errors import ValidationError
 from skcomplex.specs import PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec

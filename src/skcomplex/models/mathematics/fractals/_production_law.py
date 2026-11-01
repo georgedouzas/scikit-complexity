@@ -6,7 +6,7 @@
 import numbers
 
 from ....core.laws import BaseLaw
-from ....core.times import DiscreteTime
+from ....core.spaces import DiscreteTime
 from ....specs import RequirementSpec
 from ._module_spec import Letters, ModuleSpec
 from ._rewriting_error import RewritingError

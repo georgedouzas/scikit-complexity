@@ -1,10 +1,10 @@
-"""Test the `_cone` module of `skcomplex.core.neighborhoods`."""
+"""Test the `_cone` module of `skcomplex.core.spaces`."""
 
 import math
 
 import pytest
 
-from skcomplex.core.neighborhoods import ConeNeighborhood
+from skcomplex.core.spaces import ConeNeighborhood
 from skcomplex.errors import ValidationError
 
 

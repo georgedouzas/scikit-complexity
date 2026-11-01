@@ -6,8 +6,7 @@
 import math
 
 from ...core.laws import BoundaryLaw, CascadeLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, UpdateLaw
-from ...core.spaces import LatticeSpace, NetworkSpace
-from ...core.times import DiscreteTime
+from ...core.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ...specs import CascadeRecordSpec, RunStateSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind
 from ._solver import Solver

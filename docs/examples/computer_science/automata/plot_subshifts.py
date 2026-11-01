@@ -13,8 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.analysis import AutomatonAnalysis
-from skcomplex.core.neighborhoods import LatticeNeighborhood
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

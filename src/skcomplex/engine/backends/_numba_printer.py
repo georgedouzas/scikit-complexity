@@ -11,7 +11,7 @@ import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
 
-from ...core.neighborhoods import ConeNeighborhood, NearestNeighborhood
+from ...core.spaces import ConeNeighborhood, NearestNeighborhood
 from ...errors import ValidationError
 from ...specs import EntrySpec, ReadSpec
 from .._utils import symbols_of

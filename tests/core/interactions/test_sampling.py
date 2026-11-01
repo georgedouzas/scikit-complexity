@@ -8,9 +8,8 @@ import pytest
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.interactions import SamplingInteraction
 from skcomplex.core.laws.utils import neighbors
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
-from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
 from skcomplex.specs import StateSpec, VisualSpec

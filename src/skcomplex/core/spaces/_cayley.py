@@ -11,8 +11,8 @@ from sage.all__sagemath_gap import libgap
 from sage.libs.gap.element import GapElement
 
 from ...errors import SpaceError, SpaceTooLargeError, ValidationError
-from ..neighborhoods import BaseNeighborhood, MemoryNeighborhood
-from ._base import BaseSpace
+from ._base import BaseNeighborhood, BaseSpace
+from ._memory import MemoryNeighborhood
 
 MAX_SITES = 100_000
 LEVEL_POINTS = 2**14

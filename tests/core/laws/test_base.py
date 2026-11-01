@@ -8,7 +8,7 @@ from sage.all__sagemath_symbolics import var, vector
 
 from skcomplex.core import laws
 from skcomplex.core.laws import BaseLaw, CrossingLaw, JumpLaw, LocalRuleLaw, RateLaw
-from skcomplex.core.neighborhoods import BoxNeighborhood
+from skcomplex.core.spaces import BoxNeighborhood
 from skcomplex.errors import NotCheckedError, ValidationError
 from skcomplex.specs import CallSpec, RequirementSpec, TotalisticSpec
 

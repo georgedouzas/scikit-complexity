@@ -9,15 +9,12 @@ import numpy as np
 import numpy.typing as npt
 
 from ...errors import ValidationError
-from ..neighborhoods import (
-    BaseNeighborhood,
-    BoxNeighborhood,
-    LatticeNeighborhood,
-    MooreNeighborhood,
-    TriangularNeighborhood,
-    VonNeumannNeighborhood,
-)
-from ._base import BaseSpace
+from ._base import BaseNeighborhood, BaseSpace
+from ._box import BoxNeighborhood
+from ._lattice_neighborhood import LatticeNeighborhood
+from ._moore import MooreNeighborhood
+from ._triangular import TriangularNeighborhood
+from ._von_neumann import VonNeumannNeighborhood
 
 BOUNDARIES = ('periodic', 'fixed', 'reflecting')
 GEOMETRIES = ('square', 'triangular')

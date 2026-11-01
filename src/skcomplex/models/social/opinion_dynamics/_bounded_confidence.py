@@ -12,9 +12,8 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, LatticeElement
-from ....core.spaces import NetworkSpace
+from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....core.times import DiscreteTime
 from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model

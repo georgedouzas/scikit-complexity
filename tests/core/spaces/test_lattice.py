@@ -2,8 +2,7 @@
 
 import pytest
 
-from skcomplex.core.neighborhoods import AdjacencyNeighborhood, BoxNeighborhood, TriangularNeighborhood
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import AdjacencyNeighborhood, BoxNeighborhood, LatticeSpace, TriangularNeighborhood
 from skcomplex.errors import ValidationError
 
 

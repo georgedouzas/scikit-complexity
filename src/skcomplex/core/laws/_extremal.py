@@ -9,9 +9,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
-from ..neighborhoods import BaseNeighborhood
-from ..spaces import LatticeSpace, NetworkSpace
-from ..times import DiscreteTime
+from ..spaces import BaseNeighborhood, DiscreteTime, LatticeSpace, NetworkSpace
 from ._base import BaseLaw
 
 EXTREMA = ('min', 'max')
@@ -49,7 +47,7 @@ class ExtremalLaw(BaseLaw):
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import ExtremalLaw
-        >>> from skcomplex.core.neighborhoods import BoxNeighborhood
+        >>> from skcomplex.core.spaces import BoxNeighborhood
         >>> law = ExtremalLaw(var('fitness'), BoxNeighborhood(), lambda values, *, random: random).check()
         >>> law.extremum, law.repeat
         ('min', 1)

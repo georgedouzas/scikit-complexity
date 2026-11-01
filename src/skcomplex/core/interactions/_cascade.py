@@ -13,7 +13,7 @@ from ...errors import ValidationError
 from ...specs import RoleSpec
 from ...types import Array
 from ..laws import BaseLaw, CascadeLaw, DriveLaw, LocalRuleLaw
-from ..neighborhoods import BaseNeighborhood, LatticeNeighborhood, VonNeumannNeighborhood
+from ..spaces import BaseNeighborhood, LatticeNeighborhood, VonNeumannNeighborhood
 from ._neighbor import NeighborInteraction
 
 MODES = ('redistribute', 'reset', 'random')

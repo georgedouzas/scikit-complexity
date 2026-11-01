@@ -13,9 +13,8 @@ from skcomplex.core.elements import Element, GroupElement, PointElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import GeneratorLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.laws.utils import local_operator
-from skcomplex.core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
+from skcomplex.core.spaces import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, NetworkSpace, StaticTime
 from skcomplex.core.system import System
-from skcomplex.core.times import ContinuousTime, DiscreteTime, StaticTime
 from skcomplex.engine.compile import PassCompiler, QuantumCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import UnitarySolver

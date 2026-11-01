@@ -7,9 +7,8 @@ import numpy.typing as npt
 
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.interactions import BaseInteraction
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
-from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.runtime import Simulation
 from skcomplex.specs import ParameterSpec, StateSpec
 

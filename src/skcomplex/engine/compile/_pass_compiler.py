@@ -18,11 +18,22 @@ from ...core.elements import GroupElement
 from ...core.interactions import HyperedgeInteraction, NeighborInteraction
 from ...core.laws import EncounterLaw, JumpLaw, NoiseLaw, ProliferationLaw
 from ...core.laws.utils import neighborhoods_in, reductions_in
-from ...core.neighborhoods import AdjacencyNeighborhood, BaseNeighborhood, ConeNeighborhood
-from ...core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.spaces import (
+    AdjacencyNeighborhood,
+    BaseNeighborhood,
+    BaseSpace,
+    CayleySpace,
+    ConeNeighborhood,
+    ContinuousSpace,
+    ContinuousTime,
+    DiscreteTime,
+    LatticeSpace,
+    MeshSpace,
+    NetworkSpace,
+    StaticTime,
+)
 from ...core.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ...core.system import System
-from ...core.times import ContinuousTime, DiscreteTime, StaticTime
 from ...errors import (
     ParameterError,
     PipelineError,

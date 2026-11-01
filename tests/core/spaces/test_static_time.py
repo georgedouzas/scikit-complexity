@@ -1,6 +1,6 @@
-"""Test the `_static_time` module of `skcomplex.core.times`."""
+"""Test the `_static_time` module of `skcomplex.core.spaces`."""
 
-from skcomplex.core.times import StaticTime
+from skcomplex.core.spaces import StaticTime
 
 
 def test_static_time_has_no_schedule_and_solves_once():

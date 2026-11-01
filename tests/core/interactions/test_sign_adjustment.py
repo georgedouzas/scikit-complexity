@@ -6,8 +6,8 @@ import pytest
 
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import SignAdjustmentInteraction
+from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
-from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.errors import ValidationError
 from skcomplex.specs import StateSpec, VisualSpec

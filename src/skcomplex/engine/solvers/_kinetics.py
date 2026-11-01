@@ -9,8 +9,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR
 
 from ...core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
-from ...core.spaces import LatticeSpace
-from ...core.times import ContinuousTime
+from ...core.spaces import ContinuousTime, LatticeSpace
 from ...errors import SolverError
 from ...specs import SupportSpec
 from ...types import Array, FormKind, Indices, IntArray, OrderKind

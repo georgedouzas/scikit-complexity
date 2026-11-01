@@ -18,10 +18,9 @@ from sage.sets.real_set import RealSet
 
 from ...core.interactions import BaseInteraction, PairCouplingInteraction
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, NoiseLaw, RateLaw
-from ...core.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...core.specs import CompiledElementSpec, CompiledInteractionSpec
 from ...core.system import System
-from ...core.times import ContinuousTime
 from ...errors import BackendError, SolverError
 from ...specs import LammpsFixSpec, SupportSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind, VariableKind

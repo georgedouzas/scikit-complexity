@@ -7,9 +7,8 @@ import numpy as np
 import numpy.typing as npt
 
 from skcomplex.core.elements import Element
-from skcomplex.core.spaces import ContinuousSpace
+from skcomplex.core.spaces import ContinuousSpace, DiscreteTime
 from skcomplex.core.system import System
-from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.active_matter import PropulsionStepInteraction
 from skcomplex.specs import StateSpec

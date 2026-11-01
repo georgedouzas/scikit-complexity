@@ -12,9 +12,8 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, LatticeElement
-from ....core.spaces import NetworkSpace
+from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....core.times import DiscreteTime
 from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.oscillators import KuramotoCouplingInteraction, PhaseOscillatorElement

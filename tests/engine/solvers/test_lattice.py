@@ -9,8 +9,13 @@ from sage.all__sagemath_symbolics import ZZ
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.laws import CascadeLaw, DriveLaw, LocalRuleLaw, SampleLaw
 from skcomplex.core.laws.utils import neighbors
-from skcomplex.core.neighborhoods import BoxNeighborhood, LatticeNeighborhood, MooreNeighborhood, VonNeumannNeighborhood
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import (
+    BoxNeighborhood,
+    LatticeNeighborhood,
+    LatticeSpace,
+    MooreNeighborhood,
+    VonNeumannNeighborhood,
+)
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system

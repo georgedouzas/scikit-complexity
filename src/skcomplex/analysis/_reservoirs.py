@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from ..core.laws import BaseLaw, UpdateLaw
-from ..core.times import DiscreteTime
+from ..core.spaces import DiscreteTime
 from ..engine._utils import vector
 from ..errors import AnalysisError
 from ..specs import CallSpec

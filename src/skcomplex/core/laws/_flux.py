@@ -6,8 +6,7 @@
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
-from ..spaces import LatticeSpace, MeshSpace
-from ..times import ContinuousTime
+from ..spaces import ContinuousTime, LatticeSpace, MeshSpace
 from ..types import Target
 from ._base import BaseLaw
 

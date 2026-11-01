@@ -11,14 +11,15 @@ from sage.all__sagemath_symbolics import cos
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import ExtremalLaw, LocalRuleLaw, SampleLaw
 from skcomplex.core.laws.utils import neighbors
-from skcomplex.core.neighborhoods import (
+from skcomplex.core.spaces import (
     AdjacencyNeighborhood,
     BoxNeighborhood,
     LatticeNeighborhood,
+    LatticeSpace,
     MooreNeighborhood,
+    NetworkSpace,
     TriangularNeighborhood,
 )
-from skcomplex.core.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system

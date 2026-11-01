@@ -227,7 +227,7 @@ class RewritingCompiler(BaseCompiler):
                 malformed.
 
         Examples:
-            >>> from skcomplex.core.times import DiscreteTime
+            >>> from skcomplex.core.spaces import DiscreteTime
             >>> from skcomplex.core.system import System
             >>> from skcomplex.engine.compile import compile_system
             >>> from skcomplex.models.mathematics.fractals import ProductionLaw

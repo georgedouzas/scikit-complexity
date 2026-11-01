@@ -4,9 +4,8 @@ import networkx as nx
 import numpy as np
 
 from skcomplex.core.elements import LatticeElement
-from skcomplex.core.spaces import NetworkSpace
+from skcomplex.core.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.system import System
-from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.synchronization import LogisticCouplingInteraction, LogisticNodeElement
 

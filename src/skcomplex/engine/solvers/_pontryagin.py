@@ -11,7 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, solve
 
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw
-from ...core.times import ContinuousTime
+from ...core.spaces import ContinuousTime
 from ...errors import SolverError, ValidationError
 from ...specs import ControlSolutionSpec, SupportSpec
 from ...types import Array, OrderKind

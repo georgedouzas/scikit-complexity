@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.neighborhoods import GeneratorNeighborhood, LatticeNeighborhood, MemoryNeighborhood
+from skcomplex.core.spaces import GeneratorNeighborhood, LatticeNeighborhood, MemoryNeighborhood
 from skcomplex.engine.problems import FrameSpec
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import CayleyVisual

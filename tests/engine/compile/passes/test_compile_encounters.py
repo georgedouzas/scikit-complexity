@@ -10,9 +10,8 @@ from sage.sets.real_set import RealSet
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import ContinuousTime, DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
-from skcomplex.core.times import ContinuousTime, DiscreteTime
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation

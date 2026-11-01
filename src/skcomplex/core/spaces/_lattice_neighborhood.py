@@ -26,7 +26,7 @@ class LatticeNeighborhood(BaseNeighborhood):
             The offsets as tuples of integers.
 
     Examples:
-        >>> from skcomplex.core.neighborhoods import LatticeNeighborhood
+        >>> from skcomplex.core.spaces import LatticeNeighborhood
         >>> LatticeNeighborhood([(0, 1), (1, 0)]).check().prepare().offsets_
         ((0, 1), (1, 0))
     """

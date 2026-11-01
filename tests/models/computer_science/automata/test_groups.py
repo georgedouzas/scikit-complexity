@@ -2,8 +2,7 @@
 
 from sage.all__sagemath_gap import libgap
 
-from skcomplex.core.neighborhoods import MemoryNeighborhood
-from skcomplex.core.spaces import CayleySpace
+from skcomplex.core.spaces import CayleySpace, MemoryNeighborhood
 from skcomplex.models.computer_science.automata import (
     grigorchuk_group,
     heisenberg,

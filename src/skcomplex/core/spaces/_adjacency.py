@@ -23,7 +23,7 @@ class AdjacencyNeighborhood(BaseNeighborhood):
             The label of the neighbourhood.
 
     Examples:
-        >>> from skcomplex.core.neighborhoods import AdjacencyNeighborhood
+        >>> from skcomplex.core.spaces import AdjacencyNeighborhood
         >>> AdjacencyNeighborhood(layer='work').layer
         'work'
     """

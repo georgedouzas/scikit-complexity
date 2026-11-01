@@ -1496,8 +1496,7 @@ order, so a module imports only the modules above it.
   and the specs of runs and structures, such as `ObservableSpec`, `WienerProcessSpec`, and `RequirementSpec`.
 - `types`: the types that annotations share.
 - `base`: `BasePart`, the base of every part, with the verbs `check`, `prepare`, and `run`.
-- `times` and `neighborhoods`: the kinds of time, and the neighbourhoods that give a law the members around a member.
-- `spaces`: the continuous, lattice, network, mesh, and Cayley spaces.
+- `spaces`: the continuous, lattice, network, mesh, and Cayley spaces, their neighbourhoods, and the kinds of time.
 - `laws`: the `BaseLaw` base and every law, and in `laws.utils` what laws are written with besides Sage, such as
   `where`, reductions, draws, delays, and drivers.
 - `elements` and `interactions`: `Element`, `GroupElement`, `FieldElement`, and the other elements, and the binding
@@ -1564,7 +1563,7 @@ from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import BaseLaw
-from skcomplex.core.times import ContinuousTime
+from skcomplex.core.spaces import ContinuousTime
 from skcomplex.specs import ParameterSpec, RequirementSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler
@@ -1804,7 +1803,7 @@ from typing import Annotated
 
 from skcomplex.core.elements import Element
 from skcomplex.core.interactions import MapInteraction
-from skcomplex.core.times import DiscreteTime
+from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.specs import StateSpec
@@ -1830,7 +1829,7 @@ from typing import Annotated
 
 from skcomplex.core.elements import Element
 from skcomplex.core.interactions import SignAdjustmentInteraction
-from skcomplex.core.times import DiscreteTime
+from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.specs import StateSpec
@@ -1860,9 +1859,7 @@ import numpy as np
 
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.interactions import CascadeInteraction, LocalRuleInteraction
-from skcomplex.core.neighborhoods import VonNeumannNeighborhood
-from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.times import DiscreteTime
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.specs import StateSpec, TotalisticSpec
@@ -2010,8 +2007,7 @@ from sage.all__sagemath_symbolics import NN
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import SpreadingInteraction, TransitionInteraction
-from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.times import DiscreteTime
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.specs import StateSpec
@@ -2103,8 +2099,7 @@ from typing import Annotated
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.interactions import SamplingInteraction
 from skcomplex.core.laws.utils import neighbors
-from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.times import DiscreteTime
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.specs import StateSpec
@@ -2188,7 +2183,7 @@ import numpy as np
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import ChoiceInteraction
 from skcomplex.core.laws.utils import mean
-from skcomplex.core.times import DiscreteTime
+from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.specs import StateSpec
@@ -2219,8 +2214,7 @@ import numpy as np
 
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.interactions import ImitationInteraction
-from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.times import DiscreteTime
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.specs import StateSpec
@@ -2247,7 +2241,7 @@ from typing import Annotated
 
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import ReinforcementInteraction
-from skcomplex.core.times import DiscreteTime
+from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.specs import StateSpec
@@ -2288,7 +2282,7 @@ import numpy as np
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import EvolutionInteraction
 from skcomplex.core.laws import RuleLaw
-from skcomplex.core.times import DiscreteTime
+from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.specs import PhaseSpec, PhasesScheduleSpec, StateSpec
@@ -2989,8 +2983,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import LocalRuleLaw
 from skcomplex.specs import OuterTotalisticSpec
-from skcomplex.core.neighborhoods import MooreNeighborhood
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import LatticeSpace, MooreNeighborhood
 from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -3047,8 +3040,7 @@ from sage.all__sagemath_symbolics import ZZ
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import SampleLaw
 from skcomplex.core.laws.utils import neighbors
-from skcomplex.core.neighborhoods import VonNeumannNeighborhood
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import LatticeSpace, VonNeumannNeighborhood
 from skcomplex.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -3093,8 +3085,7 @@ import numpy as np
 
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import LocalRuleLaw
-from skcomplex.core.neighborhoods import TriangularNeighborhood
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import LatticeSpace, TriangularNeighborhood
 from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -3144,8 +3135,7 @@ from sage.all__sagemath_symbolics import ZZ
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import SampleLaw
 from skcomplex.core.laws.utils import neighbors
-from skcomplex.core.neighborhoods import AdjacencyNeighborhood
-from skcomplex.core.spaces import NetworkSpace
+from skcomplex.core.spaces import AdjacencyNeighborhood, NetworkSpace
 from skcomplex.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -3190,8 +3180,7 @@ import numpy as np
 
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import ExtremalLaw
-from skcomplex.core.neighborhoods import LatticeNeighborhood
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -3409,8 +3398,7 @@ import numpy as np
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import UpdateLaw
 from skcomplex.core.laws.utils import neighbors
-from skcomplex.core.spaces import NetworkSpace
-from skcomplex.core.times import DiscreteTime
+from skcomplex.core.spaces import DiscreteTime, NetworkSpace
 from skcomplex.specs import StateSpec, TopologyRequestSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -3514,8 +3502,7 @@ into another subsystem.
 ```python continuation
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import EncounterLaw
-from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.times import ContinuousTime
+from skcomplex.core.spaces import ContinuousTime, LatticeSpace
 from skcomplex.specs import ParameterSpec, RoleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler
@@ -3722,8 +3709,7 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import LocalRuleLaw
 from skcomplex.specs import TotalisticSpec
-from skcomplex.core.neighborhoods import GeneratorNeighborhood
-from skcomplex.core.spaces import CayleySpace
+from skcomplex.core.spaces import CayleySpace, GeneratorNeighborhood
 from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -3778,8 +3764,7 @@ not decide them on infinite groups. `Automaton(space, neighborhood, rule, states
 
 ```python
 from skcomplex.specs import OuterTotalisticSpec, TableSpec
-from skcomplex.core.neighborhoods import LatticeNeighborhood, MooreNeighborhood
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace, MooreNeighborhood
 
 from skcomplex.analysis import AutomatonAnalysis
 from skcomplex.models.computer_science.automata import Automaton
@@ -3806,8 +3791,7 @@ counts the admissible ones of a window, and samples them by a Markov chain of si
 increases under an automaton.
 
 ```python
-from skcomplex.core.neighborhoods import LatticeNeighborhood
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
 
 from skcomplex.analysis import AutomatonAnalysis
 from skcomplex.models.computer_science.automata import LinearAutomaton, Subshift
@@ -4293,7 +4277,7 @@ import numpy as np
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import FeedbackInteraction, MatchingInteraction
 from skcomplex.core.laws import RuleLaw
-from skcomplex.core.times import DiscreteTime
+from skcomplex.core.spaces import DiscreteTime
 from skcomplex.specs import BatchClearingSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -4383,7 +4367,7 @@ from typing import Annotated
 
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.laws import RuleLaw
-from skcomplex.core.times import DiscreteTime
+from skcomplex.core.spaces import DiscreteTime
 from skcomplex.specs import ParameterSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation

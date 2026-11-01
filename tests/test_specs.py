@@ -18,10 +18,9 @@ from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.laws.utils import distributed_delay, mean, total
-from skcomplex.core.neighborhoods import VonNeumannNeighborhood
+from skcomplex.core.spaces import ContinuousTime, VonNeumannNeighborhood
 from skcomplex.core.specs import ScenarioSpec
 from skcomplex.core.system import System
-from skcomplex.core.times import ContinuousTime
 from skcomplex.engine._utils import symbol
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import RoleError, ValidationError

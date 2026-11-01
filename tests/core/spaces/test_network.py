@@ -9,8 +9,7 @@ import pytest
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import UpdateLaw
 from skcomplex.core.laws.utils import neighbors
-from skcomplex.core.neighborhoods import AdjacencyNeighborhood, VonNeumannNeighborhood
-from skcomplex.core.spaces import NetworkSpace
+from skcomplex.core.spaces import AdjacencyNeighborhood, NetworkSpace, VonNeumannNeighborhood
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system

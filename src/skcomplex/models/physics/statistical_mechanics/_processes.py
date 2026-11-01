@@ -15,8 +15,7 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, GroupElement, LatticeElement
 from ....core.interactions import LocalRuleInteraction
 from ....core.laws import BaseLaw, DriveLaw, LocalRuleLaw, RuleLaw
-from ....core.neighborhoods import VonNeumannNeighborhood
-from ....core.spaces import LatticeSpace
+from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, StateSpec, VisualSpec

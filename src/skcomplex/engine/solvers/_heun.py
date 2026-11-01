@@ -7,8 +7,7 @@
 import numpy as np
 
 from ...core.laws import BoundaryLaw, CrossingLaw, EquationLaw, FluxLaw, NoiseLaw, RateLaw, TransferLaw
-from ...core.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.times import ContinuousTime
+from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...specs import SupportSpec
 from ...types import Array, NoiseKind, OrderKind
 from ._sde import SDESolver

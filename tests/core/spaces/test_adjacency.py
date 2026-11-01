@@ -1,9 +1,8 @@
-"""Test the `_adjacency` module of `skcomplex.core.neighborhoods`."""
+"""Test the `_adjacency` module of `skcomplex.core.spaces`."""
 
 import networkx as nx
 
-from skcomplex.core.neighborhoods import AdjacencyNeighborhood
-from skcomplex.core.spaces import NetworkSpace
+from skcomplex.core.spaces import AdjacencyNeighborhood, NetworkSpace
 
 
 def test_adjacency_neighbourhood_puts_the_node_first_when_it_is_included():

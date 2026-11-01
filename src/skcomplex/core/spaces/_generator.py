@@ -27,7 +27,7 @@ class GeneratorNeighborhood(MemoryNeighborhood):
             The words of the memory set.
 
     Examples:
-        >>> from skcomplex.core.neighborhoods import GeneratorNeighborhood
+        >>> from skcomplex.core.spaces import GeneratorNeighborhood
         >>> GeneratorNeighborhood(['a', 'b']).check().prepare().elements_
         ('1', 'a', 'a^-1', 'b', 'b^-1')
     """

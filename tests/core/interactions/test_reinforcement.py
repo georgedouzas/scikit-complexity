@@ -7,8 +7,8 @@ import pytest
 
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import ChoiceInteraction, ReinforcementInteraction
+from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
-from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.engine.solvers import AgentView, ModelView
 from skcomplex.errors import ValidationError

@@ -1,6 +1,6 @@
-"""Test the `_continuous_time` module of `skcomplex.core.times`."""
+"""Test the `_continuous_time` module of `skcomplex.core.spaces`."""
 
-from skcomplex.core.times import ContinuousTime
+from skcomplex.core.spaces import ContinuousTime
 
 
 def test_continuous_time_has_no_schedule_and_spans_the_run():

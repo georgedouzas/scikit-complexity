@@ -13,8 +13,7 @@ from sage.rings.polynomial.laurent_polynomial import LaurentPolynomial
 from sage.rings.ring import Field
 from sage.structure.element import Matrix
 
-from ....core.neighborhoods import LatticeNeighborhood
-from ....core.spaces import BaseSpace
+from ....core.spaces import BaseSpace, LatticeNeighborhood
 from ....errors import ValidationError
 from ._automaton import Reach, _size, _table
 
@@ -42,8 +41,7 @@ class LinearAutomaton:
             `'GF(p)'` for the field of a prime number `p` of elements, or `'QQ'` for the rationals.
 
     Examples:
-        >>> from skcomplex.core.neighborhoods import LatticeNeighborhood
-        >>> from skcomplex.core.spaces import LatticeSpace
+        >>> from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
         >>> from skcomplex.models.computer_science.automata import LinearAutomaton
         >>> rule90 = LinearAutomaton(LatticeSpace(6), LatticeNeighborhood(((-1,), (1,))), (1, 1), 'GF(2)')
         >>> rule90.step([0, 0, 1, 0, 0, 0]).tolist()

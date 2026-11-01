@@ -11,10 +11,8 @@ from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import Interaction, NeighborInteraction
 from skcomplex.core.laws import JumpLaw, UpdateLaw
 from skcomplex.core.laws.utils import neighbors, total
-from skcomplex.core.neighborhoods import AdjacencyNeighborhood, RadiusNeighborhood
-from skcomplex.core.spaces import NetworkSpace
+from skcomplex.core.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.system import System
-from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation

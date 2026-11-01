@@ -5,8 +5,7 @@ import inspect
 import pytest
 
 from skcomplex.core.laws import NoiseLaw, RateLaw
-from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.times import ContinuousTime, DiscreteTime, StaticTime
+from skcomplex.core.spaces import ContinuousTime, DiscreteTime, LatticeSpace, StaticTime
 from skcomplex.engine import solvers
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.solvers import (

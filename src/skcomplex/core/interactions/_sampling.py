@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from ...errors import ValidationError
 from ...specs import EnergySpec, MoveSpec, ParameterSpec, RoleSpec, SamplerSpec
 from ..laws import BaseLaw, SampleLaw
-from ..neighborhoods import BaseNeighborhood, VonNeumannNeighborhood
+from ..spaces import BaseNeighborhood, VonNeumannNeighborhood
 from ._interaction import Interaction
 
 MOVES = ('flip', 'random-value', 'rotate', 'gaussian', 'cluster')
@@ -79,8 +79,7 @@ class SamplingInteraction(Interaction):
         >>> from skcomplex.core.elements import Element, LatticeElement
         >>> from skcomplex.core.interactions import SamplingInteraction
         >>> from skcomplex.core.laws.utils import neighbors
-        >>> from skcomplex.core.spaces import LatticeSpace
-        >>> from skcomplex.core.times import DiscreteTime
+        >>> from skcomplex.core.spaces import DiscreteTime, LatticeSpace
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.specs import StateSpec

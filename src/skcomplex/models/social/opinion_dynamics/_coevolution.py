@@ -16,9 +16,8 @@ from ....core.elements import Element, GroupElement
 from ....core.interactions import NeighborInteraction
 from ....core.laws import BaseLaw, UpdateLaw
 from ....core.laws.utils import neighbors, uniform, where
-from ....core.spaces import NetworkSpace
+from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....core.times import DiscreteTime
 from ....specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
 from ..._catalog import register_model
 

@@ -10,9 +10,8 @@ from sage.all__sagemath_symbolics import NN
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import TransitionInteraction
 from skcomplex.core.laws.utils import neighbors, where
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
-from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError

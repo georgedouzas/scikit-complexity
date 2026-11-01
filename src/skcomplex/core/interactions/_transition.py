@@ -17,7 +17,7 @@ from ...specs import RoleSpec
 from ..base import BasePart
 from ..laws import EmissionLaw, JumpLaw, RuleLaw, TransitionLaw, UpdateLaw
 from ..laws.utils import both, neighbors, residence, uniform, where
-from ..neighborhoods import BaseNeighborhood
+from ..spaces import BaseNeighborhood
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
 

@@ -5,8 +5,7 @@ import pytest
 from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.laws import EncounterLaw
-from skcomplex.core.spaces import LatticeSpace
-from skcomplex.core.times import ContinuousTime
+from skcomplex.core.spaces import ContinuousTime, LatticeSpace
 from skcomplex.errors import ValidationError
 
 F, G, Q = var('f g q')

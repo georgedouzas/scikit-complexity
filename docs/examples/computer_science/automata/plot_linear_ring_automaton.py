@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.analysis import AutomatonAnalysis
-from skcomplex.core.neighborhoods import BoxNeighborhood
+from skcomplex.core.spaces import BoxNeighborhood
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create

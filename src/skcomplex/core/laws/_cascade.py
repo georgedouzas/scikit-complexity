@@ -6,8 +6,7 @@
 from collections.abc import Callable, Sequence
 
 from ...specs import RequirementSpec
-from ..spaces import LatticeSpace, NetworkSpace
-from ..times import DiscreteTime
+from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ._base import BaseLaw
 
 
@@ -42,7 +41,7 @@ class CascadeLaw(BaseLaw):
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import CascadeLaw, LocalRuleLaw
-        >>> from skcomplex.core.neighborhoods import VonNeumannNeighborhood
+        >>> from skcomplex.core.spaces import VonNeumannNeighborhood
         >>> height = var('height')
         >>> topple = LocalRuleLaw(height, VonNeumannNeighborhood(center=True), lambda z, *n: z - 4 * (z >= 4))
         >>> CascadeLaw([], [topple], lambda z: bool((z < 4).all())).check().prepare().targets_

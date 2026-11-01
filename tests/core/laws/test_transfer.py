@@ -10,8 +10,8 @@ from skcomplex.analysis import LoopAnalysis, SymbolicAnalysis
 from skcomplex.core.elements import Element
 from skcomplex.core.laws import BoundaryLaw, Sink, Source, TransferLaw, UpdateLaw
 from skcomplex.core.laws.utils import where
+from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
-from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import ConservationObserver, Simulation
 from skcomplex.errors import ConservationError, LabelError, ValidationError

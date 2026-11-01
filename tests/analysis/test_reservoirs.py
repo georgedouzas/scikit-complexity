@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.analysis import ReservoirAnalysis
-from skcomplex.core.times import DiscreteTime
+from skcomplex.core.spaces import DiscreteTime
 from skcomplex.engine.compile import PassCompiler
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver

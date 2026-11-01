@@ -9,8 +9,8 @@ from sage.all__sagemath_symbolics import ZZ
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import ChoiceInteraction, FeedbackInteraction
 from skcomplex.core.laws.utils import mean
+from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
-from skcomplex.core.times import DiscreteTime
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.engine.solvers import AgentView, ModelView
 from skcomplex.errors import ValidationError

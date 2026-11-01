@@ -9,8 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 
-from ....core.neighborhoods import LatticeNeighborhood, MemoryNeighborhood
-from ....core.spaces import BaseSpace
+from ....core.spaces import BaseSpace, LatticeNeighborhood, MemoryNeighborhood
 from ....core.types import Reach
 from ....errors import ValidationError
 from ....specs import OuterTotalisticSpec, TableSpec, TotalisticSpec
@@ -80,8 +79,7 @@ class Automaton:
 
     Examples:
         >>> from skcomplex.specs import TotalisticSpec
-        >>> from skcomplex.core.neighborhoods import BoxNeighborhood
-        >>> from skcomplex.core.spaces import LatticeSpace
+        >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeSpace
         >>> from skcomplex.models.computer_science.automata import Automaton
         >>> parity = Automaton(LatticeSpace(5), BoxNeighborhood(), TotalisticSpec(lambda total: total % 2))
         >>> parity.step([0, 0, 1, 0, 0]).tolist()

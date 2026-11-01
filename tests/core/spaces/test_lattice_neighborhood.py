@@ -1,8 +1,8 @@
-"""Test the `_lattice_neighborhood` module of `skcomplex.core.neighborhoods` and the neighbourhoods built on it."""
+"""Test the `_lattice_neighborhood` module of `skcomplex.core.spaces` and the lattice neighbourhoods built on it."""
 
 import pytest
 
-from skcomplex.core.neighborhoods import (
+from skcomplex.core.spaces import (
     BoxNeighborhood,
     LatticeNeighborhood,
     MooreNeighborhood,

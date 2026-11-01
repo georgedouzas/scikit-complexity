@@ -14,9 +14,8 @@ from sage.sets.real_set import RealSet
 from ....core.elements import Element, LatticeElement
 from ....core.interactions import TransitionInteraction
 from ....core.laws.utils import neighbors, where
-from ....core.spaces import NetworkSpace
+from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....core.times import DiscreteTime
 from ....specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....types import AnyArray
 from ..._catalog import register_model

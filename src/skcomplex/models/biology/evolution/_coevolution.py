@@ -14,8 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
 from ....core.laws import BaseLaw, ExtremalLaw
-from ....core.neighborhoods import AdjacencyNeighborhood, LatticeNeighborhood
-from ....core.spaces import LatticeSpace, NetworkSpace
+from ....core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, NetworkSpace
 from ....core.system import System
 from ....specs import StateSpec, VisualSpec
 from ....types import Array

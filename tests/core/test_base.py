@@ -16,10 +16,8 @@ from skcomplex.core.base import BasePart
 from skcomplex.core.elements import BaseElement, Element
 from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import BaseLaw
-from skcomplex.core.neighborhoods import BaseNeighborhood
-from skcomplex.core.spaces import BaseSpace
+from skcomplex.core.spaces import BaseNeighborhood, BaseSpace, BaseTime
 from skcomplex.core.system import System
-from skcomplex.core.times import BaseTime
 from skcomplex.errors import NotCheckedError, ValidationError
 from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
 

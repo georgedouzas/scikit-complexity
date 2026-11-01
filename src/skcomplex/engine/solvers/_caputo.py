@@ -9,8 +9,7 @@ from abc import abstractmethod
 import numpy as np
 
 from ...core.laws import BoundaryLaw, EquationLaw, FluxLaw, RateLaw, TransferLaw
-from ...core.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
-from ...core.times import ContinuousTime
+from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...errors import SolverError
 from ...specs import SupportSpec
 from ...types import Array, FormKind, OrderKind

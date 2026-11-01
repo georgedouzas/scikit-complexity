@@ -33,8 +33,7 @@ class LogisticCouplingInteraction(CouplingInteraction):
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.elements import LatticeElement
-        >>> from skcomplex.core.spaces import NetworkSpace
-        >>> from skcomplex.core.times import DiscreteTime
+        >>> from skcomplex.core.spaces import DiscreteTime, NetworkSpace
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.physics.synchronization import LogisticCouplingInteraction, LogisticNodeElement

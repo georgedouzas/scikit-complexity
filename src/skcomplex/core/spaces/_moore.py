@@ -1,4 +1,4 @@
-"""Define von Neumann neighbourhoods, the sites within a Manhattan distance."""
+"""Define Moore neighbourhoods, the sites within a radius along every dimension."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,14 +10,14 @@ from ._base import BaseNeighborhood
 from ._lattice_neighborhood import LatticeNeighborhood
 
 
-class VonNeumannNeighborhood(LatticeNeighborhood):
-    """Sites within a Manhattan distance, the 4 adjacent cells in two dimensions for radius 1.
+class MooreNeighborhood(LatticeNeighborhood):
+    """Sites within a radius along every dimension, the 8 surrounding cells in two dimensions for radius 1.
 
     The offsets come in lexicographic order, after the site itself when it is included.
 
     Args:
         radius:
-            The largest Manhattan distance.
+            The largest offset along any dimension.
 
         n_dim:
             The number of dimensions.
@@ -29,9 +29,11 @@ class VonNeumannNeighborhood(LatticeNeighborhood):
             The label of the neighbourhood.
 
     Examples:
-        >>> from skcomplex.core.neighborhoods import VonNeumannNeighborhood
-        >>> VonNeumannNeighborhood().check().prepare().offsets_
-        ((-1, 0), (0, -1), (0, 1), (1, 0))
+        >>> from skcomplex.core.spaces import MooreNeighborhood
+        >>> len(MooreNeighborhood().check().prepare().offsets_)
+        8
+        >>> len(MooreNeighborhood(center=True).check().prepare().offsets_)
+        9
     """
 
     def __init__(self, radius: int = 1, *, n_dim: int = 2, center: bool = False, label: str = 'neighborhood') -> None:
@@ -41,11 +43,7 @@ class VonNeumannNeighborhood(LatticeNeighborhood):
         self.center = center
 
     def _get_offsets(self) -> tuple[IntTuple, ...]:
-        """Return the offsets within the Manhattan distance, after the site itself when included."""
+        """Return the offsets within the radius along every dimension, after the site itself when included."""
         steps = range(-self.radius, self.radius + 1)
-        offsets = tuple(
-            offset
-            for offset in itertools.product(steps, repeat=self.n_dim)
-            if any(offset) and sum(map(abs, offset)) <= self.radius
-        )
+        offsets = tuple(offset for offset in itertools.product(steps, repeat=self.n_dim) if any(offset))
         return ((0,) * self.n_dim, *offsets) if self.center else offsets

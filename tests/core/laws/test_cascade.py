@@ -4,7 +4,7 @@ import pytest
 from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.laws import CascadeLaw, DriveLaw, LocalRuleLaw
-from skcomplex.core.neighborhoods import VonNeumannNeighborhood
+from skcomplex.core.spaces import VonNeumannNeighborhood
 from skcomplex.errors import ValidationError
 
 

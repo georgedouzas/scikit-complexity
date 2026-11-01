@@ -12,8 +12,7 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, LatticeElement
 from ....core.interactions import CascadeInteraction
-from ....core.neighborhoods import VonNeumannNeighborhood
-from ....core.spaces import LatticeSpace
+from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
 from ....specs import StateSpec, VisualSpec
 from ....types import Array
