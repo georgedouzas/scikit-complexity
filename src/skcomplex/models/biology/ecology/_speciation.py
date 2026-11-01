@@ -4,117 +4,20 @@
 # License: MIT
 
 
-from types import SimpleNamespace
-from typing import Annotated
-
 import numpy as np
-from sage.all__sagemath_symbolics import NN
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement
-from ....core.interactions import EvolutionInteraction
-from ....core.laws import BaseLaw
+from ....core.elements import GroupElement
 from ....core.system import System
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec
 from ....types import AnyArray
 from ..._catalog import register_model
-from ._organism_view import OrganismView
+from ._neutral_replacement import NeutralReplacementInteraction
+from ._organism import OrganismElement
 
 
 def _richness(species: AnyArray) -> float:
     """Return the number of distinct species among the individuals."""
     return float(len(np.unique(species)))
-
-
-class OrganismElement(Element):
-    """Individual of a neutral community, labelled by its species.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        species:
-            The label of the species.
-
-    Examples:
-        >>> from skcomplex.models.biology.ecology import OrganismElement
-        >>> GroupElement('community', element=OrganismElement, size=10, values={'species': 0.0}).size
-        10
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'species'}),
-        *,
-        species: Annotated[float, StateSpec(domain=NN)] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.species = species
-
-    @classmethod
-    def _get_view(cls) -> type[OrganismView]:
-        """Return the view of an organism, `OrganismView`."""
-        return OrganismView
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return no laws, since the replacement moves every individual.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return []
-
-
-class NeutralReplacementInteraction(EvolutionInteraction):
-    """Deaths of random individuals at unit rate, each replaced by the offspring of another, a new species at rate `nu`.
-
-    One unit of time holds `N` deaths. The offspring belongs to the species of a parent drawn among the individuals, or
-    with the probability `mutation` to a new species, labelled one above the largest label present. It is the neutral
-    Moran replacement of `EvolutionInteraction` with mutation to new labels.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the group of individuals.
-
-        mutation:
-            The probability `nu` that an offspring founds a new species.
-
-    Examples:
-        >>> from skcomplex.models.biology.ecology import NeutralReplacementInteraction
-        >>> NeutralReplacementInteraction('replacement', target='community', mutation=0.01).check().change
-        'new'
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        mutation: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.01,
-    ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            strategy='species',
-            fitness=None,
-            selection='proportional',
-            replacement='moran',
-            mutation=mutation,
-            alphabet=None,
-            change='new',
-        )
 
 
 @register_model(

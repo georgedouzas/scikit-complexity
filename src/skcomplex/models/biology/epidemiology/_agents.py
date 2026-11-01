@@ -3,29 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 import math
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement
+from ....core.elements import GroupElement
 from ....core.interactions import MovementInteraction, TransitionInteraction
 from ....core.spaces import LatticeSpace, NetworkSpace
 from ....core.system import System
 from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....engine.solvers import ModelView
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._person import DEAD, EXPOSED, INFECTED, RECOVERED, SUSCEPTIBLE, PersonElement
 from ._person_view import PersonView
+from ._traveller import TravellerElement
 from ._traveller_view import TravellerView
+from ._walker import DECEASED, HEALTHY, SICK, WalkerElement
 from ._walker_view import WalkerView
-
-SUSCEPTIBLE, EXPOSED, INFECTED, RECOVERED, DEAD = 0.0, 1.0, 2.0, 3.0, 4.0
-HEALTHY, SICK, DECEASED = 0.0, 1.0, 2.0
 
 
 def _is_living_person(agent: AgentViewProtocol, model: ModelViewProtocol) -> bool:
@@ -187,193 +182,6 @@ def _initial_health(size: int, sick: int, rng: np.random.Generator, value: float
     health = np.zeros(size)
     health[rng.choice(size, size=sick, replace=False)] = value
     return health
-
-
-class PersonElement(Element):
-    """Person of the agent-based SIR model, with incubation, mortality, waning immunity, and lockdown.
-
-    A `MovementInteraction` walks a living person to a neighbouring cell with probability `d`, or `lockdown_d` during
-    the lockdown, which lasts `lockdown_length` steps from `lockdown_start`. Transitions of the agent form, which
-    `agent_based_sir` adds, move the health of the person. An infectious person infects, with probability `beta`,
-    every susceptible person in its cell, who becomes exposed. An infectious person recovers with probability `gamma`
-    or dies with probability `mu`, and a recovered person loses immunity with probability `alpha`. Health is 0
-    susceptible, 1 exposed, 2 infected, 3 recovered, or 4 dead.
-
-    The incubation follows the convention of the residence time `after` of `TransitionInteraction`: the step of the
-    exposure counts as the first step in the exposed state, so a person exposed in step `n` becomes infectious at the
-    end of step `n + incubation - 1`. The clock that the person kept before counted the step of the exposure only when
-    the person acted after its infector in that step, so the onset now comes half a step earlier on average.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        health:
-            The health state.
-
-        d:
-            The probability of moving at every step.
-
-        beta:
-            The probability that an infectious person infects the susceptible persons of its cell.
-
-        gamma:
-            The probability of recovering at every step.
-
-        mu:
-            The probability of dying at every step of the infection.
-
-        alpha:
-            The probability of losing immunity at every step.
-
-        lockdown_start:
-            The step at which the lockdown starts.
-
-        lockdown_length:
-            The number of steps of the lockdown, 0 for none.
-
-        lockdown_d:
-            The probability of moving during the lockdown.
-
-    Examples:
-        >>> from skcomplex.models.biology.epidemiology import PersonElement
-        >>> GroupElement('people', element=PersonElement, size=100).size
-        100
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 4.0)}),
-        *,
-        health: Annotated[float, StateSpec(domain=NN)] = SUSCEPTIBLE,
-        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        lockdown_start: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        lockdown_length: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        lockdown_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.health = health
-        self.d = d
-        self.beta = beta
-        self.gamma = gamma
-        self.mu = mu
-        self.alpha = alpha
-        self.lockdown_start = lockdown_start
-        self.lockdown_length = lockdown_length
-        self.lockdown_d = lockdown_d
-
-    @classmethod
-    def _get_view(cls) -> type[PersonView]:
-        """Return the view of a person, `PersonView`."""
-        return PersonView
-
-
-class WalkerElement(Element):
-    """Random walker that carries a deadly disease, of Charbonneau's epidemic model.
-
-    In its own activation, a living walker moves to a neighbouring cell or node with probability `travel` by a
-    `MovementInteraction`, and a `TransitionInteraction` whose members act on their cell makes a sick walker infect
-    every healthy walker of its cell with probability `infection`. Another transition kills a sick walker after a
-    residence of a number of steps. Health is 0 healthy, 1 sick, or 2 dead.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        health:
-            The health state.
-
-        infection:
-            The probability that a sick walker infects a healthy walker of its cell at every step.
-
-        travel:
-            The probability of moving at every step.
-
-    Examples:
-        >>> from skcomplex.models.biology.epidemiology import WalkerElement
-        >>> GroupElement('walkers', element=WalkerElement, size=10).size
-        10
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 2.0)}),
-        *,
-        health: Annotated[float, StateSpec(domain=NN)] = HEALTHY,
-        infection: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        travel: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.health = health
-        self.infection = infection
-        self.travel = travel
-
-    @classmethod
-    def _get_view(cls) -> type[WalkerView]:
-        """Return the view of a walker, `WalkerView`."""
-        return WalkerView
-
-
-class TravellerElement(Element):
-    """Resident of a city at a network node, who infects fellow residents and travels to neighbouring cities.
-
-    In its own activation, an infected traveller infects every susceptible traveller of its node with probability
-    `tau`, by a `TransitionInteraction` whose members act on their cell, and another transition makes it recover after
-    a residence of a number of steps. A `MovementInteraction` moves it to a random neighbouring node with probability
-    `m`. Health is 0 susceptible, 2 infected, or 3 recovered.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        health:
-            The health state.
-
-        tau:
-            The probability of infecting a susceptible traveller of the same node at every step.
-
-        m:
-            The probability of moving to a neighbouring node at every step.
-
-    Examples:
-        >>> from skcomplex.models.biology.epidemiology import TravellerElement
-        >>> GroupElement('travellers', element=TravellerElement, size=10).size
-        10
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'health', 'color_range': (0.0, 3.0)}),
-        *,
-        health: Annotated[float, StateSpec(domain=NN)] = SUSCEPTIBLE,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.health = health
-        self.tau = tau
-        self.m = m
-
-    @classmethod
-    def _get_view(cls) -> type[TravellerView]:
-        """Return the view of a traveller, `TravellerView`."""
-        return TravellerView
 
 
 @register_model(

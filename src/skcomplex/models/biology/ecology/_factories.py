@@ -20,7 +20,8 @@ from ..common.populations import (
     MortalityInteraction,
     PopulationElement,
 )
-from ._populations import PredationInteraction, SeasonalLogisticGrowthInteraction
+from ._predation_interaction import PredationInteraction
+from ._seasonal_logistic_growth import SeasonalLogisticGrowthInteraction
 
 
 @register_model(

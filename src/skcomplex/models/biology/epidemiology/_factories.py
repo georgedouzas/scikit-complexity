@@ -6,7 +6,9 @@
 from ....core.elements import CompartmentElement
 from ....core.system import System
 from ..._catalog import register_model
-from ._compartments import ImmunityLossInteraction, InfectionInteraction, RecoveryInteraction
+from ._immunity_loss import ImmunityLossInteraction
+from ._infection import InfectionInteraction
+from ._recovery import RecoveryInteraction
 
 
 @register_model(

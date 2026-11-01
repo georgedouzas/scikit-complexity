@@ -4,23 +4,19 @@
 # License: MIT
 
 from collections.abc import Sequence
-from math import prod
-from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import SR, Expression
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.elements import Element
-from ....core.interactions import MapInteraction
-from ....core.laws.utils import where
 from ....core.system import System
 from ....errors import ValidationError
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._boolean_function import BooleanFunctionInteraction
+from ._boolean_node import BooleanNodeElement
+from ._threshold_function import ThresholdFunctionInteraction
 
 YEAST_NODES = ('Cln3', 'MBF', 'SBF', 'Cln1_2', 'Cdh1', 'Swi5', 'Cdc20', 'Clb5_6', 'Sic1', 'Clb1_2', 'Mcm1')
+
+
 YEAST_INPUTS = {
     'Cln3': (),
     'MBF': (('Cln3', 1), ('Clb1_2', -1)),
@@ -34,156 +30,12 @@ YEAST_INPUTS = {
     'Clb1_2': (('Clb5_6', 1), ('Mcm1', 1), ('Cdc20', -1), ('Cdh1', -1), ('Sic1', -1)),
     'Mcm1': (('Clb5_6', 1), ('Clb1_2', 1)),
 }
+
+
 YEAST_DECAYING = ('Cln3', 'Cln1_2', 'Swi5', 'Cdc20', 'Mcm1')
+
+
 YEAST_START = ('Cln3', 'Cdh1', 'Sic1')
-
-
-class BooleanNodeElement(Element):
-    """Node of a Boolean network, a gene or protein that is on or off.
-
-    Args:
-        label:
-            The label of the node.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial value, 0 or 1.
-
-    Examples:
-        >>> from skcomplex.models.biology.systems_biology import BooleanNodeElement
-        >>> BooleanNodeElement('Sic1', x=1).x
-        1
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-
-
-class BooleanFunctionInteraction(MapInteraction):
-    """Synchronous update of a node by a truth table of any number of input nodes.
-
-    A table of `2^k` entries reads the `k` inputs as the bits of a binary number, from the most significant, and gives
-    the next value of the target. The update is the sum, over the patterns whose entry is 1, of the product that is 1
-    exactly on that pattern.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the updated node.
-
-        inputs:
-            The paths of the input nodes, in the order of the bits of the table.
-
-        table:
-            The next value of the target for each of the `2^k` input patterns.
-
-    Raises:
-        ValidationError:
-            The table does not have one entry per pattern of the inputs.
-
-    Examples:
-        >>> from skcomplex.models.biology.systems_biology import BooleanFunctionInteraction
-        >>> BooleanFunctionInteraction('and', target='c', inputs=['a', 'b'], table=(0, 0, 0, 1)).table
-        (0, 0, 0, 1)
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        inputs: Annotated[list[str], RoleSpec(variadic=True)],
-        table: tuple[int, ...] = (0,),
-    ) -> None:
-        super().__init__(label, target=target, state='x', function=self._get_next)
-        self.inputs = inputs
-        self.table = table
-
-    def _get_pattern(self, inputs: Sequence[Expression], index: int) -> Expression:
-        """Return the product that is 1 when the inputs, read as bits from the most significant, spell an index."""
-        bits = [(index >> (len(inputs) - 1 - position)) & 1 for position in range(len(inputs))]
-        return prod((value if bit else 1 - value for value, bit in zip(inputs, bits, strict=True)), start=SR(1))
-
-    def _get_next(self, s: SimpleNamespace) -> Expression:
-        """Return the next value of the target by the truth table."""
-        inputs = [item.x for item in s.inputs]
-        terms = [self._get_pattern(inputs, index) for index, entry in enumerate(self.table) if entry]
-        return sum(terms, start=SR(0))
-
-    def _check(self) -> None:
-        """Raise an error for a table without one entry per pattern of the inputs.
-
-        Raises:
-            ValidationError:
-                The table does not have one entry per pattern of the inputs.
-        """
-        super()._check()
-        if len(self.table) != 2 ** len(self.inputs):
-            error_msg = (
-                f'BooleanFunction {self.label} reads {len(self.inputs)} inputs, which take {2 ** len(self.inputs)} '
-                f'patterns, but its table has {len(self.table)} entries.'
-            )
-            raise ValidationError(error_msg)
-
-
-class ThresholdFunctionInteraction(MapInteraction):
-    """Synchronous update of a node by the sign of the weighted sum of its active inputs, after Li et al.
-
-    The node turns on when the sum `w_0 x_0 + w_1 x_1 + ...` over its inputs is positive and off when it is negative.
-    When the sum is zero, a node that decays turns off and any other node keeps its value.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the updated node.
-
-        inputs:
-            The paths of the input nodes.
-
-        weights:
-            The weight of every input, positive for activation and negative for inhibition.
-
-        decays:
-            Whether the node turns off without net input.
-
-    Examples:
-        >>> from skcomplex.models.biology.systems_biology import ThresholdFunctionInteraction
-        >>> ThresholdFunctionInteraction('sic1', target='Sic1', inputs=['Swi5', 'Cln1_2'], weights=[1.0, -1.0]).weights
-        [1.0, -1.0]
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        inputs: Annotated[list[str], RoleSpec(variadic=True)],
-        weights: Annotated[Sequence[float], ParameterSpec(per='inputs')] = (),
-        decays: bool = False,
-    ) -> None:
-        super().__init__(label, target=target, state='x', function=self._get_next)
-        self.inputs = inputs
-        self.weights = weights
-        self.decays = decays
-
-    def _get_next(self, s: SimpleNamespace) -> Expression:
-        """Return 1 for a positive weighted input, 0 for a negative one, and the held or decayed value for none."""
-        total = sum((weight * item.x for weight, item in zip(s.weights, s.inputs, strict=True)), start=SR(0))
-        unchanged = 0 if self.decays else s.target.x
-        return where(total > 0, 1, where(total < 0, 0, unchanged))
 
 
 @register_model(

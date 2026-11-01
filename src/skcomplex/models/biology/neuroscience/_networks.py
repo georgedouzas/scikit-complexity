@@ -4,33 +4,37 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo, tanh
-from sage.sets.real_set import RealSet
 from scipy.ndimage import convolve
 
-from ....core.elements import Element, FieldElement
-from ....core.interactions import CouplingInteraction, RateInteraction, RelaxationInteraction
-from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import delayed, laplacian, logistic
+from ....core.elements import FieldElement
+from ....core.interactions import RateInteraction, RelaxationInteraction
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....core.types import Target
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._delayed_synapse import DelayedSynapseInteraction
+from ._global_inhibition import GlobalInhibitionInteraction
+from ._inhibitor import InhibitorElement
 from ._inhibitor_drive import InhibitorDriveInteraction
 from ._spike_reset import SpikeResetInteraction
+from ._spiking_neuron import SpikingNeuronElement
+from ._terman_wang import SILENT, TermanWangElement
 
 NEAREST = np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])
+
+
 LEGION_OBJECTS = ((1, 1, 0, 0), (1, 0, 0, 0), (0, 0, 0, 1), (0, 0, 0, 1))
-SILENT = -2.0
+
+
 THRESHOLD = 20.0
+
+
 RESET = 10.0
+
+
 TRACE_TIME = 2.0
 
 
@@ -43,319 +47,6 @@ def _link_weights(stimulus: Array, total: float) -> Array:
     """Return the weight of each link into every site, a total weight shared among its stimulated neighbours."""
     neighbours = convolve(stimulus, NEAREST, mode='constant')
     return total / np.maximum(neighbours, 1.0)
-
-
-class SpikingNeuronElement(Element):
-    """Leaky integrate-and-fire neuron with an exponential synaptic trace of its own spikes.
-
-    The potential follows `tau v' = -v + mu` plus synaptic input, and the trace decays as `s' = -s / tau_s`. A spike
-    reset sets the potential back and raises the trace by `1 / tau_s`, so every spike carries a unit area of trace.
-    Units are mV and ms. The element holds the states and parameters and has no laws of its own: the leak and trace
-    interactions of `delayed_lif_network` read its parameters.
-
-    Args:
-        label:
-            The label of the neuron.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        v:
-            The initial potential.
-
-        s:
-            The initial synaptic trace.
-
-        tau:
-            The membrane time constant.
-
-        mu:
-            The constant external drive, the potential the membrane relaxes to.
-
-        tau_s:
-            The decay time of the synaptic trace.
-
-    Examples:
-        >>> from skcomplex.models.biology.neuroscience import SpikingNeuronElement
-        >>> SpikingNeuronElement('neuron').tau_s
-        2.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        v: Annotated[float, StateSpec()] = 0.0,
-        s: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
-        mu: Annotated[float, ParameterSpec()] = 25.0,
-        tau_s: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.v = v
-        self.s = s
-        self.tau = tau
-        self.mu = mu
-        self.tau_s = tau_s
-
-
-class DelayedSynapseInteraction(RateInteraction):
-    """Synapse that adds the presynaptic trace from a transmission delay ago to the postsynaptic potential.
-
-    The target gains `J s_source(t - D)`, so every presynaptic spike moves the postsynaptic potential by `J` in
-    total, spread over the decay time of the trace and arriving after the delay `D`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        source:
-            The path of the presynaptic neuron.
-
-        target:
-            The path of the postsynaptic neuron.
-
-        J:
-            The efficacy in mV, positive for excitation and negative for inhibition.
-
-        D:
-            The transmission delay in ms.
-
-    Examples:
-        >>> from skcomplex.models.biology.neuroscience import DelayedSynapseInteraction
-        >>> DelayedSynapseInteraction('synapse', source='a', target='b', J=-1.0).D
-        1.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        source: Annotated[str, RoleSpec()],
-        target: Annotated[str, RoleSpec()],
-        J: Annotated[float, ParameterSpec()] = 0.5,
-        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
-    ) -> None:
-        super().__init__(label, target=target, state='v')
-        self.source = source
-        self.J = J
-        self.D = D
-
-    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the delayed synaptic input `J s_source(t - D)`.
-
-        Args:
-            namespace:
-                The namespace of the symbols the rate can use, with the namespaces of the source and the target.
-
-        Returns:
-            rate:
-                The rate of the postsynaptic potential.
-        """
-        return namespace.J * delayed(namespace.source.s, namespace.D)
-
-
-class TermanWangElement(Element):
-    """Relaxation oscillator of Terman and Wang, coupled to its lattice neighbours through their active phases.
-
-    The fast variable follows `x' = 3x - x³ + 2 - y + I + W m (sum_k m_k H(x_k - theta_x))`, summed over the four
-    nearest sites, and the slow one `y' = epsilon (gamma (1 + tanh(x / beta)) - y)`. `H` is a smooth step of width
-    `kappa`, and `m` marks the stimulated sites, so only stimulated neighbours excite each other. A positive input `I`
-    makes the oscillator oscillate and a negative one makes it excitable.
-
-    Args:
-        label:
-            The label of the oscillator or the lattice field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial fast variable.
-
-        y:
-            The initial slow variable.
-
-        I:
-            The external input.
-
-        m:
-            1 for a stimulated site and 0 otherwise.
-
-        W:
-            The weight of each excitatory link into the site.
-
-        epsilon:
-            The time scale of the slow variable.
-
-        gamma:
-            The height of the slow nullcline.
-
-        beta:
-            The width of the slow nullcline's step.
-
-        theta_x:
-            The threshold of the active phase.
-
-        kappa:
-            The width of the smooth steps.
-
-    Examples:
-        >>> from skcomplex.models.biology.neuroscience import TermanWangElement
-        >>> TermanWangElement('oscillator').gamma
-        6.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec()] = SILENT,
-        y: Annotated[float, StateSpec()] = 0.0,
-        I: Annotated[float, ParameterSpec()] = 0.2,
-        m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        W: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 6.0,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.02,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 6.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
-        theta_x: Annotated[float, ParameterSpec()] = -0.5,
-        kappa: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.02,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.y = y
-        self.I = I
-        self.m = m
-        self.W = W
-        self.epsilon = epsilon
-        self.gamma = gamma
-        self.beta = beta
-        self.theta_x = theta_x
-        self.kappa = kappa
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the fast variable with its excitation by the neighbours, and the slow recovery.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        active = s.m * logistic(s.x - s.theta_x, 0, s.kappa)
-        excitation = s.W * s.m * (laplacian(active) + 4 * active)
-        return [
-            RateLaw(s.x, 3 * s.x - s.x**3 + 2 - s.y + s.I + excitation),
-            RateLaw(s.y, s.epsilon * (s.gamma * (1 + tanh(s.x / s.beta)) - s.y)),
-        ]
-
-
-class InhibitorElement(Element):
-    """Global inhibitor of a LEGION network, whose activity `z` decays at rate `phi` without drive.
-
-    Args:
-        label:
-            The label of the inhibitor.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        z:
-            The initial activity.
-
-        phi:
-            The rate of the inhibitor.
-
-    Examples:
-        >>> from skcomplex.models.biology.neuroscience import InhibitorElement
-        >>> InhibitorElement('inhibitor').phi
-        3.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        z: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        phi: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.z = z
-        self.phi = phi
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the decay of the inhibitor.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.z, -s.phi * s.z)]
-
-
-class GlobalInhibitionInteraction(CouplingInteraction):
-    """Inhibition of every oscillator of a lattice by a global inhibitor, once the inhibitor exceeds its threshold.
-
-    Every oscillator gets `-W_z H(z - theta_z)` from the inhibitor, a smooth step of width `kappa` of the oscillator.
-    It is the coupling of the members of a group to a hub element, and `InhibitorDriveInteraction` drives the hub.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        oscillators:
-            The path of the lattice of oscillators.
-
-        inhibitor:
-            The path of the inhibitor.
-
-        W_z:
-            The strength of the inhibition.
-
-        theta_z:
-            The threshold of the inhibitor.
-
-    Examples:
-        >>> from skcomplex.models.biology.neuroscience import GlobalInhibitionInteraction
-        >>> GlobalInhibitionInteraction('inhibition', inhibitor='z', oscillators='grid').W_z
-        1.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        oscillators: Annotated[str, RoleSpec()],
-        inhibitor: Annotated[str, RoleSpec()],
-        W_z: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
-        theta_z: Annotated[float, ParameterSpec()] = 0.1,
-    ) -> None:
-        super().__init__(
-            label,
-            target=oscillators,
-            source=inhibitor,
-            write='x',
-            function=self._get_inhibition,
-            mode='group',
-        )
-        self.oscillators = oscillators
-        self.inhibitor = inhibitor
-        self.W_z = W_z
-        self.theta_z = theta_z
-
-    @staticmethod
-    def _get_inhibition(namespace: SimpleNamespace) -> Target:
-        """Return the inhibition `-W_z H(z - theta_z)` of an oscillator."""
-        return -namespace.W_z * logistic(namespace.other.z - namespace.theta_z, 0, namespace.member.kappa)
 
 
 @register_model(

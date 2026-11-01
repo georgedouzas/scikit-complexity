@@ -4,21 +4,18 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.real_set import RealSet
 
-from ....core.elements import CompartmentElement, LatticeElement
-from ....core.interactions import BaseInteraction, Interaction, JumpInteraction
-from ....core.laws import BaseLaw, JumpLaw
+from ....core.elements import LatticeElement
+from ....core.interactions import BaseInteraction, JumpInteraction
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.backends import NumbaBackend
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec
 from ..._catalog import register_model
+from ._habitat_patch import HabitatPatchElement
+from ._hopping import HoppingInteraction
 
 
 def _neighbor_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
@@ -30,96 +27,6 @@ def _neighbor_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
             neighbours = np.roll(indices, -step, axis=axis)
             pairs.extend(zip(indices.ravel().tolist(), neighbours.ravel().tolist(), strict=True))
     return pairs
-
-
-class HabitatPatchElement(CompartmentElement):
-    """Patch of space, a compartment of `n` organisms that divide and die at the same rate `alpha`.
-
-    The divisions and deaths are jumps of `neutral_clustering`, so the number of organisms is a symmetric random walk,
-    and an empty patch stays empty without arrivals from its neighbours.
-
-    Args:
-        label:
-            The label of the patch or the lattice of patches.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        n:
-            The initial number of organisms.
-
-        alpha:
-            The rate at which an organism divides, equal to the rate at which it dies.
-
-    Examples:
-        >>> from skcomplex.models.biology.ecology import HabitatPatchElement
-        >>> HabitatPatchElement('patch', n=5.0).alpha
-        1.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('image', {'low': 0.0}),
-        *,
-        n: Annotated[float, StateSpec(domain=NN)] = 10.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual, n=n)
-        self.alpha = alpha
-
-
-class HoppingInteraction(Interaction):
-    """Hops of single organisms between neighbouring patches, each organism moving to each neighbour at the rate `beta`.
-
-    The patches are the entries of a variadic role, and every pair `(i, j)` of `links` gives a jump that moves one
-    organism from the patch of entry `i` to the patch of entry `j` at the rate `beta n_i`.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        patches:
-            The paths of the patches, such as the members `patches[i]` of a lattice.
-
-        beta:
-            The rate at which an organism hops to one neighbouring patch.
-
-        links:
-            The ordered pairs of entries of `patches` between which organisms hop.
-
-    Examples:
-        >>> from skcomplex.models.biology.ecology import HoppingInteraction
-        >>> HoppingInteraction('hopping', patches=['a', 'b'], links=[(0, 1), (1, 0)]).beta
-        0.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        patches: Annotated[list[str], RoleSpec(variadic=True)],
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        links: Sequence[tuple[int, int]] = (),
-    ) -> None:
-        super().__init__(label)
-        self.patches = patches
-        self.beta = beta
-        self.links = links
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return one hop per ordered pair of neighbouring patches.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        patches = s.patches
-        return [JumpLaw(s.beta * patches[i].n, {patches[i].n: -1, patches[j].n: 1}) for i, j in self.links]
 
 
 @register_model(

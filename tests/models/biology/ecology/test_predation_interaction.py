@@ -1,6 +1,4 @@
-"""Test the `_populations` module of `skcomplex.models.biology.ecology`."""
-
-import pytest
+"""Test the `_predation_interaction` module of `skcomplex.models.biology.ecology`."""
 
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
@@ -10,22 +8,6 @@ from skcomplex.models.biology.common.populations import (
     PopulationElement,
 )
 from skcomplex.models.biology.ecology import PredationInteraction
-
-
-def test_logistic_growth_saturates():
-    """Test that logistic growth approaches the carrying capacity."""
-    system = System(
-        elements=[PopulationElement('p', n=5)],
-        interactions=[LogisticGrowthInteraction('g', target='p', r=1.0, K=200)],
-    )
-    assert Simulation(
-        system,
-        dt=1.0,
-    ).check().prepare().run(
-        until=30,
-    ).trajectory_.values('p.n')[
-        -1
-    ] == pytest.approx(200, rel=1e-3)
 
 
 def test_lotka_volterra_oscillates():

@@ -4,21 +4,18 @@
 # License: MIT
 
 
-from typing import Annotated
-
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement
+from ....core.elements import GroupElement
 from ....core.interactions import LifeCycleInteraction, MapInteraction, MovementInteraction, TransferInteraction
 from ....core.laws import Source
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....core.types import AgentViewProtocol, ModelViewProtocol
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._predator import PredatorElement
 from ._predator_view import PredatorView
+from ._prey import PreyElement
 from ._prey_view import PreyView
 
 
@@ -88,93 +85,6 @@ def _get_predators(
             schedule='member',
         ),
     ]
-
-
-class PreyElement(Element):
-    """Prey that walks at random and gives birth in cells it does not share with other prey.
-
-    In its own activation a prey walks to a random neighbouring cell and then gives birth with the probability
-    `birth` when no other prey shares the new cell, by member interactions.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        birth:
-            The probability of giving birth at every step.
-
-    Examples:
-        >>> from skcomplex.models.biology.ecology import PreyElement
-        >>> GroupElement('rabbits', element=PreyElement, size=200).size
-        200
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.3}),
-        *,
-        birth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.birth = birth
-
-    @classmethod
-    def _get_view(cls) -> type[PreyView]:
-        """Return the view of a prey, `PreyView`."""
-        return PreyView
-
-
-class PredatorElement(Element):
-    """Predator that walks at random, eats a prey of its cell, breeds after a meal, and dies.
-
-    In its own activation a predator walks to a random neighbouring cell, eats and removes one random prey of the new
-    cell, counted in `meals`, breeds with the probability `conversion` after a meal, dies with the probability
-    `death`, and digests its meals, by member interactions.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        meals:
-            The prey the predator ate in the current step.
-
-        conversion:
-            The probability of breeding after eating a prey.
-
-        death:
-            The probability of dying at every step.
-
-    Examples:
-        >>> from skcomplex.models.biology.ecology import PredatorElement
-        >>> GroupElement('foxes', element=PredatorElement, size=50).size
-        50
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.4}),
-        *,
-        meals: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        conversion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        death: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.meals = meals
-        self.conversion = conversion
-        self.death = death
-
-    @classmethod
-    def _get_view(cls) -> type[PredatorView]:
-        """Return the view of a predator, `PredatorView`."""
-        return PredatorView
 
 
 @register_model(

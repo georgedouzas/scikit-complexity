@@ -4,14 +4,12 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
-from ....core.elements import Element, FieldElement, GroupElement
+from ....core.elements import FieldElement, GroupElement
 from ....core.interactions import (
     DiffusionInteraction,
     LifeCycleInteraction,
@@ -24,17 +22,30 @@ from ....core.laws import Source
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....core.types import AgentViewProtocol, ModelViewProtocol
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._sprout import SproutElement
 from ._sprout_view import SproutView
+from ._tissue import TissueElement
+from ._tumour_cell import TumourCellElement
 from ._tumour_cell_view import TumourCellView
+from ._vessel import VesselElement
 from ._vessel_view import VesselView
 
 OXYGEN = 'tissue/tissue.oxygen'
+
+
 VEGF = 'tissue/tissue.vegf'
+
+
 VESSELS = 'cells/vessels'
+
+
 TUMOUR = 'cells/tumour'
+
+
 SPROUTS = 'cells/sprouts'
+
+
 TISSUE = 'tissue/tissue'
 
 
@@ -206,221 +217,6 @@ def _get_cells() -> list[TransferInteraction | MapInteraction | LifeCycleInterac
         LifeCycleInteraction('branching', target=SPROUTS, birth=_get_branching, schedule='member'),
         MovementInteraction('chemotaxis', target=SPROUTS, step=_get_chemotaxis, condition=_active, schedule='member'),
     ]
-
-
-class TissueElement(Element):
-    """Tissue in which oxygen and the vascular endothelial growth factor VEGF diffuse and decay.
-
-    Both follow `u' = D Δu - lambda u`, and cells add or remove amounts at their sites: vessels supply oxygen, tumour
-    cells consume it, and hypoxic tumour cells secrete VEGF. The model adds the diffusion and the decay as
-    interactions.
-
-    Args:
-        label:
-            The label of the tissue or the lattice field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        oxygen:
-            The initial oxygen.
-
-        vegf:
-            The initial VEGF.
-
-        D_oxygen:
-            The diffusion of oxygen.
-
-        decay_oxygen:
-            The decay rate of oxygen.
-
-        D_vegf:
-            The diffusion of VEGF.
-
-        decay_vegf:
-            The decay rate of VEGF.
-
-    Examples:
-        >>> from skcomplex.models.biology.oncology import TissueElement
-        >>> TissueElement('tissue').D_vegf
-        1.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        oxygen: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        vegf: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        D_oxygen: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        decay_oxygen: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        D_vegf: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        decay_vegf: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.oxygen = oxygen
-        self.vegf = vegf
-        self.D_oxygen = D_oxygen
-        self.decay_oxygen = decay_oxygen
-        self.D_vegf = D_vegf
-        self.decay_vegf = decay_vegf
-
-
-class TumourCellElement(Element):
-    """Tumour cell that consumes oxygen, divides when supplied, secretes VEGF when hypoxic, and dies without oxygen.
-
-    Every step the cell takes up `consumption` oxygen at its site, or what is left. Above `proliferation` it divides
-    with probability `division` into a free neighbouring cell. Below `hypoxia` it secretes `secretion` VEGF, and below
-    `necrosis` it dies. The model adds the uptake, the hypoxia, the secretion, and the life cycle as member
-    interactions.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        hypoxic:
-            Whether the cell is hypoxic, `1`, or not, `0`.
-
-        consumption:
-            The oxygen a cell takes up per step.
-
-        proliferation:
-            The oxygen above which a cell divides.
-
-        division:
-            The probability per step of a division.
-
-        hypoxia:
-            The oxygen below which a cell secretes VEGF.
-
-        secretion:
-            The VEGF a hypoxic cell secretes per step.
-
-        necrosis:
-            The oxygen below which a cell dies.
-
-    Examples:
-        >>> from skcomplex.models.biology.oncology import TumourCellElement
-        >>> GroupElement('tumour', element=TumourCellElement, size=3, location=(5, 5)).size
-        3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'hypoxic', 'color_range': (0.0, 1.0)}),
-        *,
-        hypoxic: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        consumption: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        proliferation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        division: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-        hypoxia: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        secretion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        necrosis: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.hypoxic = hypoxic
-        self.consumption = consumption
-        self.proliferation = proliferation
-        self.division = division
-        self.hypoxia = hypoxia
-        self.secretion = secretion
-        self.necrosis = necrosis
-
-    @classmethod
-    def _get_view(cls) -> type[TumourCellView]:
-        """Return the view of a tumour cell, `TumourCellView`."""
-        return TumourCellView
-
-
-class VesselElement(Element):
-    """Segment of a blood vessel, which supplies oxygen to its site every step, a member transfer of the model.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        supply:
-            The oxygen supplied per step.
-
-    Examples:
-        >>> from skcomplex.models.biology.oncology import VesselElement
-        >>> GroupElement('vessels', element=VesselElement, size=2, location=[(0, 0), (0, 1)]).size
-        2
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        supply: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.supply = supply
-
-    @classmethod
-    def _get_view(cls) -> type[VesselView]:
-        """Return the view of a vessel, `VesselView`."""
-        return VesselView
-
-
-class SproutElement(Element):
-    """Endothelial tip cell that climbs the VEGF gradient and leaves a new vessel segment behind it.
-
-    Every step the tip moves to a neighbouring cell with a probability that grows with `exp(chemotaxis * VEGF /
-    VEGF_here)`, so it senses the relative gradient, and it leaves a vessel segment where there was none. With
-    probability `branching` the tip splits in two, the new tip standing where the tip was. Below the VEGF level
-    `activation` the tip stays put. The model adds the vessel segment, the branching, and the step as member
-    interactions.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        chemotaxis:
-            How strongly VEGF draws the tip.
-
-        branching:
-            The probability per step of a new tip.
-
-        activation:
-            The VEGF above which the tip moves.
-
-    Examples:
-        >>> from skcomplex.models.biology.oncology import SproutElement
-        >>> GroupElement('sprouts', element=SproutElement, size=2, location=(0, 5)).size
-        2
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        chemotaxis: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
-        branching: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
-        activation: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.chemotaxis = chemotaxis
-        self.branching = branching
-        self.activation = activation
-
-    @classmethod
-    def _get_view(cls) -> type[SproutView]:
-        """Return the view of a sprout tip, `SproutView`."""
-        return SproutView
 
 
 @register_model(

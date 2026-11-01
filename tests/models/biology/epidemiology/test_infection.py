@@ -1,4 +1,4 @@
-"""Test the `_compartments` module of `skcomplex.models.biology.epidemiology`."""
+"""Test the `_infection` module of `skcomplex.models.biology.epidemiology`."""
 
 import numpy as np
 

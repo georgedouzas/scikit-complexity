@@ -1,11 +1,12 @@
 """Test the `_logistic_growth` module of `skcomplex.models.biology.common.populations`."""
 
 import numpy as np
+import pytest
 
 from skcomplex.core.elements import CompartmentElement
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.common.populations import LogisticGrowthInteraction
+from skcomplex.models.biology.common.populations import LogisticGrowthInteraction, PopulationElement
 
 
 def _run(interaction, n0, until=4.0, dt=0.01):
@@ -27,3 +28,19 @@ def test_logistic_growth_has_no_exponent_parameter():
     params = LogisticGrowthInteraction('growth', target='population').get_params()
     assert {'r', 'K', 'tau'} <= set(params)
     assert 'p' not in params
+
+
+def test_logistic_growth_saturates():
+    """Test that logistic growth approaches the carrying capacity."""
+    system = System(
+        elements=[PopulationElement('p', n=5)],
+        interactions=[LogisticGrowthInteraction('g', target='p', r=1.0, K=200)],
+    )
+    assert Simulation(
+        system,
+        dt=1.0,
+    ).check().prepare().run(
+        until=30,
+    ).trajectory_.values('p.n')[
+        -1
+    ] == pytest.approx(200, rel=1e-3)

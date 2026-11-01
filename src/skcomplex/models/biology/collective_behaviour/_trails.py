@@ -4,14 +4,12 @@
 # License: MIT
 
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import cast
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
-from ....core.elements import Element, FieldElement, GroupElement
+from ....core.elements import FieldElement, GroupElement
 from ....core.interactions import (
     DiffusionInteraction,
     LifeCycleInteraction,
@@ -24,8 +22,9 @@ from ....core.laws import Source
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....core.types import AgentViewProtocol, ModelViewProtocol
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._ground import GroundElement
+from ._walker import WalkerElement
 from ._walker_view import WalkerView
 
 TRAIL = 'land/ground.V'
@@ -123,143 +122,6 @@ def _get_footprint(walker: AgentViewProtocol, cell: object, model: ModelViewProt
     if not isinstance(walker, WalkerView):
         return 0.0
     return walker.intensity * (1 - model.field('target.G', cell) / walker.G_max)
-
-
-class GroundElement(Element):
-    """Ground whose structure `G` is raised by footprints and recovers, with a trail potential `V` that smooths it.
-
-    The structure relaxes back to bare ground as `G' = -G / T`, and walkers add footprints. The trail potential
-    follows `V' = D ΔV + (G - V) / tau`, so it settles to the structure smoothed over a length `sqrt(D tau)`, the
-    distance from which walkers notice a trail. The element holds the states and their parameters, and the model adds
-    the fading, the diffusion, and the relaxation as interactions.
-
-    Args:
-        label:
-            The label of the ground or the lattice field.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        G:
-            The initial ground structure.
-
-        V:
-            The initial trail potential.
-
-        T:
-            The durability of trails, the time over which they fade.
-
-        D:
-            The diffusion of the trail potential.
-
-        tau:
-            The relaxation time of the trail potential.
-
-    Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import GroundElement
-        >>> GroundElement('ground').T
-        200.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        G: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        V: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 200.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.G = G
-        self.V = V
-        self.T = T
-        self.D = D
-        self.tau = tau
-
-
-class WalkerElement(Element):
-    """Pedestrian who walks toward a goal, drawn to existing trails, and leaves footprints that build them.
-
-    The walker heads along the unit vector toward its goal plus `attraction` times the gradient of the trail potential
-    `V`, after Helbing, Keltsch, and Molnár. Every step it moves to a neighbouring cell with a probability that grows
-    with `exp(directedness * cos angle)`, where the angle is between the step and the heading, and adds the footprint
-    `intensity (1 - G / G_max)` to the ground. The step after it arrives at its goal it leaves the green, and a new
-    walker enters there with another entry point as goal, drawn at random, a renewal in place. The model adds the
-    step, the footprint, the renewal, and the arrival as member interactions.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        goal_x:
-            The column of the goal.
-
-        goal_y:
-            The row of the goal.
-
-        arrived:
-            Whether the walker stood at its goal at the end of the previous step, 1 or 0.
-
-        directedness:
-            How strongly the walker heads for its goal.
-
-        attraction:
-            How strongly trails draw the walker.
-
-        intensity:
-            The footprint on bare ground.
-
-        G_max:
-            The largest ground structure.
-
-        width:
-            The number of columns of the grid.
-
-        height:
-            The number of rows of the grid.
-
-    Examples:
-        >>> from skcomplex.models.biology.collective_behaviour import WalkerElement
-        >>> GroupElement('walkers', element=WalkerElement, size=4, location=(0, 0)).size
-        4
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'goal_x'}),
-        *,
-        goal_x: Annotated[float, StateSpec()] = 0.0,
-        goal_y: Annotated[float, StateSpec()] = 0.0,
-        arrived: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        directedness: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        attraction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        intensity: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        G_max: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
-        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
-        height: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.goal_x = goal_x
-        self.goal_y = goal_y
-        self.arrived = arrived
-        self.directedness = directedness
-        self.attraction = attraction
-        self.intensity = intensity
-        self.G_max = G_max
-        self.width = width
-        self.height = height
-
-    @classmethod
-    def _get_view(cls) -> type[WalkerView]:
-        """Return the view of a walker, `WalkerView`."""
-        return WalkerView
 
 
 @register_model(

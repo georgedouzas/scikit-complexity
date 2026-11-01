@@ -4,60 +4,18 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, FieldElement
+from ....core.elements import FieldElement
 from ....core.interactions import DiffusionInteraction
-from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import delayed, hill
 from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....engine.solvers import RK4Solver
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.excitable import FitzHughNagumoInteraction
-
-
-class FitzHughNagumoElement(Element):
-    """Cell of an excitable medium, with a potential `u` and a recovery `v`.
-
-    The cell has no laws of its own. FitzHugh-Nagumo kinetics and a diffusion of the potential change it.
-
-    Args:
-        label:
-            The label of the cell.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        u:
-            The initial potential.
-
-        v:
-            The initial recovery.
-
-    Examples:
-        >>> from skcomplex.models.biology.physiology import FitzHughNagumoElement
-        >>> FitzHughNagumoElement('cell', u=1.5).u
-        1.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        u: Annotated[float, StateSpec()] = 0.0,
-        v: Annotated[float, StateSpec()] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.u = u
-        self.v = v
+from ._fitz_hugh_nagumo import FitzHughNagumoElement
+from ._mackey_glass import MackeyGlassElement
 
 
 @register_model(
@@ -112,72 +70,6 @@ def fitzhugh_nagumo(
     kinetics = FitzHughNagumoInteraction('kinetics', target='medium', fast='u', slow='v', a=a, b=b, epsilon=epsilon)
     diffusion = DiffusionInteraction('diffusion', target='medium', state='u', coefficient=D)
     return System(elements=[medium], interactions=[kinetics, diffusion])
-
-
-class MackeyGlassElement(Element):
-    """Concentration `x` of circulating blood cells, made at a delayed Hill rate and lost at a constant rate.
-
-    The concentration follows `x' = beta x(t - tau) / (1 + x(t - tau)^n) - gamma x`.
-
-    Args:
-        label:
-            The label of the element.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial concentration, also its history.
-
-        beta:
-            The production rate.
-
-        gamma:
-            The loss rate.
-
-        n:
-            The Hill coefficient of the production.
-
-        tau:
-            The delay of the production.
-
-    Examples:
-        >>> from skcomplex.models.biology.physiology import MackeyGlassElement
-        >>> MackeyGlassElement('blood', tau=6.0).tau
-        6.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        beta: Annotated[float, ParameterSpec()] = 0.2,
-        gamma: Annotated[float, ParameterSpec()] = 0.1,
-        n: Annotated[float, ParameterSpec()] = 10.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 17.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.beta = beta
-        self.gamma = gamma
-        self.n = n
-        self.tau = tau
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the delayed production and the loss of the cells.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        history = delayed(s.x, s.tau)
-        return [RateLaw(s.x, s.beta * history * (1 - hill(history, 1, s.n)) - s.gamma * s.x)]
 
 
 @register_model(

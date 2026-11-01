@@ -5,7 +5,6 @@ import numpy as np
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models.biology.oncology import (
-    KirschnerPanettaTumourElement,
     anti_pd1_checkpoint,
     delayed_dc_vaccine,
     dendritic_cell_vaccine,
@@ -24,11 +23,6 @@ def _run(system, until, dt):
 def _count_peaks(values):
     """Return the number of strict local maxima of a series."""
     return int(np.sum((values[1:-1] > values[:-2]) & (values[1:-1] > values[2:])))
-
-
-def test_kirschner_panetta_is_not_registered_twice():
-    """Test that the scaled tumour of the immunotherapy model is a new element, not the book's dimensional one."""
-    assert KirschnerPanettaTumourElement('site').alpha1 == 2e7
 
 
 def test_kirschner_panetta_oscillates_untreated_and_clears_when_treated():

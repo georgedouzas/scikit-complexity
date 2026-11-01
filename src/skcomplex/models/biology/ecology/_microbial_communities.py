@@ -4,113 +4,18 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
-from typing import Annotated
 
-import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo
-from sage.sets.real_set import RealSet
-
-from ....core.elements import Element, GroupElement
-from ....core.interactions import RateInteraction
-from ....core.laws.utils import total
+from ....core.elements import GroupElement
 from ....core.system import System
 from ....errors import ValidationError
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._generalized_lotka_volterra import GeneralizedLotkaVolterraInteraction
+from ._microbe import MicrobeElement
 
 COMMUNITY_GROWTH = (1.0, 0.8, 0.6)
+
+
 COMMUNITY_INTERACTIONS = ((-1.0, -0.3, 0.2), (-0.2, -1.0, -0.3), (0.1, -0.2, -1.0))
-
-
-class MicrobeElement(Element):
-    """Species of a microbial community, with an abundance and an intrinsic growth rate.
-
-    Args:
-        label:
-            The label of the species or of the group of species.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial abundance.
-
-        b:
-            The intrinsic growth rate.
-
-    Examples:
-        >>> from skcomplex.models.biology.ecology import MicrobeElement
-        >>> MicrobeElement('species', x=0.1, b=0.8).b
-        0.8
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        b: Annotated[float, ParameterSpec()] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.b = b
-
-
-class GeneralizedLotkaVolterraInteraction(RateInteraction):
-    """Growth of the species of a group, `dx_i/dt = x_i (b_i + sum_j a_ij x_j)`, with an interaction matrix `a`.
-
-    The rate of a species is its intrinsic growth rate `b`, a parameter of the species, plus the total over the group
-    weighted by row `i` of the matrix, times its abundance. The diagonal entries are the interactions of a species with
-    itself, negative for self-limitation.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        target:
-            The path of the group of species.
-
-        weights:
-            The interaction matrix, where `a_ij` is the effect of species `j` on the growth of species `i`.
-
-        state:
-            The name of the state that holds the abundance of a species.
-
-    Examples:
-        >>> from skcomplex.models.biology.ecology import GeneralizedLotkaVolterraInteraction
-        >>> matrix = ((-1.0, 0.5), (0.5, -1.0))
-        >>> GeneralizedLotkaVolterraInteraction('glv', target='species', weights=matrix).check().weights
-        ((-1.0, 0.5), (0.5, -1.0))
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        weights: Sequence[Sequence[float]] = ((-1.0,),),
-        state: str = 'x',
-    ) -> None:
-        super().__init__(label, target=target, state=state)
-        self.weights = weights
-
-    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the rate `x_i (b_i + sum_j a_ij x_j)` of a species.
-
-        Args:
-            namespace:
-                The namespace of the symbols the rate can use, with the namespace of the group.
-
-        Returns:
-            rate:
-                The rate of the abundance.
-        """
-        species = namespace.target
-        x = getattr(species, self.state)
-        rate: Expression = x * (species.b + total(x, weights=np.asarray(self.weights, dtype=float)))
-        return rate
 
 
 @register_model(

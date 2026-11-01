@@ -5,323 +5,43 @@
 
 import itertools
 from collections.abc import Sequence
-from math import prod
-from types import SimpleNamespace
-from typing import Annotated
 
-from sage.all__sagemath_symbolics import SR, Expression, oo
-from sage.sets.real_set import RealSet
-
-from ....core.elements import Element
-from ....core.interactions import BaseInteraction, Interaction, ReactionInteraction
-from ....core.laws import BaseLaw, RateLaw
+from ....core.interactions import BaseInteraction, ReactionInteraction
 from ....core.system import System
 from ....errors import ValidationError
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.kinetics import MichaelisMentenInteraction
+from ._generalized_mass_action import GeneralizedMassActionInteraction
+from ._phosphorylation_loop import PhosphorylationLoopElement
 from ._repression import RepressionInteraction
+from ._s_system import SSystemInteraction
 from ._species import SpeciesElement
 
 RAMAN = 'Raman 2021'
+
+
 PATHWAY_ALPHA = (2.0, 1.0, 1.0)
+
+
 PATHWAY_BETA = (1.0, 1.0, 1.0)
+
+
 PATHWAY_G = ((0.0, 0.0, -0.5), (0.5, 0.0, 0.0), (0.0, 0.5, 0.0))
+
+
 PATHWAY_H = ((0.5, 0.0, 0.0), (0.0, 0.5, 0.0), (0.0, 0.0, 0.5))
+
+
 PATHWAY_STOICHIOMETRY = ((1.0, -1.0, 0.0, 0.0), (0.0, 1.0, -1.0, 0.0), (0.0, 0.0, 1.0, -1.0))
+
+
 PATHWAY_GAMMA = (2.0, 1.0, 1.0, 1.0)
+
+
 PATHWAY_ORDERS = ((0.0, 0.0, -0.5), (0.5, 0.0, 0.0), (0.0, 0.5, 0.0), (0.0, 0.0, 0.5))
+
+
 MIN_GOODWIN_STAGES = 2
-
-
-class PhosphorylationLoopElement(Element):
-    """Three proteins, each phosphorylated and dephosphorylated by Michaelis-Menten kinetics, that regulate each other.
-
-    The states are the unphosphorylated amounts, and each total is conserved. With `u_T = A_T - A`, and so on:
-
-    - `dA/dt = kp1 u_T / (K1 + u_T) - kd1 C A / (K1 + A)`,
-    - `dB/dt = kp2 A (B_T - B) / (K2 + B_T - B) - kd2 B / (K2 + B)`,
-    - `dC/dt = kp3 B (C_T - C) / (K3 + C_T - C) - kd3 C / (K3 + C)`.
-
-    The element holds the states and parameters and has no laws of its own: the interactions of
-    `phosphorylation_oscillator` read its parameters.
-
-    Args:
-        label:
-            The label of the loop.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        A:
-            The initial amount of unphosphorylated A.
-
-        B:
-            The initial amount of unphosphorylated B.
-
-        C:
-            The initial amount of unphosphorylated C.
-
-        kp1:
-            The maximal rate that restores A.
-
-        kd1:
-            The catalytic rate of the conversion of A by C.
-
-        kp2:
-            The catalytic rate of the conversion of B by A.
-
-        kd2:
-            The maximal rate that removes B.
-
-        kp3:
-            The catalytic rate of the conversion of C by B.
-
-        kd3:
-            The maximal rate that removes C.
-
-        K1:
-            The Michaelis constant of both reactions of A.
-
-        K2:
-            The Michaelis constant of both reactions of B.
-
-        K3:
-            The Michaelis constant of both reactions of C.
-
-        A_T:
-            The total amount of A.
-
-        B_T:
-            The total amount of B.
-
-        C_T:
-            The total amount of C.
-
-    Examples:
-        >>> from skcomplex.models.biology.systems_biology import PhosphorylationLoopElement
-        >>> PhosphorylationLoopElement('loop', A=0.5).A
-        0.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        B: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        C: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        kp1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        kd1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        kp2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        kd2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        kp3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
-        kd3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        K1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-        K2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-        K3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
-        A_T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        B_T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        C_T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.A = A
-        self.B = B
-        self.C = C
-        self.kp1 = kp1
-        self.kd1 = kd1
-        self.kp2 = kp2
-        self.kd2 = kd2
-        self.kp3 = kp3
-        self.kd3 = kd3
-        self.K1 = K1
-        self.K2 = K2
-        self.K3 = K3
-        self.A_T = A_T
-        self.B_T = B_T
-        self.C_T = C_T
-
-
-class GeneralizedMassActionInteraction(Interaction):
-    """Rates of a biochemical system in the generalized mass action form of biochemical systems theory.
-
-    Flux `j` is the power law `v_j = gamma_j prod_k x_k^f_jk`, and species `i` changes as `dx_i/dt = sum_j s_ij v_j`.
-    The kinetic orders `f_jk` are real numbers, negative for inhibition.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        species:
-            The paths of the species, in the order of the rows of the stoichiometry.
-
-        stoichiometry:
-            The stoichiometric coefficient `s_ij` of every species in every flux, one row per species.
-
-        gamma:
-            The rate constant of every flux.
-
-        orders:
-            The kinetic order `f_jk` of every species in every flux, one row per flux.
-
-    Raises:
-        ValidationError:
-            The matrices do not have one row per flux or species and one entry per species or flux.
-
-    Examples:
-        >>> from skcomplex.models.biology.systems_biology import GeneralizedMassActionInteraction
-        >>> v = GeneralizedMassActionInteraction(
-        ...     'v', species=['X'], stoichiometry=((1, -1),), gamma=(1, 2), orders=((0,), (1,))
-        ... )
-        >>> v.gamma
-        (1, 2)
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        species: Annotated[list[str], RoleSpec(variadic=True)],
-        stoichiometry: Sequence[Sequence[float]] = ((0.0,),),
-        gamma: Sequence[float] = (0.0,),
-        orders: Sequence[Sequence[float]] = ((0.0,),),
-    ) -> None:
-        super().__init__(label)
-        self.species = species
-        self.stoichiometry = stoichiometry
-        self.gamma = gamma
-        self.orders = orders
-
-    def _get_power_product(self, values: Sequence[Expression], orders: Sequence[float]) -> Expression:
-        """Return the product `prod_k x_k^f_k` of the values raised to their kinetic orders, leaving out zero orders."""
-        return prod((value**order for value, order in zip(values, orders, strict=True) if order), start=SR(1))
-
-    def _check_shape(self, name: str, rows: int, columns: int) -> None:
-        """Raise an error unless a matrix argument has the given numbers of rows and columns."""
-        matrix = getattr(self, name)
-        if len(matrix) == rows and all(len(row) == columns for row in matrix):
-            return
-        error_msg = (
-            f'The matrix {name} of {self.label!r} must have {rows} rows of {columns} entries, one row per flux or '
-            'species.'
-        )
-        raise ValidationError(error_msg)
-
-    def _check_matrices(self) -> None:
-        """Raise an error for a stoichiometry or kinetic orders that do not match the species and the fluxes."""
-        self._check_shape('stoichiometry', len(self.species), len(self.gamma))
-        self._check_shape('orders', len(self.gamma), len(self.species))
-
-    def _get_fluxes(self, s: SimpleNamespace, values: Sequence[Expression]) -> list[Expression]:
-        """Return the power-law fluxes `gamma_j prod_k x_k^f_jk`."""
-        return [rate * self._get_power_product(values, row) for rate, row in zip(self.gamma, self.orders, strict=True)]
-
-    def _get_stoichiometry(self) -> Sequence[Sequence[float]]:
-        """Return the stoichiometric coefficient of every species in every flux, one row per species."""
-        return self.stoichiometry
-
-    def _check(self) -> None:
-        """Raise an error for matrices that do not match the species and the fluxes.
-
-        Raises:
-            ValidationError:
-                The matrices do not have one row per flux or species and one entry per species or flux.
-        """
-        super()._check()
-        self._check_matrices()
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the sum of the power-law fluxes of every species.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        values = [item.x for item in s.species]
-        fluxes = self._get_fluxes(s, values)
-        return [
-            RateLaw(value, sum((c * flux for c, flux in zip(row, fluxes, strict=True) if c), start=SR(0)))
-            for value, row in zip(values, self._get_stoichiometry(), strict=True)
-        ]
-
-
-class SSystemInteraction(GeneralizedMassActionInteraction):
-    """Rates of a biochemical system in the S-system form of biochemical systems theory.
-
-    Every species has one aggregated production and one aggregated degradation, both power laws:
-    `dx_i/dt = alpha_i prod_j x_j^g_ij - beta_i prod_j x_j^h_ij`. It is the generalized mass action form with two
-    fluxes per species.
-
-    Args:
-        label:
-            The label of the interaction.
-
-        species:
-            The paths of the species.
-
-        alpha:
-            The rate constant of the production of every species.
-
-        beta:
-            The rate constant of the degradation of every species.
-
-        g:
-            The kinetic orders of the productions, one row per species.
-
-        h:
-            The kinetic orders of the degradations, one row per species.
-
-    Raises:
-        ValidationError:
-            The kinetic orders do not have one row and one column per species.
-
-    Examples:
-        >>> from skcomplex.models.biology.systems_biology import SSystemInteraction
-        >>> SSystemInteraction('rates', species=['X'], alpha=[1.0], beta=[1.0], g=((0.0,),), h=((1.0,),)).h
-        ((1.0,),)
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        species: Annotated[list[str], RoleSpec(variadic=True)],
-        alpha: Annotated[Sequence[float], ParameterSpec(per='species', domain=RealSet.closed_open(0, oo))] = (),
-        beta: Annotated[Sequence[float], ParameterSpec(per='species', domain=RealSet.closed_open(0, oo))] = (),
-        g: Sequence[Sequence[float]] = ((0.0,),),
-        h: Sequence[Sequence[float]] = ((0.0,),),
-    ) -> None:
-        super().__init__(label, species=species)
-        self.alpha = alpha
-        self.beta = beta
-        self.g = g
-        self.h = h
-
-    def _check_matrices(self) -> None:
-        """Raise an error for kinetic orders without one row and one column per species."""
-        self._check_shape('g', len(self.species), len(self.species))
-        self._check_shape('h', len(self.species), len(self.species))
-
-    def _get_fluxes(self, s: SimpleNamespace, values: Sequence[Expression]) -> list[Expression]:
-        """Return the production and the degradation flux of every species, in turn."""
-        return [
-            flux
-            for alpha, beta, g, h in zip(s.alpha, s.beta, self.g, self.h, strict=True)
-            for flux in (alpha * self._get_power_product(values, g), beta * self._get_power_product(values, h))
-        ]
-
-    def _get_stoichiometry(self) -> Sequence[Sequence[float]]:
-        """Return the coefficient 1 of every species in its production and -1 in its degradation."""
-        size = len(self.species)
-        return [
-            [1.0 if flux == 2 * row else -1.0 if flux == 2 * row + 1 else 0.0 for flux in range(2 * size)]
-            for row in range(size)
-        ]
 
 
 @register_model(

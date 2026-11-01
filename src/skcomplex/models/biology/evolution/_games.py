@@ -4,23 +4,23 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement, LatticeElement
+from ....core.elements import GroupElement, LatticeElement
 from ....core.interactions import LocalRuleInteraction
 from ....core.laws.utils import total
 from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
-from ....specs import StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
+from ._cyclic_species import CyclicSpeciesElement
 from ._replicator import ReplicatorInteraction
+from ._strategy import StrategyElement
 
 NEAREST = VonNeumannNeighborhood()
+
+
 STRATEGIES = 3
 
 
@@ -30,69 +30,6 @@ def _invade(strategy: Array, *around: Array, random: Array) -> Array:
     neighbor = np.choose(choice, np.stack(around))
     beaten = neighbor == np.mod(strategy + 1, STRATEGIES)
     return np.where(beaten, neighbor, strategy)
-
-
-class StrategyElement(Element):
-    """Strategy of an evolutionary game, with the share `x` of the population that plays it.
-
-    Args:
-        label:
-            The label of the strategy or of the group of strategies.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial share.
-
-    Examples:
-        >>> from skcomplex.models.biology.evolution import StrategyElement
-        >>> StrategyElement('hawks', x=0.4).x
-        0.4
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-
-
-class CyclicSpeciesElement(Element):
-    """Site of a lattice of rock, paper, and scissors, 0, 1, and 2, where each strategy beats the one before it.
-
-    The sites update one at a time in random order by a `LocalRuleInteraction`, and a site adopts the strategy of a
-    random neighbour that beats it.
-
-    Args:
-        label:
-            The label of the site or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        strategy:
-            The initial strategy, 0, 1, or 2.
-
-    Examples:
-        >>> from skcomplex.models.biology.evolution import CyclicSpeciesElement
-        >>> CyclicSpeciesElement('site', strategy=2).strategy
-        2
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        strategy: Annotated[float, StateSpec(domain=NN)] = 0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.strategy = strategy
 
 
 @register_model(

@@ -9,7 +9,8 @@ from collections.abc import Sequence
 from ....core.system import System
 from ....errors import ValidationError
 from ..._catalog import register_model
-from ._boolean import BooleanFunctionInteraction, BooleanNodeElement
+from ._boolean_function import BooleanFunctionInteraction
+from ._boolean_node import BooleanNodeElement
 from .types import Rule
 
 RAMAN = 'Raman 2021'

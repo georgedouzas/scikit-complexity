@@ -3,162 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from types import SimpleNamespace
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
 from ....core.elements import Element, GroupElement, LatticeElement
 from ....core.interactions import SpreadingInteraction, TopologyInteraction, TransitionInteraction
-from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import neighbors
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ....specs import VisualSpec
 from ..._catalog import register_model
+from ._active_host import ActiveHostElement
+from ._carrier import CarrierElement
+from ._host import HostElement
 
 HIDDEN = VisualSpec('sites', {'states': []})
-
-
-class CarrierElement(Element):
-    """Node of a network whose state is the probability that it is infected, in quenched mean field.
-
-    The node recovers at rate 1 and every infected neighbour infects it at rate `lam`, with the probabilities of the
-    neighbours taken as independent, so `dp_i / dt = -p_i + lam (1 - p_i) sum_j A_ij p_j` over the neighbours `j`.
-
-    Args:
-        label:
-            The label of the node or of the group of nodes.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        p:
-            The initial probability of being infected.
-
-        lam:
-            The spreading rate, the ratio of the infection rate per edge and the recovery rate.
-
-    Examples:
-        >>> from skcomplex.models.biology.epidemiology import CarrierElement
-        >>> CarrierElement('node').lam
-        0.2
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        p: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.p = p
-        self.lam = lam
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the recovery and the infection by the neighbours.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RateLaw(s.p, -s.p + s.lam * (1 - s.p) * neighbors(s.other.p))]
-
-
-class HostElement(Element):
-    """Node of a network that is susceptible at `i = 0` or infected at `i = 1`, in continuous time.
-
-    A `SpreadingInteraction` infects and recovers it, and a `TopologyInteraction` rewires its edges at its rate `w`.
-
-    Args:
-        label:
-            The label of the node or of the group of nodes.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        i:
-            Whether the node is infected.
-
-        w:
-            The rate at which the node, while susceptible, rewires an edge to an infected neighbour.
-
-    Examples:
-        >>> from skcomplex.models.biology.epidemiology import HostElement
-        >>> HostElement('node').w
-        1.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        i: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        w: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.i = i
-        self.w = w
-
-
-class ActiveHostElement(Element):
-    """Node of an activity-driven network, susceptible at `i = 0` or infected at `i = 1`, in discrete time.
-
-    A `TransitionInteraction` recovers an infected node with probability `mu` in a step, and another infects a
-    susceptible node with probability `lam` by every infected neighbour along the edges of the previous step. A
-    `TopologyInteraction` joins the node to other nodes with the probability `a`, its activity.
-
-    Args:
-        label:
-            The label of the node or of the group of nodes.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        i:
-            Whether the node is infected.
-
-        a:
-            The activity, the probability of firing at a step.
-
-        lam:
-            The probability of infection along one edge.
-
-        mu:
-            The probability of recovery at a step.
-
-    Examples:
-        >>> from skcomplex.models.biology.epidemiology import ActiveHostElement
-        >>> ActiveHostElement('node').mu
-        0.1
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        i: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.i = i
-        self.a = a
-        self.lam = lam
-        self.mu = mu
 
 
 def _get_susceptible(node: SimpleNamespace) -> object:

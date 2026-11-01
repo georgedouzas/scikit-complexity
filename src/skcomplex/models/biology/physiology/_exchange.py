@@ -4,145 +4,17 @@
 # License: MIT
 
 from collections.abc import Sequence
-from types import SimpleNamespace
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, FieldElement, GroupElement
-from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import hill, laplacian
+from ....core.elements import FieldElement, GroupElement
 from ....core.spaces import ContinuousTime, DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._contour_cell import ContourCellElement
 from ._contour_uptake import ContourUptakeInteraction
-
-
-class ContourCellElement(Element):
-    """Logistic cell of a closed contour that takes up the signalling molecules of the next cell through a power map.
-
-    `ContourUptakeInteraction` iterates `x_i <- (1 - c_i) r x_i (1 - x_i) + c_i x_{i+1}^{p_i}`, where the logistic map
-    is the intracellular dynamics, `c_i` the share of the exchange with the environment between the cells, and `p_i`
-    the affinity of the cell for the uptake. The last cell of the contour takes up from the first.
-
-    Args:
-        label:
-            The label of the group of cells.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial concentration of signalling molecules in the cell, between 0 and 1.
-
-        r:
-            The logistic parameter, the disposition of the environment to communication.
-
-        c:
-            The coupling of the cell to the next one.
-
-        p:
-            The affinity of the cell for the uptake of signalling molecules.
-
-    Examples:
-        >>> from skcomplex.models.biology.physiology import ContourCellElement
-        >>> ContourCellElement('cells').r
-        2.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.5,
-        c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.r = r
-        self.c = c
-        self.p = p
-
-
-class ExchangingCellElement(Element):
-    """Cell that metabolizes a substance and exchanges it with its neighbours through gap junctions and nanotubes.
-
-    The concentration follows `dx_i/dt = -alpha_i x_i / (beta_i + x_i) + Σ_j [g (x_j - x_i) + xi A_ij x_j]`, where the
-    first term is Michaelis-Menten metabolism, `g` the exchange coefficient of the gap junctions, and `xi` the strength
-    of the tunnelling nanotubes along the same links. The sums are written with the graph Laplacian as
-    `(g + xi) laplacian(x) + xi k_i x_i`, where `k_i` is the degree of the cell.
-
-    Args:
-        label:
-            The label of the field of cells.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial concentration of the substance.
-
-        alpha:
-            The maximal rate of metabolism.
-
-        beta:
-            The half-saturation concentration of metabolism.
-
-        g:
-            The exchange coefficient of the gap junctions.
-
-        xi:
-            The strength of the nanotubes.
-
-        degree:
-            The number of neighbours of the cell.
-
-    Examples:
-        >>> from skcomplex.models.biology.physiology import ExchangingCellElement
-        >>> ExchangingCellElement('cells').g
-        0.1
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec()] = 1.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
-        g: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-        xi: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-        degree: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.alpha = alpha
-        self.beta = beta
-        self.g = g
-        self.xi = xi
-        self.degree = degree
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the metabolism of the substance and its exchange through gap junctions and nanotubes.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        exchange = (s.g + s.xi) * laplacian(s.x) + s.xi * s.degree * s.x
-        return [RateLaw(s.x, -s.alpha * hill(s.x, s.beta) + exchange)]
+from ._exchanging_cell import ExchangingCellElement
 
 
 @register_model(

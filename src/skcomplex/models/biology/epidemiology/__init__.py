@@ -1,27 +1,23 @@
 """Epidemiology: compartmental, network, metapopulation, and agent-based models of infection and recovery."""
 
-from ._adaptive import (
-    ActiveHostElement,
-    CarrierElement,
-    HostElement,
-    activity_driven_epidemics,
-    adaptive_sis,
-    quenched_mean_field_sis,
-)
-from ._agents import (
-    PersonElement,
-    TravellerElement,
-    WalkerElement,
-    agent_based_sir,
-    network_sir,
-    random_walker_epidemics,
-)
-from ._compartments import ImmunityLossInteraction, InfectionInteraction, RecoveryInteraction
+from ._active_host import ActiveHostElement
+from ._adaptive import activity_driven_epidemics, adaptive_sis, quenched_mean_field_sis
+from ._agents import agent_based_sir, network_sir, random_walker_epidemics
+from ._carrier import CarrierElement
+from ._degree_class import DegreeClassElement
 from ._factories import sir, sirs, sis
-from ._networks import DegreeClassElement, SubpopulationElement, heterogeneous_mean_field_sis, metapopulation
+from ._host import HostElement
+from ._immunity_loss import ImmunityLossInteraction
+from ._infection import InfectionInteraction
+from ._networks import heterogeneous_mean_field_sis, metapopulation
 from ._outbreaks import ImmunizingDegreeClassElement, heterogeneous_mean_field_sir
+from ._person import PersonElement
+from ._recovery import RecoveryInteraction
 from ._recurrent import EpidemicCenterElement, delayed_sirs
+from ._subpopulation import SubpopulationElement
+from ._traveller import TravellerElement
 from ._vaccination import VaccinatedPopulationElement, sir_vaccination
+from ._walker import WalkerElement
 
 __all__: list[str] = [
     'ActiveHostElement',
