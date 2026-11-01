@@ -5,17 +5,14 @@
 
 import math
 from types import SimpleNamespace
-from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, cos, oo, sqrt
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression, cos, sqrt
 
-from ....core.elements import Element
 from ....core.interactions import BaseInteraction, GradientInteraction, RateInteraction
-from ....core.laws import BaseLaw, BoundaryLaw
 from ....core.system import System
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._double_well import DoubleWellElement
+from ._wall_particle import WallParticleElement
 
 
 def _get_double_well_drive(s: SimpleNamespace) -> Expression:
@@ -34,51 +31,6 @@ def _get_double_well_interactions(target: str) -> list[BaseInteraction]:
             noise=lambda s: sqrt(2 * s.target.D),
         ),
     ]
-
-
-class DoubleWellElement(Element):
-    """Particle at the position `x` in the double well `x^4 / 4 - x^2 / 2`, forced periodically and by noise.
-
-    Args:
-        label:
-            The label of the particle.
-
-        visual:
-            How the particle is drawn, or `None` for none.
-
-        x:
-            The initial position.
-
-        amplitude:
-            The amplitude of the periodic forcing.
-
-        frequency:
-            The frequency of the forcing.
-
-        D:
-            The noise intensity.
-
-    Examples:
-        >>> from skcomplex.models.physics.soft_matter import DoubleWellElement
-        >>> DoubleWellElement('particle', D=0.2).D
-        0.2
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec()] = -1.0,
-        amplitude: Annotated[float, ParameterSpec()] = 0.1,
-        frequency: Annotated[float, ParameterSpec()] = 0.01,
-        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.12,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.amplitude = amplitude
-        self.frequency = frequency
-        self.D = D
 
 
 @register_model(
@@ -125,64 +77,6 @@ def stochastic_resonance(
         elements=[DoubleWellElement('particle', x=x, amplitude=amplitude, frequency=frequency, D=D)],
         interactions=_get_double_well_interactions('particle'),
     )
-
-
-class WallParticleElement(Element):
-    """Brownian particle at the distance `z` from a wall, which reflects it, and whose diffusion slows near the wall.
-
-    Args:
-        label:
-            The label of the particle.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        z:
-            The distance from the wall.
-
-        D0:
-            The diffusion coefficient far from the wall.
-
-        a:
-            The distance over which the wall slows diffusion.
-
-        drift:
-            The settling velocity far from the wall.
-
-    Examples:
-        >>> from skcomplex.models.physics.soft_matter import WallParticleElement
-        >>> WallParticleElement('bead').a
-        1.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        z: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        D0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        drift: Annotated[float, ParameterSpec()] = 0.2,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.z = z
-        self.D0 = D0
-        self.a = a
-        self.drift = drift
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the reflection at the wall.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [BoundaryLaw(s.z, abs(s.z))]
 
 
 @register_model(

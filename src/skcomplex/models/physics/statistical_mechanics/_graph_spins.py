@@ -12,7 +12,7 @@ from ....core.spaces import AdjacencyNeighborhood, NetworkSpace
 from ....core.system import System
 from ..._catalog import register_model
 from ..common.spins import IsingSamplingInteraction
-from ._spins import IsingSpinElement
+from ._ising_spin import IsingSpinElement
 
 NODES = 400
 DEGREE = 4

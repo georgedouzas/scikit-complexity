@@ -4,221 +4,32 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, LatticeElement
-from ....core.interactions import CascadeInteraction, LocalRuleInteraction
+from ....core.elements import LatticeElement
 from ....core.spaces import (
     AdjacencyNeighborhood,
-    BaseNeighborhood,
     LatticeNeighborhood,
     LatticeSpace,
     NetworkSpace,
     TriangularNeighborhood,
-    VonNeumannNeighborhood,
 )
 from ....core.system import System
-from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....types import Array
 from ..._catalog import register_model
+from ._avalanche import AvalancheInteraction
+from ._fire import FireInteraction
+from ._forest import ForestElement
+from ._sandpile_cell import SandpileCellElement
 
-NEAREST = VonNeumannNeighborhood(center=True)
 SITE_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
     'triangular': TriangularNeighborhood(center=True),
     'graph': AdjacencyNeighborhood(center=True),
 }
+
+
 MANNA_THRESHOLD = 2
-BURNING = 2
-
-
-class SandpileCellElement(Element):
-    """Site of a sandpile, which holds a number of grains.
-
-    An `AvalancheInteraction` drops the grains and topples the sites that hold too many.
-
-    Args:
-        label:
-            The label of the site or the lattice group.
-
-        visual:
-            How the site is drawn, or `None` for `default_visual_`.
-
-        height:
-            The initial number of grains.
-
-    Attributes:
-        default_visual_:
-            The visual of the site when it sets none.
-
-    Examples:
-        >>> from skcomplex.models.physics.criticality import SandpileCellElement
-        >>> SandpileCellElement('site').height
-        0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        height: Annotated[float, StateSpec(domain=NN)] = 0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.height = height
-
-
-class AvalancheInteraction(CascadeInteraction):
-    """Slowly driven sandpile: every step drops one grain on a random site, and the full sites topple in avalanches.
-
-    A site that holds `threshold` grains topples. In the mode `'redistribute'` it sends one grain to each of its
-    neighbours, as in the Bak-Tang-Wiesenfeld sandpile, and in the mode `'random'` every grain goes to a neighbour drawn
-    at random, as in the Manna sandpile. Grains that topple over a fixed edge leave the pile, and every avalanche is
-    recorded as an event under the label of the interaction.
-
-    Args:
-        label:
-            The label of the interaction and of its avalanche events.
-
-        target:
-            The path of the lattice group of sites.
-
-        state:
-            The name of the state that holds the grains.
-
-        threshold:
-            The number of grains at which a site topples.
-
-        mode:
-            `'redistribute'` or `'random'`.
-
-    Examples:
-        >>> from skcomplex.models.physics.criticality import AvalancheInteraction
-        >>> AvalancheInteraction('avalanche', target='pile', threshold=2, mode='random').share
-        1
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        state: str = 'height',
-        threshold: int = 4,
-        mode: str = 'redistribute',
-    ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state=state,
-            threshold=threshold,
-            share=1,
-            mode=mode,
-            drive=self._drop_grain,
-        )
-
-    @staticmethod
-    def _drop_grain(heights: Array, *, random: np.random.Generator) -> Array:
-        """Return the heights with one grain added on a random site."""
-        following = heights.copy()
-        following[tuple(random.integers(size) for size in heights.shape)] += 1
-        return following
-
-
-class ForestElement(Element):
-    """Site of the Drossel-Schwabl forest fire: empty at 0, a tree at 1, or burning at 2.
-
-    A `FireInteraction` grows trees on empty sites with probability `growth`, sets them on fire from a burning
-    neighbour or from lightning with probability `lightning`, and empties burning sites.
-
-    Args:
-        label:
-            The label of the site or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        cover:
-            The initial cover, 0, 1, or 2.
-
-        growth:
-            The probability that a tree grows on an empty site per step.
-
-        lightning:
-            The probability that lightning strikes a tree per step.
-
-    Examples:
-        >>> from skcomplex.models.physics.criticality import ForestElement
-        >>> ForestElement('site').growth
-        0.05
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        cover: Annotated[float, StateSpec(domain=NN)] = 0,
-        growth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
-        lightning: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.cover = cover
-        self.growth = growth
-        self.lightning = lightning
-
-
-class FireInteraction(LocalRuleInteraction):
-    """Stochastic rule of the Drossel-Schwabl forest fire on a cover of 0 for empty, 1 for a tree, and 2 for burning.
-
-    Every step a tree catches fire from a burning neighbour or from lightning with the probability `lightning` of the
-    site, a burning site becomes empty, and a tree grows on an empty site with the probability `growth` of the site.
-
-    Args:
-        label:
-            The label of the interaction, unique among the parts of its system.
-
-        target:
-            The path of the lattice or network group of sites.
-
-        neighborhood:
-            The neighbours a fire spreads to, the von Neumann neighbourhood of a square lattice, the six neighbours of
-            a triangular lattice, or the neighbours of a node, each with the site itself.
-
-    Examples:
-        >>> from skcomplex.models.physics.criticality import FireInteraction
-        >>> FireInteraction('fire', target='forest').stochastic
-        True
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        neighborhood: BaseNeighborhood = NEAREST,
-    ) -> None:
-        super().__init__(
-            label,
-            target=target,
-            state='cover',
-            rule=self._burn,
-            neighborhood=neighborhood,
-            stochastic=True,
-        )
-
-    @staticmethod
-    def _burn(cover: Array, *around: Array, growth: float | Array, lightning: float | Array, random: Array) -> Array:
-        """Return the covers after trees catch fire, fires burn out, and trees grow."""
-        burning = np.any(np.stack(around) == BURNING, axis=0) if around else np.zeros(np.shape(cover), dtype=bool)
-        ignites = burning | (random < lightning)
-        tree = np.where(ignites, float(BURNING), 1.0)
-        empty = np.where(random < growth, 1.0, 0.0)
-        return np.where(cover == BURNING, 0.0, np.where(cover == 1, tree, empty))
 
 
 @register_model(

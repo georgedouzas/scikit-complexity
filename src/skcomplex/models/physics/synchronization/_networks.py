@@ -4,145 +4,23 @@
 # License: MIT
 
 import math
-from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, GroupElement, LatticeElement
+from ....core.elements import GroupElement, LatticeElement
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.oscillators import KuramotoCouplingInteraction, PhaseOscillatorElement
+from ..common.oscillators import PhaseOscillatorElement
+from ._edge_coupling import EdgeCouplingInteraction
+from ._link import LinkElement
 from ._logistic_coupling import LogisticCouplingInteraction
+from ._logistic_node import LogisticNodeElement
 from ._utils import _order_parameter
 
 NETWORKS = ('watts_strogatz', 'erdos_renyi', 'barabasi_albert')
-
-
-class LinkElement(Element):
-    """Edge of a network with a weight `w`, which couplings along the edge read.
-
-    Args:
-        label:
-            The label of the edge or the group on the edges.
-
-        visual:
-            How the edge is drawn, or `None` for `default_visual_`.
-
-        w:
-            The weight of the edge.
-
-    Attributes:
-        default_visual_:
-            The visual of the edge when it sets none.
-
-    Examples:
-        >>> from skcomplex.models.physics.synchronization import LinkElement
-        >>> LinkElement('link', w=0.5).w
-        0.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        w: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.w = w
-
-
-class LogisticNodeElement(Element):
-    """Logistic map on a node of a network, with its value, growth rate, and weight of the neighbours.
-
-    `LogisticCouplingInteraction` iterates `x_i(t + 1) = (1 - epsilon) f(x_i) + epsilon mean_j f(x_j)`, where the map
-    `f(x) = r x (1 - x)` of the node mixes with the mean of the maps of its neighbours `j` on the network.
-
-    Args:
-        label:
-            The label of the node or the group on the nodes.
-
-        visual:
-            How the node is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial value.
-
-        r:
-            The growth rate of the logistic map.
-
-        epsilon:
-            The weight of the neighbours.
-
-    Attributes:
-        default_visual_:
-            The visual of the node when it sets none.
-
-    Examples:
-        >>> from skcomplex.models.physics.synchronization import LogisticNodeElement
-        >>> LogisticNodeElement('node').epsilon
-        0.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec()] = 0.5,
-        r: Annotated[float, ParameterSpec()] = 4.0,
-        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.r = r
-        self.epsilon = epsilon
-
-
-class EdgeCouplingInteraction(KuramotoCouplingInteraction):
-    """Kuramoto coupling along the weighted edges of a network, `theta_i' += K w_ij sin(theta_j - theta_i)`.
-
-    The coupling runs once per edge of the network of its oscillators and reads the weight `w` of the edge from the
-    group on the edges.
-
-    Args:
-        label:
-            The label of the interaction, unique among the parts of its system.
-
-        target:
-            The path of the group of oscillators on the nodes.
-
-        links:
-            The path of the group on the edges, whose parameter `w` weighs every edge.
-
-        K:
-            The coupling strength.
-
-        alpha:
-            The phase lag.
-
-    Examples:
-        >>> from skcomplex.models.physics.synchronization import EdgeCouplingInteraction
-        >>> EdgeCouplingInteraction('coupling', target='nodes', links='edges', K=0.5).weights
-        'w'
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        links: Annotated[str, RoleSpec()],
-        K: float = 1.0,
-        alpha: float = 0.0,
-    ) -> None:
-        super().__init__(label, target=target, K=K, alpha=alpha, weights='w')
-        self.links = links
 
 
 def _network(name: str, n_nodes: int, degree: int, rewiring: float, seed: int) -> NetworkSpace:

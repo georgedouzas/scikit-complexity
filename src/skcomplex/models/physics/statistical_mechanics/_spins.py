@@ -4,161 +4,17 @@
 # License: MIT
 
 from collections.abc import Sequence
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, ZZ, oo, pi
-from sage.sets.real_set import RealSet
 
-from ....core.elements import Element, LatticeElement
+from ....core.elements import LatticeElement
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.spins import IsingSamplingInteraction, PottsSamplingInteraction, XYSamplingInteraction
-
-
-class IsingSpinElement(Element):
-    """Ising spin, up at 1 or down at -1, with its coupling `J`, its field `h`, and its temperature.
-
-    An `IsingSamplingInteraction` flips the spins by Monte Carlo sweeps at the temperature of the spins.
-
-    Args:
-        label:
-            The label of the spin or the lattice group.
-
-        visual:
-            How the spin is drawn, or `None` for `default_visual_`.
-
-        spin:
-            The initial spin, 1 or -1.
-
-        J:
-            The coupling between neighbouring spins.
-
-        h:
-            The external field.
-
-        temperature:
-            The temperature in units of the coupling.
-
-    Attributes:
-        default_visual_:
-            The visual of the spin when it sets none.
-
-    Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import IsingSpinElement
-        >>> IsingSpinElement('spin').temperature
-        2.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        J: Annotated[float, ParameterSpec()] = 1.0,
-        h: Annotated[float, ParameterSpec()] = 0.0,
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.spin = spin
-        self.J = J
-        self.h = h
-        self.temperature = temperature
-
-
-class PottsSpinElement(Element):
-    """Spin of the q-state Potts model, in a state from 0 to `q - 1`, with its coupling `J` and its temperature.
-
-    A `PottsSamplingInteraction` redraws the states by Monte Carlo sweeps at the temperature of the spins.
-
-    Args:
-        label:
-            The label of the spin or the lattice group.
-
-        visual:
-            How the spin is drawn, or `None` for `default_visual_`.
-
-        color:
-            The initial state.
-
-        J:
-            The coupling between neighbouring spins.
-
-        temperature:
-            The temperature in units of the coupling.
-
-    Attributes:
-        default_visual_:
-            The visual of the spin when it sets none.
-
-    Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import PottsSpinElement
-        >>> PottsSpinElement('spin').temperature
-        1.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        color: Annotated[float, StateSpec(domain=NN)] = 0.0,
-        J: Annotated[float, ParameterSpec()] = 1.0,
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.color = color
-        self.J = J
-        self.temperature = temperature
-
-
-class XYSpinElement(Element):
-    """Planar spin of the XY model, an angle `theta`, with its coupling `J` and its temperature.
-
-    An `XYSamplingInteraction` rotates the angles by Monte Carlo sweeps at the temperature of the spins.
-
-    Args:
-        label:
-            The label of the spin or the lattice group.
-
-        visual:
-            How the spin is drawn, or `None` for `default_visual_`.
-
-        theta:
-            The initial angle.
-
-        J:
-            The coupling between neighbouring spins.
-
-        temperature:
-            The temperature in units of the coupling.
-
-    Attributes:
-        default_visual_:
-            The visual of the spin when it sets none.
-
-    Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import XYSpinElement
-        >>> XYSpinElement('spin').temperature
-        0.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
-        J: Annotated[float, ParameterSpec()] = 1.0,
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.theta = theta
-        self.J = J
-        self.temperature = temperature
+from ._ising_spin import IsingSpinElement
+from ._potts_spin import PottsSpinElement
+from ._xy_spin import XYSpinElement
 
 
 def _square(size: int | Sequence[int]) -> tuple[int, ...]:

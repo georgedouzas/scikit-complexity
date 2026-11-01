@@ -5,24 +5,21 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import ZZ, Expression, oo
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
-from ....core.elements import Element, LatticeElement
-from ....core.laws.utils import neighbors
-from ....core.spaces import LatticeSpace, VonNeumannNeighborhood
+from ....core.elements import LatticeElement
+from ....core.spaces import LatticeSpace
 from ....core.system import System
 from ....errors import ValidationError
-from ....specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....specs import ObservableSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.spins import SpinSamplingInteraction
+from ._bond_sampling import BondSamplingInteraction
+from ._bond_spin import BondSpinElement
 from ._fully_connected_spins import SPIN_IMAGE
-
-NEAREST = VonNeumannNeighborhood()
+from ._mattis_spin import MattisSpinElement
 
 
 def _square(size: int | Sequence[int]) -> tuple[int, int]:
@@ -49,168 +46,6 @@ def _bond_states(
 def _overlap(member: SimpleNamespace) -> Expression:
     """Return the overlap of a spin with its quenched pattern."""
     return member.spin * member.pattern
-
-
-class BondSamplingInteraction(SpinSamplingInteraction):
-    """Metropolis sweeps of Ising spins with quenched couplings to their neighbours, of energy `-s (sum J_k s_k + h)`.
-
-    The couplings `J_up`, `J_left`, `J_right`, and `J_down` are constant states of every spin, in the order of the
-    offsets of the von Neumann neighbourhood, and the field `h` and the temperature are its parameters.
-
-    Args:
-        label:
-            The label of the interaction, unique among the parts of its system.
-
-        target:
-            The path of the lattice group of spins.
-
-    Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import BondSamplingInteraction
-        >>> BondSamplingInteraction('sampling', target='spins').neighborhood
-        VonNeumannNeighborhood()
-    """
-
-    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
-        super().__init__(label, target=target, state='spin', energy=self._energy, neighborhood=NEAREST)
-
-    def _energy(self, namespace: SimpleNamespace) -> Expression:
-        """Return the local energy `-s (sum_k J_k s_k + h)` of a spin."""
-        s = namespace.target
-        couplings = (s.J_up, s.J_left, s.J_right, s.J_down)
-        neighbours = neighbors(s.spin, NEAREST, reduce='each')
-        return -s.spin * (sum(coupling * other for coupling, other in zip(couplings, neighbours, strict=True)) + s.h)
-
-
-class BondSpinElement(Element):
-    """Ising spin on a square lattice with quenched couplings to its four neighbours, of local energy `-s sum J_k s_k`.
-
-    The couplings are constant states of every site, so a bond between two sites is stored at both of them with the same
-    value. A `BondSamplingInteraction` flips the spins by Metropolis Monte Carlo at the temperature `T`, with the energy
-    `-sum_<ij> J_ij s_i s_j - h sum_i s_i`.
-
-    Args:
-        label:
-            The label of the spin or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        spin:
-            The initial spin, 1 or -1.
-
-        J_up:
-            The coupling to the upper neighbour.
-
-        J_left:
-            The coupling to the left neighbour.
-
-        J_right:
-            The coupling to the right neighbour.
-
-        J_down:
-            The coupling to the lower neighbour.
-
-        h:
-            The external field.
-
-        temperature:
-            The temperature.
-
-    Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import BondSpinElement
-        >>> BondSpinElement('spin', J_left=-1.0).J_left
-        -1.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        J_up: Annotated[float, StateSpec()] = 1.0,
-        J_left: Annotated[float, StateSpec()] = 1.0,
-        J_right: Annotated[float, StateSpec()] = 1.0,
-        J_down: Annotated[float, StateSpec()] = 1.0,
-        h: Annotated[float, ParameterSpec()] = 0.0,
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.spin = spin
-        self.J_up = J_up
-        self.J_left = J_left
-        self.J_right = J_right
-        self.J_down = J_down
-        self.h = h
-        self.temperature = temperature
-
-
-class MattisSpinElement(BondSpinElement):
-    """Spin of the Mattis model, a bond spin that also holds its quenched pattern `xi`, with couplings `J xi_i xi_j`.
-
-    Args:
-        label:
-            The label of the spin or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        spin:
-            The initial spin, 1 or -1.
-
-        J_up:
-            The coupling to the upper neighbour.
-
-        J_left:
-            The coupling to the left neighbour.
-
-        J_right:
-            The coupling to the right neighbour.
-
-        J_down:
-            The coupling to the lower neighbour.
-
-        h:
-            The external field.
-
-        temperature:
-            The temperature.
-
-        pattern:
-            The quenched pattern `xi`, 1 or -1.
-
-    Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import MattisSpinElement
-        >>> MattisSpinElement('spin', pattern=-1.0).pattern
-        -1.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        spin: float = 1.0,
-        J_up: float = 1.0,
-        J_left: float = 1.0,
-        J_right: float = 1.0,
-        J_down: float = 1.0,
-        h: float = 0.0,
-        temperature: float = 1.0,
-        pattern: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-    ) -> None:
-        super().__init__(
-            label,
-            visual=visual,
-            spin=spin,
-            J_up=J_up,
-            J_left=J_left,
-            J_right=J_right,
-            J_down=J_down,
-            h=h,
-            temperature=temperature,
-        )
-        self.pattern = pattern
 
 
 def _magnetization_observables(system: System) -> list[ObservableSpec]:

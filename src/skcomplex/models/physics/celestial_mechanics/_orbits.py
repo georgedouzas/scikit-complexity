@@ -7,22 +7,20 @@ import itertools
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, cos, oo, sqrt
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression, cos, sqrt
 
-from ....core.elements import Element
 from ....core.interactions import EulerLagrangeInteraction, GradientInteraction
 from ....core.laws.utils import derivative
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.solvers import RK4Solver
 from ....errors import ValidationError
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ..common.particles import GravityInteraction, MassPointElement
+from ._rotating_frame_body import RotatingFrameBodyElement
+from ._sitnikov_body import SitnikovBodyElement
 from .types import Preset
 
 FIGURE_EIGHT: Preset = (
@@ -31,7 +29,10 @@ FIGURE_EIGHT: Preset = (
     [[-0.97000436, 0.24308753], [0.97000436, -0.24308753], [0.0, 0.0]],
     [[0.466203685, 0.43236573], [0.466203685, 0.43236573], [-0.93240737, -0.86473146]],
 )
+
+
 """Gravitational constant, masses, positions, and velocities of the figure-eight orbit."""
+
 
 INNER_SOLAR_SYSTEM: Preset = (
     4 * math.pi**2,
@@ -45,14 +46,12 @@ INNER_SOLAR_SYSTEM: Preset = (
         [0.0, 2 * math.pi / math.sqrt(1.524)],
     ],
 )
+
+
 """Gravitational constant, masses, positions, and velocities of the Sun and the inner planets."""
 
+
 PRESETS = {'figure_eight': FIGURE_EIGHT, 'inner_solar_system': INNER_SOLAR_SYSTEM}
-
-
-def _primaries(mu: float, **_: float) -> list[list[float]]:
-    """Return the positions of the two primaries in the rotating frame."""
-    return [[-mu, 0.0], [1 - mu, 0.0]]
 
 
 def _get_rotating_frame_lagrangian(s: SimpleNamespace) -> Expression:
@@ -69,60 +68,6 @@ def _get_sitnikov_potential(s: SimpleNamespace) -> Expression:
     """Return the potential `-1 / sqrt(z² + r(t)²)` of the two primaries at the distance `r(t)` from the axis."""
     distance = (1 - s.target.e * cos(s.t)) / 2
     return -1 / sqrt(s.target.z**2 + distance**2)
-
-
-class RotatingFrameBodyElement(Element):
-    """Light body at `(x, y)`, coordinates of order 2 in the frame that rotates with two primaries.
-
-    The primaries of masses `1 - mu` and `mu` sit at `(-mu, 0)` and `(1 - mu, 0)`.
-
-    Args:
-        label:
-            The label of the body.
-
-        visual:
-            How the body is drawn, or `None` for its class visual.
-
-        x:
-            The initial first coordinate.
-
-        x_d1:
-            The initial first velocity.
-
-        y:
-            The initial second coordinate.
-
-        y_d1:
-            The initial second velocity.
-
-        mu:
-            The mass of the lighter primary, as a fraction of the total.
-
-    Examples:
-        >>> from skcomplex.models.physics.celestial_mechanics import RotatingFrameBodyElement
-        >>> RotatingFrameBodyElement('body', mu=0.1).mu
-        0.1
-    """
-
-    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'marks': _primaries})
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        x: Annotated[float, StateSpec(order=2)] = 0.5,
-        x_d1: float = 0.0,
-        y: Annotated[float, StateSpec(order=2)] = 0.0,
-        y_d1: float = 0.0,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01215,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.x_d1 = x_d1
-        self.y = y
-        self.y_d1 = y_d1
-        self.mu = mu
 
 
 def _preset(name: str) -> Preset:
@@ -314,48 +259,6 @@ def restricted_three_body(
             ),
         ],
     )
-
-
-class SitnikovBodyElement(Element):
-    """Light body at the height `z`, of order 2, on the axis through the centre of mass of two equal primaries.
-
-    The primaries orbit with the eccentricity `e`.
-
-    Args:
-        label:
-            The label of the body.
-
-        visual:
-            How the body is drawn, or `None` for none.
-
-        z:
-            The initial height.
-
-        z_d1:
-            The initial vertical velocity.
-
-        e:
-            The eccentricity of the primaries' orbits.
-
-    Examples:
-        >>> from skcomplex.models.physics.celestial_mechanics import SitnikovBodyElement
-        >>> SitnikovBodyElement('body', e=0.1).e
-        0.1
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        z: Annotated[float, StateSpec(order=2)] = 0.5,
-        z_d1: float = 0.0,
-        e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.z = z
-        self.z_d1 = z_d1
-        self.e = e
 
 
 @register_model(

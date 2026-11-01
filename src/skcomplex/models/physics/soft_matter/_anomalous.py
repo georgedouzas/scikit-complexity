@@ -3,25 +3,23 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
-import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt, vector
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import SR, Expression, sqrt, vector
 
-from ....core.elements import Element, GroupElement
+from ....core.elements import GroupElement
 from ....core.interactions import JumpInteraction, MapInteraction, RateInteraction
 from ....core.laws.utils import draw, normal
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
 from ....engine.solvers import EulerMaruyamaSolver, FractionalEulerMaruyamaSolver, RK4Solver
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
-
-POINTS = VisualSpec('points', {'position': 'x'})
+from ._continuous_time_walker import ContinuousTimeWalkerElement
+from ._fractional_walker import FractionalWalkerElement
+from ._levy_flier import LevyFlierElement
+from ._levy_walker import LevyWalkerElement
+from ._transient_walker import TransientWalkerElement
 
 
 def _get_flight(s: SimpleNamespace) -> object:
@@ -36,234 +34,6 @@ def _direction(name: str, size: int) -> list[Expression]:
     components = [normal(f'{name}{index}') for index in range(size)]
     length = sqrt(sum(component**2 for component in components))
     return [component / length for component in components]
-
-
-class ContinuousTimeWalkerElement(Element):
-    """Walker that waits a power-law time `tau0 r^(-1 / alpha)` for `r` uniform, then jumps by a Gaussian step.
-
-    The jumps are a jump interaction of the model, which resets the position after every waiting time.
-
-    Args:
-        label:
-            The label of the walker or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial position.
-
-        alpha:
-            The tail exponent of the waiting times, below 1 for waiting times without a mean.
-
-        tau0:
-            The shortest waiting time.
-
-        sigma:
-            The standard deviation of the jumps along every axis.
-
-    Examples:
-        >>> from skcomplex.models.physics.soft_matter import ContinuousTimeWalkerElement
-        >>> ContinuousTimeWalkerElement('walker', alpha=0.7).alpha
-        0.7
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = POINTS,
-        *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        tau0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.alpha = alpha
-        self.tau0 = tau0
-        self.sigma = sigma
-
-
-class LevyWalkerElement(Element):
-    """Walker that flies at constant speed in a random direction for a power-law flight time, then turns.
-
-    The flight is a rate interaction of the position, and the turns a jump interaction that resets the velocity after
-    every flight time.
-
-    Args:
-        label:
-            The label of the walker or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial position.
-
-        v:
-            The initial velocity.
-
-        sigma:
-            The tail exponent of the flight times, between 1 and 2 for superdiffusion.
-
-        tau0:
-            The shortest flight time.
-
-        speed:
-            The speed of every flight.
-
-    Examples:
-        >>> from skcomplex.models.physics.soft_matter import LevyWalkerElement
-        >>> LevyWalkerElement('walker', speed=2.0).speed
-        2.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = POINTS,
-        *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-        v: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
-        tau0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        speed: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.v = v
-        self.sigma = sigma
-        self.tau0 = tau0
-        self.speed = speed
-
-
-class TransientWalkerElement(Element):
-    """Brownian walker whose diffusion coefficient `D` is redrawn after waiting times of mean `D^(-gamma)`.
-
-    The coefficient takes values of density `sigma D^(sigma - 1)` on `(0, 1)`, the beta distribution `B(sigma, 1)`, so
-    slow walkers wait long before they change.
-
-    Args:
-        label:
-            The label of the walker or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial position.
-
-        D:
-            The initial diffusion coefficient.
-
-        sigma:
-            The exponent of the density of diffusion coefficients near zero.
-
-        gamma:
-            The exponent of the mean waiting time `D^(-gamma)`.
-
-    Examples:
-        >>> from skcomplex.models.physics.soft_matter import TransientWalkerElement
-        >>> TransientWalkerElement('walker', gamma=2.0).gamma
-        2.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('points', {'position': 'x', 'color_by': 'D', 'color_range': (0.0, 1.0)}),
-        *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-        D: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 0.5,
-        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.D = D
-        self.sigma = sigma
-        self.gamma = gamma
-
-
-class FractionalWalkerElement(Element):
-    """Walker driven by fractional Brownian motion, `dx = sqrt(2 D) dB_H`, whose increments are correlated in time.
-
-    Args:
-        label:
-            The label of the walker or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial position.
-
-        D:
-            The diffusion coefficient.
-
-        H:
-            The Hurst index of the driving fractional Brownian motion.
-
-    Examples:
-        >>> from skcomplex.models.physics.soft_matter import FractionalWalkerElement
-        >>> FractionalWalkerElement('walker', H=0.3).H
-        0.3
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = POINTS,
-        *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-        D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        H: Annotated[float, ParameterSpec(domain=RealSet.open(0, 1))] = 0.3,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.D = D
-        self.H = H
-
-
-class LevyFlierElement(Element):
-    """Walker that jumps at every step by a length of power-law tail `l^(-1 - mu)` in a random direction.
-
-    Args:
-        label:
-            The label of the walker or the group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        x:
-            The initial position.
-
-        mu:
-            The tail exponent of the jump lengths, below 2 for jumps of infinite variance.
-
-        l0:
-            The shortest jump length.
-
-    Examples:
-        >>> from skcomplex.models.physics.soft_matter import LevyFlierElement
-        >>> LevyFlierElement('walker', mu=1.2).mu
-        1.2
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = POINTS,
-        *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
-        mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.2,
-        l0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.x = x
-        self.mu = mu
-        self.l0 = l0
 
 
 @register_model(

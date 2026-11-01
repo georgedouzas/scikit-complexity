@@ -5,27 +5,23 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, ZZ, Expression, oo
-from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
-from sage.sets.real_set import RealSet
+from sage.all__sagemath_symbolics import Expression
 
-from ....core.elements import Element, GroupElement, LatticeElement
+from ....core.elements import GroupElement, LatticeElement
 from ....core.interactions import LocalRuleInteraction, TransferInteraction
-from ....core.laws import BaseLaw, LocalRuleLaw, RuleLaw, Sink, Source
+from ....core.laws import Sink, Source
 from ....core.laws.utils import bernoulli
 from ....core.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
 from ....core.system import System
-from ....engine.solvers import ModelView
-from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ....types import Array
 from ..._catalog import register_model
-from ._walker_view import WalkerView
-
-BURNING = 2
-BURNT = 3
+from ._contact_site import ContactSiteElement
+from ._exclusion_site import ExclusionSiteElement
+from ._percolation_site import BURNING, PercolationSiteElement
+from ._q2_r_spin import Q2RSpinElement
+from ._walker import WalkerElement
 
 
 def _flip_without_cost(*columns: Array) -> tuple[Array, Array]:
@@ -34,20 +30,6 @@ def _flip_without_cost(*columns: Array) -> tuple[Array, Array]:
     spin, around, phase = columns[0], columns[1:half], columns[half]
     flips = (phase == 1) & (sum(around) == 0)
     return np.where(flips, -spin, spin), 1 - phase
-
-
-def _burn(cover: Array, *around: Array) -> Array:
-    """Return the next cover of a site, which burns out, catches fire from a burning neighbour, or stays."""
-    catches = (cover == 1) & np.any(np.stack(around) == BURNING, axis=0)
-    return np.where(cover == BURNING, BURNT, np.where(catches, BURNING, cover))
-
-
-def _spread(infected: Array, *around: Array, rate: float | Array, tau: float | Array, random: Array) -> Array:
-    """Return the next infections of the contact process over a time slice `tau`."""
-    share = sum(around) / len(around)
-    infects = random < -np.expm1(-rate * tau * share)
-    recovers = random < -np.expm1(-tau)
-    return np.where(infected == 1, np.where(recovers, 0.0, 1.0), np.where(infects, 1.0, 0.0))
 
 
 def _hop(s: SimpleNamespace) -> Expression:
@@ -63,262 +45,6 @@ def _enter(s: SimpleNamespace) -> Expression:
 def _leave(s: SimpleNamespace) -> Expression:
     """Return 1 where the particle on the last site leaves with probability `beta`, and 0 otherwise."""
     return s.source.occupied * bernoulli('exit', s.source.beta)
-
-
-class Q2RSpinElement(Element):
-    """Site of the Q2R automaton, a spin and a phase that says whether the site updates in the current step.
-
-    The local rule of Q2R flips the spins of the updating sites whose neighbours sum to zero, which leaves the Ising
-    energy unchanged, and swaps the phase of every site, so the two sublattices update in turn and the dynamics is
-    reversible.
-
-    Args:
-        label:
-            The label of the site or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        spin:
-            The initial spin, 1 or -1.
-
-        phase:
-            The initial phase, 1 for updating and 0 for quiescent.
-
-    Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import Q2RSpinElement
-        >>> Q2RSpinElement('site').phase
-        0.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        phase: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.spin = spin
-        self.phase = phase
-
-
-class PercolationSiteElement(Element):
-    """Site of a percolation lattice: empty at 0, occupied at 1, burning at 2, or burnt at 3.
-
-    Fire spreads from burning sites to their occupied neighbours and burns out in one step, so a fire lit along one
-    edge burns exactly the clusters that touch that edge.
-
-    Args:
-        label:
-            The label of the site or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        cover:
-            The initial cover, 0, 1, 2, or 3.
-
-    Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import PercolationSiteElement
-        >>> PercolationSiteElement('site').cover
-        0.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        cover: Annotated[float, StateSpec(domain=NN)] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.cover = cover
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the spread and burning out of the fire.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [LocalRuleLaw(s.cover, VonNeumannNeighborhood(center=True), _burn)]
-
-
-class ContactSiteElement(Element):
-    """Site of the contact process, which infects a neighbour at the rate `rate / 4` and recovers at rate 1.
-
-    One step is a time slice `tau`, in which an infected site recovers with probability `1 - exp(-tau)` and a
-    healthy site is infected with probability `1 - exp(-rate tau f)`, where `f` is the fraction of its infected
-    neighbours.
-
-    Args:
-        label:
-            The label of the site or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        infected:
-            The initial state, 1 for infected and 0 for healthy.
-
-        rate:
-            The infection rate.
-
-        tau:
-            The time slice of one step.
-
-    Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import ContactSiteElement
-        >>> ContactSiteElement('site').rate
-        3.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        infected: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
-        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.infected = infected
-        self.rate = rate
-        self.tau = tau
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the stochastic infection and recovery.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [LocalRuleLaw(s.infected, VonNeumannNeighborhood(center=True), _spread, stochastic=True)]
-
-
-class ExclusionSiteElement(Element):
-    """Site of the totally asymmetric simple exclusion process, empty at 0 or holding one particle at 1.
-
-    It holds the probabilities of a hop, of an entry at the left end of an open line, and of an exit at its right end,
-    which the transfers of the process read.
-
-    Args:
-        label:
-            The label of the site or the lattice group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        occupied:
-            The initial occupation.
-
-        p:
-            The probability of a hop.
-
-        alpha:
-            The probability of an entry at the left end of an open line.
-
-        beta:
-            The probability of an exit at the right end of an open line.
-
-    Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import ExclusionSiteElement
-        >>> ExclusionSiteElement('site').p
-        0.5
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        occupied: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-        p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
-        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
-        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.occupied = occupied
-        self.p = p
-        self.alpha = alpha
-        self.beta = beta
-
-
-class WalkerElement(Element):
-    """Random walker of diffusion-limited aggregation, which sticks when it reaches a stuck walker.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-        visual:
-            How the element is drawn, or `None` for `default_visual_`.
-
-        stuck:
-            Whether the walker belongs to the aggregate.
-
-    Examples:
-        >>> from skcomplex.models.physics.statistical_mechanics import WalkerElement
-        >>> WalkerElement('walker').stuck
-        0.0
-    """
-
-    def __init__(
-        self,
-        label: str,
-        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'stuck', 'color_range': (0.0, 1.0)}),
-        *,
-        stuck: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
-    ) -> None:
-        super().__init__(label, visual=visual)
-        self.stuck = stuck
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the walk-and-stick rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.walk)]
-
-    @classmethod
-    def _get_view(cls) -> type:
-        """Return the class of the views of the element's agents."""
-        return WalkerView
-
-    def walk(self, agent: WalkerView, model: ModelView) -> None:
-        """Stick next to the aggregate, or step to a random neighbouring cell.
-
-        Args:
-            agent:
-                The walker.
-
-            model:
-                The model.
-        """
-        if agent.stuck:
-            return
-        if any(isinstance(other, WalkerView) and other.stuck for other in agent.neighbors()):
-            agent.stuck = 1.0
-            return
-        cells = agent.neighbor_cells()
-        agent.move_to(cells[int(model.rng.integers(len(cells)))])
 
 
 def _checkerboard(shape: tuple[int, ...]) -> Array:

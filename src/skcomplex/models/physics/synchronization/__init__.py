@@ -1,19 +1,16 @@
 """Synchronization: coupled phase oscillators, pulse-coupled oscillators, swarmalators, chaos, and Kuramoto order."""
 
+from ._aggregate_averaging import AggregateAveragingInteraction
 from ._amplitude_death import (
     GlobalCouplingInteraction,
     heterogeneous_global_coupling,
     oscillator_death,
 )
-from ._chaos import (
-    AggregateAveragingInteraction,
-    DiffusiveCouplingInteraction,
-    LogisticUnitElement,
-    RosslerOscillatorElement,
-    aggregate_averaging_synchronization,
-    coupled_rossler,
-)
+from ._chaos import aggregate_averaging_synchronization, coupled_rossler
+from ._diffusive_coupling import DiffusiveCouplingInteraction
+from ._edge_coupling import EdgeCouplingInteraction
 from ._hypergraphs import SimplexCouplingInteraction, hypergraph_kuramoto
+from ._integrate_and_fire_oscillator import IntegrateAndFireOscillatorElement
 from ._kuramoto import (
     DelayedCouplingInteraction,
     delayed_kuramoto,
@@ -22,21 +19,15 @@ from ._kuramoto import (
     nonlocal_ring_chimera,
     ott_antonsen,
 )
+from ._link import LinkElement
 from ._logistic_coupling import LogisticCouplingInteraction
-from ._networks import (
-    EdgeCouplingInteraction,
-    LinkElement,
-    LogisticNodeElement,
-    coupled_map_lattices_on_networks,
-    kuramoto_on_networks,
-)
-from ._pulses import (
-    IntegrateAndFireOscillatorElement,
-    WinfreeMeanFieldInteraction,
-    mirollo_strogatz,
-    winfree,
-)
+from ._logistic_node import LogisticNodeElement
+from ._logistic_unit import LogisticUnitElement
+from ._networks import coupled_map_lattices_on_networks, kuramoto_on_networks
+from ._pulses import mirollo_strogatz, winfree
+from ._rossler_oscillator import RosslerOscillatorElement
 from ._swarmalators import SwarmalatorCouplingInteraction, swarmalators
+from ._winfree_mean_field import WinfreeMeanFieldInteraction
 
 __all__: list[str] = [
     'AggregateAveragingInteraction',

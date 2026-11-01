@@ -18,7 +18,7 @@ from ....core.system import System
 from ....engine.solvers import EulerMaruyamaSolver
 from ....specs import ObservableSpec, ParameterSpec, VisualSpec
 from ..._catalog import register_model
-from ._particles import ActiveParticleElement
+from ._active_particle import ActiveParticleElement
 from ._self_propulsion import SelfPropulsionInteraction
 
 HEADINGS = VisualSpec(
