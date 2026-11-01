@@ -25,13 +25,13 @@ from ._stability import StabilityAnalysis
 from .types import Source
 
 KINDS = ('brackets', 'conservation', 'symmetry')
+TOLERANCE = 1e-9
 SETTINGS = {
     'brackets': {'expressions'},
     'conservation': {'expressions', 'samples', 'random_state'},
     'symmetry': {'symmetry'},
 }
 """Settings every kind reads, besides `kind`."""
-TOLERANCE = 1e-9
 
 
 class InvariantAnalysis(BaseAnalysis):
