@@ -51,6 +51,16 @@ counting only the radii of the highest priority that hold a neighbour, then a `C
 norm; `combine(agent, model, reduction, priority)` defaults to `v + reduction`. Winners take all, LEGION, the power
 grid lines, the contour cell, boids, and the Couzin model run on it.
 
+### Observables and economics transfers (1.6, 2.8)
+
+El Farol, Sugarscape, and the labour market read their catalog observables (`attendance`, `population` and `gini`,
+`searching`); El Farol's predictors read `model.history('attendance')`. The economics transfer interactions keep only
+their legs, their parameters live on the elements, and the factories build the other mechanisms as rate and map
+interactions. The stock-flow consistent economy is bit-identical; the beer game matches within 1.8e-12, since each
+interaction builds its own hidden delay stages, so the split duplicates the mail, shipping, and production delay
+chains. The meadow still waits: the agent forms of transfer, movement, and life cycle read their roles by the fixed
+names `source` and `target`, and `_get_holders` serves the symbolic form only.
+
 ### Transfers along edges (1.3)
 
 `TransferInteraction` gains `offset` (every member transfers to the member `offset` places along the group order),

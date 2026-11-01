@@ -7,7 +7,7 @@
 - [x] 1.3 Add transfers along lattice and network edges in both directions at parametric rates with one draw per edge, and composite transfers that hold parameters; rebuild zero-range, exclusion, reservoir, and parallel-update TASEP processes, the beer game, and the stock-flow consistent circuit; verify the currents and the reporters.
 - [x] 1.4 Add phases of N visits drawn with replacement to the agent forms, with reinforcement of the chosen option only, and births whose probability reads the composition; rebuild the perishables market and tangled nature; verify each over 20 seeds.
 - [x] 1.5 Add the agent form of `CouplingInteraction` over several radii with priorities and clamps; rebuild boids and the Couzin model; verify each over 20 seeds.
-- [ ] 1.6 Let agent rules read observable history; remove the reporter-only feedback interactions of El Farol and the other models that only report; verify their tests.
+- [x] 1.6 Let agent rules read observable history; remove the reporter-only feedback interactions of El Farol and the other models that only report; verify their tests.
 - [x] 1.7 Let experiments replicate systems that hold interactions; rebuild the named maps and flows of the orbit diagrams on `MapInteraction` and `RateInteraction`; verify the orbit-diagram tests and docs.
 
 ## 2. Rebuilds the core already allows
@@ -19,7 +19,7 @@
 - [ ] 2.5 Rebuild the remaining social classes (voter diffusion, coevolution, standardization, crowding, walls, recruitment, the spatial games, the organizations package, and segregation blocks) on the general classes; verify their tests.
 - [x] 2.6 Rebuild the transitions of the epidemiology `PersonElement` on `TransitionInteraction` with the incubation timing of the general class, and state the convention in its docstring; verify its tests and the match with its compartment model.
 - [x] 2.7 Make `plot_bouchaud_mezard_wealth`, `plot_credit_networks`, and `plot_multiplicative_process` run within the gallery budget of 60 s, and restore the uniform band of `plot_unbounded_alphabet_automaton`; verify the docs build.
-- [ ] 2.8 Move the parameters of the economics transfer subclasses (circuit, supply link, retail demand, brewery) to their elements and build each remaining mechanism as its own `RateInteraction` or `MapInteraction` in the factory; verify the beer game and the stock-flow consistent economy are identical.
+- [x] 2.8 Move the parameters of the economics transfer subclasses (circuit, supply link, retail demand, brewery) to their elements and build each remaining mechanism as its own `RateInteraction` or `MapInteraction` in the factory; verify the beer game and the stock-flow consistent economy are identical.
 - [ ] 2.9 Add the choice variant whose proposals include the current option, the agent form of `MapInteraction` on vector states, periodic schedules, and counts grouped by cell; rebuild standardization, segregation blocks, beliefs, the employee, obesity, and trafficking on them and on the visits activation; verify their tests, over 20 seeds where draws change.
 
 ## 3. Conventions and integration
