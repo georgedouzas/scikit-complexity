@@ -1,66 +1,64 @@
 # Tasks
 
-## 1. Inventory and dependency
+## 1. Dependencies
 
-- [ ] 1.1 Move the inventory entry of `elman_network` from out of scope to `pending add-learning-dynamics`, add Elman
-  1990 to its sources and its vocabulary tags, and verify the inventory check passes with the out-of-scope entry moved
-  scenario
-- [ ] 1.2 Declare the `learning` extra with `jax>=0.11.2`, `optax>=0.2.8`, and `diffrax>=0.7.2`, teach deptry the
-  optional imports, add `MissingExtraError` to the errors module unless it exists, and verify `pdm install -G learning`
-  and the checks session pass
-- [ ] 1.3 Add a CI job without the extra, and verify it runs the suite with learning tests skipped by a marker
+- [ ] 1.1 Add `jax>=0.11.2`, `optax>=0.2.8`, and `diffrax>=0.7.2` to the runtime dependencies in `pyproject.toml`, and
+  name them, the JAX backend, and the macOS platform on Apple silicon in the Project Profile; verify `pdm install` and
+  the checks session, including `deptry`, pass
 
-## 2. Matrix-valued parameters
+## 2. Shaped parameters
 
-- [ ] 2.1 Add the `shape` argument of `parameter` with role names, the row-major block in the layout, shape-aware
-  `Trajectory` reads and `update_parameters`, and the `parameter-shape` validation issue, and verify the wrong shape
-  and unbound roles scenarios
-- [ ] 2.2 Let reduction weights read a matrix parameter on the NumPy and Numba backends, and verify the weighted input
-  scenario on both
+- [ ] 2.1 Add the `shape` field of `ParameterSpec` with role names, the row-major block in the parameter layout,
+  shape-aware `Trajectory.values` and `Simulation.update_parameters`, and the `parameter-shape` issue; verify the wrong
+  shape and unbound roles scenarios
+- [ ] 2.2 Let the weights of `total` and `mean` read a shaped parameter on the NumPy and Numba backends; verify the
+  weighted input scenario on both
+- [ ] 2.3 Let `CouplingInteraction(mode='group')` take a shaped parameter as `weights` with a function of both members,
+  lowered to a matrix product when the function factors and to a pair loop otherwise; verify the generalized
+  Lotka-Volterra coupling scenario on NumPy and Numba
 
 ## 3. JAX backend
 
-- [ ] 3.1 Add `JaxBackend` to `skcomplex.core.backends` with its private printer dialect, for discrete maps and ODEs
-  with reductions and matrix parameters, with its `Supports` declaration and availability check, and verify the
-  weighted input scenario on JAX, forward agreement with NumPy within 1e-10 on `logistic_map` and `lotka_volterra`,
-  and the missing extra scenario
+- [ ] 3.1 Add `JaxBackend` in `engine/backends/_jax.py` with its `DialectSpec`, for discrete maps and ODEs with
+  reductions and shaped parameters, and its `SupportSpec`; verify the weighted input and coupling scenarios on JAX and
+  forward agreement with NumPy within 1e-10 on `logistic_map` and `lotka_volterra`
 
-## 4. Gradient-step law and learning solver
+## 4. Training law and learning solver
 
-- [ ] 4.1 Add `LawKind.GRADIENT_STEP` in the discrete class, and `GradientStep`, `Dataset`, and `Optimizer` to
-  `skcomplex.core.laws` with the requirements of the law, and compile a system holding the law with its nested system
-  as the law's inner problem
-- [ ] 4.2 Add the validation issues of trained paths, adaptive declarations, differentiability, observables, and
-  dataset shapes, and verify the untrained parameter path, parameter not adaptive, unknown loss, shape mismatch,
-  unknown optimizer, and not differentiable scenarios
-- [ ] 4.3 Add the `GradientDescent` solver registered as `'optax'` with its `Supports` declaration, `lax.scan`
-  unrolls, diffrax ODE unrolls, truncation, double precision, injected hyperparameters, and optimizer state reset, and
-  verify the gradient against finite differences, gradient through an ODE, truncation, zero learning rate, and
-  learning rate schedule scenarios
+- [ ] 4.1 Add `GradientStepLaw` in `core/laws/_gradient_step.py`, `TrainingInteraction` in
+  `core/interactions/_training.py` with `OPTIMIZERS` and its hyperparameters, `DatasetSpec` in `skcomplex.specs`, and
+  `FormKind.LEARNING`; verify the unknown optimizer scenario and that `GradientInteraction` is unchanged
+- [ ] 4.2 Compile a system holding the law into a `LearningProblemSpec` with the nested system as its inner problem,
+  and add the learning issues to the pass compiler; verify the untrained parameter path, parameter not adaptive,
+  unknown loss, shape mismatch, and not differentiable scenarios
+- [ ] 4.3 Add `GradientDescentSolver` in `engine/solvers/_gradient_descent.py` with `lax.scan` unrolls, diffrax ODE
+  unrolls, truncation, double precision, injected hyperparameters, and optimizer state reset, and map
+  `FormKind.LEARNING` to it in `DEFAULT_SOLVERS`; verify the gradient against finite differences, gradient through an
+  ODE, truncation, zero learning rate, learning rate schedule, automatic solver, and unsupported solver scenarios
 - [ ] 4.4 Run systems holding the law through `Simulation` with whole-epoch `dt`, seeded shuffling, and the recorded
-  loss and metrics, and verify the epochs as frames, time between frames, loss at the start, masked steps, same seed,
-  automatic solver, and updates per epoch scenarios
-- [ ] 4.5 Add `trained_model`, and verify the trained model agrees with training scenario
-- [ ] 4.6 Verify the Lotka-Volterra fit scenario and the Oja's rule scenario, the latter in the job without the extra
+  loss and metrics; verify the epochs as frames, time between frames, loss at the start, masked steps, same seed, and
+  updates per epoch scenarios
+- [ ] 4.5 Verify the trained model agrees with training, Lotka-Volterra fit, and Oja's rule scenarios
 
 ## 5. Visualization
 
-- [ ] 5.1 Add `MatrixVisual` registered as `'matrix'`, the visual of a system that trains, and its primary view and
-  default blueprint, and verify the recurrent weights, primary view, and default blueprint scenarios
+- [ ] 5.1 Add `MatrixVisual` in `engine/viz/_matrices.py`, chosen by `VisualSpec('matrix')`, the visual of a system
+  that trains, and its place first in the default blueprint of `RerunObserver`; verify the recurrent weights, first
+  view, and default blueprint scenarios
 
-## 6. Library model
+## 6. Models
 
-- [ ] 6.1 Add `elman_network` to `computer_science/neural_networks` as a registered factory built only from public core
-  names, with its catalog observables, mark its inventory entry implemented, and verify the temporal XOR and Elman's
-  original rule scenarios, the conformance suite, and the inventory check
+- [ ] 6.1 Add `elman_network` to `computer_science/neural_networks` built only from public names, with its catalog
+  observables, and mark its inventory entry implemented; verify the temporal XOR and Elman's original rule scenarios
+  and the inventory check
 - [ ] 6.2 Add `docs/examples/computer_science/neural_networks/plot_elman_network.py` with the loss thumbnail and the
-  error-by-position figure, and verify the gallery example scenario and the gallery checks
+  error-by-position figure; verify the gallery example scenario and the gallery checks
+- [ ] 6.3 Rebuild `GeneralizedLotkaVolterraInteraction` on `CouplingInteraction(mode='group')` with a shaped matrix
+  parameter and the growth as a `RateInteraction`; verify the rebuilt community and matrix swept scenarios
 
 ## 7. Documentation and gate
 
-- [ ] 7.1 Document the gradient-step law, nested inner models, datasets, losses, truncation, optimizers, matrix
-  parameters, the extra, and the zero gradient of step functions in the user guide, regenerate the compatibility
-  table, add a changelog entry, add the `learning` extra and the JAX backend to the constitution's Project Profile,
-  and verify the documentation build runs the examples
-- [ ] 7.2 Run formatting, checks, the docs build, and tests through nox with and without the extra, and verify all of
-  them pass
+- [ ] 7.1 Document the training interaction and its law, its difference from `GradientInteraction`, nested inner
+  models, datasets, losses, truncation, optimizers, shaped parameters, and the zero gradient of step functions in the
+  user guide, and add the changelog entry; verify the documentation build runs the examples
+- [ ] 7.2 Run formatting, checks, the docs build, and tests through nox; verify all of them pass
