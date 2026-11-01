@@ -4,6 +4,7 @@ import itertools
 import math
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 from scipy.integrate import solve_ivp
 from sklearn.base import clone
@@ -24,9 +25,9 @@ def _information(kind: str, source: object, **settings: object) -> np.ndarray | 
     return _analysis(kind, source, **settings).information_
 
 
-def _pair(kind: str, first: object, second: object, **settings: object) -> float:
+def _pair(kind: str, first: npt.ArrayLike, second: npt.ArrayLike, **settings: object) -> float:
     """Return the information from a first series to a second one."""
-    return float(_information(kind, np.column_stack([first, second]), **settings)[0, 1])
+    return float(np.asarray(_information(kind, np.column_stack([first, second]), **settings))[0, 1])
 
 
 def _bits(seed: int, columns: int) -> np.ndarray:

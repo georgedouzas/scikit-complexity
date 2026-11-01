@@ -587,6 +587,14 @@ class LammpsSolver(ExternalSolver):
     def _position_name(element: CompiledElementSpec) -> str:
         """Return the name of the vector position state of order 2 of the members of an element.
 
+        Args:
+            element:
+                The compiled element.
+
+        Returns:
+            name:
+                The name of the position state.
+
         Raises:
             BackendError:
                 The members declare no such state.

@@ -148,6 +148,17 @@ class JumpInteraction(Interaction):
     def _get_reset(self, state: object, value: object) -> dict[Expression, Expression]:
         """Return the new value of every component of a state, one per component of a vector state.
 
+        Args:
+            state:
+                The symbol of a scalar state or the vector of a vector state.
+
+            value:
+                The new value, one expression for every component or a sequence of one per component.
+
+        Returns:
+            reset:
+                The new value of every component of the state.
+
         Raises:
             ValidationError:
                 The new value of a vector state has not one component per component of the state.

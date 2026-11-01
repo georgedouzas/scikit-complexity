@@ -150,6 +150,23 @@ class FiniteVolumeKernel(BaseKernel):
     def _godunov(self, axis: int, left: Array, right: Array, parameters: list[float | Array]) -> Array:
         """Return the exact Godunov flux of one state: the minimum flux between rising states, else the maximum.
 
+        Args:
+            axis:
+                The axis of the interfaces.
+
+            left:
+                The state on the left of every interface.
+
+            right:
+                The state on the right of every interface.
+
+            parameters:
+                The values of the parameters the flux reads.
+
+        Returns:
+            flux:
+                The flux through every interface.
+
         Raises:
             ValidationError:
                 A parameter of the flux varies across the cells.
