@@ -42,6 +42,21 @@ A model whose draws change is compared over 20 seeds against its previous trajec
   hand-kept clock. The model docstring states the convention and its tests take the new trajectory; the agent model
   still matches its compartment model within the existing tolerance.
 
+### Couplings of separate elements and over radii (1.1, 1.5)
+
+In mode `'group'`, `CouplingInteraction` binds a list of separate elements coupled to each other, a single hub element
+reduced over a group, or a group reading separate elements; the reduction over separate elements is written term by
+term. Its agent form (`form='agent'`) runs per agent with `radii` of `RadiusSpec(radius, function, reduce, priority)`,
+counting only the radii of the highest priority that hold a neighbour, then a `ClampSpec` bounds the turn angle and the
+norm; `combine(agent, model, reduction, priority)` defaults to `v + reduction`. Winners take all, LEGION, the power
+grid lines, the contour cell, boids, and the Couzin model run on it.
+
+### Gallery budget (2.7)
+
+Pair reductions that factor into member and other-member parts lower to one linear reduction per part, and class
+declarations are parsed once per class; the reflecting floor and the bank borrowers are computed once per step. The
+unbounded-alphabet example draws the symmetric Pascal triangle, since the band check failed before the rebuild too.
+
 ### Parametric coefficients and agent reactions (1.2)
 
 A stoichiometric coefficient may be a function of the reaction's namespace returning an expression; under mass action
