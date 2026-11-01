@@ -171,7 +171,7 @@ class TransferInteraction(Interaction):
         return legs
 
     def _check_leg(self, state: object, into: object, amount: object, flow: object) -> None:
-        """Raise an error for a leg with unusable ends, amount, or flow name, or a symbolic end of a referenced member."""
+        """Raise an error for a leg with unusable ends, amount, or flow name, or a symbolic referenced end."""
         if not isinstance(state, str | Source) or not isinstance(into, str | Sink):
             error_msg = (
                 f'A leg of {self.label!r} moves {state!r} into {into!r}. Give a state name or `Source()` it leaves, '
