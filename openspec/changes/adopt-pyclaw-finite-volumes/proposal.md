@@ -4,46 +4,53 @@
 
 The audit in `organize-model-library` measured the framework's finite volumes against PyClaw. Burgers' equation on
 3200 cells took 23 s at an L1 error of 1.7e-3, while PyClaw's classic solver with a monotonized central limiter took
-0.18 s at 6.7e-4. The dam break on 1600 cells took 30.5 s, while PyClaw took 0.05 s at half the error. Even PyClaw with
-a Roe Riemann solver written in pure Python ran 20 to 150 times faster than the in-house scheme. A Rusanov solver
-generated naively for PyClaw was 2 to 6 times less accurate than a Roe solver, so the lowering has to produce proper
-waves. The constitution requires a capability that a mature library provides to be taken from that library, so the
-conservation laws of finite-volume fields should run in PyClaw.
+0.18 s at 6.7e-4. The dam break on 1600 cells took 30.5 s, while PyClaw took 0.05 s at half the error. A Rusanov solver
+generated naively for PyClaw was 2 to 6 times less accurate than a Roe solver, so a lowering has to produce proper
+waves. The constitution requires a capability that a mature library provides to be taken from that library.
 
-PyClaw ships wheels only for Python 3.13 on macOS 15 with Apple silicon. Linux, Python 3.12, and Intel macOS need a
-source build with meson and gfortran, or the conda-forge package. PyClaw therefore enters as an optional extra, and the
-in-house scheme stays as the fallback. The audit also found that 78% of the in-house time goes to `np.linalg.eigvals` of
-the flux Jacobian and 14% to `np.take` with a Python range, so the fallback's hot path is fixed too.
+Those numbers predate the current lowering. `ConservationInteraction` and `AdvectionInteraction` now lower the fluxes
+of a field to `FluxLaw`s, `FieldFunctionsPass` compiles every flux law of one finite-volume field into one
+`FiniteVolumeKernel` in shared symbols, with per-cell parameters and the Rusanov and Godunov numerical fluxes, and
+`riemann=None` lowers a flux to the rate `-divergence(flux)` for spectral and finite-difference fields. `SSPRKSolver`
+declares its `SupportSpec`, `ExternalSolver` is the contract for third-party solvers, and the compiler reports what a
+solver does not support as `IssueSpec`s. This change therefore drops all of that from its scope, re-measures the
+timings on the current code as its first task, and keeps three things: a PyClaw solver that lowers the compiled kernel
+of a field, the hot path of the in-house kernel, which still calls `np.linalg.eigvals` and `np.take` with a Python
+range, and a finite-volume solver that picks between them.
 
-**Rebased on `redesign-system-model`.** The redesign covers none of this change's purpose. It gathers every backend in
-`skcomplex.core.backends`, requires every solver and backend to declare its support, and reports an unavailable
-optional backend through validation, with a fix that names the installation extra. This change keeps its scope: the
-PyClaw backend lives in `core.backends` with its Riemann lowering as a private module, it and the finite-volume solver
-declare `Supports`, the missing extra and the unsupported items become validation issues raised before compilation,
-and finite-volume fields are site groups on a lattice.
+PyClaw 5.14.0 ships a wheel only for Python 3.13 on macOS 15 with Apple silicon. Linux, Python 3.12, and Intel macOS
+need a source build with meson and gfortran, or the conda-forge package. The Project Profile makes every library that
+`skcomplex.engine` uses a runtime dependency, which would break the install everywhere else. This change therefore
+asks for a narrow amendment of the dependency placement rule, so PyClaw can enter as an optional extra with the
+in-house kernel as the fallback, and stops before implementation if the maintainer refuses it.
 
 ## What Changes
 
+- Re-measure Burgers on 3200 cells and the dam break on 1600 cells with `SSPRKSolver` on the current kernel and with
+  PyClaw's classic solver, record the numbers in the design, and set the speed thresholds of the specs from them.
+- Amend the dependency placement rule of the Project Profile: an engine library that publishes no wheel for some
+  supported platform or Python version MAY be an optional extra, when an in-house path covers the same systems and the
+  engine imports the library lazily.
 - Add an optional `clawpack` extra that installs `clawpack>=5.14.0`, and keep it out of the default install.
-- Add a PyClaw backend that runs the conservation laws of lattice finite-volume fields, groups on the sites of a
-  lattice with the finite-volume discretization. It declares its support, continuous time, lattice spaces, site
-  groups, real states, and rate laws, and lowers every field's symbolic `Flux` laws to a PyClaw Riemann solver:
+- Add `PyClawSolver`, an `ExternalSolver` in `skcomplex.engine.solvers`, that runs the `FiniteVolumeKernel`s of a
+  problem in PyClaw. It lowers the flux system of each field to a Riemann solver:
   - known fluxes, such as linear advection, Burgers, shallow water in one and two dimensions, and the Euler equations,
-    map to PyClaw's shipped Fortran solvers, with their parameters passed through `problem_data`;
-  - other fluxes of up to three states get a generated Roe-type f-wave solver from a Sage eigen-decomposition of the
-    flux Jacobian, with an entropy fix;
+    map to PyClaw's shipped Fortran solvers, with uniform parameters passed through `problem_data`,
+  - other fluxes of up to three states, and every flux that reads per-cell parameters, get a generated Roe-type
+    f-wave solver from a Sage eigen-decomposition of the flux Jacobian, with an entropy fix, reading per-cell values
+    from PyClaw's `aux` arrays,
   - fluxes whose eigen-decomposition has no closed form get a generated HLL solver, with Rusanov as the last resort.
-- Map field boundaries to PyClaw boundary conditions. Periodic edges become periodic, zero-flux edges become
-  extrapolation, fixed edges and mixed boundaries per state become custom ghost-cell fills.
-- Step frames with `evolve_to_time`, apply rate laws on the same states as sources through `step_source`, and pass
-  live parameter changes to `problem_data` before the next frame.
-- Add a finite-volume solver, with its `Supports` declaration, that picks the PyClaw backend when the extra is
-  installed and the field is supported, and the in-house scheme otherwise. It records which path it took. Library
+- Map field boundaries to PyClaw boundary conditions, step frames with `evolve_to_time`, apply the source rates of
+  the conserved states through `step_source`, and pass live parameter changes before the next frame.
+- Keep the symbolic flux columns of a field on its `FiniteVolumeKernel`, so the closed-form eigenvalues of the native
+  kernel and the Riemann lowering of PyClaw derive from one place.
+- Fix the in-house hot path: wave speeds come from closed-form eigenvalues compiled once, with `np.linalg.eigvals`
+  kept only where no closed form exists, and the reconstruction slices arrays instead of calling `np.take`.
+- Add `FiniteVolumeSolver(path='auto')` in `skcomplex.engine.solvers`, which runs `PyClawSolver` when the extra is
+  installed and supports the problem and `SSPRKSolver` otherwise, and records the path it took. The library's
   finite-volume models default to it.
-- Report, through validation, an issue whose fix names the `clawpack` extra and the conda-forge package when a user
-  asks for the PyClaw backend without it, and an issue per item the backend cannot run.
-- Fix the in-house hot path: wave speeds come from closed-form or symbolic eigenvalues compiled once, with the numerical
-  eigenvalues kept only where no closed form exists, and the reconstruction slices arrays instead of calling `np.take`.
+- Report a solver whose library is missing as an `IssueSpec` of the compile report, whose fix names the `clawpack`
+  extra and the conda-forge package.
 
 ## Capabilities
 
@@ -53,22 +60,29 @@ None.
 
 ### Modified Capabilities
 
-- `external-backends`: a PyClaw backend for finite-volume fields behind an optional extra, with flux lowering,
-  boundaries, sources, live parameters, parity with the native path, and an error for a missing extra.
-- `pde-solvers`: finite volumes pick PyClaw when available and keep the in-house scheme as the fallback, whose wave
-  speeds come from closed-form eigenvalues.
+- `external-backends`: a PyClaw solver for finite-volume fields behind an optional extra, with flux lowering,
+  per-cell parameters, boundaries, sources, live parameters, parity with the native path, and an issue for a missing
+  extra.
+- `pde-solvers`: finite volumes run in PyClaw when available and in the in-house kernel otherwise, whose wave speeds
+  come from closed-form eigenvalues.
 
 ## Impact
 
-- `skcomplex.core.backends` gains `PyClawBackend`, with its `Supports` declaration, and a private module that lowers
-  `Flux` laws to Riemann solvers. `skcomplex.core.solvers` gains `FiniteVolumeSolver`, with its `Supports`
-  declaration. `clawpack` is imported lazily, with a suppression that names the optional extra, and validation's
-  availability check reports it when missing.
-- `skcomplex.core.compile` compiles the symbolic eigenvalues and eigenvectors of the flux Jacobians once, and
-  `FiniteVolume` uses them in `_speed` and slices in `rates`.
+- `skcomplex.engine.solvers` gains `PyClawSolver` and `FiniteVolumeSolver`, with private modules for the Riemann
+  lowering. `clawpack` is imported lazily inside `PyClawSolver._build`, with the import-outside-top-level rule ignored
+  for that one module in `pyproject.toml` rather than by an inline suppression.
+- `BaseSolver` gains the trivial hook `_get_missing`, which returns the install fix of a solver whose library does not
+  import, and `PassCompiler` reports it as the issue `solver-unavailable`.
+- `FieldFunctionsPass._compile_volumes` keeps the symbolic flux columns and compiles closed-form wave speeds, and
+  `FiniteVolumeKernel` uses them and slices instead of calling `np.take`. `ProblemSpec` keeps the source rates of the
+  conserved states apart from the flux differences, for `step_source`.
 - `pyproject.toml` gains the `clawpack` extra and the deptry entry for the optional import. CI gains a job on macOS
   with Apple silicon and Python 3.13 that installs the extra. Tests that need PyClaw skip without it.
-- The finite-volume models in `skcomplex.models.physics.fluids`, `skcomplex.models.engineering.traffic`, and the
-  wave-breaking model default to `FiniteVolumeSolver`. Their results change within the discretisation error.
-- The user guide documents the extra, its installation on each platform, the backend choice, and the parity
-  tolerances, and the changelog records the new solver and the faster fallback.
+- The constitution's Project Profile gains the amended dependency placement rule and the `clawpack` extra, with a
+  version bump.
+- The finite-volume models `burgers`, `shallow_water`, `wave_breaking`, and `discrete_velocity_boltzmann` of
+  `skcomplex.models.physics.fluids` and `lighthill_whitham_richards`, `payne`, and `kerner_konhauser` of
+  `skcomplex.models.engineering.traffic` default to `FiniteVolumeSolver`. Their results change within the
+  discretisation error.
+- The user guide documents the extra, its installation on each platform, the solver choice, and the parity
+  tolerances, and the changelog records the new solvers and the faster fallback.
