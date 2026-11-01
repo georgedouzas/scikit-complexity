@@ -12,7 +12,6 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.interactions import ReactionInteraction, RelaxationInteraction
-from ....core.laws import BaseLaw, RateLaw
 from ....core.system import System
 from ....engine.solvers import ScipyODESolver
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -25,12 +24,42 @@ def _get_residence(s: SimpleNamespace) -> Expression:
     return 1 / s.target.F
 
 
+def _get_x_scale(s: SimpleNamespace) -> Expression:
+    """Return the stoichiometric coefficient `1 / epsilon` of the scaled bromous acid."""
+    return 1 / s.target.epsilon
+
+
+def _get_y_scale(s: SimpleNamespace) -> Expression:
+    """Return the stoichiometric coefficient `1 / delta` of the scaled bromide."""
+    return 1 / s.target.delta
+
+
+def _get_y_yield(s: SimpleNamespace) -> Expression:
+    """Return the stoichiometric coefficient `f / delta` of the scaled bromide made from the oxidized catalyst."""
+    return s.target.f / s.target.delta
+
+
+def _get_bromate_bromide(s: SimpleNamespace) -> Expression:
+    """Return the propensity `q y` of the reaction of bromate with bromide."""
+    return s.target.q * s.target.y
+
+
+def _get_bromous_bromide(s: SimpleNamespace) -> Expression:
+    """Return the propensity `x y` of the reaction of bromous acid with bromide."""
+    return s.target.x * s.target.y
+
+
+def _get_disproportionation(s: SimpleNamespace) -> Expression:
+    """Return the propensity `x^2` of the disproportionation of bromous acid."""
+    return s.target.x**2
+
+
 class OregonatorElement(Element):
     """Reactor of the scaled Oregonator, the scaled concentrations of bromous acid, bromide, and the oxidized catalyst.
 
     The scaled concentrations follow `epsilon dx/dt = q y - x y + x (1 - x)`, `delta dy/dt = -q y - x y + f z`, and
-    `dz/dt = x - z`. The time scales `epsilon` and `delta` divide the changes of `x` and `y` by every reaction, which
-    the coefficients of mass action cannot hold, so the reactor keeps its own rate laws.
+    `dz/dt = x - z`. The reactions of `oregonator` change the concentrations, with the time scales `epsilon` and
+    `delta` dividing the stoichiometric coefficients of `x` and `y`, and read the parameters from the reactor.
 
     Args:
         label:
@@ -87,23 +116,6 @@ class OregonatorElement(Element):
         self.delta = delta
         self.q = q
         self.f = f
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the scaled rate equations of bromous acid, bromide, and the oxidized catalyst.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate laws of the three concentrations.
-        """
-        return [
-            RateLaw(s.x, (s.q * s.y - s.x * s.y + s.x * (1 - s.x)) / s.epsilon),
-            RateLaw(s.y, (-s.q * s.y - s.x * s.y + s.f * s.z) / s.delta),
-            RateLaw(s.z, s.x - s.z),
-        ]
 
 
 class CubicAutocatalysisElement(Element):
@@ -224,8 +236,12 @@ def oregonator(
     """Return the scaled Oregonator, the reduction of the FKN mechanism of the Belousov-Zhabotinsky reaction.
 
     The scaled concentrations of bromous acid `x`, bromide `y`, and the oxidized catalyst `z` follow
-    `epsilon dx/dt = q y - x y + x (1 - x)`, `delta dy/dt = -q y - x y + f z`, and `dz/dt = x - z`. With the standard
-    parameters the reaction settles on a relaxation limit cycle, and the small `epsilon` and `delta` make it stiff.
+    `epsilon dx/dt = q y - x y + x (1 - x)`, `delta dy/dt = -q y - x y + f z`, and `dz/dt = x - z`. The five reactions
+    of the mechanism, bromate with bromide `Y -> X` at `q y`, bromous acid with bromide `X + Y -> 0` at `x y`, the
+    autocatalysis `X -> 2X + Z` at `x`, the disproportionation `2X -> 0` at `x^2`, and the reduction of the catalyst
+    `Z -> f Y` at `z`, change `x` and `y` by stoichiometric coefficients scaled by `1 / epsilon` and `1 / delta`. With
+    the standard parameters the reaction settles on a relaxation limit cycle, and the small `epsilon` and `delta` make
+    it stiff.
 
     Args:
         x:
@@ -258,7 +274,42 @@ def oregonator(
         >>> oregonator(f=0.8).elements[0].f
         0.8
     """
-    return System(elements=[OregonatorElement('reactor', x=x, y=y, z=z, epsilon=epsilon, delta=delta, q=q, f=f)])
+    return System(
+        elements=[OregonatorElement('reactor', x=x, y=y, z=z, epsilon=epsilon, delta=delta, q=q, f=f)],
+        interactions=[
+            ReactionInteraction(
+                'bromate_bromide',
+                target='reactor',
+                reactants={'y': _get_y_scale},
+                products={'x': _get_x_scale},
+                propensity=_get_bromate_bromide,
+            ),
+            ReactionInteraction(
+                'bromous_bromide',
+                target='reactor',
+                reactants={'x': _get_x_scale, 'y': _get_y_scale},
+                propensity=_get_bromous_bromide,
+            ),
+            ReactionInteraction(
+                'autocatalysis',
+                target='reactor',
+                products={'x': _get_x_scale, 'z': 1},
+                modifiers={'x': 1},
+            ),
+            ReactionInteraction(
+                'disproportionation',
+                target='reactor',
+                reactants={'x': _get_x_scale},
+                propensity=_get_disproportionation,
+            ),
+            ReactionInteraction(
+                'catalyst_reduction',
+                target='reactor',
+                reactants={'z': 1},
+                products={'y': _get_y_yield},
+            ),
+        ],
+    )
 
 
 @register_model(
