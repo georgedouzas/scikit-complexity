@@ -52,6 +52,17 @@ per step, mode `'jump'` fires at most once per member per step with probability 
 convention of the agent form of `TransitionInteraction`, and mode `'langevin'` is refused. No current model uses the
 agent form yet. The rats' `NervousnessInteraction` became `AlarmInteraction` plus a plain calming reaction.
 
+### Large biology ODE models (2.4)
+
+43 single-element models of oncology, neuroscience, physiology, and systems biology keep their states and parameters
+and build one interaction per mechanism in their factories, within 1e-5 relative of their previous trajectories.
+`biology/common/kinetics` holds `MichaelisMentenInteraction` and `biology/common/pharmacokinetics` holds
+`DosingInteraction`; `TumourElement` merged into `PopulationElement`. Kept: elements that tests simulate alone
+(`TumourImmuneChemotherapyElement`, `ResistanceSwitchingElement`, `OptimalChemotherapyElement`), models whose terms are
+not separate mechanisms (vascularized spheroid geometry, HER2, the piecewise-linear prostate fit), growth laws the
+populations family lacks, single equations and normal forms (theta, rate unit, leaky integrate-and-fire, Izhikevich,
+Mackey-Glass, Aliev-Panfilov), and the stochastic `ExcitableElement`.
+
 ### Ecology agents and herders (2.1, 2.3)
 
 Agent predation, trails, ants, angiogenesis, and the stigmergic plants and animals run on member interactions, equal
