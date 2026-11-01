@@ -26,7 +26,7 @@ from ..specs import (
     RandomSearchSpec,
     StableMatchingSpec,
 )
-from ..types import Indices, IntArray
+from ..types import Array, Indices, IntArray
 from .spaces import BaseSpace, LatticeNeighborhood, MemoryNeighborhood
 
 type Target = Expression | FreeModuleElement
@@ -46,6 +46,7 @@ type MatchingRule = (
 type NamespaceFunction = Callable[[SimpleNamespace], Target]
 type PairPotential = Callable[[SimpleNamespace, Expression], Expression]
 type Combination = Callable[[SimpleNamespace, Target], Target]
+type AgentCombination = Callable[[AgentViewProtocol, ModelViewProtocol, Array | None, int | None], npt.ArrayLike]
 
 
 @runtime_checkable

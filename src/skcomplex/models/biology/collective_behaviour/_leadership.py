@@ -4,31 +4,38 @@
 # License: MIT
 
 import math
-from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement
-from ....core.laws import BaseLaw, RuleLaw
+from ....core.interactions import MapInteraction
 from ....core.spaces import ContinuousSpace, DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
+from ._schooling import SchoolingInteraction
 from ._shoal_member_view import ShoalMemberView
+from ._swimming import SwimmingInteraction
+
+
+def _draw_deviation(agent: ShoalMemberView, model: ModelView) -> float:
+    """Return a Gaussian angular noise of the turn of a fish, of standard deviation `noise`."""
+    return float(model.rng.normal(0.0, agent.noise))
 
 
 class ShoalMemberElement(Element):
     """Fish of a Couzin shoal that avoids close neighbours, follows farther ones, and may know a preferred direction.
 
-    Every step a fish first sets its desired direction. When neighbours lie within the zone of repulsion `alpha`, it
-    points away from them. Otherwise it points toward the neighbours within the zone of interaction `rho` and along
-    their headings and its own. An informed fish adds its preferred direction with the weight `omega`, while a naive
-    fish has `omega = 0`. It then turns toward the desired direction by at most `max_turn`, with Gaussian angular
-    noise of standard deviation `noise`, and swims at the speed `speed`.
+    Every step `SchoolingInteraction` turns a fish toward its desired direction by at most `max_turn`. When neighbours
+    lie within the zone of repulsion `alpha`, it points away from them. Otherwise it points toward the neighbours
+    within the zone of interaction `rho` and along their headings and its own. An informed fish adds its preferred
+    direction with the weight `omega`, while a naive fish has `omega = 0`. It then draws a Gaussian angular noise
+    `deviation` of standard deviation `noise`, and `SwimmingInteraction` turns it by the noise and moves it at the
+    speed `speed`.
 
     Args:
         label:
@@ -45,6 +52,9 @@ class ShoalMemberElement(Element):
 
         omega:
             The weight of the preferred direction, 0 for a naive fish.
+
+        deviation:
+            The angular noise of the last turn.
 
         preferred:
             The angle of the preferred direction of the informed fish.
@@ -81,6 +91,7 @@ class ShoalMemberElement(Element):
         vx: Annotated[float, StateSpec()] = 1.0,
         vy: Annotated[float, StateSpec()] = 0.0,
         omega: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        deviation: Annotated[float, StateSpec()] = 0.0,
         preferred: Annotated[float, ParameterSpec()] = 0.0,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         rho: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 6.0,
@@ -93,6 +104,7 @@ class ShoalMemberElement(Element):
         self.vx = vx
         self.vy = vy
         self.omega = omega
+        self.deviation = deviation
         self.preferred = preferred
         self.alpha = alpha
         self.rho = rho
@@ -105,86 +117,6 @@ class ShoalMemberElement(Element):
     def _get_view(cls) -> type[ShoalMemberView]:
         """Return the view of a member of a shoal, `ShoalMemberView`."""
         return ShoalMemberView
-
-    @staticmethod
-    def _unit(vector: np.ndarray) -> np.ndarray:
-        """Return a vector scaled to unit length, or the vector itself when it is zero."""
-        norm = float(np.hypot(*vector))
-        return vector / norm if norm > 0 else vector
-
-    @staticmethod
-    def _turn(heading: np.ndarray, desired: np.ndarray, max_turn: float) -> np.ndarray:
-        """Return the heading turned toward a desired direction by at most an angle."""
-        angle = math.atan2(desired[1], desired[0]) - math.atan2(heading[1], heading[0])
-        angle = (angle + math.pi) % (2 * math.pi) - math.pi
-        angle = max(-max_turn, min(max_turn, angle))
-        cosine, sine = math.cos(angle), math.sin(angle)
-        return np.array([cosine * heading[0] - sine * heading[1], sine * heading[0] + cosine * heading[1]])
-
-    def _desired(self, agent: ShoalMemberView) -> np.ndarray:
-        """Return the desired direction from repulsion, or from attraction and alignment."""
-        heading = np.array([agent.vx, agent.vy])
-        neighbours = [other for other in agent.neighbors(radius=agent.rho) if isinstance(other, ShoalMemberView)]
-        if not neighbours:
-            return heading
-        size = agent.size
-        here = np.asarray(agent.location, dtype=float)
-        offsets = np.array([other.location for other in neighbours], dtype=float) - here
-        offsets = (offsets + size / 2) % size - size / 2
-        distances = np.hypot(offsets[:, 0], offsets[:, 1])
-        directions = offsets / distances[:, None]
-        close = distances < agent.alpha
-        if close.any():
-            return self._unit(-directions[close].sum(axis=0))
-        headings = np.array([(other.vx, other.vy) for other in neighbours])
-        social = heading + directions.sum(axis=0) + headings.sum(axis=0)
-        goal = np.array([math.cos(agent.preferred), math.sin(agent.preferred)])
-        return self._unit(self._unit(social) + agent.omega * goal)
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the simultaneous turning and the swimming of the fish.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.turn, phase='turn'), RuleLaw(self.swim, phase='swim')]
-
-    def turn(self, agent: ShoalMemberView, model: ModelView) -> None:
-        """Turn toward the desired direction, with angular noise.
-
-        Args:
-            agent:
-                The fish.
-
-            model:
-                The model.
-        """
-        heading = np.array([agent.vx, agent.vy])
-        desired = self._desired(agent)
-        if float(np.hypot(*desired)) > 0:
-            heading = self._turn(heading, desired, agent.max_turn)
-        angle = math.atan2(heading[1], heading[0]) + float(model.rng.normal(0.0, agent.noise))
-        agent.vx, agent.vy = math.cos(angle), math.sin(angle)
-
-    def swim(self, agent: ShoalMemberView, model: ModelView) -> None:
-        """Swim one step along the heading.
-
-        Args:
-            agent:
-                The fish.
-
-            model:
-                The model.
-        """
-        position = np.asarray(cast('tuple[float, float]', agent.location)) + agent.speed * np.array(
-            [agent.vx, agent.vy],
-        )
-        agent.move_to(tuple(np.mod(position, agent.size)))
 
 
 @register_model(
@@ -255,6 +187,19 @@ def couzin_leadership(
     )
     return System(
         elements=[shoal],
+        interactions=[
+            SchoolingInteraction('schooling', target='shoal', phase='turn'),
+            MapInteraction(
+                'deviation',
+                target='shoal',
+                state='deviation',
+                function=_draw_deviation,
+                form='agent',
+                schedule='member',
+                phase='turn',
+            ),
+            SwimmingInteraction('swimming', target='shoal', phase='swim'),
+        ],
         space=ContinuousSpace(extent=(size, size), boundary='periodic'),
         time=DiscreteTime(
             schedule=PhasesScheduleSpec([PhaseSpec('turn', activation='simultaneous'), PhaseSpec('swim')]),

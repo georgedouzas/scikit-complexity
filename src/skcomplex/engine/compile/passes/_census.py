@@ -427,7 +427,8 @@ class CensusPass(BasePass):
             raise ValidationError(error_msg)
         declared = [law.check().prepare(spec.owner) for law in laws]
         searched = spec.pairs is not None and spec.edges is None
-        rules = [law for law in declared if searched and isinstance(law, RuleLaw)]
+        alone = spec.edges is not None and spec.edges.pairs is None
+        rules = [law for law in declared if (searched or alone) and isinstance(law, RuleLaw)]
         declared = [law for law in declared if law not in rules]
         if isinstance(spec.pairs, PairSearch) and not all(isinstance(law, RateLaw) for law in declared):
             error_msg = (

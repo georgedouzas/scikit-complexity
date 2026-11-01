@@ -29,6 +29,7 @@ from skcomplex.models.economics.resources import harvesting
 from skcomplex.specs import (
     BaseSpec,
     BatchClearingSpec,
+    ClampSpec,
     ContinuousClearingSpec,
     EnergySpec,
     GreedyMatchingSpec,
@@ -43,6 +44,7 @@ from skcomplex.specs import (
     PhaseSpec,
     PhasesScheduleSpec,
     QueueSpec,
+    RadiusSpec,
     RandomSearchSpec,
     RequirementSpec,
     RoleSpec,
@@ -780,5 +782,20 @@ def test_batch_clearing_spec_has_no_settings():
 )
 def test_matching_rule_specs_reject_invalid_settings(spec, message):
     """Test that an unknown option, a distance that is not positive, and a bad score raise an error naming them."""
+    with pytest.raises(ValidationError, match=message):
+        spec.check()
+
+
+@pytest.mark.parametrize(
+    ('spec', 'message'),
+    [
+        (RadiusSpec(1.0, lambda agent, other, model: (0.0,), reduce='max'), 'reduction'),
+        (RadiusSpec(1.0, 'term'), 'callable'),
+        (RadiusSpec(-1.0, lambda agent, other, model: (0.0,)), 'nonnegative'),
+        (ClampSpec(max_angle=-0.1), 'max_angle'),
+    ],
+)
+def test_check_agent_coupling_specs_reject_invalid_settings(spec, message):
+    """Test that a radius or a clamp with an invalid setting raises an error naming it."""
     with pytest.raises(ValidationError, match=message):
         spec.check()

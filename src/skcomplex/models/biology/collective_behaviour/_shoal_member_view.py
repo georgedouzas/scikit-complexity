@@ -15,6 +15,7 @@ class ShoalMemberView(AgentView):
     vx: float
     vy: float
     omega: float
+    deviation: float
     preferred: float
     alpha: float
     rho: float

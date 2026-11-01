@@ -5,7 +5,7 @@
 
 import math
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression, exp, oo
@@ -13,21 +13,22 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element, GroupElement, PointElement
 from ....core.interactions import PairCouplingInteraction, RateInteraction
-from ....core.laws import BaseLaw, RuleLaw
 from ....core.spaces import ContinuousSpace
 from ....core.system import System
-from ....engine.solvers import ModelView
 from ....specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
 from ._boid_view import BoidView
+from ._flight import FlightInteraction
+from ._flocking import FlockingInteraction
 
 
 class BoidElement(Element):
     """Boid of Reynolds, a bird that steers by three rules toward, away from, and along its neighbours.
 
-    Every step a boid sees the boids within `radius`. Cohesion steers it toward their center, separation away from
-    those closer than `separation_radius`, and alignment toward their mean velocity. Its speed stays between
-    `min_speed` and `max_speed`, and it moves on a torus of side `width` by `height`.
+    Every step a boid sees the boids within `radius`. `FlockingInteraction` steers it by cohesion toward their center,
+    by separation away from those closer than `separation_radius`, and by alignment toward their mean velocity, with
+    its speed between `min_speed` and `max_speed`, and `FlightInteraction` moves it on a torus of side `width` by
+    `height`.
 
     Args:
         label:
@@ -109,64 +110,6 @@ class BoidElement(Element):
     def _get_view(cls) -> type[BoidView]:
         """Return the view of a boid, `BoidView`."""
         return BoidView
-
-    @staticmethod
-    def _wrap(offset: np.ndarray, size: np.ndarray) -> np.ndarray:
-        """Return the shortest offset between two points of a torus."""
-        return (offset + size / 2) % size - size / 2
-
-    @staticmethod
-    def _limit(velocity: np.ndarray, low: float, high: float) -> np.ndarray:
-        """Return a velocity whose speed is clipped between two bounds."""
-        speed = float(np.hypot(*velocity))
-        if speed == 0.0:
-            return velocity
-        return velocity * min(max(speed, low), high) / speed
-
-    def _steering(self, agent: BoidView, neighbours: list[BoidView], size: np.ndarray) -> np.ndarray:
-        """Return the change of velocity from cohesion, separation, and alignment."""
-        here = np.asarray(agent.location, dtype=float)
-        offsets = np.array([self._wrap(np.asarray(other.location) - here, size) for other in neighbours])
-        velocities = np.array([(other.vx, other.vy) for other in neighbours])
-        distances = np.hypot(offsets[:, 0], offsets[:, 1])
-        close = offsets[distances < agent.separation_radius]
-        return (
-            agent.cohesion * offsets.mean(axis=0)
-            - agent.separation * close.sum(axis=0)
-            + agent.alignment * (velocities.mean(axis=0) - (agent.vx, agent.vy))
-        )
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the flocking rule.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the component.
-        """
-        return [RuleLaw(self.flock)]
-
-    def flock(self, agent: BoidView, model: ModelView) -> None:
-        """Steer by the three rules, limit the speed, and move.
-
-        Args:
-            agent:
-                The boid.
-
-            model:
-                The model.
-        """
-        size = np.array([agent.width, agent.height])
-        velocity = np.array([agent.vx, agent.vy])
-        neighbours = [other for other in agent.neighbors(radius=agent.radius) if isinstance(other, BoidView)]
-        if neighbours:
-            velocity = velocity + self._steering(agent, neighbours, size)
-        velocity = self._limit(velocity, agent.min_speed, agent.max_speed)
-        agent.vx, agent.vy = float(velocity[0]), float(velocity[1])
-        agent.move_to(tuple(np.mod(np.asarray(cast('tuple[float, float]', agent.location)) + velocity, size)))
 
 
 class SelfPropulsionInteraction(RateInteraction):
@@ -364,7 +307,12 @@ def boids(
         },
         location=[tuple(point) for point in rng.uniform(0.0, size, (n_boids, 2))],
     )
-    return System(elements=[flock], space=ContinuousSpace(extent=(size, size), boundary='periodic'))
+    interactions = [FlockingInteraction('flocking', target='flock'), FlightInteraction('flight', target='flock')]
+    return System(
+        elements=[flock],
+        interactions=interactions,
+        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
+    )
 
 
 @register_model(

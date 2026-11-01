@@ -22,7 +22,7 @@ from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.errors import ValidationError
-from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.specs import ClampSpec, ObservableSpec, ParameterSpec, RadiusSpec, RoleSpec, StateSpec, VisualSpec
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 GAMMA = 0.5
@@ -491,3 +491,78 @@ def test_check_separate_elements_need_group_mode():
     """Test that a coupling of separate elements outside the mode group is rejected."""
     with pytest.raises(ValidationError, match='separate elements'):
         CouplingInteraction('sine', target=['a', 'b'], mode='next').check()
+
+
+class HeadingElement(Element):
+    """Agent with a velocity of two components and no rules of its own."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        vx: Annotated[object, StateSpec()] = 0.0,
+        vy: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.vx = vx
+        self.vy = vy
+
+
+def _velocities(locations, velocities, **arguments):
+    """Return the velocities of agents after one step of an agent coupling over radii."""
+    agents = GroupElement(
+        'agents',
+        element=HeadingElement,
+        size=len(locations),
+        values={'vx': [item[0] for item in velocities], 'vy': [item[1] for item in velocities]},
+        location=locations,
+    )
+    coupling = CouplingInteraction('coupling', target='agents', write=('vx', 'vy'), form='agent', **arguments)
+    space = ContinuousSpace(extent=(10.0, 10.0))
+    system = System(elements=[agents], interactions=[coupling], space=space, time=DiscreteTime())
+    snapshot = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_.agents('agents', 1)
+    return np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
+
+
+def test_coupling_agents_over_radii_by_priority():
+    """Test that only the radii of the highest priority that hold another agent add their reduced terms."""
+    radii = (
+        RadiusSpec(1.0, lambda agent, other, model: (1.0, 0.0), priority=1),
+        RadiusSpec(5.0, lambda agent, other, model: (0.0, 1.0)),
+        RadiusSpec(5.0, lambda agent, other, model: (0.0, 2.0), reduce='mean'),
+    )
+    found = _velocities([(1.0, 1.0), (1.5, 1.0), (4.0, 1.0)], [(0.0, 0.0)] * 3, radii=radii)
+    np.testing.assert_allclose(found, [[1.0, 0.0], [1.0, 0.0], [0.0, 4.0]])
+
+
+def test_coupling_agents_with_clamped_turn_and_norm():
+    """Test that the agent coupling turns the vector by at most the largest angle and clips its norm."""
+    radii = (RadiusSpec(5.0, lambda agent, other, model: (-1.0, 3.0)),)
+    clamp = ClampSpec(max_angle=0.5, max_norm=2.0)
+    found = _velocities([(1.0, 1.0), (2.0, 1.0)], [(1.0, 0.0)] * 2, radii=radii, clamp=clamp)
+    np.testing.assert_allclose(found, [[2 * math.cos(0.5), 2 * math.sin(0.5)]] * 2)
+
+
+def test_coupling_agents_combine_reduction_and_priority():
+    """Test that the combination of the agent form reads the reduction and its priority, or `None` for no agent."""
+    radii = (RadiusSpec(1.0, lambda agent, other, model: (1.0, 0.0), priority=2),)
+
+    def combine(agent, model, reduction, priority):
+        return (0.0, -1.0) if reduction is None else (float(priority), 0.0)
+
+    found = _velocities([(1.0, 1.0), (1.5, 1.0), (8.0, 8.0)], [(0.0, 0.0)] * 3, radii=radii, combine=combine)
+    np.testing.assert_allclose(found, [[2.0, 0.0], [2.0, 0.0], [0.0, -1.0]])
+
+
+@pytest.mark.parametrize(
+    ('arguments', 'match'),
+    [
+        ({'form': 'agent'}, 'at least one radius'),
+        ({'clamp': ClampSpec(max_norm=1.0)}, 'agent form only'),
+    ],
+)
+def test_check_agent_form_needs_radii_and_takes_them_alone(arguments, match):
+    """Test that the agent form needs radii, and that the other forms take no radii, clamp, or phase."""
+    with pytest.raises(ValidationError, match=match):
+        CouplingInteraction('coupling', target='agents', **arguments).check()
