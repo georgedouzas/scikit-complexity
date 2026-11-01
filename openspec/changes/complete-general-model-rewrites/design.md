@@ -42,6 +42,16 @@ A model whose draws change is compared over 20 seeds against its previous trajec
   hand-kept clock. The model docstring states the convention and its tests take the new trajectory; the agent model
   still matches its compartment model within the existing tolerance.
 
+### Parametric coefficients and agent reactions (1.2)
+
+A stoichiometric coefficient may be a function of the reaction's namespace returning an expression; under mass action
+it is also the exponent, so a reaction whose order differs from its scaled change passes a `propensity` (the
+Oregonator). `ReactionInteraction(form='agent', phase=...)` lowers to a `RuleLaw` in which every member of the target
+group reacts on its own states, all computed from the start-of-step states: mode `'rate'` adds `change * propensity`
+per step, mode `'jump'` fires at most once per member per step with probability `1 - exp(-propensity)`, the per-step
+convention of the agent form of `TransitionInteraction`, and mode `'langevin'` is refused. No current model uses the
+agent form yet. The rats' `NervousnessInteraction` became `AlarmInteraction` plus a plain calming reaction.
+
 ### Experiments replicate interactions (1.7)
 
 `BaseExperiment._replicate` accepts plain single elements with their interactions: the replicated system holds shallow
