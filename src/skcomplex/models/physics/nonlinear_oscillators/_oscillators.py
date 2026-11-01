@@ -9,6 +9,7 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import cos, sin
 
 from ....core.elements import Element
+from ....core.interactions import RateInteraction
 from ....core.laws import BaseLaw, RateLaw
 from ....core.laws.utils import derivative
 from ....core.system import System
@@ -19,7 +20,9 @@ from ._van_der_pol import VanDerPolElement
 
 
 class DuffingElement(Element):
-    """Forced Duffing oscillator `x'' = -delta x' - alpha x - beta x^3 + gamma cos(omega t)`.
+    """Displacement and parameters of the forced Duffing oscillator, whose acceleration a `RateInteraction` sets.
+
+    The acceleration is `x'' = -delta x' - alpha x - beta x^3 + gamma cos(omega t)`.
 
     For `alpha < 0 < beta` the potential has two wells, and a strong enough forcing drives the oscillator chaotically
     between them.
@@ -83,21 +86,6 @@ class DuffingElement(Element):
         self.beta = beta
         self.gamma = gamma
         self.omega = omega
-
-    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the acceleration of the oscillator.
-
-        Args:
-            namespace:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The rate of the second derivative of `x`.
-        """
-        s = namespace
-        forcing = s.gamma * cos(s.omega * s.t)
-        return [RateLaw(s.x, -s.delta * derivative(s.x, 1) - s.alpha * s.x - s.beta * s.x**3 + forcing)]
 
 
 class HenonHeilesElement(Element):
@@ -274,10 +262,22 @@ def duffing(
         >>> duffing(gamma=0.3).elements[0].gamma
         0.3
     """
+    acceleration = RateInteraction(
+        'acceleration',
+        target='duffing',
+        state='x',
+        rate=lambda s: (
+            -s.target.delta * derivative(s.target.x, 1)
+            - s.target.alpha * s.target.x
+            - s.target.beta * s.target.x**3
+            + s.target.gamma * cos(s.target.omega * s.t)
+        ),
+    )
     return System(
         elements=[
             DuffingElement('duffing', x=x, x_d1=v, delta=delta, alpha=alpha, beta=beta, gamma=gamma, omega=omega),
         ],
+        interactions=[acceleration],
     )
 
 

@@ -4,11 +4,10 @@
 # License: MIT
 
 
-from types import SimpleNamespace
 from typing import Annotated
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, UpdateLaw
+from ....core.interactions import MapInteraction
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_model
@@ -17,8 +16,9 @@ from ..._catalog import register_model
 class SoilTemperatureElement(Element):
     """Soil of the coupled temperature maps, its dimensionless surface temperature and deeper soil temperature.
 
-    The surface temperature follows the energy balance of the ground, reduced to a logistic map, and the deeper soil
-    temperature relaxes towards it: `x_{n+1} = r x_n (1 - x_n) + epsilon y_n` and `y_{n+1} = epsilon (x_n + y_n)`.
+    Two maps of `soil_temperature` iterate the states. The surface temperature follows the energy balance of the
+    ground, reduced to a logistic map, and the deeper soil temperature relaxes towards it:
+    `x_{n+1} = r x_n (1 - x_n) + epsilon y_n` and `y_{n+1} = epsilon (x_n + y_n)`.
 
     Args:
         label:
@@ -61,22 +61,6 @@ class SoilTemperatureElement(Element):
         self.r = r
         self.epsilon = epsilon
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the logistic map of the surface temperature and the relaxation of the deeper soil towards it.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The update laws of both temperatures.
-        """
-        return [
-            UpdateLaw(s.x, s.r * s.x * (1 - s.x) + s.epsilon * s.y),
-            UpdateLaw(s.y, s.epsilon * (s.x + s.y)),
-        ]
-
 
 @register_model(
     field='earth/climate',
@@ -114,4 +98,19 @@ def soil_temperature(x: float = 0.3, y: float = 0.1, *, r: float = 3.8, epsilon:
         >>> soil_temperature(r=2.5).elements[0].r
         2.5
     """
-    return System(elements=[SoilTemperatureElement('soil', x=x, y=y, r=r, epsilon=epsilon)])
+    surface = MapInteraction(
+        'surface',
+        target='soil',
+        state='x',
+        function=lambda s: s.target.r * s.target.x * (1 - s.target.x) + s.target.epsilon * s.target.y,
+    )
+    depth = MapInteraction(
+        'depth',
+        target='soil',
+        state='y',
+        function=lambda s: s.target.epsilon * (s.target.x + s.target.y),
+    )
+    return System(
+        elements=[SoilTemperatureElement('soil', x=x, y=y, r=r, epsilon=epsilon)],
+        interactions=[surface, depth],
+    )

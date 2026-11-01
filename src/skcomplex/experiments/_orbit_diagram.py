@@ -20,7 +20,7 @@ class OrbitDiagramExperiment(BaseExperiment):
 
     Every value of the parameter is run to `transient + (keep - 1) * dt`, and the frames from `transient` on are kept.
     With `vectorized`, all values run as the members of one simulation of the system replicated over them, which needs
-    a dotted parameter path and a system of single elements.
+    a dotted path of a state or parameter of an element, and a system of single elements and their interactions.
 
     Args:
         source:

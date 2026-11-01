@@ -13,6 +13,7 @@ from skcomplex.experiments import BaseDesign, BaseExperiment, RandomDesign
 from skcomplex.models import create
 from skcomplex.models.biology.ecology import lotka_volterra
 from skcomplex.models.mathematics.dynamical_systems import logistic_map
+from skcomplex.models.mathematics.stochastic_processes import weakening_ornstein_uhlenbeck
 
 
 def test_surface_holds_only_classes():
@@ -62,10 +63,20 @@ def test_replicate_runs_many_initial_conditions_at_once():
         np.testing.assert_allclose(values[:, index], np.ravel(single.trajectory_.values('map.x')), atol=1e-12)
 
 
-def test_replicate_rejects_systems_with_interactions():
-    """Test that a system with an interaction does not replicate and the error says why."""
-    with pytest.raises(ValidationError, match='Only systems of plain single elements replicate'):
-        BaseExperiment._replicate(lotka_volterra(), 3)
+def test_replicate_runs_systems_with_interactions():
+    """Test that member i of replicated predators and prey follows the single model from the i-th initial prey."""
+    starts = np.asarray([20.0, 40.0, 60.0])
+    ensemble = BaseExperiment._replicate(lotka_volterra(), 3, {'prey.n': starts})
+    values = np.asarray(Simulation(ensemble, dt=0.1).check().prepare().run(until=5).trajectory_.values('predators.n'))
+    for index, start in enumerate(starts):
+        single = Simulation(lotka_volterra(prey=float(start)), dt=0.1).check().prepare().run(until=5)
+        np.testing.assert_allclose(values[:, index], np.ravel(single.trajectory_.values('predators.n')), rtol=1e-5)
+
+
+def test_replicate_rejects_systems_with_groups():
+    """Test that a system with a group does not replicate and the error says why."""
+    with pytest.raises(ValidationError, match='Only systems of plain single elements and their interactions'):
+        BaseExperiment._replicate(weakening_ornstein_uhlenbeck(4), 3)
 
 
 def test_replicate_checks_paths_and_rows():

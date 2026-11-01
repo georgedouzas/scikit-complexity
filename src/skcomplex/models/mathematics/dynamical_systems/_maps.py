@@ -4,13 +4,12 @@
 # License: MIT
 
 import math
-from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import pi, sin
 
 from ....core.elements import Element
-from ....core.laws import BaseLaw, UpdateLaw
+from ....core.interactions import MapInteraction
 from ....core.laws.utils import mod, where
 from ....core.system import System
 from ....specs import ParameterSpec, StateSpec, VisualSpec
@@ -20,7 +19,7 @@ GOLDEN_MEAN = (math.sqrt(5) - 1) / 2
 
 
 class LogisticMapElement(Element):
-    """Logistic map `x -> r x (1 - x)`.
+    """Value and growth rate of the logistic map `x -> r x (1 - x)`, which a `MapInteraction` iterates.
 
     Args:
         label:
@@ -53,22 +52,9 @@ class LogisticMapElement(Element):
         self.x = x
         self.r = r
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next value.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [UpdateLaw(s.x, s.r * s.x * (1 - s.x))]
-
 
 class HenonMapElement(Element):
-    """Hénon map `x' = 1 - a x^2 + y`, `y' = b x`.
+    """Coordinates and parameters of the Hénon map `x' = 1 - a x^2 + y`, `y' = b x`, which maps iterate.
 
     Args:
         label:
@@ -111,19 +97,6 @@ class HenonMapElement(Element):
         self.a = a
         self.b = b
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next coordinates.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [UpdateLaw(s.x, 1 - s.a * s.x**2 + s.y), UpdateLaw(s.y, s.b * s.x)]
-
 
 @register_model(
     field='mathematics/dynamical_systems',
@@ -150,7 +123,13 @@ def logistic_map(x: float = 0.2, *, r: float = 3.7) -> System:
         >>> logistic_map(r=3.2).elements[0].r
         3.2
     """
-    return System(elements=[LogisticMapElement('map', x=x, r=r)])
+    logistic = MapInteraction(
+        'x_map',
+        target='map',
+        state='x',
+        function=lambda s: s.target.r * s.target.x * (1 - s.target.x),
+    )
+    return System(elements=[LogisticMapElement('map', x=x, r=r)], interactions=[logistic])
 
 
 @register_model(
@@ -184,11 +163,18 @@ def henon_map(x: float = 0.0, y: float = 0.0, *, a: float = 1.4, b: float = 0.3)
         >>> henon_map(a=1.2).elements[0].a
         1.2
     """
-    return System(elements=[HenonMapElement('map', x=x, y=y, a=a, b=b)])
+    first = MapInteraction(
+        'x_map',
+        target='map',
+        state='x',
+        function=lambda s: 1 - s.target.a * s.target.x**2 + s.target.y,
+    )
+    second = MapInteraction('y_map', target='map', state='y', function=lambda s: s.target.b * s.target.x)
+    return System(elements=[HenonMapElement('map', x=x, y=y, a=a, b=b)], interactions=[first, second])
 
 
 class StandardMapElement(Element):
-    """Chirikov standard map `p' = p + K sin(theta)`, `theta' = theta + p' (mod 2 pi)`.
+    """Angle, momentum, and kick of the standard map `p' = p + K sin(theta)`, `theta' = theta + p' (mod 2 pi)`.
 
     Args:
         label:
@@ -226,25 +212,9 @@ class StandardMapElement(Element):
         self.p = p
         self.K = K
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next momentum and angle, the angle computed from the next momentum.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [
-            UpdateLaw(s.p, s.p + s.K * sin(s.theta)),
-            UpdateLaw(s.theta, mod(s.theta + s.p + s.K * sin(s.theta), 2 * pi)),
-        ]
-
 
 class CircleMapElement(Element):
-    """Sine circle map `theta' = theta + Omega - K / (2 pi) sin(2 pi theta) (mod 1)`.
+    """Angle and parameters of the sine circle map `theta' = theta + Omega - K / (2 pi) sin(2 pi theta) (mod 1)`.
 
     Args:
         label:
@@ -282,22 +252,9 @@ class CircleMapElement(Element):
         self.Omega = Omega
         self.K = K
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next angle.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [UpdateLaw(s.theta, mod(s.theta + s.Omega - s.K / (2 * pi) * sin(2 * pi * s.theta), 1))]
-
 
 class TentMapElement(Element):
-    """Tent map `x' = mu min(x, 1 - x)`.
+    """Value and slope of the tent map `x' = mu min(x, 1 - x)`, which a `MapInteraction` iterates.
 
     Args:
         label:
@@ -330,22 +287,9 @@ class TentMapElement(Element):
         self.x = x
         self.mu = mu
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next value.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [UpdateLaw(s.x, s.mu * where(s.x < 1 / 2, s.x, 1 - s.x))]
-
 
 class BakerMapElement(Element):
-    """Generalized baker map, which stretches the unit square along `x` and stacks the two pieces in `y`.
+    """Coordinates and parameters of the generalized baker map, which stretches the unit square and stacks it.
 
     Args:
         label:
@@ -393,25 +337,9 @@ class BakerMapElement(Element):
         self.lambda_a = lambda_a
         self.lambda_b = lambda_b
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next coordinates.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [
-            UpdateLaw(s.x, where(s.x < s.alpha, s.x / s.alpha, (s.x - s.alpha) / (1 - s.alpha))),
-            UpdateLaw(s.y, where(s.x < s.alpha, s.lambda_a * s.y, 1 - s.lambda_b + s.lambda_b * s.y)),
-        ]
-
 
 class TowelMapElement(Element):
-    """Rössler's towel map, a three-dimensional map with two positive Lyapunov exponents.
+    """Coordinates and growth rates of Rössler's towel map, a three-dimensional map with two positive exponents.
 
     Args:
         label:
@@ -459,26 +387,9 @@ class TowelMapElement(Element):
         self.a = a
         self.b = b
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next coordinates.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [
-            UpdateLaw(s.x, s.a * s.x * (1 - s.x) - 0.05 * (s.y + 0.35) * (1 - 2 * s.z)),
-            UpdateLaw(s.y, 0.1 * ((s.y + 0.35) * (1 - 2 * s.z) - 1) * (1 - 1.9 * s.x)),
-            UpdateLaw(s.z, s.b * s.z * (1 - s.z) + 0.2 * s.y),
-        ]
-
 
 class IntermittencyMapElement(Element):
-    """Pomeau-Manneville map `x' = x + x^z (mod 1)`.
+    """Value and exponent of the Pomeau-Manneville map `x' = x + x^z (mod 1)`, which a `MapInteraction` iterates.
 
     Args:
         label:
@@ -511,22 +422,9 @@ class IntermittencyMapElement(Element):
         self.x = x
         self.z = z
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next value.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [UpdateLaw(s.x, mod(s.x + s.x**s.z, 1))]
-
 
 class NewtonMapElement(Element):
-    """Newton's method for `z^3 = 1` in the complex plane, `z' = (2 z^3 + 1) / (3 z^2)`, in real coordinates.
+    """Real and imaginary parts of Newton's method for `z^3 = 1`, `z' = (2 z^3 + 1) / (3 z^2)`, which maps iterate.
 
     Args:
         label:
@@ -559,25 +457,9 @@ class NewtonMapElement(Element):
         self.x = x
         self.y = y
 
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next real and imaginary parts.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [
-            UpdateLaw(s.x, 2 * s.x / 3 + (s.x**2 - s.y**2) / (3 * (s.x**2 + s.y**2) ** 2)),
-            UpdateLaw(s.y, 2 * s.y / 3 - 2 * s.x * s.y / (3 * (s.x**2 + s.y**2) ** 2)),
-        ]
-
 
 class CatMapElement(Element):
-    """Arnold's cat map `(x, y) -> (2 x + y, x + y) (mod 1)` of the unit torus.
+    """Coordinates of Arnold's cat map `(x, y) -> (2 x + y, x + y) (mod 1)` of the unit torus, which maps iterate.
 
     Args:
         label:
@@ -609,19 +491,6 @@ class CatMapElement(Element):
         super().__init__(label, visual=visual)
         self.x = x
         self.y = y
-
-    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the next coordinates.
-
-        Args:
-            s:
-                The namespace of the symbols the laws can use.
-
-        Returns:
-            laws:
-                The laws of the element.
-        """
-        return [UpdateLaw(s.x, mod(2 * s.x + s.y, 1)), UpdateLaw(s.y, mod(s.x + s.y, 1))]
 
 
 @register_model(
@@ -655,7 +524,19 @@ def standard_map(theta: float = 0.0, p: float = 2 * math.pi * GOLDEN_MEAN, *, K:
         >>> standard_map(K=0.5).elements[0].K
         0.5
     """
-    return System(elements=[StandardMapElement('map', theta=theta, p=p, K=K)])
+    kick = MapInteraction(
+        'p_map',
+        target='map',
+        state='p',
+        function=lambda s: s.target.p + s.target.K * sin(s.target.theta),
+    )
+    rotation = MapInteraction(
+        'theta_map',
+        target='map',
+        state='theta',
+        function=lambda s: mod(s.target.theta + s.target.p + s.target.K * sin(s.target.theta), 2 * pi),
+    )
+    return System(elements=[StandardMapElement('map', theta=theta, p=p, K=K)], interactions=[kick, rotation])
 
 
 @register_model(
@@ -686,7 +567,16 @@ def circle_map(theta: float = 0.0, *, Omega: float = 0.25, K: float = 0.9) -> Sy
         >>> circle_map(K=1.0).elements[0].K
         1.0
     """
-    return System(elements=[CircleMapElement('map', theta=theta, Omega=Omega, K=K)])
+    rotation = MapInteraction(
+        'theta_map',
+        target='map',
+        state='theta',
+        function=lambda s: mod(
+            s.target.theta + s.target.Omega - s.target.K / (2 * pi) * sin(2 * pi * s.target.theta),
+            1,
+        ),
+    )
+    return System(elements=[CircleMapElement('map', theta=theta, Omega=Omega, K=K)], interactions=[rotation])
 
 
 @register_model(
@@ -714,7 +604,13 @@ def tent_map(x: float = 0.3, *, mu: float = 1.99) -> System:
         >>> tent_map(mu=1.5).elements[0].mu
         1.5
     """
-    return System(elements=[TentMapElement('map', x=x, mu=mu)])
+    tent = MapInteraction(
+        'x_map',
+        target='map',
+        state='x',
+        function=lambda s: s.target.mu * where(s.target.x < 1 / 2, s.target.x, 1 - s.target.x),
+    )
+    return System(elements=[TentMapElement('map', x=x, mu=mu)], interactions=[tent])
 
 
 @register_model(
@@ -762,7 +658,28 @@ def baker_map(
         >>> baker_map(lambda_a=0.2).elements[0].lambda_a
         0.2
     """
-    return System(elements=[BakerMapElement('map', x=x, y=y, alpha=alpha, lambda_a=lambda_a, lambda_b=lambda_b)])
+    stretch = MapInteraction(
+        'x_map',
+        target='map',
+        state='x',
+        function=lambda s: where(
+            s.target.x < s.target.alpha,
+            s.target.x / s.target.alpha,
+            (s.target.x - s.target.alpha) / (1 - s.target.alpha),
+        ),
+    )
+    stack = MapInteraction(
+        'y_map',
+        target='map',
+        state='y',
+        function=lambda s: where(
+            s.target.x < s.target.alpha,
+            s.target.lambda_a * s.target.y,
+            1 - s.target.lambda_b + s.target.lambda_b * s.target.y,
+        ),
+    )
+    baker = BakerMapElement('map', x=x, y=y, alpha=alpha, lambda_a=lambda_a, lambda_b=lambda_b)
+    return System(elements=[baker], interactions=[stretch, stack])
 
 
 @register_model(
@@ -809,7 +726,27 @@ def towel_map(
         >>> towel_map(a=3.7).elements[0].a
         3.7
     """
-    return System(elements=[TowelMapElement('map', x=x, y=y, z=z, a=a, b=b)])
+    first = MapInteraction(
+        'x_map',
+        target='map',
+        state='x',
+        function=lambda s: (
+            s.target.a * s.target.x * (1 - s.target.x) - 0.05 * (s.target.y + 0.35) * (1 - 2 * s.target.z)
+        ),
+    )
+    second = MapInteraction(
+        'y_map',
+        target='map',
+        state='y',
+        function=lambda s: 0.1 * ((s.target.y + 0.35) * (1 - 2 * s.target.z) - 1) * (1 - 1.9 * s.target.x),
+    )
+    third = MapInteraction(
+        'z_map',
+        target='map',
+        state='z',
+        function=lambda s: s.target.b * s.target.z * (1 - s.target.z) + 0.2 * s.target.y,
+    )
+    return System(elements=[TowelMapElement('map', x=x, y=y, z=z, a=a, b=b)], interactions=[first, second, third])
 
 
 @register_model(
@@ -837,7 +774,13 @@ def intermittency_map(x: float = 0.01, *, z: float = 2.0) -> System:
         >>> intermittency_map(z=1.5).elements[0].z
         1.5
     """
-    return System(elements=[IntermittencyMapElement('map', x=x, z=z)])
+    burst = MapInteraction(
+        'x_map',
+        target='map',
+        state='x',
+        function=lambda s: mod(s.target.x + s.target.x**s.target.z, 1),
+    )
+    return System(elements=[IntermittencyMapElement('map', x=x, z=z)], interactions=[burst])
 
 
 @register_model(
@@ -868,7 +811,23 @@ def newton_raphson_map(x: float = 0.5, y: float = 0.5) -> System:
         >>> newton_raphson_map(x=1.5).elements[0].x
         1.5
     """
-    return System(elements=[NewtonMapElement('map', x=x, y=y)])
+    real = MapInteraction(
+        'x_map',
+        target='map',
+        state='x',
+        function=lambda s: (
+            2 * s.target.x / 3 + (s.target.x**2 - s.target.y**2) / (3 * (s.target.x**2 + s.target.y**2) ** 2)
+        ),
+    )
+    imaginary = MapInteraction(
+        'y_map',
+        target='map',
+        state='y',
+        function=lambda s: (
+            2 * s.target.y / 3 - 2 * s.target.x * s.target.y / (3 * (s.target.x**2 + s.target.y**2) ** 2)
+        ),
+    )
+    return System(elements=[NewtonMapElement('map', x=x, y=y)], interactions=[real, imaginary])
 
 
 @register_model(
@@ -896,4 +855,6 @@ def cat_map(x: float = 0.1, y: float = 0.3) -> System:
         >>> cat_map(x=0.5).elements[0].x
         0.5
     """
-    return System(elements=[CatMapElement('map', x=x, y=y)])
+    first = MapInteraction('x_map', target='map', state='x', function=lambda s: mod(2 * s.target.x + s.target.y, 1))
+    second = MapInteraction('y_map', target='map', state='y', function=lambda s: mod(s.target.x + s.target.y, 1))
+    return System(elements=[CatMapElement('map', x=x, y=y)], interactions=[first, second])

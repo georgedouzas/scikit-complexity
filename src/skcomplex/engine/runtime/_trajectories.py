@@ -160,6 +160,12 @@ class Trajectory:
         ):
             for entry in layout.entries:
                 origin = source.entry(entry.name)
+                if origin.size == entry.size:
+                    target[:, entry.start : entry.start + entry.size] = np.asarray(values)[
+                        :,
+                        origin.start : origin.start + origin.size,
+                    ]
+                    continue
                 columns = np.asarray(values)[:, origin.start : origin.start + origin.size].reshape(
                     frames,
                     -1,

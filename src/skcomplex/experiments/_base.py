@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import copy
 import dataclasses
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
@@ -263,15 +264,15 @@ class BaseExperiment(BaseConfig[None, None], ABC):
 
     @staticmethod
     def _check_plain(system: System) -> None:
-        """Raise an error unless a system holds single elements alone."""
+        """Raise an error unless a system holds plain single elements and interactions alone."""
         plain = all(
             isinstance(item, Element) and not BaseExperiment._has_formalism_laws(item) for item in system.elements
         )
-        if system.interactions or system.systems or not plain:
+        if system.systems or not plain:
             error_msg = (
-                f'Only systems of plain single elements replicate, but {system.label!r} has interactions, child '
-                'systems, groups, fields, or agents. Build the ensemble as a GroupElement with per-member values '
-                'instead.'
+                f'Only systems of plain single elements and their interactions replicate, but {system.label!r} has '
+                'child systems, groups, fields, or agents. Build the ensemble as a GroupElement with per-member '
+                'values instead.'
             )
             raise ValidationError(error_msg)
 
@@ -314,11 +315,13 @@ class BaseExperiment(BaseConfig[None, None], ABC):
 
         Every member starts from the values of its element, except the dotted paths given in `values`, which take one
         value per member. A dotted path such as `map.x` names the same state in the replicated system, where it holds
-        one value per member, so many initial conditions or parameter values run as one vectorised simulation.
+        one value per member, so many initial conditions or parameter values run as one vectorised simulation. The
+        interactions of the system bind the groups by the labels of their elements, so member `i` of every group
+        interacts with member `i` of the others, and every member follows the original system from its own values.
 
         Args:
             system:
-                The system of single elements, without interactions or child systems.
+                The system of single elements and their interactions, without child systems.
 
             size:
                 The number of members of every group.
@@ -328,12 +331,12 @@ class BaseExperiment(BaseConfig[None, None], ABC):
 
         Returns:
             system:
-                The replicated system, with the observables of the original.
+                The replicated system, with copies of the interactions of the original.
 
         Raises:
             ValidationError:
-                The system has interactions, child systems, groups, fields, or agents, a path is not a state or
-                parameter, or its values do not have one row per member.
+                The system has child systems, groups, fields, or agents, a path is not a state or parameter of an
+                element, or its values do not have one row per member.
 
         Examples:
             >>> import numpy as np
@@ -359,4 +362,10 @@ class BaseExperiment(BaseConfig[None, None], ABC):
             )
             for element in system.elements
         ]
-        return System(system.label, elements=groups, space=system.space, time=system.time)
+        return System(
+            system.label,
+            elements=groups,
+            interactions=[copy.copy(interaction) for interaction in system.interactions],
+            space=system.space,
+            time=system.time,
+        )
