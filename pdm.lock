@@ -5,10 +5,21 @@
 groups = ["default", "changelog", "checks", "docs", "formatting", "gallery", "maintenance", "release", "tests"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:c130d129fc3d744bde09e9fc08788d41733bc562a743b92923b3a0988a5a8153"
+content_hash = "sha256:969298ca5d9b49c05a5967e04d0852b768f92df7c4d46347bd4c78634a2cb55f"
 
 [[metadata.targets]]
 requires_python = ">=3.12,<3.14"
+
+[[package]]
+name = "absl-py"
+version = "2.5.1"
+requires_python = ">=3.10"
+summary = "Abseil Python Common Libraries, see https://github.com/abseil/abseil-py."
+groups = ["default"]
+files = [
+    {file = "absl_py-2.5.1-py3-none-any.whl", hash = "sha256:721200f2f0e9960f2ca9dc3a2a706b201f5f75d812c158f059cbbe29eeafbdb8"},
+    {file = "absl_py-2.5.1.tar.gz", hash = "sha256:286e71c82c1a38e75bbcf185f9b37d0305ad7786535107cb49bf4df9ff2e1f95"},
+]
 
 [[package]]
 name = "antropy"
@@ -853,6 +864,26 @@ files = [
 ]
 
 [[package]]
+name = "diffrax"
+version = "0.7.2"
+requires_python = ">=3.11"
+summary = "GPU+autodiff-capable ODE/SDE/CDE solvers written in JAX."
+groups = ["default"]
+dependencies = [
+    "equinox>=0.11.10",
+    "jax>=0.4.38",
+    "jaxtyping>=0.2.24",
+    "lineax>=0.0.5",
+    "optimistix>=0.1.0",
+    "typing-extensions>=4.5.0",
+    "wadler-lindig>=0.1.1",
+]
+files = [
+    {file = "diffrax-0.7.2-py3-none-any.whl", hash = "sha256:1beee2f991cd049962fe3c89da28f933753aa66d80bef857533276c9f23301ed"},
+    {file = "diffrax-0.7.2.tar.gz", hash = "sha256:9adc70fe90dba83f7dd839845839b2531a3dd736a3944fe1aa26598507cfb48e"},
+]
+
+[[package]]
 name = "dill"
 version = "0.4.1"
 requires_python = ">=3.9"
@@ -959,6 +990,23 @@ dependencies = [
 files = [
     {file = "ennemi-1.6.0-py3-none-any.whl", hash = "sha256:3d2bac6193ffec10856ebcc507148230dcf244a39a214d9b46b43c9caab25823"},
     {file = "ennemi-1.6.0.tar.gz", hash = "sha256:dd2b7242baee660e53f8271931b72f68db51a489bc9d4385af7ff863d1e06dd7"},
+]
+
+[[package]]
+name = "equinox"
+version = "0.13.8"
+requires_python = ">=3.10"
+summary = "Elegant easy-to-use neural networks in JAX."
+groups = ["default"]
+dependencies = [
+    "jax!=0.7.0,!=0.7.1,>=0.4.38",
+    "jaxtyping>=0.2.20",
+    "typing-extensions>=4.5.0",
+    "wadler-lindig>=0.1.0",
+]
+files = [
+    {file = "equinox-0.13.8-py3-none-any.whl", hash = "sha256:ca004348533cc30a63ebe8823d7dd4bb626dce17743d40bbddb89b402ef2a240"},
+    {file = "equinox-0.13.8.tar.gz", hash = "sha256:dd075050018e2dd02e252e9d29d3060f7e67f085622d8d27a8e89e24bb8523db"},
 ]
 
 [[package]]
@@ -1470,6 +1518,60 @@ files = [
 ]
 
 [[package]]
+name = "jax"
+version = "0.12.0.1"
+requires_python = ">=3.12"
+summary = "Differentiate, compile, and transform Numpy code."
+groups = ["default"]
+dependencies = [
+    "jaxlib<=0.12.0.1,>=0.11.2",
+    "ml-dtypes>=0.5.0",
+    "numpy>=2.2",
+    "opt-einsum",
+    "scipy>=1.15",
+]
+files = [
+    {file = "jax-0.12.0.1-py3-none-any.whl", hash = "sha256:e9dfd256ba090259b10f97f0755d4fc92535b8cb38c0a40df6488a8c8a7dd8ae"},
+    {file = "jax-0.12.0.1.tar.gz", hash = "sha256:f543fb1151c351d328b7dd9e40865c01bf9ae10cdf7e21637196172891d51914"},
+]
+
+[[package]]
+name = "jaxlib"
+version = "0.12.0.1"
+requires_python = ">=3.12"
+summary = "XLA library for JAX"
+groups = ["default"]
+dependencies = [
+    "ml-dtypes>=0.5.0",
+    "numpy>=2.0",
+    "scipy>=1.14",
+]
+files = [
+    {file = "jaxlib-0.12.0.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:db2cc8584d7d0d166293ef2475b726988a10f6f9b5a8e3b8e3712415e5570380"},
+    {file = "jaxlib-0.12.0.1-cp312-cp312-manylinux_2_27_aarch64.whl", hash = "sha256:40812201c3bcd4cb104b88f71f58fec4cbd0c32ba90e5c92b3fa8f40819f6774"},
+    {file = "jaxlib-0.12.0.1-cp312-cp312-manylinux_2_27_x86_64.whl", hash = "sha256:78318e9ac79c92972f81c77090f557bdb4a5a49821751c6ee3f6a9c66a948842"},
+    {file = "jaxlib-0.12.0.1-cp312-cp312-win_amd64.whl", hash = "sha256:aa24baf4aafd78bbf7104a81f01eadc40332b8b90098634d14d585cd0477eeaf"},
+    {file = "jaxlib-0.12.0.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:8be160b0b847bc57168e4305713756f6da0d0bba26715e64f9d2f46c0a7a6b42"},
+    {file = "jaxlib-0.12.0.1-cp313-cp313-manylinux_2_27_aarch64.whl", hash = "sha256:c8de1cad382713114f657f406383edc53ee9fda4679db4e2b09d1dfefe1c4e45"},
+    {file = "jaxlib-0.12.0.1-cp313-cp313-manylinux_2_27_x86_64.whl", hash = "sha256:fdc56999ba690bd915f7029613269848eaaf85d231ec8abc46610d3b840c189c"},
+    {file = "jaxlib-0.12.0.1-cp313-cp313-win_amd64.whl", hash = "sha256:3011a4ef1fc3dbe7c03fee30dee8f0b85a9ce92e5673271f5065d4cb400587a5"},
+]
+
+[[package]]
+name = "jaxtyping"
+version = "0.3.11"
+requires_python = ">=3.11"
+summary = "Type annotations and runtime checking for shape and dtype of JAX/NumPy/PyTorch/etc. arrays."
+groups = ["default"]
+dependencies = [
+    "wadler-lindig>=0.1.3",
+]
+files = [
+    {file = "jaxtyping-0.3.11-py3-none-any.whl", hash = "sha256:8a4bedc4e3f963fa82df41bd13c7ebc2bad925601eb48614c65798f21329d4e3"},
+    {file = "jaxtyping-0.3.11.tar.gz", hash = "sha256:b09c14acf6686feb9e0df5b0d8c6e7c5b6f8d36bf059ee54cd522a186c2ef050"},
+]
+
+[[package]]
 name = "jedi"
 version = "0.20.1"
 requires_python = ">=3.10"
@@ -1729,6 +1831,23 @@ dependencies = [
 files = [
     {file = "license_expression-30.4.4-py3-none-any.whl", hash = "sha256:421788fdcadb41f049d2dc934ce666626265aeccefddd25e162a26f23bcbf8a4"},
     {file = "license_expression-30.4.4.tar.gz", hash = "sha256:73448f0aacd8d0808895bdc4b2c8e01a8d67646e4188f887375398c761f340fd"},
+]
+
+[[package]]
+name = "lineax"
+version = "0.1.1"
+requires_python = "~=3.11"
+summary = "Linear solvers in JAX and Equinox."
+groups = ["default"]
+dependencies = [
+    "equinox>=0.11.10",
+    "jax>=0.10.0",
+    "jaxtyping>=0.2.24",
+    "typing-extensions>=4.5.0",
+]
+files = [
+    {file = "lineax-0.1.1-py3-none-any.whl", hash = "sha256:2e399f1674773ab2ba54d76175a618977a554f47abd0a345198d53d92c07beb2"},
+    {file = "lineax-0.1.1.tar.gz", hash = "sha256:187b8ea93b8e1099fb792e81c6e71a9c269f4fcadbb5313fe312d5847f581f9d"},
 ]
 
 [[package]]
@@ -2211,6 +2330,31 @@ files = [
 ]
 
 [[package]]
+name = "ml-dtypes"
+version = "0.6.0"
+requires_python = ">=3.10"
+summary = "ml_dtypes is a stand-alone implementation of several NumPy dtype extensions used in machine learning."
+groups = ["default"]
+dependencies = [
+    "numpy>=2.0.0",
+    "numpy>=2.1.0; python_version >= \"3.13\"",
+    "numpy>=2.3.0; python_version >= \"3.14\"",
+]
+files = [
+    {file = "ml_dtypes-0.6.0-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:5359c588cc62de6f78d7430f06b65853d884955494d86d6ad90b6dd64a3f3a08"},
+    {file = "ml_dtypes-0.6.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:37da32aa97749251025666d62372775019594577b9c9e9cfda83bed48d778fdb"},
+    {file = "ml_dtypes-0.6.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:3b4a480aa8fd54a1805b8ac10f3f91763926a74f73c0c364c10f9231854f4170"},
+    {file = "ml_dtypes-0.6.0-cp312-cp312-win_amd64.whl", hash = "sha256:2a3e9d53925597fbffafd2a37048dadeddd0bdaba58058f6ae0869ed709a184d"},
+    {file = "ml_dtypes-0.6.0-cp312-cp312-win_arm64.whl", hash = "sha256:6eaed129a4afe90694b8685e2f9b6294849f5eda4af9a15be83a4326eeebd775"},
+    {file = "ml_dtypes-0.6.0-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:084dfe51a7ad58b171f05115f8226ed4233a454a1611371947e806e76f0c638d"},
+    {file = "ml_dtypes-0.6.0-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:28d676428b104bb9717b0928bc5c5129f2d6b51b6727587cc4289e7bf8713cb5"},
+    {file = "ml_dtypes-0.6.0-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:26b1f1fa4f0435a2946859823f6e2bf06796f1e9f10f5a05b08a5e3c8f46ff69"},
+    {file = "ml_dtypes-0.6.0-cp313-cp313-win_amd64.whl", hash = "sha256:fb87f46b4f7ad7b5d3ad8f4b452b024bd4229d44c8ff934798c1fe656210387a"},
+    {file = "ml_dtypes-0.6.0-cp313-cp313-win_arm64.whl", hash = "sha256:57ed0d6b4ac5e7868361303a9c57fbcf63b768236ee14456f585dfcf260d0292"},
+    {file = "ml_dtypes-0.6.0.tar.gz", hash = "sha256:5e60251d32ced5598972e4d5e06a2f044341f9291402551a3f6f0ec44f9299b0"},
+]
+
+[[package]]
 name = "more-itertools"
 version = "11.2.1"
 requires_python = ">=3.11"
@@ -2518,6 +2662,52 @@ files = [
     {file = "numpy-2.5.4-cp313-cp313-win_amd64.whl", hash = "sha256:8b4d2fd2d34e5f8c9235ee787de5631a37a28402b15cb80814df973d2be54129"},
     {file = "numpy-2.5.4-cp313-cp313-win_arm64.whl", hash = "sha256:bc39ac66a7a9a3fbd6134fda43136b60ffde99c8f4501e64e0d2b24da137babf"},
     {file = "numpy-2.5.4.tar.gz", hash = "sha256:9a94cf751c9ad8ebaa835bcd3d40dacf8534ad086b88c38029b65123c7999d2a"},
+]
+
+[[package]]
+name = "opt-einsum"
+version = "3.4.0"
+requires_python = ">=3.8"
+summary = "Path optimization of einsum functions."
+groups = ["default"]
+files = [
+    {file = "opt_einsum-3.4.0-py3-none-any.whl", hash = "sha256:69bb92469f86a1565195ece4ac0323943e83477171b91d24c35afe028a90d7cd"},
+    {file = "opt_einsum-3.4.0.tar.gz", hash = "sha256:96ca72f1b886d148241348783498194c577fa30a8faac108586b14f1ba4473ac"},
+]
+
+[[package]]
+name = "optax"
+version = "0.2.8"
+requires_python = ">=3.10"
+summary = "A gradient processing and optimization library in JAX."
+groups = ["default"]
+dependencies = [
+    "absl-py>=0.7.1",
+    "jax>=0.5.3",
+    "jaxlib>=0.5.3",
+    "numpy>=1.18.0",
+]
+files = [
+    {file = "optax-0.2.8-py3-none-any.whl", hash = "sha256:e3ca2d36c99daab1800ae9dbc0545034382d6bc780b24d969e1b0df65fa31cb4"},
+    {file = "optax-0.2.8.tar.gz", hash = "sha256:5b225b35066fc3eebaa4d798f1b4173b4d57d1a480610908981f8343b50af0b0"},
+]
+
+[[package]]
+name = "optimistix"
+version = "0.1.0"
+requires_python = "~=3.11"
+summary = "Nonlinear optimisation in JAX and Equinox."
+groups = ["default"]
+dependencies = [
+    "equinox>=0.11.11",
+    "jax!=0.7.0,!=0.7.1,>=0.4.38",
+    "jaxtyping>=0.2.24",
+    "lineax>=0.0.6",
+    "typing-extensions>=4.5.0",
+]
+files = [
+    {file = "optimistix-0.1.0-py3-none-any.whl", hash = "sha256:c8edda7bf7fe48839c93fcd72bce750c950ed9f7033158303150b7ab395add81"},
+    {file = "optimistix-0.1.0.tar.gz", hash = "sha256:f05c9104748e87e1dc10a0b4a2be94e427f98c3eab0b1d41ea24a593d76be03d"},
 ]
 
 [[package]]
@@ -4424,6 +4614,17 @@ dependencies = [
 files = [
     {file = "virtualenv-21.14.11-py3-none-any.whl", hash = "sha256:b319f8590a84e5de5f8f2c803ecd2237e9bc0ffa7c1e875e3169c107cecb7454"},
     {file = "virtualenv-21.14.11.tar.gz", hash = "sha256:593052d8477ea8c55a842387ce111bd08c72618f0c1133c302cafe335e570a57"},
+]
+
+[[package]]
+name = "wadler-lindig"
+version = "0.1.8"
+requires_python = ">=3.10"
+summary = "A Wadler–Lindig pretty-printer for Python."
+groups = ["default"]
+files = [
+    {file = "wadler_lindig-0.1.8-py3-none-any.whl", hash = "sha256:8671e8c98449ae3f4e4ba720eccd63a502b3983042f8d112b49a9c6be49e8d92"},
+    {file = "wadler_lindig-0.1.8.tar.gz", hash = "sha256:1a94d51cd26100dda9e430c64539c5b92b9788c87f10db3e1c87503ab814411a"},
 ]
 
 [[package]]

@@ -245,8 +245,9 @@ to fill in as the project takes shape.
   class, and its traits as class variables. The only magic methods beyond `__init__` are the arithmetic of the
   quantum operators.
 - Language: Python >=3.12, <3.14.
-- Platforms: Linux and macOS 13 or later. Windows is not supported because passagemath publishes no Windows wheels, and
-  Windows users run the package in WSL.
+- Platforms: Linux and macOS 13 or later on Apple silicon. Windows is not supported because passagemath publishes no
+  Windows wheels, and Windows users run the package in WSL. macOS on Intel is not supported because `jaxlib` publishes
+  no wheels for it.
 - Build and tooling: PDM with SCM-derived versioning and a `src`
   layout. The `nox` sessions are `formatting`, `checks`, `tests`, `docs`, `gallery`, `changelog`, and `release`. The
   gate covers `ruff`, `mypy`, `bandit`, `pip-audit`, `deptry`, `pydoclint`, `interrogate`, and `import-linter`, whose
@@ -256,7 +257,8 @@ to fill in as the project takes shape.
   inventory.
 - Runtime dependencies: `numpy` 2.1 or later, `scipy` for numeric integration, `passagemath-symbolics` as the Sage
   symbolic layer every law is written in and lowered from, `passagemath-maxima` for exact solutions, `cysignals` at a
-  version the passagemath wheels need, `numba` for the compiled backend, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
+  version the passagemath wheels need, `numba` for the compiled backend, `jax` for the JAX backend and automatic differentiation, `optax` for the
+  optimizers of the learning solver, `diffrax` for differentiable ODE solves of the learning solver, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
   for networks, which Mesa 3.5 imports without declaring it, `xgi` for hypergraphs and simplicial complexes, `rerun-sdk` for visualization, `qutip` for quantum systems, `SALib` for sensitivity
   analysis, `scikit-fem` for finite-element assembly on unstructured meshes, `shapely` for the geometry of rewriting
   systems, and `scikit-learn` for the
