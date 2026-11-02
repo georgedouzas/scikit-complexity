@@ -4,7 +4,6 @@ import math
 
 import numpy as np
 import pytest
-
 from sage.all__sagemath_symbolics import tanh
 
 from skcomplex.core.elements import FieldElement

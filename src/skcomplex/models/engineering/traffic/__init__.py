@@ -6,8 +6,8 @@ from ._car_following import delayed_car_following, intelligent_driver_model, opt
 from ._careless_braking import CarelessBrakingInteraction
 from ._continuum import gkt_traffic, kerner_konhauser, lighthill_whitham_richards, payne
 from ._driver import DriverElement
-from ._gas_kinetic_traffic import GasKineticTrafficElement
 from ._drivers import charbonneau_traffic, ring_road_drivers
+from ._gas_kinetic_traffic import GasKineticTrafficElement
 from ._langevin import langevin_traffic, traffic_density_equation
 from ._langevin_driving import LangevinDrivingInteraction
 from ._motorist import MotoristElement

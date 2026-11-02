@@ -64,7 +64,8 @@ def _get_gkt_relaxation(s: SimpleNamespace) -> Expression:
     )
     difference = (speed - speed_ahead) / sqrt(variances)
     boltzmann = 2 * (
-        difference * exp(-(difference**2) / 2) / sqrt(2 * pi) + (1 + difference**2) * (1 + erf(difference / sqrt(2))) / 2
+        difference * exp(-(difference**2) / 2) / sqrt(2 * pi)
+        + (1 + difference**2) * (1 + erf(difference / sqrt(2))) / 2
     )
     gap = density_ahead * road.T / (1 - density_ahead / road.rho_max)
     braking = variances / (2 * _get_variance_prefactor(road, road.rho_max)) * gap**2 * boltzmann
@@ -409,7 +410,7 @@ def gkt_traffic(
         np.cosh((centers - start) / width) ** -2 - width / wake * np.cosh((centers - start - 1.00625) / wake) ** -2
     )
     values = {'V0': V0, 'T': T, 'tau': tau, 'rho_max': rho_max, 'gamma': gamma}
-    cell = GasKineticTrafficElement('cell', **values)
+    cell = GasKineticTrafficElement('cell', V0=V0, T=T, tau=tau, rho_max=rho_max, gamma=gamma)
     road = FieldElement(
         'road',
         element=GasKineticTrafficElement,
