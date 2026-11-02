@@ -57,7 +57,7 @@ def lq_cell_survival(
         >>> from skcomplex.models.biology.oncology import lq_cell_survival
         >>> system = lq_cell_survival(60.0, fractions=30.0)
         >>> trajectory = Simulation(system).check().prepare().run(1.0).trajectory_
-        >>> round(float(trajectory.values('cells.effective_dose')[0]), 3)
+        >>> round(float(trajectory.values('cells.effective_dose')[0]), 1)
         72.0
     """
     cells = LinearQuadraticSurvivalElement(

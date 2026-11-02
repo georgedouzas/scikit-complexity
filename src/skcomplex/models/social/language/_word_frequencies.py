@@ -8,6 +8,7 @@ import numpy as np
 from ....core.elements import GroupElement
 from ....core.spaces import StaticTime
 from ....core.system import System
+from ....specs import VisualSpec
 from ..._catalog import register_model
 from ._language import LanguageElement
 from ._least_effort import LeastEffortInteraction
@@ -41,6 +42,7 @@ def mandelbrot_least_effort(n_words: int = 200) -> System:
         1.0
     """
     costs = np.log(np.arange(1, n_words + 1) + 1.0)
-    words = GroupElement('words', element=WordElement, size=n_words, values={'cost': costs})
+    visual = VisualSpec('histograms', {'color_by': 'probability'})
+    words = GroupElement('words', element=WordElement, size=n_words, values={'cost': costs}, visual=visual)
     effort = LeastEffortInteraction('effort', target='language', words='words')
-    return System(elements=[LanguageElement('language'), words], interactions=[effort], time=StaticTime())
+    return System(elements=[words, LanguageElement('language')], interactions=[effort], time=StaticTime())

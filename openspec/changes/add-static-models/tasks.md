@@ -41,7 +41,7 @@
 - [x] 4.4 Add `gravity_urban_scaling` and the package `skcomplex.models.social.language` with
   `mandelbrot_least_effort`, and verify the urban scaling exponent and least-effort frequencies scenarios and the
   conformance suite
-- [ ] 4.5 Mark the nine entries implemented in `docs/overview/inventory.toml`, add a gallery example per model with an
+- [x] 4.5 Mark the nine entries implemented in `docs/overview/inventory.toml`, add a gallery example per model with an
   analysis plot from an `Experiment`, and verify the inventory check and the gallery coverage, budget, and screenshot
   checks pass
 
