@@ -21,6 +21,7 @@ from ...specs import (
     GreedyMatchingSpec,
     IterativeClearingSpec,
     MatchSpec,
+    PartnerSpec,
     PartnerSwitchSpec,
     QueueSpec,
     RandomSearchSpec,
@@ -28,7 +29,7 @@ from ...specs import (
     StableMatchingSpec,
 )
 from ..base import BasePart
-from ..laws import RuleLaw
+from ..laws import MatchLaw, RuleLaw
 from ..laws.utils import transfer
 from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, MatchingRule, ModelViewProtocol, Pairing
@@ -38,6 +39,7 @@ SIGNS = (-1, 1)
 DEFAULT_STATES = ('limit', 'quantity', 'budget')
 RULES = (
     RandomSearchSpec,
+    PartnerSpec,
     PartnerSwitchSpec,
     QueueSpec,
     IterativeClearingSpec,
@@ -90,9 +92,9 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
             The path of the group of providers.
 
         rule:
-            The spec of the algorithm that matches the members, such as `ContinuousClearingSpec()`, or a function
-            `rule(requesters, providers, rng, capacity)` of the agents with a positive quantity that returns their
-            pairs, each matched at the midpoint of both limits.
+            The spec of the algorithm that matches the members, such as `ContinuousClearingSpec()`, a `PartnerSpec`,
+            or a function `rule(requesters, providers, rng, capacity)` of the agents with a positive quantity that
+            returns their pairs. The pairs of a `PartnerSpec` or a function match at the midpoint of both limits.
 
         limit:
             The state with the limit of both sides, or a pair of the requesters' and the providers' states. An agent
@@ -144,7 +146,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         *,
         requesters: Annotated[str, RoleSpec()],
         providers: Annotated[str, RoleSpec()],
-        rule: MatchingRule | Pairing = RandomSearchSpec(),
+        rule: MatchingRule | PartnerSpec | Pairing = RandomSearchSpec(),
         limit: str | tuple[str, str] = 'limit',
         quantity: str | tuple[str, str] = 'quantity',
         budget: str = 'budget',
@@ -583,17 +585,19 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
 
     def _match_custom(
         self,
-        rule: Pairing,
+        rule: PartnerSpec | Pairing,
         requesters: list[_Offer],
         providers: list[_Offer],
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
-        """Return the matches of the pairs of agents a pairing function returns, each at the midpoint of the limits."""
-        offers = {id(offer.agent): offer for offer in [*requesters, *providers]}
+        """Return the matches of the pairs of partners or of a function, each at the midpoint of the limits."""
+        wanting = {id(offer.agent): offer for offer in requesters}
+        offering = {id(offer.agent): offer for offer in providers}
         trades: list[MatchSpec] = []
-        agents = rule([offer.agent for offer in requesters], [offer.agent for offer in providers], rng, 1)
-        for requester, provider in agents:
-            first, second = offers[id(requester)], offers[id(provider)]
+        left = [offer.agent for offer in requesters]
+        right = left if self.requesters == self.providers else [offer.agent for offer in providers]
+        for requester, provider in MatchLaw(self.requesters, self.providers, rule).get_pairs(left, right, rng):
+            first, second = wanting[id(requester)], offering[id(provider)]
             self._book(trades, first, second, self._get_value(first, second, 'midpoint'))
         return trades
 
@@ -659,6 +663,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         """Raise an error for candidates in neighbouring cells or nodes in a continuous space."""
         if isinstance(self.rule, GreedyMatchingSpec) and self.rule.candidates == 'neighbors':
             self._check_grid('candidates', self.rule.candidates, space, 'a radius as the candidates')
+        self._check_partners(self.rule, space)
 
     def _check(self) -> None:
         """Raise an error for a declaration the matching cannot take, a transfer without a sign, or a bad rule.
@@ -673,8 +678,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
             if sign not in SIGNS:
                 error_msg = f'The transfer of {state!r} has the sign {sign!r}. Use one of {SIGNS}.'
                 raise ValidationError(error_msg)
-        self._check_variant('rule', self.rule, (), RULES, functions=True)
-        if isinstance(self.rule, RULES):
+        self._check_variant('rule', self.rule, (), (PartnerSpec, *RULES), functions=True)
+        if isinstance(self.rule, (*RULES, PartnerSpec)):
             self.rule.check()
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:

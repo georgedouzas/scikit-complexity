@@ -24,7 +24,7 @@ SCHEDULES = ('sequential', 'random-sequential', 'member')
 TIES = ('random', 'first', 'nearest')
 GRID_STEPS = ('neighbor', 'best')
 
-type Step = str | Callable[[AgentViewProtocol, ModelViewProtocol], object]
+type Step = str | Callable[..., object]
 type Cost = TransferInteraction | Callable[[AgentViewProtocol, ModelViewProtocol], None]
 type Vision = float | Callable[[AgentViewProtocol, ModelViewProtocol], float]
 

@@ -41,6 +41,7 @@ from skcomplex.specs import (
     MoveSpec,
     ObservableSpec,
     ParameterSpec,
+    PartnerSpec,
     PartnerSwitchSpec,
     PhaseSpec,
     PhasesScheduleSpec,
@@ -836,3 +837,21 @@ def test_dataset_spec_rejects_values_it_cannot_take(values):
     """Test that empty values, an array of one dimension, or a path that is not a string raise an error."""
     with pytest.raises(ValidationError):
         DatasetSpec(values).check()
+
+
+@pytest.mark.parametrize(
+    'arguments',
+    [
+        {'choice': 'best'},
+        {'fallback': 'first'},
+        {'candidates': -1.0},
+        {'candidates': True},
+        {'capacity': 0},
+        {'choice': 'score'},
+        {'score': print},
+    ],
+)
+def test_partner_spec_check_rejects_unusable_settings(arguments):
+    """Test that the check of a partner spec names a choice, fallback, distance, capacity, or score it cannot take."""
+    with pytest.raises(ValidationError):
+        PartnerSpec(**arguments).check()

@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -64,11 +65,11 @@ def basal_metabolic_rate(weight: float, height: float, age: float, male: float) 
 class EaterElement(Element):
     """Person of the obesity model, who goes from home to work and back every day and eats near each place.
 
-    At home, at work, and at home again the person eats one meal at a random restaurant within `reach`, or at the
-    nearest restaurant when none is within reach, so that access changes what is eaten but never skips a meal. The
-    calories are drawn from the bottom, middle, or top half of the restaurant's range by its eating habit. Every week
-    its weight changes by the calories eaten beyond seven days of its expenditure, the basal metabolic rate times the
-    `activity` factor of the Harris-Benedict equation, at 7700 kilocalories per kilogram.
+    The moves and the meals of the day are movements and transfers of the model, in the phases `home`, `work`, and
+    `evening`. The calories of a meal are drawn from the bottom, middle, or top half of the restaurant's range by the
+    eating habit. In the phase `week`, every seventh step, the weight changes by the calories eaten beyond seven days of
+    the expenditure, the basal metabolic rate times the `activity` factor of the Harris-Benedict equation, at 7700
+    kilocalories per kilogram.
 
     Args:
         label:
@@ -161,7 +162,7 @@ class EaterElement(Element):
         return EaterView
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the daily rule.
+        """Return the rule that counts the days and the rule that changes the weight once a week.
 
         Args:
             s:
@@ -171,32 +172,10 @@ class EaterElement(Element):
             laws:
                 The laws of the component.
         """
-        return [RuleLaw(self.live)]
+        return [RuleLaw(self.count_day, phase='evening'), RuleLaw(self.gain_weight, phase='week')]
 
-    def _eat(self, agent: EaterView, model: ModelView) -> None:
-        """Eat one meal at a random restaurant within reach, or at the nearest restaurant if none is within reach."""
-        restaurants = [other for other in agent.neighbors(radius=agent.reach) if isinstance(other, RestaurantView)]
-        if not restaurants:
-            nearest = min(model.agents('restaurants', RestaurantView), key=agent.distance_to, default=None)
-            restaurants = [] if nearest is None else [nearest]
-        if not restaurants:
-            return
-        restaurant = restaurants[int(model.rng.integers(len(restaurants)))]
-        calories, high = EaterElement._meal(int(restaurant.kind), int(agent.habit), model.rng)
-        agent.calories += calories
-        restaurant.sold += 1
-        restaurant.sold_high += float(high)
-
-    def _gain(self, agent: EaterView) -> None:
-        """Change the weight by the calories of the week beyond the basal needs, and start a new week."""
-        rate = basal_metabolic_rate(agent.weight, agent.height, agent.age, agent.male)
-        needs = DAYS_PER_WEEK * agent.activity * rate
-        agent.weight += (agent.calories - needs) / KCAL_PER_KG
-        agent.calories = 0.0
-        agent.bmi = agent.weight / (agent.height / 100) ** 2
-
-    def live(self, agent: EaterView, model: ModelView) -> None:
-        """Eat at home, at work, and at home again, and update the weight at the end of a week.
+    def count_day(self, agent: EaterView, model: ModelView) -> None:
+        """Count one more day lived in the model.
 
         Args:
             agent:
@@ -205,17 +184,99 @@ class EaterElement(Element):
             model:
                 The model.
         """
-        for place in (agent.home, agent.work, agent.home):
-            agent.move_to(np.asarray(place, dtype=float))
-            self._eat(agent, model)
         agent.day += 1
-        if agent.day % DAYS_PER_WEEK == 0:
-            self._gain(agent)
+
+    def gain_weight(self, agent: EaterView, model: ModelView) -> None:
+        """Change the weight by the calories of the week beyond the basal needs, and start a new week.
+
+        Args:
+            agent:
+                The person.
+
+            model:
+                The model.
+        """
+        rate = basal_metabolic_rate(agent.weight, agent.height, agent.age, agent.male)
+        needs = DAYS_PER_WEEK * agent.activity * rate
+        agent.weight += (agent.calories - needs) / KCAL_PER_KG
+        agent.calories = 0.0
+        agent.bmi = agent.weight / (agent.height / 100) ** 2
 
     @staticmethod
-    def _meal(kind: int, habit: int, rng: np.random.Generator) -> tuple[float, bool]:
-        """Return the calories of a meal of a restaurant kind for an eating habit, and whether it is in the top half."""
-        low, high = MEAL_RANGES[kind]
-        start, stop = HABIT_RANGES[habit]
-        calories = rng.uniform(low + start * (high - low), low + stop * (high - low))
-        return float(calories), bool(calories > (low + high) / 2)
+    def go_home(agent: EaterView, model: ModelView) -> npt.NDArray[np.float64]:
+        """Return the position of the home of a person.
+
+        Args:
+            agent:
+                The person.
+
+            model:
+                The model.
+
+        Returns:
+            position:
+                The position of the home.
+        """
+        return np.asarray(agent.home, dtype=float)
+
+    @staticmethod
+    def go_to_work(agent: EaterView, model: ModelView) -> npt.NDArray[np.float64]:
+        """Return the position of the workplace of a person.
+
+        Args:
+            agent:
+                The person.
+
+            model:
+                The model.
+
+        Returns:
+            position:
+                The position of the workplace.
+        """
+        return np.asarray(agent.work, dtype=float)
+
+    @staticmethod
+    def draw_meal(agent: EaterView, restaurant: RestaurantView, model: ModelView) -> float:
+        """Return the calories of a meal, drawn from the part of the range of a restaurant that a habit eats.
+
+        Args:
+            agent:
+                The person.
+
+            restaurant:
+                The restaurant.
+
+            model:
+                The model.
+
+        Returns:
+            calories:
+                The calories of the meal.
+        """
+        low, high = MEAL_RANGES[int(restaurant.kind)]
+        start, stop = HABIT_RANGES[int(agent.habit)]
+        return float(model.rng.uniform(low + start * (high - low), low + stop * (high - low)))
+
+    @staticmethod
+    def settle_meal(agent: EaterView, restaurant: RestaurantView, amounts: Sequence[float], model: ModelView) -> None:
+        """Credit a person with the calories of a meal, and count the sale on the restaurant.
+
+        Args:
+            agent:
+                The person.
+
+            restaurant:
+                The restaurant.
+
+            amounts:
+                The calories of the meal, the only amount.
+
+            model:
+                The model.
+        """
+        calories = amounts[0]
+        low, high = MEAL_RANGES[int(restaurant.kind)]
+        agent.calories += calories
+        restaurant.sold += 1
+        restaurant.sold_high += float(calories > (low + high) / 2)

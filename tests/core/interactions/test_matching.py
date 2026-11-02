@@ -16,6 +16,7 @@ from skcomplex.specs import (
     GreedyMatchingSpec,
     IterativeClearingSpec,
     MatchSpec,
+    PartnerSpec,
     PartnerSwitchSpec,
     PhaseSpec,
     PhasesScheduleSpec,
@@ -316,3 +317,9 @@ def test_match_rejects_a_misspelled_state_instead_of_defaulting_it():
     system.interactions[0].set_params(budget='mony')
     with pytest.raises(ValidationError, match="no state 'mony'"):
         Simulation(system, random_state=0).check().prepare().run(until=1)
+
+
+def test_match_partner_spec_settles_the_pairs_at_the_midpoint(clear):
+    """Test that a partner spec as the rule pairs every requester and matches at the midpoint of the limits."""
+    matches = clear(PartnerSpec('all', 'uniform'), {'limit': [10.0]}, {'limit': [2.0]})
+    assert matches == [(10.0, 2.0, 0.0, 1.0, 6.0)]

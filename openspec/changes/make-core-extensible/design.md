@@ -66,9 +66,19 @@ Alternative: registries of variants. Rejected: global mutable state and machiner
 ### One partner-selection spec
 `PartnerSpec(candidates, choice, fallback, capacity)` in `skcomplex.specs`:
 - candidates: `'all'`, `'neighbors'`, `'cell'`, a radius, or a state name holding a per-agent radius;
-- choice: `'uniform'`, `'score'` with a score callable, or `'nearest'`;
+- choice: `'uniform'`, `'score'` with a `score` callable, `'nearest'`, or `'all'` for every candidate, which the named
+  pairings `'neighbors'` and `'cell'` need;
 - fallback: `None` or `'nearest'`;
-- capacity: a number or a state name.
+- capacity: a number or a state name, the largest number of pairs of a member in one step. With a capacity the agents act
+  in random order, since the first to act take the room, and it counts both roles within one group.
+
+The named pairings `'random'`, `'pairs'`, `'neighbors'`, `'neighbor-pairs'`, and `'cell'` are shorthands of specs and give
+identical draws. `'members'` and `'site'` select no partner, so they stay as they are. In groupings `'pairs'` is a
+shorthand, and the groups of a spec or a function hold every member with its partners. A `'neighborhood'` group keeps its
+own path because it also holds a member with no neighbours. A matching takes a spec or a function as its rule, and matches
+its pairs at the midpoint of both limits. `GreedyMatchingSpec` keeps its own candidates, because its feasibility reads the
+limits and quantities of the offers, which a spec does not know. A capacity does not run under the transfer schedule
+`'member'`, since every actor draws alone, and it raises an error.
 
 A pairing callable replaces the spec. Transfers, matching (as the greedy rule's candidates and choice), and groupings
 accept it. Radius candidates use `RadiusNeighborhood` and `NearestNeighborhood` from `core.spaces`, so they work in

@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 from typing import Annotated
 
+import networkx as nx
 import numpy as np
 import pytest
 
@@ -10,11 +11,11 @@ from skcomplex.core.elements import Element, FieldElement, GroupElement
 from skcomplex.core.interactions import TransferInteraction
 from skcomplex.core.laws import BaseLaw, RateLaw, RuleLaw, Sink, Source
 from skcomplex.core.laws.utils import bernoulli
-from skcomplex.core.spaces import DiscreteTime, LatticeSpace
+from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation, Trajectory
-from skcomplex.errors import ValidationError
-from skcomplex.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.errors import SpaceError, ValidationError
+from skcomplex.specs import ParameterSpec, PartnerSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class StockElement(Element):
@@ -704,3 +705,284 @@ def test_check_rejects_an_unknown_pairing_naming_its_values_and_functions():
     )
     with pytest.raises(ValidationError, match=r"Unknown pairing 'nearest'.*'members'.*'site', a function"):
         give.check()
+
+
+class ReachElement(StockElement):
+    """Holder of a level that looks for partners within its reach."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        level: Annotated[float, StateSpec()] = 0.0,
+        reach: Annotated[float, StateSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual, level=level)
+        self.reach = reach
+
+
+def _reach_system(partners: PartnerSpec, reach: list[float]) -> System:
+    """Return two eaters at the origin and at x = 8 and providers at x = 1, x = 2, and x = 9, in a continuous space."""
+    eaters = GroupElement(
+        'eaters',
+        element=ReachElement,
+        size=2,
+        values={'reach': reach},
+        location=[(0.0, 0.0), (8.0, 0.0)],
+    )
+    providers = GroupElement(
+        'providers',
+        element=StockElement,
+        size=3,
+        location=[(1.0, 0.0), (2.0, 0.0), (9.0, 0.0)],
+    )
+    give = TransferInteraction(
+        'give',
+        source='eaters',
+        target='providers',
+        state='level',
+        amount=1.0,
+        pairing=partners,
+        form='agent',
+    )
+    return System(elements=[eaters, providers], interactions=[give], space=ContinuousSpace(extent=(10.0, 10.0)))
+
+
+def test_transfer_partner_spec_picks_within_reach_or_else_the_nearest():
+    """Test that an agent picks uniformly within the radius in its state, and the nearest without one in reach."""
+    partners = PartnerSpec('reach', fallback='nearest')
+    counts = np.zeros(3)
+    for seed in range(40):
+        trajectory = (
+            Simulation(_reach_system(partners, [2.5, 0.5]), random_state=seed)
+            .check()
+            .prepare()
+            .run(until=1)
+            .trajectory_
+        )
+        counts += _levels(trajectory, 1, 'providers')
+    assert counts[2] == 40
+    assert counts[0] + counts[1] == 40
+    assert min(counts[0], counts[1]) > 8
+
+
+def test_transfer_partner_spec_reads_a_euclidean_radius_in_a_continuous_space():
+    """Test that candidates within a distance run in a continuous space, and an agent with none transfers nothing."""
+    trajectory = (
+        Simulation(_reach_system(PartnerSpec(1.5), [0.0, 0.0]), random_state=0)
+        .check()
+        .prepare()
+        .run(until=1)
+        .trajectory_
+    )
+    assert _levels(trajectory, 1, 'providers') == [1.0, 0.0, 1.0]
+
+
+def test_transfer_partner_spec_respects_a_capacity():
+    """Test that a provider takes at most its capacity of pairs in one step, and the rest go to the next nearest."""
+    trajectory = (
+        Simulation(_reach_system(PartnerSpec(20.0, 'nearest', capacity=1), [0.0, 0.0]), random_state=0)
+        .check()
+        .prepare()
+        .run(until=1)
+        .trajectory_
+    )
+    assert sum(_levels(trajectory, 1, 'providers')) == 2.0
+    assert max(_levels(trajectory, 1, 'providers')) == 1.0
+
+
+def test_transfer_partner_spec_raises_for_a_state_agents_lack():
+    """Test that a radius read from a state the agents do not have raises an error naming the state."""
+    system = _reach_system(PartnerSpec('range'), [1.0, 1.0])
+    with pytest.raises(ValidationError, match="state 'range'"):
+        Simulation(system, random_state=0).check().prepare().run(until=1)
+
+
+def test_prepare_names_the_radius_for_a_cell_pairing_in_a_continuous_space():
+    """Test that a cell pairing in a continuous space raises an error that names the radius pairing."""
+    give = TransferInteraction(
+        'give',
+        source='a',
+        target='b',
+        state='level',
+        amount=1.0,
+        pairing='cell',
+        form='agent',
+    )
+    with pytest.raises(SpaceError, match='radius pairing'):
+        give.check().prepare(ContinuousSpace(extent=(5.0, 5.0)))
+
+
+def test_prepare_names_the_radius_for_grid_candidates_in_a_continuous_space():
+    """Test that neighbour candidates of a partner spec in a continuous space raise an error naming the radius."""
+    give = TransferInteraction(
+        'give',
+        source='a',
+        target='b',
+        state='level',
+        amount=1.0,
+        pairing=PartnerSpec('neighbors'),
+        form='agent',
+    )
+    with pytest.raises(SpaceError, match='radius'):
+        give.check().prepare(ContinuousSpace(extent=(5.0, 5.0)))
+
+
+NAMED_SHORTHANDS = {
+    'random': PartnerSpec('all', 'uniform'),
+    'pairs': PartnerSpec('all', 'uniform', capacity=1),
+    'neighbors': PartnerSpec('neighbors', 'all'),
+    'neighbor-pairs': PartnerSpec('neighbors', 'uniform', capacity=1),
+    'cell': PartnerSpec('cell', 'all'),
+}
+
+
+def _shorthand_levels(pairing: object, seed: int) -> list[float]:
+    """Return the levels after three steps of a transfer of half the level on a small lattice, by a pairing."""
+    holders = GroupElement(
+        'holders',
+        element=StockElement,
+        size=6,
+        values={'level': [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]},
+        location=[(0, 0), (0, 0), (0, 1), (1, 1), (1, 0), (1, 0)],
+    )
+    give = TransferInteraction(
+        'give',
+        source='holders',
+        target='holders',
+        state='level',
+        amount=lambda source, target, model: source.level / 2 * model.rng.random(),
+        pairing=pairing,
+        form='agent',
+    )
+    system = System(elements=[holders], interactions=[give], space=LatticeSpace((2, 2)))
+    return _levels(Simulation(system, random_state=seed).check().prepare().run(until=3).trajectory_, 3, 'holders')
+
+
+@pytest.mark.parametrize('name', list(NAMED_SHORTHANDS))
+def test_transfer_named_pairing_is_a_shorthand_of_a_partner_spec(name):
+    """Test that a named pairing and its partner spec give identical draws over 20 seeds."""
+    for seed in range(20):
+        assert _shorthand_levels(name, seed) == _shorthand_levels(NAMED_SHORTHANDS[name], seed)
+
+
+def test_transfer_member_schedule_draws_partners_by_a_partner_spec():
+    """Test that an actor under the member schedule transfers with the partner its spec picks."""
+    eaters = GroupElement('eaters', element=StockElement, size=2, location=[(0.0, 0.0), (8.0, 0.0)])
+    providers = GroupElement('providers', element=StockElement, size=2, location=[(1.0, 0.0), (9.0, 0.0)])
+    give = TransferInteraction(
+        'give',
+        source='eaters',
+        target='providers',
+        state='level',
+        amount=1.0,
+        pairing=PartnerSpec('all', 'nearest'),
+        form='agent',
+        schedule='member',
+    )
+    system = System(elements=[eaters, providers], interactions=[give], space=ContinuousSpace(extent=(10.0, 10.0)))
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    assert _levels(trajectory, 1, 'providers') == [1.0, 1.0]
+
+
+@pytest.mark.parametrize(
+    'arguments',
+    [
+        {'schedule': 'member', 'pairing': PartnerSpec('all', 'nearest', capacity=1)},
+        {'partners': 2, 'pairing': PartnerSpec()},
+    ],
+)
+def test_check_rejects_a_partner_spec_with_settings_it_cannot_take(arguments):
+    """Test that a capacity under the member schedule, or `partners` beside a partner spec, raises an error."""
+    give = TransferInteraction('give', source='a', target='b', state='level', amount=1.0, form='agent', **arguments)
+    with pytest.raises(ValidationError, match='capacity'):
+        give.check()
+
+
+class ProviderElement(StockElement):
+    """Provider that counts what it sold and whether a sale was large."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        sold: Annotated[float, StateSpec()] = 0.0,
+        large: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.sold = sold
+        self.large = large
+
+
+def test_transfer_settlement_credits_both_ends_from_one_draw():
+    """Test that a settlement receives one draw of a meal, so the eater gains it and the sales rise by one."""
+    draws = []
+
+    def draw(source, target, model):
+        """Return and remember the calories of one meal."""
+        draws.append(float(model.rng.uniform(400.0, 900.0)))
+        return draws[-1]
+
+    def settle(source, target, amounts, model):
+        """Credit the eater with the calories and count the sale."""
+        source.level += amounts[0]
+        target.sold += 1
+        target.large += float(amounts[0] > 650.0)
+
+    eaters = GroupElement('eaters', element=StockElement, size=3)
+    providers = GroupElement('providers', element=ProviderElement, size=1)
+    meal = TransferInteraction(
+        'meal',
+        source='eaters',
+        target='providers',
+        state='level',
+        into='sold',
+        amount=draw,
+        pairing='random',
+        form='agent',
+        settlement=settle,
+    )
+    system = System(elements=[eaters, providers], interactions=[meal], time=DiscreteTime())
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    assert len(draws) == 3
+    assert sum(_levels(trajectory, 1, 'eaters')) == pytest.approx(sum(draws))
+    assert trajectory.agents('providers', 1).values['sold'].tolist() == [3.0]
+    assert trajectory.agents('providers', 1).values['large'].tolist() == [float(sum(draw > 650.0 for draw in draws))]
+
+
+@pytest.mark.parametrize(
+    'arguments',
+    [{'form': 'symbolic'}, {'form': 'agent', 'pairing': 'site'}],
+)
+def test_check_rejects_a_settlement_the_pairing_or_form_cannot_take(arguments):
+    """Test that a settlement raises an error in the symbolic form or on a site."""
+    give = TransferInteraction('give', source='a', target='b', state='level', amount=1.0, settlement=print, **arguments)
+    with pytest.raises(ValidationError, match='settles a pair'):
+        give.check()
+
+
+@pytest.mark.parametrize(
+    ('space', 'locations', 'expected'),
+    [
+        (LatticeSpace((7, 1)), [(0, 0), (1, 0), (3, 0)], [1.0, 0.0]),
+        (NetworkSpace(nx.path_graph(5)), [0, 1, 4], [1.0, 0.0]),
+    ],
+)
+def test_transfer_partner_spec_runs_on_grids_and_networks(space, locations, expected):
+    """Test that candidates within a distance read lattice distances and network hops, with the same pairs."""
+    eaters = GroupElement('eaters', element=StockElement, size=1, location=locations[:1])
+    providers = GroupElement('providers', element=StockElement, size=2, location=locations[1:])
+    give = TransferInteraction(
+        'give',
+        source='eaters',
+        target='providers',
+        state='level',
+        amount=1.0,
+        pairing=PartnerSpec(1.5),
+        form='agent',
+    )
+    system = System(elements=[eaters, providers], interactions=[give], space=space)
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    assert _levels(trajectory, 1, 'providers') == expected

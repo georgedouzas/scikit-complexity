@@ -10,12 +10,13 @@ import numpy as np
 import numpy.typing as npt
 
 from ...errors import SpaceError, ValidationError
-from ...specs import ParameterSpec, StateSpec
+from ...specs import ParameterSpec, PartnerSpec, StateSpec
 from ..base import BasePart
 from ..spaces import BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, ModelViewProtocol
 
 SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
+GRID_CANDIDATES = ('neighbors', 'cell')
 
 
 class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
@@ -187,7 +188,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         """
         if isinstance(value, kinds) or (functions and callable(value)) or any(value == item for item in values):
             return
-        accepted = [*map(repr, values), *(kind.__name__ for kind in kinds), *(['a function'] if functions else [])]
+        accepted = [*(kind.__name__ for kind in kinds), *map(repr, values), *(['a function'] if functions else [])]
         error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {", ".join(accepted)}.'
         raise ValidationError(error_msg)
 
@@ -332,6 +333,11 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
             f'system has a continuous space. Use {alternative}.'
         )
         raise SpaceError(error_msg)
+
+    def _check_partners(self, partners: object, space: BaseSpace | None) -> None:
+        """Raise an error for a selection of partners among cells or nodes in a continuous space."""
+        if isinstance(partners, PartnerSpec) and partners.candidates in GRID_CANDIDATES:
+            self._check_grid('candidates', partners.candidates, space, 'a radius, `PartnerSpec(candidates=<radius>)`')
 
     def _check_space(self, space: BaseSpace | None) -> None:
         """Raise an error for a variant the space of the system cannot run, none by default.
