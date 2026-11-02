@@ -14,8 +14,14 @@ os.environ.update({'PDM_IGNORE_SAVED_PYTHON': '1'})
 PYTHON_VERSIONS: list[str] = ['3.12', '3.13']
 FILES: list[str] = ['src', 'tests', 'docs', 'noxfile.py']
 QUICK_TESTS: list[str] = [
-    'tests/core',
-    'tests/engine',
+    'tests/core/elements',
+    'tests/core/spaces',
+    'tests/engine/backends',
+    'tests/engine/compile',
+    'tests/engine/problems',
+    'tests/engine/runtime',
+    'tests/engine/solvers/test_lammps.py',
+    'tests/engine/viz',
     'tests/experiments',
     'tests/specs',
     'tests/test_base.py',
@@ -201,7 +207,7 @@ def checks(session: nox.Session, file: str) -> None:
 
 @nox.session(python=PYTHON_VERSIONS)
 def quick_tests(session: nox.Session) -> None:
-    """Run the fast tests of the core and the engine, which CI runs on every push.
+    """Run a small subset of the fast tests, which CI runs on every push in a few minutes.
 
     Arguments:
         session: The nox session.
