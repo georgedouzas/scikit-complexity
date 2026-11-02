@@ -243,7 +243,7 @@ to fill in as the project takes shape.
   that is not a declaration is taken by an explicit keyword-only `__init__` of the type. No element class is turned
   into a dataclass or given generated attributes. Every law derives from `BaseLaw` and declares its kind, its time
   class, and its traits as class variables. The only magic methods beyond `__init__` are the arithmetic of the
-  quantum operators.
+  local operators.
 - Language: Python >=3.12, <3.14.
 - Platforms: Linux and macOS 13 or later on Apple silicon. Windows is not supported because passagemath publishes no
   Windows wheels, and Windows users run the package in WSL. macOS on Intel is not supported because `jaxlib` publishes
@@ -259,7 +259,7 @@ to fill in as the project takes shape.
   symbolic layer every law is written in and lowered from, `passagemath-maxima` for exact solutions, `cysignals` at a
   version the passagemath wheels need, `numba` for the compiled backend, `jax` for the JAX backend and automatic differentiation, `optax` for the
   optimizers of the learning solver, `diffrax` for differentiable ODE solves of the learning solver, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
-  for networks, which Mesa 3.5 imports without declaring it, `xgi` for hypergraphs and simplicial complexes, `rerun-sdk` for visualization, `qutip` for quantum systems, `SALib` for sensitivity
+  for networks, which Mesa 3.5 imports without declaring it, `xgi` for hypergraphs and simplicial complexes, `rerun-sdk` for visualization, `qutip` for operator dynamics, `SALib` for sensitivity
   analysis, `scikit-fem` for finite-element assembly on unstructured meshes, `shapely` for the geometry of rewriting
   systems, `python-sat` for incremental satisfiability, `pymoo` for population optimisers, and `scikit-learn` for the
   estimator contract. The analysis layer adds `antropy` for regularity entropies and Lempel-Ziv complexity, `ordpy`
@@ -290,7 +290,7 @@ to fill in as the project takes shape.
   engine, and `skcomplex.experiments` on the analysis. What every package shares lives in the root modules
   `skcomplex.base` (`BaseConfig`, the root of every configurable class), `skcomplex.types`, `skcomplex.specs`, and
   `skcomplex.errors`, which import no package. Within `core` and within `engine`, a package imports only the packages
-  listed before it. Every kind of dynamics, such as agents, lattices, fields, kinetics, quantum, or particles, is no
+  listed before it. Every kind of dynamics, such as agents, lattices, fields, kinetics, operators, or particles, is no
   package of its own: its laws, elements, and spaces are parts of the core, and its passes, solvers, and visuals parts
   of the engine. Every name of `core` and `engine` is a mathematical, modelling, or engineering term, and none of
   them imports `skcomplex.models`. The test tree mirrors the source tree with no exceptions, so every test module
@@ -328,4 +328,4 @@ to fill in as the project takes shape.
   `BaseSolver`, `Solver`, `ExternalSolver`, `BaseCompiler`, `BaseClock`, `BaseObserver`, and `BaseVisual`. Law
   kinds, forms, space kinds, and traits are open vocabularies.
 
-**Version**: 1.13.0 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-11-01
+**Version**: 1.13.1 | **Ratified**: 2023-01-01 | **Last Amended**: 2026-11-02

@@ -1637,7 +1637,7 @@ over designs of parameters and replicates. Tests of the import contracts enforce
 
 ## Kinds of dynamics
 
-Some kinds of dynamics, such as lattice dynamics or quantum dynamics, are needed by few models. Each is not a package of
+Some kinds of dynamics, such as lattice dynamics or operator dynamics, are needed by few models. Each is not a package of
 its own: its laws, elements, and spaces are parts of the core, and the passes that compile it, its solvers, and its
 visuals are parts of the engine, beside those of every other kind.
 
@@ -1649,7 +1649,7 @@ visuals are parts of the engine, beside those of every other kind.
 | lattices | `LocalRuleLaw`, `DriveLaw`, `CascadeLaw`, `ExtremalLaw`, `LatticeElement`, `LatticeSpace`, `ObjectiveSpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
 | finitely generated groups | `CayleySpace` | `CayleyVisual` |
 | rewriting, in `skcomplex.models.mathematics.fractals` | `ProductionLaw`, `SubstitutionLaw`, `WordElement`, `PatchElement` | `RewritingCompiler`, `RewritingSolver`, `GeometryVisual` |
-| quantum | `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec` | a system compiler, `UnitarySolver`, `LindbladSolver`, `JumpTrajectoriesSolver` |
+| operator | `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec` | a system compiler, `UnitarySolver`, `LindbladSolver`, `JumpTrajectoriesSolver` |
 | fields | `FieldElement`, `FluxLaw`, `MeshSpace`, `laplacian` and the other operators | the fields passes, `IMEXEulerSolver`, `CrankNicolsonSolver`, `SSPRKSolver` |
 | kinetics | `EncounterLaw`, `moment` | the encounter passes, `KineticSolver` |
 | fractional | `StateSpec(order=...)` in `(0, 1)`, `FractionalNoiseLaw` | the fractional passes, `FractionalABMSolver`, `GrunwaldLetnikovSolver`, `FractionalEulerMaruyamaSolver` |
@@ -1660,8 +1660,8 @@ visuals are parts of the engine, beside those of every other kind.
 Every compiler derives from `BaseCompiler`: `check()` validates its settings, `prepare(system)` validates the system and
 sets `report_`, the issues it found, and `run(initial_state)` raises the errors of the report, sets `problem_`, the problem, and
 sets `solver_`, the solver it names for the problem. `Simulation` and `compile_system` take the compiler as the
-`compiler` setting. The default `PassCompiler` compiles every system but quantum ones through its passes, which lower
-each law to the problem of its form, and names the compiler a system needs when it is another. A quantum system takes
+`compiler` setting. The default `PassCompiler` compiles every system but operator ones through its passes, which lower
+each law to the problem of its form, and names the compiler a system needs when it is another. An operator system takes
 `compiler=OperatorCompiler()`, and a model package can bring the compiler of a form of its own, with the solver it
 names, as the fractal models do for rewriting.
 
@@ -5608,6 +5608,9 @@ in the bounds the element declares or that its first tiles give.
 
 ## Quantum systems
 
+The core names this machinery for its mathematics, linear operator dynamics on tensor products, and physics keeps
+its words in `skcomplex.models.physics.common.quantum`. `GeneratorLaw` takes a Hermitian operator.
+
 A quantum system is a set of quantum subsystems whose state is one vector of their joint Hilbert space. Every
 subsystem holds its state `psi` in the Hilbert space of a `HilbertSpec`, which names its operators. The realizations of
 `skcomplex.models.physics.common.quantum` hold the common subsystems: `SpinElement` has the components `x`, `y`,
@@ -5625,7 +5628,7 @@ the order of products and adjoints. `GeneratorLaw(operator)` adds to the Hamilto
 `DissipatorLaw(operator, rate)` adds a Lindblad dissipator, which makes the system open. A `NeighborInteraction` is
 written once for a bond, with `s.source` and `s.target`, and acts on every pair of neighbours of the space of the
 group its one role binds. Compiling checks that the Hamiltonian is Hermitian and that the dimension stays within the
-`max_dimension` of the quantum solver. A whole-system initial state, such as an entangled vector or `'ground'`, is
+`max_dimension` of the operator solver. A whole-system initial state, such as an entangled vector or `'ground'`, is
 given to the simulation as `initial_state={'<system label>.state': value}`.
 
 ```python
@@ -5676,7 +5679,7 @@ print(trajectory.values('sz').shape, round(float(np.ptp(trajectory.values('energ
 
 ### Solvers, observables, and spectra
 
-A quantum system compiles to the quantum form, whose state is stored as complex pairs under `<system>.state`, a pure
+A quantum system compiles to the operator form, whose state is stored as complex pairs under `<system>.state`, a pure
 state for a closed system and a density matrix for an open one. Its solvers hand every frame to QuTiP: `UnitarySolver`
 for the Schrödinger equation, `LindbladSolver`, the default, for the master equation, and `JumpTrajectoriesSolver`
 for quantum jumps drawn from the run's random stream. An `ObservableSpec` whose expression is an operator records its

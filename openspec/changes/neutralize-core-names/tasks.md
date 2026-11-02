@@ -25,5 +25,5 @@
 
 ## 5. Documentation and gate
 
-- [ ] 5.1 Update the user guide and constitution; verify `pytest --markdown-docs docs/overview`.
+- [x] 5.1 Update the user guide and constitution; verify `pytest --markdown-docs docs/overview`.
 - [ ] 5.2 Run formatting, checks, and the full suite through nox on one pinned commit with no other agents running, and the gallery examples of changed models; verify all pass.
