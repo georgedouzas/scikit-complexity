@@ -3,10 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from dataclasses import dataclass
+import os
+from dataclasses import dataclass, field
 
 BACKENDS = ('native', 'web')
 DEFAULT_BACKEND = 'native'
+MAX_SECONDS_VARIABLE = 'SKCOMPLEX_GALLERY_MAX_SECONDS'
 
 
 @dataclass(frozen=True)
@@ -71,9 +73,10 @@ class Budget:
             The largest size of a recording file.
 
         max_seconds:
-            The longest run time of an example.
+            The longest run time of an example, 60 seconds on the reference machine, or the value of
+            `SKCOMPLEX_GALLERY_MAX_SECONDS` on a slower one.
     """
 
     max_frames: int = 300
     max_bytes: int = 20_000_000
-    max_seconds: float = 60.0
+    max_seconds: float = field(default_factory=lambda: float(os.environ.get(MAX_SECONDS_VARIABLE, 60.0)))

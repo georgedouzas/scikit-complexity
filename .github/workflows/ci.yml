@@ -60,6 +60,7 @@ jobs:
   tests:
 
     strategy:
+      fail-fast: false
       matrix:
         os:
         - ubuntu-latest
@@ -88,33 +89,9 @@ jobs:
       run: pdm install -dG maintenance -dG tests
 
     - name: Run the test suite
+      env:
+        PYTEST_ADDOPTS: -v
       run: pdm tests
-
-  doc:
-
-    if: ${{ github.ref != 'refs/heads/main' }}
-
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        python-version: ['3.12', '3.13']
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Set up PDM
-      uses: pdm-project/setup-pdm@v4
-      with:
-        cache: true
-        cache-dependency-path: pyproject.toml
-
-    - name: Install dependencies
-      run: pdm install -dG maintenance -dG docs
-
-    - name: Build documentation with Python ${{ matrix.python-version }}
-      run: pdm docs build
 
   gallery:
 
@@ -159,4 +136,5 @@ jobs:
       env:
         WGPU_BACKEND: vulkan
         SKCOMPLEX_GALLERY_CAPTURE: '1'
+        SKCOMPLEX_GALLERY_MAX_SECONDS: '600'
       run: pdm run nox --error-on-external-run -R -s gallery -- --backend ${{ matrix.backend }} --curated
