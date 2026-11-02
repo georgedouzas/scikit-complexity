@@ -62,7 +62,7 @@ def _auction(size, rng):
         requesters='buyers',
         providers='sellers',
         rule=BatchMatchingSpec(),
-        budget='money',
+        allowance='money',
         transfers=(('money', -1), ('goods', 1)),
         phase='clear',
     )
@@ -107,7 +107,7 @@ def test_match_reads_the_states_named_by_a_pair():
         ],
     )
     trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
-    assert trajectory.values('matching.price')[-1] == 7.0
+    assert trajectory.values('matching.value')[-1] == 7.0
     assert trajectory.values('matching.unmatched')[-1] == 0.0
 
 
@@ -117,9 +117,9 @@ def test_init_defaults_to_random_search():
 
 
 def test_match_random_search_prices_at_the_midpoint_within_the_budget(clear):
-    """Test that random search matches at the midpoint of the limits, as much as the budget affords."""
+    """Test that random search matches at the midpoint of the limits, as much as the allowance affords."""
     assert clear(RandomSearchSpec(), {'limit': [10.0]}, {'limit': [2.0]}) == [(10.0, 2.0, 0.0, 1.0, 6.0)]
-    matches = clear(RandomSearchSpec(tries=2), {'limit': [10.0], 'budget': 3.0}, {'limit': [2.0]})
+    matches = clear(RandomSearchSpec(tries=2), {'limit': [10.0], 'allowance': 3.0}, {'limit': [2.0]})
     assert matches[0][4] == 6.0
     assert matches[0][3] == pytest.approx(0.5)
 
@@ -132,7 +132,7 @@ def test_match_random_search_skips_limits_that_do_not_cross(clear):
 def test_match_partner_switch_settles_on_the_lowest_partner(clear):
     """Test that a requester switches to the lower provider and then keeps it as its partner."""
     rule = PartnerSwitchSpec(sample=1, intensity=100.0)
-    requesters = {'limit': [10.0], 'quantity': 100.0, 'budget': 4.0}
+    requesters = {'limit': [10.0], 'quantity': 100.0, 'allowance': 4.0}
     matches = clear(rule, requesters, {'limit': [5.0, 4.0], 'quantity': 100.0}, steps=20)
     assert [provider for _, provider, _, _, _ in matches[-5:]] == [4.0] * 5
 
@@ -321,9 +321,9 @@ def test_check_rejects_an_unknown_rule_naming_the_specs_and_functions():
 
 
 def test_match_rejects_a_misspelled_state_instead_of_defaulting_it():
-    """Test that a budget state the requesters lack raises an error naming it instead of leaving them unbounded."""
+    """Test that a allowance state the requesters lack raises an error naming it instead of leaving them unbounded."""
     _, _, system = _auction(5, np.random.default_rng(1))
-    system.interactions[0].set_params(budget='mony')
+    system.interactions[0].set_params(allowance='mony')
     with pytest.raises(ValidationError, match="no state 'mony'"):
         Simulation(system, random_state=0).check().prepare().run(until=1)
 

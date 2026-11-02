@@ -5412,7 +5412,7 @@ auction = System(
             rule=BatchMatchingSpec(),
             limit=('bid', 'ask'),
             quantity=('demand', 'supply'),
-            budget='money',
+            allowance='money',
             transfers=(('money', -1), ('goods', 1)),
             phase='trade',
         ),
@@ -5421,7 +5421,7 @@ auction = System(
     time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('quote'), PhaseSpec('trade')])),
 )
 trajectory = Simulation(auction, random_state=0).check().prepare().run(until=5).trajectory_
-prices = [round(float(price), 3) for price in trajectory.values('auction.price')[1:]]
+prices = [round(float(price), 3) for price in trajectory.values('auction.value')[1:]]
 print(prices, float(trajectory.values('clerk.traded')[-1]), round(float(trajectory.values('clerk.fee')[-1]), 3))
 print(trajectory.values('auction.volume').tolist())
 ```

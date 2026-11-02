@@ -750,9 +750,9 @@ def test_scenario_spec_is_a_frozen_spec():
 def test_match_spec_is_a_frozen_spec():
     """Test that a match is a frozen spec of a requester, a provider, a quantity, and a price."""
     match = MatchSpec('requester', 'provider', 2.0, 5.0).check()
-    assert (match.requester, match.provider, match.quantity * match.price) == ('requester', 'provider', 10.0)
+    assert (match.requester, match.provider, match.quantity * match.value) == ('requester', 'provider', 10.0)
     with pytest.raises(dataclasses.FrozenInstanceError):
-        match.price = 1.0
+        match.value = 1.0
 
 
 @pytest.mark.parametrize(

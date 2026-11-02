@@ -51,7 +51,7 @@ class BilateralBarterInteraction(MatchingInteraction[ModelView]):
         quantity:
             The states of the partners a requester wants and a provider takes, one and without limit for traders.
 
-        budget:
+        allowance:
             The state of a requester with the most value it can give, missing for traders.
 
         transfers:
@@ -83,7 +83,7 @@ class BilateralBarterInteraction(MatchingInteraction[ModelView]):
         rule: MatchingRule = RandomSearchSpec(),
         limit: str | tuple[str, str] = 'limit',
         quantity: str | tuple[str, str] = 'quantity',
-        budget: str = 'budget',
+        allowance: str = 'allowance',
         transfers: Sequence[tuple[str, int]] = (),
         phase: str | None = None,
         on_match: Callable[[MatchSpec, ModelView], None] | None = None,
@@ -96,7 +96,7 @@ class BilateralBarterInteraction(MatchingInteraction[ModelView]):
             rule=rule,
             limit=limit,
             quantity=quantity,
-            budget=budget,
+            allowance=allowance,
             transfers=transfers,
             phase=phase,
             on_match=on_match,

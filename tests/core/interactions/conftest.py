@@ -22,7 +22,7 @@ class ParticipantView(AgentView):
 
     limit: float
     quantity: float
-    budget: float
+    allowance: float
     partner: float
     money: float
     goods: float
@@ -30,7 +30,7 @@ class ParticipantView(AgentView):
 
 
 class ParticipantElement(Element):
-    """Participant of a matching with a limit, a quantity, a budget, a partner, holdings, and a value."""
+    """Participant of a matching with a limit, a quantity, a allowance, a partner, holdings, and a value."""
 
     def __init__(
         self,
@@ -39,7 +39,7 @@ class ParticipantElement(Element):
         *,
         limit: Annotated[float, StateSpec()] = 0.0,
         quantity: Annotated[float, StateSpec()] = 1.0,
-        budget: Annotated[float, StateSpec()] = np.inf,
+        allowance: Annotated[float, StateSpec()] = np.inf,
         partner: Annotated[float, StateSpec()] = -1.0,
         money: Annotated[float, StateSpec()] = 0.0,
         goods: Annotated[float, StateSpec()] = 0.0,
@@ -48,7 +48,7 @@ class ParticipantElement(Element):
         super().__init__(label, visual=visual)
         self.limit = limit
         self.quantity = quantity
-        self.budget = budget
+        self.allowance = allowance
         self.partner = partner
         self.money = money
         self.goods = goods
@@ -75,7 +75,7 @@ def _clear(
         requester, provider = match.requester, match.provider
         if not isinstance(requester, ParticipantView) or not isinstance(provider, ParticipantView):
             return
-        records.append((requester.limit, provider.limit, provider.value, match.quantity, match.price))
+        records.append((requester.limit, provider.limit, provider.value, match.quantity, match.value))
 
     sizes = [len(np.atleast_1d(np.asarray(values['limit']))) for values in (providers, requesters)]
     system = System(

@@ -34,8 +34,8 @@ def _book_profit(trade: MatchSpec, model: ModelView) -> None:
     buyer, seller = trade.requester, trade.provider
     if not isinstance(buyer, ZeroIntelligenceBuyerView) or not isinstance(seller, ZeroIntelligenceSellerView):
         return
-    buyer.profit += trade.quantity * (buyer.value - trade.price)
-    seller.profit += trade.quantity * (trade.price - seller.value)
+    buyer.profit += trade.quantity * (buyer.value - trade.value)
+    seller.profit += trade.quantity * (trade.value - seller.value)
 
 
 @register_model(

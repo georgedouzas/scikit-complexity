@@ -41,7 +41,7 @@ def hire(trade: MatchSpec, model: ModelView) -> None:
     worker, firm = trade.provider, trade.requester
     if not isinstance(worker, JobseekerView) or not isinstance(firm, EmployerView):
         return
-    worker.employer, worker.wage, worker.duration = float(firm.id), trade.price, 0.0
+    worker.employer, worker.wage, worker.duration = float(firm.id), trade.value, 0.0
     worker.supply += trade.quantity
     worker.hired, worker.offer = model.time, firm.posted
 
@@ -115,7 +115,7 @@ def labour_market(
 
     Returns:
         system:
-            The model, with the groups `firms` and `workers`, the market `labour` with the reporters `labour.price`
+            The model, with the groups `firms` and `workers`, the market `labour` with the reporters `labour.value`
             (the mean wage of the hires) and `labour.volume` (the hires), and the catalog observables of the
             unemployment rate `unemployment` and of the searching workers `searching`.
 

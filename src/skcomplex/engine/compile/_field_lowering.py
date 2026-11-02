@@ -1169,10 +1169,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         if moments.shape[1] == dimension + PLANE:
             mean = moments[:, 1:-1] / total[:, None]
             squared = np.sum(mean**2, axis=1)
-            temperature = np.maximum((moments[:, -1] / total - squared) / dimension, width ** (2 / dimension))
-            guess[:, 0] = np.log(total) - dimension * np.log(2 * np.pi * temperature) / 2 - squared / (2 * temperature)
-            guess[:, 1:-1] = mean / temperature[:, None]
-            guess[:, -1] = -1 / (2 * temperature)
+            spread = np.maximum((moments[:, -1] / total - squared) / dimension, width ** (2 / dimension))
+            guess[:, 0] = np.log(total) - dimension * np.log(2 * np.pi * spread) / 2 - squared / (2 * spread)
+            guess[:, 1:-1] = mean / spread[:, None]
+            guess[:, -1] = -1 / (2 * spread)
             return guess
         guess[:, 0] = np.log(total / (classes * width))
         return guess

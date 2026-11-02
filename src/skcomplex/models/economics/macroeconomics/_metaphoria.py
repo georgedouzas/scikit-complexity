@@ -218,7 +218,7 @@ def metaphoria(
         rule=PartnerSpec(SIGHT, 'score', score=FoodMarketInteraction.score, clearing='provider'),
         limit=('limit', 'price'),
         quantity=('shortfall', 'stock'),
-        budget='money',
+        allowance='money',
         transfers=(('money', -1),),
         phase='market',
         on_match=FoodMarketInteraction.sell,

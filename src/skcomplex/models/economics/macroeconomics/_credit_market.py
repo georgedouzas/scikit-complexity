@@ -42,7 +42,7 @@ class CreditMarketInteraction(MatchingInteraction[ModelView]):
         quantity:
             The state with the loan of both sides, or a pair of the firms' and the banks' states.
 
-        budget:
+        allowance:
             The state of a firm with what it can spend.
 
         transfers:
