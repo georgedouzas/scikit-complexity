@@ -17,11 +17,8 @@ from ._flocker_view import FlockerView
 from ._flocks import ginelli_nematics, gregoire_chate, vicsek
 from ._gels import active_viscoelastic_gel
 from ._heading_alignment import HeadingAlignmentInteraction
-<<<<<<< HEAD
 from ._kinetic_flocks import bertin_droz_gregoire
-=======
 from ._landau_de_gennes_energy import LandauDeGennesEnergyInteraction
->>>>>>> 4abcf74 (feat: Add the dry active nematic and the active nematic and polar gels)
 from ._model_b import ActiveScalarElement, active_model_b
 from ._nematic_density_site import NematicDensitySiteElement
 from ._nematic_gel_site import NematicGelSiteElement
