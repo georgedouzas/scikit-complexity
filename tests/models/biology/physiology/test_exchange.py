@@ -1,13 +1,47 @@
 """Test the `_exchange` module of `skcomplex.models.biology.physiology`."""
 
+from typing import Annotated
+
 import networkx as nx
 import numpy as np
+import pytest
 
+from skcomplex.core.elements import FieldElement
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.laws.utils import hill, laplacian
+from skcomplex.core.spaces import ContinuousTime
+from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.physiology import (
+    ExchangingCellElement,
     closed_contour_cell_exchange,
     nanotube_gap_junction_exchange,
 )
+from skcomplex.specs import ParameterSpec, StateSpec
+
+
+class _PreviousCellElement(ExchangingCellElement):
+    """Cell with the exchange in its own law through the graph Laplacian, as before the coupling interaction."""
+
+    def __init__(
+        self,
+        label,
+        visual=None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        alpha: Annotated[float, ParameterSpec()] = 1.0,
+        beta: Annotated[float, ParameterSpec()] = 10.0,
+        g: Annotated[float, ParameterSpec()] = 0.1,
+        xi: Annotated[float, ParameterSpec()] = 0.0,
+        degree: Annotated[float, ParameterSpec()] = 0.0,
+    ):
+        super().__init__(label, visual=visual, x=x, alpha=alpha, beta=beta, g=g, xi=xi)
+        self.degree = degree
+
+    def _get_laws(self, s):
+        """Return the metabolism of the substance and its exchange through gap junctions and nanotubes."""
+        exchange = (s.g + s.xi) * laplacian(s.x) + s.xi * s.degree * s.x
+        return [RateLaw(s.x, -s.alpha * hill(s.x, s.beta) + exchange)]
 
 
 def test_closed_contour_cell_exchange_synchronizes_in_the_stability_domain():
@@ -36,3 +70,22 @@ def test_nanotube_gap_junction_exchange_destabilizes_past_the_threshold():
         final[share] = Simulation(system, dt=0.5).check().prepare().run(200).trajectory_.values('cells.x')[-1].mean()
     assert final[0.8] < 0.01
     assert final[1.2] > 10
+
+
+@pytest.mark.parametrize('xi', [0.0, 0.01])
+def test_nanotube_gap_junction_exchange_keeps_the_trajectory_of_the_coupling_in_the_element(xi):
+    """Test that the rebuilt exchange follows the previous element, which wrote it with the graph Laplacian."""
+    system = nanotube_gap_junction_exchange(xi=xi)
+    field = system.elements[0]
+    graph = field.space.graph
+    degrees = np.array([graph.degree[node] for node in graph.nodes], dtype=float)
+    cells = FieldElement(
+        'cells',
+        element=_PreviousCellElement,
+        space=field.space,
+        values={**field.values, 'degree': degrees},
+    )
+    previous = System(elements=[cells], time=ContinuousTime())
+    trajectory = Simulation(system, dt=0.5).check().prepare().run(until=100).trajectory_
+    expected = Simulation(previous, dt=0.5).check().prepare().run(until=100).trajectory_
+    assert np.abs(trajectory.values('cells.x') - expected.values('cells.x')).max() < 1e-10

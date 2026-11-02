@@ -7,11 +7,13 @@ from ._chemotaxis import ChemotaxisElement, keller_segel
 from ._cohesive_particle import CohesiveParticleElement
 from ._collective import cucker_smale_flocking, living_crystals, motility_induced_phase_separation, toner_tu
 from ._collisions import binary_collision_flocking
+from ._contractile_gel_site import ContractileGelSiteElement
 from ._cucker_smale_alignment import CuckerSmaleAlignmentInteraction
 from ._depot_particle import DepotParticleElement
 from ._flocker import FlockerElement
 from ._flocker_view import FlockerView
 from ._flocks import ginelli_nematics, gregoire_chate, vicsek
+from ._gels import active_viscoelastic_gel
 from ._heading_alignment import HeadingAlignmentInteraction
 from ._model_b import ActiveScalarElement, active_model_b
 from ._nematic_particle import NematicParticleElement
@@ -38,6 +40,7 @@ __all__: list[str] = [
     'BinaryCollisionsInteraction',
     'ChemotaxisElement',
     'CohesiveParticleElement',
+    'ContractileGelSiteElement',
     'CuckerSmaleAlignmentInteraction',
     'DepotParticleElement',
     'FlockerElement',
@@ -57,6 +60,7 @@ __all__: list[str] = [
     'active_brownian_particles',
     'active_model_b',
     'active_ornstein_uhlenbeck_particles',
+    'active_viscoelastic_gel',
     'aligning_active_brownian_particles',
     'binary_collision_flocking',
     'chiral_active_particles',
