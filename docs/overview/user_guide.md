@@ -2950,10 +2950,9 @@ print(trajectory.agents('queues', 1).values['orders'].tolist())
 
 | Field | Subfields |
 | --- | --- |
-| `physics` | `mechanics`, `celestial_mechanics`, `nonlinear_oscillators`, `synchronization`, `statistical_mechanics`, `criticality`, `soft_matter`, `active_matter`, `fluids`, `waves`, `pattern_formation`, `heat`, `cosmology` |
+| `physics` | `mechanics`, `celestial_mechanics`, `nonlinear_oscillators`, `synchronization`, `statistical_mechanics`, `criticality`, `soft_matter`, `active_matter`, `fluids`, `waves`, `pattern_formation`, `heat`, `cosmology`, `climate`, `oceanography`, `seismology` |
 | `chemistry` | `kinetics`, `pattern_formation` |
 | `biology` | `ecology`, `epidemiology`, `evolution`, `neuroscience`, `systems_biology`, `physiology`, `collective_behaviour`, `oncology` |
-| `earth` | `climate`, `oceanography`, `seismology` |
 | `economics` | `macroeconomics`, `markets`, `finance`, `econophysics`, `resources`, `innovation` |
 | `social` | `opinion_dynamics`, `segregation`, `cooperation`, `spreading`, `crowds`, `organizations` |
 | `engineering` | `traffic`, `circuits`, `control`, `power_systems`, `robotics`, `processes` |
@@ -6257,7 +6256,7 @@ print(EventAnalysis().check().prepare([0, 2, 3, 0, 0, 1, 0]).run().sizes_.tolist
 coefficient fitted over a chosen range of lags. The fluctuation analyses come from `nolds`: detrended
 fluctuation of any order, which gives `H + 1` for an integrated series such as a random walk, or the rescaled range.
 `RollingAnalysis` gives the variance, the lag-one autocorrelation, or the skewness in rolling windows with its
-trend, and `EarlyWarningAnalysis` of `skcomplex.models.earth.climate` gathers them with spectral reddening as early
+trend, and `EarlyWarningAnalysis` of `skcomplex.models.physics.climate` gathers them with spectral reddening as early
 warnings of tipping.
 `InformationAnalysis` measures structure and information flow by its `kind`, such as `'mutual'` and `'transfer'`, as in
 Lindgren's information theory of complex systems, and `EntropyAnalysis` gives the Shannon, block, rate, excess,

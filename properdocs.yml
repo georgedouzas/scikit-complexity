@@ -28,7 +28,6 @@ nav:
     - Physics: models/physics.md
     - Chemistry: models/chemistry.md
     - Biology: models/biology.md
-    - Earth: models/earth.md
     - Economics: models/economics.md
     - Social: models/social.md
     - Engineering: models/engineering.md
@@ -90,7 +89,6 @@ plugins:
         - docs/examples/physics
         - docs/examples/chemistry
         - docs/examples/biology
-        - docs/examples/earth
         - docs/examples/economics
         - docs/examples/social
         - docs/examples/engineering

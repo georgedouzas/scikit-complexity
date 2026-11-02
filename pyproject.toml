@@ -340,9 +340,6 @@ modules = [
     "skcomplex.models.computer_science.automata",
     "skcomplex.models.computer_science.evolutionary_computation",
     "skcomplex.models.computer_science.neural_networks",
-    "skcomplex.models.earth.climate",
-    "skcomplex.models.earth.oceanography",
-    "skcomplex.models.earth.seismology",
     "skcomplex.models.economics.econophysics",
     "skcomplex.models.economics.finance",
     "skcomplex.models.economics.innovation",
@@ -362,13 +359,16 @@ modules = [
     "skcomplex.models.mathematics.stochastic_processes",
     "skcomplex.models.physics.active_matter",
     "skcomplex.models.physics.celestial_mechanics",
+    "skcomplex.models.physics.climate",
     "skcomplex.models.physics.cosmology",
     "skcomplex.models.physics.criticality",
     "skcomplex.models.physics.fluids",
     "skcomplex.models.physics.heat",
     "skcomplex.models.physics.mechanics",
     "skcomplex.models.physics.nonlinear_oscillators",
+    "skcomplex.models.physics.oceanography",
     "skcomplex.models.physics.pattern_formation",
+    "skcomplex.models.physics.seismology",
     "skcomplex.models.physics.soft_matter",
     "skcomplex.models.physics.statistical_mechanics",
     "skcomplex.models.physics.synchronization",
@@ -406,17 +406,6 @@ forbidden_modules = [
 name = "Models of computer_science use only the shared code of their own field"
 type = "forbidden"
 source_modules = ["skcomplex.models.computer_science"]
-forbidden_modules = [
-    "skcomplex.models.biology.common",
-    "skcomplex.models.economics.common",
-    "skcomplex.models.engineering.common",
-    "skcomplex.models.physics.common",
-]
-
-[[tool.importlinter.contracts]]
-name = "Models of earth use only the shared code of their own field"
-type = "forbidden"
-source_modules = ["skcomplex.models.earth"]
 forbidden_modules = [
     "skcomplex.models.biology.common",
     "skcomplex.models.economics.common",

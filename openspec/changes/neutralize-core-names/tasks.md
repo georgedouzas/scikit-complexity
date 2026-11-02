@@ -16,7 +16,7 @@
 
 ## 3. Packages
 
-- [ ] 3.1 Move `models/earth/{climate,oceanography,seismology}` to `models/physics/`, removing the earth field from the catalog, inventory, gallery, tests, import-linter contracts, and the open changes; verify the catalog test, inventory check, gallery coverage, and contracts.
+- [x] 3.1 Move `models/earth/{climate,oceanography,seismology}` to `models/physics/`, removing the earth field from the catalog, inventory, gallery, tests, import-linter contracts, and the open changes; verify the catalog test, inventory check, gallery coverage, and contracts.
 
 ## 4. Quantum
 

@@ -1,1 +1,1 @@
-"""Physics: mechanics, oscillators, synchronization, statistical mechanics, soft matter, fluids, and more."""
+"""Physics: mechanics, oscillators, synchronization, statistical mechanics, soft matter, fluids, climate, and more."""
