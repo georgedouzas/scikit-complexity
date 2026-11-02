@@ -165,6 +165,11 @@ def dry_active_nematics(
     return System(elements=[nematic], interactions=[energy, transport])
 
 
+def _gel_settings(order: str = 'nematic', **_parameters: object) -> dict[str, object]:
+    """Return the run settings of the polar gel, whose flow is slow, and none for the nematic, the catalog defaults."""
+    return {'until': 200.0, 'dt': 1.0, 'solver': RK4Solver(dt=0.05)} if order == 'polar' else {}
+
+
 @register_model(
     field='physics/active_matter',
     tags=('field', 'active matter', 'nematic', 'polar', 'tensor', 'gel', 'stokes flow', 'active turbulence', 'pde'),
@@ -177,13 +182,14 @@ def dry_active_nematics(
         'arXiv:1110.4338',
     ),
     defaults={'until': 0.5, 'dt': 0.025, 'solver': RK4Solver(dt=5e-4)},
+    settings=_gel_settings,
     observables=lambda system: [
         ObservableSpec('u_x', _velocity_x, group='gel', reduce=_sites),
         ObservableSpec('u_y', _velocity_y, group='gel', reduce=_sites),
     ],
 )
 def active_gels(
-    shape: Sequence[int] = (128, 128),
+    shape: Sequence[int] | None = None,
     *,
     order: str = 'nematic',
     spacing: float | None = None,
@@ -195,7 +201,7 @@ def active_gels(
     eta: float = 1.0,
     zeta: float | None = None,
     film: bool = False,
-    perturbation: float = 0.1,
+    perturbation: float | None = None,
     random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return an active gel, a nematic tensor or a polarisation transported in the Stokes flow of its own stresses.
@@ -219,7 +225,8 @@ def active_gels(
 
     Args:
         shape:
-            The number of sites along every axis of the periodic lattice, in two dimensions.
+            The number of sites along every axis of the periodic lattice, in two dimensions, or `None` for `(128, 128)`
+            for the nematic and `(32, 32)` for the polar gel.
 
         order:
             `'nematic'` or `'polar'`.
@@ -254,7 +261,8 @@ def active_gels(
             Whether the polar gel lies between walls of fixed polarisation.
 
         perturbation:
-            The standard deviation of the initial noise of the order parameter.
+            The standard deviation of the initial noise of the order parameter, or `None` for 0.1 for the nematic and
+            0.01 for the polar gel.
 
         random_state:
             The seed or generator of the initial noise.
@@ -271,6 +279,8 @@ def active_gels(
         >>> from skcomplex.models.physics.active_matter import active_gels
         >>> active_gels((8, 8), order='polar').elements[0].values['zeta']
         -0.5
+        >>> active_gels(order='polar').elements[0].space.shape
+        (32, 32)
     """
     if order not in GEL_ORDERS:
         error_msg = f'The order of the gel is {order!r}. Use one of {", ".join(GEL_ORDERS)}.'
@@ -278,16 +288,17 @@ def active_gels(
     if film and order != 'polar':
         error_msg = 'A film of the gel holds a polarisation at its walls. Use order=polar.'
         raise ValidationError(error_msg)
-    shape = tuple(shape)
+    polar = order == 'polar'
+    shape = ((32, 32) if polar else (128, 128)) if shape is None else tuple(shape)
     sites = int(np.prod(shape))
     rng = np.random.default_rng(random_state)
-    polar = order == 'polar'
     quadratic = (-1.0 if polar else (NEMATIC_CRITICAL_DENSITY - NEMATIC_DENSITY) / 2) if a is None else a
     cubic = (1.0 if polar else NEMATIC_DENSITY) if c is None else c
     activity = (-0.5 if polar else NEMATIC_ACTIVITY * NEMATIC_DENSITY**2) if zeta is None else zeta
     alignment = (0.0 if polar else NEMATIC_XI) if xi is None else xi
     distance = (1.0 if polar else NEMATIC_BOX / shape[0]) if spacing is None else spacing
-    noise = perturbation * rng.standard_normal((sites, 2))
+    amplitude = (0.01 if polar else 0.1) if perturbation is None else perturbation
+    noise = amplitude * rng.standard_normal((sites, 2))
     size = np.sqrt(-quadratic / cubic) if polar else np.sqrt(-2 * quadratic / cubic) / 2
     start = np.column_stack([np.full(sites, size), np.zeros(sites)]) + noise if quadratic < 0 else noise
     values = {

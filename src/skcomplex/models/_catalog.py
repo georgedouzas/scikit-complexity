@@ -27,6 +27,7 @@ def register_model(
     tags: Sequence[str] = (),
     references: Sequence[str] = (),
     defaults: Mapping[str, object] | None = None,
+    settings: Callable[..., Mapping[str, object]] | None = None,
     observables: Callable[[System], Sequence[ObservableSpec]] | None = None,
     initial_state: Callable[..., Mapping[str, object] | None] | None = None,
 ) -> Callable[[Factory], Factory]:
@@ -50,6 +51,10 @@ def register_model(
 
         defaults:
             The default run settings: `until` and any `Simulation` argument such as `dt` or `solver`.
+
+        settings:
+            A function of the factory's arguments that returns the run settings that replace `defaults` for these
+            arguments, or `None`.
 
         observables:
             A function of the model's system that returns its standard observables, which `run` records, or `None`.
@@ -95,6 +100,7 @@ def register_model(
             dict(defaults or {}),
             observables,
             initial_state,
+            settings,
         )
         MODELS.register(entry.check())
         return factory
@@ -218,7 +224,7 @@ def run(name: str, *, settings: Mapping[str, object] | None = None, **parameters
             A setting is neither `until` nor an argument of `Simulation`.
     """
     entry = MODELS.entry(name)
-    chosen: dict[str, object] = {'random_state': 0, **entry.defaults, **(settings or {})}
+    chosen: dict[str, object] = {'random_state': 0, **entry.settings_of(**parameters), **(settings or {})}
     until = chosen.pop('until', 10.0)
     if not isinstance(until, int | float):
         error_msg = f'The run setting `until` of {name} is {until!r}. Give it as a number.'

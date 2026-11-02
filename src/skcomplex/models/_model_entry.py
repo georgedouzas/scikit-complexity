@@ -62,6 +62,10 @@ class ModelEntry:
         initial_state:
             A function of the factory's arguments that returns the initial values `run` gives the simulation, by dotted
             state name, or `None` for the elements' own.
+
+        settings:
+            A function of the factory's arguments that returns the run settings that replace `defaults` for these
+            arguments, or `None`.
     """
 
     name: str
@@ -73,6 +77,7 @@ class ModelEntry:
     defaults: Mapping[str, object] = dataclasses.field(default_factory=dict)
     observables: Callable[[System], Sequence[ObservableSpec]] | None = dataclasses.field(default=None, repr=False)
     initial_state: Callable[..., Mapping[str, object] | None] | None = dataclasses.field(default=None, repr=False)
+    settings: Callable[..., Mapping[str, object]] | None = dataclasses.field(default=None, repr=False)
 
     def check(self) -> 'ModelEntry':
         """Validate that the default run settings are known and every argument of the factory has a default.
@@ -115,6 +120,21 @@ class ModelEntry:
         if self.initial_state is None:
             return {}
         return dict(self.initial_state(**{**self.parameters, **parameters}) or {})
+
+    def settings_of(self, **parameters: object) -> dict[str, object]:
+        """Return the default run settings for arguments of the factory.
+
+        Args:
+            **parameters:
+                Arguments of the factory that replace its defaults.
+
+        Returns:
+            settings:
+                The run settings, `defaults` replaced by what `settings` returns for the arguments.
+        """
+        if self.settings is None:
+            return dict(self.defaults)
+        return {**self.defaults, **self.settings(**{**self.parameters, **parameters})}
 
     def observables_of(self, system: System) -> list[ObservableSpec]:
         """Return the standard observables of a system of the model, which `run` records.

@@ -67,6 +67,18 @@ def test_active_gels_passive_nematic_relaxes_to_the_scalar_order():
     assert np.abs(order[-1] - np.sqrt(-2 * a / c)).max() < 1e-6
 
 
+def test_active_gels_polar_defaults_differ_from_the_nematic():
+    """The turbulent defaults belong to the nematic, and the polar gel keeps a small lattice and a long run."""
+    polar = active_gels(order='polar').elements[0]
+    assert polar.space.shape == (32, 32)
+    assert polar.space.spacing == 1.0
+    assert np.abs(polar.values['p'][:, 1]).max() < 0.1
+    assert active_gels().elements[0].space.shape == (128, 128)
+    assert describe('active_gels').settings_of(order='polar')['dt'] == 1.0
+    assert describe('active_gels').settings_of(order='polar')['solver'].dt == 0.05
+    assert describe('active_gels').settings_of()['solver'].dt == 5e-4
+
+
 @pytest.mark.slow
 def test_active_gels_extensile_nematic_turbulence_conserves_the_charge():
     """Well above the bend threshold defects appear in pairs, the charge stays 0, and the kinetic energy settles."""

@@ -44,6 +44,14 @@ def test_listings_reject_computed_registration_argument(tmp_path: Path):
         ModelCatalog(tmp_path).listings()
 
 
+def test_run_takes_settings_that_depend_on_the_factory_arguments():
+    """Test that a function of the factory arguments replaces the default run settings for these arguments."""
+    entry = describe('active_gels')
+    assert entry.settings_of()['until'] == entry.defaults['until']
+    assert entry.settings_of(order='polar')['until'] == 200.0
+    assert run('active_gels', order='polar', shape=(4, 4), settings={'until': 2.0}).trajectory_.times[-1] == 2.0
+
+
 def test_listing_matches_registration():
     """Test that every listed model registers, once its module is imported, the metadata it was listed with."""
     for listing in catalog():
@@ -56,7 +64,7 @@ def test_listing_matches_registration():
 
 
 CONFORMANCE_FRAMES = 10
-SLOW = {'cocoa', 'higher_order_random_lotka_volterra'}
+SLOW = {'active_gels', 'cocoa', 'higher_order_random_lotka_volterra'}
 
 
 FIELDS = [
