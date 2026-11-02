@@ -71,6 +71,22 @@ separate conventions. Here they share one small vocabulary, in the spirit of sci
 <p align="center"><em>A few of the <b>549 ready-to-run models</b>, each with a documented example in the
 <a href="https://georgedouzas.github.io/scikit-complexity">gallery</a>.</em></p>
 
+### Find a model
+
+Every model comes with a description, tags, parameters and references, so you can browse the catalog from Python:
+
+```python
+from skcomplex.models import catalog, describe
+
+for model in catalog(field='biology/ecology'):
+    print(model.name, '-', model.description)
+
+print([model.name for model in catalog() if 'oscillation' in model.tags])
+
+entry = describe('lotka_volterra')
+print(entry.description, entry.formalism, entry.parameters, entry.references)
+```
+
 ### Try a model in one line
 
 ```python
