@@ -55,10 +55,10 @@
 - [x] 6.1 Add `amari_neural_field` under `skcomplex.models.biology.neuroscience`; verify the Amari bump scenario
 - [x] 6.2 Add `double_gyre` under `skcomplex.models.earth.oceanography`, streaming the streamfunction through an
   observable of its catalog entry; verify the double gyre circulation scenario
-- [ ] 6.3 Add `gkt_traffic` under `skcomplex.models.engineering.traffic`; verify the stop-and-go waves scenario
+- [x] 6.3 Add `gkt_traffic` under `skcomplex.models.engineering.traffic`; verify the stop-and-go waves scenario
 - [ ] 6.4 Add `active_viscoelastic_gel` under `skcomplex.models.physics.active_matter`; verify the contractile gel
   scenario
-- [ ] 6.5 Rebuild the couplings of `legion` and `nanotube_gap_junction_exchange` on `CouplingInteraction`, removing the
+- [x] 6.5 Rebuild the couplings of `legion` and `nanotube_gap_junction_exchange` on `CouplingInteraction`, removing the
   coupling terms from `TermanWangElement` and `ExchangingCellElement`; verify the rebuilt couplings scenario
 - [ ] 6.6 Mark the four new models implemented in `docs/overview/inventory.toml` and add them to the gallery; verify the
   inventory check passes
