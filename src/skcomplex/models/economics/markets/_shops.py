@@ -12,8 +12,8 @@ from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import (
-    GreedyMatchingSpec,
     ObservableSpec,
+    PartnerSpec,
     PhaseSpec,
     PhasesScheduleSpec,
 )
@@ -184,7 +184,7 @@ def shops(
         'shopping',
         requesters='shoppers',
         providers='shops',
-        rule=GreedyMatchingSpec(score=ResidentElement.get_preference),
+        rule=PartnerSpec(choice='score', score=ResidentElement.get_preference, clearing='provider'),
         limit=('bid', 'ask'),
         quantity=('demand', 'supply'),
         transfers=(('money', -1),),

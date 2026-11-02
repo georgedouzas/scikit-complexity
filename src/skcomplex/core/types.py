@@ -17,10 +17,10 @@ from sage.rings.polynomial.laurent_polynomial import LaurentPolynomial
 from sage.structure.element import Matrix
 
 from ..specs import (
-    BatchClearingSpec,
-    ContinuousClearingSpec,
-    GreedyMatchingSpec,
-    IterativeClearingSpec,
+    BatchMatchingSpec,
+    ContinuousMatchingSpec,
+    IterativeMatchingSpec,
+    PartnerSpec,
     PartnerSwitchSpec,
     QueueSpec,
     RandomSearchSpec,
@@ -31,17 +31,18 @@ from .spaces import BaseSpace, LatticeNeighborhood, MemoryNeighborhood
 
 type Target = Expression | FreeModuleElement
 type Process = str | tuple[str, ...] | Expression | FreeModuleElement | None
+type Feasibility = Callable[[AgentViewProtocol, AgentViewProtocol], bool]
 type Pairing = Callable[[Sequence[object], Sequence[object], np.random.Generator, int], list[tuple[object, object]]]
 type Reach = LatticeNeighborhood | MemoryNeighborhood
 type MatchingRule = (
     RandomSearchSpec
+    | PartnerSpec
     | PartnerSwitchSpec
     | QueueSpec
-    | IterativeClearingSpec
-    | ContinuousClearingSpec
-    | BatchClearingSpec
+    | IterativeMatchingSpec
+    | ContinuousMatchingSpec
+    | BatchMatchingSpec
     | StableMatchingSpec
-    | GreedyMatchingSpec
 )
 type NamespaceFunction = Callable[[SimpleNamespace], Target]
 type PairPotential = Callable[[SimpleNamespace, Expression], Expression]

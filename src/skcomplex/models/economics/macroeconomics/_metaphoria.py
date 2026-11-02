@@ -14,8 +14,8 @@ from ....core.interactions import BaseInteraction, TransferInteraction
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....specs import (
-    GreedyMatchingSpec,
     ObservableSpec,
+    PartnerSpec,
     PhaseSpec,
     PhasesScheduleSpec,
 )
@@ -205,7 +205,7 @@ def metaphoria(
         'jobs',
         requesters='people',
         providers='businesses',
-        rule=GreedyMatchingSpec(score=LabourMarketInteraction.score, candidates=SIGHT),
+        rule=PartnerSpec(SIGHT, 'score', score=LabourMarketInteraction.score, clearing='provider'),
         limit=('hireable', 'limit'),
         quantity=('quantity', 'vacancies'),
         phase='hiring',
@@ -215,7 +215,7 @@ def metaphoria(
         'shops',
         requesters='people',
         providers='businesses',
-        rule=GreedyMatchingSpec(candidates=SIGHT),
+        rule=PartnerSpec(SIGHT, 'score', score=FoodMarketInteraction.score, clearing='provider'),
         limit=('limit', 'price'),
         quantity=('shortfall', 'stock'),
         budget='money',

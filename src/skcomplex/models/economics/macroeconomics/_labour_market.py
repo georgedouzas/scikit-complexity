@@ -17,18 +17,19 @@ from ._settler_view import SettlerView
 class LabourMarketInteraction(MatchingInteraction[ModelView]):
     """Labour market in which unemployed adults, in random order, take the best-paying vacancy within their sight.
 
-    A greedy matching of the people, who request a job, with the firms, which provide their vacancies: a person whose
+    A matching of the people, who request a job, with the firms, which provide their vacancies: a person whose
     `hireable` limit admits a job takes the firm of the highest wage within its sight that still has a vacancy, and
-    moves to it. Build it with `GreedyMatchingSpec(score=LabourMarketInteraction.score, candidates=sight)`.
+    moves to it. Build it with
+    `PartnerSpec(sight, 'score', score=LabourMarketInteraction.score, clearing='provider')`.
 
     Examples:
-        >>> from skcomplex.specs import GreedyMatchingSpec
+        >>> from skcomplex.specs import PartnerSpec
         >>> from skcomplex.models.economics.macroeconomics import LabourMarketInteraction
         >>> LabourMarketInteraction(
         ...     'jobs',
         ...     requesters='people',
         ...     providers='businesses',
-        ...     rule=GreedyMatchingSpec(score=LabourMarketInteraction.score, candidates=5.0),
+        ...     rule=PartnerSpec(5.0, 'score', score=LabourMarketInteraction.score, clearing='provider'),
         ...     limit=('hireable', 'limit'),
         ...     quantity=('quantity', 'vacancies'),
         ...     on_match=LabourMarketInteraction.hire,

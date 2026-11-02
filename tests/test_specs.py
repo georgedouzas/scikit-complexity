@@ -28,13 +28,12 @@ from skcomplex.experiments import Experiment
 from skcomplex.models.economics.resources import harvesting
 from skcomplex.specs import (
     BaseSpec,
-    BatchClearingSpec,
+    BatchMatchingSpec,
     ClampSpec,
-    ContinuousClearingSpec,
+    ContinuousMatchingSpec,
     DatasetSpec,
-    GreedyMatchingSpec,
     HilbertSpec,
-    IterativeClearingSpec,
+    IterativeMatchingSpec,
     LayerSpec,
     MatchSpec,
     MoveSpec,
@@ -762,10 +761,10 @@ def test_match_spec_is_a_frozen_spec():
         (RandomSearchSpec(tries=3), 'tries', 3),
         (PartnerSwitchSpec(sample=2), 'sample', 2),
         (QueueSpec(order='limit'), 'order', 'limit'),
-        (IterativeClearingSpec(iterations=10), 'iterations', 10),
-        (ContinuousClearingSpec(arrival='sequential'), 'arrival', 'sequential'),
+        (IterativeMatchingSpec(iterations=10), 'iterations', 10),
+        (ContinuousMatchingSpec(arrival='sequential'), 'arrival', 'sequential'),
         (StableMatchingSpec(clearing='requester'), 'clearing', 'requester'),
-        (GreedyMatchingSpec(candidates=2.0), 'candidates', 2.0),
+        (PartnerSpec(candidates=2.0), 'candidates', 2.0),
     ],
 )
 def test_matching_rule_specs_hold_their_settings(spec, name, value):
@@ -776,9 +775,9 @@ def test_matching_rule_specs_hold_their_settings(spec, name, value):
         setattr(checked, name, value)
 
 
-def test_batch_clearing_spec_has_no_settings():
-    """Test that batch clearing is a spec without settings."""
-    assert dataclasses.fields(BatchClearingSpec().check()) == ()
+def test_batch_matching_spec_has_no_settings():
+    """Test that batch matching is a spec without settings."""
+    assert dataclasses.fields(BatchMatchingSpec().check()) == ()
 
 
 @pytest.mark.parametrize(
@@ -786,13 +785,12 @@ def test_batch_clearing_spec_has_no_settings():
     [
         (RandomSearchSpec(clearing='bid'), 'midpoint'),
         (QueueSpec(order='bid'), 'order'),
-        (ContinuousClearingSpec(arrival='bid'), 'arrival'),
+        (ContinuousMatchingSpec(arrival='bid'), 'arrival'),
         (StableMatchingSpec(clearing='bid'), 'clearing'),
-        (GreedyMatchingSpec(candidates='friends'), 'candidates'),
-        (GreedyMatchingSpec(candidates=0.0), 'positive'),
-        (GreedyMatchingSpec(candidates=True), 'positive'),
-        (GreedyMatchingSpec(clearing='bid'), 'clearing'),
-        (GreedyMatchingSpec(score=2), 'score'),
+        (PartnerSpec(candidates=0.0), 'positive'),
+        (PartnerSpec(candidates=True), 'positive'),
+        (PartnerSpec(clearing='bid'), 'clearing'),
+        (PartnerSpec(choice='score', score=2), 'score'),
     ],
 )
 def test_matching_rule_specs_reject_invalid_settings(spec, message):

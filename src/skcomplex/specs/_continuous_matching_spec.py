@@ -1,4 +1,4 @@
-"""Define the continuous clearing spec."""
+"""Define the continuous matching spec."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,12 +12,12 @@ ARRIVALS = ('random', 'sequential')
 
 
 @dataclass(frozen=True)
-class ContinuousClearingSpec(BaseSpec):
-    """Continuous clearing by limit and arrival, in which every arriving offer matches the best resting offers.
+class ContinuousMatchingSpec(BaseSpec):
+    """Continuous matching by limit and arrival, in which every arriving offer matches the best resting offers.
 
     Every participant submits one offer, in random order of arrival or in order of creation. An arriving offer matches
     the best offers of the other side, the oldest first among equal limits, at their limits, as long as the limits
-    cross, and its remainder rests. The resting offers are dropped at the end of every clearing (Caiani et al. 2016
+    cross, and its remainder rests. The resting offers are dropped at the end of every matching (Caiani et al. 2016
     ch. 3).
 
     Args:
@@ -29,8 +29,8 @@ class ContinuousClearingSpec(BaseSpec):
             The order of arrival is unknown, raised by `check`.
 
     Examples:
-        >>> from skcomplex.specs import ContinuousClearingSpec
-        >>> ContinuousClearingSpec().check().arrival
+        >>> from skcomplex.specs import ContinuousMatchingSpec
+        >>> ContinuousMatchingSpec().check().arrival
         'random'
     """
 

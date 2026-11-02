@@ -11,10 +11,9 @@ from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
 from skcomplex.specs import (
-    BatchClearingSpec,
-    ContinuousClearingSpec,
-    GreedyMatchingSpec,
-    IterativeClearingSpec,
+    BatchMatchingSpec,
+    ContinuousMatchingSpec,
+    IterativeMatchingSpec,
     MatchSpec,
     PartnerSpec,
     PartnerSwitchSpec,
@@ -62,7 +61,7 @@ def _auction(size, rng):
         'auction',
         requesters='buyers',
         providers='sellers',
-        rule=BatchClearingSpec(),
+        rule=BatchMatchingSpec(),
         budget='money',
         transfers=(('money', -1), ('goods', 1)),
         phase='clear',
@@ -102,7 +101,7 @@ def test_match_reads_the_states_named_by_a_pair():
                 'matching',
                 requesters='requesters',
                 providers='providers',
-                rule=BatchClearingSpec(),
+                rule=BatchMatchingSpec(),
                 limit=('value', 'limit'),
             ),
         ],
@@ -152,7 +151,7 @@ def test_match_queue_serves_the_highest_limits_at_the_lowest_providers(clear):
 
 def test_match_iterative_clearing_clears_at_a_price_between_the_limits(clear):
     """Test that the tâtonnement matches every crossing pair at one price between the marginal limits."""
-    matches = clear(IterativeClearingSpec(), {'limit': [10.0, 9.0, 1.0]}, {'limit': [4.0, 6.0]})
+    matches = clear(IterativeMatchingSpec(), {'limit': [10.0, 9.0, 1.0]}, {'limit': [4.0, 6.0]})
     assert len(matches) == 2
     assert len({price for _, _, _, _, price in matches}) == 1
     assert all(6.0 <= price <= 9.0 for _, _, _, _, price in matches)
@@ -160,33 +159,33 @@ def test_match_iterative_clearing_clears_at_a_price_between_the_limits(clear):
 
 def test_match_iterative_clearing_matches_nothing_without_positive_limits(clear):
     """Test that offers without a positive limit do not match."""
-    assert clear(IterativeClearingSpec(), {'limit': [0.0]}, {'limit': [0.0]}) == []
+    assert clear(IterativeMatchingSpec(), {'limit': [0.0]}, {'limit': [0.0]}) == []
 
 
 def test_match_continuous_clearing_gives_priority_to_the_earlier_offer(clear):
     """Test that of two providers at the same limit, the earlier one matches first."""
-    rule = ContinuousClearingSpec(arrival='sequential')
+    rule = ContinuousMatchingSpec(arrival='sequential')
     matches = clear(rule, {'limit': [10.0]}, {'limit': [10.0, 10.0], 'value': [0.0, 1.0]})
     assert matches == [(10.0, 10.0, 0.0, 1.0, 10.0)]
 
 
 def test_match_continuous_clearing_trades_at_the_resting_limits(clear):
     """Test that an arriving request matches the lowest resting offers first, at their limits."""
-    rule = ContinuousClearingSpec(arrival='sequential')
+    rule = ContinuousMatchingSpec(arrival='sequential')
     matches = clear(rule, {'limit': [11.5], 'quantity': 3.0}, {'limit': [12.0, 9.0, 11.0]})
     assert [price for _, _, _, _, price in matches] == [9.0, 11.0]
 
 
 def test_match_batch_clearing_pairs_the_crossing_offers_at_one_price(clear):
     """Test that the highest requesters match the lowest providers at the midpoint of the last crossing pair."""
-    matches = clear(BatchClearingSpec(), {'limit': [10.0, 8.0, 3.0]}, {'limit': [2.0, 5.0, 9.0]})
+    matches = clear(BatchMatchingSpec(), {'limit': [10.0, 8.0, 3.0]}, {'limit': [2.0, 5.0, 9.0]})
     assert len(matches) == 2
     assert {price for _, _, _, _, price in matches} == {6.5}
 
 
 def test_match_batch_clearing_matches_nothing_without_crossing_limits(clear):
     """Test that limits that never cross give no matches."""
-    assert clear(BatchClearingSpec(), {'limit': [1.0]}, {'limit': [2.0]}) == []
+    assert clear(BatchMatchingSpec(), {'limit': [1.0]}, {'limit': [2.0]}) == []
 
 
 def _score(first, second):
@@ -226,29 +225,39 @@ def test_match_stable_leaves_no_blocking_pair(clear):
             assert not (requester_prefers and provider_prefers)
 
 
-def test_match_greedy_takes_the_lowest_feasible_limit_by_default(clear):
+def _lowest_limit(requester, provider):
+    """Return the score of a provider, higher for a lower limit."""
+    del requester
+    return -provider.limit
+
+
+def test_match_partners_takes_the_lowest_feasible_limit(clear):
     """Test that every requester takes the provider of the lowest limit it accepts, at the provider's limit."""
-    matches = clear(GreedyMatchingSpec(), {'limit': [10.0, 10.0]}, {'limit': [3.0, 5.0, 12.0]})
+    matches = clear(
+        PartnerSpec(choice='score', score=_lowest_limit, clearing='provider'),
+        {'limit': [10.0, 10.0]},
+        {'limit': [3.0, 5.0, 12.0]},
+    )
     assert sorted((provider, value) for _, provider, _, _, value in matches) == [(3.0, 3.0), (5.0, 5.0)]
 
 
-def test_match_greedy_takes_the_provider_of_the_highest_score(clear):
+def test_match_partners_takes_the_provider_of_the_highest_score(clear):
     """Test that requesters take the provider of the highest score instead of the lowest limit."""
-    rule = GreedyMatchingSpec(score=lambda requester, provider: provider.value, clearing='requester')
+    rule = PartnerSpec(choice='score', score=lambda requester, provider: provider.value, clearing='requester')
     matches = clear(rule, {'limit': [10.0]}, {'limit': [3.0, 5.0], 'value': [1.0, 2.0]})
     assert [(provider, value) for _, provider, _, _, value in matches] == [(5.0, 10.0)]
 
 
-def test_match_greedy_respects_the_capacity_of_providers(clear):
+def test_match_partners_respects_the_capacity_of_providers(clear):
     """Test that a provider of capacity one takes one requester although it offers more."""
-    rule = GreedyMatchingSpec(capacity='value')
+    rule = PartnerSpec(choice='score', score=_lowest_limit, capacity='value', clearing='provider')
     matches = clear(rule, {'limit': [10.0, 10.0, 10.0]}, {'limit': [1.0, 2.0], 'quantity': 5.0, 'value': 1.0})
     assert sorted(provider for _, provider, _, _, _ in matches) == [1.0, 2.0]
 
 
-def test_match_greedy_considers_neighbors_and_distances_only():
+def test_match_partners_considers_local_cells_and_distances_only():
     """Test that requesters match only with providers in their cell or around it, or within a distance."""
-    for candidates, expected in (('neighbors', 1.0), (1.5, 1.0), ('all', 2.0)):
+    for candidates, expected in (('local', 1.0), (1.5, 1.0), ('all', 2.0)):
         requesters = GroupElement(
             'requesters',
             element=ParticipantElement,
@@ -267,7 +276,7 @@ def test_match_greedy_considers_neighbors_and_distances_only():
             'matching',
             requesters='requesters',
             providers='providers',
-            rule=GreedyMatchingSpec(candidates=candidates),
+            rule=PartnerSpec(candidates),
         )
         space = LatticeSpace((5, 5), neighborhood='moore', boundary='fixed')
         system = System(elements=[requesters, providers], interactions=[matching], space=space)
@@ -307,7 +316,7 @@ def test_match_custom_rule_settles_the_pairs_of_a_function_at_the_midpoint(clear
 
 def test_check_rejects_an_unknown_rule_naming_the_specs_and_functions():
     """Test that a rule that is neither a matching spec nor a function raises an error naming both."""
-    with pytest.raises(ValidationError, match=r'RandomSearchSpec.*GreedyMatchingSpec, a function'):
+    with pytest.raises(ValidationError, match=r'RandomSearchSpec.*StableMatchingSpec, a function'):
         MatchingInteraction('matching', requesters='a', providers='b', rule='greedy').check()
 
 
@@ -323,3 +332,8 @@ def test_match_partner_spec_settles_the_pairs_at_the_midpoint(clear):
     """Test that a partner spec as the rule pairs every requester and matches at the midpoint of the limits."""
     matches = clear(PartnerSpec('all', 'uniform'), {'limit': [10.0]}, {'limit': [2.0]})
     assert matches == [(10.0, 2.0, 0.0, 1.0, 6.0)]
+
+
+def test_match_partners_rejects_a_provider_above_the_limit_of_the_requester(clear):
+    """Test that a partner spec pairs no requester with a provider whose limit it does not accept."""
+    assert clear(PartnerSpec('all', 'uniform'), {'limit': [1.0]}, {'limit': [2.0]}) == []

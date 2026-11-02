@@ -12,8 +12,8 @@ from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....core.types import AgentViewProtocol, ModelViewProtocol
 from ....specs import (
-    GreedyMatchingSpec,
     ObservableSpec,
+    PartnerSpec,
     PhaseSpec,
     PhasesScheduleSpec,
 )
@@ -205,7 +205,7 @@ def tragedy_of_the_commons(
         'grazing',
         requesters='cows',
         providers='meadow',
-        rule=GreedyMatchingSpec(score=GrazingInteraction.score, candidates='neighbors'),
+        rule=PartnerSpec('local', 'score', score=GrazingInteraction.score, clearing='provider'),
         herders='herders',
     )
     return System(

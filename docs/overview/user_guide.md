@@ -2638,9 +2638,9 @@ print(trajectory.agents('voters', 1).values['s'].tolist())
 `MatchingInteraction(requesters, providers, rule, limit, quantity, budget, transfers, on_match)` pairs requesters with
 providers by the algorithm its rule names, then moves the states of `transfers`. The rules are frozen specs of
 `skcomplex.specs` that hold only the settings of their algorithm: `RandomSearchSpec(tries, clearing)`, the default,
-`PartnerSwitchSpec(sample, intensity, partner)`, `QueueSpec(order)`, `IterativeClearingSpec(adjustment, iterations,
-tolerance)`, `ContinuousClearingSpec(arrival)`, `BatchClearingSpec()`, `StableMatchingSpec(requester_preference,
-provider_preference, clearing)`, and `GreedyMatchingSpec(score, candidates, capacity, clearing)`. The matching runs
+`PartnerSpec(candidates, choice, fallback, capacity, score, clearing)`, `PartnerSwitchSpec(sample, intensity, partner)`,
+`QueueSpec(order)`, `IterativeMatchingSpec(adjustment, iterations, tolerance)`, `ContinuousMatchingSpec(arrival)`,
+`BatchMatchingSpec()`, and `StableMatchingSpec(requester_preference, provider_preference, clearing)`. The matching runs
 each algorithm as its own method, chosen by the type of its rule, so a new algorithm is a new spec and a method. A
 `FeedbackInteraction(rule)` reads observables once per round of its phase and sets parameters. The section on phases,
 markets, institutions, and learning below runs both.
@@ -2843,8 +2843,8 @@ raises the same error, so the checks of the parent keep working.
 
 ### Partners and settlement
 
-`PartnerSpec(candidates, choice, fallback, capacity, score)` says whom an agent pairs with. The candidates are `'all'`,
-`'neighbors'`, `'cell'`, a distance, or the name of a state that holds a distance per agent, so it works in continuous
+`PartnerSpec(candidates, choice, fallback, capacity, score, clearing)` says whom an agent pairs with. The candidates are
+`'all'`, `'neighbors'`, `'cell'`, `'local'` for both of these, a distance, or the name of a state that holds a distance per agent, so it works in continuous
 space too. The choice is `'uniform'`, `'score'`, `'nearest'`, or `'all'`, and the fallback `'nearest'` takes the nearest
 partner when no one is within reach. A `settlement(source, target, amounts, model)` of a transfer receives both partners
 and the drawn amounts, so both ends credit one draw.
@@ -5300,12 +5300,12 @@ agents learn from their past.
   quantity they offer. A name given as a pair, such as `limit=('bid', 'ask')`, names the state of the requesters and of
   the providers. The rule is a frozen spec of `skcomplex.specs` that names the matching algorithm and holds only its
   settings: `RandomSearchSpec(tries, clearing)`, the default, `PartnerSwitchSpec(sample, intensity, partner)` (partner
-  choice with switching), `QueueSpec(order)`, `IterativeClearingSpec(adjustment, iterations, tolerance)` (a clearing
-  value adjusted until requests and offers balance), `ContinuousClearingSpec(arrival)` (arriving offers match resting
-  ones by limit and arrival), `BatchClearingSpec()` (one clearing value for all offers),
+  choice with switching), `QueueSpec(order)`, `IterativeMatchingSpec(adjustment, iterations, tolerance)` (a clearing
+  value adjusted until requests and offers balance), `ContinuousMatchingSpec(arrival)` (arriving offers match resting
+  ones by limit and arrival), `BatchMatchingSpec()` (one clearing value for all offers),
   `StableMatchingSpec(requester_preference, provider_preference, clearing)` (stable matching by the `matching`
-  library), and `GreedyMatchingSpec(score, candidates, capacity, clearing)` (requesters in random order take the
-  feasible provider of the highest score among all, neighbouring, or near providers). The matching runs the algorithm
+  library), and `PartnerSpec(candidates, choice, fallback, capacity, score, clearing)` (requesters in random order pick
+  among the candidates that still offer a quantity at a limit they accept). The matching runs the algorithm
   of its rule on the offers of every round, and each match is a `MatchSpec`, whose `price` is the clearing value per
   unit. Every match lowers the quantities of both sides and moves the states of `transfers`, `('money', -1)` from the
   requester to the provider and `('goods', 1)` back. The matching reports `<label>.price`, `<label>.volume`, and
@@ -5347,7 +5347,7 @@ from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import FeedbackInteraction, MatchingInteraction
 from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime
-from skcomplex.specs import BatchClearingSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
+from skcomplex.specs import BatchMatchingSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -5408,7 +5408,7 @@ auction = System(
             'auction',
             requesters='buyers',
             providers='sellers',
-            rule=BatchClearingSpec(),
+            rule=BatchMatchingSpec(),
             limit=('bid', 'ask'),
             quantity=('demand', 'supply'),
             budget='money',

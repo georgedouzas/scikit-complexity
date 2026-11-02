@@ -16,10 +16,9 @@ from matching.games import HospitalResident
 
 from ...errors import ValidationError
 from ...specs import (
-    BatchClearingSpec,
-    ContinuousClearingSpec,
-    GreedyMatchingSpec,
-    IterativeClearingSpec,
+    BatchMatchingSpec,
+    ContinuousMatchingSpec,
+    IterativeMatchingSpec,
     MatchSpec,
     PartnerSpec,
     PartnerSwitchSpec,
@@ -42,11 +41,10 @@ RULES = (
     PartnerSpec,
     PartnerSwitchSpec,
     QueueSpec,
-    IterativeClearingSpec,
-    ContinuousClearingSpec,
-    BatchClearingSpec,
+    IterativeMatchingSpec,
+    ContinuousMatchingSpec,
+    BatchMatchingSpec,
     StableMatchingSpec,
-    GreedyMatchingSpec,
 )
 
 
@@ -73,8 +71,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     `quantity` state, and the most value they can give in their `budget` state, and providers the lowest clearing value
     they accept and the quantity they offer. A name given as a pair names the state of the requesters first and of the
     providers second, and a missing state counts as no limit, one unit, and no budget. The rule is a spec that names
-    the algorithm that pairs the offers and holds its settings: random search, partner switching, a queue, iterative,
-    continuous, or batch clearing, stable matching, or greedy matching. The `price` of a match is its clearing value
+    the algorithm that pairs the offers and holds its settings: random search, partners, partner switching, a queue,
+    iterative, continuous, batch, or stable matching. The `price` of a match is its clearing value
     per unit. Every match lowers the quantities of both sides and moves every state of `transfers`: a negative sign
     moves `price * quantity` from the requester to the provider, and a positive sign moves `quantity` from the provider
     to the requester, so the totals stay the same. `on_match(match, model)` adds any other effect. The matching runs
@@ -92,9 +90,10 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
             The path of the group of providers.
 
         rule:
-            The spec of the algorithm that matches the members, such as `ContinuousClearingSpec()`, a `PartnerSpec`,
-            or a function `rule(requesters, providers, rng, capacity)` of the agents with a positive quantity that
-            returns their pairs. The pairs of a `PartnerSpec` or a function match at the midpoint of both limits.
+            The spec of the algorithm that matches the members, such as `ContinuousMatchingSpec()`, or a function
+            `rule(requesters, providers, rng, capacity)` of the agents with a positive quantity that returns their
+            pairs, which match at the midpoint of both limits. A `PartnerSpec` picks among the providers that still
+            offer a quantity at a limit the requester accepts, in random order of the requesters.
 
         limit:
             The state with the limit of both sides, or a pair of the requesters' and the providers' states. An agent
@@ -126,12 +125,12 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
 
     Examples:
         >>> from skcomplex.core.interactions import MatchingInteraction
-        >>> from skcomplex.specs import ContinuousClearingSpec
+        >>> from skcomplex.specs import ContinuousMatchingSpec
         >>> matching = MatchingInteraction(
         ...     'exchange',
         ...     requesters='traders',
         ...     providers='traders',
-        ...     rule=ContinuousClearingSpec(),
+        ...     rule=ContinuousMatchingSpec(),
         ...     limit=('bid', 'ask'),
         ... )
         >>> matching.check().reports
@@ -146,7 +145,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         *,
         requesters: Annotated[str, RoleSpec()],
         providers: Annotated[str, RoleSpec()],
-        rule: MatchingRule | PartnerSpec | Pairing = RandomSearchSpec(),
+        rule: MatchingRule | Pairing = RandomSearchSpec(),
         limit: str | tuple[str, str] = 'limit',
         quantity: str | tuple[str, str] = 'quantity',
         budget: str = 'budget',
@@ -313,7 +312,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         return trades
 
     @staticmethod
-    def _adjust(rule: IterativeClearingSpec, requesters: list[_Offer], providers: list[_Offer], start: float) -> float:
+    def _adjust(rule: IterativeMatchingSpec, requesters: list[_Offer], providers: list[_Offer], start: float) -> float:
         """Return the value the tâtonnement reaches from a start."""
         value = start
         for _ in range(rule.iterations):
@@ -325,7 +324,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
             value *= 1 + rule.adjustment * (requested - provided) / total
         return value
 
-    def _clear_at(
+    def _match_at(
         self,
         requesters: list[_Offer],
         providers: list[_Offer],
@@ -345,9 +344,9 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
                     provider = next(pairs, None)
         return trades
 
-    def _match_iterative_clearing(
+    def _match_iterative(
         self,
-        rule: IterativeClearingSpec,
+        rule: IterativeMatchingSpec,
         requesters: list[_Offer],
         providers: list[_Offer],
         rng: np.random.Generator,
@@ -361,11 +360,11 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         start = last if isinstance(last, float) and math.isfinite(last) and last > 0 else float(np.median(limits))
         value = self._adjust(rule, requesters, providers, start)
         storage['value'] = value
-        return self._clear_at(requesters, providers, value, rng)
+        return self._match_at(requesters, providers, value, rng)
 
     @staticmethod
     def _arrange(
-        rule: ContinuousClearingSpec,
+        rule: ContinuousMatchingSpec,
         requesters: list[_Offer],
         providers: list[_Offer],
         rng: np.random.Generator,
@@ -376,9 +375,9 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
             return sorted(offers, key=lambda item: item[0].agent.id)
         return [offers[index] for index in rng.permutation(len(offers))]
 
-    def _match_continuous_clearing(
+    def _match_continuous(
         self,
-        rule: ContinuousClearingSpec,
+        rule: ContinuousMatchingSpec,
         requesters: list[_Offer],
         providers: list[_Offer],
         rng: np.random.Generator,
@@ -433,7 +432,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
                 provider = next(provider_iter, None)
         return pairs, marginal
 
-    def _match_batch_clearing(self, requesters: list[_Offer], providers: list[_Offer]) -> list[MatchSpec]:
+    def _match_batch(self, requesters: list[_Offer], providers: list[_Offer]) -> list[MatchSpec]:
         """Return the matches of the crossing offers at the midpoint of the last crossing pair."""
         pairs, marginal = self._pair(requesters, providers)
         trades: list[MatchSpec] = []
@@ -527,70 +526,42 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
                     trades.append(MatchSpec(requester.agent, provider.agent, quantity, value))
         return trades
 
-    @staticmethod
-    def _is_candidate(rule: GreedyMatchingSpec, requester: AgentViewProtocol, provider: AgentViewProtocol) -> bool:
-        """Check whether a provider is a candidate of a requester."""
-        if rule.candidates == 'all':
-            return True
-        if rule.candidates == 'neighbors':
-            return provider.location_key in {requester.location_key, *requester.neighbor_cells()}
-        return requester.distance_to(provider) <= float(rule.candidates)
-
-    @staticmethod
-    def _get_score(rule: GreedyMatchingSpec, requester: _Offer, provider: _Offer) -> float:
-        """Return the score of a provider for a requester, higher for a preferred provider."""
-        if rule.score is None:
-            return -provider.limit
-        return float(rule.score(requester.agent, provider.agent))
-
-    def _get_feasible(
+    def _match_partners(
         self,
-        rule: GreedyMatchingSpec,
-        requester: _Offer,
-        providers: list[_Offer],
-        taken: dict[int, int],
-    ) -> list[_Offer]:
-        """Return the providers a requester can still match with."""
-        feasible = []
-        for provider in providers:
-            room = np.inf if rule.capacity is None else float(getattr(provider.agent, rule.capacity))
-            if provider.quantity <= 0 or taken.get(id(provider), 0) >= room or provider.limit > requester.limit:
-                continue
-            if self._is_candidate(rule, requester.agent, provider.agent):
-                feasible.append(provider)
-        return feasible
-
-    def _match_greedy(
-        self,
-        rule: GreedyMatchingSpec,
+        rule: PartnerSpec,
         requesters: list[_Offer],
         providers: list[_Offer],
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
-        """Return the matches of every requester, in random order, with its best feasible provider."""
+        """Return the matches of every requester, in random order, with the feasible partners its rule picks."""
+        wanting = {id(offer.agent): offer for offer in requesters}
+        offering = {id(offer.agent): offer for offer in providers}
+
+        def is_feasible(requester: AgentViewProtocol, provider: AgentViewProtocol) -> bool:
+            """Return whether a provider still offers a quantity at a limit the requester accepts."""
+            offer = offering[id(provider)]
+            return offer.quantity > 0 and offer.limit <= wanting[id(requester)].limit
+
         trades: list[MatchSpec] = []
-        taken: dict[int, int] = {}
-        for requester in self._order(requesters, 'random', rng):
-            feasible = self._get_feasible(rule, requester, providers, taken)
-            if not feasible:
-                continue
-            scores = np.asarray([self._get_score(rule, requester, provider) for provider in feasible], dtype=float)
-            best = np.flatnonzero(scores == scores.max())
-            provider = feasible[int(best[int(rng.integers(len(best)))])]
-            matched = len(trades)
-            self._book(trades, requester, provider, self._get_value(requester, provider, rule.clearing))
-            if len(trades) > matched:
-                taken[id(provider)] = taken.get(id(provider), 0) + 1
+        left, right = [offer.agent for offer in requesters], [offer.agent for offer in providers]
+        for requester, provider in MatchLaw(self.requesters, self.providers, rule).iterate_pairs(
+            left,
+            right,
+            rng,
+            is_feasible,
+        ):
+            first, second = wanting[id(requester)], offering[id(provider)]
+            self._book(trades, first, second, self._get_value(first, second, rule.clearing))
         return trades
 
-    def _match_custom(
+    def _match_function(
         self,
-        rule: PartnerSpec | Pairing,
+        rule: Pairing,
         requesters: list[_Offer],
         providers: list[_Offer],
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
-        """Return the matches of the pairs of partners or of a function, each at the midpoint of the limits."""
+        """Return the matches of the pairs of a function, each at the midpoint of the limits."""
         wanting = {id(offer.agent): offer for offer in requesters}
         offering = {id(offer.agent): offer for offer in providers}
         trades: list[MatchSpec] = []
@@ -613,18 +584,18 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
                 matches = self._match_partner_switch(rule, requesters, providers, rng)
             case QueueSpec():
                 matches = self._match_queue(rule, requesters, providers, rng)
-            case IterativeClearingSpec():
-                matches = self._match_iterative_clearing(rule, requesters, providers, rng, model.storage)
-            case ContinuousClearingSpec():
-                matches = self._match_continuous_clearing(rule, requesters, providers, rng)
-            case BatchClearingSpec():
-                matches = self._match_batch_clearing(requesters, providers)
+            case IterativeMatchingSpec():
+                matches = self._match_iterative(rule, requesters, providers, rng, model.storage)
+            case ContinuousMatchingSpec():
+                matches = self._match_continuous(rule, requesters, providers, rng)
+            case BatchMatchingSpec():
+                matches = self._match_batch(requesters, providers)
             case StableMatchingSpec():
                 matches = self._match_stable(rule, requesters, providers)
-            case GreedyMatchingSpec():
-                matches = self._match_greedy(rule, requesters, providers, rng)
+            case PartnerSpec():
+                matches = self._match_partners(rule, requesters, providers, rng)
             case _:
-                matches = self._match_custom(rule, requesters, providers, rng)
+                matches = self._match_function(rule, requesters, providers, rng)
         return matches
 
     def _settle(self, match: MatchSpec, model: ModelT) -> None:
@@ -661,8 +632,6 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
 
     def _check_space(self, space: BaseSpace | None) -> None:
         """Raise an error for candidates in neighbouring cells or nodes in a continuous space."""
-        if isinstance(self.rule, GreedyMatchingSpec) and self.rule.candidates == 'neighbors':
-            self._check_grid('candidates', self.rule.candidates, space, 'a radius as the candidates')
         self._check_partners(self.rule, space)
 
     def _check(self) -> None:
@@ -678,8 +647,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
             if sign not in SIGNS:
                 error_msg = f'The transfer of {state!r} has the sign {sign!r}. Use one of {SIGNS}.'
                 raise ValidationError(error_msg)
-        self._check_variant('rule', self.rule, (), (PartnerSpec, *RULES), functions=True)
-        if isinstance(self.rule, (*RULES, PartnerSpec)):
+        self._check_variant('rule', self.rule, (), RULES, functions=True)
+        if isinstance(self.rule, RULES):
             self.rule.check()
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:

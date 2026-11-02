@@ -35,7 +35,7 @@ class BookInteraction(MatchingInteraction[ModelView]):
             The path of the group of selling traders.
 
         rule:
-            The spec of the algorithm that matches the orders, such as `ContinuousClearingSpec()`.
+            The spec of the algorithm that matches the orders, such as `ContinuousMatchingSpec()`.
 
         limit:
             The states with the limit prices of the buyers and of the sellers.

@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
 from typing import ClassVar
 
 from ....core.interactions import MatchingInteraction
@@ -16,22 +17,40 @@ from ._business_view import BusinessView
 class FoodMarketInteraction(MatchingInteraction[ModelView]):
     """Food market in which people short of food, in random order, buy from the cheapest stocked shop within sight.
 
-    A greedy matching of the people, who request their `shortfall` of food for `reserve` steps within the budget of
+    A matching of the people, who request their `shortfall` of food for `reserve` steps within the budget of
     their money, with the firms, which provide their stock at their price. Every purchase moves the money to the firm,
-    which books it as revenue, and the food to the buyer. Build it with `GreedyMatchingSpec(candidates=sight)`, whose
-    default score prefers the lowest price. Besides the reporters of a matching, the reporter `gdp` sums the value of
+    which books it as revenue, and the food to the buyer. Build it with
+    `PartnerSpec(sight, 'score', score=FoodMarketInteraction.score, clearing='provider')`, whose score prefers the
+    lowest price. Besides the reporters of a matching, the reporter `gdp` sums the value of
     the sales of a step.
 
     Examples:
-        >>> from skcomplex.specs import GreedyMatchingSpec
+        >>> from skcomplex.specs import PartnerSpec
         >>> from skcomplex.models.economics.macroeconomics import FoodMarketInteraction
-        >>> FoodMarketInteraction(
-        ...     'shops', requesters='people', providers='businesses', rule=GreedyMatchingSpec(candidates=5.0)
-        ... ).reports[-1]
+        >>> rule = PartnerSpec(5.0, 'score', score=FoodMarketInteraction.score, clearing='provider')
+        >>> FoodMarketInteraction('shops', requesters='people', providers='businesses', rule=rule).reports[-1]
         'gdp'
     """
 
     reports: ClassVar[tuple[str, ...]] = (*MatchingInteraction.reports, 'gdp')
+
+    @staticmethod
+    def score(person: object, firm: object) -> float:
+        """Return the score of a firm for a person, higher for a lower price.
+
+        Args:
+            person:
+                The person that buys.
+
+            firm:
+                The firm that sells.
+
+        Returns:
+            score:
+                Minus the price of the firm.
+        """
+        del person
+        return -float(firm.price) if isinstance(firm, BusinessView) else -math.inf
 
     @staticmethod
     def sell(match: MatchSpec, model: ModelView) -> None:

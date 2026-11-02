@@ -11,7 +11,7 @@ from ....core.interactions import ImitationInteraction, MapInteraction
 from ....core.spaces import DiscreteTime, LatticeSpace
 from ....core.system import System
 from ....specs import (
-    ContinuousClearingSpec,
+    ContinuousMatchingSpec,
     ObservableSpec,
     PhaseSpec,
     PhasesScheduleSpec,
@@ -135,7 +135,7 @@ def order_book(
                 'book',
                 requesters='traders',
                 providers='traders',
-                rule=ContinuousClearingSpec(),
+                rule=ContinuousMatchingSpec(),
                 opening=fundamental,
             ),
             *accounts,

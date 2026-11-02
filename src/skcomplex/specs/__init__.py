@@ -8,14 +8,14 @@ from ._axis_spec import AxisSpec
 from ._base_record_spec import BaseRecordSpec
 from ._base_spec import BaseSpec
 from ._base_structure_spec import BaseStructureSpec
-from ._batch_clearing_spec import BatchClearingSpec
+from ._batch_matching_spec import BatchMatchingSpec
 from ._call_spec import CallSpec
 from ._capacity_rows_spec import CapacityRowsSpec
 from ._cardinality_spec import CardinalitySpec
 from ._cascade_record_spec import CascadeRecordSpec
 from ._clamp_spec import ClampSpec
 from ._clause_spec import ClauseSpec
-from ._continuous_clearing_spec import ContinuousClearingSpec
+from ._continuous_matching_spec import ContinuousMatchingSpec
 from ._control_solution_spec import ControlSolutionSpec
 from ._covariance_adaptation_spec import CovarianceAdaptationSpec
 from ._dataset_spec import DatasetSpec
@@ -28,12 +28,11 @@ from ._evolution_strategy_spec import EvolutionStrategySpec
 from ._extremal_record_spec import ExtremalRecordSpec
 from ._fractional_rows_spec import FractionalRowsSpec
 from ._fractional_state_spec import FractionalStateSpec
-from ._greedy_matching_spec import GreedyMatchingSpec
 from ._heading_spec import HeadingSpec
 from ._hilbert_spec import HilbertSpec
 from ._hyperedge_reduction_spec import HyperedgeReductionSpec
 from ._issue_spec import IssueSpec
-from ._iterative_clearing_spec import IterativeClearingSpec
+from ._iterative_matching_spec import IterativeMatchingSpec
 from ._jump_path_spec import JumpPathSpec
 from ._lammps_fix_spec import LammpsFixSpec
 from ._layer_spec import LayerSpec
@@ -112,14 +111,14 @@ __all__ = [
     'BaseRecordSpec',
     'BaseSpec',
     'BaseStructureSpec',
-    'BatchClearingSpec',
+    'BatchMatchingSpec',
     'CallSpec',
     'CapacityRowsSpec',
     'CardinalitySpec',
     'CascadeRecordSpec',
     'ClampSpec',
     'ClauseSpec',
-    'ContinuousClearingSpec',
+    'ContinuousMatchingSpec',
     'ControlSolutionSpec',
     'CovarianceAdaptationSpec',
     'DatasetSpec',
@@ -132,12 +131,11 @@ __all__ = [
     'ExtremalRecordSpec',
     'FractionalRowsSpec',
     'FractionalStateSpec',
-    'GreedyMatchingSpec',
     'HeadingSpec',
     'HilbertSpec',
     'HyperedgeReductionSpec',
     'IssueSpec',
-    'IterativeClearingSpec',
+    'IterativeMatchingSpec',
     'JumpPathSpec',
     'LammpsFixSpec',
     'LayerSpec',

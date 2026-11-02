@@ -16,7 +16,7 @@ from ..spaces import BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, ModelViewProtocol
 
 SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
-GRID_CANDIDATES = ('neighbors', 'cell')
+GRID_CANDIDATES = ('neighbors', 'cell', 'local')
 
 
 class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):

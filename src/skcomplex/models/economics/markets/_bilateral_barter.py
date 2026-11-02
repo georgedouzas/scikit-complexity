@@ -43,7 +43,7 @@ class BilateralBarterInteraction(MatchingInteraction[ModelView]):
             The path of the group of traders that can be found, the same group.
 
         rule:
-            The spec of the algorithm that pairs the traders, such as `GreedyMatchingSpec(candidates='neighbors')`.
+            The spec of the algorithm that pairs the traders, such as `PartnerSpec('local', clearing='provider')`.
 
         limit:
             The state with the limit of both sides, missing for traders, which then accept any partner.

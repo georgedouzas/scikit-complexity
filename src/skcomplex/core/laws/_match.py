@@ -4,14 +4,14 @@
 # License: MIT
 
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 
 import numpy as np
 
 from ...errors import ValidationError
 from ...specs import PartnerSpec, RequirementSpec
 from ..spaces import DiscreteTime
-from ..types import AgentViewProtocol, ModelViewProtocol, Pairing
+from ..types import AgentViewProtocol, Feasibility, ModelViewProtocol, Pairing
 from ._base import BaseLaw
 from ._rule import RuleLaw
 from .utils import random_pairing
@@ -126,6 +126,9 @@ class MatchLaw(BaseLaw):
         """Return the agents an agent considers, by the candidates of a selection of partners."""
         if spec.candidates == 'all':
             return [target for target in targets if target is not agent]
+        if spec.candidates == 'local':
+            around = {agent.location_key, *agent.neighbor_cells()}
+            return [target for target in targets if target is not agent and target.location_key in around]
         if spec.candidates in ('cell', 'neighbors'):
             keys = [agent.location_key] if spec.candidates == 'cell' else agent.neighbor_cells()
             return [target for key in keys for target in located.get(key, []) if target is not agent]
@@ -172,6 +175,17 @@ class MatchLaw(BaseLaw):
         """Return whether an agent holds fewer pairs of the step than its capacity."""
         return taken.get(agent.id, 0) < self._get_room(spec, agent)
 
+    def _is_free(
+        self,
+        spec: PartnerSpec,
+        agent: AgentViewProtocol,
+        target: AgentViewProtocol,
+        taken: dict[int, int],
+        feasible: Feasibility | None,
+    ) -> bool:
+        """Return whether a target has room and the feasibility admits it for an agent."""
+        return self._has_room(spec, target, taken) and (feasible is None or feasible(agent, target))
+
     def _get_free(
         self,
         spec: PartnerSpec,
@@ -179,13 +193,15 @@ class MatchLaw(BaseLaw):
         right: Sequence[AgentViewProtocol],
         located: dict[object, list[AgentViewProtocol]],
         taken: dict[int, int],
+        *,
+        feasible: Feasibility | None = None,
     ) -> list[AgentViewProtocol]:
-        """Return the candidates of an agent with room, or else the nearest agent with room under the fallback."""
+        """Return the feasible candidates of an agent with room, or else the nearest such agent under the fallback."""
         candidates = self._get_candidates(spec, agent, right, located)
-        free = [target for target in candidates if self._has_room(spec, target, taken)]
+        free = [item for item in candidates if self._is_free(spec, agent, item, taken, feasible)]
         if free or spec.fallback != 'nearest':
             return free
-        others = [target for target in right if target is not agent and self._has_room(spec, target, taken)]
+        others = [item for item in right if item is not agent and self._is_free(spec, agent, item, taken, feasible)]
         return [min(others, key=agent.distance_to)] if others else []
 
     def _get_partners(
@@ -194,26 +210,25 @@ class MatchLaw(BaseLaw):
         left: Sequence[AgentViewProtocol],
         right: Sequence[AgentViewProtocol],
         rng: np.random.Generator,
-    ) -> list[tuple[object, object]]:
-        """Return the pairs of every agent of one side with the partners it picks among the agents of the other."""
+        feasible: Feasibility | None = None,
+    ) -> Iterator[tuple[AgentViewProtocol, AgentViewProtocol]]:
+        """Yield the pairs of every agent of one side with the partners it picks among the agents of the other."""
         within = left is right
-        order = range(len(left)) if spec.capacity is None else rng.permutation(len(left))
+        order = range(len(left)) if spec.capacity is None and feasible is None else rng.permutation(len(left))
         located = self._locate(right) if spec.candidates in ('cell', 'neighbors') else {}
         taken: dict[int, int] = {}
-        pairs: list[tuple[object, object]] = []
         for index in order:
             agent = left[int(index)]
             if within and not self._has_room(spec, agent, taken):
                 continue
-            free = self._get_free(spec, agent, right, located, taken)
+            free = self._get_free(spec, agent, right, located, taken, feasible=feasible)
             for target in self._choose(spec, agent, free, rng) if free else []:
                 if within and not self._has_room(spec, agent, taken):
                     break
-                pairs.append((agent, target))
                 taken[target.id] = taken.get(target.id, 0) + 1
                 if within:
                     taken[agent.id] = taken.get(agent.id, 0) + 1
-        return pairs
+                yield agent, target
 
     def _run(self, inputs: object) -> None:
         """Store the pairs of the step in the storage of the model under `match:<label>`.
@@ -266,4 +281,41 @@ class MatchLaw(BaseLaw):
             return (spec or random_pairing)(left, right, rng, self.capacity)
         if (spec.candidates, spec.choice, spec.capacity, spec.fallback) == ('all', 'uniform', 1, None):
             return self._get_disjoint_pairs(left, right, rng)
-        return self._get_partners(spec, left, right, rng)
+        return list(self._get_partners(spec, left, right, rng))
+
+    def iterate_pairs(
+        self,
+        left: Sequence[AgentViewProtocol],
+        right: Sequence[AgentViewProtocol],
+        rng: np.random.Generator,
+        feasible: Feasibility,
+    ) -> Iterator[tuple[AgentViewProtocol, AgentViewProtocol]]:
+        """Yield the pairs of a selection of partners one at a time, so a caller settles each before the next one.
+
+        The agents act in random order, since the first to act take what the feasibility reads.
+
+        Args:
+            left:
+                The agents of the first side.
+
+            right:
+                The agents of the second side.
+
+            rng:
+                The random generator.
+
+            feasible:
+                The function `feasible(agent, candidate)` that says whether an agent can pair with a candidate now.
+
+        Returns:
+            pairs:
+                The pairs of agents, the first of every pair from the first side.
+
+        Raises:
+            ValidationError:
+                The pairing is not a selection of partners, or it names a state the agents do not have.
+        """
+        if not isinstance(self.pairing, PartnerSpec):
+            error_msg = f'The match {self.label!r} iterates the pairs of a `PartnerSpec`, not {self.pairing!r}.'
+            raise ValidationError(error_msg)
+        return self._get_partners(self.pairing, left, right, rng, feasible)

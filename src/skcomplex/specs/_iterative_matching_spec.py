@@ -1,4 +1,4 @@
-"""Define the iterative clearing spec."""
+"""Define the iterative matching spec."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,8 +9,8 @@ from ._base_spec import BaseSpec
 
 
 @dataclass(frozen=True)
-class IterativeClearingSpec(BaseSpec):
-    """Iterative clearing that adjusts a clearing value until the requested and provided quantities balance.
+class IterativeMatchingSpec(BaseSpec):
+    """Iterative matching that adjusts a clearing value until the requested and provided quantities balance.
 
     Starting from the last clearing value, or the median of the limits, the value moves by
     `p <- p (1 + adjustment (D - S) / (D + S))` until the relative excess of requests falls below `tolerance`, where
@@ -29,8 +29,8 @@ class IterativeClearingSpec(BaseSpec):
             The relative excess of requests at which the adjustment stops.
 
     Examples:
-        >>> from skcomplex.specs import IterativeClearingSpec
-        >>> IterativeClearingSpec(adjustment=0.05).check().iterations
+        >>> from skcomplex.specs import IterativeMatchingSpec
+        >>> IterativeMatchingSpec(adjustment=0.05).check().iterations
         500
     """
 

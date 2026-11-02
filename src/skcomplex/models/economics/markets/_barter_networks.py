@@ -13,8 +13,8 @@ from ....core.interactions import MapInteraction
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
 from ....specs import (
-    GreedyMatchingSpec,
     ObservableSpec,
+    PartnerSpec,
 )
 from ..._catalog import register_model
 from ._barter_trader import BarterTraderElement
@@ -159,7 +159,7 @@ def wilhite_trade_networks(
                 'barter',
                 requesters='traders',
                 providers='traders',
-                rule=GreedyMatchingSpec(score=BarterTraderElement.get_rate_gap),
+                rule=PartnerSpec(choice='score', score=BarterTraderElement.get_rate_gap, clearing='provider'),
                 quantity=('quantity', 'partners'),
                 units=units,
             ),

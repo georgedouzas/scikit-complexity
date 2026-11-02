@@ -12,7 +12,7 @@ from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.core.types import AgentViewProtocol, MatchingRule, ModelViewProtocol, Process, Target
 from skcomplex.engine.runtime import Simulation
-from skcomplex.specs import GreedyMatchingSpec, RandomSearchSpec
+from skcomplex.specs import PartnerSpec, RandomSearchSpec
 
 
 def test_targets_are_symbolic_expressions_or_vectors():
@@ -56,7 +56,7 @@ def test_matching_rules_are_the_matching_specs():
     """Test that a matching rule is one of the specs of the matching algorithms."""
     rules = typing.get_args(MatchingRule.__value__)
     assert RandomSearchSpec in rules
-    assert GreedyMatchingSpec in rules
+    assert PartnerSpec in rules
     assert len(rules) == 8
 
 

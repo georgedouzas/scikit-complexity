@@ -12,8 +12,8 @@ from ....core.spaces import DiscreteTime
 from ....core.system import System
 from ....engine.solvers import ModelView
 from ....specs import (
-    BatchClearingSpec,
-    ContinuousClearingSpec,
+    BatchMatchingSpec,
+    ContinuousMatchingSpec,
     MatchSpec,
     PhaseSpec,
     PhasesScheduleSpec,
@@ -121,7 +121,7 @@ def double_auction(
         'auction',
         requesters='buyers',
         providers='sellers',
-        rule=ContinuousClearingSpec() if protocol == 'order_book' else BatchClearingSpec(),
+        rule=ContinuousMatchingSpec() if protocol == 'order_book' else BatchMatchingSpec(),
         limit=('bid', 'ask'),
         quantity=('demand', 'supply'),
         phase='trade',

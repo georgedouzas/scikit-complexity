@@ -39,7 +39,7 @@ from skcomplex.core.spaces import ContinuousSpace, ContinuousTime, DiscreteTime,
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import SpaceError, ValidationError
-from skcomplex.specs import BaseSpec, GreedyMatchingSpec, ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec
+from skcomplex.specs import BaseSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, TopologyRequestSpec
 
 from ...conftest import NodeElement
 
@@ -312,7 +312,7 @@ GRID_ONLY = {
             'market',
             requesters='agents',
             providers='agents',
-            rule=GreedyMatchingSpec(candidates='neighbors'),
+            rule=PartnerSpec('neighbors'),
         ),
         'candidates',
     ),
