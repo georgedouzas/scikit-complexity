@@ -49,11 +49,25 @@ class FiniteVolumeKernel(BaseKernel):
         parameters:
             The references of the other values the fluxes read, parameters or states that no flux conserves.
 
+        reads:
+            One function of the time and the vectors per value of `parameters` held by no vector, such as a moment
+            over class axes or a field solved from it, and `None` for a value of a vector. An empty tuple reads the
+            vectors.
+
+        edges:
+            The edges of every axis of a phase space, `'periodic'` or `'reflecting'` for a class axis, whose flux
+            through the two ends of an interval is zero, and `None` for a position axis, which keeps the boundary of
+            its states. An empty tuple gives every axis the boundary of its states.
+
         limiter:
             The slope limiter.
 
         riemann:
             `'rusanov'` or `'godunov'`.
+
+        drifts:
+            One function per dimension of the states and the parameters that returns the coefficient `a` of the flux
+            `a u` of every state, or none when a flux is not such a linear drift.
 
         critical:
             For Godunov fluxes, one function per dimension of the parameters that returns the states where the flux
@@ -87,6 +101,9 @@ class FiniteVolumeKernel(BaseKernel):
         parameters: tuple[ReferenceSpec, ...],
         limiter: str | None,
         riemann: str,
+        reads: tuple[Callable[[float, Array, Array], object] | None, ...] = (),
+        edges: tuple[str | None, ...] = (),
+        drifts: tuple[Callable[..., object], ...] = (),
         critical: tuple[Callable[..., object], ...] = (),
         expressions: tuple[tuple[Expression, ...], ...] = (),
         speeds: tuple[Callable[..., object], ...] = (),
@@ -99,6 +116,9 @@ class FiniteVolumeKernel(BaseKernel):
         self.fluxes = fluxes
         self.jacobians = jacobians
         self.parameters = parameters
+        self.reads = reads
+        self.edges = edges
+        self.drifts = drifts
         self.limiter = limiter
         self.riemann = riemann
         self.critical = critical
@@ -125,11 +145,12 @@ class FiniteVolumeKernel(BaseKernel):
         """Return the conserved states in lattice shape."""
         return [np.reshape(x[start : start + self.size], self.dimensions) for start in self.starts]
 
-    def _parameters(self, x: Array, p: Array) -> list[float | Array]:
+    def _parameters(self, x: Array, p: Array, t: float = 0.0) -> list[float | Array]:
         """Return the other values the fluxes read, a number when uniform and the values of the cells otherwise."""
         values: list[float | Array] = []
-        for reference in self.parameters:
-            column = np.asarray(reference.column_of(x, p), dtype=float)
+        reads = self.reads or (None,) * len(self.parameters)
+        for reference, read in zip(self.parameters, reads, strict=True):
+            column = np.asarray(reference.column_of(x, p) if read is None else read(t, x, p), dtype=float)
             if column.size == self.size and not np.all(column == column[0]):
                 values.append(np.reshape(column, self.dimensions))
             else:
@@ -141,7 +162,7 @@ class FiniteVolumeKernel(BaseKernel):
         n = self.dimensions[axis]
         width = [(0, 0)] * len(self.dimensions)
         width[axis] = (2, 2)
-        periodic = self.boundaries[0][0] == 'periodic'
+        periodic = self._kind(axis, self.boundaries[0][0]) == 'periodic'
         before, after = self._window(axis, 1, n + 2), self._window(axis, 2, n + 3)
         left: list[float | Array] = []
         right: list[float | Array] = []
@@ -247,12 +268,20 @@ class FiniteVolumeKernel(BaseKernel):
         stacked = np.stack(candidates)
         return np.where(left <= right, stacked.min(axis=0), stacked.max(axis=0))
 
+    def _kind(self, axis: int, given: str) -> str:
+        """Return the boundary of a state along an axis, which on a class axis of a phase space is that of the axis."""
+        edge = self.edges[axis] if self.edges else None
+        if edge is None:
+            return given
+        return 'periodic' if edge == 'periodic' else 'zero-flux'
+
     def _pad(self, states: list[Array], axis: int) -> list[Array]:
         """Return the states with two ghost cells on both sides of an axis."""
         width = [(0, 0)] * len(self.dimensions)
         width[axis] = (2, 2)
         padded = []
-        for values, (kind, value) in zip(states, self.boundaries, strict=True):
+        for values, (given, value) in zip(states, self.boundaries, strict=True):
+            kind = self._kind(axis, given)
             if kind == 'periodic':
                 padded.append(np.pad(values, width, mode='wrap'))
             elif kind == 'zero-flux':
@@ -266,7 +295,7 @@ class FiniteVolumeKernel(BaseKernel):
         state = self._state_of(inputs)
         x, p = state.x, state.p
         states = self._states(x)
-        parameters = self._parameters(x, p)
+        parameters = self._parameters(x, p, state.t)
         totals = [np.zeros(self.dimensions) for _ in states]
         for axis in range(len(self.dimensions)):
             padded = self._pad(states, axis)
@@ -291,11 +320,21 @@ class FiniteVolumeKernel(BaseKernel):
                     for first, second, lower, upper in zip(left_flux, right_flux, left, right, strict=True)
                 ]
             for index, flux in enumerate(interfaces):
-                totals[index] = totals[index] - (flux[right_faces] - flux[left_faces]) / self.spacings[axis]
+                walled = self._walled(flux, axis, n)
+                totals[index] = totals[index] - (walled[right_faces] - walled[left_faces]) / self.spacings[axis]
         rates = np.zeros_like(x)
         for start, total in zip(self.starts, totals, strict=True):
             rates[start : start + self.size] = total.ravel()
         self.values_ = rates
+
+    def _walled(self, flux: Array, axis: int, n: int) -> Array:
+        """Return the flux through the interfaces of an axis, zero at the two ends of an interval class axis."""
+        if not self.edges or self.edges[axis] != 'reflecting':
+            return flux
+        result = np.array(flux)
+        result[self._window(axis, 0, 1)] = 0.0
+        result[self._window(axis, n, n + 1)] = 0.0
+        return result
 
     def max_speed(self, x: Array, p: Array) -> float:
         """Return the largest wave speed over the cells and the dimensions.
@@ -314,6 +353,32 @@ class FiniteVolumeKernel(BaseKernel):
         states = self._states(x)
         parameters = self._parameters(x, p)
         return max(float(self._speed(axis, states, parameters).max()) for axis in range(len(self.dimensions)))
+
+    def drift_of(self, axis: int, states: Sequence[Array], x: Array, p: Array, t: float) -> list[Array]:
+        """Return the coefficient of the linear drift of every state along an axis.
+
+        Args:
+            axis:
+                The axis.
+
+            states:
+                The conserved states.
+
+            x:
+                The state vector.
+
+            p:
+                The parameter vector.
+
+            t:
+                The time.
+
+        Returns:
+            drifts:
+                The coefficient of every state, in lattice shape where it varies.
+        """
+        values = ExpressionPrinter._values_of(self.drifts[axis](t, *states, *self._parameters(x, p, t)))
+        return [np.asarray(item, dtype=float) for item in values]
 
     def pattern(self, size: int) -> scipy.sparse.csr_array:
         """Return the band of the reconstruction stencil, which couples all the conserved states.

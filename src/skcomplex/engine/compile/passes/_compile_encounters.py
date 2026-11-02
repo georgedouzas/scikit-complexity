@@ -9,7 +9,10 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
+from ....core.elements import FieldElement
 from ....core.laws import BaseLaw, DestructionLaw, EncounterLaw, ProliferationLaw
+from ....core.laws.utils import COORDINATE_PREFIX, coordinate
+from ....core.spaces import PhaseSpace
 from ....errors import ValidationError
 from ....specs import TableValuesSpec
 from ....types import Indices
@@ -57,7 +60,13 @@ class CompileEncountersPass(BasePass):
         members = declarations.members
         fused = BaseCompiler._resolve_backend(backend, members)._get_name() == 'numba'
         components = [(spec.owner, dict(spec.references), laws) for spec, laws in specs]
-        return CompileEncountersPass._compile_encounters(components, declarations.time, fused=fused)
+        phases = {
+            entry.name: block.node.component.space
+            for block in declarations.blocks.values()
+            if isinstance(block.node.component, FieldElement) and isinstance(block.node.component.space, PhaseSpace)
+            for entry in block.entries.values()
+        }
+        return CompileEncountersPass._compile_encounters(components, declarations.time, fused=fused, phases=phases)
 
     @staticmethod
     def _effect(law: KineticLaw) -> str:
@@ -108,9 +117,26 @@ class CompileEncountersPass(BasePass):
         return indices
 
     @staticmethod
-    def _checked_rate(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> npt.NDArray[np.generic]:
+    def _rate_of_classes(rate: object, space: PhaseSpace | None, sizes: tuple[int, int, int]) -> object:
+        """Return a rate that reads class coordinates as its table `eta[h, k]`, at the classes of the candidate."""
+        names = [str(item) for item in SR(rate).variables()] if isinstance(rate, Expression) else []
+        coordinates = [item for item in names if item.startswith(COORDINATE_PREFIX)]
+        if space is None or not coordinates:
+            return rate
+        points = np.meshgrid(*(space.coordinates_[axis.name] for axis in space.axes), indexing='ij')
+        grid = {coordinate(axis.name): point.ravel() for axis, point in zip(space.axes, points, strict=True)}
+        rows = [SR(rate).subs({item: float(values[row]) for item, values in grid.items()}) for row in range(sizes[0])]
+        return np.tile(np.asarray(rows, dtype=object)[:, None], (1, sizes[1]))
+
+    @staticmethod
+    def _checked_rate(
+        law: KineticLaw,
+        sizes: tuple[int, int, int],
+        owner: str,
+        space: PhaseSpace | None = None,
+    ) -> npt.NDArray[np.generic]:
         """Return the rate table of a law, after checking that it has one row per candidate and one column per field."""
-        rate = CompileEncountersPass._kinetic_table(law.rate)
+        rate = CompileEncountersPass._kinetic_table(CompileEncountersPass._rate_of_classes(law.rate, space, sizes))
         if rate.ndim and rate.shape != sizes[:2]:
             error_msg = (
                 f'An encounter law of {owner} has a rate of shape {rate.shape}, but its candidate and field groups '
@@ -153,6 +179,7 @@ class CompileEncountersPass(BasePass):
         time: Expression,
         *,
         fused: bool = False,
+        phases: Mapping[str, PhaseSpace] | None = None,
     ) -> EncounterKernel:
         """Return an encounter law lowered to sparse contractions over the densities its roles bind.
 
@@ -172,6 +199,9 @@ class CompileEncountersPass(BasePass):
             fused:
                 Whether the gain runs in one fused loop compiled with Numba.
 
+            phases:
+                The phase space of every entry of a field on one, whose encounters run at every position.
+
         Returns:
             encounter:
                 The compiled law.
@@ -181,18 +211,21 @@ class CompileEncountersPass(BasePass):
                 A density is not a state of a group, a table has the wrong shape, or a table reads a state.
         """
         candidate = CompileEncountersPass._group_indices(law.candidate, references, owner)
-        field_indices = CompileEncountersPass._group_indices(law.field, references, owner)
+        linear = isinstance(law, EncounterLaw) and law.field is None
+        empty = np.zeros(0, dtype=np.intp)
+        field_indices = empty if linear else CompileEncountersPass._group_indices(law.field, references, owner)
+        space = (phases or {}).get(references[law.candidate].entry.name)
+        positions = 1 if space is None else space.position_size_
         test_symbol = getattr(law, 'test', None)
         test = (
             candidate if test_symbol is None else CompileEncountersPass._group_indices(test_symbol, references, owner)
         )
-        sizes = (candidate.size, field_indices.size, test.size)
-        rates = CompileEncountersPass._checked_rate(law, sizes, owner)
+        sizes = (candidate.size // positions, max(field_indices.size // positions, 1), test.size // positions)
+        rates = CompileEncountersPass._checked_rate(law, sizes, owner, space)
         table = CompileEncountersPass._outcome_table(law, sizes, owner)
         grid = tuple(item.ravel().astype(np.intp) for item in np.indices(sizes[:2]))
         rate = TableValuesSpec(rates, grid, CompileEncountersPass._parameter_indices(rates, references, owner), time)
         if table is None:
-            empty = np.zeros(0, dtype=np.intp)
             return (
                 EncounterKernel(
                     owner,
@@ -203,15 +236,16 @@ class CompileEncountersPass(BasePass):
                     rate=rate,
                     entries=(empty,) * 3,
                     probabilities=None,
+                    positions=positions,
                 )
                 .check()
                 .prepare()
             )
-        positions = CompileEncountersPass._nonzero(table)
-        entries = (positions[0], positions[1], positions[2])
+        nonzero = CompileEncountersPass._nonzero(table)
+        entries = (nonzero[0], nonzero[1], nonzero[2])
         probabilities = TableValuesSpec(
             table,
-            positions,
+            nonzero,
             CompileEncountersPass._parameter_indices(table, references, owner),
             time,
         )
@@ -226,6 +260,7 @@ class CompileEncountersPass(BasePass):
                 entries=entries,
                 probabilities=probabilities,
                 fused=fused,
+                positions=positions,
             )
             .check()
             .prepare()
@@ -237,6 +272,7 @@ class CompileEncountersPass(BasePass):
         time: Expression,
         *,
         fused: bool = False,
+        phases: Mapping[str, PhaseSpace] | None = None,
     ) -> tuple[EncounterKernel, ...]:
         """Return the encounter laws of every component, lowered in declaration order.
 
@@ -250,12 +286,15 @@ class CompileEncountersPass(BasePass):
             fused:
                 Whether the gains run in fused loops compiled with Numba.
 
+            phases:
+                The phase space of every entry of a field on one.
+
         Returns:
             encounters:
                 The compiled laws.
         """
         return tuple(
-            CompileEncountersPass._compile_encounter(law, owner, references, time, fused=fused)
+            CompileEncountersPass._compile_encounter(law, owner, references, time, fused=fused, phases=phases)
             for owner, references, laws in components
             for law in laws
             if isinstance(law, _KINETIC_LAWS)

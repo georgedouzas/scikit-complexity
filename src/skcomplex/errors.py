@@ -44,6 +44,10 @@ class SpaceTooLargeError(SpaceError):
     """A space would hold more sites than its limit, or its elements would overflow their integer type."""
 
 
+class PhaseSpaceTooLargeError(SpaceTooLargeError):
+    """A phase space would hold more sites than its limit."""
+
+
 class UnregisteredLawError(ValidationError):
     """A system holds a law of a class that neither the shared core nor a formalism registered."""
 

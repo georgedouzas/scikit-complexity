@@ -19,6 +19,7 @@ from ._mesh import MeshSpace
 from ._moore import MooreNeighborhood
 from ._nearest import NearestNeighborhood
 from ._network import NetworkSpace
+from ._phase import PhaseSpace
 from ._radius import RadiusNeighborhood
 from ._static_time import StaticTime
 from ._triangular import TriangularNeighborhood
@@ -43,6 +44,7 @@ __all__: list[str] = [
     'MooreNeighborhood',
     'NearestNeighborhood',
     'NetworkSpace',
+    'PhaseSpace',
     'RadiusNeighborhood',
     'StaticTime',
     'TriangularNeighborhood',

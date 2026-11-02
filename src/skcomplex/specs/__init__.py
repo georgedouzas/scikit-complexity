@@ -4,6 +4,7 @@ from ._accelerated_spec import AcceleratedSpec
 from ._agent_snapshot_spec import AgentSnapshotSpec
 from ._agent_state_spec import AgentStateSpec
 from ._arguments_spec import ArgumentsSpec
+from ._axis_spec import AxisSpec
 from ._base_record_spec import BaseRecordSpec
 from ._base_spec import BaseSpec
 from ._base_structure_spec import BaseStructureSpec
@@ -106,6 +107,7 @@ __all__ = [
     'AgentSnapshotSpec',
     'AgentStateSpec',
     'ArgumentsSpec',
+    'AxisSpec',
     'BaseRecordSpec',
     'BaseSpec',
     'BaseStructureSpec',

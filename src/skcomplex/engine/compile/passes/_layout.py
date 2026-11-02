@@ -14,9 +14,10 @@ from sage.all__sagemath_symbolics import CC, RR, ZZ, Expression, I, oo
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from ....core.elements import GroupElement
+from ....core.elements import FieldElement, GroupElement
 from ....core.interactions import BaseInteraction
-from ....core.spaces import BaseSpace, LatticeSpace, NetworkSpace
+from ....core.laws.utils import COORDINATE_PREFIX, coordinate
+from ....core.spaces import BaseSpace, LatticeSpace, NetworkSpace, PhaseSpace
 from ....core.specs import NodeSpec
 from ....errors import LabelError, SpaceError, ValidationError
 from ....specs import EntrySpec, VariableSpec, WienerProcessSpec
@@ -24,6 +25,7 @@ from ....types import Array, VariableKind
 from ..._utils import components_of, declarations_of, default_of, symbol, vector
 from ...problems import BlockSpec, DeclarationsSpec, ReferenceSpec
 from ...problems._declarations_spec import _ACTIVE, ENDS, MEMBERS
+from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
 
@@ -60,6 +62,8 @@ class LayoutPass(BasePass):
         for block in blocks.values():
             for item, reference in block.references.items():
                 name = str(item)
+                if name.startswith(COORDINATE_PREFIX):
+                    continue
                 if name in seen and seen[name] != reference.entry.name:
                     error_msg = (
                         f'{reference.entry.name} and {seen[name]} produce the same symbol {name}. Rename one '
@@ -114,6 +118,7 @@ class LayoutPass(BasePass):
                 declarations, block = LayoutPass._declare_shaped(declarations, block, variable, shape, declaration)
         if node.is_agent:
             declarations, block = LayoutPass._declare_agents(declarations, block)
+        declarations, block = LayoutPass._declare_coordinates(declarations, block)
         if isinstance(node.component, BaseInteraction):
             declarations = LayoutPass._declare_processes(declarations, node)
         if node.active is not None:
@@ -279,6 +284,33 @@ class LayoutPass(BasePass):
             references={**block.references, handle: ReferenceSpec(entry, is_state, 0)},
         )
         return LayoutPass._with_entry(declarations, entry, value, is_state), block
+
+    @staticmethod
+    def _declare_coordinates(
+        declarations: DeclarationsSpec,
+        block: BlockSpec,
+    ) -> tuple[DeclarationsSpec, BlockSpec]:
+        """Return the declarations and the block with a hidden parameter of every class coordinate at every site."""
+        component = block.node.component
+        space = component.space if isinstance(component, FieldElement) else None
+        if not isinstance(space, PhaseSpace):
+            return declarations, block
+        space.check().prepare()
+        rows = space.size_
+        for name, axis in space.class_axes_.items():
+            shape = [1] * space.n_dim_
+            shape[axis] = -1
+            values = np.broadcast_to(np.reshape(space.coordinates_[name], shape), space.shape_).ravel().copy()
+            variable = f'{COORDINATE_PREFIX}{name}'
+            entry = EntrySpec(f'{block.node.path}.{variable}', declarations.ends[False], (rows,), RR, rows)
+            declarations = LayoutPass._with_entry(declarations, entry, values, is_state=False)
+            block = replace(
+                block,
+                symbols={**block.symbols, variable: coordinate(name)},
+                entries={**block.entries, variable: entry},
+                references={**block.references, coordinate(name): ReferenceSpec(entry, False, 0, ReadKind.MEMBER)},
+            )
+        return declarations, block
 
     @staticmethod
     def _declare_agents(declarations: DeclarationsSpec, block: BlockSpec) -> tuple[DeclarationsSpec, BlockSpec]:

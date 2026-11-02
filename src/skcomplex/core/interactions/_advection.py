@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -47,6 +47,10 @@ class AdvectionInteraction(ConservationInteraction):
             The numerical flux of a finite-volume field, `'rusanov'` or `'godunov'`, or `None` for the divergence of
             the flux on a field of another discretization.
 
+        sources:
+            The paths of other elements the drift and the source read, as the namespaces `sources`. A field over the
+            position lattice of a target on a phase space is read broadcast along the class axes.
+
     Raises:
         ValidationError:
             The state is not a name, a function is not callable, or the limiter or the numerical flux is unknown.
@@ -86,8 +90,17 @@ class AdvectionInteraction(ConservationInteraction):
         source: Callable[[SimpleNamespace], object] | None = None,
         limiter: str | None = 'minmod',
         riemann: str | None = 'rusanov',
+        sources: Annotated[Sequence[str], RoleSpec(variadic=True)] = (),
     ) -> None:
-        super().__init__(label, target=target, state=state, source=source, limiter=limiter, riemann=riemann)
+        super().__init__(
+            label,
+            target=target,
+            state=state,
+            source=source,
+            limiter=limiter,
+            riemann=riemann,
+            sources=sources,
+        )
         self.drift = drift
 
     def _check(self) -> None:

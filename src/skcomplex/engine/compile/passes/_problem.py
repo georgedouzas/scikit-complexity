@@ -197,6 +197,7 @@ class ProblemPass(BasePass):
             has_callables=functions.has_callables,
             has_group_sums=functions.has_group_sums,
             drift=functions.drift,
+            sources=functions.sources,
             diffusion=functions.diffusion,
             noise_rows=functions.noise_rows,
             noise_columns=functions.noise_columns,

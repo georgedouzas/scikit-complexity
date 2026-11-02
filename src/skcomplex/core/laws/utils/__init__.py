@@ -26,6 +26,7 @@ from ._operators import (
     shifted,
     upwind,
 )
+from ._phase import COORDINATE_PREFIX, coordinate, coordinates_of, maximum_entropy, reduce_axes
 from ._pointwise import clip, hill, logistic, sign
 from ._quantum import dagger, has_operator, local_operator, operator_product
 from ._reductions import (
@@ -49,6 +50,7 @@ from ._reductions import (
 from ._signals import pulse, pulse_train, ramp, series, step
 
 __all__: list[str] = [
+    'COORDINATE_PREFIX',
     'INVERSION_BOUNDARIES',
     'NEIGHBOR_REDUCTIONS',
     'advection',
@@ -61,6 +63,8 @@ __all__: list[str] = [
     'contraction',
     'contractions_in',
     'convolve',
+    'coordinate',
+    'coordinates_of',
     'count',
     'dagger',
     'delay1',
@@ -89,6 +93,7 @@ __all__: list[str] = [
     'lookup',
     'matches',
     'maximum',
+    'maximum_entropy',
     'mean',
     'minimum',
     'mod',
@@ -102,6 +107,7 @@ __all__: list[str] = [
     'pulse_train',
     'ramp',
     'random_pairing',
+    'reduce_axes',
     'reduction',
     'reductions_in',
     'residence',

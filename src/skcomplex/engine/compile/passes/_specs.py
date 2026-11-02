@@ -20,7 +20,7 @@ from ....core.interactions import (
     NeighborInteraction,
     PairInteraction,
 )
-from ....core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace
+from ....core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace, PhaseSpace
 from ....core.specs import NodeSpec
 from ....errors import LabelError, RoleError, ValidationError
 from ....specs import EntrySpec, NeighborReadSpec, WienerProcessSpec
@@ -326,6 +326,63 @@ class SpecsPass(BasePass):
         if index is None:
             return SpecsPass._namespace(block, ReadKind.SINGLE)
         return SpecsPass._member_namespace(block, index)
+
+    @staticmethod
+    def _source_namespace(
+        block: BlockSpec,
+        index: int | None,
+        bound: Mapping[str, BlockSpec],
+    ) -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
+        """Return the namespace of a source of an interaction, a whole field read across a phase space or else an entry.
+
+        A field on a position lattice is read by the target on a phase space with that position, broadcast along its
+        class axes. A field on a phase space is read member by member by a target on a position lattice, whose laws
+        read its moments.
+        """
+        place = block.node.component
+        targets = [item.node.component for item in bound.values() if isinstance(item.node.component, FieldElement)]
+        if index is not None or not isinstance(place, FieldElement) or not targets:
+            return SpecsPass._entry_namespace(block, index)
+        space, target = place.space, targets[0].space
+        if isinstance(space, PhaseSpace) and not isinstance(target, PhaseSpace):
+            return SpecsPass._namespace(block, ReadKind.MEMBER, alias='__across')
+        if isinstance(target, PhaseSpace) and not isinstance(space, PhaseSpace):
+            return SpecsPass._broadcast_namespace(block, target)
+        return SpecsPass._entry_namespace(block, index)
+
+    @staticmethod
+    def _broadcast_namespace(
+        block: BlockSpec,
+        target: PhaseSpace,
+    ) -> tuple[SimpleNamespace, dict[Expression, ReferenceSpec]]:
+        """Return the namespace of a field over a position lattice read at every point of a phase space.
+
+        Args:
+            block:
+                The block of the field.
+
+            target:
+                The phase space that reads it.
+
+        Returns:
+            namespace:
+                The namespace and the references of its symbols, neighbour reads of the site at the same position.
+
+        Raises:
+            ValidationError:
+                The field does not have as many sites as the phase space has positions.
+        """
+        target.check().prepare()
+        if block.rows != target.position_size_:
+            error_msg = (
+                f'{block.node.path} has {block.rows} sites, but it is read by a field on a phase space of '
+                f'{target.position_size_} positions. Give the field the position lattice of the phase space.'
+            )
+            raise ValidationError(error_msg)
+        table = np.repeat(np.arange(block.rows), target.size_ // target.position_size_)
+        read = NeighborReadSpec(table, None, None, None, 0)
+        namespace, references = SpecsPass._namespace(block, ReadKind.NEIGHBOR, alias='__broadcast')
+        return namespace, {item: replace(reference, neighbor=read) for item, reference in references.items()}
 
     @staticmethod
     def _entry_path(block: BlockSpec, index: int | None) -> str:
@@ -1119,7 +1176,7 @@ class SpecsPass(BasePass):
                 namespaces[role] = value.namespace
                 references.update(value.references)
             for role, entries in variadic.items():
-                read = [SpecsPass._entry_namespace(*entry) for entry in entries]
+                read = [SpecsPass._source_namespace(*entry, bound) for entry in entries]
                 namespaces[role] = tuple(namespace for namespace, _ in read)
                 for _, entry_references in read:
                     references.update(entry_references)

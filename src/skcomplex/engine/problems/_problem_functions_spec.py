@@ -38,6 +38,9 @@ class _ProblemFunctionsSpec(BaseSpec):
         drift:
             The drift function, or `None`.
 
+        sources:
+            The part of the drift without the flux differences of finite-volume fields, or `None` without fluxes.
+
         diffusion:
             The function that returns every Wiener process amplitude, or `None`.
 
@@ -83,6 +86,7 @@ class _ProblemFunctionsSpec(BaseSpec):
     has_callables: bool
     has_group_sums: bool
     drift: VectorFunction | None = None
+    sources: VectorFunction | None = None
     diffusion: VectorFunction | None = None
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp))
     noise_columns: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp))

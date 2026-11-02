@@ -10,6 +10,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.elements import FieldElement
 from ....core.laws import BaseLaw, RateLaw
+from ....core.laws.utils import COORDINATE_PREFIX
 from ...problems import DiffusiveLimitSpec, KernelSpec, LinearTermSpec, ReferenceSpec
 from ...problems._linear_term_spec import OPERATORS
 from ...types import ReadKind, Terms
@@ -89,7 +90,7 @@ class LowerFieldsPass(BasePass):
         """
         places = FieldLowering._field_entries(Compilation._required(compilation.layout, 'layout'))
         linear += LowerFieldsPass._linear_terms_of(spec, laws, places)
-        if not any(FieldLowering._has_operators(getattr(law, 'value', None)) for law in laws):
+        if not any(FieldLowering._law_has_operators(law) for law in laws):
             return laws
         lowering = FieldLowering(spec).check().prepare(compilation)
         result = lowering.run(laws).lowered_
@@ -198,6 +199,9 @@ class LowerFieldsPass(BasePass):
         }
         expanded = SR(value).expand()
         parts = expanded.operands() if LowerFieldsPass._name_of(expanded.operator()) == 'add_vararg' else [expanded]
+        parts = [
+            part for part in parts if not any(str(item).startswith(COORDINATE_PREFIX) for item in part.variables())
+        ]
         terms = []
         for part in parts:
             found = LowerFieldsPass._linear(part, states)

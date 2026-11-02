@@ -52,7 +52,7 @@ class ReductionsPass(BasePass):
 
     @staticmethod
     def _pruned(spec: KernelSpec, declarations: DeclarationsSpec) -> KernelSpec:
-        """Return a spec without the references of the groups it reads only through reductions.
+        """Return a spec without the references of the groups it reads only through reductions, keeping operands.
 
         Kernels then loop over its own group.
 
@@ -68,9 +68,17 @@ class ReductionsPass(BasePass):
         foreign = (owners & declarations.groups) - {spec.group, *spec.aligned}
         if not foreign:
             return spec
+        operands = {
+            symbol
+            for reference in spec.references.values()
+            if reference.source is ReadKind.DERIVED
+            for symbol in reference.derived.symbols
+        }
         references = {
             item: reference
             for item, reference in spec.references.items()
-            if reference.source is not ReadKind.MEMBER or reference.entry.name.rpartition('.')[0] not in foreign
+            if reference.source is not ReadKind.MEMBER
+            or reference.entry.name.rpartition('.')[0] not in foreign
+            or item in operands
         }
         return replace(spec, references=references)

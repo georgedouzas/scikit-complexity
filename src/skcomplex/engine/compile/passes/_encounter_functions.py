@@ -9,7 +9,7 @@ import numpy as np
 
 from ....errors import PipelineError
 from ....specs import RunStateSpec
-from ....types import Array
+from ....types import Array, VectorFunction
 from ...problems._encounter_kernel import EncounterKernel
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from .._base import BasePass
@@ -46,12 +46,15 @@ class EncounterFunctionsPass(BasePass):
         """Add the gain and loss rates of encounter laws to the drift, which then runs outside compiled steppers."""
         if not encounters:
             return functions
-        drift = functions.drift
 
-        def encountered(t: float, x: Array, p: Array) -> Array:
-            rates = np.zeros(size) if drift is None else np.array(drift(t, x, p), dtype=float)
-            for encounter in encounters:
-                rates += np.asarray(encounter.run(RunStateSpec(t, x, p)).values_, dtype=float)
-            return rates
+        def encountered_of(base: VectorFunction | None) -> VectorFunction:
+            def encountered(t: float, x: Array, p: Array) -> Array:
+                rates = np.zeros(size) if base is None else np.array(base(t, x, p), dtype=float)
+                for encounter in encounters:
+                    rates += np.asarray(encounter.run(RunStateSpec(t, x, p)).values_, dtype=float)
+                return rates
 
-        return replace(functions, drift=encountered, accelerated=None)
+            return encountered
+
+        sources = None if functions.sources is None else encountered_of(functions.sources)
+        return replace(functions, drift=encountered_of(functions.drift), sources=sources, accelerated=None)

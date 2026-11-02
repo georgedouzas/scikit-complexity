@@ -82,6 +82,12 @@ class KineticSolver(Solver):
         if not isinstance(problem, KineticProblemSpec) or not problem.encounters:
             error_msg = 'KineticSolver samples encounter laws, but the problem has none. Use an ODE solver.'
             raise SolverError(error_msg)
+        if any(encounter.positions > 1 or not encounter.field.size for encounter in problem.encounters):
+            error_msg = (
+                'KineticSolver samples encounters of two densities over a lattice of classes, but the problem has '
+                'encounters at every position of a phase space or without a field. Use ScipyODESolver or RK4Solver.'
+            )
+            raise SolverError(error_msg)
         rates = any(not SR(value).is_zero() for value in problem.equations.values())
         if rates or problem.events or problem.delays or problem.renewals:
             error_msg = (

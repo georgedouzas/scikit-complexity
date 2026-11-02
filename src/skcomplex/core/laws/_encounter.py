@@ -29,7 +29,7 @@ class EncounterLaw(BaseLaw):
             The symbol of the candidate density, a state of a group read member by member.
 
         field:
-            The symbol of the field density.
+            The symbol of the field density, or `None` for a linear redistribution, with one field class of value one.
 
         rate:
             The encounter rate, a number or a parameter expression, or an array `eta[h, k]` of them.
@@ -57,7 +57,7 @@ class EncounterLaw(BaseLaw):
     def __init__(
         self,
         candidate: Expression,
-        field: Expression,
+        field: Expression | None,
         rate: object,
         transition: object,
         test: Expression | None = None,

@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -55,6 +55,10 @@ class ConservationInteraction(Interaction):
             The numerical flux of a finite-volume field, `'rusanov'` or `'godunov'`, the exact solver for one state, or
             `None` for the divergence of the flux on a field of another discretization.
 
+        sources:
+            The paths of other elements the flux and the source read, as the namespaces `sources`. A field over the
+            position lattice of a target on a phase space is read broadcast along the class axes.
+
     Raises:
         ValidationError:
             The state is not a name, a function is not callable, or the limiter or the numerical flux is unknown.
@@ -93,6 +97,7 @@ class ConservationInteraction(Interaction):
         source: Callable[[SimpleNamespace], object] | None = None,
         limiter: str | None = 'minmod',
         riemann: str | None = 'rusanov',
+        sources: Annotated[Sequence[str], RoleSpec(variadic=True)] = (),
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -101,6 +106,7 @@ class ConservationInteraction(Interaction):
         self.source = source
         self.limiter = limiter
         self.riemann = riemann
+        self.sources = sources
 
     def _check(self) -> None:
         """Raise an error for a state that is not a name, a function that is not callable, or an unknown scheme.

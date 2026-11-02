@@ -6,6 +6,7 @@
 from ._base import BaseLaw
 from ._boundary import BoundaryLaw
 from ._cascade import CascadeLaw
+from ._collision import CollisionLaw
 from ._crossing import CrossingLaw
 from ._destruction import DestructionLaw
 from ._dissipator import DissipatorLaw
@@ -34,6 +35,7 @@ __all__: list[str] = [
     'BaseLaw',
     'BoundaryLaw',
     'CascadeLaw',
+    'CollisionLaw',
     'CrossingLaw',
     'DestructionLaw',
     'DissipatorLaw',

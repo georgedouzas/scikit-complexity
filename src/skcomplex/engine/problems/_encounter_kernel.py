@@ -55,6 +55,9 @@ class EncounterKernel(BaseKernel):
         fused:
             Whether the gain runs in one fused loop compiled with Numba, rather than in NumPy.
 
+        positions:
+            The number of positions of a phase space, each with its own encounters over the classes, or 1.
+
     Attributes:
         values_:
             The contribution of the encounter to the rate of every state at the last run.
@@ -74,6 +77,7 @@ class EncounterKernel(BaseKernel):
         entries: tuple[Indices, Indices, Indices],
         probabilities: TableValuesSpec | None,
         fused: bool = False,
+        positions: int = 1,
     ) -> None:
         self.owner = owner
         self.kind = kind
@@ -84,6 +88,7 @@ class EncounterKernel(BaseKernel):
         self.entries = entries
         self.probabilities = probabilities
         self.fused = fused
+        self.positions = positions
 
     @functools.cached_property
     def _functions(self) -> dict[int, Callable[..., object]]:
@@ -104,6 +109,18 @@ class EncounterKernel(BaseKernel):
         computed = self._functions[id(table)](0.0, *(float(value) for value in p[indices]))
         return np.asarray(ExpressionPrinter._values_of(computed), dtype=float)
 
+    def _field_shape(self) -> tuple[int, int]:
+        """Return the number of candidate classes and of field classes, one class for a redistribution."""
+        return self.candidate.size // self.positions, max(self.field.size // self.positions, 1)
+
+    def _densities(self, x: Array) -> tuple[Array, Array]:
+        """Return the candidate and the field density with one row per position, a field of ones without a field."""
+        candidates, fields = self._field_shape()
+        f = np.reshape(x[self.candidate], (self.positions, candidates))
+        return f, (
+            np.reshape(x[self.field], (self.positions, fields)) if self.field.size else np.ones((self.positions, 1))
+        )
+
     def rate_matrix(self, p: Array) -> Array:
         """Return the encounter rate of every candidate activity with every field activity.
 
@@ -115,7 +132,7 @@ class EncounterKernel(BaseKernel):
             rates:
                 The matrix `eta[h, k]`.
         """
-        return self._values(self.rate, p).reshape(self.candidate.size, self.field.size)
+        return self._values(self.rate, p).reshape(*self._field_shape())
 
     def weights(self, p: Array) -> Array:
         """Return the rate times the outcome probability of every nonzero entry, `eta[h, k] A[h, k, i]`.
@@ -148,10 +165,14 @@ class EncounterKernel(BaseKernel):
                 One rate per test activity.
         """
         candidates, fields, outcomes = self.entries
-        f, g, weights = x[self.candidate], x[self.field], self.weights(p)
-        if self.fused:
-            return _fused_gain(np.stack(self.entries), weights, f, g, self.test.size)
-        return np.bincount(outcomes, weights * f[candidates] * g[fields], minlength=self.test.size)
+        weights = self.weights(p)
+        if self.fused and self.positions == 1 and self.field.size:
+            return _fused_gain(np.stack(self.entries), weights, x[self.candidate], x[self.field], self.test.size)
+        f, g = self._densities(x)
+        classes = self.test.size // self.positions
+        places = np.arange(self.positions)[:, None] * classes + outcomes
+        gained = weights * f[:, candidates] * g[:, fields]
+        return np.bincount(places.ravel(), gained.ravel(), minlength=self.test.size)
 
     def _loss(self, x: Array, p: Array) -> Array:
         """Return the rate at which every candidate activity loses particles, `f_h sum_k eta[h, k] g_k`.
@@ -167,7 +188,8 @@ class EncounterKernel(BaseKernel):
             loss:
                 One rate per candidate activity.
         """
-        return x[self.candidate] * (self.rate_matrix(p) @ x[self.field])
+        f, g = self._densities(x)
+        return (f * (g @ self.rate_matrix(p).T)).ravel()
 
     def _run(self, inputs: RunStateSpec | None) -> None:
         """Set the contribution of the encounter to the rate of every state, zero outside its densities."""

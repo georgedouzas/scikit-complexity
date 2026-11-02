@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from __future__ import annotations
+
 from collections.abc import Sequence
 
 import numpy as np
@@ -125,6 +127,14 @@ class LatticeSpace(BaseSpace):
         self.periodic_ = self.boundary == 'periodic'
         self.default_visual_ = 'image' if self.geometry == 'square' else 'sites'
 
+    def _axis_boundary(self, axis: int) -> str:
+        """Return the edges of an axis, the one boundary of the lattice."""
+        return self.boundary
+
+    def _with_edges(self, boundary: str, fill: float) -> LatticeSpace:
+        """Return the sites of the lattice with other edges, which the reads of a state with its own boundary use."""
+        return LatticeSpace(self.shape_, boundary=boundary, fill=fill).check().prepare()
+
     def _default_neighborhood(self) -> LatticeNeighborhood:
         """Return the neighbourhood agents query, the triangular, von Neumann, or Moore neighbourhood of radius 1."""
         if self.geometry == 'triangular':
@@ -146,19 +156,20 @@ class LatticeSpace(BaseSpace):
             )
             raise ValidationError(error_msg)
         coordinates = np.indices(self.shape_).reshape(self.n_dim_, -1)
-        sizes = np.asarray(self.shape_)[:, None]
         table = np.empty((self.size_, len(offsets)), dtype=np.intp)
         for column, offset in enumerate(offsets):
             shifted = coordinates + np.asarray(offset)[:, None]
             outside = np.zeros(self.size_, dtype=bool)
-            if self.boundary == 'periodic':
-                shifted %= sizes
-            elif self.boundary == 'reflecting':
-                shifted %= 2 * sizes
-                shifted = np.where(shifted < sizes, shifted, 2 * sizes - 1 - shifted)
-            else:
-                outside = ((shifted < 0) | (shifted >= sizes)).any(axis=0)
-                shifted = np.clip(shifted, 0, sizes - 1)
+            for axis, size in enumerate(self.shape_):
+                edges = self._axis_boundary(axis)
+                if edges == 'periodic':
+                    shifted[axis] %= size
+                elif edges == 'reflecting':
+                    shifted[axis] %= 2 * size
+                    shifted[axis] = np.where(shifted[axis] < size, shifted[axis], 2 * size - 1 - shifted[axis])
+                else:
+                    outside |= (shifted[axis] < 0) | (shifted[axis] >= size)
+                    shifted[axis] = np.clip(shifted[axis], 0, size - 1)
             flat = np.ravel_multi_index(tuple(shifted), self.shape_)
             table[:, column] = np.where(outside, self.size_, flat)
         return table
@@ -174,7 +185,7 @@ class LatticeSpace(BaseSpace):
         for axis, length in enumerate(self.shape_):
             shifted = np.roll(sites, -1, axis=axis)
             pairs = np.stack([sites.ravel(), shifted.ravel()], axis=1)
-            if self.boundary != 'periodic':
+            if self._axis_boundary(axis) != 'periodic':
                 edge = np.indices(self.shape_)[axis].ravel() == length - 1
                 pairs = pairs[~edge]
             for first, second in pairs.tolist():

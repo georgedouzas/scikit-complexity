@@ -13,13 +13,15 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.elements import FieldElement
 from ....core.laws import BaseLaw, FluxLaw
-from ....core.spaces import LatticeSpace, MeshSpace
+from ....core.laws.utils import COORDINATE_PREFIX
+from ....core.spaces import LatticeSpace, MeshSpace, PhaseSpace
 from ....errors import PipelineError, ValidationError
 from ....specs import LayoutSpec, RunStateSpec
 from ....types import Array, VariableKind, VectorFunction
 from ..._utils import declarations_of
 from ...problems import BlockSpec, DeclarationsSpec, ExpressionPrinter, KernelSpec, ReferenceSpec, SymmetrySpec
 from ...problems._finite_volume_kernel import TIME, FiniteVolumeKernel
+from ...problems._law_kernel import LawKernel
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from ...types import ReadKind
 from .._base import BasePass
@@ -102,7 +104,7 @@ class FieldFunctionsPass(BasePass):
             if not isinstance(place, FieldElement):
                 error_msg = f'{owner} declares fluxes, but it is not a field.'
                 raise ValidationError(error_msg)
-            volumes.append(FieldFunctionsPass._compile_volumes(found[owner], place, owner))
+            volumes.append(FieldFunctionsPass._compile_volumes(found[owner], place, owner, declarations))
         return tuple(volumes)
 
     @staticmethod
@@ -238,7 +240,8 @@ class FieldFunctionsPass(BasePass):
         drift = FieldFunctionsPass._with_symmetries(drift, symmetries)
         drift = FieldFunctionsPass._with_constraints(drift, constrained)
         if volumes or symmetries or constrained.size:
-            functions = replace(functions, drift=drift, accelerated=None)
+            sources = functions.drift if volumes else None
+            functions = replace(functions, drift=drift, sources=sources, accelerated=None)
         return functions, volumes, (constrained, fixed)
 
     @staticmethod
@@ -257,7 +260,7 @@ class FieldFunctionsPass(BasePass):
             error_msg = f'Two flux laws conserve the same state of {owner}. Give one flux per state.'
             raise ValidationError(error_msg)
         states = [SR.var(f'_volume_state_{index}') for index in range(len(names))]
-        parameters: dict[tuple[str, int, object], tuple[Expression, ReferenceSpec]] = {}
+        parameters: dict[tuple[str, int, object, int], tuple[Expression, ReferenceSpec]] = {}
         expressions = []
         for law, _, references in laws:
             components = list(law.flux) if isinstance(law.flux, FreeModuleElement | list | tuple) else [law.flux]
@@ -270,7 +273,7 @@ class FieldFunctionsPass(BasePass):
                 if reference.is_state and reference.entry.name in names and reference.source is ReadKind.MEMBER:
                     replacements[item] = states[names.index(reference.entry.name)]
                     continue
-                key = (reference.entry.name, reference.column, reference.source)
+                key = (reference.entry.name, reference.column, reference.source, id(reference.neighbor))
                 if key not in parameters:
                     parameters[key] = (SR.var(f'_volume_parameter_{len(parameters)}'), reference)
                 replacements[item] = parameters[key][0]
@@ -414,10 +417,121 @@ class FieldFunctionsPass(BasePass):
         return tuple(FieldFunctionsPass._function_of(printer.run(values).code_, owner) for values in found)
 
     @staticmethod
+    def _reads_along_axis(
+        drift: Expression,
+        symbols: Sequence[Expression],
+        parameters: Sequence[ReferenceSpec],
+        space: LatticeSpace,
+        axis: int,
+    ) -> bool:
+        """Check whether a drift reads a value that varies along its own axis, a coordinate or a field over position."""
+        own = next((name for name, index in getattr(space, 'class_axes_', {}).items() if index == axis), None)
+        found = [reference for item, reference in zip(symbols, parameters, strict=True) if item in drift.variables()]
+        return any(
+            reference.entry.name.endswith(f'.{COORDINATE_PREFIX}{own}')
+            or (
+                own is None
+                and reference.source is not ReadKind.SINGLE
+                and COORDINATE_PREFIX not in reference.entry.name
+            )
+            for reference in found
+        )
+
+    @staticmethod
+    def _linear_drifts(
+        columns: Sequence[tuple[Expression, ...]],
+        states: Sequence[Expression],
+        symbols: Sequence[Expression],
+        *,
+        parameters: Sequence[ReferenceSpec],
+        printer: ExpressionPrinter,
+        owner: str,
+        space: LatticeSpace,
+    ) -> tuple[Callable[..., object], ...]:
+        """Return one function per axis of the drift of every state, or none when a flux is not a linear drift.
+
+        Args:
+            columns:
+                The flux of every state, one column per dimension.
+
+            states:
+                The symbols of the conserved states.
+
+            symbols:
+                The symbols of the other values the fluxes read.
+
+            parameters:
+                The references of the other values the fluxes read.
+
+            printer:
+                The compiled printer of the states and the parameters.
+
+            owner:
+                The path of the field.
+
+            space:
+                The lattice of the field.
+
+        Returns:
+            drifts:
+                The functions, or an empty tuple.
+        """
+        functions = []
+        for axis, column in enumerate(columns):
+            drifts = [SR(flux).diff(state) for flux, state in zip(column, states, strict=True)]
+            linear = all(
+                not (set(states) & set(drift.variables()))
+                and (SR(flux) - drift * state).is_zero()
+                and not FieldFunctionsPass._reads_along_axis(drift, symbols, parameters, space, axis)
+                for flux, state, drift in zip(column, states, drifts, strict=True)
+            )
+            if not linear:
+                return ()
+            functions.append(FieldFunctionsPass._function_of(printer.run(drifts).code_, owner))
+        return tuple(functions)
+
+    @staticmethod
+    def _class_edges(space: LatticeSpace) -> tuple[str | None, ...]:
+        """Return the edges of every class axis of a phase space and `None` for its position axes, or nothing."""
+        if not isinstance(space, PhaseSpace):
+            return ()
+        return tuple(
+            None if axis in space.position_axes_ else space._axis_boundary(axis) for axis in range(space.n_dim_)
+        )
+
+    @staticmethod
+    def _parameter_reads(
+        parameters: Sequence[ReferenceSpec],
+        references: Mapping[Expression, ReferenceSpec],
+        declarations: DeclarationsSpec,
+        owner: str,
+    ) -> tuple[Callable[[float, Array, Array], object] | None, ...]:
+        """Return the function that reads every value of the fluxes held by no vector, such as a moment, else `None`."""
+        reader = LawKernel(
+            f'{owner} fluxes',
+            declarations.time,
+            references,
+            0,
+            LayoutSpec(tuple(declarations.states)),
+            layout_parameters=LayoutSpec(tuple(declarations.parameters)),
+            outputs=[],
+        )
+        symbols = {id(reference): item for item, reference in references.items()}
+
+        def read_of(item: Expression) -> Callable[[float, Array, Array], object]:
+            return lambda t, x, p: reader.read(item, t, x, p)
+
+        return tuple(
+            read_of(symbols[id(reference)]) if reference.source in {ReadKind.DERIVED, ReadKind.NEIGHBOR} else None
+            for reference in parameters
+        )
+
+    @staticmethod
     def _compile_volumes(
         laws: Sequence[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
         place: FieldElement,
         owner: str,
+        declarations: DeclarationsSpec,
     ) -> FiniteVolumeKernel:
         """Return the conservation laws of one finite-volume field.
 
@@ -431,6 +545,9 @@ class FieldFunctionsPass(BasePass):
 
             owner:
                 The path of the field.
+
+            declarations:
+                The layout of the problem.
 
         Returns:
             volumes:
@@ -476,6 +593,7 @@ class FieldFunctionsPass(BasePass):
                 found = [item.rhs() for item in solve(column[0].diff(states[0]) == 0, states[0])]
                 roots.append(FieldFunctionsPass._function_of(critical_printer.run(found).code_, owner))
             critical = tuple(roots)
+        references = {key: item for _, _, read in laws for key, item in read.items()}
         boundaries = tuple(
             (kind, float(SR(value)) if not callable(value) else 0.0)
             for kind, value in (
@@ -492,6 +610,17 @@ class FieldFunctionsPass(BasePass):
                 fluxes=fluxes,
                 jacobians=jacobians,
                 parameters=tuple(parameters),
+                reads=FieldFunctionsPass._parameter_reads(parameters, references, declarations, owner),
+                drifts=FieldFunctionsPass._linear_drifts(
+                    columns,
+                    states,
+                    symbols,
+                    parameters=parameters,
+                    printer=printer,
+                    owner=owner,
+                    space=space,
+                ),
+                edges=FieldFunctionsPass._class_edges(space),
                 limiter=first.limiter,
                 riemann=first.riemann,
                 critical=critical,

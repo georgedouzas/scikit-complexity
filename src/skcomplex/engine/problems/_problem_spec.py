@@ -161,6 +161,9 @@ class ProblemSpec(BaseProblemSpec):
         drift:
             The function `f(t, x, p)` that returns the time derivative or the drift.
 
+        sources:
+            The part of the drift without the flux differences of finite-volume fields, or `None` without fluxes.
+
         diffusion:
             The function `g(t, x, p)` that returns every noise amplitude, one per state and process it couples.
 
@@ -245,6 +248,7 @@ class ProblemSpec(BaseProblemSpec):
     jacobian: JacobianKernel | None = field(default=None, repr=False)
     unknowns: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     drift: VectorFunction | None = field(default=None, repr=False)
+    sources: VectorFunction | None = field(default=None, repr=False)
     diffusion: VectorFunction | None = field(default=None, repr=False)
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     noise_columns: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)

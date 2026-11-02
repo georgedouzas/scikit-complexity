@@ -16,8 +16,8 @@ from sklearn.base import clone
 from ...base import BaseConfig
 from ...core.elements import FieldElement, GroupElement
 from ...core.interactions import HyperedgeInteraction, NeighborInteraction, SatisfiabilityInteraction
-from ...core.laws import EncounterLaw, EquationLaw, JumpLaw, NoiseLaw, ProliferationLaw
-from ...core.laws.utils import hyperedges_in, neighborhoods_in, reductions_in
+from ...core.laws import CollisionLaw, EncounterLaw, EquationLaw, JumpLaw, NoiseLaw, ProliferationLaw
+from ...core.laws.utils import COORDINATE_PREFIX, hyperedges_in, neighborhoods_in, reductions_in
 from ...core.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
@@ -30,12 +30,14 @@ from ...core.spaces import (
     LatticeSpace,
     MeshSpace,
     NetworkSpace,
+    PhaseSpace,
     StaticTime,
 )
 from ...core.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ...core.system import System
 from ...errors import (
     ParameterError,
+    PhaseSpaceTooLargeError,
     PipelineError,
     SkcomplexError,
     SolverError,
@@ -77,6 +79,7 @@ from .passes._reduction_lowering import ReductionLowering
 _COVARIANCE_TOLERANCE = 1e-12
 _PROBABILITY_TOLERANCE = 1e-9
 _LISTED_ENCOUNTERS = 3
+_COLLISION_AXES = 2
 _TIME_CLASSES: dict[type, str] = {
     ContinuousTime: 'ContinuousTime()',
     DiscreteTime: 'DiscreteTime()',
@@ -411,6 +414,9 @@ class PassCompiler(BaseCompiler):
         compilation = self._new_compilation(system)
         try:
             self._run_passes(compilation, until='nodes')
+        except PhaseSpaceTooLargeError as error:
+            fix = 'Use fewer points on the axes of the phase space, or raise its limit.'
+            return None, [IssueSpec('space-size', system.label, str(error), fix, error=PhaseSpaceTooLargeError)]
         except SkcomplexError as error:
             fix = 'Pass elements, groups, interactions, and systems as children.'
             return None, [self._issue_of(error, system.label, 'structure', fix)]
@@ -456,6 +462,7 @@ class PassCompiler(BaseCompiler):
         issues += PassCompiler._neighborhood_issues(records, nodes)
         issues += PassCompiler._around_issues(records)
         issues += PassCompiler._nonlocal_issues(records, nodes)
+        issues += PassCompiler._coordinate_issues(records, nodes)
         issues += PassCompiler._space_issues(system, nodes)
         issues += LatticeProblemPass._schedule_issues(compilation)
         issues += ConservedNoisePass._conserved_issues(compilation)
@@ -795,7 +802,7 @@ class PassCompiler(BaseCompiler):
             law = record.law
             requires = law._get_requirements()
             name = f'{type(law).__name__} of {record.path}'
-            if requires.space and not isinstance(record.space, requires.space):
+            if requires.space and not isinstance(record.space, requires.space) and not isinstance(law, CollisionLaw):
                 lives = type(record.space).__name__ if record.space is not None else 'no space'
                 needs = PassCompiler._names(requires.space)
                 message = f'The {name} needs a {needs}, but the component lives on {lives}.'
@@ -987,6 +994,57 @@ class PassCompiler(BaseCompiler):
                 ]
                 found = [PassCompiler._operator_issue(record, call, fields, numbers) for call in calls]
                 issues += [issue for issue in found if issue is not None]
+        return issues
+
+    @staticmethod
+    def _held_axes(record: CensusRecordSpec, nodes: Mapping[str, NodeSpec]) -> list[str]:
+        """Return the class axes of the space of the group of a law and of the fields its interaction reads."""
+        spaces = [record.space]
+        node = nodes.get(record.path.rpartition('/')[0]) or nodes.get(record.path)
+        sources = getattr(node.component, 'sources', ()) if node is not None else ()
+        if node is not None and isinstance(sources, list | tuple):
+            found = [nodes.get(f'{node.scope}{label}') for label in sources]
+            spaces += [getattr(item.component, 'space', None) for item in found if item is not None]
+        return [axis.name for space in spaces if isinstance(space, PhaseSpace) for axis in space.axes]
+
+    @staticmethod
+    def _collision_issue(record: CensusRecordSpec) -> IssueSpec | None:
+        """Return the issue of a collision law on a phase space without two interval class axes, or `None`."""
+        space = record.space
+        if not isinstance(record.law, CollisionLaw):
+            return None
+        axes = space.axes if isinstance(space, PhaseSpace) else []
+        if len(axes) == _COLLISION_AXES and not any(axis.periodic for axis in axes):
+            return None
+        lives = type(space).__name__ if space is not None else 'no space'
+        message = f'The {PassCompiler._law_name(record)} needs two interval class axes, but the field lives on {lives}.'
+        fix = "Declare two interval axes, each an `AxisSpec(name, size, low, high)`, such as 'vx' and 'vy'."
+        return IssueSpec('law-space', record.path, message, fix)
+
+    @staticmethod
+    def _coordinate_issues(records: list[CensusRecordSpec], nodes: list[NodeSpec]) -> list[IssueSpec]:
+        """Return the coordinates and the reductions over axes of laws whose group is not on a phase space with them."""
+        by_path = {node.path: node for node in nodes}
+        issues = [issue for record in records if (issue := PassCompiler._collision_issue(record)) is not None]
+        for record in records:
+            names = {
+                str(item).removeprefix(COORDINATE_PREFIX)
+                for value in record.law._get_values(include=('value', 'flux', 'rate', 'transition', 'outcomes'))
+                if isinstance(value, Expression)
+                for item in value.variables()
+                if str(item).startswith(COORDINATE_PREFIX)
+            }
+            held = PassCompiler._held_axes(record, by_path)
+            missing = sorted(names - set(held))
+            if missing:
+                law = PassCompiler._law_name(record)
+                lives = type(record.space).__name__ if record.space is not None else 'no space'
+                message = (
+                    f'The {law} reads the class axes {", ".join(missing)}, but the component lives on {lives}, '
+                    f'whose class axes are {held}.'
+                )
+                fix = f'Give the field a `PhaseSpace` with the axes {", ".join(missing)}, or read one of its axes.'
+                issues.append(IssueSpec('law-space', record.path, message, fix))
         return issues
 
     @staticmethod

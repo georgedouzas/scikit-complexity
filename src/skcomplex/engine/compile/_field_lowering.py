@@ -12,6 +12,7 @@ import numpy as np
 import numpy.typing as npt
 import scipy.fft
 from sage.all__sagemath_symbolics import SR, Expression
+from sage.modules.free_module_element import FreeModuleElement
 from scipy.ndimage import convolve, map_coordinates
 from scipy.signal import oaconvolve
 from scipy.sparse import csr_matrix, diags, identity
@@ -20,21 +21,43 @@ from skfem import Basis, ElementTetP1, ElementTriP1, asm
 from skfem.models.poisson import laplace, mass
 
 from ...core.elements import FieldElement
-from ...core.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, UpdateLaw
-from ...core.laws.utils import INVERSION_BOUNDARIES, displacement, where
-from ...core.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, MeshSpace, NetworkSpace
+from ...core.laws import BaseLaw, BoundaryLaw, CollisionLaw, FluxLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...core.laws.utils import COORDINATE_PREFIX, INVERSION_BOUNDARIES, displacement, where
+from ...core.spaces import (
+    AdjacencyNeighborhood,
+    LatticeNeighborhood,
+    LatticeSpace,
+    MeshSpace,
+    NetworkSpace,
+    PhaseSpace,
+)
 from ...errors import ValidationError
-from ...specs import NeighborReadSpec
+from ...specs import NeighborReadSpec, RunStateSpec
 from ...types import Indices, IntTuple
 from .._utils import domain_of, symbol
 from ..problems import DeclarationsSpec, DiffusiveLimitSpec, ExpressionPrinter, KernelSpec, ReferenceSpec
+from ..problems._collision_kernel import CollisionKernel
 from ..problems._field_operator_kernel import FieldOperatorKernel
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
 from ..types import ReadKind
 from ._base import BaseLowering, BasePass
 from ._compilation import Compilation
 
-OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_helmholtz', 'convolve', 'shifted')
+OPERATOR_NAMES = (
+    'laplacian',
+    'partial',
+    'upwind',
+    'inverse_helmholtz',
+    'convolve',
+    'shifted',
+    'reduce_axes',
+    'maximum_entropy',
+    'collision',
+)
+PHASE_OPERATOR_NAMES = ('reduce_axes', 'maximum_entropy', 'collision')
+NEWTON_STEPS = 50
+NEWTON_TOLERANCE = 1e-14
+LARGEST_EXPONENT_CHANGE = 5.0
 TIME = symbol('t')
 PLANE = 2
 SMALL_KERNEL = 7
@@ -81,6 +104,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
 
         solution_boundaries_:
             The boundary condition given to an inversion, by the symbol of its solution.
+
+        cross_section_:
+            The cross-section of the collision law being lowered, or `None`.
     """
 
     fields_: Mapping[str, FieldElement]
@@ -92,6 +118,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
     written_: dict[tuple[str, int], list[tuple[Expression, Expression]]]
     tables_: dict[tuple[object, ...], tuple[Indices, float | None]]
     solution_boundaries_: dict[Expression, tuple[str, object]]
+    cross_section_: Callable[..., object] | None
 
     def __init__(self, spec: KernelSpec) -> None:
         self.spec = spec
@@ -117,6 +144,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         self.shifted_, self.derived_, self.tables_, self.solution_boundaries_ = {}, {}, {}, {}
         self.limits_, self.volume_limits_ = [], []
         self.written_ = defaultdict(list)
+        self.cross_section_ = None
 
     def _run(self, inputs: list[BaseLaw] | None) -> None:
         """Set laws whose differential operators are lowered, noting the stable steps of rate laws.
@@ -127,16 +155,21 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         """
         result: list[BaseLaw] = []
         for law in inputs or []:
+            if isinstance(law, FluxLaw) and self._law_has_operators(law):
+                result.append(BasePass._replaced(law, flux=[self._lower(SR(item)) for item in self._components(law)]))
+                continue
             if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw) or not self._has_operators(law.value):
                 result.append(law)
                 continue
             if isinstance(law, RateLaw):
                 self._note_limit(law.value)
+            self.cross_section_ = law.cross_section if isinstance(law, CollisionLaw) else None
             lowered = self._lower(law.value)
             if isinstance(law.value, Expression):
                 for reference in self.spec._target_references(law._get_targets()[0]):
                     self.written_[(reference.entry.name, reference.column)].append((lowered, law.value))
-            result.append(BasePass._replaced(law, value=lowered))
+            collided = RateLaw(law.target, lowered, label=law.label) if isinstance(law, CollisionLaw) else None
+            result.append(collided or BasePass._replaced(law, value=lowered))
         self.lowered_ = result
 
     @staticmethod
@@ -200,7 +233,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         item: Expression,
         place: FieldElement,
         offset: IntTuple | int,
-    ) -> tuple[Indices, float | None, int]:
+    ) -> tuple[Indices, float | None, int | None]:
         """Return the neighbour table, the fixed value, and the mode of a symbol at an offset."""
         reference = self._known_reference(item)
         variable = reference.entry.name.rpartition('.')[2]
@@ -225,12 +258,11 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
                         'lattice with a number outside fixed edges.'
                     )
                     raise ValidationError(error_msg)
-                dimensions = space.shape_
-                lattice = LatticeSpace(dimensions, boundary=LATTICE_BOUNDARIES[kind], fill=value).check().prepare()
+                lattice = space._with_edges(LATTICE_BOUNDARIES[kind], value)
                 table = lattice._index_table(LatticeNeighborhood((offset,)))[:, 0]
                 self.tables_[key] = (table, value if kind == 'fixed' else None)
         table, ghost = self.tables_[key]
-        return table, ghost, MODES[kind]
+        return table, ghost, self._read_mode(place.space, kind, offset)
 
     def _shift(self, expression: Expression, offset: IntTuple | int) -> Expression:
         """Return an expression read at a neighbouring site of every member.
@@ -253,8 +285,15 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             if base in self.derived_:
                 replacements[item] = self._shifted_derived(base, self._total_offset(current, offset))
                 continue
-            if self._reference_of(base, self.spec) is None:
+            reference = self._reference_of(base, self.spec)
+            if reference is None:
                 continue
+            if reference.source is ReadKind.NEIGHBOR and base == item and base not in self.shifted_:
+                error_msg = (
+                    f'A law of {self.spec.owner} differentiates {base}, a field over position read on a phase space, '
+                    'by a stencil. Use the finite-volume discretization, whose fluxes read it cell by cell.'
+                )
+                raise ValidationError(error_msg)
             place = self._field_of(base)
             if place is None:
                 continue
@@ -268,12 +307,13 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
                 reference = self._known_reference(base)
                 table, ghost, mode = self._table(base, place, total)
                 space = place.space
+                lattice = space if isinstance(space, LatticeSpace) and mode is not None else None
                 read = NeighborReadSpec(
                     table,
                     ghost,
-                    space.shape_ if isinstance(space, LatticeSpace) else None,
-                    total if isinstance(space, LatticeSpace) and not isinstance(total, int) else None,
-                    mode,
+                    None if lattice is None else lattice.shape_,
+                    total if lattice is not None and not isinstance(total, int) else None,
+                    mode or 0,
                 )
                 self._add_reference(
                     self.spec,
@@ -283,6 +323,17 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
                 self.shifted_[target] = (base, total)
             replacements[item] = target
         return expression.subs(replacements)
+
+    def _read_mode(self, space: object, kind: str, offset: IntTuple | int) -> int | None:
+        """Return the mode of the edges a read at an offset crosses, or `None` when it crosses edges of two kinds."""
+        if not isinstance(space, PhaseSpace) or isinstance(offset, int):
+            return MODES[kind]
+        kinds = {
+            kind if axis < len(space.position_axes_) else ('periodic' if edges == 'periodic' else 'zero-flux')
+            for axis, edges in enumerate(space._axis_boundary(axis) for axis in range(space.n_dim_))
+            if offset[axis]
+        }
+        return MODES[kinds.pop() if kinds else kind] if len(kinds) < PLANE else None
 
     def _total_offset(self, current: IntTuple | int | None, offset: IntTuple | int) -> IntTuple | int:
         """Return the offset of a read at an offset from a read that is already shifted."""
@@ -337,7 +388,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
                 'or a network with a number outside fixed edges.'
             )
             raise ValidationError(error_msg)
-        lattice = LatticeSpace(space.shape_, boundary=LATTICE_BOUNDARIES[kind], fill=value).check().prepare()
+        lattice = space._with_edges(LATTICE_BOUNDARIES[kind], value)
         return np.asarray(lattice._index_table(LatticeNeighborhood((offset,)))[:, 0], dtype=np.intp)
 
     def _shifted_derived(self, base: Expression, total: IntTuple | int) -> Expression:
@@ -462,14 +513,95 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         operator = call.operator()
         operands = [self._lower(item) for item in call.operands()]
         name = getattr(operator, 'name', lambda: '')()
-        if name not in OPERATOR_NAMES:
-            return operator(*operands)
+        return operator(*operands) if name not in OPERATOR_NAMES else self._lowered_call(name, operands)
+
+    def _lowered_call(self, name: str, operands: list[object]) -> Expression:
+        """Return the value of one operator whose operands are lowered."""
         if name == 'shifted':
             return self._shifted(SR(operands[0]), [SR(item) for item in operands[1:]])
+        if name in {'laplacian', 'partial', 'upwind'} and not SR(operands[0]).variables():
+            return SR(0)
         place = self._place(SR(operands[0]))
+        if name in PHASE_OPERATOR_NAMES:
+            return self._phase_operator(name, [SR(item) for item in operands], place)
         if name == 'convolve':
             return self._convolve(SR(operands[0]), SR(operands[1]), SR(operands[2]), place)
         return self._discretized(name, operands, place)
+
+    def _phase_operator(self, name: str, operands: list[Expression], place: FieldElement) -> Expression:
+        """Return the value of an operator over the class axes of a phase space."""
+        if name == 'reduce_axes':
+            return self._reduced(operands[0], operands[1:], place)
+        if name == 'maximum_entropy':
+            return self._equilibrium(operands[0], int(operands[1]), operands[2:], place)
+        return self._collision(operands[0], place)
+
+    def _phase_space(self, operand: Expression, place: FieldElement) -> PhaseSpace:
+        """Return the phase space of a field whose class axes an operator reads, raising an error for another space."""
+        if not isinstance(place.space, PhaseSpace):
+            error_msg = (
+                f'A law of {self.spec.owner} reduces {operand} over class axes, but its field lives on '
+                f'{type(place.space).__name__}. Give the field a `PhaseSpace`.'
+            )
+            raise ValidationError(error_msg)
+        return place.space
+
+    def _axes_of(self, coordinates: list[Expression], space: PhaseSpace) -> tuple[int, ...]:
+        """Return the indices of the class axes of their coordinates, raising an error for an axis the space lacks."""
+        names = [str(item).removeprefix(COORDINATE_PREFIX) for item in coordinates]
+        missing = [name for name in names if name not in space.class_axes_]
+        if missing:
+            error_msg = (
+                f'A law of {self.spec.owner} reads the class axes {missing}, but the phase space holds the axes '
+                f'{list(space.class_axes_)}.'
+            )
+            raise ValidationError(error_msg)
+        return tuple(space.class_axes_[name] for name in names)
+
+    def _reduced(self, operand: Expression, coordinates: list[Expression], place: FieldElement) -> Expression:
+        """Return the symbol of the integral of an expression over class axes, broadcast back along them."""
+        space = self._phase_space(operand, place)
+        axes = self._axes_of(coordinates, space)
+        width = float(np.prod([space.spacings_[axis] for axis in axes]))
+        dimensions = space.shape_
+
+        over_positions = self.spec.rows == space.position_size_ != space.size_
+
+        def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+            reduced = np.reshape(values, dimensions).sum(axis=axes, keepdims=True) * width
+            return reduced.ravel() if over_positions else np.broadcast_to(reduced, dimensions).ravel()
+
+        read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply)
+        return self._derived(place, read.check().prepare())
+
+    def _equilibrium(
+        self,
+        operand: Expression,
+        order: int,
+        coordinates: list[Expression],
+        place: FieldElement,
+    ) -> Expression:
+        """Return the symbol of the density with the largest entropy and the moments of an expression."""
+        space = self._phase_space(operand, place)
+        apply = self._equilibrium_apply(space, self._axes_of(coordinates, space), order)
+        read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply)
+        return self._derived(place, read.check().prepare())
+
+    def _collision(self, operand: Expression, place: FieldElement) -> Expression:
+        """Return the symbol of the binary collision integral of a density over the class axes of its phase space."""
+        space = self._phase_space(operand, place)
+        if self.cross_section_ is None:
+            error_msg = f'A law of {self.spec.owner} reads a collision integral, which only a `CollisionLaw` declares.'
+            raise ValidationError(error_msg)
+        spacings = (space.spacings_[-PLANE], space.spacings_[-1])
+        kernel = CollisionKernel(space.shape_, spacings, self.cross_section_).check().prepare()
+        empty = np.zeros(0)
+
+        def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+            return kernel.run(RunStateSpec(0.0, values, empty)).values_
+
+        read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply)
+        return self._derived(place, read.check().prepare())
 
     def _discretized(self, name: str, operands: list[object], place: FieldElement) -> Expression:
         """Return a local operator or an inversion lowered for the discretization of its field."""
@@ -529,7 +661,20 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             error_msg = f'A law of {self.spec.owner} takes a derivative along axis {axis} of a {space.n_dim_}D lattice.'
             raise ValidationError(error_msg)
         screening = self._screening(SR(operands[1])) if name == 'inverse_helmholtz' else 0.0
-        multiplier = self._spectral_multiplier(name, axis, space.shape_, space.spacings_, screening)
+        if isinstance(space, PhaseSpace) and name == 'partial' and space._axis_boundary(axis) != 'periodic':
+            error_msg = (
+                f'A law of {self.spec.owner} takes a spectral derivative along axis {axis}, which is an interval. Use '
+                'a periodic class axis or the finite-volume discretization.'
+            )
+            raise ValidationError(error_msg)
+        multiplier = self._spectral_multiplier(
+            name,
+            axis,
+            space.shape_,
+            space.spacings_,
+            screening,
+            axes=self._transported_axes(space, name),
+        )
         return self._multiplied(SR(operands[0]), multiplier, place)
 
     def _multiplied(
@@ -631,6 +776,9 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             apply = self._mesh_inverse(space, screening, kind, value)
         elif isinstance(space, NetworkSpace):
             apply = self._network_inverse(space, screening)
+        elif isinstance(space, PhaseSpace) and (kind != 'fixed' or isinstance(value, float)):
+            fill = float(value) if isinstance(value, float) else 0.0
+            apply = self._over_positions(space, self._lattice_inverse(space.position, screening, kind, fill))
         elif isinstance(space, LatticeSpace) and (kind != 'fixed' or isinstance(value, float)):
             apply = self._lattice_inverse(space, screening, kind, float(value) if isinstance(value, float) else 0.0)
         else:
@@ -881,6 +1029,171 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             if magnitude == 0:
                 continue
             self.limits_.append(1 / (stiffness * magnitude))
+
+    @staticmethod
+    def _basis(space: PhaseSpace, axes: tuple[int, ...], order: int) -> npt.NDArray[np.float64]:
+        """Return the functions whose moments an equilibrium keeps at every class, one column per function.
+
+        Args:
+            space:
+                The phase space.
+
+            axes:
+                The indices of the class axes of the equilibrium.
+
+            order:
+                The highest order of the moments, 0, 1, or 2.
+
+        Returns:
+            basis:
+                The value 1, the coordinates for an order above 0, and their squared length for the order 2.
+        """
+        names = {index: name for name, index in space.class_axes_.items()}
+        grids = np.meshgrid(*(space.coordinates_[names[axis]] for axis in axes), indexing='ij')
+        points = [grid.ravel() for grid in grids]
+        columns = [np.ones(points[0].size)]
+        if order >= 1:
+            columns += points
+        if order == PLANE:
+            columns.append(sum(point**2 for point in points))
+        return np.column_stack(columns)
+
+    @staticmethod
+    def _newton(
+        basis: npt.NDArray[np.float64],
+        moments: npt.NDArray[np.float64],
+        width: float,
+        guess: npt.NDArray[np.float64],
+    ) -> npt.NDArray[np.float64]:
+        """Return the exponents of the densities `exp(basis @ a)` of the given discrete moments, by damped Newton steps.
+
+        Args:
+            basis:
+                The functions at every class, one column per function.
+
+            moments:
+                The discrete moments of every density, one row per density.
+
+            width:
+                The volume of a cell of the class axes.
+
+            guess:
+                The exponents to start from, one row per density.
+
+        Returns:
+            exponents:
+                The exponents, one row per density.
+        """
+        exponents = guess.copy()
+        scale = np.maximum(np.abs(moments).max(axis=1, keepdims=True), 1.0)
+        for _ in range(NEWTON_STEPS):
+            density = np.exp(exponents @ basis.T)
+            error = width * density @ basis - moments
+            if np.abs(error / scale).max() <= NEWTON_TOLERANCE:
+                break
+            hessian = width * np.einsum('ij,jk,jl->ikl', density, basis, basis, optimize=True)
+            step = np.linalg.solve(hessian, -error[..., None])[..., 0]
+            largest = np.abs(step @ basis.T).max(axis=1, keepdims=True)
+            exponents += step * np.minimum(1.0, LARGEST_EXPONENT_CHANGE / np.maximum(largest, 1e-300))
+        return exponents
+
+    @staticmethod
+    def _equilibrium_apply(
+        space: PhaseSpace,
+        axes: tuple[int, ...],
+        order: int,
+    ) -> Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
+        """Return the function of the values of a density to its maximum-entropy equilibrium at every position.
+
+        Args:
+            space:
+                The phase space.
+
+            axes:
+                The indices of the class axes of the equilibrium.
+
+            order:
+                The highest order of the moments that are kept.
+
+        Returns:
+            apply:
+                The function of the values at every site.
+        """
+        basis = FieldLowering._basis(space, axes, order)
+        width = float(np.prod([space.spacings_[axis] for axis in axes]))
+        moved = tuple(range(space.n_dim_ - len(axes), space.n_dim_))
+        dimension = len(axes)
+
+        def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+            grid = np.moveaxis(np.reshape(values, space.shape_), axes, moved)
+            shape = grid.shape
+            rows = grid.reshape(-1, basis.shape[0])
+            moments = width * rows @ basis
+            total = moments[:, 0]
+            filled = total > 0
+            result = np.zeros(rows.shape)
+            if filled.any():
+                guess = FieldLowering._equilibrium_guess(moments[filled], width, basis.shape[0], dimension)
+                exponents = FieldLowering._newton(basis, moments[filled], width, guess)
+                result[filled] = np.exp(exponents @ basis.T)
+            return np.moveaxis(result.reshape(shape), moved, axes).ravel()
+
+        return apply
+
+    @staticmethod
+    def _equilibrium_guess(
+        moments: npt.NDArray[np.float64],
+        width: float,
+        classes: int,
+        dimension: int,
+    ) -> npt.NDArray[np.float64]:
+        """Return the exponents of the continuous Maxwellian of given moments, or a uniform density below order 2."""
+        guess = np.zeros(moments.shape)
+        total = moments[:, 0]
+        if moments.shape[1] == dimension + PLANE:
+            mean = moments[:, 1:-1] / total[:, None]
+            squared = np.sum(mean**2, axis=1)
+            temperature = np.maximum((moments[:, -1] / total - squared) / dimension, width ** (2 / dimension))
+            guess[:, 0] = np.log(total) - dimension * np.log(2 * np.pi * temperature) / 2 - squared / (2 * temperature)
+            guess[:, 1:-1] = mean / temperature[:, None]
+            guess[:, -1] = -1 / (2 * temperature)
+            return guess
+        guess[:, 0] = np.log(total / (classes * width))
+        return guess
+
+    @staticmethod
+    def _components(law: FluxLaw) -> list[object]:
+        """Return the flux of every dimension of a flux law."""
+        return list(law.flux) if isinstance(law.flux, FreeModuleElement | list | tuple) else [law.flux]
+
+    @staticmethod
+    def _law_has_operators(law: BaseLaw) -> bool:
+        """Check whether the value of a law, or a flux of a flux law, applies a differential operator."""
+        if isinstance(law, FluxLaw):
+            return any(FieldLowering._has_operators(SR(item)) for item in FieldLowering._components(law))
+        return FieldLowering._has_operators(getattr(law, 'value', None))
+
+    @staticmethod
+    def _over_positions(
+        space: PhaseSpace,
+        apply: Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]],
+    ) -> Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
+        """Return an operator of the position lattice on values over the phase space that do not vary with class."""
+        classes = space.size_ // space.position_size_
+
+        def over(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+            return np.repeat(apply(np.reshape(values, (space.position_size_, classes))[:, 0]), classes)
+
+        return over
+
+    @staticmethod
+    def _transported_axes(space: LatticeSpace, name: str) -> tuple[int, ...] | None:
+        """Return the axes a spectral operator of a phase space acts along, or `None` for all of them on a lattice."""
+        if not isinstance(space, PhaseSpace):
+            return None
+        if name == 'inverse_helmholtz':
+            return space.position_axes_
+        return tuple(axis for axis in range(space.n_dim_) if space._axis_boundary(axis) == 'periodic')
 
     @staticmethod
     def _tag(offset: IntTuple | int) -> str:
@@ -1210,11 +1523,12 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
 
         Returns:
             found:
-                Whether it calls `laplacian`, `partial`, `upwind`, `inverse_helmholtz`, `convolve`, or `shifted`.
+                Whether it calls one of `OPERATOR_NAMES`.
         """
         if not isinstance(expression, Expression):
             return False
-        return bool(re.search(r'\b(laplacian|partial|upwind|inverse_helmholtz|convolve|shifted)\(', str(expression)))
+        names = '|'.join(OPERATOR_NAMES)
+        return bool(re.search(rf'\b({names})\(', str(expression)))
 
     @staticmethod
     @functools.cache
@@ -1288,6 +1602,8 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         dimensions: tuple[int, ...],
         spacings: tuple[float, ...],
         screening: float = 0.0,
+        *,
+        axes: tuple[int, ...] | None = None,
     ) -> npt.NDArray[np.complex128]:
         """Return the Fourier multiplier of an operator on a periodic lattice.
 
@@ -1311,12 +1627,15 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             screening:
                 The screening of the inverse Helmholtz operator.
 
+            axes:
+                The axes the operator acts along, whose modes the two-thirds rule alone cuts, or `None` for every axis.
+
         Returns:
             multiplier:
                 The factor of every real Fourier mode.
         """
         waves = FieldLowering._wavenumbers(dimensions, spacings)
-        squared = np.sum([wave**2 for wave in waves], axis=0)
+        squared = np.sum([waves[item] ** 2 for item in (range(len(waves)) if axes is None else axes)], axis=0)
         if name == 'laplacian':
             return -squared.astype(complex)
         if name == 'inverse_helmholtz':
@@ -1326,4 +1645,6 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         if dimensions[axis] % 2 == 0:
             nyquist = np.isclose(np.abs(waves[axis]), np.pi / spacings[axis])
             factor = np.where(nyquist, 0.0, factor)
-        return np.where(FieldLowering._dealiasing_mask(dimensions), factor, 0.0)
+        if axes is None:
+            return np.where(FieldLowering._dealiasing_mask(dimensions), factor, 0.0)
+        return np.where(np.abs(waves[axis]) * spacings[axis] < 2 * np.pi / 3, factor, 0.0)
