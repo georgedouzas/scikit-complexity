@@ -177,6 +177,20 @@ class TopologyKernel(BaseKernel):
         )
         return network.snapshot(p, layer)
 
+    @property
+    def variable_names(self) -> frozenset[str]:
+        """Dotted names of the states and parameters of the variable groups, whose rows hold no fixed member."""
+        return frozenset(
+            entry.name
+            for network in self.networks
+            for group in (
+                *network.nodes,
+                *network.edges.values(),
+                *(() if network.hyperedges is None else (network.hyperedges,)),
+            )
+            for entry, _ in group.variables.values()
+        )
+
     def presence(self, name: str, p: Array) -> npt.NDArray[np.bool_] | None:
         """Return whether every row of the group of a variable holds a member, or `None` for a fixed group.
 
