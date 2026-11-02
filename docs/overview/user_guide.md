@@ -1853,6 +1853,7 @@ from skcomplex.core.interactions import EulerLagrangeInteraction
 from skcomplex.core.laws.utils import derivative
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -1939,6 +1940,7 @@ from skcomplex.core.interactions import AdvectionInteraction, ConservationIntera
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -1977,6 +1979,7 @@ from skcomplex.core.interactions import MapInteraction
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2003,6 +2006,7 @@ from skcomplex.core.interactions import SignAdjustmentInteraction
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2167,8 +2171,8 @@ print(round(float(Simulation(sir, dt=1.0).check().prepare().run(until=50).trajec
 `TransitionInteraction(target, state, source, destination, rate=None, probability=None, condition=None, matrix=None,
 ...)` moves a discrete state from a value, a set of values, or the values a function accepts, to another value: at a
 rate, with a probability per step, when a condition holds, by a transition or an emission matrix, and after a
-residence time (`after`). `SpreadingInteraction(target, state, beta, gamma, omega)` is the transition of an active
-value along edges, with recovery and return.
+residence time (`after`). `SpreadingInteraction(target, state, beta, gamma, omega)` of
+`skcomplex.models.biology.epidemiology` is its subclass for an active value along edges, with recovery and return.
 
 ```python
 from typing import Annotated
@@ -2177,10 +2181,11 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
-from skcomplex.core.interactions import SpreadingInteraction, TransitionInteraction
+from skcomplex.core.interactions import TransitionInteraction
 from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2242,6 +2247,7 @@ from skcomplex.core.interactions import CrossingInteraction, ImpulseInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2275,6 +2281,7 @@ from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2324,6 +2331,7 @@ from skcomplex.core.interactions import MapInteraction, MovementInteraction
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2359,6 +2367,7 @@ from skcomplex.core.laws.utils import mean
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2390,6 +2399,7 @@ from skcomplex.core.interactions import ImitationInteraction
 from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2417,6 +2427,7 @@ from skcomplex.core.interactions import ReinforcementInteraction
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2520,6 +2531,7 @@ from skcomplex.core.elements import Element
 from skcomplex.core.interactions import TransferInteraction
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2554,6 +2566,7 @@ from skcomplex.core.laws.utils import bernoulli
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2589,6 +2602,7 @@ from skcomplex.core.interactions import LifeCycleInteraction
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2614,6 +2628,7 @@ from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import GroupingInteraction
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2740,6 +2755,7 @@ from skcomplex.models.physics.common.fields import corotational
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2923,6 +2939,7 @@ from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -3858,6 +3875,7 @@ from skcomplex.core.laws.utils import mean, where
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -3938,6 +3956,7 @@ from skcomplex.core.spaces import NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -4875,6 +4894,7 @@ from skcomplex.core.interactions import CouplingInteraction
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 

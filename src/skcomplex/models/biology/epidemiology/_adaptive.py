@@ -10,7 +10,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.elements import Element, GroupElement, LatticeElement
-from ....core.interactions import SpreadingInteraction, TopologyInteraction, TransitionInteraction
+from ....core.interactions import TopologyInteraction, TransitionInteraction
 from ....core.laws.utils import neighbors
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
@@ -19,6 +19,7 @@ from ..._catalog import register_model
 from ._active_host import ActiveHostElement
 from ._carrier import CarrierElement
 from ._host import HostElement
+from ._spreading import SpreadingInteraction
 
 HIDDEN = VisualSpec('sites', {'states': []})
 

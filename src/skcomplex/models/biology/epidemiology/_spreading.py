@@ -9,12 +9,12 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ...errors import ValidationError
-from ...specs import ParameterSpec, RoleSpec
-from ..laws import BaseLaw
-from ..laws.utils import neighbors, where
-from ..spaces import AdjacencyNeighborhood
-from ._transition import TransitionInteraction
+from ....core.interactions import TransitionInteraction
+from ....core.laws import BaseLaw
+from ....core.laws.utils import neighbors, where
+from ....core.spaces import AdjacencyNeighborhood
+from ....errors import ValidationError
+from ....specs import ParameterSpec, RoleSpec
 
 FORMS = ('number', 'fraction')
 
@@ -68,7 +68,7 @@ class SpreadingInteraction(TransitionInteraction):
             The form is unknown, or the values of the state are not distinct.
 
     Examples:
-        >>> from skcomplex.core.interactions import SpreadingInteraction
+        >>> from skcomplex.models.biology.epidemiology import SpreadingInteraction
         >>> spreading = SpreadingInteraction('spreading', target='sites', beta=2.0, gamma=1.0, form='fraction')
         >>> spreading.check().form
         'fraction'

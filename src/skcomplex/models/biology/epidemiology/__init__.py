@@ -14,6 +14,7 @@ from ._outbreaks import ImmunizingDegreeClassElement, heterogeneous_mean_field_s
 from ._person import PersonElement
 from ._recovery import RecoveryInteraction
 from ._recurrent import EpidemicCenterElement, delayed_sirs
+from ._spreading import SpreadingInteraction
 from ._subpopulation import SubpopulationElement
 from ._traveller import TravellerElement
 from ._vaccination import VaccinatedPopulationElement, sir_vaccination
@@ -30,6 +31,7 @@ __all__: list[str] = [
     'InfectionInteraction',
     'PersonElement',
     'RecoveryInteraction',
+    'SpreadingInteraction',
     'SubpopulationElement',
     'TravellerElement',
     'VaccinatedPopulationElement',

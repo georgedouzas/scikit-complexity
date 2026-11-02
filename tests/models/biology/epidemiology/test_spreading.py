@@ -1,4 +1,4 @@
-"""Test the `_spreading` module of `skcomplex.core.interactions`."""
+"""Test the `_spreading` module of `skcomplex.models.biology.epidemiology`."""
 
 from typing import Annotated
 
@@ -7,11 +7,12 @@ import numpy as np
 import pytest
 
 from skcomplex.core.elements import Element, LatticeElement
-from skcomplex.core.interactions import SpreadingInteraction, TransitionInteraction
+from skcomplex.core.interactions import TransitionInteraction
 from skcomplex.core.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
+from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec, VisualSpec
 
 SIDE = 20
