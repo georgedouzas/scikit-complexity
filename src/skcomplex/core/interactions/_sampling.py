@@ -7,7 +7,7 @@ from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import oo
+from sage.all__sagemath_symbolics import SR, Expression, oo
 from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
@@ -71,6 +71,9 @@ class SamplingInteraction(Interaction):
         width:
             The largest change of a rotation, or the standard deviation of a Gaussian move.
 
+        cooling:
+            The function of the time symbol that multiplies the temperature, or `None` for a constant temperature.
+
     Raises:
         ValidationError:
             The move, the rule, or the schedule is unknown, or the energy is not callable.
@@ -111,6 +114,7 @@ class SamplingInteraction(Interaction):
         neighborhood: BaseNeighborhood | None = None,
         values: Sequence[float] = (),
         width: float = 1.0,
+        cooling: Callable[[Expression], object] | None = None,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -123,6 +127,7 @@ class SamplingInteraction(Interaction):
         self.neighborhood = neighborhood
         self.values = values
         self.width = width
+        self.cooling = cooling
 
     def _get_move(self, target: object) -> MoveSpec:
         """Return the spec of the move of a state."""
@@ -135,9 +140,12 @@ class SamplingInteraction(Interaction):
 
         Raises:
             ValidationError:
-                The move, the rule, or the schedule is unknown, or the energy is not callable.
+                The move, the rule, or the schedule is unknown, or the energy or the cooling is not callable.
         """
         super()._check()
+        if self.cooling is not None and not callable(self.cooling):
+            error_msg = f'The cooling of sampling {self.label!r} must be a function of the time symbol.'
+            raise ValidationError(error_msg)
         self._check_variant('move', self.move, MOVES, functions=True)
         if not callable(self.energy):
             error_msg = f'The energy of sampling {self.label!r} must be a function of the namespace.'
@@ -158,5 +166,8 @@ class SamplingInteraction(Interaction):
         over = VonNeumannNeighborhood() if self.neighborhood is None else self.neighborhood
         target = getattr(self._get_member(namespace, 'target'), self.state)
         energy = EnergySpec(self.energy(namespace), over)
-        sampler = SamplerSpec(self.rule, self._get_parameter_symbol('temperature', namespace), self.schedule)
+        temperature = self._get_parameter_symbol('temperature', namespace)
+        if self.cooling is not None:
+            temperature = SR(temperature) * SR(self.cooling(namespace.t))
+        sampler = SamplerSpec(self.rule, temperature, self.schedule)
         return [SampleLaw(energy, self._get_move(target), sampler, label=self.label)]

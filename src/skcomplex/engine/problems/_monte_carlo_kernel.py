@@ -115,7 +115,7 @@ class MonteCarloKernel(BaseKernel):
     def _temperature_of(self, keywords: Mapping[str, object]) -> Array:
         """Return the temperature at some sites, after checking that it is positive."""
         temperature = np.asarray(
-            ExpressionPrinter._values_of(self.temperature(0.0, *keywords.values()))[0],
+            ExpressionPrinter._values_of(self.temperature(self.time_, *keywords.values()))[0],
             dtype=float,
         )
         if np.any(temperature <= 0):
@@ -195,6 +195,7 @@ class MonteCarloKernel(BaseKernel):
         self.values_ = None
         state = self._state_of(inputs)
         x, p, rng = state.x, state.p, self._generator_of(state)
+        self.time_ = state.t
         size = self.target.size
         if self.move.kind == 'cluster':
             flipped = 0

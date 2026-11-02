@@ -1,5 +1,6 @@
 """Test the `_sampling` module of `skcomplex.core.interactions`."""
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
@@ -8,7 +9,7 @@ import pytest
 from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.interactions import SamplingInteraction
 from skcomplex.core.laws.utils import neighbors
-from skcomplex.core.spaces import DiscreteTime, LatticeSpace
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
@@ -151,3 +152,49 @@ def test_check_rejects_moves_rules_and_energies_it_cannot_take(arguments, match)
     """Test that an unknown move, rule, or schedule, or an energy that is not a function, raise errors."""
     with pytest.raises(ValidationError, match=match):
         SamplingInteraction('sampling', target='sites', state='s', **arguments).check()
+
+
+class CandidateElement(Element):
+    """Candidate with a real value."""
+
+    def __init__(self, label: str, x: Annotated[float, StateSpec()] = 3.0) -> None:
+        super().__init__(label)
+        self.x = x
+
+
+def _quadratic_energy(s: SimpleNamespace) -> object:
+    """Return the energy of a candidate, which reads no neighbours."""
+    return s.target.x**2
+
+
+def _geometric(t: object) -> object:
+    """Return the factor that falls geometrically to 1e-3 of its start in 500 steps."""
+    return (1e-3) ** (t / 500)
+
+
+def test_run_cooling_reduces_accepted_moves() -> None:
+    """Test that cooling lowers the energy and the share of proposals accepted, at any seed."""
+    anneal = SamplingInteraction(
+        'anneal',
+        target='candidates',
+        state='x',
+        energy=_quadratic_energy,
+        move='gaussian',
+        width=0.5,
+        temperature=5.0,
+        schedule='random-sequential',
+        neighborhood=VonNeumannNeighborhood(n_dim=1),
+        cooling=_geometric,
+    )
+    candidates = LatticeElement('candidates', element=CandidateElement, space=LatticeSpace((200,)))
+    system = System(elements=[candidates], interactions=[anneal], time=DiscreteTime())
+    frames = Simulation(system, random_state=0).check().prepare().run(until=500).trajectory_.values('candidates.x')
+    changes = frames[1:] ** 2 - frames[:-1] ** 2
+    assert np.mean(changes[-50:] != 0) < 0.25 * np.mean(changes[:50] != 0)
+    assert np.mean(frames[-1] ** 2) < 0.01
+
+
+def test_check_cooling_not_callable() -> None:
+    """Test that a cooling that is no function is refused."""
+    with pytest.raises(ValidationError, match='cooling'):
+        SamplingInteraction('a', target='g', state='x', energy=_quadratic_energy, cooling=0.5).check()

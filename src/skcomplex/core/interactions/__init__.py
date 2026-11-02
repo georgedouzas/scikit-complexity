@@ -29,6 +29,7 @@ from ._map import MapInteraction
 from ._matching import MatchingInteraction
 from ._movement import MovementInteraction
 from ._neighbor import NeighborInteraction
+from ._optimization import OptimizationInteraction
 from ._pair import PairInteraction
 from ._pair_coupling import PairCouplingInteraction
 from ._rate import RateInteraction
@@ -36,6 +37,7 @@ from ._reaction import ReactionInteraction
 from ._reinforcement import ReinforcementInteraction
 from ._relaxation import RelaxationInteraction
 from ._sampling import SamplingInteraction
+from ._satisfiability import SatisfiabilityInteraction
 from ._sign_adjustment import SignAdjustmentInteraction
 from ._spreading import SpreadingInteraction
 from ._topology import TopologyInteraction
@@ -71,6 +73,7 @@ __all__: list[str] = [
     'MatchingInteraction',
     'MovementInteraction',
     'NeighborInteraction',
+    'OptimizationInteraction',
     'PairCouplingInteraction',
     'PairInteraction',
     'RateInteraction',
@@ -78,6 +81,7 @@ __all__: list[str] = [
     'ReinforcementInteraction',
     'RelaxationInteraction',
     'SamplingInteraction',
+    'SatisfiabilityInteraction',
     'SignAdjustmentInteraction',
     'SpreadingInteraction',
     'TopologyInteraction',

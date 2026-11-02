@@ -734,7 +734,8 @@ class LatticeProblemPass(BasePass):
             if move.kind == 'cluster'
             else None
         )
-        known = {move.target, proposal, *neighbours, *masks}
+        time = symbol('t')
+        known = {move.target, proposal, time, *neighbours, *masks}
         extra = sorted(
             {item for item in (*change.variables(), *SR(sampler.temperature).variables()) if item not in known},
             key=str,
@@ -750,7 +751,6 @@ class LatticeProblemPass(BasePass):
             tuple(item[2] for item in found),
             tuple(item[3] for item in found),
         )
-        time = symbol('_time')
         reads = [move.target, *neighbours, proposal, *(masks if masked else []), *extra]
         energy_change = ExpressionPrinter(time=time, compiled=True).check().prepare(reads).run([change]).code_
         temperature = (
