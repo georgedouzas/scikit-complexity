@@ -5481,7 +5481,8 @@ binds a single element reports the issue `parameter-shape`, with the fix of bind
 A role repeated `k` times, `shape=('target',) * k`, gives a coupling tensor of order `k` among the members of a group,
 and `contraction(T, a, b)` of `skcomplex.core.laws.utils` returns `sum_jk T_ijk a_j b_k` for every member `i`, with one
 expression per index after the first. Matrices keep `total(x, weights=W)`. A tensor of order `k` over `N` members
-holds `N^k` entries, a million for order 3 over 100 members.
+holds `N^k` entries, a million for order 3 over 100 members. `higher_order_random_lotka_volterra` of
+`skcomplex.models.biology.ecology` builds the random community of Sidhom and Galla (2024) on such a tensor.
 
 ```python
 from typing import Annotated

@@ -60,7 +60,7 @@
   error-by-position figure; verify the gallery example scenario and the gallery checks
 - [x] 6.3 Rebuild `GeneralizedLotkaVolterraInteraction` on `CouplingInteraction(mode='group')` with a shaped matrix
   parameter and the growth as a `RateInteraction`; verify the rebuilt community and matrix swept scenarios
-- [ ] 6.4 Add `higher_order_random_lotka_volterra` to `biology/ecology` on a shaped tensor parameter and `contraction`,
+- [x] 6.4 Add `higher_order_random_lotka_volterra` to `biology/ecology` on a shaped tensor parameter and `contraction`,
   with a curated gallery example, and mark its inventory entry implemented in place of `pending
   add-higher-order-interactions`, with the tags of the system it builds, a group with no network and no hyperedge
   binding; verify the no interactions and random community scenarios, the conformance suite, and the inventory
@@ -68,7 +68,7 @@
 
 ## 7. Documentation and gate
 
-- [ ] 7.1 Document the training interaction and its law, its difference from `GradientInteraction`, nested inner
+- [x] 7.1 Document the training interaction and its law, its difference from `GradientInteraction`, nested inner
   models, datasets, losses, truncation, optimizers, shaped parameters, and the zero gradient of step functions in the
   user guide, and add the changelog entry; verify the documentation build runs the examples
 - [ ] 7.2 Run formatting, checks, the docs build, and tests through nox; verify all of them pass

@@ -68,9 +68,9 @@ class RerunObserver(BaseObserver):
     `prepare(problem)` creates the recording, builds the visual of every element and agent group from the visual its
     type declares, lays out their views, and sends the recording to its sinks. `run(frame)` logs a frame, and
     `run(final=True)` flushes the recording. Each logged frame sets the `sim_time` and `step` timelines, logs every
-    element with its visual, logs every parameter under `parameters/<name>`, and logs the renewals of renewal laws since
-    the previous frame as text entries under `renewals/<label>`. A subclass logs entities of its own apart from the
-    system's with `_log_extra`.
+    element with its visual, logs every parameter up to a matrix under `parameters/<name>`, leaving out coupling
+    tensors, whose entries no view can draw, and logs the renewals of renewal laws since the previous frame as text
+    entries under `renewals/<label>`. A subclass logs entities of its own apart from the system's with `_log_extra`.
 
     The default blueprint puts spatial views first and side by side, with time series views below them. Scalar elements
     of one type share a time series view with at most six series, and time series views show the whole run. The side
@@ -378,7 +378,9 @@ class RerunObserver(BaseObserver):
             values = np.atleast_1d(np.abs(observed) if np.iscomplexobj(observed) else observed)
             self.recording_.log(self._entity_path(name, owners), rr.Scalars(values))
         for name in frame.problem.parameters.names:
-            BaseVisual._log_scalars(self.recording_, f'parameters/{name}', frame.value(name))
+            parameter = frame.value(name)
+            if np.ndim(parameter) <= MATRIX_RANK:
+                BaseVisual._log_scalars(self.recording_, f'parameters/{name}', parameter)
         for record in frame.events:
             if isinstance(record, RenewalRecordSpec):
                 self.recording_.log(f'renewals/{record.label}', rr.TextLog(self._renewal_text(record)))

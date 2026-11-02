@@ -52,7 +52,10 @@ loss over an unrolled run, and a law that changes the weights by that gradient.
 - **The higher-order Lotka-Volterra model follows its source** (decided on 2026-11-02): the form
   `x_i(1 - x_i) + x_i contraction(T, x, x)/N` with a tensor of standard deviation 0.5 blows up in finite time for every
   seed, so the model takes the equations, scaling of the k-body term, self-regulation, and parameters of Sidhom and
-  Galla (2024, arXiv 2409.10990) exactly, and its scenario checks the surviving fraction the paper reports.
+  Galla (2024, arXiv 2409.10990) exactly, and its scenario checks the surviving fraction the paper reports. The defaults
+  are 200 species, `mu = -4`, `sigma = 1`, and `gamma = 0`, where the paper's Eq. 17 gives a surviving fraction 0.928:
+  the fully symmetric `gamma = 1` leaves extinctions only close to its divergence at `sigma = 0.57`, where 200 species
+  fall short of the theory. The paper states no precision, so the scenario allows 0.02, three standard errors of 20 seeds.
 
 - **Adaptive shaped parameters on interactions** (decided on 2026-11-01): interactions accept adaptive parameters only
   when they are shaped, so the Elman couplings learn their weights; they compile as states and are recorded with their
@@ -221,9 +224,9 @@ tensors of order 3 and above.
 
 This part moved from `add-higher-order-interactions`, which planned it on the shaped parameters of this change. Its
 model moved with it: `higher_order_random_lotka_volterra` in `biology/ecology`, after Sidhom and Galla (2024, arXiv
-2409.10990), is a group of species with logistic growth as a `RateInteraction` and a rate `x_i contraction(T, x, x) / N`
-from a random symmetric tensor `T` of order 3 with mean `mu` and standard deviation `sigma`, drawn by the factory from
-its `random_state`.
+2409.10990), is a group of species with logistic growth and a rate `x_i sum_(j<k) a_ijk x_j x_k`, written
+`x_i contraction(a, x, x) / 2`, from a random tensor `a` of order 3 drawn by the factory from its `random_state`, with the
+mean `mu / binom(N - 1, 2)`, the variance `3 sigma^2 / (2 binom(N - 1, 2))`, and the correlation `gamma` of the paper.
 
 ### Local learning rules need nothing new
 
@@ -309,7 +312,7 @@ platforms narrow to Linux and macOS 13 or later on Apple silicon.
 - [Large matrices make the flat parameter vector long] → Parameters stay one vector so the layout, trajectory, and
   schedules work. JAX reshapes slices without copies inside `jit`.
 - [A coupling tensor of order k over N members holds N^k entries] → The documentation states the memory, and
-  `higher_order_random_lotka_volterra` keeps N at 100 for order 3, a million entries.
+  `higher_order_random_lotka_volterra` keeps N at the paper's 200 for order 3, eight million entries.
 - [The rebuilt generalized Lotka-Volterra model changes the order of sums] → It is compared with its previous trajectory
   within 1e-10.
 

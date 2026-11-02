@@ -24,6 +24,7 @@ from ._grass import GrassElement
 from ._grazing import GrazingInteraction
 from ._habitat_patch import HabitatPatchElement
 from ._herding import HerdingInteraction
+from ._higher_order import higher_order_random_lotka_volterra
 from ._hopping import HoppingInteraction
 from ._instability import UnstablePopulationsElement, intrinsic_instability
 from ._linear_growth import LinearGrowthInteraction
@@ -54,6 +55,7 @@ from ._stigmergic_prey import StigmergicPreyElement
 from ._stigmergy import stigmergic_predator_prey
 from ._succession import mangrove_succession
 from ._successional_growth import SuccessionalGrowthInteraction
+from ._triplet import TripletInteraction
 from ._wolf import WolfElement
 from ._wolf_sheep import wolf_sheep
 
@@ -93,6 +95,7 @@ __all__: list[str] = [
     'StigmergicPredatorElement',
     'StigmergicPreyElement',
     'SuccessionalGrowthInteraction',
+    'TripletInteraction',
     'UnstablePopulationsElement',
     'WolfElement',
     'agent_based_lotka_volterra',
@@ -103,6 +106,7 @@ __all__: list[str] = [
     'fisher_kpp',
     'food_webs',
     'generalized_lotka_volterra',
+    'higher_order_random_lotka_volterra',
     'hutchinson',
     'intrinsic_instability',
     'logistic_growth',
