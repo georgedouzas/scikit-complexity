@@ -1,6 +1,7 @@
 """Visualize running simulations in Rerun."""
 
 from ._agents import AgentsVisual
+from ._axes import AxisVisual
 from ._base import BaseVisual
 from ._bodies import BodiesVisual
 from ._cayley import CayleyVisual
@@ -17,6 +18,7 @@ from ._sites import SiteVisual
 
 __all__: list[str] = [
     'AgentsVisual',
+    'AxisVisual',
     'BaseVisual',
     'BodiesVisual',
     'CayleyVisual',

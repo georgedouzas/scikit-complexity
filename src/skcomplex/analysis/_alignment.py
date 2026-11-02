@@ -10,21 +10,29 @@ import numpy.typing as npt
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
+from ..specs import TensorSpec
 from ..types import Array, DataKind
 from ._base import BaseAnalysis
 from .types import Source
 
-KINDS = ('mean-vector', 'mean-rotation', 'axial', 'mean-phase')
+KINDS = ('mean-vector', 'mean-rotation', 'axial', 'mean-phase', 'principal-axis')
 SETTINGS = {
     'mean-vector': {'variables', 'group', 'vectors'},
     'mean-rotation': {'group'},
     'axial': {'variables', 'group'},
     'mean-phase': {'variables', 'group'},
+    'principal-axis': {'variables'},
 }
 """Settings every kind reads, besides `kind`."""
 
 READ_KINDS = (DataKind.AGENTS, DataKind.FIELD, DataKind.SERIES)
 VECTOR_DIMENSIONS = 2
+SYMMETRIC_TENSORS = {
+    2: TensorSpec('traceless', 2),
+    3: TensorSpec('symmetric', 2),
+    5: TensorSpec('traceless', 3),
+    6: TensorSpec('symmetric', 3),
+}
 
 
 class AlignmentAnalysis(BaseAnalysis):
@@ -42,6 +50,10 @@ class AlignmentAnalysis(BaseAnalysis):
     - `'axial'`: `|<exp(2 i theta)>|` of the angles, which ignores the sign of a direction.
     - `'mean-phase'`: the modulus `r` and the argument `psi` of the mean `r exp(i psi) = <exp(i theta)>` of the
       angles, the synchrony and the mean phase.
+    - `'principal-axis'`: the eigenvector of the largest eigenvalue of a symmetric tensor at every site, `axes_`, and
+      the scalar order of the tensor at every site, `order_`. It reads a field of a symmetric tensor state, or an array
+      of its independent components on the last axis, whose number gives the symmetry and the dimension: 2 and 5 for a
+      symmetric traceless tensor in 2 and 3 dimensions, and 3 and 6 for a symmetric tensor.
 
     Angles are derived from the first two components of vectors when a source has no angles. An array of angles holds
     one snapshot when it has one dimension, and one frame per row of its first axis otherwise, every other axis
@@ -74,7 +86,14 @@ class AlignmentAnalysis(BaseAnalysis):
             The positions of agents, frames by agents by dimensions, or `None` without them.
 
         order_:
-            The alignment of every frame, between 0 and 1.
+            The alignment of every frame, between 0 and 1, or the scalar order of every site of every frame.
+
+        tensors_:
+            The independent components of the tensors, with one frame per row of the first axis, for `'principal-axis'`.
+
+        axes_:
+            The principal axis of every site of every frame, with the components on the last axis, for
+            `'principal-axis'`.
 
         phase_:
             The mean phase of every frame, for `'mean-phase'`.
@@ -94,6 +113,9 @@ class AlignmentAnalysis(BaseAnalysis):
         >>> phases = AlignmentAnalysis('mean-phase').check().prepare([[0.5, 0.5], [0.0, np.pi]]).run()
         >>> phases.order_.round(6).tolist(), phases.phase_.round(6)[:1].tolist()
         ([1.0, 0.0], [0.5])
+        >>> tensors = AlignmentAnalysis('principal-axis').check().prepare([[0.5, 0.0], [0.0, 0.5]]).run()
+        >>> tensors.order_.tolist()
+        [[1.0, 1.0]]
     """
 
     angles_: Array | None
@@ -125,7 +147,9 @@ class AlignmentAnalysis(BaseAnalysis):
     def _prepare_array(self, source: Source) -> None:
         """Read the angles, the vectors, or the positions and velocities of one snapshot or of every frame."""
         array = np.asarray(source, dtype=float)
-        if self.kind == 'mean-rotation':
+        if self.kind == 'principal-axis':
+            self.tensors_ = array[None] if array.ndim == VECTOR_DIMENSIONS else array
+        elif self.kind == 'mean-rotation':
             frames = array[None] if array.ndim == VECTOR_DIMENSIONS else array
             half = frames.shape[-1] // 2
             self.positions_, self.vectors_ = frames[..., :half], frames[..., half:]
@@ -161,8 +185,19 @@ class AlignmentAnalysis(BaseAnalysis):
             )
             raise AnalysisError(error_msg)
 
+    def _run_principal_axis(self) -> None:
+        """Set the principal axis and the scalar order of every site of every frame."""
+        columns = self.tensors_.shape[-1]
+        if columns not in SYMMETRIC_TENSORS:
+            error_msg = f'A symmetric tensor has 2, 3, 5, or 6 independent components, but the source has {columns}.'
+            raise AnalysisError(error_msg)
+        self.axes_, self.order_ = SYMMETRIC_TENSORS[columns].principal_of(self.tensors_)
+
     def _run(self, inputs: object = None) -> None:
         """Compute the alignment of every frame."""
+        if self.kind == 'principal-axis':
+            self._run_principal_axis()
+            return
         angles, vectors, positions = self.angles_, self.vectors_, self.positions_
         if angles is None and vectors is not None:
             angles = np.arctan2(vectors[..., 1], vectors[..., 0])

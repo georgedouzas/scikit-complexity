@@ -147,3 +147,30 @@ def test_alignment_rejects_a_source_without_a_readable_kind():
     trajectory = run('poisson_process', n_processes=1, settings={'until': 3.0, 'random_state': 0}).trajectory_
     with pytest.raises(AnalysisError, match='reads agents, field, series, but the trajectory holds path'):
         _alignment('mean-vector', trajectory)
+
+
+def test_principal_axis_of_a_uniform_tensor_field():
+    """A uniform tensor at an angle gives the axis at that angle and its scalar order at every site."""
+    angle, order = 0.3, 0.8
+    components = order / 2 * np.array([np.cos(2 * angle), np.sin(2 * angle)])
+    field = np.tile(components, (1, 3, 4, 1))
+    analysis = _alignment('principal-axis', field)
+    assert analysis.order_.shape == (1, 3, 4)
+    assert np.allclose(analysis.order_, order)
+    assert np.allclose(np.abs(analysis.axes_ @ np.array([np.cos(angle), np.sin(angle)])), 1.0)
+
+
+def test_principal_axis_of_a_three_dimensional_tensor():
+    """A uniaxial tensor along an axis in 3 dimensions has the order and the axis of its construction."""
+    axis = np.array([0.0, 0.0, 1.0])
+    tensor = 0.6 * (np.outer(axis, axis) - np.eye(3) / 3)
+    components = [tensor[0, 0], tensor[0, 1], tensor[0, 2], tensor[1, 1], tensor[1, 2]]
+    analysis = _alignment('principal-axis', [components])
+    assert np.allclose(analysis.order_, 0.6)
+    assert np.allclose(np.abs(analysis.axes_[0, 0]), axis)
+
+
+def test_principal_axis_rejects_a_number_of_components_of_no_symmetric_tensor():
+    """A field whose number of components belongs to no symmetric tensor raises an error."""
+    with pytest.raises(AnalysisError, match='independent components'):
+        _alignment('principal-axis', np.zeros((3, 4)))

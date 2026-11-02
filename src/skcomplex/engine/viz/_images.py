@@ -217,7 +217,7 @@ class ImageVisual(BaseVisual):
                 The frame.
         """
         for state, name in element.states.items():
-            if self.states is not None and state not in self.states:
+            if (self.states is not None and state not in self.states) or frame.problem.states.entry(name).member_shape:
                 continue
             values = np.asarray(frame.lattice(name))
             path = f'{element.path}/{state}'
@@ -273,7 +273,7 @@ class ImageVisual(BaseVisual):
         histories: list[rrb.View] = []
         views: list[rrb.View] = []
         for state, name in element.states.items():
-            if self.states is not None and state not in self.states:
+            if (self.states is not None and state not in self.states) or problem.states.entry(name).member_shape:
                 continue
             path, shape = (
                 f'{element.path}/{state}',

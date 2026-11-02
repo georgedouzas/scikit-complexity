@@ -131,6 +131,41 @@ class TensorSpec(BaseSpec):
         """
         return np.tensordot(np.asarray(components, dtype=float), self.basis, axes=1)
 
+    def principal_of(self, components: npt.ArrayLike) -> tuple[Array, Array]:
+        """Return the principal axis and the scalar order of symmetric tensors of independent components.
+
+        The principal axis is the eigenvector of the largest eigenvalue of the traceless part. The scalar order is that
+        eigenvalue times `n_dim / (n_dim - 1)`, so a tensor `S (n n - I / n_dim)` has the order `S`.
+
+        Args:
+            components:
+                The independent components on the last axis.
+
+        Returns:
+            axes:
+                The axes, unit vectors on the last axis, whose sign has no meaning.
+
+            orders:
+                The scalar orders.
+
+        Raises:
+            ValidationError:
+                The tensor is not symmetric.
+
+        Examples:
+            >>> from skcomplex.specs import TensorSpec
+            >>> axes, orders = TensorSpec('traceless', 2).principal_of([0.5, 0.0])
+            >>> abs(axes).round(6).tolist(), float(orders)
+            ([1.0, 0.0], 1.0)
+        """
+        if self.symmetry not in {'symmetric', 'traceless'}:
+            error_msg = f'A tensor of the symmetry {self.symmetry!r} has no principal axes. Use a symmetric tensor.'
+            raise ValidationError(error_msg)
+        tensors = self.array_of(components)
+        means = np.trace(tensors, axis1=-2, axis2=-1) / self.n_dim
+        values, vectors = np.linalg.eigh(tensors - means[..., None, None] * np.eye(self.n_dim))
+        return vectors[..., -1], values[..., -1] * self.n_dim / (self.n_dim - 1)
+
     def components_of(self, value: object) -> Array:
         """Return the independent components of a numeric matrix.
 

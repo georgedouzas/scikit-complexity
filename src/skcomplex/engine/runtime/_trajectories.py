@@ -218,7 +218,8 @@ class Trajectory:
 
         Returns:
             values:
-                One array of the lattice shape per frame.
+                One array of the lattice shape per frame, with the components of a vector or a tensor state on a last
+                axis.
 
         Raises:
             KeyError:
@@ -228,7 +229,7 @@ class Trajectory:
         if shape is None:
             error_msg = f'{name!r} is not a state of a lattice group.'
             raise KeyError(error_msg)
-        return self.values(name).reshape(len(self.times), *shape)
+        return self.values(name).reshape(len(self.times), *shape, *self.problem.states.entry(name).member_shape)
 
     def agents(self, group: str, frame: int) -> AgentSnapshotSpec:
         """Return the agents of a group alive at a frame, with their ids, states, and locations.

@@ -22,6 +22,7 @@ from ...specs import RenewalRecordSpec
 from ..problems import BaseProblemSpec, FrameSpec, LearningProblemSpec
 from ..runtime import BaseObserver
 from ._agents import AgentsVisual
+from ._axes import AxisVisual
 from ._base import BaseVisual
 from ._bodies import BodiesVisual
 from ._cayley import CayleyVisual
@@ -48,6 +49,7 @@ _WHOLE_RUN = rrb.TimeAxis(
 )
 _VISUALS: dict[str, type[BaseVisual]] = {
     'agents': AgentsVisual,
+    'axes': AxisVisual,
     'bodies': BodiesVisual,
     'cayley': CayleyVisual,
     'expectations': ExpectationVisual,

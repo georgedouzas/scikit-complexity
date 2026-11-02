@@ -9,6 +9,7 @@ from ._collapse import CollapseAnalysis
 from ._complexity import ComplexityAnalysis
 from ._computational_mechanics import EpsilonMachineAnalysis
 from ._correlation import CorrelationAnalysis
+from ._defects import DefectAnalysis
 from ._discovery import DiscoveryAnalysis
 from ._displacement import DisplacementAnalysis
 from ._distribution import DistributionAnalysis
@@ -57,6 +58,7 @@ __all__: list[str] = [
     'CollapseAnalysis',
     'ComplexityAnalysis',
     'CorrelationAnalysis',
+    'DefectAnalysis',
     'DiscoveryAnalysis',
     'DisplacementAnalysis',
     'DistributionAnalysis',

@@ -91,7 +91,7 @@ class FrameSpec(BaseSpec):
 
         Returns:
             values:
-                The array of the lattice shape.
+                The array of the lattice shape, with the components of a vector or a tensor state on a last axis.
 
         Raises:
             KeyError:
@@ -101,4 +101,5 @@ class FrameSpec(BaseSpec):
         if shape is None:
             error_msg = f'{name!r} is not a state of a lattice group.'
             raise KeyError(error_msg)
-        return np.reshape(self.value(name), shape)
+        member = self.problem.states.entry(name).member_shape
+        return np.reshape(self.value(name), (*shape, *member))

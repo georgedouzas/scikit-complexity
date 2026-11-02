@@ -26,10 +26,10 @@
 
 ## 3. Analysis and visualization
 
-- [ ] 3.1 Add the kind `'principal-axis'` to `AlignmentAnalysis`, and verify the axes and scalar order of a uniform
+- [x] 3.1 Add the kind `'principal-axis'` to `AlignmentAnalysis`, and verify the axes and scalar order of a uniform
   tensor field
-- [ ] 3.2 Add `DefectAnalysis` to `skcomplex.analysis`, and verify the defect pair and polar vortex scenarios
-- [ ] 3.3 Add `AxisVisual` to `skcomplex.engine.viz`, and verify the nematic in the viewer scenario with a recorded
+- [x] 3.2 Add `DefectAnalysis` to `skcomplex.analysis`, and verify the defect pair and polar vortex scenarios
+- [x] 3.3 Add `AxisVisual` to `skcomplex.engine.viz`, and verify the nematic in the viewer scenario with a recorded
   Rerun stream
 
 ## 4. Library
