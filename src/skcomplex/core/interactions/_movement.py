@@ -103,12 +103,12 @@ class MovementInteraction(Interaction):
         schedule:
             The order of the agents, `'sequential'`, `'random-sequential'`, or `'member'`.
 
+        phase:
+            The phase of the step the movement runs in, or `None` for the default phase.
+
         ties:
             The cell the step `'best'` takes among cells of equal highest score, `'random'`, `'first'`, or `'nearest'`,
             or `None` for `'random'` without a vision and `'nearest'` with one.
-
-        phase:
-            The phase of the step the movement runs in, or `None` for the default phase.
 
     Raises:
         ValidationError:

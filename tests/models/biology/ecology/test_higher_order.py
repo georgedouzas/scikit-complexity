@@ -18,7 +18,7 @@ EXTINCT = 1e-6
 
 
 def test_higher_order_random_lotka_volterra_tensor_has_the_moments_of_the_paper():
-    """Test that the coefficients have the moments of Sidhom and Galla, Eq. 4, and 0 on repeated indices."""
+    """Test that the coefficients have the moments of Sidhom and Galla, equation 4, and 0 on repeated indices."""
     size = 60
     tensor = higher_order_random_lotka_volterra(size, mu=-4.0, sigma=1.0, gamma=0.0, random_state=0).interactions[1].a
     i, j, k = np.indices(tensor.shape)
@@ -32,7 +32,7 @@ def test_higher_order_random_lotka_volterra_tensor_has_the_moments_of_the_paper(
 
 @pytest.mark.parametrize('gamma', [-0.5, 0.0, 1.0])
 def test_higher_order_random_lotka_volterra_tensor_has_the_correlation_of_the_paper(gamma):
-    """Test that the coefficients of a set of three species have the correlation of Sidhom and Galla, Eq. 5."""
+    """Test that the coefficients of a set of three species have the correlation of Sidhom and Galla, equation 5."""
     size = 40
     tensor = higher_order_random_lotka_volterra(size, mu=0.0, sigma=1.0, gamma=gamma, random_state=0).interactions[1].a
     i, j, k = np.indices(tensor.shape)

@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Callable
+
 import numpy as np
 import numpy.typing as npt
 import pytest
@@ -12,11 +14,13 @@ from skcomplex.engine.problems import CollisionKernel
 from skcomplex.errors import ValidationError
 from skcomplex.specs import RunStateSpec
 
+type CrossSection = Callable[..., npt.NDArray[np.float64]]
+
 
 def collision_by_quadrature(
     density: RegularGridInterpolator,
     velocity: npt.NDArray[np.float64],
-    cross_section: object,
+    cross_section: CrossSection,
     extent: float,
 ) -> float:
     """Return the collision integral at one velocity by direct quadrature over relative velocities and angles."""
@@ -41,7 +45,7 @@ def collision_by_quadrature(
     'cross_section',
     [lambda _speed, _cosine: 1 / (2 * np.pi), lambda speed, _cosine: speed / (2 * np.pi)],
 )
-def test_run_agrees_with_direct_quadrature_on_a_coarse_grid(cross_section: object) -> None:
+def test_run_agrees_with_direct_quadrature_on_a_coarse_grid(cross_section: CrossSection) -> None:
     """Agree with direct quadrature of the collision integral within 2 percent, for Maxwell molecules and hard disks."""
     size, half_width = 24, 6.0
     step = 2 * half_width / size

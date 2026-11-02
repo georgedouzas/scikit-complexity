@@ -49,6 +49,12 @@ class FiniteVolumeKernel(BaseKernel):
         parameters:
             The references of the other values the fluxes read, parameters or states that no flux conserves.
 
+        limiter:
+            The slope limiter.
+
+        riemann:
+            `'rusanov'` or `'godunov'`.
+
         reads:
             One function of the time and the vectors per value of `parameters` held by no vector, such as a moment
             over class axes or a field solved from it, and `None` for a value of a vector. An empty tuple reads the
@@ -58,12 +64,6 @@ class FiniteVolumeKernel(BaseKernel):
             The edges of every axis of a phase space, `'periodic'` or `'reflecting'` for a class axis, whose flux
             through the two ends of an interval is zero, and `None` for a position axis, which keeps the boundary of
             its states. An empty tuple gives every axis the boundary of its states.
-
-        limiter:
-            The slope limiter.
-
-        riemann:
-            `'rusanov'` or `'godunov'`.
 
         drifts:
             One function per dimension of the states and the parameters that returns the coefficient `a` of the flux

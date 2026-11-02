@@ -338,8 +338,8 @@ class SpecsPass(BasePass):
         """Return the namespace of a source of an interaction, a whole field read across a phase space or else an entry.
 
         A field on a position lattice is read by the target on a phase space with that position, broadcast along its
-        class axes. A field on a phase space is read member by member by a target on a position lattice, whose laws
-        read its moments.
+        class axes. A field on a phase space is read member by member by a target on a position lattice, whose laws read
+        its moments.
         """
         place = block.node.component
         targets = [item.node.component for item in bound.values() if isinstance(item.node.component, FieldElement)]

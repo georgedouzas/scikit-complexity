@@ -21,7 +21,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import SolverError
-from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec
+from skcomplex.specs import IssueSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec
 from skcomplex.types import FormKind
 
 
@@ -160,7 +160,7 @@ class CournotElement(Element):
         self.lambda_j = lambda_j
 
     def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
-        """Return the conditions of Forrest (2018 Eq. 21.5)."""
+        """Return the conditions of Forrest (2018, equation 21.5)."""
         return [
             EquationLaw(s.alpha - 2 * s.q_i - s.q_j == s.c_i / (1 + s.lambda_i), target=s.q_i),
             EquationLaw(s.alpha - 2 * s.q_j - s.q_i == s.c_j / (1 + s.lambda_j), target=s.q_j),
@@ -191,7 +191,7 @@ def _simulated(system: System, **settings: object) -> Simulation:
     return Simulation(system, **settings).check().prepare().run(1.0)
 
 
-def _issues(system: System, code: str) -> list[object]:
+def _issues(system: System, code: str) -> list[IssueSpec]:
     """Return the issues of a system with a code."""
     return [item for item in PassCompiler().check().prepare(system).report_.issues if item.code == code]
 
@@ -217,7 +217,7 @@ def test_run_without_equations() -> None:
 
 
 def test_compile_system_exact_linear_solution() -> None:
-    """Test that linear best responses compile to the symbolic solution of Forrest (2018 Eq. 21.6)."""
+    """Test that linear best responses compile to the symbolic solution of Forrest (2018, equation 21.6)."""
     problem = compile_system(System(elements=[CournotElement('a')], time=StaticTime()))
     names = ('alpha', 'c_i', 'c_j', 'lambda_i', 'lambda_j')
     alpha, c_i, c_j, lambda_i, lambda_j = (problem.symbols[f'a.{name}'] for name in names)
