@@ -34,7 +34,7 @@ def _lend(trade: MatchSpec, model: ModelView) -> None:
         error_msg = 'A loan is a trade of a firm with a bank.'
         raise TypeError(error_msg)
     firm.loan += trade.quantity
-    firm.rate = trade.price
+    firm.rate = trade.value
     bank.lent += trade.quantity
 
 

@@ -43,7 +43,7 @@ class BookInteraction(MatchingInteraction[ModelView]):
         quantity:
             The states with the quantities the buyers want and the sellers offer.
 
-        budget:
+        allowance:
             The state of a buyer with the money it can spend.
 
         transfers:
@@ -75,7 +75,7 @@ class BookInteraction(MatchingInteraction[ModelView]):
         rule: MatchingRule = RandomSearchSpec(),
         limit: str | tuple[str, str] = ('bid', 'ask'),
         quantity: str | tuple[str, str] = ('demand', 'supply'),
-        budget: str = 'money',
+        allowance: str = 'money',
         transfers: Sequence[tuple[str, int]] = (('money', -1), ('shares', 1)),
         phase: str | None = 'trade',
         on_match: Callable[[MatchSpec, ModelView], None] | None = None,
@@ -88,7 +88,7 @@ class BookInteraction(MatchingInteraction[ModelView]):
             rule=rule,
             limit=limit,
             quantity=quantity,
-            budget=budget,
+            allowance=allowance,
             transfers=transfers,
             phase=phase,
             on_match=on_match,
@@ -110,6 +110,6 @@ class BookInteraction(MatchingInteraction[ModelView]):
         """
         del unmatched
         last = model.history('price', 1)
-        price = matches[-1].price if matches else (float(last[-1]) if len(last) else self.opening)
+        price = matches[-1].value if matches else (float(last[-1]) if len(last) else self.opening)
         model.report('price', price)
         model.report('volume', sum(match.quantity for match in matches))

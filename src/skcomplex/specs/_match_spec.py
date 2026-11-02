@@ -22,7 +22,7 @@ class MatchSpec(BaseSpec):
         quantity:
             The matched quantity.
 
-        price:
+        value:
             The clearing value per unit.
 
     Examples:
@@ -34,4 +34,4 @@ class MatchSpec(BaseSpec):
     requester: object
     provider: object
     quantity: float
-    price: float
+    value: float

@@ -98,7 +98,7 @@ def shops(
     Returns:
         system:
             The model, with the groups `shoppers` and `shops` and the market `shopping`, whose reporters are the
-            `shopping.price`, `shopping.volume`, and `shopping.unmatched` of the purchases.
+            `shopping.value`, `shopping.volume`, and `shopping.unmatched` of the purchases.
 
     Examples:
         >>> from skcomplex.models.economics.markets import shops

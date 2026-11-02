@@ -65,7 +65,7 @@ class FoodMarketInteraction(MatchingInteraction[ModelView]):
         """
         del model
         if isinstance(match.provider, BusinessView):
-            match.provider.revenue += match.quantity * match.price
+            match.provider.revenue += match.quantity * match.value
 
     def _report_matches(self, matches: list[MatchSpec], unmatched: float, model: ModelView) -> None:
         """Report the price, the volume, the unmatched quantity, and the value of the sales of the step.
@@ -81,4 +81,4 @@ class FoodMarketInteraction(MatchingInteraction[ModelView]):
                 The model view of the market.
         """
         super()._report_matches(matches, unmatched, model)
-        model.report('gdp', sum(match.quantity * match.price for match in matches))
+        model.report('gdp', sum(match.quantity * match.value for match in matches))

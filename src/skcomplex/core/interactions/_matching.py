@@ -35,7 +35,7 @@ from ..types import AgentViewProtocol, MatchingRule, ModelViewProtocol, Pairing
 from ._interaction import Interaction
 
 SIGNS = (-1, 1)
-DEFAULT_STATES = ('limit', 'quantity', 'budget')
+DEFAULT_STATES = ('limit', 'quantity', 'allowance')
 RULES = (
     RandomSearchSpec,
     PartnerSpec,
@@ -52,16 +52,16 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     """Matching of the members of a group of requesters with those of a group of providers by a rule.
 
     Requesters state the highest clearing value they accept in their `limit` state, the quantity they want in their
-    `quantity` state, and the most value they can give in their `budget` state, and providers the lowest clearing value
-    they accept and the quantity they offer. A name given as a pair names the state of the requesters first and of the
-    providers second, and a missing state counts as no limit, one unit, and no budget. The rule is a spec that names
-    the algorithm that pairs the offers and holds its settings: random search, partners, partner switching, a queue,
-    iterative, continuous, batch, or stable matching. The `price` of a match is its clearing value
-    per unit. Every match lowers the quantities of both sides and moves every state of `transfers`: a negative sign
-    moves `price * quantity` from the requester to the provider, and a positive sign moves `quantity` from the provider
-    to the requester, so the totals stay the same. `on_match(match, model)` adds any other effect. The matching runs
-    once per round of its phase and reports the quantity-weighted clearing value `price`, the matched `volume`, and the
-    `unmatched` quantity left, as the reporters `<label>.price`, `<label>.volume`, and `<label>.unmatched`.
+    `quantity` state, and the most value they can give in their `allowance` state, and providers the lowest clearing
+    value they accept and the quantity they offer. A name given as a pair names the state of the requesters first and of
+    the providers second, and a missing state counts as no limit, one unit, and no allowance. The rule is a spec that
+    names the algorithm that pairs the offers and holds its settings: random search, partners, partner switching, a
+    queue, iterative, continuous, batch, or stable matching. The `value` of a match is its clearing value per unit.
+    Every match lowers the quantities of both sides and moves every state of `transfers`: a negative sign moves
+    `value * quantity` from the requester to the provider, and a positive sign moves `quantity` from the provider to the
+    requester, so the totals stay the same. `on_match(match, model)` adds any other effect. The matching runs
+    once per round of its phase and reports the quantity-weighted clearing value `value`, the matched `volume`, and the
+    `unmatched` quantity left, as the reporters `<label>.value`, `<label>.volume`, and `<label>.unmatched`.
 
     Args:
         label:
@@ -87,9 +87,9 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
             The state with the quantity of both sides, or a pair of the requesters' and the providers' states. An
             agent without the default state `'quantity'` offers the quantity 1.
 
-        budget:
+        allowance:
             The state of a requester with the most value it can give. A requester without the default state
-            `'budget'` has no budget limit.
+            `'allowance'` has no limit on what it gives.
 
         transfers:
             The states every match moves, each with the sign `-1` for a move from the requester to the provider or
@@ -105,7 +105,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         ValidationError:
             A transfer has a sign other than `-1` or `1`, or the rule is neither a matching spec nor a function, or
             it is invalid, raised by `check`, or an agent lacks a state other than a default one that names its
-            limit, quantity, or budget, raised by `run`.
+            limit, quantity, or allowance, raised by `run`.
 
     Examples:
         >>> from skcomplex.core.interactions import MatchingInteraction
@@ -118,10 +118,10 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         ...     limit=('bid', 'ask'),
         ... )
         >>> matching.check().reports
-        ('price', 'volume', 'unmatched')
+        ('value', 'volume', 'unmatched')
     """
 
-    reports: ClassVar[tuple[str, ...]] = ('price', 'volume', 'unmatched')
+    reports: ClassVar[tuple[str, ...]] = ('value', 'volume', 'unmatched')
 
     def __init__(
         self,
@@ -132,7 +132,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         rule: MatchingRule | Pairing = RandomSearchSpec(),
         limit: str | tuple[str, str] = 'limit',
         quantity: str | tuple[str, str] = 'quantity',
-        budget: str = 'budget',
+        allowance: str = 'allowance',
         transfers: Sequence[tuple[str, int]] = (),
         phase: str | None = None,
         on_match: Callable[[MatchSpec, ModelT], None] | None = None,
@@ -143,7 +143,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         self.rule = rule
         self.limit = limit
         self.quantity = quantity
-        self.budget = budget
+        self.allowance = allowance
         self.transfers = transfers
         self.phase = phase
         self.on_match = on_match
@@ -167,10 +167,10 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
 
     @staticmethod
     def _get_affordable(offer: SimpleNamespace, value: float) -> float:
-        """Return the quantity a participant can still match at a value within its budget."""
+        """Return the quantity a participant can still match at a value within its allowance."""
         if value <= 0:
             return float(offer.quantity)
-        return max(0.0, min(offer.quantity, offer.budget / value))
+        return max(0.0, min(offer.quantity, offer.allowance / value))
 
     @staticmethod
     def _book(trades: list[MatchSpec], requester: SimpleNamespace, provider: SimpleNamespace, value: float) -> None:
@@ -179,7 +179,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         if quantity <= 0:
             return
         requester.quantity -= quantity
-        requester.budget -= quantity * value
+        requester.allowance -= quantity * value
         provider.quantity -= quantity
         trades.append(MatchSpec(requester.agent, provider.agent, quantity, value))
 
@@ -209,7 +209,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
                 agent=agent,
                 limit=self._read(agent, limits[0], math.inf),
                 quantity=self._read(agent, quantities[0], 1.0),
-                budget=self._read(agent, self.budget, math.inf),
+                allowance=self._read(agent, self.allowance, math.inf),
             )
             for agent in model.agents(self._get_role('requesters'))
         ]
@@ -218,7 +218,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
                 agent=agent,
                 limit=self._read(agent, limits[1], 0.0),
                 quantity=self._read(agent, quantities[1], 1.0),
-                budget=math.inf,
+                allowance=math.inf,
             )
             for agent in model.agents(self._get_role('providers'))
         ]
@@ -419,7 +419,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         """Return the quantity a requester can match at its own limit."""
         return (
             offer.quantity
-            if not math.isfinite(offer.budget)
+            if not math.isfinite(offer.allowance)
             else MatchingInteraction._get_affordable(offer, offer.limit)
         )
 
@@ -538,7 +538,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
                 quantity = min(1.0, MatchingInteraction._get_affordable(requester, value), provider.quantity)
                 if quantity > 0:
                     requester.quantity -= quantity
-                    requester.budget -= quantity * value
+                    requester.allowance -= quantity * value
                     provider.quantity -= quantity
                     trades.append(MatchSpec(requester.agent, provider.agent, quantity, value))
         return trades
@@ -624,7 +624,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         """Move the transfers of a match, lower the quantities of both sides, and run `on_match`."""
         for state, sign in self.transfers:
             if sign < 0:
-                transfer(match.requester, match.provider, match.quantity * match.price, state)
+                transfer(match.requester, match.provider, match.quantity * match.value, state)
             else:
                 transfer(match.provider, match.requester, match.quantity, state)
         for agent, name in zip((match.requester, match.provider), self._get_sides(self.quantity), strict=True):
@@ -634,7 +634,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
             self.on_match(match, model)
 
     def _report_matches(self, matches: list[MatchSpec], unmatched: float, model: ModelT) -> None:
-        """Report the quantity-weighted price, the matched volume, and the unmatched quantity of one clearing.
+        """Report the quantity-weighted value, the matched volume, and the unmatched quantity of one clearing.
 
         Args:
             matches:
@@ -647,8 +647,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
                 The model view of the matching.
         """
         volume = sum(match.quantity for match in matches)
-        price = sum(match.quantity * match.price for match in matches) / volume if volume else math.nan
-        model.report('price', price)
+        value = sum(match.quantity * match.value for match in matches) / volume if volume else math.nan
+        model.report('value', value)
         model.report('volume', volume)
         model.report('unmatched', unmatched)
 
@@ -687,7 +687,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         return [RuleLaw(self.match, phase=self.phase)]
 
     def match(self, model: ModelT) -> None:
-        """Match the members, settle the matches, and report the price, the volume, and the unmatched quantity.
+        """Match the members, settle the matches, and report the value, the volume, and the unmatched quantity.
 
         Args:
             model:
