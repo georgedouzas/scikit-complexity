@@ -13,13 +13,12 @@ import scipy.sparse
 from scipy.integrate import BDF, DOP853, LSODA, RK23, RK45, OdeSolver, Radau
 
 from ...core.laws import (
+    BilinearLaw,
     BoundaryLaw,
     CrossingLaw,
-    DestructionLaw,
     EncounterLaw,
     EquationLaw,
     FluxLaw,
-    ProliferationLaw,
     RateLaw,
     TransferLaw,
 )
@@ -176,8 +175,7 @@ class ScipyODESolver(Solver):
                 BoundaryLaw,
                 TransferLaw,
                 EncounterLaw,
-                ProliferationLaw,
-                DestructionLaw,
+                BilinearLaw,
             },
             orders=frozenset({OrderKind.INTEGER}),
         )

@@ -9,7 +9,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import DestructionLaw, EncounterLaw, ProliferationLaw, RateLaw
+from skcomplex.core.laws import BilinearLaw, EncounterLaw, RateLaw
 from skcomplex.core.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
@@ -83,7 +83,10 @@ class TurnoverInteraction(Interaction):
 
     def _get_laws(self, s):
         """Return the proliferation and the destruction."""
-        return [ProliferationLaw(s.population.f, s.field.f, 0.6), DestructionLaw(s.population.f, s.field.f, 0.2)]
+        return [
+            BilinearLaw(s.population.f, s.population.f, s.field.f, 0.6),
+            BilinearLaw(s.population.f, s.population.f, s.field.f, -0.2),
+        ]
 
 
 class DecayInteraction(Interaction):

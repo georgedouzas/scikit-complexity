@@ -9,14 +9,13 @@ from collections.abc import Callable
 import numpy as np
 
 from ...core.laws import (
+    BilinearLaw,
     BoundaryLaw,
     CrossingLaw,
-    DestructionLaw,
     EncounterLaw,
     EquationLaw,
     FluxLaw,
     JumpLaw,
-    ProliferationLaw,
     RateLaw,
     TransferLaw,
 )
@@ -80,8 +79,7 @@ class RK4Solver(Solver):
                 BoundaryLaw,
                 TransferLaw,
                 EncounterLaw,
-                ProliferationLaw,
-                DestructionLaw,
+                BilinearLaw,
             },
             orders=frozenset({OrderKind.INTEGER}),
         )

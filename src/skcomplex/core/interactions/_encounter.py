@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
-from ..laws import BaseLaw, DestructionLaw, EncounterLaw, ProliferationLaw
+from ..laws import BaseLaw, BilinearLaw, EncounterLaw
 from ._interaction import Interaction
 
 OUTCOMES = ('conservative', 'destructive', 'proliferative')
@@ -125,7 +125,7 @@ class EncounterInteraction(Interaction):
         return [EncounterLaw(candidate, None, rates[()], np.expand_dims(kernel, axis=1), label=self.label)]
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the encounter, destruction, or proliferation law of the candidate density.
+        """Return the encounter or bilinear law of the candidate density.
 
         Args:
             namespace:
@@ -142,7 +142,8 @@ class EncounterInteraction(Interaction):
         rate = self.rate(namespace)
         kernel = None if self.kernel is None else self.kernel(namespace)
         if self.outcome == 'destructive':
-            return [DestructionLaw(candidate, field, rate, label=self.label)]
+            loss = -np.asarray(rate, dtype=object)
+            return [BilinearLaw(candidate, candidate, field, loss, label=self.label)]
         if self.outcome == 'proliferative':
-            return [ProliferationLaw(candidate, field, rate, kernel, label=self.label)]
+            return [BilinearLaw(candidate, candidate, field, rate, kernel, label=self.label)]
         return [EncounterLaw(candidate, field, rate, kernel, label=self.label)]

@@ -16,7 +16,7 @@ from sklearn.base import clone
 from ...base import BaseConfig
 from ...core.elements import FieldElement, GroupElement
 from ...core.interactions import HyperedgeInteraction, NeighborInteraction, SatisfiabilityInteraction
-from ...core.laws import CollisionLaw, EncounterLaw, EquationLaw, JumpLaw, NoiseLaw, ProliferationLaw
+from ...core.laws import BilinearLaw, CollisionLaw, EncounterLaw, EquationLaw, JumpLaw, NoiseLaw
 from ...core.laws.utils import COORDINATE_PREFIX, hyperedges_in, neighborhoods_in, reductions_in
 from ...core.spaces import (
     AdjacencyNeighborhood,
@@ -1418,7 +1418,7 @@ class PassCompiler(BaseCompiler):
         return float(value) if value.is_numeric() else None
 
     @staticmethod
-    def _unnormalized(law: EncounterLaw | ProliferationLaw) -> list[tuple[int, int, float]]:
+    def _unnormalized(law: EncounterLaw | BilinearLaw) -> list[tuple[int, int, float]]:
         """Return the candidate and field activities of the encounters whose outcome probabilities do not sum to one."""
         value = law.transition if isinstance(law, EncounterLaw) else law.outcomes
         if value is None:
@@ -1450,7 +1450,7 @@ class PassCompiler(BaseCompiler):
         issues = []
         for record in Compilation._required(compilation.census, 'census').records:
             law = record.law
-            if not isinstance(law, EncounterLaw | ProliferationLaw):
+            if not isinstance(law, EncounterLaw | BilinearLaw):
                 continue
             found = PassCompiler._unnormalized(law)
             if not found:

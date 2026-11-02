@@ -17,10 +17,10 @@ import numpy as np
 from numba.core.dispatcher import Dispatcher
 
 from ...core.laws import (
+    BilinearLaw,
     BoundaryLaw,
     CascadeLaw,
     CrossingLaw,
-    DestructionLaw,
     DissipatorLaw,
     DriveLaw,
     EmissionLaw,
@@ -34,7 +34,6 @@ from ...core.laws import (
     LocalRuleLaw,
     MatchLaw,
     NoiseLaw,
-    ProliferationLaw,
     RateLaw,
     RuleLaw,
     SampleLaw,
@@ -134,7 +133,6 @@ class NumbaBackend(BaseBackend):
             laws={
                 BoundaryLaw,
                 CrossingLaw,
-                DestructionLaw,
                 DissipatorLaw,
                 DriveLaw,
                 EmissionLaw,
@@ -148,7 +146,7 @@ class NumbaBackend(BaseBackend):
                 LocalRuleLaw,
                 MatchLaw,
                 NoiseLaw,
-                ProliferationLaw,
+                BilinearLaw,
                 RateLaw,
                 CascadeLaw,
                 RuleLaw,

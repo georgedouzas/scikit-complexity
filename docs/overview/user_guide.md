@@ -4304,12 +4304,12 @@ equations
 without any hand derivation. The candidate moves into the `test` group when it is given, such as a cell that mutates
 into another subsystem.
 
-- `ProliferationLaw(candidate, field, rate, outcomes=None, test=None)` creates a particle at the rate `mu[h, k]` without
-  removing the candidate, at the candidate's activity or at an activity drawn from `outcomes`.
-- `DestructionLaw(candidate, field, rate)` removes the candidate at the rate `mu[h, k]`.
+- `BilinearLaw(target, first, second, rate, outcomes=None)` changes the target at the signed rate `r[h, k]`. A positive
+  rate creates a particle without removing the first density, at its activity or at an activity drawn from `outcomes`,
+  and a negative rate with the first density as the target removes it.
 - Rates and probabilities are numbers or parameter expressions, scalars or arrays. Only the nonzero probabilities
   enter the lowering, as sparse contractions on NumPy and one fused loop on Numba.
-- The three laws need continuous time, a lattice space, and real states, and validation reports a law whose system
+- The two laws need continuous time, a lattice space, and real states, and validation reports a law whose system
   lacks them, with the fix to declare them.
 - Validation reports the encounters whose probabilities do not sum to one over the outcomes, with the candidate and
   field activities and the sum, before compilation.

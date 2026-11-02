@@ -9,7 +9,7 @@ from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
+from skcomplex.core.laws import BilinearLaw, EncounterLaw
 from skcomplex.core.spaces import ContinuousTime, DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
@@ -89,8 +89,8 @@ class GrowthInteraction(Interaction):
     def _get_laws(self, s):
         """Return the proliferation and the destruction."""
         return [
-            ProliferationLaw(s.population.f, s.field.f, s.mu),
-            DestructionLaw(s.population.f, s.field.f, s.kill),
+            BilinearLaw(s.population.f, s.population.f, s.field.f, s.mu),
+            BilinearLaw(s.population.f, s.population.f, s.field.f, -s.kill),
         ]
 
 
@@ -212,7 +212,7 @@ def test_proliferation_and_destruction_change_the_density():
     cells = problem.states.entry('cells.f')
     signal_total = 0.1 * CLASSES
     np.testing.assert_allclose(rates[cells.indices], (0.5 - 0.2) * _profile() * signal_total)
-    assert [item.kind for item in problem.encounters] == ['proliferation', 'destruction']
+    assert [item.kind for item in problem.encounters] == ['bilinear', 'bilinear']
 
 
 def test_encounter_reads_a_field_on_a_grid_of_another_size():

@@ -10,7 +10,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.elements import FieldElement
-from ....core.laws import BaseLaw, DestructionLaw, EncounterLaw, ProliferationLaw
+from ....core.laws import BaseLaw, BilinearLaw, EncounterLaw
 from ....core.laws.utils import COORDINATE_PREFIX, coordinate
 from ....core.spaces import PhaseSpace
 from ....errors import ValidationError
@@ -24,7 +24,7 @@ from ...types import KineticLaw, ReadKind
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation, Laws
 
-_KINETIC_LAWS = (EncounterLaw, ProliferationLaw, DestructionLaw)
+_KINETIC_LAWS = (EncounterLaw, BilinearLaw)
 
 
 class CompileEncountersPass(BasePass):
@@ -67,13 +67,6 @@ class CompileEncountersPass(BasePass):
             for entry in block.entries.values()
         }
         return CompileEncountersPass._compile_encounters(components, declarations.time, fused=fused, phases=phases)
-
-    @staticmethod
-    def _effect(law: KineticLaw) -> str:
-        """Return what an encounter law does to particles, `'transition'`, `'proliferation'`, or `'destruction'`."""
-        if isinstance(law, EncounterLaw):
-            return 'transition'
-        return 'proliferation' if isinstance(law, ProliferationLaw) else 'destruction'
 
     @staticmethod
     def _nonzero(table: npt.NDArray[np.generic]) -> tuple[Indices, ...]:
@@ -146,16 +139,14 @@ class CompileEncountersPass(BasePass):
         return rate
 
     @staticmethod
-    def _outcome_table(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> npt.NDArray[np.generic] | None:
-        """Return the outcome table of a law, the identity on the candidate's activity for a bare proliferation."""
-        if isinstance(law, DestructionLaw):
-            return None
+    def _outcome_table(law: KineticLaw, sizes: tuple[int, int, int], owner: str) -> npt.NDArray[np.generic]:
+        """Return the outcome table of a law, the identity on the candidate's activity without one."""
         value = law.transition if isinstance(law, EncounterLaw) else law.outcomes
         if value is None:
             if sizes[0] != sizes[2]:
                 error_msg = (
-                    f'A proliferation of {owner} has no outcome table, so the new particles keep the candidate '
-                    f'activity, but the test group has {sizes[2]} activities and the candidate {sizes[0]}. Give the '
+                    f'A bilinear law of {owner} has no outcome table, so the particles keep the candidate '
+                    f'activity, but the target has {sizes[2]} activities and the candidate {sizes[0]}. Give the '
                     'outcome table.'
                 )
                 raise ValidationError(error_msg)
@@ -185,7 +176,7 @@ class CompileEncountersPass(BasePass):
 
         Args:
             law:
-                The encounter, proliferation, or destruction law.
+                The encounter or bilinear law.
 
             owner:
                 The path of the component that returns the law.
@@ -210,13 +201,15 @@ class CompileEncountersPass(BasePass):
             ValidationError:
                 A density is not a state of a group, a table has the wrong shape, or a table reads a state.
         """
-        candidate = CompileEncountersPass._group_indices(law.candidate, references, owner)
-        linear = isinstance(law, EncounterLaw) and law.field is None
+        bilinear = isinstance(law, BilinearLaw)
+        first, second = (law.first, law.second) if bilinear else (law.candidate, law.field)
+        candidate = CompileEncountersPass._group_indices(first, references, owner)
+        linear = not bilinear and second is None
         empty = np.zeros(0, dtype=np.intp)
-        field_indices = empty if linear else CompileEncountersPass._group_indices(law.field, references, owner)
-        space = (phases or {}).get(references[law.candidate].entry.name)
+        field_indices = empty if linear else CompileEncountersPass._group_indices(second, references, owner)
+        space = (phases or {}).get(references[first].entry.name)
         positions = 1 if space is None else space.position_size_
-        test_symbol = getattr(law, 'test', None)
+        test_symbol = law.target if bilinear else law.test
         test = (
             candidate if test_symbol is None else CompileEncountersPass._group_indices(test_symbol, references, owner)
         )
@@ -225,22 +218,6 @@ class CompileEncountersPass(BasePass):
         table = CompileEncountersPass._outcome_table(law, sizes, owner)
         grid = tuple(item.ravel().astype(np.intp) for item in np.indices(sizes[:2]))
         rate = TableValuesSpec(rates, grid, CompileEncountersPass._parameter_indices(rates, references, owner), time)
-        if table is None:
-            return (
-                EncounterKernel(
-                    owner,
-                    CompileEncountersPass._effect(law),
-                    candidate,
-                    field_indices,
-                    test,
-                    rate=rate,
-                    entries=(empty,) * 3,
-                    probabilities=None,
-                    positions=positions,
-                )
-                .check()
-                .prepare()
-            )
         nonzero = CompileEncountersPass._nonzero(table)
         entries = (nonzero[0], nonzero[1], nonzero[2])
         probabilities = TableValuesSpec(
@@ -252,7 +229,7 @@ class CompileEncountersPass(BasePass):
         return (
             EncounterKernel(
                 owner,
-                CompileEncountersPass._effect(law),
+                'bilinear' if bilinear else 'transition',
                 candidate,
                 field_indices,
                 test,

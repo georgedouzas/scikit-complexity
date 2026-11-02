@@ -5,29 +5,27 @@
 
 
 from ...core.laws import (
+    BilinearLaw,
     BoundaryLaw,
     CascadeLaw,
     CrossingLaw,
-    DestructionLaw,
     DriveLaw,
     EncounterLaw,
     ExtremalLaw,
     FluxLaw,
     LocalRuleLaw,
-    ProliferationLaw,
     RuleLaw,
     SampleLaw,
     TransferLaw,
 )
 
-_FORMLESS_LAWS = (BoundaryLaw, CrossingLaw, EncounterLaw, ProliferationLaw, DestructionLaw, FluxLaw)
+_FORMLESS_LAWS = (BoundaryLaw, CrossingLaw, EncounterLaw, BilinearLaw, FluxLaw)
 """Laws that leave the form of a system as the other laws decide it."""
 
 _KERNEL_FREE_LAWS = (
     TransferLaw,
     EncounterLaw,
-    ProliferationLaw,
-    DestructionLaw,
+    BilinearLaw,
     LocalRuleLaw,
     DriveLaw,
     CascadeLaw,

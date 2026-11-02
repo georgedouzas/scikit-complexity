@@ -8,7 +8,7 @@ import math
 import numpy as np
 from sage.all__sagemath_symbolics import SR
 
-from ...core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
+from ...core.laws import BilinearLaw, EncounterLaw
 from ...core.spaces import ContinuousTime, LatticeSpace
 from ...errors import SolverError
 from ...specs import SupportSpec
@@ -44,8 +44,8 @@ class KineticSolver(Solver):
 
     Examples:
         >>> from skcomplex.engine.solvers import KineticSolver
-        >>> from skcomplex.core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
-        >>> KineticSolver(n=1000)._get_support().laws == {EncounterLaw, ProliferationLaw, DestructionLaw}
+        >>> from skcomplex.core.laws import BilinearLaw, EncounterLaw
+        >>> KineticSolver(n=1000)._get_support().laws == {EncounterLaw, BilinearLaw}
         True
     """
 
@@ -55,7 +55,7 @@ class KineticSolver(Solver):
         return SupportSpec(
             time={ContinuousTime},
             space={LatticeSpace},
-            laws={EncounterLaw, ProliferationLaw, DestructionLaw},
+            laws={EncounterLaw, BilinearLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 
@@ -172,12 +172,26 @@ class KineticSolver(Solver):
         """Remove the particles that encounters destroy in one step."""
         counts = self._counts[tuple(encounter.candidate.tolist())]
         field = self._counts[tuple(encounter.field.tolist())] * self.mass_
-        totals = encounter.rate_matrix(p) @ field
+        totals = -encounter.rate_matrix(p) @ field
         counts -= self.rng_.binomial(counts, -np.expm1(-totals * step))
+
+    def _apply_bilinear(self, encounter: EncounterKernel, p: Array, step: float) -> None:
+        """Add the particles of a positive rate, or remove those of a negative rate from the first density."""
+        rates = encounter.rate_matrix(p)
+        if not np.any(rates < 0):
+            self._proliferate(encounter, p, step)
+            return
+        if np.any(rates > 0) or not np.array_equal(encounter.test, encounter.candidate):
+            error_msg = (
+                f'KineticSolver samples a bilinear law of one sign, with a loss from its first density, but '
+                f'{encounter.owner} has other rates or another target. Split the law.'
+            )
+            raise SolverError(error_msg)
+        self._destroy(encounter, p, step)
 
     def _step(self, p: Array, step: float) -> None:
         """Apply every encounter law in turn for one step."""
-        actions = {'transition': self._move, 'proliferation': self._proliferate, 'destruction': self._destroy}
+        actions = {'transition': self._move, 'bilinear': self._apply_bilinear}
         for encounter in self._encounters:
             actions[encounter.kind](encounter, p, step)
 

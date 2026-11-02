@@ -1,4 +1,4 @@
-"""Define proliferation laws, bilinear gains of a density at the rate of the product of two densities."""
+"""Define bilinear laws, gains and losses of a density at the rate of the product of two densities."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,61 +12,62 @@ from ..spaces import ContinuousTime, LatticeSpace
 from ._base import BaseLaw
 
 
-class ProliferationLaw(BaseLaw):
-    """Bilinear gain of the test density at the rate of the product of two densities, which leaves both unchanged.
+class BilinearLaw(BaseLaw):
+    """Gain or loss of a target density at a signed rate of the product of two densities.
 
-    The amount of the candidate density `f` in class `h` that meets the amount of the field density `g` in class `k`
-    adds to class `i` of the test density at the rate `mu[h, k]` with probability `B[h, k, i]`, so the law adds
-    `sum_hk mu[h, k] B[h, k, i] f_h g_k` to the rate of the test density at `i`.
+    The amount of the first density `f` in class `h` that meets the amount of the second density `g` in class `k` adds
+    to class `i` of the target at the rate `r[h, k]` with probability `B[h, k, i]`, so the law adds
+    `sum_hk r[h, k] B[h, k, i] f_h g_k` to the rate of the target at `i`. A positive rate gives a gain that leaves the
+    first density in place, and a negative rate with the first density as the target gives a loss.
 
     Args:
-        candidate:
-            The symbol of the candidate density.
+        target:
+            The symbol of the density the law changes.
 
-        field:
-            The symbol of the field density.
+        first:
+            The symbol of the first density.
+
+        second:
+            The symbol of the second density.
 
         rate:
-            The proliferation rate, a number or a parameter expression, or an array `mu[h, k]` of them.
+            The signed rate, a number or a parameter expression, or an array `r[h, k]` of them.
 
         outcomes:
-            The array `B[h, k, i]` of the probabilities of the class of the new amount, or `None` for the
-            candidate's own class, which needs a test group of the candidate's size.
-
-        test:
-            The symbol of the density that gains the new amount, or `None` for the candidate's own density.
+            The array `B[h, k, i]` of the probabilities of the class in the target, or `None` for the class of the first
+            density, which needs a target of its size.
 
         label:
             The name of the law, or the empty string for a law without one.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
-        >>> from skcomplex.core.laws import ProliferationLaw
+        >>> from skcomplex.core.laws import BilinearLaw
         >>> f, g = var('f'), var('g')
-        >>> ProliferationLaw(f, g, 0.5).check().prepare().run({}).value_
-        (0.5, None)
+        >>> BilinearLaw(f, f, g, -0.5).check().prepare().run({}).value_
+        (-0.5, None)
     """
 
     def __init__(
         self,
-        candidate: Expression,
-        field: Expression,
+        target: Expression,
+        first: Expression,
+        second: Expression,
         rate: object,
         outcomes: object = None,
-        test: Expression | None = None,
         *,
         label: str = '',
     ) -> None:
         super().__init__(label)
-        self.candidate = candidate
-        self.field = field
+        self.target = target
+        self.first = first
+        self.second = second
         self.rate = rate
         self.outcomes = outcomes
-        self.test = test
 
     def _get_targets(self) -> tuple[object, ...]:
-        """Return the densities the encounter changes, the candidate and the test."""
-        return (self.candidate,) if self.test is None or self.test is self.candidate else (self.candidate, self.test)
+        """Return the densities the encounter changes, the first density and the target."""
+        return (self.first,) if self.target is self.first else (self.first, self.target)
 
     def _get_requirements(self) -> RequirementSpec:
         """Return what the law requires of a system: continuous time on lattices of classes."""

@@ -7,10 +7,10 @@ from collections.abc import Mapping
 from dataclasses import replace
 
 from ...core.laws import (
+    BilinearLaw,
     BoundaryLaw,
     CascadeLaw,
     CrossingLaw,
-    DestructionLaw,
     DissipatorLaw,
     DriveLaw,
     EmissionLaw,
@@ -24,7 +24,6 @@ from ...core.laws import (
     LocalRuleLaw,
     MatchLaw,
     NoiseLaw,
-    ProliferationLaw,
     RateLaw,
     RuleLaw,
     SampleLaw,
@@ -71,7 +70,6 @@ class NumpyBackend(BaseBackend):
             laws={
                 BoundaryLaw,
                 CrossingLaw,
-                DestructionLaw,
                 DissipatorLaw,
                 DriveLaw,
                 EmissionLaw,
@@ -85,7 +83,7 @@ class NumpyBackend(BaseBackend):
                 LocalRuleLaw,
                 MatchLaw,
                 NoiseLaw,
-                ProliferationLaw,
+                BilinearLaw,
                 RateLaw,
                 CascadeLaw,
                 RuleLaw,

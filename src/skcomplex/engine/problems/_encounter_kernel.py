@@ -32,7 +32,7 @@ class EncounterKernel(BaseKernel):
             The path of the component that returns the law.
 
         kind:
-            `'transition'` for a conservative encounter, `'proliferation'`, or `'destruction'`.
+            `'transition'` for a conservative encounter, or `'bilinear'` for a gain or a loss at a signed rate.
 
         candidate:
             The flat state indices of the candidate density, one per activity.
@@ -47,10 +47,10 @@ class EncounterKernel(BaseKernel):
             The values of the encounter rate `eta[h, k]` of every candidate and field activity, flattened by row.
 
         entries:
-            The candidate, field, and outcome activities of the nonzero outcome probabilities, empty for a destruction.
+            The candidate, field, and outcome activities of the nonzero outcome probabilities.
 
         probabilities:
-            The values of the nonzero outcome probabilities, or `None` for a destruction.
+            The values of the nonzero outcome probabilities.
 
         fused:
             Whether the gain runs in one fused loop compiled with Numba, rather than in NumPy.
@@ -75,7 +75,7 @@ class EncounterKernel(BaseKernel):
         *,
         rate: TableValuesSpec,
         entries: tuple[Indices, Indices, Indices],
-        probabilities: TableValuesSpec | None,
+        probabilities: TableValuesSpec,
         fused: bool = False,
         positions: int = 1,
     ) -> None:
@@ -143,10 +143,8 @@ class EncounterKernel(BaseKernel):
 
         Returns:
             weights:
-                One weight per entry, empty for a destruction.
+                One weight per entry.
         """
-        if self.probabilities is None:
-            return np.zeros(0)
         candidates, fields, _ = self.entries
         return self.rate_matrix(p)[candidates, fields] * self._values(self.probabilities, p)
 
@@ -196,8 +194,7 @@ class EncounterKernel(BaseKernel):
         state = self._state_of(inputs)
         x, p = state.x, state.p
         rates = np.zeros(x.size)
-        if self.kind != 'proliferation':
+        if self.kind == 'transition':
             rates[self.candidate] -= self._loss(x, p)
-        if self.kind != 'destruction':
-            rates[self.test] += self._gain(x, p)
+        rates[self.test] += self._gain(x, p)
         self.values_ = rates

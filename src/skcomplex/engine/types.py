@@ -18,7 +18,7 @@ from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuous
 from sage.all__sagemath_symbolics import Expression
 from sage.structure.element import RingElement
 
-from ..core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
+from ..core.laws import BilinearLaw, EncounterLaw
 from ..specs import ObservableSpec
 from ..types import Array, ComplexArray, Indices, IntArray, IntTuple
 
@@ -66,7 +66,7 @@ type Marks = Callable[..., npt.ArrayLike] | Sequence[Sequence[float]]
 type Colors = tuple[int, int, int] | list[tuple[int, int, int, int]]
 
 # laws, operators, and observables the compiler reads
-type KineticLaw = EncounterLaw | ProliferationLaw | DestructionLaw
+type KineticLaw = EncounterLaw | BilinearLaw
 type Hamiltonians = list[tuple[str, Expression]]
 type Dissipators = list[tuple[str, Expression, object]]
 type Declared = dict[str, tuple[str, ObservableSpec]]

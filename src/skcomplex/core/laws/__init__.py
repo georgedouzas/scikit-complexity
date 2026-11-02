@@ -4,11 +4,11 @@
 # License: MIT
 
 from ._base import BaseLaw
+from ._bilinear import BilinearLaw
 from ._boundary import BoundaryLaw
 from ._cascade import CascadeLaw
 from ._collision import CollisionLaw
 from ._crossing import CrossingLaw
-from ._destruction import DestructionLaw
 from ._dissipator import DissipatorLaw
 from ._drive import DriveLaw
 from ._emission import EmissionLaw
@@ -23,7 +23,6 @@ from ._jump import JumpLaw
 from ._local_rule import LocalRuleLaw
 from ._match import MatchLaw
 from ._noise import NoiseLaw
-from ._proliferation import ProliferationLaw
 from ._rate import RateLaw
 from ._rule import RuleLaw
 from ._sample import SampleLaw
@@ -33,11 +32,11 @@ from ._update import UpdateLaw
 
 __all__: list[str] = [
     'BaseLaw',
+    'BilinearLaw',
     'BoundaryLaw',
     'CascadeLaw',
     'CollisionLaw',
     'CrossingLaw',
-    'DestructionLaw',
     'DissipatorLaw',
     'DriveLaw',
     'EmissionLaw',
@@ -52,7 +51,6 @@ __all__: list[str] = [
     'LocalRuleLaw',
     'MatchLaw',
     'NoiseLaw',
-    'ProliferationLaw',
     'RateLaw',
     'RuleLaw',
     'SampleLaw',
