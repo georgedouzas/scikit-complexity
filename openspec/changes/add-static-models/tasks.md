@@ -32,7 +32,7 @@
 
 ## 4. Library
 
-- [ ] 4.1 Add `lq_cell_survival`, `random_energy_model`, `continuum_percolation`, and `von_thunen`, and verify the
+- [x] 4.1 Add `lq_cell_survival`, `random_energy_model`, `continuum_percolation`, and `von_thunen`, and verify the
   fractionation, glass transition, percolation threshold, and von Thünen rings scenarios and the conformance suite
 - [ ] 4.2 Add `oligopoly_equilibria` with its static and fictitious-play dynamics, and verify the mixed price
   equilibrium and fictitious play scenarios and the conformance suite
