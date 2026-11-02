@@ -104,6 +104,11 @@ A state declared with `domain=None` or an object domain holds any hashable value
 Snapshot fields get explicit roles (position, velocity, heading) in the snapshot spec instead of being guessed from
 names.
 
+### Matching defaults (decided on 2026-11-02)
+
+A state name passed to a matching must exist on the agents, or the check raises an error. Left at their defaults,
+`limit`, `quantity`, and `budget` keep their documented fallback: an agent without such a state has no limit.
+
 ### Errors instead of silent results
 The fixes listed in the proposal are checks in `_check` or in the pass that would otherwise run silently, each raising
 a named error from `skcomplex.errors` whose message names the operation, the reason, and the hook.
