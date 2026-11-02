@@ -66,9 +66,19 @@ Alternative: registries of variants. Rejected: global mutable state and machiner
 ### One partner-selection spec
 `PartnerSpec(candidates, choice, fallback, capacity)` in `skcomplex.specs`:
 - candidates: `'all'`, `'neighbors'`, `'cell'`, a radius, or a state name holding a per-agent radius;
-- choice: `'uniform'`, `'score'` with a score callable, or `'nearest'`;
+- choice: `'uniform'`, `'score'` with a `score` callable, `'nearest'`, or `'all'` for every candidate, which the named
+  pairings `'neighbors'` and `'cell'` need;
 - fallback: `None` or `'nearest'`;
-- capacity: a number or a state name.
+- capacity: a number or a state name, the largest number of pairs of a member in one step. With a capacity the agents act
+  in random order, since the first to act take the room, and it counts both roles within one group.
+
+The named pairings `'random'`, `'pairs'`, `'neighbors'`, `'neighbor-pairs'`, and `'cell'` are shorthands of specs and give
+identical draws. `'members'` and `'site'` select no partner, so they stay as they are. In groupings `'pairs'` is a
+shorthand, and the groups of a spec or a function hold every member with its partners. A `'neighborhood'` group keeps its
+own path because it also holds a member with no neighbours. A matching takes a spec or a function as its rule, and matches
+its pairs at the midpoint of both limits. `GreedyMatchingSpec` keeps its own candidates, because its feasibility reads the
+limits and quantities of the offers, which a spec does not know. A capacity does not run under the transfer schedule
+`'member'`, since every actor draws alone, and it raises an error.
 
 A pairing callable replaces the spec. Transfers, matching (as the greedy rule's candidates and choice), and groupings
 accept it. Radius candidates use `RadiusNeighborhood` and `NearestNeighborhood` from `core.spaces`, so they work in
@@ -118,6 +128,20 @@ a named error from `skcomplex.errors` whose message names the operation, the rea
   needs its own lowering of the operators. A new one is added as a lowering in the engine, not by the user.
 - **Group constructors.** A group builds one instance of its element type from the label alone and sets its `values`
   on it, so every other argument of the element constructor has a default. Per-member values go in `values`.
+- **Event ties.** The crossings of one step apply earliest first. Crossings within the minimum separation of the
+  earliest, a relative `1e-10`, are one tie: all of them fire at that time, by declaration order and then member index,
+  and each reset reads the state the one before it left. The reason is that a reset is a function of one state vector,
+  so resets applied in turn need no rule for two resets that write one state. An option on the event locator that
+  evaluates every reset on the state before the tie, with a rule for conflicting writes, would treat them as
+  simultaneous. Until 2026-11-02 the code fired only the first of a tie, because the guards of the others had already
+  changed sign when the run restarted; `EventLocator.apply` now fires all of them.
+- **Draw registry.** `DRAWS` in `skcomplex.specs._draw_spec` is a module-level mapping from the function name of a draw,
+  such as `uniform_turn`, to its `DrawSpec`, written by every call of `uniform`, `normal`, `bernoulli`, `categorical`,
+  and `draw`. The reason is that a Sage symbolic function holds only a name and arguments, so `draws_in` recovers the
+  kind, the name, and the keywords of a draw from the name of its function. Entries never leave and no run writes them,
+  so they do not change between runs, but two limits follow. An expression unpickled in a process that never called the
+  draw is not recognised as a draw, and `uniform('a')` and `draw('a', 'uniform')` share the function name `uniform_a`,
+  so the later call decides the kind of both. A Sage function class that holds the spec on the operator would lift both.
 
 ## Risks / Trade-offs
 

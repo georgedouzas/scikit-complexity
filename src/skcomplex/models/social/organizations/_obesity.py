@@ -7,10 +7,12 @@
 import numpy as np
 
 from ....core.elements import GroupElement
-from ....core.spaces import ContinuousSpace
+from ....core.interactions import BaseInteraction, MovementInteraction, TransferInteraction
+from ....core.spaces import ContinuousSpace, DiscreteTime
 from ....core.system import System
+from ....specs import PartnerSpec, PhaseSpec, PhasesScheduleSpec
 from ..._catalog import register_model
-from ._eater import EaterElement
+from ._eater import DAYS_PER_WEEK, EaterElement
 from ._restaurant import RestaurantElement
 
 OBESE = 30.0
@@ -36,7 +38,9 @@ def obesity(
 ) -> System:
     """Return the obesity model of adults who eat near home and work, one step per day.
 
-    Homes, workplaces, and restaurants of three kinds lie at random, and the eating habits are split equally.
+    Homes, workplaces, and restaurants of three kinds lie at random, and the eating habits are split equally. At home,
+    at work, and at home again a person eats one meal at a random restaurant within `reach`, or at the nearest
+    restaurant when none is within reach, so that access changes what is eaten but never skips a meal.
 
     Args:
         n_people:
@@ -97,4 +101,31 @@ def obesity(
         values={'kind': rng.integers(0, 3, n_places).astype(float)},
         location=rng.uniform(0, size, (n_places, 2)),
     )
-    return System(elements=[people, restaurants], space=ContinuousSpace(extent=(size, size)))
+    interactions: list[BaseInteraction] = []
+    for phase, step in (
+        ('home', EaterElement.go_home),
+        ('work', EaterElement.go_to_work),
+        ('evening', EaterElement.go_home),
+    ):
+        interactions += [
+            MovementInteraction(f'go_{phase}', target='people', step=step, phase=phase),
+            TransferInteraction(
+                f'meal_{phase}',
+                source='people',
+                target='restaurants',
+                state='calories',
+                into='sold',
+                amount=EaterElement.draw_meal,
+                pairing=PartnerSpec('reach', fallback='nearest'),
+                form='agent',
+                phase=phase,
+                settlement=EaterElement.settle_meal,
+            ),
+        ]
+    phases = (PhaseSpec('home'), PhaseSpec('work'), PhaseSpec('evening'), PhaseSpec('week', period=DAYS_PER_WEEK))
+    return System(
+        elements=[people, restaurants],
+        interactions=interactions,
+        space=ContinuousSpace(extent=(size, size)),
+        time=DiscreteTime(schedule=PhasesScheduleSpec(phases)),
+    )

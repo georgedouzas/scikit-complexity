@@ -277,6 +277,8 @@ class EvolutionInteraction(Interaction):
             weights[np.argsort(fitness, kind='stable')] = np.arange(1, size + 1)
         elif self.selection == 'proportional':
             weights = fitness.copy()
+        elif self.selection != 'roulette':
+            raise self._get_variant_error(self.selection, 'selection', '_select')
         else:
             weights = fitness - fitness.min()
         weights = weights if weights.sum() > 0 else np.ones_like(weights)
@@ -455,6 +457,8 @@ class EvolutionInteraction(Interaction):
             children, replaced = self._breed_truncation(flat, fitness, model)
         elif self.replacement == 'best-mutant':
             children = self._breed_best_mutant(flat, fitness, model, genes)
+        elif self.replacement != 'generational':
+            raise self._get_variant_error(self.replacement, 'replacement', '_breed')
         else:
             children = self._breed_generation(flat, fitness, model)
         children = children.reshape(strategies.shape)

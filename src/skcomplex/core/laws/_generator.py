@@ -4,6 +4,8 @@
 # License: MIT
 
 
+from sage.all__sagemath_symbolics import Expression
+
 from ...errors import ValidationError
 from ...specs import RequirementSpec
 from ..spaces import ContinuousTime
@@ -43,7 +45,13 @@ class GeneratorLaw(BaseLaw):
         return RequirementSpec(time=(ContinuousTime,))
 
     def _check(self) -> None:
-        """Raise an error for an operator without local operators."""
+        """Raise an error for a function as the operator, or an operator without local operators."""
+        if callable(self.operator) and not isinstance(self.operator, Expression):
+            error_msg = (
+                'Quantum generators need symbolic operators, so a generator cannot be a function. Give the coefficient '
+                'as a `series` of time, or use a `RateLaw` with a function on the states of a classical system.'
+            )
+            raise ValidationError(error_msg)
         if not has_operator(self.operator):
             error_msg = f'A generator takes an operator built from local operators, but got {self.operator!r}.'
             raise ValidationError(error_msg)

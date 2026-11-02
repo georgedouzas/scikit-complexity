@@ -12,7 +12,7 @@ from skcomplex.core.laws.utils import matches
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import PartnerSpec, StateSpec, VisualSpec
 
 
 class TraderElement(Element):
@@ -70,3 +70,34 @@ def test_random_matching_pairs_every_member_at_most_once():
     assert sellers.tolist() == [1.0] * 30
     assert buyers.sum() == 30
     assert buyers.max() == 1
+
+
+class PairedInteraction(Interaction):
+    """Market that pairs the members of one group by a partner spec and counts the pairs."""
+
+    def _get_laws(self, s):
+        """Return the matching and the rule that reads it."""
+        return [
+            MatchLaw('traders', None, PartnerSpec('all', 'score', score=lambda a, b: b.paired), label='trades'),
+            RuleLaw(self.count),
+        ]
+
+    def count(self, model):
+        """Count every pair of the step on its second member."""
+        for _, second in matches(model, 'trades'):
+            second.paired += 1
+
+
+def test_run_stores_the_pairs_of_a_partner_spec_for_the_rules_of_the_step():
+    """Test that a match law lowers a partner spec, whose score sends every member to the one with the most pairs."""
+    traders = GroupElement('traders', element=TraderElement, size=3, values={'paired': [0.0, 5.0, 0.0]})
+    system = System(elements=[traders], interactions=[PairedInteraction('market')])
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    assert trajectory.agents('traders', 1).values['paired'].sum() == pytest.approx(8.0)
+    assert trajectory.agents('traders', 1).values['paired'][1] == pytest.approx(7.0)
+
+
+def test_check_validates_a_partner_spec():
+    """Test that the check of a match law checks its partner spec."""
+    with pytest.raises(ValidationError, match='Unknown choice'):
+        MatchLaw('traders', pairing=PartnerSpec(choice='best')).check()

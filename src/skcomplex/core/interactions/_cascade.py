@@ -136,6 +136,8 @@ class CascadeInteraction(NeighborInteraction):
 
     def _relax(self, threshold: float, share: float) -> Callable[..., Array]:
         """Return the rule of one relaxation of every member, from its state first and the states of its neighbours."""
+        if self.mode not in MODES:
+            raise self._get_variant_error(self.mode, 'mode', '_relax')
         reset = self.mode == 'reset'
 
         def relax(value: Array, *around: Array) -> Array:

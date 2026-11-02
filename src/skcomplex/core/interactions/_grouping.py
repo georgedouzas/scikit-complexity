@@ -5,16 +5,16 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, cast
 
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import BaseSpec, ReductionSpec, RoleSpec
-from ..laws import BaseLaw, RuleLaw, UpdateLaw
+from ...specs import BaseSpec, PartnerSpec, ReductionSpec, RoleSpec
+from ..laws import BaseLaw, MatchLaw, RuleLaw, UpdateLaw
 from ..laws.utils import both, count, maximum, mean, minimum, reductions_in, total, variance
 from ..spaces import BaseSpace
-from ..types import AgentViewProtocol, ModelViewProtocol
+from ..types import AgentViewProtocol, ModelViewProtocol, Pairing
 from ._interaction import Interaction
 
 GROUPS = ('pairs', 'partition', 'neighborhood', 'state')
@@ -66,7 +66,9 @@ class GroupingInteraction(Interaction):
             The path of the group whose members are grouped.
 
         groups:
-            The kind of groups, `'pairs'`, `'partition'`, `'neighborhood'`, or `'state'`.
+            The kind of groups, `'pairs'`, `'partition'`, `'neighborhood'`, or `'state'`, or in the agent form a
+            `PartnerSpec` or a function `pairing(members, members, rng, capacity)` that returns pairs, which group
+            every member with its partners. `'pairs'` is a shorthand of `PartnerSpec('all', 'uniform', capacity=1)`.
 
         act:
             The function of the members of a group and the model view that acts on the group in the agent form, used
@@ -197,7 +199,8 @@ class GroupingInteraction(Interaction):
     def _check_space(self, space: BaseSpace | None) -> None:
         """Raise an error for groups of neighbouring cells or nodes in a continuous space."""
         if self.groups == 'neighborhood':
-            self._check_grid('groups', self.groups, space, "groups='pairs', 'partition', or 'state'")
+            self._check_grid('groups', self.groups, space, "groups='pairs', 'partition', 'state', or a radius")
+        self._check_partners(self.groups, space)
 
     def _check(self) -> None:
         """Raise an error for an unknown kind of groups, a size below two, a missing state, or a capacity below one.
@@ -212,7 +215,9 @@ class GroupingInteraction(Interaction):
         if self.form not in FORMS:
             error_msg = f'Unknown form {self.form!r} of {self.label!r}. Use one of {", ".join(FORMS)}.'
             raise ValidationError(error_msg)
-        self._check_variant('groups', self.groups, GROUPS, (BaseSpec,))
+        self._check_variant('groups', self.groups, GROUPS, (BaseSpec,), functions=True)
+        if isinstance(self.groups, PartnerSpec):
+            self.groups.check()
         if isinstance(self.size, bool) or not isinstance(self.size, int) or self.size < PAIR:
             error_msg = f'The size of the groups of {self.label!r} is {self.size!r}. Give a whole number of at least 2.'
             raise ValidationError(error_msg)
@@ -226,6 +231,12 @@ class GroupingInteraction(Interaction):
             error_msg = f'The action of {self.label!r} is {self.act!r}. Give a function, or None.'
             raise ValidationError(error_msg)
         if self.form == 'symbolic':
+            if not isinstance(self.groups, str):
+                error_msg = (
+                    f'The symbolic form of {self.label!r} compiles the named groups, so it cannot run {self.groups!r}. '
+                    'Use `form="agent"`, whose groups `_get_groups` draws.'
+                )
+                raise ValidationError(error_msg)
             self._check_symbolic()
             return
         if self.write is not None or self.function is not None:
@@ -270,16 +281,34 @@ class GroupingInteraction(Interaction):
             groups.append(order if self.capacity is None else order[: self.capacity])
         return groups
 
+    def _get_partners(
+        self,
+        pairing: PartnerSpec | Pairing,
+        agents: Sequence[AgentViewProtocol],
+        model: ModelViewProtocol,
+    ) -> list[list[AgentViewProtocol]]:
+        """Return the groups of every agent with the partners a selection of partners or a function gives it."""
+        law = MatchLaw(self.target, pairing=pairing, capacity=self.capacity or 1)
+        groups: dict[int, list[AgentViewProtocol]] = {}
+        for first, second in law.get_pairs(agents, agents, model.rng):
+            member, partner = cast(AgentViewProtocol, first), cast(AgentViewProtocol, second)
+            groups.setdefault(member.id, [member]).append(partner)
+        return list(groups.values())
+
     def _get_groups(self, model: ModelViewProtocol) -> list[list[AgentViewProtocol]]:
         """Return the groups of one step."""
         agents = [agent for agent in model.agents(self._get_role('target')) if agent.alive]
         if self.groups == 'pairs':
-            return [group for group in self._get_partition(agents, PAIR, model) if len(group) == PAIR]
+            return self._get_partners(PartnerSpec('all', 'uniform', capacity=1), agents, model)
+        if callable(self.groups) or isinstance(self.groups, PartnerSpec):
+            return self._get_partners(self.groups, agents, model)
         if self.groups == 'partition':
             return self._get_partition(agents, self.size, model)
         if self.groups == 'neighborhood':
             return self._get_neighborhoods(agents)
-        return self._get_shared(agents, model)
+        if self.groups == 'state':
+            return self._get_shared(agents, model)
+        raise self._get_variant_error(self.groups, 'groups', '_get_groups')
 
     def _act_on_groups(self, model: ModelViewProtocol) -> None:
         """Act on every group of one step in random order."""

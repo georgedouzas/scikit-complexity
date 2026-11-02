@@ -35,7 +35,7 @@ from skcomplex.core.interactions import (
     TransitionInteraction,
 )
 from skcomplex.core.laws.utils import neighbors
-from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, VonNeumannNeighborhood
+from skcomplex.core.spaces import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, VonNeumannNeighborhood
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import SpaceError, ValidationError
@@ -398,3 +398,121 @@ def test_dispatch_method_of_a_subclass_runs_its_spec_variant():
     system = System(elements=[group], interactions=[choice], time=DiscreteTime())
     trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
     assert trajectory.agents('members', 1).values['x'].tolist() == [2.0, 2.0, 2.0]
+
+
+def _run_variant(*interactions, space=None, time=None):
+    """Run three members under interactions, on a lattice of three sites when a space is not given."""
+    group = GroupElement('nodes', element=NodeElement, size=3)
+    system = System(
+        elements=[group],
+        interactions=list(interactions),
+        space=LatticeSpace((3,)) if space is None else space,
+        time=DiscreteTime() if time is None else time,
+    )
+    Simulation(system, random_state=0).check().prepare().run(until=2)
+
+
+def _choice(form):
+    """Return a choice with an unhandled spec rule."""
+    utility = (lambda agent, model, option: option) if form == 'agent' else (lambda namespace, option: option)
+    return ChoiceInteraction(
+        'choice',
+        target='nodes',
+        state='x',
+        options=(0, 1),
+        utility=utility,
+        rule=FixedSpec(),
+        form=form,
+    )
+
+
+def _imitation(form):
+    """Return an imitation with an unhandled spec rule."""
+    return ImitationInteraction(
+        'imitation',
+        target='nodes',
+        state='x',
+        options=(0, 1),
+        payoff='x',
+        probability=1.0,
+        rule=FixedSpec(),
+        form=form,
+    )
+
+
+UNHANDLED_VARIANTS = {
+    'choice agent': (lambda: _run_variant(_choice('agent')), '_draw_agent'),
+    'choice symbolic': (lambda: _run_variant(_choice('symbolic')), '_draw_symbolic'),
+    'imitation agent': (lambda: _run_variant(_imitation('agent')), '_choose'),
+    'imitation rate': (lambda: _run_variant(_imitation('rate'), time=ContinuousTime()), '_get_jumps'),
+    'imitation probability': (lambda: _run_variant(_imitation('probability')), '_get_update'),
+    'map agent': (
+        lambda: _run_variant(
+            MapInteraction(
+                'map',
+                target='nodes',
+                state='x',
+                function=lambda agent, model: 1.0,
+                mode=FixedSpec(),
+                form='agent',
+            ),
+        ),
+        '_apply_mode',
+    ),
+    'map symbolic': (
+        lambda: _run_variant(
+            MapInteraction('map', target='nodes', state='x', function=lambda namespace: 1.0, mode=FixedSpec()),
+        ),
+        '_apply_mode',
+    ),
+    'grouping': (
+        lambda: _run_variant(GroupingInteraction('groups', target='nodes', groups=FixedSpec(), act=print)),
+        '_get_groups',
+    ),
+    'evolution selection': (
+        lambda: _run_variant(
+            EvolutionInteraction('evolution', target='nodes', strategy='x', fitness=None, selection=FixedSpec()),
+        ),
+        '_select',
+    ),
+    'evolution replacement': (
+        lambda: _run_variant(
+            EvolutionInteraction('evolution', target='nodes', strategy='x', fitness=None, replacement=FixedSpec()),
+        ),
+        '_breed',
+    ),
+    'topology': (
+        lambda: TopologyInteraction('change', target='nodes', action=FixedSpec()).check(),
+        '_get_requests',
+    ),
+    'cascade': (
+        lambda: _run_variant(CascadeInteraction('cascade', target='nodes', state='x', threshold=4, mode=FixedSpec())),
+        '_relax',
+    ),
+    'coupling': (
+        lambda: _run_variant(CouplingInteraction('coupling', target='nodes', read='x', write='x', mode=FixedSpec())),
+        '_get_reduction',
+    ),
+}
+
+
+@pytest.mark.parametrize('case', list(UNHANDLED_VARIANTS))
+def test_dispatch_raises_for_a_spec_variant_without_an_override(case):
+    """Test that a spec variant no subclass handles raises an error naming the method to override."""
+    run, method = UNHANDLED_VARIANTS[case]
+    with pytest.raises(ValidationError, match=f'Override `{method}`'):
+        run()
+
+
+def test_check_refuses_a_spec_of_groups_in_the_symbolic_form():
+    """Test that the symbolic form of a grouping refuses a spec of groups, since it compiles the named ones."""
+    grouping = GroupingInteraction(
+        'groups',
+        target='nodes',
+        groups=FixedSpec(),
+        write='x',
+        function=lambda s: 1.0,
+        form='symbolic',
+    )
+    with pytest.raises(ValidationError, match='compiles the named groups'):
+        grouping.check()

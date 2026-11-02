@@ -11,8 +11,8 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ...errors import SimulationError, ValidationError
-from ...specs import RoleSpec
-from ..laws import BaseLaw, RuleLaw, Sink, Source, TransferLaw
+from ...specs import PartnerSpec, RoleSpec
+from ..laws import BaseLaw, MatchLaw, RuleLaw, Sink, Source, TransferLaw
 from ..laws.utils import shift_member, where
 from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, ModelViewProtocol, Pairing
@@ -26,10 +26,18 @@ ACTORS = ('source', 'target')
 REMOVALS = ('source', 'target')
 LEG_LENGTHS = (3, 4)
 BOUNDARIES = ('periodic', 'fixed')
+NAMED_PARTNERS = {
+    'random': PartnerSpec('all', 'uniform'),
+    'pairs': PartnerSpec('all', 'uniform', capacity=1),
+    'neighbors': PartnerSpec('neighbors', 'all'),
+    'neighbor-pairs': PartnerSpec('neighbors', 'uniform', capacity=1),
+    'cell': PartnerSpec('cell', 'all'),
+}
 
 type Amount = float | Callable[..., object]
 type Leg = tuple[str | Source, str | Sink | None, Amount] | tuple[str | Source, str | Sink | None, Amount, str]
 type NamedLeg = tuple[str | Source, str | Sink | None, Amount, str]
+type Settlement = Callable[..., None]
 
 
 class TransferInteraction(Interaction):
@@ -71,7 +79,10 @@ class TransferInteraction(Interaction):
       role binds a field, and every source member moves its amounts into the site of the field at its cell or node, so
       a negative amount takes from the site. The functions of this pairing take the cell of the source agent in place
       of a target agent. With `remove`, the source or the target member of every pair that transfers is removed, as an
-      agent eaten whole. A subclass that names its roles otherwise returns their names from `_get_role`.
+      agent eaten whole. The named pairings other than `'members'` and `'site'` are shorthands of a `PartnerSpec`, which
+      pairs every source member with partners within a radius, by score, or with a fallback. A `settlement` receives
+      both partners and the amounts of the legs, read once, and changes the states in place of the legs, so one draw
+      credits both ends. A subclass that names its roles otherwise returns their names from `_get_role`.
 
     Under the schedule `'random-sequential'` the pairs act in random order. Under `'member'` every member of the
     `actor` role acts in its own activation, together with the rules of its element and the other member
@@ -108,9 +119,10 @@ class TransferInteraction(Interaction):
         pairing:
             How members are paired, one of `'members'`, `'random'`, `'pairs'`, `'neighbors'`, `'neighbor-pairs'`,
             `'cell'`, or `'site'`, the agent form alone taking the others than `'members'`, or, in the agent form, a
-            function `pairing(sources, targets, rng, capacity)` of the source and target agents that returns their
-            pairs, whose capacity is `partners`, or 1 without it. Under the schedule `'member'` the function receives
-            the actor alone as its first sequence and the actor's partners are the second items of its pairs.
+            `PartnerSpec`, or a function `pairing(sources, targets, rng, capacity)` of the source and target agents
+            that returns their pairs, whose capacity is `partners`, or 1 without it. Under the schedule `'member'` the
+            spec or the function receives the actor alone as its first sequence and the actor's partners are the second
+            items of its pairs.
 
         legs:
             Further legs, each a tuple of a state or `Source()`, a state, `Sink()`, or `None`, an amount, and
@@ -157,13 +169,17 @@ class TransferInteraction(Interaction):
         phase:
             The phase the rule of the agent form runs in, or `None` for the default phase.
 
+        settlement:
+            A function `settlement(source, target, amounts, model)` that settles a pair of agents from the amounts of
+            the legs, read once, in place of moving them, or `None` to move them.
+
     Raises:
         ValidationError:
             The form, the pairing, the schedule, the actor, the removal, or the boundary is unknown, a leg is
-            malformed, two legs share a flow name, the symbolic form has an agent pairing or a fallback, the agent
-            form a rate, an offset, or a flow name, a reverse rate has no rate, an offset is not a whole number or
-            pairs two groups, a leg end of the symbolic form names no role, or the schedule `'member'` has a pairing
-            it cannot draw, raised by `check`.
+            malformed, two legs share a flow name, the symbolic form has an agent pairing, a fallback, or a settlement,
+            the agent form a rate, an offset, or a flow name, a reverse rate has no rate, an offset is not a whole
+            number or pairs two groups, a leg end of the symbolic form names no role, the settlement cannot be called
+            or pairs with a site, or the schedule `'member'` has a pairing it cannot draw, raised by `check`.
 
     Examples:
         >>> from skcomplex.core.elements import Element
@@ -209,6 +225,7 @@ class TransferInteraction(Interaction):
         partners: int | None = None,
         remove: str | None = None,
         phase: str | None = None,
+        settlement: Settlement | None = None,
     ) -> None:
         super().__init__(label)
         self.source = source
@@ -231,6 +248,7 @@ class TransferInteraction(Interaction):
         self.partners = partners
         self.remove = remove
         self.phase = phase
+        self.settlement = settlement
 
     def _get_legs(self) -> list[NamedLeg]:
         """Return every leg with the state it adds to resolved and the name of its flow, empty when it has none."""
@@ -280,7 +298,9 @@ class TransferInteraction(Interaction):
     def _check_space(self, space: BaseSpace | None) -> None:
         """Raise an error for a pairing of cells, nodes, or sites in a continuous space."""
         if isinstance(self.pairing, str) and self.pairing in GRID_PAIRINGS:
-            self._check_grid('pairing', self.pairing, space, "pairing='random', or a pairing function")
+            alternative = "a radius pairing, `PartnerSpec(candidates=<radius>)`, or pairing='random'"
+            self._check_grid('pairing', self.pairing, space, alternative)
+        self._check_partners(self.pairing, space)
 
     def _check(self) -> None:
         """Raise an error for an unknown form or pairing, a malformed leg, or an option the form does not take.
@@ -300,7 +320,10 @@ class TransferInteraction(Interaction):
         if self.form == 'symbolic' and self.pairing != 'members':
             error_msg = f'The symbolic form of {self.label!r} pairs members. Use `form="agent"` for {self.pairing!r}.'
             raise ValidationError(error_msg)
-        self._check_variant('pairing', self.pairing, PAIRINGS, functions=True)
+        self._check_variant('pairing', self.pairing, PAIRINGS, (PartnerSpec,), functions=True)
+        if isinstance(self.pairing, PartnerSpec):
+            self.pairing.check()
+        self._check_settlement()
         if self.form == 'symbolic' and self.fallback is not None:
             error_msg = f'The symbolic form of {self.label!r} pairs members. Use `form="agent"` for a fallback group.'
             raise ValidationError(error_msg)
@@ -319,6 +342,17 @@ class TransferInteraction(Interaction):
             raise ValidationError(error_msg)
         self._check_edges()
         self._check_schedule()
+
+    def _check_settlement(self) -> None:
+        """Raise an error for a settlement that cannot be called, or that the form or the pairing does not take."""
+        if self.settlement is None:
+            return
+        if not callable(self.settlement):
+            error_msg = f'The settlement of {self.label!r} is {self.settlement!r}. Give a function, or None.'
+            raise ValidationError(error_msg)
+        if self.form != 'agent' or self.pairing == 'site':
+            error_msg = f'{self.label!r} settles a pair of agents. Use `form="agent"` and a pairing other than `site`.'
+            raise ValidationError(error_msg)
 
     def _check_edges(self) -> None:
         """Raise an error for an unusable reverse rate, offset, or boundary."""
@@ -364,6 +398,15 @@ class TransferInteraction(Interaction):
             raise ValidationError(error_msg)
         if self.schedule == 'member' and self.form != 'agent':
             error_msg = f'The schedule `member` of {self.label!r} runs agent rules. Use `form="agent"`.'
+            raise ValidationError(error_msg)
+        if isinstance(self.pairing, PartnerSpec) and self.schedule == 'member' and self.pairing.capacity is not None:
+            error_msg = (
+                f'The partners of {self.label!r} have a capacity of one step, but under the schedule `member` every '
+                'actor draws alone. Use the schedule `random-sequential`, or no capacity.'
+            )
+            raise ValidationError(error_msg)
+        if isinstance(self.pairing, PartnerSpec) and self.partners is not None:
+            error_msg = f'{self.label!r} draws partners by a `PartnerSpec`. Give its capacity, not `partners`.'
             raise ValidationError(error_msg)
         if self.partners is not None and (isinstance(self.partners, bool) or not self.partners >= 1):
             error_msg = f'The partners of {self.label!r} are {self.partners!r}. Give a positive whole number, or None.'
@@ -446,6 +489,12 @@ class TransferInteraction(Interaction):
                 laws += [self._get_law(paired, leg, self.reverse_rate, True) for leg in self._get_legs()]
         return laws
 
+    def _get_pairing(self) -> MatchLaw:
+        """Return the law of the pairs of the pairing, whose capacity for a function is `partners`, or 1 without it."""
+        pairing = self.pairing
+        spec = NAMED_PARTNERS[pairing] if isinstance(pairing, str) else pairing
+        return MatchLaw(self.source, self.target, spec, capacity=self.partners or 1)
+
     def _get_pairs(self, model: ModelViewProtocol) -> list[tuple[AgentViewProtocol, AgentViewProtocol]]:
         """Return the pairs of source and target agents of one step in random order."""
         sources = model.agents(self._get_role('source'))
@@ -453,106 +502,14 @@ class TransferInteraction(Interaction):
         if self.fallback is not None and not any(target.alive for target in targets):
             targets = model.agents(self._get_role('fallback'))
         pairs: list[tuple[AgentViewProtocol, AgentViewProtocol]] = []
-        if callable(self.pairing):
+        if self.pairing == 'members':
+            pairs = list(zip(sources, targets, strict=False))
+        else:
             pairs = cast(
                 list[tuple[AgentViewProtocol, AgentViewProtocol]],
-                self._get_custom_pairs(sources, targets, model),
+                self._get_pairing().get_pairs(sources, targets, model.rng),
             )
-        elif self.pairing == 'members':
-            pairs = list(zip(sources, targets, strict=False))
-        elif self.pairing == 'random':
-            pairs = self._get_random_pairs(sources, targets, model)
-        elif self.pairing == 'pairs':
-            pairs = self._get_disjoint_pairs(sources, targets, model)
-        elif self.pairing == 'neighbor-pairs':
-            pairs = self._get_neighbor_pairs(sources, targets, model)
-        else:
-            pairs = self._get_located_pairs(sources, targets)
         return [pairs[int(index)] for index in model.rng.permutation(len(pairs))]
-
-    def _get_custom_pairs(
-        self,
-        sources: Sequence[AgentViewProtocol],
-        targets: Sequence[AgentViewProtocol],
-        model: ModelViewProtocol,
-    ) -> list[tuple[object, object]]:
-        """Return the pairs a pairing function gives the source and target agents, with `partners` as capacity."""
-        pairing = cast(Pairing, self.pairing)
-        return pairing(sources, targets, model.rng, self.partners or 1)
-
-    @staticmethod
-    def _get_random_pairs(
-        sources: Sequence[AgentViewProtocol],
-        targets: Sequence[AgentViewProtocol],
-        model: ModelViewProtocol,
-    ) -> list[tuple[AgentViewProtocol, AgentViewProtocol]]:
-        """Return every source agent paired with a random target agent other than itself."""
-        pairs = []
-        for source in sources:
-            others = [target for target in targets if target is not source]
-            if others:
-                pairs.append((source, others[int(model.rng.integers(len(others)))]))
-        return pairs
-
-    def _get_disjoint_pairs(
-        self,
-        sources: Sequence[AgentViewProtocol],
-        targets: Sequence[AgentViewProtocol],
-        model: ModelViewProtocol,
-    ) -> list[tuple[AgentViewProtocol, AgentViewProtocol]]:
-        """Return disjoint random pairs, of two halves of one group or of a source and a target agent."""
-        first = [sources[int(index)] for index in model.rng.permutation(len(sources))]
-        if self.source == self.target:
-            return list(zip(first[::2], first[1::2], strict=False))
-        second = [targets[int(index)] for index in model.rng.permutation(len(targets))]
-        return list(zip(first, second, strict=False))
-
-    @staticmethod
-    def _locate(targets: Sequence[AgentViewProtocol]) -> dict[object, list[AgentViewProtocol]]:
-        """Return the target agents by the key of the cell or node they stand in."""
-        located: dict[object, list[AgentViewProtocol]] = {}
-        for target in targets:
-            located.setdefault(target.location_key, []).append(target)
-        return located
-
-    def _get_neighbor_pairs(
-        self,
-        sources: Sequence[AgentViewProtocol],
-        targets: Sequence[AgentViewProtocol],
-        model: ModelViewProtocol,
-    ) -> list[tuple[AgentViewProtocol, AgentViewProtocol]]:
-        """Return disjoint random pairs of neighbours, every source agent in random order taking a free one nearby."""
-        located = self._locate(targets)
-        paired: set[int] = set()
-        pairs: list[tuple[AgentViewProtocol, AgentViewProtocol]] = []
-        for index in model.rng.permutation(len(sources)):
-            source = sources[int(index)]
-            if source.id in paired or not source.alive:
-                continue
-            free = [
-                target
-                for key in source.neighbor_cells()
-                for target in located.get(key, [])
-                if target.id != source.id and target.id not in paired and target.alive
-            ]
-            if free:
-                target = free[int(model.rng.integers(len(free)))]
-                pairs.append((source, target))
-                paired.update((source.id, target.id))
-        return pairs
-
-    def _get_located_pairs(
-        self,
-        sources: Sequence[AgentViewProtocol],
-        targets: Sequence[AgentViewProtocol],
-    ) -> list[tuple[AgentViewProtocol, AgentViewProtocol]]:
-        """Return the pairs of agents in one cell, or of every source agent with the target agents around it."""
-        located = self._locate(targets)
-        pairs: list[tuple[AgentViewProtocol, AgentViewProtocol]] = []
-        for source in sources:
-            keys = [source.location_key] if self.pairing == 'cell' else source.neighbor_cells()
-            pairs.extend((source, target) for key in keys for target in located.get(key, []) if target is not source)
-        return pairs
 
     def _evaluate(
         self,
@@ -592,9 +549,10 @@ class TransferInteraction(Interaction):
         if self.pairing == 'members':
             return [agent]
         role = self._get_role('source' if self.actor == 'target' else 'target')
-        if callable(self.pairing):
+        if callable(self.pairing) or isinstance(self.pairing, PartnerSpec):
             others = [other for other in model.agents(role) if other is not agent]
-            return [cast(AgentViewProtocol, partner) for _, partner in self._get_custom_pairs([agent], others, model)]
+            pairs = self._get_pairing().get_pairs([agent], others, model.rng)
+            return [cast(AgentViewProtocol, partner) for _, partner in pairs]
         if self.pairing == 'cell':
             groups = set(model.groups(role))
             others = [other for other in agent.agents_here() if other.group in groups]
@@ -674,6 +632,9 @@ class TransferInteraction(Interaction):
             return False
         legs = self._get_legs()
         amounts = [self._evaluate(amount, source, target, model) for _, _, amount, _ in legs]
+        if self.settlement is not None:
+            self.settlement(source, target, amounts, model)
+            return True
         ends = [
             (
                 self._get_end(source, state) if isinstance(state, str) else None,

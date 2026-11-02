@@ -50,6 +50,7 @@ from ._outer_totalistic_spec import OuterTotalisticSpec
 from ._pair_read_spec import PairReadSpec
 from ._parameter_spec import ParameterSpec
 from ._parameters_spec import ParametersSpec
+from ._partner_spec import PartnerSpec
 from ._partner_switch_spec import PartnerSwitchSpec
 from ._phase_spec import PhaseSpec
 from ._phases_schedule_spec import ACTIVATIONS, DEFAULT_PHASE, PhasesScheduleSpec
@@ -145,6 +146,7 @@ __all__ = [
     'PairReadSpec',
     'ParameterSpec',
     'ParametersSpec',
+    'PartnerSpec',
     'PartnerSwitchSpec',
     'PhaseSpec',
     'PhasesScheduleSpec',

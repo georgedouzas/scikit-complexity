@@ -4,7 +4,7 @@
 # License: MIT
 
 
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
@@ -51,7 +51,13 @@ class DissipatorLaw(BaseLaw):
         return RequirementSpec(time=(ContinuousTime,))
 
     def _check(self) -> None:
-        """Raise an error for an operator without local operators, or a rate that is not a number or an expression."""
+        """Raise an error for a function as the operator or rate, no local operators, or a rate of another type."""
+        if any(callable(item) and not isinstance(item, Expression) for item in (self.operator, self.rate)):
+            error_msg = (
+                'Quantum dissipators need symbolic operators and rates, so neither can be a function. Give the rate as '
+                'a `series` of time, or use a `RateLaw` with a function on the states of a classical system.'
+            )
+            raise ValidationError(error_msg)
         if not has_operator(self.operator):
             error_msg = f'A dissipator takes an operator built from local operators, but got {self.operator!r}.'
             raise ValidationError(error_msg)

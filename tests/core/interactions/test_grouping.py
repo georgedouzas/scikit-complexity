@@ -15,7 +15,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.backends import BaseBackend, NumbaBackend, NumpyBackend
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.errors import ValidationError
-from skcomplex.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, PartnerSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 
@@ -373,3 +373,45 @@ def test_get_laws_symbolic_reads_a_renamed_target(groups):
         _symbolic_run(System(elements=[grid], interactions=[item]), 2, NumpyBackend()) for item in (plain, renamed)
     ]
     np.testing.assert_allclose(values[1], values[0])
+
+
+def _groups_after_one_step(groups: object, seed: int) -> list[list[float]]:
+    """Return the values of the members of every group of one step, in the order they act."""
+    seen: list[list[float]] = []
+
+    def record(members, model):
+        """Record the members of a group."""
+        seen.append([member.s for member in members])
+
+    voters = _voters({'s': [float(index) for index in range(7)]}, 7)
+    grouping = GroupingInteraction('groups', target='voters', groups=groups, act=record)
+    system = System(elements=[voters], interactions=[grouping], time=DiscreteTime())
+    Simulation(system, random_state=seed).check().prepare().run(until=1)
+    return seen
+
+
+def test_get_groups_pairs_is_a_shorthand_of_a_partner_spec():
+    """Test that the pairs and their partner spec draw identical groups over 20 seeds."""
+    for seed in range(20):
+        assert _groups_after_one_step('pairs', seed) == _groups_after_one_step(
+            PartnerSpec('all', 'uniform', capacity=1),
+            seed,
+        )
+
+
+def test_get_groups_collects_every_member_with_its_partners():
+    """Test that a partner spec that takes every candidate groups a member with all the others."""
+    groups = _groups_after_one_step(PartnerSpec('all', 'all'), 0)
+    assert len(groups) == 7
+    assert {len(group) for group in groups} == {7}
+
+
+def _first_two(left, right, rng, capacity):
+    """Return one pair of the first two members."""
+    del right, rng, capacity
+    return [(left[0], left[1])]
+
+
+def test_get_groups_takes_a_pairing_function():
+    """Test that a pairing function gives the groups of the step."""
+    assert _groups_after_one_step(_first_two, 0) == [[0.0, 1.0]]

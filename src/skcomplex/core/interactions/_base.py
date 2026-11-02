@@ -10,12 +10,13 @@ import numpy as np
 import numpy.typing as npt
 
 from ...errors import SpaceError, ValidationError
-from ...specs import ParameterSpec, StateSpec
+from ...specs import ParameterSpec, PartnerSpec, StateSpec
 from ..base import BasePart
 from ..spaces import BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, ModelViewProtocol
 
 SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
+GRID_CANDIDATES = ('neighbors', 'cell')
 
 
 class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
@@ -187,9 +188,32 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         """
         if isinstance(value, kinds) or (functions and callable(value)) or any(value == item for item in values):
             return
-        accepted = [*map(repr, values), *(kind.__name__ for kind in kinds), *(['a function'] if functions else [])]
+        accepted = [*(kind.__name__ for kind in kinds), *map(repr, values), *(['a function'] if functions else [])]
         error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {", ".join(accepted)}.'
         raise ValidationError(error_msg)
+
+    def _get_variant_error(self, value: object, name: str, method: str) -> ValidationError:
+        """Return the error for a spec of a variant that no subclass runs.
+
+        Args:
+            value:
+                The value of the variant argument.
+
+            name:
+                The name of the variant argument, such as `'rule'`.
+
+            method:
+                The private method a subclass overrides to run the spec.
+
+        Returns:
+            error:
+                The error that names the variant and the method.
+        """
+        error_msg = (
+            f'{type(self).__name__} {self.label!r} has no way to run the {name} {value!r}. Override `{method}` in a '
+            'subclass to run it.'
+        )
+        return ValidationError(error_msg)
 
     def _update_agents[T](
         self,
@@ -309,6 +333,11 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
             f'system has a continuous space. Use {alternative}.'
         )
         raise SpaceError(error_msg)
+
+    def _check_partners(self, partners: object, space: BaseSpace | None) -> None:
+        """Raise an error for a selection of partners among cells or nodes in a continuous space."""
+        if isinstance(partners, PartnerSpec) and partners.candidates in GRID_CANDIDATES:
+            self._check_grid('candidates', partners.candidates, space, 'a radius, `PartnerSpec(candidates=<radius>)`')
 
     def _check_space(self, space: BaseSpace | None) -> None:
         """Raise an error for a variant the space of the system cannot run, none by default.

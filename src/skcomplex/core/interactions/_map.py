@@ -6,7 +6,7 @@
 import re
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, SupportsFloat
+from typing import Annotated, SupportsFloat, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -23,6 +23,8 @@ from ._interaction import Interaction
 
 MODES = ('replace', 'increment')
 FORMS = ('symbolic', 'agent')
+
+type Value = float | npt.NDArray[np.float64]
 
 
 class MapInteraction(Interaction):
@@ -159,7 +161,15 @@ class MapInteraction(Interaction):
             error_msg = f'The function of map {self.label!r} must be callable, but it is {self.function!r}.'
             raise ValidationError(error_msg)
 
-    def _get_vector(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> npt.NDArray[np.float64]:
+    def _apply_mode(self, current: Value, value: Value) -> Value:
+        """Return the next value of a state from its current value and the value of the function, by the mode."""
+        if self.mode == 'increment':
+            return current + value
+        if self.mode == 'replace':
+            return value
+        raise self._get_variant_error(self.mode, 'mode', '_apply_mode')
+
+    def _get_vector(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> Value:
         """Return the next value of a vector state of an agent."""
         current = np.asarray(getattr(agent, self.state), dtype=np.float64)
         value = np.asarray(self.function(agent, model), dtype=np.float64)
@@ -169,9 +179,9 @@ class MapInteraction(Interaction):
                 f'the shape {current.shape}. Return an array of the shape of the state.'
             )
             raise ValidationError(error_msg)
-        return current + value if self.mode == 'increment' else value
+        return self._apply_mode(current, value)
 
-    def _get_value(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> float | npt.NDArray[np.float64]:
+    def _get_value(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> Value:
         """Return the next value of the state of an agent, a number or the array of a vector state."""
         if np.ndim(getattr(agent, self.state)) > 0:
             return self._get_vector(agent, model)
@@ -180,9 +190,9 @@ class MapInteraction(Interaction):
             error_msg = f'The function of map {self.label!r} returns {found!r} for an agent. Return a number.'
             raise ValidationError(error_msg)
         value = float(found)
-        return float(getattr(agent, self.state)) + value if self.mode == 'increment' else value
+        return self._apply_mode(float(getattr(agent, self.state)), value)
 
-    def _set_value(self, agent: AgentViewProtocol, value: float | npt.NDArray[np.float64]) -> None:
+    def _set_value(self, agent: AgentViewProtocol, value: Value) -> None:
         """Set the state of an agent to its next value."""
         setattr(agent, self.state, value)
 
@@ -224,6 +234,6 @@ class MapInteraction(Interaction):
         if self.form == 'agent':
             return [RuleLaw(self.update, phase=self.phase)]
         value = getattr(self._get_member(namespace, 'target'), self.state)
-        mapped = self.function(namespace)
-        increment = self.mode == 'increment'
-        return [UpdateLaw(value, value + mapped if increment else mapped, increment=increment, order=self._get_order())]
+        mapped = cast(Value, self.function(namespace))
+        next_value = self._apply_mode(value, mapped)
+        return [UpdateLaw(value, next_value, increment=self.mode == 'increment', order=self._get_order())]
