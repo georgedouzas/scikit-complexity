@@ -55,16 +55,16 @@ interactions change it through laws, and systems nest and compose. Learn it once
 
 <table>
   <tr>
-    <td align="center" valign="top" width="25%"><img src="docs/assets/readme/physics.png" alt="Decaying 2D turbulence" width="100%"><br><b>Physics</b><br><sub>Decaying 2D turbulence</sub></td>
-    <td align="center" valign="top" width="25%"><img src="docs/assets/readme/chemistry.png" alt="Gray-Scott patterns" width="100%"><br><b>Chemistry</b><br><sub>Gray-Scott patterns</sub></td>
-    <td align="center" valign="top" width="25%"><img src="docs/assets/readme/biology.png" alt="Boids flocking" width="100%"><br><b>Biology</b><br><sub>Boids flocking</sub></td>
-    <td align="center" valign="top" width="25%"><img src="docs/assets/readme/economics.png" alt="Sugarscape" width="100%"><br><b>Economics</b><br><sub>Sugarscape</sub></td>
+    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/physics.png" alt="Decaying 2D turbulence" width="100%"><br><b>Physics</b><br><sub>Decaying 2D turbulence</sub></td>
+    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/chemistry.png" alt="Gray-Scott patterns" width="100%"><br><b>Chemistry</b><br><sub>Gray-Scott patterns</sub></td>
+    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/biology.png" alt="Boids flocking" width="100%"><br><b>Biology</b><br><sub>Boids flocking</sub></td>
+    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/economics.png" alt="Sugarscape" width="100%"><br><b>Economics</b><br><sub>Sugarscape</sub></td>
   </tr>
   <tr>
-    <td align="center" valign="top" width="25%"><img src="docs/assets/readme/engineering.png" alt="Nagel-Schreckenberg traffic" width="100%"><br><b>Engineering</b><br><sub>Nagel-Schreckenberg traffic</sub></td>
-    <td align="center" valign="top" width="25%"><img src="docs/assets/readme/mathematics.png" alt="Julia sets" width="100%"><br><b>Mathematics</b><br><sub>Julia sets</sub></td>
-    <td align="center" valign="top" width="25%"><img src="docs/assets/readme/computer_science.png" alt="Game of Life" width="100%"><br><b>Computer science</b><br><sub>Game of Life</sub></td>
-    <td align="center" valign="top" width="25%"><img src="docs/assets/readme/social.png" alt="Schelling segregation" width="100%"><br><b>Social science</b><br><sub>Schelling segregation</sub></td>
+    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/engineering.png" alt="Nagel-Schreckenberg traffic" width="100%"><br><b>Engineering</b><br><sub>Nagel-Schreckenberg traffic</sub></td>
+    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/mathematics.png" alt="Julia sets" width="100%"><br><b>Mathematics</b><br><sub>Julia sets</sub></td>
+    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/computer_science.png" alt="Game of Life" width="100%"><br><b>Computer science</b><br><sub>Game of Life</sub></td>
+    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/social.png" alt="Schelling segregation" width="100%"><br><b>Social science</b><br><sub>Schelling segregation</sub></td>
   </tr>
 </table>
 
@@ -235,9 +235,9 @@ Each run can stream to the Rerun viewer:
 
 <table>
   <tr>
-    <td align="center" valign="top" width="33%"><img src="docs/assets/readme/lotka_volterra.png" alt="Prey and predators cycle" width="100%"><br><code>lotka_volterra</code><br><sub>Prey and predators cycle</sub></td>
-    <td align="center" valign="top" width="33%"><img src="docs/assets/readme/sir.png" alt="An epidemic rises and fades" width="100%"><br><code>sir</code><br><sub>An epidemic rises and fades</sub></td>
-    <td align="center" valign="top" width="33%"><img src="docs/assets/readme/wolf_sheep.png" alt="Wolves, sheep and grass on a grid" width="100%"><br><code>wolf_sheep</code><br><sub>Wolves, sheep and grass on a grid</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/lotka_volterra.png" alt="Prey and predators cycle" width="100%"><br><code>lotka_volterra</code><br><sub>Prey and predators cycle</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/sir.png" alt="An epidemic rises and fades" width="100%"><br><code>sir</code><br><sub>An epidemic rises and fades</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/wolf_sheep.png" alt="Wolves, sheep and grass on a grid" width="100%"><br><code>wolf_sheep</code><br><sub>Wolves, sheep and grass on a grid</sub></td>
   </tr>
 </table>
 

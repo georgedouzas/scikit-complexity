@@ -760,7 +760,7 @@ implemented.
   motif z-scores as analysis figures
 
 ### Requirement: Models are organized by scientific field
-The library SHALL organize models into packages per scientific field, `physics`, `chemistry`, `biology`, `earth`,
+The library SHALL organize models into packages per scientific field, `physics`, `chemistry`, `biology`,
 `economics`, `social`, `engineering`, `mathematics`, and `computer_science`, each split into subfield packages. Every
 model SHALL live in exactly one subfield.
 
@@ -1005,7 +1005,7 @@ twice.
 #### Scenario: Repeated patterns registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries, which repeat patterns of stocks and flows that the models above probe, are registered under
-  their field paths and marked implemented: `energy_return` in `earth/climate`, and `cocoa`, `hilsa_fishery`, and
+  their field paths and marked implemented: `energy_return` in `physics/climate`, and `cocoa`, `hilsa_fishery`, and
   `food_security` in `economics/resources`
 
 #### Scenario: Meadows' resource models rebuilt
@@ -1086,7 +1086,7 @@ package. A model class whose mechanism the core provides SHALL use the core clas
 #### Scenario: Order book from the library
 - **WHEN** the finance models build their order book, and an engineering model pairs riders with cars
 - **THEN** both use the core `MatchingInteraction`, the order book binds it to bids, asks, money, and goods with
-  `ContinuousClearingSpec`, and the earlier of two same-limit sell orders trades first
+  `ContinuousMatchingSpec`, and the earlier of two same-limit sell orders trades first
 
 #### Scenario: Potential from the library
 - **WHEN** a user imports the Lennard-Jones potential from `skcomplex.models.physics.common.particles`
@@ -1095,7 +1095,7 @@ package. A model class whose mechanism the core provides SHALL use the core clas
 
 #### Scenario: Realization of one package
 - **WHEN** only the climate models use `EarlyWarningAnalysis`
-- **THEN** it lives in `skcomplex.models.earth.climate`, and the earth field has no `common` package
+- **THEN** it lives in `skcomplex.models.physics.climate`
 
 #### Scenario: No copy across fields
 - **WHEN** the ecology meadow and the economics commons models are built
@@ -1585,7 +1585,7 @@ entry.
 ### Requirement: Nonlocal field models
 The library SHALL provide, as registered factories built on the general interactions and the nonlocal operators:
 - `amari_neural_field` under `biology/neuroscience` (2112.12147 §1.3.1);
-- `double_gyre` under `earth/oceanography` (1910.00583 §III.6.1);
+- `double_gyre` under `physics/oceanography` (1910.00583 §III.6.1);
 - `gkt_traffic` under `engineering/traffic` (cond-mat/0012229 §III.E.4);
 - `active_viscoelastic_gel` under `physics/active_matter` (2306.08868 VI).
 
@@ -1627,7 +1627,7 @@ The library SHALL provide, as registered factories built on the general interact
 The library SHALL provide the spatially inhomogeneous Boltzmann equation, its BGK model, the Vlasov-Poisson equation
 with Landau damping and two-stream set-ups, and the local Enskog equation as registered factories under
 `physics/fluids` (Bellomo et al. 2017 §2.2–2.3), built on `PhaseSpace`, `AdvectionInteraction`,
-`CollisionInteraction`, and `RelaxationInteraction`. The inventory SHALL record them as implemented.
+`EncounterInteraction`, and `RelaxationInteraction`. The inventory SHALL record them as implemented.
 
 #### Scenario: Sod shock tube near the fluid limit
 - **WHEN** the BGK model runs the Sod shock tube in one position and one velocity dimension at a Knudsen number of 1e-4

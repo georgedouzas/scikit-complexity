@@ -77,7 +77,7 @@ moments to round-off.
   Maxwellian with those moments, and the discrete entropy `-Σ f log f` never decreases
 
 ### Requirement: Collisions evaluate the binary collision integral
-`CollisionInteraction` SHALL evaluate the binary collision integral of a declared cross-section over the interval class
+`EncounterInteraction` with a `cross_section` SHALL evaluate the binary collision integral of a declared cross-section over the interval class
 axes of a phase space. It SHALL conserve density exactly and momentum and energy within the spectral accuracy of the
 method, and SHALL accept a factor of the local density that scales the collision frequency. The compile report SHALL
 hold a collision on a phase space without interval class axes.
@@ -93,7 +93,7 @@ hold a collision on a phase space without interval class axes.
 - **THEN** the run with the factor reaches every intermediate state in half the time, within 1%
 
 #### Scenario: Collision without velocity axes
-- **WHEN** a `CollisionInteraction` targets a field on a position lattice with no class axis
+- **WHEN** an `EncounterInteraction` with a `cross_section` targets a field on a position lattice with no class axis
 - **THEN** the compile report holds a `law-space` issue whose fix declares an interval `AxisSpec`
 
 ### Requirement: Phase-space fields couple with position fields

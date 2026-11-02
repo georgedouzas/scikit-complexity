@@ -54,7 +54,7 @@ The documentation SHALL publish the inventory as a coverage page grouped by fiel
 sources and status and, for implemented models, a link to the model's documentation.
 
 #### Scenario: Coverage page
-- **WHEN** a user opens the coverage page and the section `earth/climate`
+- **WHEN** a user opens the coverage page and the section `physics/climate`
 - **THEN** it lists every surveyed climate model with its sources, and links each implemented one to its documentation
 
 ### Requirement: Models exist to exercise the core
