@@ -2,6 +2,7 @@
 
 from ._arms_race import ArmsRaceElement
 from ._burden import BurdenElement
+from ._city_resident import CityResidentElement
 from ._contender_view import ContenderView
 from ._contest import ContestElement
 from ._daily_movements import DailyMovementsInteraction
@@ -11,6 +12,7 @@ from ._employee import EmployeeElement
 from ._employee_view import EmployeeView
 from ._employment import WorkplaceElement, employment_takeover
 from ._execution import ExecutionInteraction
+from ._gravity_contact import GravityContactInteraction
 from ._hierarchies import ContenderElement, bonabeau_hierarchies
 from ._obesity import obesity
 from ._premises import PremisesElement
@@ -26,10 +28,12 @@ from ._trafficking import trafficking
 from ._traps import escalation, shifting_the_burden, success_to_the_successful
 from ._traveller import TravellerElement
 from ._traveller_view import TravellerView
+from ._urban_scaling import gravity_urban_scaling
 
 __all__: list[str] = [
     'ArmsRaceElement',
     'BurdenElement',
+    'CityResidentElement',
     'ContenderElement',
     'ContenderView',
     'ContestElement',
@@ -39,6 +43,7 @@ __all__: list[str] = [
     'EmployeeElement',
     'EmployeeView',
     'ExecutionInteraction',
+    'GravityContactInteraction',
     'PremisesElement',
     'PremisesView',
     'RestaurantElement',
@@ -53,6 +58,7 @@ __all__: list[str] = [
     'bonabeau_hierarchies',
     'employment_takeover',
     'escalation',
+    'gravity_urban_scaling',
     'insider_sabotage',
     'obesity',
     'priority_queues',
