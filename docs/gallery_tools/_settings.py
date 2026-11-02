@@ -79,4 +79,4 @@ class Budget:
 
     max_frames: int = 300
     max_bytes: int = 20_000_000
-    max_seconds: float = field(default_factory=lambda: float(os.environ.get(MAX_SECONDS_VARIABLE, 60.0)))
+    max_seconds: float = field(default_factory=lambda: float(os.environ.get(MAX_SECONDS_VARIABLE, '60')))
