@@ -236,11 +236,11 @@ class OperatorCompiler(BaseCompiler):
             >>> from skcomplex.core.elements import Element
             >>> from skcomplex.engine.compile import OperatorCompiler
             >>> from skcomplex.specs import StateSpec
-            >>> class QubitElement(Element):
+            >>> class TwoLevelElement(Element):
             ...     def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up'):
             ...         super().__init__(label)
             ...         self.psi = psi
-            >>> OperatorCompiler._hilbert_state(QubitElement)
+            >>> OperatorCompiler._hilbert_state(TwoLevelElement)
             'psi'
         """
         for name, declaration in declarations_of(element_type, VariableKind.STATE).items():

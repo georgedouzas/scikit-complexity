@@ -1,4 +1,4 @@
-"""Solver of closed operator systems that evolves a pure state by the Schrödinger equation with QuTiP's `SESolver`."""
+"""Solver of the linear evolution `dx/dt = -i H x` of a pure state with QuTiP's `SESolver`."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +13,7 @@ from ._operator import OperatorSolver
 
 
 class UnitarySolver(OperatorSolver):
-    """Solver of closed operator systems that evolves a pure state by the Schrödinger equation with QuTiP's `SESolver`.
+    """Solver of the linear evolution `dx/dt = -i H x` of a pure state with QuTiP's `SESolver`.
 
     Args:
         atol:
@@ -39,7 +39,7 @@ class UnitarySolver(OperatorSolver):
         >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
         >>> operators['minus'] = (np.array([[0, 0], [1, 0]]), False)
         >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
-        >>> class QubitElement(Element):
+        >>> class TwoLevelElement(Element):
         ...     def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT):
         ...         super().__init__(label)
         ...         self.psi = psi
@@ -48,7 +48,7 @@ class UnitarySolver(OperatorSolver):
         ...     def _get_laws(self, s):
         ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('x')) / 2)]
         >>> z = [ObservableSpec('z', element='q', variable='z')]
-        >>> system = System(elements=[QubitElement('q')])
+        >>> system = System(elements=[TwoLevelElement('q')])
         >>> from skcomplex.engine.compile import OperatorCompiler
         >>> compiler = OperatorCompiler()
         >>> simulation = Simulation(system, compiler=compiler, solver=UnitarySolver(), dt=np.pi, observables=z)

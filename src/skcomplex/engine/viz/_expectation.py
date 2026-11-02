@@ -25,7 +25,7 @@ from ._images import _SPACE_TIME, ImageVisual
 class ExpectationVisual(ImageVisual):
     """Visual that logs the local expectations of operator elements and groups.
 
-    A group logs the expectation of the displayed local operator of every member, such as `z` of spins, as an image of
+    A group logs the expectation of the displayed local operator of every member, such as `z`, as an image of
     its lattice under `<path>/<name>`, with a space-time image under `<path>/space_time/<name>` in one dimension. A
     particle on sites logs the probability of every site the same way under `probability`. Any other element logs the
     expectation of each Hermitian local operator as a series under `<path>/<name>`.

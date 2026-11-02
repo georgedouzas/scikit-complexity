@@ -15,7 +15,7 @@ class LindbladSolver(OperatorSolver):
     """Solver of the Lindblad master equation with QuTiP's `MESolver`, and of pure closed systems with `SESolver`.
 
     It is the default solver of the operator form. A system without dissipators that starts in a pure state follows the
-    Schrödinger equation, which is the master equation without dissipators.
+    linear evolution `dx/dt = -i H x`, which is the master equation without dissipators.
 
     Args:
         atol:
@@ -41,7 +41,7 @@ class LindbladSolver(OperatorSolver):
         >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
         >>> operators['minus'] = (np.array([[0, 0], [1, 0]]), False)
         >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
-        >>> class QubitElement(Element):
+        >>> class TwoLevelElement(Element):
         ...     def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT):
         ...         super().__init__(label)
         ...         self.psi = psi
@@ -50,7 +50,7 @@ class LindbladSolver(OperatorSolver):
         ...     def _get_laws(self, s):
         ...         return [DissipatorLaw(local_operator(s.psi, SR.symbol('minus')), 0.5)]
         >>> z = [ObservableSpec('z', element='q', variable='z')]
-        >>> system = System(elements=[QubitElement('q')])
+        >>> system = System(elements=[TwoLevelElement('q')])
         >>> from skcomplex.engine.compile import OperatorCompiler
         >>> compiler = OperatorCompiler()
         >>> simulation = Simulation(system, compiler=compiler, solver=LindbladSolver(), dt=1.0, observables=z)

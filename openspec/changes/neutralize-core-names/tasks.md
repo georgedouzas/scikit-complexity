@@ -21,7 +21,7 @@
 ## 4. Operator dynamics
 
 - [x] 4.1 Rename `FormKind.QUANTUM` and the `Quantum*` compiler, problem, kernel, lowering, solvers, analysis, and visuals to `Operator*`, with no alias, and move every user; verify the core names scenario and the quantum model tests with identical trajectories.
-- [ ] 4.2 State the operation in the docstrings of `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec`, and the renamed classes, keeping the quantum words in `models/physics/common/quantum`, and record the Hermitian limit; verify `FIELD_TERMS` covers `Quantum` and the doctests pass.
+- [x] 4.2 State the operation in the docstrings of `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec`, and the renamed classes, keeping the quantum words in `models/physics/common/quantum`, and record the Hermitian limit; verify `FIELD_TERMS` covers `Quantum` and the doctests pass.
 
 ## 5. Documentation and gate
 

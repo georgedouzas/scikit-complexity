@@ -113,7 +113,7 @@ class OperatorAnalysis(BaseAnalysis):
         >>> from skcomplex.engine.runtime import Simulation
         >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
         >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
-        >>> class QubitElement(Element):
+        >>> class TwoLevelElement(Element):
         ...     def __init__(
         ...         self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT
         ...     ):
@@ -123,11 +123,11 @@ class OperatorAnalysis(BaseAnalysis):
         ...
         ...     def _get_laws(self, s):
         ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('z')))]
-        >>> system = System(elements=[QubitElement('q')])
+        >>> system = System(elements=[TwoLevelElement('q')])
         >>> OperatorAnalysis(n_states=2).check().prepare(system).run().energies_.round(6).tolist()
         [-1.0, 1.0]
         >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
-        >>> pair = System(elements=[GroupElement('pair', element=QubitElement, size=2)])
+        >>> pair = System(elements=[GroupElement('pair', element=TwoLevelElement, size=2)])
         >>> trajectory = Simulation(
         ...     pair, compiler=OperatorCompiler(), dt=1.0, initial_state={'system.state': singlet},
         ... ).check().prepare().run(until=1.0).trajectory_

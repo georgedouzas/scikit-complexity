@@ -15,7 +15,7 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class HilbertSpec(BaseSpec):
-    """Spec of the Hilbert space of an operator element, with the local operators its laws build Hamiltonians from.
+    """Spec of the complex vector space of an element, with the local operators its laws build generators from.
 
     An element that takes a `HilbertSpec` and declares a complex state, a `StateSpec` over `CC` or `CC^dimension`, is a
     subsystem. Its laws read every local operator by name, and a group of such elements is the tensor product

@@ -1,4 +1,4 @@
-"""Define dissipator laws, the Lindblad terms that make an operator system open."""
+"""Define dissipator laws, the Lindblad terms of a Markovian master equation."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +14,7 @@ from .utils import has_operator
 
 
 class DissipatorLaw(BaseLaw):
-    """Lindblad dissipator with a collapse operator and a rate, which makes an operator system open.
+    """Lindblad term of a Markovian master equation, with a collapse operator and a rate.
 
     The master equation gains `rate * (L rho L^† - (L^† L rho + rho L^† L) / 2)`.
 

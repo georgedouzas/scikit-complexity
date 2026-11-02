@@ -1,4 +1,4 @@
-"""Define generator laws, the operators that add up to the Hamiltonian of an operator system."""
+"""Define generator laws, the Hermitian operators that add up to the generator of a linear evolution."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +14,7 @@ from .utils import has_operator
 
 
 class GeneratorLaw(BaseLaw):
-    """Operator that adds to the Hamiltonian of an operator system, with `ħ = 1`.
+    """Hermitian operator that adds to the generator `H` of the linear evolution `dx/dt = -i H x` on a tensor product.
 
     Args:
         operator:

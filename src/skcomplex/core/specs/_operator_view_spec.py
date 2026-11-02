@@ -41,12 +41,12 @@ class OperatorViewSpec(BaseSpec):
         >>> from skcomplex.specs import HilbertSpec, StateSpec
         >>> from skcomplex.core.specs import OperatorViewSpec
         >>> QUBIT = HilbertSpec(2, {'z': (np.diag([1.0, -1.0]), True)}, basis={'up': 0, 'down': 1})
-        >>> class QubitElement(Element):
+        >>> class TwoLevelElement(Element):
         ...     def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT):
         ...         super().__init__(label)
         ...         self.psi = psi
         ...         self.hilbert = hilbert
-        >>> OperatorViewSpec(QubitElement('q', psi='down'), 'psi', QUBIT).initial_vector().tolist()
+        >>> OperatorViewSpec(TwoLevelElement('q', psi='down'), 'psi', QUBIT).initial_vector().tolist()
         [0j, (1+0j)]
     """
 
