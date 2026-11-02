@@ -51,7 +51,7 @@ class ModulatedParticleElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec()] = 50.0,
+        x: Annotated[float, StateSpec(role='position')] = 50.0,
         s0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         ds: Annotated[float, ParameterSpec()] = 1.8,
         L: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,

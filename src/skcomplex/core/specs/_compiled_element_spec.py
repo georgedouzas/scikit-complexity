@@ -43,6 +43,9 @@ class CompiledElementSpec(BaseSpec):
         lattice_shape:
             The number of sites along every dimension of the lattice the element or group lives on, or `None` off a
             lattice.
+
+        roles:
+            The roles of the states that declare one, by state name.
     """
 
     path: str
@@ -53,3 +56,4 @@ class CompiledElementSpec(BaseSpec):
     members: int | None = None
     adaptive: Mapping[str, VariableSpec] = field(default_factory=dict)
     lattice_shape: tuple[int, ...] | None = None
+    roles: Mapping[str, str] = field(default_factory=dict)

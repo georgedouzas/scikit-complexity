@@ -49,7 +49,7 @@ class TransientWalkerElement(Element):
         label: str,
         visual: VisualSpec | None = VisualSpec('points', {'position': 'x', 'color_by': 'D', 'color_range': (0.0, 1.0)}),
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         D: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 0.5,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,

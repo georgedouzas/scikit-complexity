@@ -51,8 +51,8 @@ class NematicParticleElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True)] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi, role='heading')] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True, role='position')] = 0.0,
+        theta: Annotated[float, StateSpec(period=2 * pi, role='direction')] = 0.0,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
     ) -> None:
         super().__init__(label, visual=visual)

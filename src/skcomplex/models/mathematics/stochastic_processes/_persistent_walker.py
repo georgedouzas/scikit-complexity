@@ -43,7 +43,7 @@ class PersistentWalkerElement(Element):
         visual: VisualSpec | None = None,
         *,
         d: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
-        x: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
+        x: Annotated[float, StateSpec(domain=ZZ, role='position')] = 0.0,
         persistence: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
     ) -> None:
         super().__init__(label, visual=visual)

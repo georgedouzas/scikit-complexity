@@ -26,6 +26,7 @@ from ._logistic_unit import LogisticUnitElement
 from ._networks import coupled_map_lattices_on_networks, kuramoto_on_networks
 from ._pulses import mirollo_strogatz, winfree
 from ._rossler_oscillator import RosslerOscillatorElement
+from ._swarmalator import SwarmalatorElement
 from ._swarmalators import SwarmalatorCouplingInteraction, swarmalators
 from ._winfree_mean_field import WinfreeMeanFieldInteraction
 
@@ -43,6 +44,7 @@ __all__: list[str] = [
     'RosslerOscillatorElement',
     'SimplexCouplingInteraction',
     'SwarmalatorCouplingInteraction',
+    'SwarmalatorElement',
     'WinfreeMeanFieldInteraction',
     'aggregate_averaging_synchronization',
     'coupled_map_lattices_on_networks',

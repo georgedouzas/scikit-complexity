@@ -200,6 +200,31 @@ def test_snapshots_of_particle_groups():
     assert snapshots.positions.shape[0] == len(trajectory.times)
 
 
+def test_snapshots_of_scalar_positions():
+    """Test that a scalar position and a velocity role give one dimension per frame and member."""
+    trajectory = run('optimal_velocity', settings={'until': 0.5}).trajectory_
+    snapshots = AgentAnalysis().check().prepare(trajectory).snapshots_
+    assert snapshots.positions.ndim == 3
+    assert snapshots.positions.shape == snapshots.velocities.shape
+    assert snapshots.positions.shape[-1] == 1
+
+
+def test_snapshots_stack_position_components():
+    """Test that scalar states of the role position stack into dimensions, with a state of the role direction."""
+    trajectory = run('light_seeking_robots', settings={'until': 0.5}).trajectory_
+    snapshots = AgentAnalysis().check().prepare(trajectory).snapshots_
+    assert snapshots.positions.shape[-1] == 2
+    assert snapshots.headings is not None
+    assert 'x' not in snapshots.states
+
+
+def test_snapshots_refuse_a_group_without_a_position_role():
+    """Test that a group with a state named `x` and no position role gives no snapshots."""
+    trajectory = run('replicator_dynamics', settings={'until': 0.5}).trajectory_
+    with pytest.raises(AnalysisError, match='agent group'):
+        AgentAnalysis().check().prepare(trajectory)
+
+
 def test_networks_of_a_network_space():
     """Test that a field on a network gives its graph at every frame."""
     trajectory = run('network_diffusion', settings={'until': 0.5}).trajectory_

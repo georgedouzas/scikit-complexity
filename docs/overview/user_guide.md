@@ -2910,9 +2910,10 @@ a string, or a frozen set. A snapshot keeps one object per agent in a one-dimens
 agents by value, and a history keeps any value. An analysis that needs numbers names the state and refuses it. Symbolic
 systems hold numbers only, in the vectors of their solvers.
 
-`StateSpec(role='heading')` and `StateSpec(role='velocity')` tell analyses what a state of an agent means. Analyses read
-headings and velocities from these roles, not from the names of the states, so a state named `phase` is no heading unless
-it says so.
+`StateSpec(role='position')`, `StateSpec(role='direction')`, and `StateSpec(role='velocity')` tell analyses what a state
+means. A group is a particle group when a state has the role `'position'`, and the first derivative of that state is its
+velocity. Analyses read positions, directions, and velocities from these roles, not from the names of the states, so a
+state named `phase` is no direction unless it says so.
 
 ```python
 from typing import Annotated

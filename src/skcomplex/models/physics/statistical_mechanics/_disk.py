@@ -27,6 +27,10 @@ class DiskElement(Element):
         (1.0, 2.0)
     """
 
-    def __init__(self, label: str, x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True)] = 0.0) -> None:
+    def __init__(
+        self,
+        label: str,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True, role='position')] = 0.0,
+    ) -> None:
         super().__init__(label)
         self.x = x

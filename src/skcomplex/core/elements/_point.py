@@ -48,7 +48,7 @@ class PointElement(Element):
     def __init__(
         self,
         label: str,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True, order=2)] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True, order=2, role='position')] = 0.0,
         x_d1: npt.ArrayLike = 0.0,
         visual: VisualSpec | None = None,
     ) -> None:

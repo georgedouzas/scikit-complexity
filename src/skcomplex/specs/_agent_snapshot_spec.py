@@ -25,7 +25,7 @@ class AgentSnapshotSpec(BaseSpec):
             One row per agent: grid coordinates, a network node, or a continuous position, or `None` without a space.
 
         roles:
-            A mapping from the name of a state with a role to its role, `'heading'` or `'velocity'`.
+            A mapping from the name of a state with a role to its role, `'position'`, `'direction'`, or `'velocity'`.
     """
 
     ids: IntArray

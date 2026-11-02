@@ -45,8 +45,8 @@ class MemoryWalkerElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec()] = 0.0,
-        v: Annotated[float, StateSpec()] = 0.0,
+        x: Annotated[float, StateSpec(role='position')] = 0.0,
+        v: Annotated[float, StateSpec(role='velocity')] = 0.0,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
     ) -> None:

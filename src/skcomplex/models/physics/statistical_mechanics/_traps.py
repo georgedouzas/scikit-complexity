@@ -57,7 +57,7 @@ class TrapWalkerElement(Element):
         label: str,
         visual: VisualSpec | None = VisualSpec('points', {'position': 'x', 'color_by': 'E', 'color_range': (0.0, 5.0)}),
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.5,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.5,
         E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         tau0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
