@@ -17,6 +17,7 @@ import numpy.typing as npt
 
 from ..base import BaseConfig
 from ..core.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
+from ..core.specs import CompiledElementSpec
 from ..core.system import System
 from ..engine.compile import compile_system
 from ..engine.problems import BaseProblemSpec, ProblemSpec
@@ -26,9 +27,6 @@ from ..specs import JumpPathSpec, NetworkSnapshotSpec, SamplesSpec, SeriesSpec, 
 from ..types import Array, DataKind, DomainKind, FormKind
 from .types import Run, Runs, Source
 
-HEADING_NAMES = ('heading', 'theta', 'angle', 'phase')
-POSITION_STATE = 'x'
-VELOCITY_STATES = ('x_d1', 'v')
 SERIES_DIMENSIONS = 1
 SNAPSHOT_DIMENSIONS = 2
 RUNS_DIMENSIONS = 3
@@ -171,13 +169,12 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
 
     @staticmethod
     def _get_particle_groups(problem: BaseProblemSpec) -> list[str]:
-        """Return the groups whose members carry a vector position `x`."""
-        found = []
-        for element in problem.elements:
-            dotted = element.states.get(POSITION_STATE)
-            if element.members is not None and dotted is not None and problem.states.entry(dotted).shape:
-                found.append(element.path)
-        return found
+        """Return the groups with a state of the role `'position'`."""
+        return [
+            element.path
+            for element in problem.elements
+            if element.members is not None and 'position' in element.roles.values()
+        ]
 
     @staticmethod
     def _get_network_space(problem: BaseProblemSpec) -> NetworkSpace | None:
@@ -329,29 +326,48 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         velocities = (
             np.stack([states.pop(name) for name in velocity_names], axis=-1).astype(float) if velocity_names else None
         )
-        heading = next((name for name in frames[0].values if roles.get(name) == 'heading'), None)
+        heading = next((name for name in frames[0].values if roles.get(name) == 'direction'), None)
         headings = np.asarray(states.pop(heading), dtype=float) if heading is not None else None
         times = np.asarray(trajectory.times, dtype=float)
         return SnapshotsSpec(times, ids, positions, velocities, headings, states, box, periodic)
 
     @staticmethod
+    def _get_role_states(element: CompiledElementSpec, role: str) -> list[str]:
+        """Return the names of the states of an element with a role."""
+        return [name for name, item in element.roles.items() if item == role]
+
+    @staticmethod
+    def _read_axes(trajectory: Trajectory, states: Sequence[str]) -> Array:
+        """Return states as frames by members by dimensions, where a scalar state is one dimension."""
+        values = [np.asarray(trajectory.values(name), dtype=float) for name in states]
+        return np.concatenate(
+            [item[..., None] if item.ndim == SNAPSHOT_DIMENSIONS else item for item in values],
+            axis=-1,
+        )
+
+    @staticmethod
     def _read_particle_snapshots(trajectory: Trajectory, group: str) -> SnapshotsSpec:
-        """Return the snapshots of a particle group from its vector states and headings, unwrapped in a periodic box."""
+        """Return the snapshots of a particle group from the roles of its states, unwrapped in a periodic box."""
         element = next(item for item in trajectory.problem.elements if item.path == group)
         system = trajectory.problem.system
         space = system.space if system is not None else None
         periodic = isinstance(space, ContinuousSpace) and space.periodic_
         box = np.asarray(space.extent_, dtype=np.float64) if isinstance(space, ContinuousSpace) and periodic else None
-        raw = np.asarray(trajectory.values(element.states[POSITION_STATE]), dtype=float)
-        positions = BaseAnalysis._unwrap(raw, box, periodic=periodic)
-        velocity = next((name for name in VELOCITY_STATES if name in element.states), None)
-        velocities = np.asarray(trajectory.values(element.states[velocity]), dtype=float) if velocity else None
+        located = BaseAnalysis._get_role_states(element, 'position')
+        positions = BaseAnalysis._unwrap(
+            BaseAnalysis._read_axes(trajectory, [element.states[name] for name in located]),
+            box,
+            periodic=periodic,
+        )
+        derivatives = [f'{name}_d1' for name in located if f'{name}_d1' in element.states]
+        moving = derivatives or BaseAnalysis._get_role_states(element, 'velocity')
+        velocities = BaseAnalysis._read_axes(trajectory, [element.states[name] for name in moving]) if moving else None
         others = {
             name: np.asarray(trajectory.values(dotted)).reshape(len(trajectory.times), -1)
             for name, dotted in element.states.items()
-            if name not in {POSITION_STATE, velocity}
+            if name not in {*located, *moving}
         }
-        heading = next((name for name in HEADING_NAMES if name in others), None)
+        heading = next(iter(BaseAnalysis._get_role_states(element, 'direction')), None)
         headings = np.asarray(others.pop(heading), dtype=float) if heading is not None else None
         ids = np.arange(positions.shape[1], dtype=np.int64)
         times = np.asarray(trajectory.times, dtype=float)
@@ -464,8 +480,9 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         """Return the agents of a group of a trajectory at every frame.
 
         Agent groups give their positions unwrapped across periodic sides, and velocities and headings from the states
-        with the role `'velocity'` or `'heading'` in their `StateSpec`. Particle groups give their vector
-        state `x` and its first derivative `x_d1`, or else their state `v`.
+        with the role `'velocity'` or `'direction'` in their `StateSpec`. Particle groups give the states with the role
+        `'position'`, the first derivatives of those states or else the states with the role `'velocity'`, and the state
+        with the role `'direction'`.
 
         Args:
             source:

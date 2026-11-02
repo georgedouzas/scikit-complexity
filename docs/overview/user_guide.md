@@ -2910,9 +2910,10 @@ a string, or a frozen set. A snapshot keeps one object per agent in a one-dimens
 agents by value, and a history keeps any value. An analysis that needs numbers names the state and refuses it. Symbolic
 systems hold numbers only, in the vectors of their solvers.
 
-`StateSpec(role='heading')` and `StateSpec(role='velocity')` tell analyses what a state of an agent means. Analyses read
-headings and velocities from these roles, not from the names of the states, so a state named `phase` is no heading unless
-it says so.
+`StateSpec(role='position')`, `StateSpec(role='direction')`, and `StateSpec(role='velocity')` tell analyses what a state
+means. A group is a particle group when a state has the role `'position'`, and the first derivative of that state is its
+velocity. Analyses read positions, directions, and velocities from these roles, not from the names of the states, so a
+state named `phase` is no direction unless it says so.
 
 ```python
 from typing import Annotated
@@ -2949,10 +2950,9 @@ print(trajectory.agents('queues', 1).values['orders'].tolist())
 
 | Field | Subfields |
 | --- | --- |
-| `physics` | `mechanics`, `celestial_mechanics`, `nonlinear_oscillators`, `synchronization`, `statistical_mechanics`, `criticality`, `soft_matter`, `active_matter`, `fluids`, `waves`, `pattern_formation`, `heat`, `cosmology` |
+| `physics` | `mechanics`, `celestial_mechanics`, `nonlinear_oscillators`, `synchronization`, `statistical_mechanics`, `criticality`, `soft_matter`, `active_matter`, `fluids`, `waves`, `pattern_formation`, `heat`, `cosmology`, `climate`, `oceanography`, `seismology` |
 | `chemistry` | `kinetics`, `pattern_formation` |
 | `biology` | `ecology`, `epidemiology`, `evolution`, `neuroscience`, `systems_biology`, `physiology`, `collective_behaviour`, `oncology` |
-| `earth` | `climate`, `oceanography`, `seismology` |
 | `economics` | `macroeconomics`, `markets`, `finance`, `econophysics`, `resources`, `innovation` |
 | `social` | `opinion_dynamics`, `segregation`, `cooperation`, `spreading`, `crowds`, `organizations` |
 | `engineering` | `traffic`, `circuits`, `control`, `power_systems`, `robotics`, `processes` |
@@ -6256,7 +6256,7 @@ print(EventAnalysis().check().prepare([0, 2, 3, 0, 0, 1, 0]).run().sizes_.tolist
 coefficient fitted over a chosen range of lags. The fluctuation analyses come from `nolds`: detrended
 fluctuation of any order, which gives `H + 1` for an integrated series such as a random walk, or the rescaled range.
 `RollingAnalysis` gives the variance, the lag-one autocorrelation, or the skewness in rolling windows with its
-trend, and `EarlyWarningAnalysis` of `skcomplex.models.earth.climate` gathers them with spectral reddening as early
+trend, and `EarlyWarningAnalysis` of `skcomplex.models.physics.climate` gathers them with spectral reddening as early
 warnings of tipping.
 `InformationAnalysis` measures structure and information flow by its `kind`, such as `'mutual'` and `'transfer'`, as in
 Lindgren's information theory of complex systems, and `EntropyAnalysis` gives the Shannon, block, rate, excess,

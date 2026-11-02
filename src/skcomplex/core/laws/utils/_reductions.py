@@ -611,7 +611,7 @@ def neighbors(
     the phase difference to one neighbour. The neighbourhood is the graph of a network space by default,
     `AdjacencyNeighborhood()`, a layer of the network, `AdjacencyNeighborhood(layer=label)` or the `LayerSpec` itself, a
     lattice neighbourhood, or in a continuous space the members within a distance, `RadiusNeighborhood(r)`, the nearest
-    members, `NearestNeighborhood(k)`, or the members within a distance inside a cone around a heading,
+    members, `NearestNeighborhood(k)`, or the members within a distance inside a cone around a direction,
     `ConeNeighborhood(r, angle)`. A reduction over no neighbours is 0.
 
     The reductions with the weight `w_j` of every neighbour `j` of the value `f_j` are `'sum'`, `sum_j w_j f_j`,

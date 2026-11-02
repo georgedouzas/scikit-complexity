@@ -14,6 +14,18 @@ from skcomplex.specs import ObservableSpec
 ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
 
 
+def _run_default(
+    system: System,
+    until: float,
+    dt: float,
+    solver: BaseSolver | None = None,
+    observables: Sequence[ObservableSpec] = (),
+) -> Trajectory:
+    """Return the trajectory of a system under the default solver of its laws, unless a solver is given."""
+    simulation = Simulation(system, dt=dt, solver=solver, random_state=0, observables=observables)
+    return simulation.check().prepare().run(until=until).trajectory_
+
+
 def _run(
     system: System,
     until: float,

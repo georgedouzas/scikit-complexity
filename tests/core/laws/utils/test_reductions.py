@@ -228,7 +228,7 @@ def test_neighbors_rejects_an_unknown_reduction():
 
 def test_neighborhoods_in_finds_the_neighbourhood_and_the_weight():
     """Test that a reduction found in an expression keeps its neighbourhood, kind, and weight."""
-    over = ConeNeighborhood(2.0, math.pi / 3, heading='phi')
+    over = ConeNeighborhood(2.0, math.pi / 3, direction='phi')
     found = neighborhoods_in(1 + neighbors(2, over=over, reduce='normalized-mean', weight=3))
     assert [(item.over, item.kind, item.weight) for item in found] == [(over, 'normalized-mean', 3)]
 
@@ -362,7 +362,7 @@ def test_reduction_inside_a_cone_keeps_the_members_ahead(backend):
     """Test that a count over a cone of a heading angle counts the members within the radius and the half-angle."""
     side, radius, angle = 4.0, 1.2, math.pi / 3
     positions, values, headings = _scattered(90, side, 5)
-    over = ConeNeighborhood(radius, angle, heading='phi')
+    over = ConeNeighborhood(radius, angle, direction='phi')
     given = {'x': positions, 'y': values, 'phi': headings, 'over': over, 'reduce': 'count'}
     space = ContinuousSpace(extent=(side, side), boundary='periodic')
     system = System(

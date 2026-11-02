@@ -19,7 +19,7 @@ from ....core.types import Target
 from ....engine.solvers import RK4Solver
 from ....specs import ParameterSpec, RoleSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.oscillators import SitedOscillatorElement
+from ._swarmalator import SwarmalatorElement
 
 
 class SwarmalatorCouplingInteraction(PairCouplingInteraction):
@@ -164,7 +164,7 @@ def swarmalators(
     rng = np.random.default_rng(random_state)
     units = GroupElement(
         'units',
-        element=SitedOscillatorElement,
+        element=SwarmalatorElement,
         size=n_units,
         values={'x': rng.uniform(-1.0, 1.0, (n_units, 2)), 'theta': rng.uniform(-np.pi, np.pi, n_units), 'omega': 0.0},
         visual=VisualSpec('points', {'position': 'x', 'color_by': 'theta', 'radius': 0.03}),

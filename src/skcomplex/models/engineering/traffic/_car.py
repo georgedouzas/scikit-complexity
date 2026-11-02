@@ -19,8 +19,8 @@ class CarElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec()] = 0.0,
-        v: Annotated[object, StateSpec()] = 0.0,
+        x: Annotated[object, StateSpec(role='position')] = 0.0,
+        v: Annotated[object, StateSpec(role='velocity')] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x = x

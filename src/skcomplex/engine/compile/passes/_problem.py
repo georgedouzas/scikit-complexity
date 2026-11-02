@@ -108,6 +108,11 @@ class ProblemPass(BasePass):
                     if declaration.adaptive
                 },
                 lattice_shape=ProblemPass._lattice_shape(block.node.component),
+                roles={
+                    name: declaration.role
+                    for name, declaration in declarations_of(block.node.component_type, VariableKind.STATE).items()
+                    if declaration.role is not None
+                },
             )
             for block in blocks
             if not block.node.interaction and not block.node.is_agent

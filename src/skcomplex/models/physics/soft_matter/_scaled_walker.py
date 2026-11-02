@@ -45,7 +45,7 @@ class ScaledWalkerElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec()] = 0.0,
+        x: Annotated[float, StateSpec(role='position')] = 0.0,
         K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
         t0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,

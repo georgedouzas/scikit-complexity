@@ -1,4 +1,4 @@
-"""Define cone neighbourhoods, the members of a continuous space within a distance and a cone around a heading."""
+"""Define cone neighbourhoods, the members of a continuous space within a distance and a cone around a direction."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,11 +10,11 @@ from ._base import BaseNeighborhood
 
 
 class ConeNeighborhood(BaseNeighborhood):
-    """Members of a continuous space within a distance of a member and inside a cone around its heading.
+    """Members of a continuous space within a distance of a member and inside a cone around its direction.
 
     A neighbour is within the radius of a member and its direction from the member makes an angle of at most `angle`
-    with the member's heading, so `angle = pi` is the whole disk and `angle = pi / 2` the half ahead. The heading is a
-    vector state of the members, or in two dimensions a scalar state that holds the heading angle.
+    with the member's direction, so `angle = pi` is the whole disk and `angle = pi / 2` the half ahead. The direction is
+    a vector state of the members, or in two dimensions a scalar state that holds the direction angle.
 
     Args:
         radius:
@@ -23,8 +23,8 @@ class ConeNeighborhood(BaseNeighborhood):
         angle:
             The half-angle of the cone, between 0 and `pi`.
 
-        heading:
-            The name of the state that holds the heading, or `None` for the velocity, the vector state declared as the
+        direction:
+            The name of the state that holds the direction, or `None` for the velocity, the vector state declared as the
             rate of the position.
 
         center:
@@ -36,7 +36,7 @@ class ConeNeighborhood(BaseNeighborhood):
     Examples:
         >>> import math
         >>> from skcomplex.core.spaces import ConeNeighborhood
-        >>> ConeNeighborhood(1.0, math.pi / 2, heading='theta').check().heading
+        >>> ConeNeighborhood(1.0, math.pi / 2, direction='theta').check().direction
         'theta'
     """
 
@@ -45,14 +45,14 @@ class ConeNeighborhood(BaseNeighborhood):
         radius: float,
         angle: float,
         *,
-        heading: str | None = None,
+        direction: str | None = None,
         center: bool = False,
         label: str = 'neighborhood',
     ) -> None:
         super().__init__(label)
         self.radius = radius
         self.angle = angle
-        self.heading = heading
+        self.direction = direction
         self.center = center
 
     def _check(self) -> None:

@@ -99,7 +99,7 @@ class PhasedElement(Element):
         visual: VisualSpec | None = None,
         *,
         phase: Annotated[float, StateSpec()] = 3.0,
-        bearing: Annotated[float, StateSpec(role='heading')] = 0.5,
+        bearing: Annotated[float, StateSpec(role='direction')] = 0.5,
     ) -> None:
         super().__init__(label, visual=visual)
         self.phase = phase

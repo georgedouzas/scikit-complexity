@@ -51,7 +51,7 @@ class AgeingWalkerElement(Element):
         label: str,
         visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'x'}),
         *,
-        x: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
+        x: Annotated[float, StateSpec(domain=ZZ, role='position')] = 0.0,
         ups: Annotated[float, StateSpec(domain=NN, lags=1)] = 0.0,
         p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
         nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,

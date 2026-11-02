@@ -47,7 +47,7 @@ class CubicWalkElement(Element):
         visual: VisualSpec | None = None,
         *,
         x: Annotated[object, StateSpec()] = 0.3,
-        y: Annotated[object, StateSpec()] = 0.0,
+        y: Annotated[object, StateSpec(role='position')] = 0.0,
         lam: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 15.0,
     ) -> None:
         super().__init__(label, visual=visual)

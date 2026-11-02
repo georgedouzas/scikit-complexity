@@ -71,7 +71,6 @@ FIELDS = [
     'biology',
     'chemistry',
     'computer_science',
-    'earth',
     'economics',
     'engineering',
     'mathematics',

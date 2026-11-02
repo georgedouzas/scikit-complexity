@@ -410,8 +410,8 @@ class NeighborhoodKernel(BaseKernel):
         return 'x' if found is not None and found.vector else None
 
     @staticmethod
-    def _cone_heading(cone: ConeNeighborhood, states: Mapping[str, VariableSpec], n_dim: int) -> str:
-        """Return the state that holds the heading of a cone: the named state, else the derivative of the position.
+    def _cone_direction(cone: ConeNeighborhood, states: Mapping[str, VariableSpec], n_dim: int) -> str:
+        """Return the state that holds the direction of a cone: the named state, else the derivative of the position.
 
         Args:
             cone:
@@ -425,7 +425,7 @@ class NeighborhoodKernel(BaseKernel):
 
         Returns:
             name:
-                The name of the heading state, a vector state or in two dimensions a scalar angle.
+                The name of the direction state, a vector state or in two dimensions a scalar angle.
 
         Raises:
             ValidationError:
@@ -450,24 +450,24 @@ class NeighborhoodKernel(BaseKernel):
             ...         self.x = x
             ...         self.theta = theta
             >>> states = declarations_of(BoidElement, VariableKind.STATE)
-            >>> NeighborhoodKernel._cone_heading(ConeNeighborhood(1.0, 1.0, heading='theta'), states, 2)
+            >>> NeighborhoodKernel._cone_direction(ConeNeighborhood(1.0, 1.0, direction='theta'), states, 2)
             'theta'
         """
-        if cone.heading is not None:
-            declaration = states.get(cone.heading)
+        if cone.direction is not None:
+            declaration = states.get(cone.direction)
             if declaration is not None and (declaration.vector or n_dim == _PLANE):
-                return cone.heading
+                return cone.direction
             error_msg = (
-                f'The cone reads the heading {cone.heading!r}, which is not a vector state of the members, or a scalar '
-                'angle state in two dimensions.'
+                f'The cone reads the direction {cone.direction!r}, which is not a vector state of the members, or a '
+                'scalar angle state in two dimensions.'
             )
             raise ValidationError(error_msg)
         position = NeighborhoodKernel._position_state(states)
         if position is None or states[position].order <= 1:
             error_msg = (
-                'The cone has no heading: the position of the members has no first derivative. Declare the position '
-                "of order 2, `state(vector=True, position=True, order=2)`, or name a heading state, such as "
-                "`Cone(r, angle, heading='theta')`."
+                'The cone has no direction: the position of the members has no first derivative. Declare the position '
+                "of order 2, `state(vector=True, position=True, order=2)`, or name a direction state, such as "
+                "`ConeNeighborhood(r, angle, direction='theta')`."
             )
             raise ValidationError(error_msg)
         return f'{position}_d1'
@@ -542,7 +542,7 @@ class NeighborhoodKernel(BaseKernel):
         Raises:
             ValidationError:
                 The space does not offer the neighbourhood, the group does not hold one member per node or site, or the
-                members lack a position or a heading.
+                members lack a position or a direction.
         """
         offered = NeighborhoodKernel._spaces_of(over)
         if not isinstance(space, offered):
@@ -568,14 +568,14 @@ class NeighborhoodKernel(BaseKernel):
             raise ValidationError(error_msg)
         continuous = space
         periods = continuous.extent_ if continuous.periodic_ else None
-        heading = None
+        direction = None
         if isinstance(over, ConeNeighborhood):
-            name = NeighborhoodKernel._cone_heading(over, states, continuous.n_dim_)
-            heading = DirectionSpec(entries[name], not states[name].vector) if name in entries else None
-            if heading is None:
-                error_msg = f'The cone reads the heading {name!r}, which the members do not hold.'
+            name = NeighborhoodKernel._cone_direction(over, states, continuous.n_dim_)
+            direction = DirectionSpec(entries[name], not states[name].vector) if name in entries else None
+            if direction is None:
+                error_msg = f'The cone reads the direction {name!r}, which the members do not hold.'
                 raise ValidationError(error_msg)
-        return MetricSearch(over, entries[position], periods, heading).check().prepare()
+        return MetricSearch(over, entries[position], periods, direction).check().prepare()
 
     @staticmethod
     def _spaces_of(neighborhood: BaseNeighborhood) -> tuple[type, ...]:

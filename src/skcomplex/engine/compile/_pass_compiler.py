@@ -1122,11 +1122,11 @@ class PassCompiler(BaseCompiler):
                     continue
                 if isinstance(over, ConeNeighborhood):
                     try:
-                        NeighborhoodKernel._cone_heading(over, states, getattr(record.space, 'n_dim_', 0))
+                        NeighborhoodKernel._cone_direction(over, states, getattr(record.space, 'n_dim_', 0))
                     except ValidationError as error:
                         fix = (
                             'Declare the position of order 2, `StateSpec(vector=True, position=True, order=2)`, or '
-                            "name a heading state, such as `ConeNeighborhood(r, angle, heading='theta')`."
+                            "name a direction state, such as `ConeNeighborhood(r, angle, direction='theta')`."
                         )
                         issues.append(IssueSpec('law-domain', record.path, f'The {name}: {error}', fix))
         return issues

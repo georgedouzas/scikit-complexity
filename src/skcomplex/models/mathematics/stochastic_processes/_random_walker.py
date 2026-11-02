@@ -42,7 +42,7 @@ class RandomWalkerElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec(domain=ZZ)] = 0.0,
+        x: Annotated[float, StateSpec(domain=ZZ, role='position')] = 0.0,
         rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         bias: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
     ) -> None:

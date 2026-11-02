@@ -45,7 +45,7 @@ class WeakeningParticleElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[float, StateSpec()] = 0.0,
+        x: Annotated[float, StateSpec(role='position')] = 0.0,
         k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         ell: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         D: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.25,
