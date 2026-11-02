@@ -16,7 +16,7 @@ from sklearn.base import clone
 from ...base import BaseConfig
 from ...core.elements import FieldElement, GroupElement
 from ...core.interactions import HyperedgeInteraction, NeighborInteraction, SatisfiabilityInteraction
-from ...core.laws import BilinearLaw, CollisionLaw, EncounterLaw, EquationLaw, JumpLaw, NoiseLaw
+from ...core.laws import BilinearLaw, EncounterLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw
 from ...core.laws.utils import COORDINATE_PREFIX, hyperedges_in, neighborhoods_in, reductions_in
 from ...core.spaces import (
     AdjacencyNeighborhood,
@@ -802,7 +802,7 @@ class PassCompiler(BaseCompiler):
             law = record.law
             requires = law._get_requirements()
             name = f'{type(law).__name__} of {record.path}'
-            if requires.space and not isinstance(record.space, requires.space) and not isinstance(law, CollisionLaw):
+            if requires.space and not isinstance(record.space, requires.space):
                 lives = type(record.space).__name__ if record.space is not None else 'no space'
                 needs = PassCompiler._names(requires.space)
                 message = f'The {name} needs a {needs}, but the component lives on {lives}.'
@@ -1011,7 +1011,7 @@ class PassCompiler(BaseCompiler):
     def _collision_issue(record: CensusRecordSpec) -> IssueSpec | None:
         """Return the issue of a collision law on a phase space without two interval class axes, or `None`."""
         space = record.space
-        if not isinstance(record.law, CollisionLaw):
+        if not (isinstance(record.law, RateLaw) and record.law.cross_section is not None):
             return None
         axes = space.axes if isinstance(space, PhaseSpace) else []
         if len(axes) == _COLLISION_AXES and not any(axis.periodic for axis in axes):

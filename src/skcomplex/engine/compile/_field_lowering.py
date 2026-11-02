@@ -21,7 +21,7 @@ from skfem import Basis, ElementTetP1, ElementTriP1, asm
 from skfem.models.poisson import laplace, mass
 
 from ...core.elements import FieldElement
-from ...core.laws import BaseLaw, BoundaryLaw, CollisionLaw, FluxLaw, NoiseLaw, RateLaw, UpdateLaw
+from ...core.laws import BaseLaw, BoundaryLaw, FluxLaw, NoiseLaw, RateLaw, UpdateLaw
 from ...core.laws.utils import COORDINATE_PREFIX, INVERSION_BOUNDARIES, displacement, where
 from ...core.spaces import (
     AdjacencyNeighborhood,
@@ -174,13 +174,12 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
                 continue
             if isinstance(law, RateLaw):
                 self._note_limit(law.value)
-            self.cross_section_ = law.cross_section if isinstance(law, CollisionLaw) else None
+            self.cross_section_ = law.cross_section if isinstance(law, RateLaw) else None
             lowered = self._lower(law.value)
             if isinstance(law.value, Expression):
                 for reference in self.spec._target_references(law._get_targets()[0]):
                     self.written_[(reference.entry.name, reference.column)].append((lowered, law.value))
-            collided = RateLaw(law.target, lowered, label=law.label) if isinstance(law, CollisionLaw) else None
-            result.append(collided or BasePass._replaced(law, value=lowered))
+            result.append(BasePass._replaced(law, value=lowered))
         self.lowered_ = result
 
     @staticmethod
@@ -607,7 +606,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         """Return the symbol of the binary collision integral of a density over the class axes of its phase space."""
         space = self._phase_space(operand, place)
         if self.cross_section_ is None:
-            error_msg = f'A law of {self.spec.owner} reads a collision integral, which only a `CollisionLaw` declares.'
+            error_msg = (
+                f'A law of {self.spec.owner} reads a collision integral, which only a `RateLaw` with a cross-section '
+                'declares.'
+            )
             raise ValidationError(error_msg)
         spacings = (space.spacings_[-PLANE], space.spacings_[-1])
         kernel = CollisionKernel(space.shape_, spacings, self.cross_section_).check().prepare()

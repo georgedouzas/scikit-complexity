@@ -11,7 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
 from ....core.elements import DensityElement, FieldElement
-from ....core.interactions import AdvectionInteraction, CollisionInteraction
+from ....core.interactions import AdvectionInteraction, EncounterInteraction
 from ....core.laws.utils import coordinate, gradient, inverse_laplacian, moment
 from ....core.spaces import LatticeSpace, PhaseSpace
 from ....core.system import System
@@ -118,9 +118,9 @@ def boltzmann_equation(
     """
     gas, frequency = _get_uniform_gas(positions, velocities, knudsen, half_width)
     stream = AdvectionInteraction('stream', target='gas', state='f', drift=_get_plane_streaming)
-    collide = CollisionInteraction(
+    collide = EncounterInteraction(
         'collide',
-        target='gas',
+        candidate='gas',
         cross_section=_get_maxwell_molecules,
         factor=lambda _: frequency,
     )
@@ -180,11 +180,11 @@ def enskog(
     area = math.pi * diameter**2 / 4
 
     def contact(s: SimpleNamespace) -> Expression:
-        fraction = area * moment(s.target.f, 0, axes=VELOCITY_AXES)
+        fraction = area * moment(s.candidate.f, 0, axes=VELOCITY_AXES)
         return frequency * (1 - 7 * fraction / 16) / (1 - fraction) ** 2
 
     stream = AdvectionInteraction('stream', target='gas', state='f', drift=_get_plane_streaming)
-    collide = CollisionInteraction('collide', target='gas', cross_section=_get_maxwell_molecules, factor=contact)
+    collide = EncounterInteraction('collide', candidate='gas', cross_section=_get_maxwell_molecules, factor=contact)
     return System(elements=[gas], interactions=[stream, collide])
 
 

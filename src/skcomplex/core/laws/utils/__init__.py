@@ -15,6 +15,7 @@ from ._moments import moment
 from ._operators import (
     INVERSION_BOUNDARIES,
     advection,
+    collision,
     convolve,
     displacement,
     divergence,
@@ -68,6 +69,7 @@ __all__: list[str] = [
     'categorical',
     'circular_mean',
     'clip',
+    'collision',
     'components',
     'contraction',
     'contractions_in',

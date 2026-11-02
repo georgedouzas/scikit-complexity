@@ -17,6 +17,7 @@ from ....errors import ValidationError
 
 laplacian = function('laplacian', nargs=1, latex_name=r'\nabla^2')
 partial = function('partial', nargs=2)
+collision = function('collision', nargs=1)
 upwind = function('upwind', nargs=3)
 INVERSE_HELMHOLTZ = function('inverse_helmholtz')
 CONVOLVE = function('convolve', nargs=3)

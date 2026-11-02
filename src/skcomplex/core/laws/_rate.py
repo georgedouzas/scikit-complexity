@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Callable
 
 from sage.structure.element import Matrix
 
@@ -29,6 +30,10 @@ class RateLaw(BaseLaw):
         order:
             The order of the derivative the rate gives, checked against the state's order, or `None` to use it.
 
+        cross_section:
+            The function `B(speed, cosine)` of arrays of the relative speed and the cosine of the deflection angle,
+            which a `collision` of the value reads, or `None`.
+
         label:
             The name of the law, or the empty string for a law without one.
 
@@ -40,11 +45,20 @@ class RateLaw(BaseLaw):
         6.0
     """
 
-    def __init__(self, target: Target | Matrix, value: object, order: int | None = None, *, label: str = '') -> None:
+    def __init__(
+        self,
+        target: Target | Matrix,
+        value: object,
+        order: int | None = None,
+        *,
+        cross_section: Callable[..., object] | None = None,
+        label: str = '',
+    ) -> None:
         super().__init__(label)
         self.target = target
         self.value = value
         self.order = order
+        self.cross_section = cross_section
 
     def _get_targets(self) -> tuple[object, ...]:
         """Return the state the rate changes."""

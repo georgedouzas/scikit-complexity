@@ -4991,7 +4991,7 @@ assert relax.check().state == 'f'
 
 ### Collisions
 
-`CollisionInteraction(label, target=..., state='f', cross_section=..., factor=None)` is the binary collision integral
+`EncounterInteraction(label, candidate=..., state='f', cross_section=..., factor=None)` is the binary collision integral
 over two interval class axes. The cross-section is a function of arrays of the relative speed and the cosine of the
 deflection angle, and it enters the fast spectral method of Mouhot and Pareschi through a singular value decomposition,
 a single term for Maxwell molecules. The method uses FFT products on a grid padded by `(3 + sqrt(2)) / 2`, conserves the

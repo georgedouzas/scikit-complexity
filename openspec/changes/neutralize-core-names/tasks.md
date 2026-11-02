@@ -11,7 +11,7 @@
 ## 2. One way
 
 - [x] 2.1 Merge `DestructionLaw` and `ProliferationLaw` into `BilinearLaw` across the interaction, backends, and kinetics solver; verify the encounter outcomes scenario and identical trajectories of the kinetic models.
-- [ ] 2.2 Fold `CollisionInteraction` and `CollisionLaw` into `EncounterInteraction(cross_section=)`; verify the binary integral within 1e-12 and the Boltzmann, BGK, and Enskog tests.
+- [x] 2.2 Fold `CollisionInteraction` and `CollisionLaw` into `EncounterInteraction(cross_section=)`; verify the binary integral within 1e-12 and the Boltzmann, BGK, and Enskog tests.
 - [ ] 2.3 Move `SpreadingInteraction` out of the core as a thin `TransitionInteraction` subclass in the models using it; verify those models identical or equal over 20 seeds.
 
 ## 3. Packages

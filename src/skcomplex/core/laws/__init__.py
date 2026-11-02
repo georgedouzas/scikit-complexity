@@ -7,7 +7,6 @@ from ._base import BaseLaw
 from ._bilinear import BilinearLaw
 from ._boundary import BoundaryLaw
 from ._cascade import CascadeLaw
-from ._collision import CollisionLaw
 from ._crossing import CrossingLaw
 from ._dissipator import DissipatorLaw
 from ._drive import DriveLaw
@@ -35,7 +34,6 @@ __all__: list[str] = [
     'BilinearLaw',
     'BoundaryLaw',
     'CascadeLaw',
-    'CollisionLaw',
     'CrossingLaw',
     'DissipatorLaw',
     'DriveLaw',
