@@ -173,7 +173,7 @@ def _geometric(t: float) -> float:
 
 
 def test_run_cooling_reduces_accepted_moves() -> None:
-    """Test that cooling lowers the energy and the share of proposals accepted, at any seed."""
+    """Test that cooling lowers the share of proposals accepted and takes a quadratic energy to its minimum."""
     anneal = SamplingInteraction(
         'anneal',
         target='candidates',
@@ -182,15 +182,16 @@ def test_run_cooling_reduces_accepted_moves() -> None:
         move='gaussian',
         width=0.5,
         temperature=5.0,
-        schedule='random-sequential',
+        schedule='colored',
         neighborhood=VonNeumannNeighborhood(n_dim=1),
         cooling=_geometric,
     )
     candidates = LatticeElement('candidates', element=CandidateElement, space=LatticeSpace((200,)))
     system = System(elements=[candidates], interactions=[anneal], time=DiscreteTime())
     frames = Simulation(system, random_state=0).check().prepare().run(until=500).trajectory_.values('candidates.x')
-    changes = frames[1:] ** 2 - frames[:-1] ** 2
-    assert np.mean(changes[-50:] != 0) < 0.25 * np.mean(changes[:50] != 0)
+    accepted = np.mean(frames[1:] != frames[:-1], axis=1)
+    assert accepted[:50].mean() > 0.8
+    assert accepted[-50:].mean() < 0.2
     assert np.mean(frames[-1] ** 2) < 0.01
 
 

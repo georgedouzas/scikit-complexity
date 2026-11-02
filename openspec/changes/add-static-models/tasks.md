@@ -14,7 +14,7 @@
 
 ## 2. Random ensembles
 
-- [ ] 2.1 Add `log_sum_exp` to `skcomplex.core.laws.utils` with its NumPy and Numba lowering, and verify the large
+- [x] 2.1 Add `log_sum_exp` to `skcomplex.core.laws.utils` with its NumPy and Numba lowering, and verify the large
   values and random energy model entropy scenarios
 - [x] 2.2 Add `radius` to `ClusterAnalysis` with the contact graph of points, and verify the spanning probability and
   isolated points scenarios
@@ -28,7 +28,7 @@
 - [x] 3.3 Add `DifferentialEvolutionSpec`, `ParticleSwarmSpec`, `EvolutionStrategySpec`, and
   `CovarianceAdaptationSpec` to `skcomplex.specs` and `OptimizationInteraction` to `skcomplex.core.interactions`, and
   verify the differential evolution and algorithm that is not a spec scenarios
-- [ ] 3.4 Add `cooling` to `SamplingInteraction`, and verify the cooling scenario
+- [x] 3.4 Add `cooling` to `SamplingInteraction`, and verify the cooling scenario
 
 ## 4. Library
 
@@ -48,6 +48,6 @@
 ## 5. Documentation and gate
 
 - [ ] 5.1 Document `log_sum_exp`, contact clusters, `SatisfiabilityInteraction`, `OptimizationInteraction`, and
-  annealing in the user guide, add the changelog entry, and verify the documentation test and the changelog session pass
+  annealing in the user guide, and verify the documentation test passes (the changelog is generated from conventional commits)
 - [ ] 5.2 Run `nox -s formatting`, `nox -s checks`, `nox -s docs`, and `nox -s tests` in that order, and verify all of
   them pass

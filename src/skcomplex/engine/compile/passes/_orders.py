@@ -379,7 +379,10 @@ class OrdersPass(BasePass):
         if len(relations) > _EQUATION_UNKNOWNS or reduced & set(unknowns):
             return None
         known = {name for item in relations for name in item.expression.variables()}
-        solutions = solve([item.expression == 0 for item in relations], unknowns, solution_dict=True)
+        try:
+            solutions = solve([item.expression == 0 for item in relations], unknowns, solution_dict=True)
+        except TypeError:
+            return None
         if len(solutions) != 1 or any(item not in solutions[0] for item in unknowns):
             return None
         values = [SR(solutions[0][item]) for item in unknowns]
