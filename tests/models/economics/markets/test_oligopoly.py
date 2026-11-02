@@ -34,7 +34,7 @@ def test_oligopoly_equilibria_mixed_price(n_firms: int, alpha: float) -> None:
 
 
 def test_oligopoly_equilibria_cournot_quantities() -> None:
-    """Test that the Cournot quantities are the solution of Forrest (2018 Eq. 21.6)."""
+    """Test that the Cournot quantities are the solution of equation 21.6 of Forrest (2018)."""
     system = oligopoly_equilibria(demand=10.0, c_i=1.0, c_j=2.0, lambda_i=0.5, lambda_j=0.0)
     trajectory = Simulation(system).check().prepare().run(1.0).trajectory_
     assert trajectory.values('cournot.q_i')[0] == pytest.approx((10.0 - 2 * 1.0 / 1.5 + 2.0) / 3)
