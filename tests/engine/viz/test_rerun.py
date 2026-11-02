@@ -28,6 +28,7 @@ from skcomplex.engine.viz import (
 )
 from skcomplex.models import create, describe
 from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
+from skcomplex.models.biology.ecology import higher_order_random_lotka_volterra
 from skcomplex.models.computer_science.automata import game_of_life
 from skcomplex.models.physics.common.particles import ConstantForceInteraction, MassPointElement
 from skcomplex.models.physics.statistical_mechanics import ideal_gas
@@ -130,6 +131,22 @@ def test_rerun_observer_logs_parameters(monkeypatch, tmp_path):
     _run(system, RerunObserver('test', save_path=tmp_path / 'run.rrd'), until=0.2)
     assert logged.count('parameters/g.r') == 3
     assert logged.count('a/n') == 3
+
+
+def test_rerun_observer_leaves_out_a_coupling_tensor(monkeypatch, tmp_path):
+    """Test that a parameter of order 3 is not logged, while the parameters up to a matrix are."""
+    logged = []
+    original = rr.RecordingStream.log
+
+    def log(self, path, *args, **kwargs):
+        if not kwargs.get('static'):
+            logged.append(path)
+        return original(self, path, *args, **kwargs)
+
+    monkeypatch.setattr(rr.RecordingStream, 'log', log)
+    _run(higher_order_random_lotka_volterra(4), RerunObserver('test', save_path=tmp_path / 'run.rrd'), until=0.2)
+    assert 'parameters/triplets.a' not in logged
+    assert 'parameters/growth.r' in logged
 
 
 def test_rerun_observer_spawns_viewer_next_to_interpreter(monkeypatch, tmp_path):
