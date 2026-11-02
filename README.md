@@ -231,6 +231,16 @@ trajectory = run('sir').trajectory_
 print(trajectory.values('I.n').max().round())
 ```
 
+Each run can stream to the Rerun viewer:
+
+<table>
+  <tr>
+    <td align="center" valign="top" width="33%"><img src="docs/assets/readme/lotka_volterra.png" alt="Prey and predators cycle" width="100%"><br><code>lotka_volterra</code><br><sub>Prey and predators cycle</sub></td>
+    <td align="center" valign="top" width="33%"><img src="docs/assets/readme/sir.png" alt="An epidemic rises and fades" width="100%"><br><code>sir</code><br><sub>An epidemic rises and fades</sub></td>
+    <td align="center" valign="top" width="33%"><img src="docs/assets/readme/wolf_sheep.png" alt="Wolves, sheep and grass on a grid" width="100%"><br><code>wolf_sheep</code><br><sub>Wolves, sheep and grass on a grid</sub></td>
+  </tr>
+</table>
+
 ## Spec-driven development
 
 The project's engineering constitution lives in `openspec/constitution.md` and binds all work. The
