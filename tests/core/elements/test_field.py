@@ -197,8 +197,8 @@ def test_rate_law_relaxes_a_tensor_state(backend):
     assert np.allclose(final, np.tile([1.0, 0.5], (9, 1)) * np.exp(-1.0), rtol=1e-4)
 
 
-def test_boundary_gives_every_component_of_a_fixed_matrix():
-    """Fixed edges that hold a matrix pull every independent component to its own value."""
+def test_boundary_relaxes_a_tensor_to_its_fixed_matrix():
+    """A symmetric traceless state between edges holding one fixed matrix relaxes to it at every site within 1e-6."""
     anchor = np.array([[0.4, 0.3], [0.3, -0.4]])
     field = FieldElement(
         'film',

@@ -8,7 +8,7 @@
   `tests/specs/test_state_spec.py` and `tests/specs/test_entry_spec.py`
 - [x] 1.2 Read the rates of a `RateLaw` on a tensor state from the entries of its matrix value, and verify that a
   relaxation `RateLaw(s.Q, -s.Q)` runs on the NumPy and Numba backends
-- [ ] 1.3 Accept a matrix as the fixed boundary value of a tensor state in `FieldElement`, and verify the anchoring at
+- [x] 1.3 Accept a matrix as the fixed boundary value of a tensor state in `FieldElement`, and verify the anchoring at
   walls scenario and the rejected asymmetric matrix
 - [x] 1.4 Add the issue `tensor-symmetry` to `PassCompiler` with its numeric fallback, and verify the law that breaks
   the symmetry scenario in `tests/engine/compile/test_pass_compiler.py`
@@ -41,7 +41,7 @@
 - [x] 4.3 Mark `dry_active_nematics` and `active_gels` implemented in `docs/overview/inventory.toml`, add their gallery
   examples under `docs/examples/physics/active_matter`, and verify the inventory check and the gallery coverage check
 - [x] 4.4 Add the changelog entry for tensor states and the new models, and verify the changelog session passes
-- [ ] 4.5 Compute identical field operator applications once per rate evaluation, with the cache cleared at every evaluation; verify the same trajectories within 1e-12 on `double_gyre` and `active_gels` and the reduced number of applications
+- [x] 4.5 Compute identical field operator applications once per rate evaluation, with the cache cleared at every evaluation; verify the same trajectories within 1e-12 on `double_gyre` and `active_gels` and the reduced number of applications
 
 ## 5. Gate
 

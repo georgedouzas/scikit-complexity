@@ -694,3 +694,34 @@ def test_shifted_interpolates_at_fourth_order_with_cubic_splines():
         )
         errors.append(np.abs(rate - np.sin(positions + 0.37 * spacing + reach)).max())
     assert errors[0] / errors[1] > 12
+
+
+def test_identical_operators_apply_once_per_evaluation(monkeypatch):
+    """Test that repeated inversions transform once per evaluation, and that no value outlives its evaluation."""
+    transforms = []
+    forward = np.fft.rfftn
+    monkeypatch.setattr(np.fft, 'rfftn', lambda *args, **kwargs: transforms.append(1) or forward(*args, **kwargs))
+    n, spacing = 16, 2 * np.pi / 16
+    positions = np.arange(n) * spacing
+
+    def law(s):
+        solution = inverse_laplacian(s.u)
+        return inverse_laplacian(s.u) ** 2 + solution + laplacian(solution**2)
+
+    field = FieldElement(
+        'm',
+        element=_operator_element(law),
+        space=LatticeSpace(n, spacing=spacing),
+        values={'u': np.sin(positions)},
+        discretization='spectral',
+    )
+    problem = compile_system(System(elements=[field]), backend=NumpyBackend())
+    state, parameters = problem.initial_state, problem.initial_parameters
+    transforms.clear()
+    first = problem.drift(0.0, state, parameters)
+    assert len(transforms) == 2
+    doubled = problem.drift(0.0, 2 * state, parameters)
+    solution = -2 * np.sin(positions)
+    assert np.allclose(np.ravel(problem.states.read(doubled, 'm.u')), solution**2 + solution + 8 * np.cos(2 * positions))
+    assert np.array_equal(problem.drift(0.0, state, parameters), first)
+    assert len(transforms) == 6
