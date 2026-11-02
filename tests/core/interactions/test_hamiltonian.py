@@ -130,7 +130,6 @@ def test_run_sums_the_hamiltonians_of_a_coupling():
 
 def test_run_wraps_an_angle_coordinate():
     """Test that an angle coordinate of a rotor wraps around its period."""
-
     rotor = HamiltonianInteraction('rotor', target='wheel', hamiltonian=lambda s: s.target.p**2 / 2 - cos(s.target.q))
     system = System(elements=[RotorElement('wheel')], interactions=[rotor])
     trajectory = Simulation(system, dt=0.01).check().prepare().run(until=20.0).trajectory_

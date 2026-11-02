@@ -2735,7 +2735,8 @@ group, on NumPy and Numba.
 - `weights` gives `total` and `mean` a constant matrix, a NumPy array or a SciPy sparse matrix, with one row per
   reading member and one column per reduced member, so member `i` reads `sum_j W_ij a_j`, such as a payoff matrix. A
   vector with one weight per reduced member is a row that every reading member shares, such as the activities of a
-  moment.
+  moment. A shaped parameter, such as `weights=s.W`, gives weights that a schedule, an experiment, or a training
+  interaction changes, as [Shaped parameters and coupling tensors](#shaped-parameters-and-coupling-tensors) shows.
 - `over` names the group by its namespace, such as `over=s.neurons`, when the expression reads no symbol of it.
 - A reduction reads one group, and an argument that reads two groups raises an error. Reductions nest, so the mean
   fitness `total(s.x * total(s.x, weights=A))` of replicator dynamics evaluates the inner reduction first.
@@ -4437,6 +4438,10 @@ simulation = Simulation(ideal_gas(50_000, random_state=0), solver=RK4Solver(dt=0
 print(simulation.run(until=0.5).problem_.backend)
 ```
 
+`JaxBackend` writes discrete maps and ordinary differential equations as pure JAX functions, which JAX traces,
+compiles, and differentiates. It is the backend of the inner model of a system that trains, and a forward backend that
+agrees with NumPy within 1e-10 in double precision.
+
 Compiled kernels are cached on disk, under `~/.cache/skcomplex` or the `cache_dir` of `NumbaBackend(cache_dir=...)`,
 so running the same system again skips compilation.
 
@@ -5244,6 +5249,192 @@ print(round(fit.estimates_['growth.r'], 2), round(fit.r2_, 4))
 sweep = Experiment(logistic_growth, OneAtATimeDesign(), bounds, until=20, outputs=['population.n'])
 sweep = sweep.check().prepare().run()
 print(SensitivityAnalysis('oat', 'population.n').check().prepare(sweep.result_).run().ranking_)
+```
+
+## Learning by gradient steps
+
+A system that learns is a dynamical system in two times. The inner time steps a model through its inputs, and the
+outer time steps through training, where the trained parameters of the inner model are the states and a gradient step
+on a loss of its runs is the law. `TrainingInteraction` of `skcomplex.core.interactions` writes it with the existing
+parts: the inner model is a nested system, its trained parameters are declared `ParameterSpec(adaptive=True)`, the
+interaction binds it through its role `model`, and the outer system runs under `DiscreteTime()`, one step per epoch.
+
+`TrainingInteraction` returns one `GradientStepLaw` of `skcomplex.core.laws`, which differs from
+`GradientInteraction`. `GradientInteraction` moves the states of its target down the gradient of a potential in the
+system's own time and lowers to rate laws. `GradientStepLaw` takes optimizer steps on the adaptive parameters of a
+nested system once per epoch, on the gradient of a loss over unrolled runs of that system, computed by automatic
+differentiation with JAX.
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import TrainingInteraction
+from skcomplex.core.laws import UpdateLaw
+from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import DatasetSpec, ObservableSpec, ParameterSpec, StateSpec
+
+
+class DecayElement(Element):
+    def __init__(
+        self,
+        label,
+        *,
+        x: Annotated[float, StateSpec()] = 1.0,
+        a: Annotated[float, ParameterSpec(adaptive=True)] = 0.5,
+        observed: Annotated[float, ParameterSpec()] = 0.0,
+    ):
+        super().__init__(label)
+        self.x = x
+        self.a = a
+        self.observed = observed
+
+    def _get_laws(self, s):
+        return [UpdateLaw(s.x, s.a * s.x)]
+
+
+series = 0.8 ** np.arange(1, 11)
+model = System('decay', elements=[DecayElement('unit')], time=DiscreteTime())
+training = TrainingInteraction(
+    'fit',
+    model='decay',
+    trained=['unit.a'],
+    loss=ObservableSpec('error', lambda s: (s.unit.x - s.unit.observed) ** 2),
+    data=DatasetSpec({'unit.observed': series[np.newaxis]}),
+    learning_rate=0.05,
+    batch_size=1,
+)
+fitting = System('fitting', systems=[model], interactions=[training], time=DiscreteTime())
+trajectory = Simulation(fitting, random_state=0).check().prepare().run(until=300).trajectory_
+print(round(float(trajectory.values('decay/unit.a')[-1]), 3), bool(trajectory.values('fit/loss')[-1] < 1e-6))
+```
+
+- The inner model is an ordinary system, a discrete map or ordinary differential equations written as symbolic laws,
+  so it runs, is analysed, and is visualised alone, before or after training. The trained model of a frame is the
+  nested system with the recorded values set through `set_params`. A model with noise, jumps, rules, or laws given as
+  Python callables reports `learning-not-differentiable`.
+- `DatasetSpec(values, weights=None, times=None)` of `skcomplex.specs` maps dotted parameter paths of the inner model,
+  its inputs and targets, to arrays of shape `(sequences, steps)` followed by the shape of the parameter. At inner step
+  `k` every parameter takes its value at step `k` before the laws of the step are evaluated, as a schedule sets a
+  parameter, and the loss reads the states the step gives. Every sequence starts from the initial states of the model.
+  `weights` masks steps out of the loss, one array for every observable or a mapping from the label of the loss or a
+  metric to its own weights, and `times` gives the inner times of an ODE model, `1, 2, ...` by default.
+- `loss` and `metrics` are `ObservableSpec`s over the symbols of the inner model. The loss of a batch is the weighted
+  mean of the observable over its sequences and steps. The trajectory records the trained parameters under their inner
+  paths, such as `decay/unit.a`, the mean batch loss of every epoch as `<interaction>/loss`, and every metric over the
+  whole dataset as `<interaction>/<metric>`. The same observables given to a `Simulation` of the trained model record
+  the loss in a forward run.
+- `optimizer` is one of `OPTIMIZERS`, `'sgd'`, `'momentum'`, `'rmsprop'`, and `'adam'`, run by Optax. Its
+  hyperparameters, `learning_rate`, `momentum`, `beta1`, and `beta2`, the decay of `'rmsprop'`, are parameters of the
+  interaction, so a schedule such as `{'fit.learning_rate': ...}` changes them at the next frame. `batch_size` sets the
+  sequences of a batch, shuffled by the random stream of the simulation, so a seed repeats a run.
+- `truncation` cuts backpropagation through time after that many inner steps, and `None` follows the gradient through
+  the whole run. A truncation of 1 holds the previous inner states as constant inputs, Elman's original rule.
+- `GradientDescentSolver` of `skcomplex.engine.solvers` is the default solver of a system that trains. It unrolls a
+  discrete map with `jax.lax.scan` and an ODE with diffrax, computes in double precision by default, and keeps the
+  optimizer's state between frames. The inner model always compiles with `JaxBackend`, so a backend passed to the
+  simulation is ignored.
+- `heaviside`, `sign`, `floor`, and `ceil` have a zero gradient almost everywhere, so a loss that reads a parameter only
+  through them does not train it, without any error.
+- Local learning rules, such as Hebb's and Oja's, change a weight from its own activity, so they are update or rate
+  laws on weight states, as in the `hopfield` model, and need no training interaction.
+
+`elman_network` of `skcomplex.models.computer_science.neural_networks` trains Elman's simple recurrent network on the
+temporal XOR stream. Its visual draws the loss and the metrics as the first view and the trained matrices as heat maps
+through `MatrixVisual`, chosen by `VisualSpec('matrix')`.
+
+### Shaped parameters and coupling tensors
+
+`ParameterSpec(shape=('target', 'source'))` declares a parameter of an interaction whose shape is the sizes of the
+groups its roles bind, such as a weight matrix with one row per target member and one column per source member. It
+holds a block of the parameter vector in row-major order, trajectories and `Simulation.update_parameters` read and set
+it with its shape, a schedule or an experiment changes it, and with `adaptive=True` a training interaction trains it.
+The weights of `total` and `mean` and of `CouplingInteraction(mode='group')` read it. A shaped parameter whose role
+binds a single element reports the issue `parameter-shape`, with the fix of binding a group.
+
+A role repeated `k` times, `shape=('target',) * k`, gives a coupling tensor of order `k` among the members of a group,
+and `contraction(T, a, b)` of `skcomplex.core.laws.utils` returns `sum_jk T_ijk a_j b_k` for every member `i`, with one
+expression per index after the first. Matrices keep `total(x, weights=W)`. A tensor of order `k` over `N` members
+holds `N^k` entries, a million for order 3 over 100 members.
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.laws.utils import contraction, count, total
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
+
+
+class NodeElement(Element):
+    def __init__(self, label, *, x: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.x = x
+
+
+class DriveInteraction(Interaction):
+    def __init__(
+        self,
+        label,
+        *,
+        target: Annotated[str, RoleSpec()],
+        source: Annotated[str, RoleSpec()],
+        W: Annotated[object, ParameterSpec(shape=('target', 'source'))] = 0.0,
+    ):
+        super().__init__(label)
+        self.target = target
+        self.source = source
+        self.W = W
+
+    def _get_laws(self, s):
+        return [RateLaw(s.target.x, -s.target.x + total(s.source.x, weights=s.W))]
+
+
+W = np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 2.0]])
+system = System(
+    elements=[
+        GroupElement('cells', element=NodeElement, size=3),
+        GroupElement('inputs', element=NodeElement, size=2, values={'x': [1.0, 2.0]}),
+    ],
+    interactions=[DriveInteraction('drive', target='cells', source='inputs', W=W)],
+)
+simulation = Simulation(system, dt=0.1).check().prepare()
+print(simulation.run(until=20).trajectory_.values('cells.x')[-1].round(3).tolist())
+simulation.update_parameters({'drive.W': 2 * W})
+print(simulation.run(until=40).trajectory_.values('cells.x')[-1].round(3).tolist())
+
+
+class TripletInteraction(Interaction):
+    def __init__(
+        self,
+        label,
+        *,
+        target: Annotated[str, RoleSpec()],
+        T: Annotated[object, ParameterSpec(shape=('target',) * 3)] = 0.0,
+    ):
+        super().__init__(label)
+        self.target = target
+        self.T = T
+
+    def _get_laws(self, s):
+        x = s.target.x
+        return [RateLaw(x, x * (1 - x) + x * contraction(s.T, x, x) / count(over=s.target))]
+
+
+species = GroupElement('species', element=NodeElement, size=4, values={'x': 0.1})
+triplets = TripletInteraction('triplets', target='species', T=-np.ones((4, 4, 4)))
+community = System(elements=[species], interactions=[triplets])
+trajectory = Simulation(community, dt=0.1).check().prepare().run(until=50).trajectory_
+print(trajectory.values('species.x')[-1].round(3).tolist())
 ```
 
 ## Analysing symbolically

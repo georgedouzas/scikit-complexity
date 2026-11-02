@@ -24,7 +24,7 @@ def contraction(tensor: object, *expressions: object) -> Expression:
         tensor:
             The symbol of the shaped parameter of order `k`.
 
-        expressions:
+        *expressions:
             The `k - 1` expressions of one member, one per index after the first.
 
     Returns:

@@ -58,6 +58,16 @@ loss over an unrolled run, and a law that changes the weights by that gradient.
 
 - **JAX, Optax, and Diffrax are runtime dependencies.** The Project Profile's platforms narrow to Linux and macOS 13
   or later on Apple silicon, since `jaxlib` publishes no wheels for macOS on Intel. Decided on 2026-11-01.
+- **Settled during implementation** (decided on 2026-11-01):
+  - Trajectory names leave out the label of the root system, the framework's convention, so the trained parameters
+    and outputs read `net/readout.W` and `training/loss` rather than `elman/net/readout.W` and `elman/training/loss`.
+  - `DatasetSpec` holds the inner `times` of the data beside the `values`, and its `weights` map each label of a loss
+    or metric to its own step weights.
+  - The loss at inner step `k` reads the state after the step, computed with the data of step `k`.
+  - `rmsprop` uses `beta2` as its decay.
+  - `elman_network` declares no catalog observables: the loss and the metrics are outputs the law reports.
+  - A backend passed to a system that trains is ignored: the inner system always compiles on JAX.
+  - Phased maps compose the steps of their phases in JAX.
 
 ### Learning is a system whose time is the epoch
 
@@ -73,9 +83,9 @@ System('elman', systems=[net], interactions=[TrainingInteraction('training', mod
 
 What the concepts of the framework mean for a learning system:
 - Recorded variables: the trained adaptive parameters of the inner model, flattened in row-major order, named by their
-  inner paths, such as `elman/net/readout.W`.
+  inner paths without the root label, such as `net/readout.W`.
 - Parameters: the optimizer's hyperparameters, parameters of the training interaction such as
-  `elman/training.learning_rate`, so a schedule changes them.
+  `training.learning_rate`, so a schedule changes them.
 - Simulated time: epochs, so `dt` is a positive whole number.
 - One frame: `dt` epochs of mini-batch updates.
 - Recorded outputs: `<interaction path>/loss`, the mean batch loss of the epoch, and every named metric over the whole
@@ -131,8 +141,8 @@ The pass compiler reports, each as an `IssueSpec` with the path of the law or pa
 
 ### Datasets set inner parameters per step
 
-`DatasetSpec(values, weights=None)` in `skcomplex.specs` maps dotted inner parameter paths to arrays
-`(sequences, steps, *shape)`. Inputs and targets are ordinary, not adaptive, parameters of the inner model, so no new
+`DatasetSpec(values, weights=None, times=None)` in `skcomplex.specs` maps dotted inner parameter paths to arrays
+`(sequences, steps, *shape)`, with the inner times of the steps and step weights per label of a loss or metric. Inputs and targets are ordinary, not adaptive, parameters of the inner model, so no new
 law kind is needed for them. At inner step `k` the lowering writes `values[path][:, k]` into the parameter vector before
 evaluating the step, the channel a simulation's schedule uses, so the trained model runs alone under a schedule built
 from the same arrays. `weights` masks steps out of the loss and selects the steps of a metric. Every sequence starts
@@ -238,8 +248,8 @@ random_state=0)` in `computer_science/neural_networks` builds:
 - the initial weights drawn from `random_state` with scale 0.5;
 - the outer system with the inner model, a `TrainingInteraction`, and `DiscreteTime()`.
 
-Its catalog defaults are `{'until': 200, 'dt': 1}`, and its catalog entry declares the loss and the two metrics as its
-observables. The trained model of a frame is the nested system with the recorded values set through `set_params`, the
+Its catalog defaults are `{'until': 200, 'dt': 1}`. Its catalog entry declares no observables, since the loss and the
+two metrics are outputs the law reports. The trained model of a frame is the nested system with the recorded values set through `set_params`, the
 estimator contract every part follows, so it needs no function of its own. The gallery example
 `plot_elman_network.py` streams the run with the default blueprint, whose first view, the loss with `xor_error` and
 `random_error`, is the thumbnail, and its analysis figure runs the trained model of the first and last frame over a
