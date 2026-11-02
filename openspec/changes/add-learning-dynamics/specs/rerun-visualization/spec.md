@@ -9,7 +9,7 @@ frame otherwise.
 
 #### Scenario: Recurrent weights
 - **WHEN** the `elman_network` system with 4 hidden units streams to Rerun
-- **THEN** `elman/net/recurrence/A` is a 4 by 4 image at every frame, and its pixels change between the first and the
+- **THEN** `net/recurrence/A` is a 4 by 4 image at every frame, and its pixels change between the first and the
   last frame
 
 ### Requirement: Systems that train stream their loss and parameters
@@ -19,7 +19,7 @@ view of the loss and metrics, with the heat maps of the trained matrices next to
 
 #### Scenario: First view of a system that trains
 - **WHEN** the default blueprint of `elman_network` is built
-- **THEN** its first view is the time series view of `elman/training/loss` and the metrics, with epochs on the time
+- **THEN** its first view is the time series view of `training/loss` and the metrics, with epochs on the time
   axis
 
 #### Scenario: Default blueprint

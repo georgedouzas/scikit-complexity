@@ -13,7 +13,7 @@ registered factory of a system under discrete time in epochs. It SHALL nest the 
   stream of 3000 bits
 - **THEN** after 200 epochs the metric `xor_error`, the mean squared error of the predictions of every third bit, is
   below 0.05, the metric `random_error` of the predictions of the other bits stays above 0.2, and
-  `elman/training/loss` at the last frame is below its value at frame 0
+  `training/loss` at the last frame is below its value at frame 0
 
 #### Scenario: Elman's original rule
 - **WHEN** `elman_network` is created with `truncation=1`

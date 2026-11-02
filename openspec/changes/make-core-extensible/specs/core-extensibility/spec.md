@@ -31,8 +31,8 @@ without declaring it as a parameter.
 
 ### Requirement: Variants accept specs and callables
 Every variant argument of a general interaction (pairing, rule, step, grouping, selection, replacement, placement,
-action, mode) SHALL accept a spec or a callable besides its named values, so a subclass adds a variant without
-bypassing the checks of its parent.
+action, mode) SHALL accept a spec besides its named values, and pairings, steps, and placements SHALL also accept a
+callable, so a subclass adds a variant without bypassing the checks of its parent.
 
 #### Scenario: Custom pairing
 - **WHEN** a transfer receives a callable that pairs each agent with the agent of largest wealth in its cell

@@ -43,6 +43,10 @@
 
 ## Decisions
 
+- **LEGION is compared by its rates** (decided on 2026-11-02): it amplifies rounding so much that perturbing its initial
+  state by 1e-14 moves the trajectory by 2e-3, so the rebuild is checked by its rates at many random states and by its
+  trajectory over a short window.
+
 - **Mixed boundaries need `boundary=`** (decided on 2026-11-01): an inversion whose operand mixes states of different
   boundary conditions has no single boundary to solve with, so it raises an error asking for `boundary=`, and with
   `boundary=` it runs on the fast transforms. Per-axis boundaries (a channel periodic along one axis and walled along

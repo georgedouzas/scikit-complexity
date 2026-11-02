@@ -50,6 +50,13 @@ Alternative: a mapping argument `roles={'target': 'stock'}` on every class. Reje
 methods for the same purpose, and an argument would be a second way.
 
 ### Open variants
+
+Decided on 2026-11-02: the choice and imitation rule, grouping `groups`, evolution selection and replacement, topology
+action, and cascade, coupling, and map modes accept their named values or a spec a user defines by subclassing the
+interaction's private dispatch method; only pairings, steps, and placements, which have a natural signature, also take
+callables.
+
+
 Each variant argument accepts its named values, a spec of the matching family in `skcomplex.specs`, or a callable. The
 check accepts a spec or a callable and keeps validating the rest. Dispatch goes to the spec's private method on the
 interaction for specs it knows, and calls the callable otherwise. Named values stay as shorthands for today's specs.

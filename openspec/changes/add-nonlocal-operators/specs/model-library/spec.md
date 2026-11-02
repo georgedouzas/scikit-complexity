@@ -39,4 +39,6 @@ The library SHALL provide, as registered factories built on the general interact
 
 #### Scenario: Rebuilt couplings keep the trajectories
 - **WHEN** `legion` and `nanotube_gap_junction_exchange` run with their catalog defaults
-- **THEN** their trajectories equal the trajectories of the previous elements within 1e-10
+- **THEN** the trajectory of `nanotube_gap_junction_exchange` equals that of the previous elements within 1e-10, and the
+  rates of `legion` equal those of the previous elements within 1e-12 at many random states, with its trajectories
+  equal within 1e-10 over a short window before rounding grows

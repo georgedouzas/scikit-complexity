@@ -18,7 +18,7 @@ their inner paths and shapes, and hold the inner model's initial values in frame
 #### Scenario: Epochs as frames
 - **WHEN** a system `elman` holding an Elman network `net` with 4 hidden units and a training interaction runs with
   `dt=1` until 200
-- **THEN** the trajectory has 201 frames at times 0 to 200, `trajectory.values('elman/net/readout.W')` has shape
+- **THEN** the trajectory has 201 frames at times 0 to 200, `trajectory.values('net/readout.W')` has shape
   `(201, 1, 4)`, and its first row equals the initial readout weights of the inner model
 
 #### Scenario: Time between frames
@@ -135,8 +135,8 @@ persist across frames and SHALL reset when the simulation is reset.
 - **THEN** every trained parameter keeps its initial value exactly
 
 #### Scenario: Learning rate schedule
-- **WHEN** a simulation has a schedule that halves `elman/training.learning_rate` every 50 epochs
-- **THEN** the recorded parameter `elman/training.learning_rate` halves at frames 50, 100, and 150
+- **WHEN** a simulation has a schedule that halves `training.learning_rate` every 50 epochs
+- **THEN** the recorded parameter `training.learning_rate` halves at frames 50, 100, and 150
 
 #### Scenario: Unknown optimizer
 - **WHEN** a `TrainingInteraction` names the optimizer `'lbfgs-b'`
