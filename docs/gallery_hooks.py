@@ -34,7 +34,7 @@ def on_pre_build(config: MkDocsConfig, **kwargs: object) -> None:
     Raises:
         PluginError:
             A run example failed or has no screenshot, or an example is an orphan, or, in a strict build, a registered
-            model has no example or an example has no screenshot.
+            model has no example or, when every example runs, an example has no screenshot.
     """
     build = build_from_environment(Path(str(files('gallery_tools'))).parent)
     errors = build.failed_pages()
@@ -53,7 +53,7 @@ def on_pre_build(config: MkDocsConfig, **kwargs: object) -> None:
     if coverage.orphans:
         error_msg = f'These gallery examples name no registered model or are misplaced: {", ".join(coverage.orphans)}.'
         raise PluginError(error_msg)
-    problems = coverage.problems([example.path.stem for example in waiting])
+    problems = coverage.problems([example.path.stem for example in waiting] if build.run_all else [])
     if problems and config.get('strict'):
         raise PluginError(' '.join(problems))
     for problem in problems:

@@ -18,6 +18,18 @@ from ._settings import BACKENDS, DEFAULT_BACKEND, CaptureSettings
 SELECTION_VARIABLE = 'SKCOMPLEX_GALLERY'
 BACKEND_VARIABLE = 'SKCOMPLEX_GALLERY_BACKEND'
 RUN_ALL = 'all'
+SAMPLE_MODELS = frozenset(
+    {
+        'brusselator_ode',
+        'chua',
+        'cooling_coffee',
+        'finite_time_blow_up',
+        'game_of_life',
+        'geometric_brownian_motion',
+        'hegselmann_krause',
+        'replicator_dynamics',
+    },
+)
 NOTHING = r'^$'
 ERROR_BLOCK = 'mkd-glr-script-err-disp'
 
@@ -34,7 +46,7 @@ class GalleryBuild:
             The root of the generated gallery, with one folder per field.
 
         run_all:
-            Whether to run the scaffolded examples too, or only the curated ones.
+            Whether to run every example, or only the sample of one fast model per field.
 
         backend:
             The capture backend.
@@ -91,13 +103,13 @@ class GalleryBuild:
         return ScreenshotCache(self.gallery / '_cache')
 
     def selected(self) -> list[Example]:
-        """Return the examples the build runs: the curated ones, or all of them.
+        """Return the examples the build runs: the sample, or all of them.
 
         Returns:
             examples:
                 The examples to run.
         """
-        return [example for example in find_examples(self.examples) if self.run_all or not example.scaffolded]
+        return [example for example in find_examples(self.examples) if self.run_all or example.model in SAMPLE_MODELS]
 
     def filename_pattern(self) -> str:
         """Return the `mkdocs-gallery` pattern of the scripts to run.
@@ -108,6 +120,15 @@ class GalleryBuild:
         """
         names = [re.escape(example.path.name) for example in self.selected()]
         return f'/({"|".join(names)})$' if names else NOTHING
+
+    def ignore_pattern(self) -> str:
+        """Return the `mkdocs-gallery` pattern of the scripts to leave out, so a sample build renders only its pages.
+
+        Returns:
+            pattern:
+                A regular expression that matches the paths of the examples the build does not select.
+        """
+        return r'__init__\.py' if self.run_all else rf'__init__\.py|^(?!.*{self.filename_pattern()})'
 
     def generated_dir(self, example: Example) -> Path:
         """Return the folder of the gallery pages of an example.

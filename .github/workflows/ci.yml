@@ -137,4 +137,4 @@ jobs:
         WGPU_BACKEND: vulkan
         SKCOMPLEX_GALLERY_CAPTURE: '1'
         SKCOMPLEX_GALLERY_MAX_SECONDS: '600'
-      run: pdm run nox --error-on-external-run -R -s gallery -- --backend ${{ matrix.backend }} --curated
+      run: pdm run nox --error-on-external-run -R -s gallery -- --backend ${{ matrix.backend }} --sample

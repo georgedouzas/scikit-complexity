@@ -54,6 +54,12 @@ def test_equations_of_discrete_map_gives_next_value():
     assert bool(equation.lhs() == function('price_m')(t + 1))
 
 
+def test_equations_of_group_with_numeric_derivatives_raises_error():
+    """A group of order two whose forces are computed numerically has no symbolic equations."""
+    with pytest.raises(AnalysisError, match='computed numerically'):
+        SymbolicAnalysis().check().prepare(create('cucker_smale_flocking')).run()
+
+
 def test_equations_of_jump_process_raises_error():
     """Test that jump processes have no symbolic equations."""
     system = System(

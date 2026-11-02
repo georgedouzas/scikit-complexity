@@ -101,15 +101,15 @@ def gallery(session: nox.Session) -> None:
     parser = argparse.ArgumentParser(prog='nox -s gallery --')
     parser.add_argument('--backend', choices=['native', 'web'], default='native')
     parser.add_argument('--jobs', type=int, default=max(1, (os.cpu_count() or 2) // 2))
-    parser.add_argument('--curated', action='store_true', help='run the curated examples only')
+    parser.add_argument('--sample', action='store_true', help='run one fast model per field only')
     arguments = parser.parse_args(session.posargs)
     session.run('pdm', 'install', '-dG', 'docs', '-dG', 'gallery', external=True)
     if arguments.backend == 'web':
         session.run('pdm', 'run', 'python', '-m', 'playwright', 'install', 'chromium', external=True)
-    selection = [] if arguments.curated else ['--all']
+    selection = [] if arguments.sample else ['--all']
     env = {
         'PYTHONPATH': 'docs',
-        'SKCOMPLEX_GALLERY': '' if arguments.curated else 'all',
+        'SKCOMPLEX_GALLERY': '' if arguments.sample else 'all',
         'SKCOMPLEX_GALLERY_BACKEND': arguments.backend,
     }
     run = ['pdm', 'run', 'python', '-m', 'gallery_tools', 'run', '--backend', arguments.backend]

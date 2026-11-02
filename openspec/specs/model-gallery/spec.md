@@ -150,14 +150,16 @@ examples whose key changed. Screenshots SHALL NOT be committed to the repository
 ### Requirement: The gallery is part of the documentation
 The documentation build SHALL show every example with its code, its caption, and its screenshot in a gallery grouped by
 field and subfield. Each field page SHALL show each model's screenshot above its pattern, and the coverage page SHALL
-link every implemented model to its example. A strict build SHALL fail when an implemented model has no screenshot.
+link every implemented model to its example. A default build SHALL run a sample of one fast model per field, and a
+build of every example, `SKCOMPLEX_GALLERY=all`, SHALL run them all. A strict build of every example SHALL fail when an
+implemented model has no screenshot.
 
 #### Scenario: Field page
 - **WHEN** a user opens the documentation page of the field `chemistry`
 - **THEN** each model shows its screenshot and a link to its example above its factory and equations
 
 #### Scenario: Strict build without a screenshot
-- **WHEN** the strict documentation build finds a registered model without a cached or captured screenshot
+- **WHEN** the strict documentation build of every example finds a registered model without a cached or captured screenshot
 - **THEN** the build fails and names the model
 
 ### Requirement: Recordings open interactively
