@@ -1,4 +1,4 @@
-"""Define generator laws, the operators that add up to the Hamiltonian of a quantum system."""
+"""Define generator laws, the operators that add up to the Hamiltonian of an operator system."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +14,7 @@ from .utils import has_operator
 
 
 class GeneratorLaw(BaseLaw):
-    """Operator that adds to the Hamiltonian of a quantum system, with `ħ = 1`.
+    """Operator that adds to the Hamiltonian of an operator system, with `ħ = 1`.
 
     Args:
         operator:
@@ -37,7 +37,7 @@ class GeneratorLaw(BaseLaw):
         self.operator = operator
 
     def _get_targets(self) -> tuple[object, ...]:
-        """Return no states, since the Hamiltonian changes the quantum state of the whole system."""
+        """Return no states, since the Hamiltonian changes the operator state of the whole system."""
         return ()
 
     def _get_requirements(self) -> RequirementSpec:
@@ -48,7 +48,7 @@ class GeneratorLaw(BaseLaw):
         """Raise an error for a function as the operator, or an operator without local operators."""
         if callable(self.operator) and not isinstance(self.operator, Expression):
             error_msg = (
-                'Quantum generators need symbolic operators, so a generator cannot be a function. Give the coefficient '
+                'Generators need symbolic operators, so a generator cannot be a function. Give the coefficient '
                 'as a `series` of time, or use a `RateLaw` with a function on the states of a classical system.'
             )
             raise ValidationError(error_msg)

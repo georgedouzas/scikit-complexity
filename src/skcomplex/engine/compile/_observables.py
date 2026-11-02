@@ -24,14 +24,14 @@ from .._utils import bound_labels, declarations_of, symbol, symbols_of
 from ..problems import (
     BaseProblemSpec,
     ExpressionPrinter,
+    OperatorProblemSpec,
     ProblemSpec,
-    QuantumProblemSpec,
     ReductionScheduleSpec,
     ReferenceSpec,
 )
 from ..problems._law_kernel import LawKernel
-from ..problems._quantum_kernel import QuantumKernel
-from ..problems._quantum_lowering import QuantumLowering
+from ..problems._operator_kernel import OperatorKernel
+from ..problems._operator_lowering import OperatorLowering
 from ..problems._recorded_spec import _RecordedSpec
 from ..problems._reduction_kernel import ReductionKernel
 from ..types import AgentsFunction, Declared, ObservableFunction, ReadKind
@@ -241,9 +241,9 @@ class ObservableEvaluator:
                 reads a symbol it cannot.
         """
         self.getters_: dict[str, ObservableFunction] = {}
-        if isinstance(self.problem, QuantumProblemSpec):
+        if isinstance(self.problem, OperatorProblemSpec):
             self._scalars = {}
-            self.getters_ = self._quantum_getters(self.problem)
+            self.getters_ = self._operator_getters(self.problem)
             return self
         self._scalars = self._scalar_sources()
         for scope, observable in self.problem.observables:
@@ -284,7 +284,7 @@ class ObservableEvaluator:
         if not isinstance(problem, ProblemSpec) or problem.agents:
             error_msg = (
                 f'ObservableSpec {path} is a function of the values of a system, which a system with agents or a '
-                'quantum system does not hold as a vector. Give an expression, or an expression of each agent.'
+                'operator system does not hold as a vector. Give an expression, or an expression of each agent.'
             )
             raise ValidationError(error_msg)
         states, parameters = problem.states, problem.parameters
@@ -561,8 +561,8 @@ class ObservableEvaluator:
         return read_agents
 
     @staticmethod
-    def _quantum_getters(problem: QuantumProblemSpec) -> dict[str, ObservableFunction]:
-        """Return the getters of the observables of a quantum problem, with the energy, and the purity when it is open.
+    def _operator_getters(problem: OperatorProblemSpec) -> dict[str, ObservableFunction]:
+        """Return the getters of the observables of an operator problem, with the energy, and the purity when open.
 
         An observable gives an operator, a Sage expression of local operators, as a function of the namespace of its
         system, of its element, or of every member of its group, or names a local operator of its element or of every
@@ -571,7 +571,7 @@ class ObservableEvaluator:
 
         Args:
             problem:
-                The quantum problem.
+                The operator problem.
 
         Returns:
             getters:
@@ -590,7 +590,7 @@ class ObservableEvaluator:
                 raise ValidationError(error_msg)
             if observable.group is not None:
                 group = ObservableEvaluator._join(scope, observable.group)
-                getters[path] = ObservableEvaluator._quantum_member_getter(problem, path, observable, group)
+                getters[path] = ObservableEvaluator._operator_member_getter(problem, path, observable, group)
                 continue
             if observable.element is not None and observable.variable is not None:
                 element = ObservableEvaluator._join(scope, observable.element)
@@ -607,12 +607,12 @@ class ObservableEvaluator:
         return getters
 
     @staticmethod
-    def _local_terms(problem: QuantumProblemSpec, path: str, name: str) -> list[tuple[QuantumKernel, ...]]:
-        """Return the terms of the local operator of a name of every member of a quantum element or group."""
+    def _local_terms(problem: OperatorProblemSpec, path: str, name: str) -> list[tuple[OperatorKernel, ...]]:
+        """Return the terms of the local operator of a name of every member of an operator element or group."""
         lowering = ObservableEvaluator._lowering_of(problem)
         subsystems = [item for key, item in lowering.subsystems.items() if key == path or key.startswith(f'{path}[')]
         if not subsystems:
-            error_msg = f'Observable of {path} reads {path}, which is not a quantum element or group of the system.'
+            error_msg = f'Observable of {path} reads {path}, which is not an operator element or group of the system.'
             raise ValidationError(error_msg)
         return [
             ObservableEvaluator._terms_of(problem, local_operator(item.symbol, SR.symbol(name)), path)
@@ -620,12 +620,12 @@ class ObservableEvaluator:
         ]
 
     @staticmethod
-    def _lowering_of(problem: QuantumProblemSpec) -> QuantumLowering:
-        """Return the lowering of the operators of a quantum problem, raising an error for a problem without one.
+    def _lowering_of(problem: OperatorProblemSpec) -> OperatorLowering:
+        """Return the lowering of the operators of an operator problem, raising an error for a problem without one.
 
         Args:
             problem:
-                The quantum problem.
+                The operator problem.
 
         Returns:
             lowering:
@@ -636,17 +636,17 @@ class ObservableEvaluator:
                 The problem holds no lowering of its operators.
         """
         if problem.lowering is None:
-            error_msg = 'The quantum problem holds no lowering of its operators. Compile it with QuantumCompiler.'
+            error_msg = 'The operator problem holds no lowering of its operators. Compile it with OperatorCompiler.'
             raise ValidationError(error_msg)
         return problem.lowering
 
     @staticmethod
-    def _terms_of(problem: QuantumProblemSpec, operator: Expression, path: str) -> tuple[QuantumKernel, ...]:
-        """Return the terms of an operator of a quantum problem, lowered by its lowering.
+    def _terms_of(problem: OperatorProblemSpec, operator: Expression, path: str) -> tuple[OperatorKernel, ...]:
+        """Return the terms of an operator of an operator problem, lowered by its lowering.
 
         Args:
             problem:
-                The quantum problem.
+                The operator problem.
 
             operator:
                 The operator.
@@ -661,19 +661,19 @@ class ObservableEvaluator:
         return ObservableEvaluator._lowering_of(problem).run((operator, path)).kernels_
 
     @staticmethod
-    def _quantum_member_getter(
-        problem: QuantumProblemSpec,
+    def _operator_member_getter(
+        problem: OperatorProblemSpec,
         path: str,
         observable: ObservableSpec,
         group: str,
     ) -> ObservableFunction:
-        """Return the getter of a quantum observable evaluated member by member and reduced.
+        """Return the getter of an operator observable evaluated member by member and reduced.
 
         The observable gives the operator of a member as a function of its namespace, or names a local operator of every
         member with `variable`.
         """
         if group not in problem.members:
-            error_msg = f'Observable {path} reduces {group}, which is not a quantum group of the system.'
+            error_msg = f'Observable {path} reduces {group}, which is not an operator group of the system.'
             raise ValidationError(error_msg)
         expression = observable.expression
         if observable.variable is not None:
@@ -684,7 +684,7 @@ class ObservableEvaluator:
                 for member in problem.members[group]
             ]
         else:
-            error_msg = f'Observable {path} of a quantum group needs a function of a member namespace or a variable.'
+            error_msg = f'Observable {path} of an operator group needs a function of a member namespace or a variable.'
             raise ValidationError(error_msg)
 
         def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
@@ -696,15 +696,15 @@ class ObservableEvaluator:
 
     @staticmethod
     def _operator_of(path: str, value: object) -> Expression:
-        """Return the operator an observable expression of a quantum system gives, after checking that it is one."""
+        """Return the operator an observable expression of an operator system gives, after checking that it is one."""
         if not isinstance(value, Expression) or not has_operator(value):
-            error_msg = f'Observable {path} of a quantum system gives {value!r}, but it must give an operator.'
+            error_msg = f'Observable {path} of an operator system gives {value!r}, but it must give an operator.'
             raise ValidationError(error_msg)
         return value
 
     @staticmethod
-    def _expectation_getter(problem: QuantumProblemSpec, terms: Sequence[QuantumKernel]) -> ObservableFunction:
-        """Return the getter of the expectation value of an operator at the state of a quantum problem."""
+    def _expectation_getter(problem: OperatorProblemSpec, terms: Sequence[OperatorKernel]) -> ObservableFunction:
+        """Return the getter of the expectation value of an operator at the state of an operator problem."""
 
         def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             del done
@@ -713,8 +713,8 @@ class ObservableEvaluator:
         return get
 
     @staticmethod
-    def _purity_getter(problem: QuantumProblemSpec) -> ObservableFunction:
-        """Return the getter of the purity `Tr(rho^2)` of the state of a quantum problem."""
+    def _purity_getter(problem: OperatorProblemSpec) -> ObservableFunction:
+        """Return the getter of the purity `Tr(rho^2)` of the state of an operator problem."""
 
         def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             del t, p, done

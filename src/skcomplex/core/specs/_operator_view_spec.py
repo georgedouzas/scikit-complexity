@@ -1,4 +1,4 @@
-"""Define the quantum view spec."""
+"""Define the operator view spec."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,8 +20,8 @@ NORM_TOLERANCE = 1e-8
 
 
 @dataclass(frozen=True)
-class QuantumViewSpec(BaseSpec):
-    """View of an element with a state in a Hilbert space, as the quantum compiler reads it.
+class OperatorViewSpec(BaseSpec):
+    """View of an element with a state in a Hilbert space, as the operator compiler reads it.
 
     Args:
         element:
@@ -39,14 +39,14 @@ class QuantumViewSpec(BaseSpec):
         >>> from sage.all__sagemath_symbolics import CC
         >>> from skcomplex.core.elements import Element
         >>> from skcomplex.specs import HilbertSpec, StateSpec
-        >>> from skcomplex.core.specs import QuantumViewSpec
+        >>> from skcomplex.core.specs import OperatorViewSpec
         >>> QUBIT = HilbertSpec(2, {'z': (np.diag([1.0, -1.0]), True)}, basis={'up': 0, 'down': 1})
         >>> class QubitElement(Element):
         ...     def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up', hilbert=QUBIT):
         ...         super().__init__(label)
         ...         self.psi = psi
         ...         self.hilbert = hilbert
-        >>> QuantumViewSpec(QubitElement('q', psi='down'), 'psi', QUBIT).initial_vector().tolist()
+        >>> OperatorViewSpec(QubitElement('q', psi='down'), 'psi', QUBIT).initial_vector().tolist()
         [0j, (1+0j)]
     """
 

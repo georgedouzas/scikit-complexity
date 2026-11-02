@@ -1,4 +1,4 @@
-"""Analyse a quantum system: its spectrum, its ground state, and the purity and entanglement of its trajectories."""
+"""Analyse an operator system: its spectrum, its ground state, and the purity and entanglement of its trajectories."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,9 +12,9 @@ import qutip
 import scipy.sparse as sp
 
 from ..core.system import System
-from ..engine.compile import QuantumCompiler, compile_system
-from ..engine.compile.passes._quantum_compiler import DENSE_LIMIT
-from ..engine.problems import BaseProblemSpec, QuantumProblemSpec
+from ..engine.compile import OperatorCompiler, compile_system
+from ..engine.compile.passes._operator_compiler import DENSE_LIMIT
+from ..engine.problems import BaseProblemSpec, OperatorProblemSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, ParameterError
 from ..specs import RunStateSpec, SectorSpec
@@ -35,8 +35,8 @@ DIAGONAL_TOLERANCE = 1e-12
 SECTOR_TOLERANCE = 1e-9
 
 
-class QuantumAnalysis(BaseAnalysis):
-    """Spectrum and ground state of a quantum system, or the purity and entanglement of the states of its trajectory.
+class OperatorAnalysis(BaseAnalysis):
+    """Spectrum and ground state of an operator system, or the purity and entanglement of the states of its trajectory.
 
     The kinds read a system or a trajectory:
 
@@ -68,7 +68,7 @@ class QuantumAnalysis(BaseAnalysis):
 
     Attributes:
         problem_:
-            The compiled quantum problem.
+            The compiled operator problem.
 
         trajectory_:
             The trajectory of `'purity'` and `'entanglement'`.
@@ -93,8 +93,8 @@ class QuantumAnalysis(BaseAnalysis):
 
     Raises:
         AnalysisError:
-            The system or the trajectory is not quantum, the sector operator is not diagonal or has no such eigenvalue,
-            or a subsystem is not part of the trajectory.
+            The system or the trajectory holds no operators, the sector operator is not diagonal or lacks the
+            eigenvalue, or a subsystem is not part of the trajectory.
 
         ParameterError:
             A parameter name is not part of the system.
@@ -103,13 +103,13 @@ class QuantumAnalysis(BaseAnalysis):
         >>> from typing import Annotated
         >>> import numpy as np
         >>> from sage.all__sagemath_symbolics import CC, SR
-        >>> from skcomplex.analysis import QuantumAnalysis
+        >>> from skcomplex.analysis import OperatorAnalysis
         >>> from skcomplex.core.elements import Element, GroupElement
         >>> from skcomplex.core.laws import GeneratorLaw
         >>> from skcomplex.core.laws.utils import local_operator
         >>> from skcomplex.specs import HilbertSpec, StateSpec
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.engine.compile import QuantumCompiler
+        >>> from skcomplex.engine.compile import OperatorCompiler
         >>> from skcomplex.engine.runtime import Simulation
         >>> operators = {'z': (np.diag([1, -1]), True), 'minus': (np.array([[0, 0], [1, 0]]), False)}
         >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
@@ -124,14 +124,14 @@ class QuantumAnalysis(BaseAnalysis):
         ...     def _get_laws(self, s):
         ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('z')))]
         >>> system = System(elements=[QubitElement('q')])
-        >>> QuantumAnalysis(n_states=2).check().prepare(system).run().energies_.round(6).tolist()
+        >>> OperatorAnalysis(n_states=2).check().prepare(system).run().energies_.round(6).tolist()
         [-1.0, 1.0]
         >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
         >>> pair = System(elements=[GroupElement('pair', element=QubitElement, size=2)])
         >>> trajectory = Simulation(
-        ...     pair, compiler=QuantumCompiler(), dt=1.0, initial_state={'system.state': singlet},
+        ...     pair, compiler=OperatorCompiler(), dt=1.0, initial_state={'system.state': singlet},
         ... ).check().prepare().run(until=1.0).trajectory_
-        >>> analysis = QuantumAnalysis('entanglement', subsystems=['pair[0]']).check().prepare(trajectory).run()
+        >>> analysis = OperatorAnalysis('entanglement', subsystems=['pair[0]']).check().prepare(trajectory).run()
         >>> bool(np.allclose(analysis.entropy_, np.log(2)))
         True
     """
@@ -167,7 +167,7 @@ class QuantumAnalysis(BaseAnalysis):
         return DataKind.SYSTEM
 
     def _prepare(self, source: Source) -> None:
-        """Compile the quantum system, or read the quantum problem of a trajectory."""
+        """Compile the operator system, or read the operator problem of a trajectory."""
         if self.kind in {'purity', 'entanglement'}:
             if not isinstance(source, Trajectory):
                 error_msg = (
@@ -177,7 +177,7 @@ class QuantumAnalysis(BaseAnalysis):
             self.problem_, _ = self._states_of(source)
             self.trajectory_ = source
             return
-        self.problem_ = self._quantum_problem(self._read_system(source))
+        self.problem_ = self._operator_problem(self._read_system(source))
 
     def _run(self, inputs: object = None) -> None:
         """Diagonalise the Hamiltonian, or measure the states of the trajectory."""
@@ -205,16 +205,16 @@ class QuantumAnalysis(BaseAnalysis):
         self.energies_, self.states_ = self._lowest_states(self.problem_, p, self.n_states, basis)
 
     @staticmethod
-    def _quantum_problem(system: System | BaseProblemSpec) -> QuantumProblemSpec:
-        """Return the quantum problem of a system, compiling it when needed."""
-        problem = system if isinstance(system, BaseProblemSpec) else compile_system(system, compiler=QuantumCompiler())
-        if not isinstance(problem, QuantumProblemSpec):
-            error_msg = f'The system compiles to the {problem.form} form, but the analysis needs quantum elements.'
+    def _operator_problem(system: System | BaseProblemSpec) -> OperatorProblemSpec:
+        """Return the operator problem of a system, compiling it when needed."""
+        problem = system if isinstance(system, BaseProblemSpec) else compile_system(system, compiler=OperatorCompiler())
+        if not isinstance(problem, OperatorProblemSpec):
+            error_msg = f'The system compiles to the {problem.form} form, but the analysis needs operator elements.'
             raise AnalysisError(error_msg)
         return problem
 
     @staticmethod
-    def _parameters_of(problem: QuantumProblemSpec, values: Mapping[str, object] | None) -> Array:
+    def _parameters_of(problem: OperatorProblemSpec, values: Mapping[str, object] | None) -> Array:
         """Return the initial parameter vector with some values replaced by dotted name."""
         p = problem.initial_parameters.copy()
         for name, value in (values or {}).items():
@@ -228,13 +228,13 @@ class QuantumAnalysis(BaseAnalysis):
 
     @staticmethod
     def _sector_basis(
-        problem: QuantumProblemSpec,
+        problem: OperatorProblemSpec,
         sector: SectorSpec,
         p: Array,
     ) -> npt.NDArray[np.intp]:
         """Return the basis states whose eigenvalue of a conserved diagonal operator equals a value."""
         if problem.lowering is None:
-            error_msg = 'The quantum problem has no lowering of operators, so its sectors cannot be read.'
+            error_msg = 'The operator problem has no lowering of operators, so its sectors cannot be read.'
             raise AnalysisError(error_msg)
         terms = problem.lowering.run((sector.operator(problem.namespaces['']), 'the sector')).kernels_
         if not terms:
@@ -257,17 +257,17 @@ class QuantumAnalysis(BaseAnalysis):
         return basis
 
     @staticmethod
-    def _states_of(trajectory: Trajectory) -> tuple[QuantumProblemSpec, npt.NDArray[np.complex128]]:
-        """Return the quantum problem of a trajectory and its states, one per frame."""
+    def _states_of(trajectory: Trajectory) -> tuple[OperatorProblemSpec, npt.NDArray[np.complex128]]:
+        """Return the operator problem of a trajectory and its states, one per frame."""
         problem = trajectory.problem
-        if not isinstance(problem, QuantumProblemSpec):
-            error_msg = 'The trajectory is not the trajectory of a quantum system.'
+        if not isinstance(problem, OperatorProblemSpec):
+            error_msg = 'The trajectory is not the trajectory of an operator system.'
             raise AnalysisError(error_msg)
         return problem, np.asarray(trajectory.values(problem.states.names[0]))
 
     @staticmethod
     def _lowest_states(
-        problem: QuantumProblemSpec,
+        problem: OperatorProblemSpec,
         p: Array,
         k: int,
         basis: npt.NDArray[np.intp] | None,
@@ -287,7 +287,7 @@ class QuantumAnalysis(BaseAnalysis):
 
     @staticmethod
     def _entanglement(
-        problem: QuantumProblemSpec,
+        problem: OperatorProblemSpec,
         states: npt.NDArray[np.complex128],
         subsystems: Sequence[str],
     ) -> Array:
@@ -305,8 +305,8 @@ class QuantumAnalysis(BaseAnalysis):
         values = []
         for state in states:
             if problem.pure:
-                quantum = qutip.Qobj(state.reshape(-1, 1), dims=[dimensions, [1] * len(dimensions)])
+                density = qutip.Qobj(state.reshape(-1, 1), dims=[dimensions, [1] * len(dimensions)])
             else:
-                quantum = qutip.Qobj(state, dims=[dimensions, dimensions])
-            values.append(qutip.entropy_vn(quantum.ptrace(sorted(set(keep)))))
+                density = qutip.Qobj(state, dims=[dimensions, dimensions])
+            values.append(qutip.entropy_vn(density.ptrace(sorted(set(keep)))))
         return np.asarray(values, dtype=float)

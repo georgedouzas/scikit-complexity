@@ -15,7 +15,7 @@ from .._utils import symbol
 from ._base import BaseKernel
 
 
-class QuantumKernel(BaseKernel):
+class OperatorKernel(BaseKernel):
     """Sparse matrix on the whole Hilbert space with a symbolic coefficient and its lowered function.
 
     Args:

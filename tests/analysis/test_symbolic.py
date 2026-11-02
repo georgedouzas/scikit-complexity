@@ -13,7 +13,7 @@ from skcomplex.core.laws import RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import derivative, lag
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
-from skcomplex.engine.compile import QuantumCompiler, compile_system
+from skcomplex.engine.compile import OperatorCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import AnalysisError
 from skcomplex.models import create
@@ -375,9 +375,9 @@ def test_remaining_sign_question_names_parameter():
 
 
 def test_hamiltonian_prints_operators_and_equations_refuse():
-    """Test that a quantum system prints its Hamiltonian and has no state equations."""
+    """Test that an operator system prints its Hamiltonian and has no state equations."""
     system = create('quantum_heisenberg', n_sites=2, boundary='open')
-    problem = compile_system(system, compiler=QuantumCompiler())
+    problem = compile_system(system, compiler=OperatorCompiler())
     hamiltonian = SymbolicAnalysis('hamiltonian').check().prepare(problem).run().hamiltonian_
     assert {'J_exchange', 'delta_exchange', 'h_field'} <= {str(variable) for variable in hamiltonian.variables()}
     assert 'local_operator(psi_chain_0, x)*local_operator(psi_chain_1, x)' in str(hamiltonian)

@@ -1,4 +1,4 @@
-"""Test the `QuantumProblemSpec` class."""
+"""Test the `OperatorProblemSpec` class."""
 
 import math
 
@@ -6,10 +6,10 @@ from skcomplex.core.elements import LatticeElement
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import (
-    QuantumCompiler,
+    OperatorCompiler,
     compile_system,
 )
-from skcomplex.engine.problems import BaseProblemSpec, ProblemSpec, QuantumProblemSpec
+from skcomplex.engine.problems import BaseProblemSpec, OperatorProblemSpec, ProblemSpec
 from skcomplex.models.physics.common.quantum import (
     ModeElement,
     SpinElement,
@@ -26,14 +26,14 @@ def test_compile_system_gives_the_dimensions_of_a_chain_and_a_mode():
             ModeElement('cavity', hilbert=mode_space(4)),
         ],
     )
-    problem = compile_system(system, compiler=QuantumCompiler())
-    assert isinstance(problem, QuantumProblemSpec)
-    assert problem.form == FormKind.QUANTUM
+    problem = compile_system(system, compiler=OperatorCompiler())
+    assert isinstance(problem, OperatorProblemSpec)
+    assert problem.form == FormKind.OPERATOR
     assert list(problem.dimensions) == [2] * 10 + [5]
     assert math.prod(problem.dimensions) == 5120
 
 
-def test_quantum_problem_is_a_base_problem_and_not_the_compilers():
-    """Test that a quantum problem derives from the problem base alone, and that its run is recorded."""
-    assert issubclass(QuantumProblemSpec, BaseProblemSpec)
-    assert not issubclass(QuantumProblemSpec, ProblemSpec)
+def test_operator_problem_is_a_base_problem_and_not_the_compilers():
+    """Test that an operator problem derives from the problem base alone, and that its run is recorded."""
+    assert issubclass(OperatorProblemSpec, BaseProblemSpec)
+    assert not issubclass(OperatorProblemSpec, ProblemSpec)

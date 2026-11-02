@@ -12,8 +12,8 @@ velocity and spreads on a periodic lattice.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import QuantumAnalysis
-from skcomplex.engine.compile import QuantumCompiler
+from skcomplex.analysis import OperatorAnalysis
+from skcomplex.engine.compile import OperatorCompiler
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ETDRK4Solver
 from skcomplex.engine.viz import RerunObserver
@@ -42,7 +42,7 @@ fields = (
     .trajectory_
 )
 operators = create(MODEL, n_sites=128, formulation='operators')
-operators = Simulation(operators, compiler=QuantumCompiler(), dt=0.5).check().prepare().run(until=4.0).trajectory_
+operators = Simulation(operators, compiler=OperatorCompiler(), dt=0.5).check().prepare().run(until=4.0).trajectory_
 density = (fields.values('packet.u') ** 2 + fields.values('packet.w') ** 2) * spacing
 probability = np.abs(operators.values('schrodinger.state')) ** 2
 positions = spacing * np.arange(128) - 20.0
@@ -55,8 +55,8 @@ agreement.set_title('The two formulations agree')
 agreement.legend()
 for gamma in (0.1, 0.5, 2.0):
     dephased = create(MODEL, n_sites=48, length=20.0, formulation='operators', gamma=gamma)
-    trajectory = Simulation(dephased, compiler=QuantumCompiler(), dt=0.1).check().prepare().run(until=4.0).trajectory_
-    purity = QuantumAnalysis('purity').check().prepare(trajectory).run().purity_
+    trajectory = Simulation(dephased, compiler=OperatorCompiler(), dt=0.1).check().prepare().run(until=4.0).trajectory_
+    purity = OperatorAnalysis('purity').check().prepare(trajectory).run().purity_
     coherence.plot(trajectory.times, purity, label=f'gamma = {gamma}')
 coherence.set_xlabel('time')
 coherence.set_ylabel('purity')

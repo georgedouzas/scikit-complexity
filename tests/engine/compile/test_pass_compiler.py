@@ -12,7 +12,7 @@ from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import convolve, displacement, inverse_helmholtz, laplacian, tensor_divergence
 from skcomplex.core.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
-from skcomplex.engine.compile import PassCompiler, QuantumCompiler
+from skcomplex.engine.compile import OperatorCompiler, PassCompiler
 from skcomplex.engine.problems import ProblemSpec
 from skcomplex.engine.solvers import GillespieSolver
 from skcomplex.errors import NotCheckedError, SolverError, ValidationError
@@ -70,14 +70,14 @@ def test_compiler_rejects_a_target_that_is_not_a_system():
         PassCompiler().check().prepare(object())
 
 
-def test_general_compiler_names_the_compiler_of_a_quantum_system():
-    """Test that the general compiler reports a quantum system with the compiler it needs, which compiles it."""
+def test_general_compiler_names_the_compiler_of_a_operator_system():
+    """Test that the general compiler reports an operator system with the compiler it needs, which compiles it."""
     system = System(elements=[QubitElement('q')])
-    assert QuantumCompiler().check().prepare(system).report_.ok
+    assert OperatorCompiler().check().prepare(system).report_.ok
     assert not RewritingCompiler().check().prepare(system).report_.ok
     compiler = PassCompiler().check().prepare(system)
     assert not compiler.report_.ok
-    with pytest.raises(ValidationError, match=r'compiler=QuantumCompiler\(\)'):
+    with pytest.raises(ValidationError, match=r'compiler=OperatorCompiler\(\)'):
         compiler.run()
 
 

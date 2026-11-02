@@ -1,4 +1,4 @@
-"""Define the operators of quantum subsystems, as Sage symbolic functions the compiler lowers to matrices.
+"""Define the operators of subsystems, as Sage symbolic functions the compiler lowers to matrices.
 
 Sage symbolic products commute, but operators do not, so each local operator, each ordered product of operators, and
 each adjoint is a Sage function made by `function`, kept unevaluated in expressions. A local operator names its

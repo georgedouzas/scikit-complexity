@@ -60,7 +60,7 @@ class Simulation(BaseConfig[None, float]):
 
         compiler:
             The compiler of the system, whose backend, solver, and observables the simulation sets, or `None` for
-            `PassCompiler`. A quantum system takes `QuantumCompiler()`, and a model package can bring the compiler of
+            `PassCompiler`. An operator system takes `OperatorCompiler()`, and a model package can bring the compiler of
             a form of its own, which names the solver of its problems.
 
         solver:
@@ -112,7 +112,7 @@ class Simulation(BaseConfig[None, float]):
 
         initial_state:
             Initial values that replace those of the elements, by dotted state name, such as `{'rabbits.n': 20}`.
-            The whole state of a quantum system is `<system label>.state`, which takes a vector, a density matrix, or
+            The whole state of an operator system is `<system label>.state`, which takes a vector, a density matrix, or
             `'ground'` for the ground state.
 
     Attributes:

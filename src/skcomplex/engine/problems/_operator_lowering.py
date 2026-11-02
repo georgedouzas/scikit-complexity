@@ -1,4 +1,4 @@
-"""Lowering of operators of quantum subsystems to sparse matrices on the whole space, with their coefficients."""
+"""Lowering of operators of subsystems to sparse matrices on the whole space, with their coefficients."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,17 +15,17 @@ from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ...base import BaseConfig
 from ...core.laws.utils import dagger, has_operator, operator_product
-from ...core.laws.utils._quantum import LOCAL_OPERATOR
+from ...core.laws.utils._local_operators import LOCAL_OPERATOR
 from ...core.specs._subsystem_spec import _SubsystemSpec
 from ...errors import ValidationError
 from ...specs import LocalOperatorSpec, OperatorSpec
 from ...types import Array
 from ._expression_printer import ExpressionPrinter
-from ._quantum_kernel import QuantumKernel
+from ._operator_kernel import OperatorKernel
 
 
-class QuantumLowering(BaseConfig[None, tuple[object, str]]):
-    """Lowering of operators of quantum subsystems to sparse matrices on the whole space and coefficients to functions.
+class OperatorLowering(BaseConfig[None, tuple[object, str]]):
+    """Lowering of operators of subsystems to sparse matrices on the whole space and coefficients to functions.
 
     `run((expression, owner))` keeps in `kernels_` the terms of an operator, with constant terms folded and terms of
     equal coefficients summed. The owner, the description of the law or observable of the operator, names it in errors.
@@ -35,7 +35,7 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
             The time symbol.
 
         subsystems:
-            The quantum subsystems by key, in tensor order.
+            The subsystems by key, in tensor order.
 
         dimensions:
             The dimension of every subsystem, in tensor order.
@@ -49,13 +49,13 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
             coefficient.
     """
 
-    kernels_: tuple[QuantumKernel, ...]
+    kernels_: tuple[OperatorKernel, ...]
 
     def _check(self) -> None:
-        """Accept every setting, since a quantum lowering has none to validate."""
+        """Accept every setting, since an operator lowering has none to validate."""
 
     def _prepare(self, context: None) -> None:
-        """Derive nothing from the context, since a quantum lowering prepares nothing."""
+        """Derive nothing from the context, since an operator lowering prepares nothing."""
 
     def __init__(
         self,
@@ -82,7 +82,7 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
                 No operator is passed.
         """
         if inputs is None:
-            error_msg = 'A quantum lowering runs on an operator and its owner. Pass them to `run`.'
+            error_msg = 'An operator lowering runs on an operator and its owner. Pass them to `run`.'
             raise ValidationError(error_msg)
         expression, owner = inputs
         size = math.prod(self.dimensions)
@@ -96,12 +96,12 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
             else:
                 constant.append(complex(coefficient) * matrix)
         terms = (
-            [QuantumKernel(QuantumKernel._sum_matrices(constant, size), SR(1)).check().prepare()] if constant else []
+            [OperatorKernel(OperatorKernel._sum_matrices(constant, size), SR(1)).check().prepare()] if constant else []
         )
         for coefficient, matrices in grouped.items():
             terms.append(
-                QuantumKernel(
-                    QuantumKernel._sum_matrices(matrices, size),
+                OperatorKernel(
+                    OperatorKernel._sum_matrices(matrices, size),
                     coefficient,
                     self._function(coefficient, owner),
                 )
@@ -156,7 +156,7 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
         products: dict[int, sp.csr_array] = {}
         for name, local in key:
             if name not in self.subsystems:
-                error_msg = f'The operator of {owner} acts on {name}, which is not a quantum subsystem of the system.'
+                error_msg = f'The operator of {owner} acts on {name}, which is not a subsystem of the system.'
                 raise ValidationError(error_msg)
             subsystem = self.subsystems[name]
             matrix = sp.csr_array(local.matrix)
@@ -199,7 +199,7 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
         if unknown:
             error_msg = (
                 f'The operator of {owner} has a coefficient that uses {", ".join(map(str, unknown))}, which is not a '
-                'parameter of the quantum system. Coefficients may read parameters and time only.'
+                'parameter of the operator system. Coefficients may read parameters and time only.'
             )
             raise ValidationError(error_msg)
         printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(variables)
@@ -207,13 +207,13 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
         indices = np.asarray([self.arguments[item] for item in variables], dtype=np.intp)
 
         def evaluate(t: float, p: Array) -> complex:
-            return QuantumKernel._coefficient_of(ExpressionPrinter._values_of(lowered(t, *p[indices]))[0])
+            return OperatorKernel._coefficient_of(ExpressionPrinter._values_of(lowered(t, *p[indices]))[0])
 
         return evaluate
 
     @staticmethod
-    def _terms_of(result: object) -> tuple[QuantumKernel, ...]:
-        """Return the terms that `run` of a quantum lowering returned.
+    def _terms_of(result: object) -> tuple[OperatorKernel, ...]:
+        """Return the terms that `run` of an operator lowering returned.
 
         Args:
             result:
@@ -227,8 +227,8 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
             TypeError:
                 The result is not a tuple of term kernels.
         """
-        if not isinstance(result, tuple) or not all(isinstance(item, QuantumKernel) for item in result):
-            error_msg = f'A quantum lowering returns a tuple of term kernels, not a {type(result).__name__}.'
+        if not isinstance(result, tuple) or not all(isinstance(item, OperatorKernel) for item in result):
+            error_msg = f'An operator lowering returns a tuple of term kernels, not a {type(result).__name__}.'
             raise TypeError(error_msg)
         return result
 
@@ -245,7 +245,9 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
         """Return the operator of a call `local_operator(subsystem, name)`."""
         subsystem, name = expression.operands()
         if subsystem not in subsystems:
-            error_msg = f'{expression} acts on {subsystem}, which is not the state of a quantum element of the system.'
+            error_msg = (
+                f'{expression} acts on {subsystem}, which is not the state of an operator element of the system.'
+            )
             raise ValidationError(error_msg)
         key, locals_ = subsystems[subsystem]
         if str(name) not in locals_:
@@ -256,7 +258,7 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
     @staticmethod
     def _product_of(factors: list[OperatorSpec], expression: Expression) -> OperatorSpec:
         """Return the product of the factors of a Sage product, which commute only on distinct subsystems."""
-        acting = [QuantumLowering._acted_on(factor) for factor in factors if any(key for key in factor.terms)]
+        acting = [OperatorLowering._acted_on(factor) for factor in factors if any(key for key in factor.terms)]
         if sum(len(item) for item in acting) != len(set().union(*acting)):
             error_msg = (
                 f'{expression} multiplies operators that act on the same subsystem with `*`, which commutes. Write the '
@@ -278,7 +280,7 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
                 expression, which stands for that multiple of the identity.
 
             subsystems:
-                A mapping from the state symbol of every quantum subsystem to its key and its local operators by name.
+                A mapping from the state symbol of every subsystem to its key and its local operators by name.
 
         Returns:
             operator:
@@ -293,11 +295,11 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
             >>> import qutip
             >>> from sage.all__sagemath_symbolics import SR, var
             >>> from skcomplex.core.laws.utils import local_operator
-            >>> from skcomplex.engine.problems._quantum_lowering import QuantumLowering
+            >>> from skcomplex.engine.problems._operator_lowering import OperatorLowering
             >>> from skcomplex.specs import LocalOperatorSpec
             >>> q = SR.symbol('q')
             >>> z = LocalOperatorSpec('z', qutip.sigmaz(), hermitian=True)
-            >>> QuantumLowering._operator_of(var('h') * local_operator(q, SR.symbol('z')), {q: ('q', {'z': z})}).text
+            >>> OperatorLowering._operator_of(var('h') * local_operator(q, SR.symbol('z')), {q: ('q', {'z': z})}).text
             'h*q.z'
         """
         value = SR(expression)
@@ -305,10 +307,10 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
             return OperatorSpec({(): value})
         function, operands = value.operator(), value.operands()
         if function == LOCAL_OPERATOR:
-            return QuantumLowering._local_of(value, subsystems)
+            return OperatorLowering._local_of(value, subsystems)
         if function is operator.pow and operands[1] in ZZ and operands[1] > 0:
             function, operands = operator_product, [operands[0]] * int(operands[1])
-        parts = [QuantumLowering._operator_of(item, subsystems) for item in operands]
+        parts = [OperatorLowering._operator_of(item, subsystems) for item in operands]
         if function == dagger:
             return parts[0].adjoint()
         if function == operator_product:
@@ -316,6 +318,6 @@ class QuantumLowering(BaseConfig[None, tuple[object, str]]):
         if function is add_vararg:
             return functools.reduce(OperatorSpec.__add__, parts)
         if function is mul_vararg:
-            return QuantumLowering._product_of(parts, value)
+            return OperatorLowering._product_of(parts, value)
         error_msg = f'{value} is not a sum of products of local operators with scalar coefficients.'
         raise ValidationError(error_msg)

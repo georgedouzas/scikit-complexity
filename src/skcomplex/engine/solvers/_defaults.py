@@ -28,7 +28,7 @@ DEFAULT_SOLVERS: dict[FormKind, type[BaseSolver]] = {
     FormKind.LATTICE: LatticeSolver,
     FormKind.MONTE_CARLO: MonteCarloSolver,
     FormKind.AGENT: MesaSolver,
-    FormKind.QUANTUM: LindbladSolver,
+    FormKind.OPERATOR: LindbladSolver,
     FormKind.LEARNING: GradientDescentSolver,
     FormKind.STATIC: RootSolver,
 }

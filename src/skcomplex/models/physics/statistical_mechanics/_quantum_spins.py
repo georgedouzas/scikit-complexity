@@ -12,7 +12,7 @@ from ....core.interactions import BaseInteraction
 from ....core.laws.utils import local_operator
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.compile import QuantumCompiler
+from ....engine.compile import OperatorCompiler
 from ....errors import ValidationError
 from ....specs import ObservableSpec
 from ..._catalog import register_model
@@ -73,7 +73,7 @@ def total_magnetization(s: SimpleNamespace) -> Expression:
     field='physics/statistical_mechanics',
     tags=('quantum', 'spins', 'lattice', 'magnetism', 'open system'),
     references=('Heisenberg 1928', 'Mihailović et al. 2023'),
-    defaults={'until': 8.0, 'dt': 0.05, 'compiler': QuantumCompiler()},
+    defaults={'until': 8.0, 'dt': 0.05, 'compiler': OperatorCompiler()},
     initial_state=lambda initial, **_: {'quantum_heisenberg.state': 'ground'} if initial == 'ground' else None,
     observables=lambda system: [
         ObservableSpec('sz', local_magnetization, group='chain', reduce=_sites),

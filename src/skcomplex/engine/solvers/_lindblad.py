@@ -8,13 +8,13 @@ import qutip
 from qutip.solver import solver_base
 
 from ...types import Array
-from ._quantum import QuantumSolver
+from ._operator import OperatorSolver
 
 
-class LindbladSolver(QuantumSolver):
+class LindbladSolver(OperatorSolver):
     """Solver of the Lindblad master equation with QuTiP's `MESolver`, and of pure closed systems with `SESolver`.
 
-    It is the default solver of the quantum form. A system without dissipators that starts in a pure state follows the
+    It is the default solver of the operator form. A system without dissipators that starts in a pure state follows the
     Schrödinger equation, which is the master equation without dissipators.
 
     Args:
@@ -51,8 +51,8 @@ class LindbladSolver(QuantumSolver):
         ...         return [DissipatorLaw(local_operator(s.psi, SR.symbol('minus')), 0.5)]
         >>> z = [ObservableSpec('z', element='q', variable='z')]
         >>> system = System(elements=[QubitElement('q')])
-        >>> from skcomplex.engine.compile import QuantumCompiler
-        >>> compiler = QuantumCompiler()
+        >>> from skcomplex.engine.compile import OperatorCompiler
+        >>> compiler = OperatorCompiler()
         >>> simulation = Simulation(system, compiler=compiler, solver=LindbladSolver(), dt=1.0, observables=z)
         >>> simulation = simulation.check().prepare()
         >>> values = simulation.run(until=2.0).trajectory_.values('q.z')
@@ -62,7 +62,7 @@ class LindbladSolver(QuantumSolver):
 
     def _create(self, p: Array) -> solver_base.Solver:
         """Return QuTiP's master equation solver, or its Schrödinger solver for a pure closed problem."""
-        problem = self.quantum_
+        problem = self.operator_
         hamiltonian = self._operator(problem.hamiltonian, p)
         if problem.pure:
             return qutip.SESolver(hamiltonian, options=self._options)

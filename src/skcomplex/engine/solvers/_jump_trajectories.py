@@ -1,4 +1,4 @@
-"""Solver that samples the master equation by quantum jumps of a pure state with QuTiP's `MCSolver`."""
+"""Solver that samples the master equation by jumps of a pure state with QuTiP's `MCSolver`."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,7 +10,7 @@ from qutip.solver import solver_base
 
 from ...errors import SolverError
 from ...types import Array
-from ._quantum import QuantumSolver
+from ._operator import OperatorSolver
 
 MAX_SEED = 2**32
 
@@ -18,8 +18,8 @@ MAX_SEED = 2**32
 _PURITY_TOLERANCE = 1e-8
 
 
-class QuantumTrajectoriesSolver(QuantumSolver):
-    """Solver that samples the master equation by quantum jumps of a pure state with QuTiP's `MCSolver`.
+class JumpTrajectoriesSolver(OperatorSolver):
+    """Solver that samples the master equation by jumps of a pure state with QuTiP's `MCSolver`.
 
     Every run is one trajectory, whose jumps are drawn from the simulation's random number generator, so a seeded run
     is reproducible. A problem stored as a density matrix records the projector on the pure state of every frame.
@@ -48,7 +48,7 @@ class QuantumTrajectoriesSolver(QuantumSolver):
         >>> from skcomplex.specs import HilbertSpec, ObservableSpec, StateSpec
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.engine.solvers import QuantumTrajectoriesSolver
+        >>> from skcomplex.engine.solvers import JumpTrajectoriesSolver
         >>> operators = {'x': (np.array([[0, 1], [1, 0]]), True), 'z': (np.diag([1, -1]), True)}
         >>> operators['minus'] = (np.array([[0, 0], [1, 0]]), False)
         >>> QUBIT = HilbertSpec(2, operators, basis={'up': 0, 'down': 1})
@@ -62,10 +62,10 @@ class QuantumTrajectoriesSolver(QuantumSolver):
         ...         return [DissipatorLaw(local_operator(s.psi, SR.symbol('minus')), 1.0)]
         >>> z = [ObservableSpec('z', element='q', variable='z')]
         >>> system = System(elements=[QubitElement('q')])
-        >>> solver = QuantumTrajectoriesSolver()
-        >>> from skcomplex.engine.compile import QuantumCompiler
+        >>> solver = JumpTrajectoriesSolver()
+        >>> from skcomplex.engine.compile import OperatorCompiler
         >>> simulation = Simulation(
-        ...     system, compiler=QuantumCompiler(), solver=solver, dt=1.0, random_state=0, observables=z,
+        ...     system, compiler=OperatorCompiler(), solver=solver, dt=1.0, random_state=0, observables=z,
         ... ).check().prepare().run(until=20.0)
         >>> float(simulation.trajectory_.values('q.z')[-1])
         -1.0
@@ -73,21 +73,21 @@ class QuantumTrajectoriesSolver(QuantumSolver):
 
     def _create(self, p: Array) -> solver_base.Solver:
         """Return QuTiP's Monte Carlo solver at fixed parameters."""
-        problem = self.quantum_
+        problem = self.operator_
         hamiltonian = self._operator(problem.hamiltonian, p)
         collapses = [self._operator(terms, p) for terms in problem.dissipators]
         return qutip.MCSolver(hamiltonian, c_ops=collapses, options=self._options)
 
     def _start_state(self, x: Array) -> qutip.Qobj:
         """Return the pure state a trajectory starts from, the eigenvector of a pure density matrix."""
-        problem = self.quantum_
+        problem = self.operator_
         state = problem._state_of(x)
         if problem.pure:
             return self._ket(state)
         weights, vectors = np.linalg.eigh(state)
         if abs(weights[-1] - 1) > _PURITY_TOLERANCE:
             error_msg = (
-                f'Quantum trajectories start from a pure state, but the state has purity {np.sum(weights**2):.6g}. '
+                f'Operator trajectories start from a pure state, but the state has purity {np.sum(weights**2):.6g}. '
                 'Use the lindblad solver for mixed states.'
             )
             raise SolverError(error_msg)

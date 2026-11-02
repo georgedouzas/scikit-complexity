@@ -1,4 +1,4 @@
-"""Pass that compiles a system holding quantum elements into a problem of the quantum form."""
+"""Pass that compiles a system holding operator elements into a problem of the operator form."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +17,7 @@ from sage.modules.free_module import FreeModule_generic
 from ....core.elements import BaseElement, Element, GroupElement
 from ....core.interactions import BaseInteraction, NeighborInteraction
 from ....core.laws import DissipatorLaw, GeneratorLaw
-from ....core.specs import CompiledElementSpec, CompiledInteractionSpec, NodeSpec, QuantumViewSpec
+from ....core.specs import CompiledElementSpec, CompiledInteractionSpec, NodeSpec, OperatorViewSpec
 from ....core.specs._subsystem_spec import _SubsystemSpec
 from ....core.system import System
 from ....errors import IncompatibleLawsError, SkcomplexError, ValidationError
@@ -25,10 +25,10 @@ from ....specs import EntrySpec, HilbertSpec, IssueSpec, LayoutSpec, ObservableS
 from ....types import Array, FormKind, VariableKind
 from ..._utils import declarations_of, symbol, vector
 from ...backends import BaseBackend
-from ...problems import BaseProblemSpec, QuantumProblemSpec
-from ...problems._quantum_kernel import QuantumKernel
-from ...problems._quantum_lowering import QuantumLowering
-from ...problems._quantum_problem_spec import REAL_TOLERANCE
+from ...problems import BaseProblemSpec, OperatorProblemSpec
+from ...problems._operator_kernel import OperatorKernel
+from ...problems._operator_lowering import OperatorLowering
+from ...problems._operator_problem_spec import REAL_TOLERANCE
 from ...types import Dissipators, Hamiltonians
 from .._base import BaseCompiler
 from ._flatten import FlattenPass
@@ -53,12 +53,12 @@ _SAMPLE_TIME = 0.37
 DEFAULT_MAX_DIMENSION = 2**20
 
 
-class QuantumCompiler(BaseCompiler):
-    """Compiler of a system holding quantum elements into a problem of the quantum form.
+class OperatorCompiler(BaseCompiler):
+    """Compiler of a system holding operator elements into a problem of the operator form.
 
     Args:
         backend:
-            The backend requested for the problem, which the quantum form does not use.
+            The backend requested for the problem, which the operator form does not use.
 
         solver:
             The solver the problem runs on. A solver with a largest dimension of its own limits the Hilbert space.
@@ -71,9 +71,9 @@ class QuantumCompiler(BaseCompiler):
 
     Examples:
         >>> from skcomplex.core.system import System
-        >>> from skcomplex.engine.compile import QuantumCompiler
+        >>> from skcomplex.engine.compile import OperatorCompiler
         >>> from skcomplex.models.biology.common.populations import PopulationElement
-        >>> QuantumCompiler().check().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
+        >>> OperatorCompiler().check().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
         False
     """
 
@@ -110,8 +110,8 @@ class QuantumCompiler(BaseCompiler):
             issues:
                 The issues.
         """
-        if not self._contains_quantum(system):
-            message = f'The system {system.label} holds no quantum element or group for QuantumCompiler to compile.'
+        if not self._contains_operator(system):
+            message = f'The system {system.label} holds no operator element or group for OperatorCompiler to compile.'
             fix = 'Pass the compiler of the system, or none for PassCompiler.'
             return [IssueSpec('compiler', system.label, message, fix)]
         try:
@@ -122,7 +122,7 @@ class QuantumCompiler(BaseCompiler):
         return []
 
     def _compile(self, initial_state: Mapping[str, object]) -> BaseProblemSpec:
-        """Compile the prepared quantum system into a problem of the quantum form.
+        """Compile the prepared operator system into a problem of the operator form.
 
         Args:
             initial_state:
@@ -130,7 +130,7 @@ class QuantumCompiler(BaseCompiler):
 
         Returns:
             problem:
-                The problem of the quantum form.
+                The problem of the operator form.
 
         Raises:
             ValidationError:
@@ -146,11 +146,11 @@ class QuantumCompiler(BaseCompiler):
             )
             raise ValidationError(error_msg)
         limit = getattr(self.solver, 'max_dimension', self.max_dimension)
-        return self._compile_quantum(system, initial=initial_state.get(whole), max_dimension=limit)
+        return self._compile_operator(system, initial=initial_state.get(whole), max_dimension=limit)
 
     @staticmethod
-    def _view_of(element: Element) -> QuantumViewSpec:
-        """Return the quantum view of an element, with the name of its state and its Hilbert space.
+    def _view_of(element: Element) -> OperatorViewSpec:
+        """Return the operator view of an element, with the name of its state and its Hilbert space.
 
         Args:
             element:
@@ -165,11 +165,11 @@ class QuantumCompiler(BaseCompiler):
                 The element takes no `HilbertSpec`, declares no complex state, or has a state whose dimension differs
                 from the dimension of its space.
         """
-        space = QuantumCompiler._hilbert_of(element)
+        space = OperatorCompiler._hilbert_of(element)
         if space is None:
             error_msg = f'{type(element).__name__} {element.label!r} takes no HilbertSpec.'
             raise ValidationError(error_msg)
-        state = QuantumCompiler._hilbert_state(type(element))
+        state = OperatorCompiler._hilbert_state(type(element))
         if state is None:
             error_msg = (
                 f'{type(element).__name__} {element.label!r} takes a HilbertSpec but declares no complex state. '
@@ -185,7 +185,7 @@ class QuantumCompiler(BaseCompiler):
                 f'HilbertSpec has dimension {space.dimension}.'
             )
             raise ValidationError(error_msg)
-        return QuantumViewSpec(element, state, space)
+        return OperatorViewSpec(element, state, space)
 
     @staticmethod
     def _hilbert_of(element: BaseElement) -> HilbertSpec | None:
@@ -199,24 +199,24 @@ class QuantumCompiler(BaseCompiler):
             space:
                 The first argument of the element that is a `HilbertSpec`, or `None`.
         """
-        member = QuantumCompiler._member_of(element)
+        member = OperatorCompiler._member_of(element)
         if member is None:
             return None
         return next((value for value in member.get_params(deep=False).values() if isinstance(value, HilbertSpec)), None)
 
     @staticmethod
-    def _is_quantum(element: object) -> bool:
-        """Check whether an element or a group is a quantum subsystem, which takes a `HilbertSpec`.
+    def _is_operator(element: object) -> bool:
+        """Check whether an element or a group is a subsystem, which takes a `HilbertSpec`.
 
         Args:
             element:
                 An element, a group, or any other part.
 
         Returns:
-            quantum:
+            operator:
                 Whether the element, or a member of the group, takes a Hilbert space.
         """
-        return isinstance(element, BaseElement) and QuantumCompiler._hilbert_of(element) is not None
+        return isinstance(element, BaseElement) and OperatorCompiler._hilbert_of(element) is not None
 
     @staticmethod
     def _hilbert_state(element_type: type) -> str | None:
@@ -234,13 +234,13 @@ class QuantumCompiler(BaseCompiler):
             >>> from typing import Annotated
             >>> from sage.all__sagemath_symbolics import CC
             >>> from skcomplex.core.elements import Element
-            >>> from skcomplex.engine.compile import QuantumCompiler
+            >>> from skcomplex.engine.compile import OperatorCompiler
             >>> from skcomplex.specs import StateSpec
             >>> class QubitElement(Element):
             ...     def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC**2)] = 'up'):
             ...         super().__init__(label)
             ...         self.psi = psi
-            >>> QuantumCompiler._hilbert_state(QubitElement)
+            >>> OperatorCompiler._hilbert_state(QubitElement)
             'psi'
         """
         for name, declaration in declarations_of(element_type, VariableKind.STATE).items():
@@ -265,13 +265,15 @@ class QuantumCompiler(BaseCompiler):
             return element
         if not isinstance(element, GroupElement) or not isinstance(element.element, type):
             return None
-        values = {name: QuantumCompiler._member_value(value, 0, None) for name, value in (element.values or {}).items()}
+        values = {
+            name: OperatorCompiler._member_value(value, 0, None) for name, value in (element.values or {}).items()
+        }
         return element.element(element.label).set_params(**values)
 
     @staticmethod
-    def _is_quantum_node(node: NodeSpec) -> bool:
-        """Check whether a node is a quantum element or a group of quantum elements."""
-        return not isinstance(node.component, BaseInteraction) and QuantumCompiler._is_quantum(node.component)
+    def _is_operator_node(node: NodeSpec) -> bool:
+        """Check whether a node is an operator element or a group of operator elements."""
+        return not isinstance(node.component, BaseInteraction) and OperatorCompiler._is_operator(node.component)
 
     @staticmethod
     def _member_value(value: object, member: int, size: int | None) -> object:
@@ -301,50 +303,50 @@ class QuantumCompiler(BaseCompiler):
         return items[member] if size is None or len(items) == size else value
 
     @staticmethod
-    def _members_of(node: NodeSpec) -> list[tuple[str, QuantumViewSpec]]:
-        """Return the key and the element of every member of a quantum element or group."""
+    def _members_of(node: NodeSpec) -> list[tuple[str, OperatorViewSpec]]:
+        """Return the key and the element of every member of an operator element or group."""
         component = node.component
         if not isinstance(component, GroupElement):
-            return [(node.path, QuantumCompiler._view_of(component))]
+            return [(node.path, OperatorCompiler._view_of(component))]
         size = node.members or 0
         members = []
         for member in range(size):
             values = {
-                name: QuantumCompiler._member_value(value, member, size)
+                name: OperatorCompiler._member_value(value, member, size)
                 for name, value in (component.values or {}).items()
             }
             element = component.element(f'{component.label}_{member}').set_params(**values).check()
-            members.append((f'{node.path}[{member}]', QuantumCompiler._view_of(element)))
+            members.append((f'{node.path}[{member}]', OperatorCompiler._view_of(element)))
         return members
 
     @staticmethod
     def _check_classical(nodes: list[NodeSpec]) -> None:
-        """Raise an error when a quantum system holds classical elements or quantum elements with states."""
+        """Raise an error when an operator system holds classical elements or operator elements with states."""
         classical = [
             node.path
             for node in nodes
-            if not isinstance(node.component, BaseInteraction) and not QuantumCompiler._is_quantum_node(node)
+            if not isinstance(node.component, BaseInteraction) and not OperatorCompiler._is_operator_node(node)
         ]
         if classical:
             error_msg = (
-                f'The system mixes quantum elements with the classical elements {", ".join(classical)}, which no '
-                'single form runs. Model the quantum and the classical parts as separate systems.'
+                f'The system mixes operator elements with the classical elements {", ".join(classical)}, which no '
+                'single form runs. Model the operator and the classical parts as separate systems.'
             )
             raise IncompatibleLawsError(error_msg)
         for node in nodes:
             states = (
                 declarations_of(node.component_type, VariableKind.STATE)
-                if QuantumCompiler._is_quantum_node(node)
+                if OperatorCompiler._is_operator_node(node)
                 else {}
             )
             states = {
                 name: item
                 for name, item in states.items()
-                if name != QuantumCompiler._hilbert_state(node.component_type)
+                if name != OperatorCompiler._hilbert_state(node.component_type)
             }
             if states:
                 error_msg = (
-                    f'Quantum element {node.path} declares the states {", ".join(states)} besides its state in a '
+                    f'Operator element {node.path} declares the states {", ".join(states)} besides its state in a '
                     'Hilbert space, which is its only state, so declare parameters instead.'
                 )
                 raise ValidationError(error_msg)
@@ -357,12 +359,12 @@ class QuantumCompiler(BaseCompiler):
             return
         parts = []
         for node in nodes:
-            if QuantumCompiler._is_quantum_node(node):
-                members = QuantumCompiler._members_of(node)
+            if OperatorCompiler._is_operator_node(node):
+                members = OperatorCompiler._members_of(node)
                 parts.append(f'{node.path} of dimension {math.prod(element.dimension for _, element in members)}')
         error_msg = (
             f'The Hilbert space of {", ".join(parts)} has dimension {total}, above the limit max_dimension = {limit}. '
-            'Use fewer or smaller subsystems, or raise max_dimension of the quantum solver.'
+            'Use fewer or smaller subsystems, or raise max_dimension of the operator solver.'
         )
         raise HilbertSpaceError(error_msg)
 
@@ -389,7 +391,7 @@ class QuantumCompiler(BaseCompiler):
         """Return the namespace a role binds to, one member's for an element and every member's for a group."""
         path = f'{node.scope}{label}'
         if path not in members:
-            error_msg = f'Interaction {node.path} binds a role to {path}, which is not a quantum element or group.'
+            error_msg = f'Interaction {node.path} binds a role to {path}, which is not an operator element or group.'
             raise ValidationError(error_msg)
         return members[path] if path in groups else members[path][0]
 
@@ -406,7 +408,7 @@ class QuantumCompiler(BaseCompiler):
                 dissipators.append((owner, law.check().operator, law.rate))
             else:
                 error_msg = (
-                    f'{owner} returns the law {type(law).__name__}, which a quantum system cannot hold. Quantum '
+                    f'{owner} returns the law {type(law).__name__}, which an operator system cannot hold. Operator '
                     'systems take generator and dissipator laws only.'
                 )
                 raise IncompatibleLawsError(error_msg)
@@ -423,7 +425,7 @@ class QuantumCompiler(BaseCompiler):
         dissipators: Dissipators,
     ) -> None:
         """Add the laws of an interaction of a node, once per pair of neighbours of its group for a neighbour one."""
-        parameters = {**QuantumCompiler._parameter_symbols(node, symbols, None), 't': symbol('t')}
+        parameters = {**OperatorCompiler._parameter_symbols(node, symbols, None), 't': symbol('t')}
         if isinstance(interaction, NeighborInteraction):
             role_names = list(declarations_of(interaction, VariableKind.ROLE))
             if len(role_names) != 1:
@@ -434,7 +436,7 @@ class QuantumCompiler(BaseCompiler):
                 raise ValidationError(error_msg)
             path = f'{node.scope}{getattr(interaction, role_names[0])}'
             if path not in groups:
-                error_msg = f'Neighbour interaction {node.path} binds {path}, which is not a quantum group.'
+                error_msg = f'Neighbour interaction {node.path} binds {path}, which is not an operator group.'
                 raise ValidationError(error_msg)
             space = groups[path].space
             if space is None:
@@ -442,7 +444,7 @@ class QuantumCompiler(BaseCompiler):
                 raise ValidationError(error_msg)
             for source, target in space.check().prepare()._neighbor_pairs(interaction.layer):
                 namespace = SimpleNamespace(source=members[path][source], target=members[path][target], **parameters)
-                QuantumCompiler._collect_laws(
+                OperatorCompiler._collect_laws(
                     hamiltonians,
                     dissipators,
                     f'{node.path} on the pair ({source}, {target})',
@@ -450,10 +452,10 @@ class QuantumCompiler(BaseCompiler):
                 )
             return
         roles = {
-            name: QuantumCompiler._role_namespace(node, getattr(interaction, name), members, set(groups))
+            name: OperatorCompiler._role_namespace(node, getattr(interaction, name), members, set(groups))
             for name in declarations_of(interaction, VariableKind.ROLE)
         }
-        QuantumCompiler._collect_laws(
+        OperatorCompiler._collect_laws(
             hamiltonians,
             dissipators,
             node.path,
@@ -461,7 +463,7 @@ class QuantumCompiler(BaseCompiler):
         )
 
     @staticmethod
-    def _terms(lowering: QuantumLowering, operator: Expression, owner: str) -> tuple[QuantumKernel, ...]:
+    def _terms(lowering: OperatorLowering, operator: Expression, owner: str) -> tuple[OperatorKernel, ...]:
         """Return the terms an operator lowers to.
 
         Args:
@@ -481,22 +483,24 @@ class QuantumCompiler(BaseCompiler):
         return lowering.run((operator, owner)).kernels_
 
     @staticmethod
-    def _check_hermitian(hamiltonians: Hamiltonians, lowering: QuantumLowering, p: Array) -> None:
+    def _check_hermitian(hamiltonians: Hamiltonians, lowering: OperatorLowering, p: Array) -> None:
         """Raise an error when the Hamiltonian is not Hermitian at sampled parameter values."""
         size = math.prod(lowering.dimensions)
         rng = np.random.default_rng(0)
         sample = p * (1 + 0.1 * rng.random(p.size)) + 0.01 * rng.random(p.size)
 
-        def asymmetry(terms: Iterable[QuantumKernel]) -> float:
-            matrix = QuantumProblemSpec._matrix_at(terms, _SAMPLE_TIME, sample, size)
+        def asymmetry(terms: Iterable[OperatorKernel]) -> float:
+            matrix = OperatorProblemSpec._matrix_at(terms, _SAMPLE_TIME, sample, size)
             difference = matrix - matrix.conj().T
             return float(abs(difference).max()) if difference.nnz else 0.0
 
-        total = [term for owner, operator in hamiltonians for term in QuantumCompiler._terms(lowering, operator, owner)]
+        total = [
+            term for owner, operator in hamiltonians for term in OperatorCompiler._terms(lowering, operator, owner)
+        ]
         if asymmetry(total) <= _HERMITIAN_TOLERANCE:
             return
         owners = [
-            owner for owner, operator in hamiltonians if asymmetry(QuantumCompiler._terms(lowering, operator, owner))
+            owner for owner, operator in hamiltonians if asymmetry(OperatorCompiler._terms(lowering, operator, owner))
         ]
         error_msg = (
             f'The Hamiltonian of {", ".join(owners)} is not Hermitian. Add the adjoint of every non-Hermitian '
@@ -507,9 +511,9 @@ class QuantumCompiler(BaseCompiler):
     @staticmethod
     def _dissipator_terms(
         dissipators: Dissipators,
-        lowering: QuantumLowering,
+        lowering: OperatorLowering,
         p: Array,
-    ) -> tuple[tuple[QuantumKernel, ...], ...]:
+    ) -> tuple[tuple[OperatorKernel, ...], ...]:
         """Return the terms of every collapse operator scaled by the square root of its rate."""
         collapses = []
         for owner, collapse, rate in dissipators:
@@ -518,7 +522,7 @@ class QuantumCompiler(BaseCompiler):
             if initial.real < 0 or abs(initial.imag) > REAL_TOLERANCE:
                 error_msg = f'The dissipator of {owner} has the rate {initial}, which is not a non-negative number.'
                 raise ValidationError(error_msg)
-            collapses.append(QuantumCompiler._terms(lowering, collapse * value.sqrt(), owner))
+            collapses.append(OperatorCompiler._terms(lowering, collapse * value.sqrt(), owner))
         return tuple(collapses)
 
     @staticmethod
@@ -562,7 +566,7 @@ class QuantumCompiler(BaseCompiler):
         members: Mapping[str, tuple[SimpleNamespace, ...]],
         groups: set[str],
     ) -> dict[str, SimpleNamespace]:
-        """Return the namespace of every system of the tree by path, with its quantum elements and child systems."""
+        """Return the namespace of every system of the tree by path, with its operator elements and child systems."""
         namespaces: dict[str, SimpleNamespace] = {}
 
         def build(current: System, scope: str) -> SimpleNamespace:
@@ -580,12 +584,12 @@ class QuantumCompiler(BaseCompiler):
         return namespaces
 
     @staticmethod
-    def _subsystems_of(quantum: list[NodeSpec]) -> dict[str, _SubsystemSpec]:
-        """Return the subsystems of the quantum elements and groups in tensor order, each with its state symbol."""
+    def _subsystems_of(operator_nodes: list[NodeSpec]) -> dict[str, _SubsystemSpec]:
+        """Return the subsystems of the operator elements and groups in tensor order, each with its state symbol."""
         subsystems: dict[str, _SubsystemSpec] = {}
-        for node in quantum:
-            for key, element in QuantumCompiler._members_of(node):
-                state = symbol(f'{element.state}_{QuantumCompiler._name_of(key)}', CC)
+        for node in operator_nodes:
+            for key, element in OperatorCompiler._members_of(node):
+                state = symbol(f'{element.state}_{OperatorCompiler._name_of(key)}', CC)
                 subsystems[key] = _SubsystemSpec(key, element, len(subsystems), state, element.local_operators())
         return subsystems
 
@@ -601,7 +605,7 @@ class QuantumCompiler(BaseCompiler):
 
     @staticmethod
     def _element_laws(
-        quantum: list[NodeSpec],
+        operator_nodes: list[NodeSpec],
         subsystems: Mapping[str, _SubsystemSpec],
         *,
         symbols: Mapping[str, object],
@@ -609,20 +613,20 @@ class QuantumCompiler(BaseCompiler):
         hamiltonians: Hamiltonians,
         dissipators: Dissipators,
     ) -> dict[str, tuple[SimpleNamespace, ...]]:
-        """Add the laws of every quantum element and member, and return the member namespaces by path.
+        """Add the laws of every operator element and member, and return the member namespaces by path.
 
         The namespace of a member holds the symbol of its state, which names its subsystem in `local_operator`, and the
         symbols of its parameters. The laws of the member read time too.
         """
         members: dict[str, tuple[SimpleNamespace, ...]] = {}
-        for node in quantum:
+        for node in operator_nodes:
             namespaces = []
-            for member, (key, element) in enumerate(QuantumCompiler._members_of(node)):
+            for member, (key, element) in enumerate(OperatorCompiler._members_of(node)):
                 index = member if node.members is not None else None
                 state = {element.state: subsystems[key].symbol}
-                namespace = SimpleNamespace(**state, **QuantumCompiler._parameter_symbols(node, symbols, index))
+                namespace = SimpleNamespace(**state, **OperatorCompiler._parameter_symbols(node, symbols, index))
                 namespaces.append(namespace)
-                QuantumCompiler._collect_laws(
+                OperatorCompiler._collect_laws(
                     hamiltonians,
                     dissipators,
                     key,
@@ -637,7 +641,7 @@ class QuantumCompiler(BaseCompiler):
         initial: object,
         *,
         subsystems: Mapping[str, _SubsystemSpec],
-        hamiltonian: tuple[QuantumKernel, ...],
+        hamiltonian: tuple[OperatorKernel, ...],
         p: Array,
         is_open: bool,
     ) -> npt.NDArray[np.complex128]:
@@ -648,15 +652,15 @@ class QuantumCompiler(BaseCompiler):
         size = product.size
 
         def ground() -> npt.NDArray[np.complex128]:
-            matrix = QuantumProblemSpec._matrix_at(hamiltonian, 0.0, p, size)
+            matrix = OperatorProblemSpec._matrix_at(hamiltonian, 0.0, p, size)
             return np.asarray(qutip.Qobj(matrix).groundstate(sparse=size > DENSE_LIMIT)[1].full().ravel())
 
-        state = QuantumCompiler._system_initial(system, initial, product, ground)
+        state = OperatorCompiler._system_initial(system, initial, product, ground)
         return np.outer(state, state.conj()) if is_open and state.ndim == 1 else state
 
     @staticmethod
     def _compiled_element(node: NodeSpec) -> CompiledElementSpec:
-        """Return the compiled element of a quantum element or group, with no states in the state vector of its own."""
+        """Return the compiled element of an operator element or group, with no states in the state vector."""
         component = node.component
         visual = component.visual if component.visual is not None else component.default_visual_
         parameters = {
@@ -666,7 +670,7 @@ class QuantumCompiler(BaseCompiler):
 
     @staticmethod
     def _compiled_interaction(node: NodeSpec) -> CompiledInteractionSpec:
-        """Return the compiled interaction of a quantum system with the paths its roles bind to."""
+        """Return the compiled interaction of an operator system with the paths its roles bind to."""
         component = node.component
         roles = {
             name: f'{node.scope}{getattr(component, name)}' for name in declarations_of(component, VariableKind.ROLE)
@@ -674,13 +678,13 @@ class QuantumCompiler(BaseCompiler):
         return CompiledInteractionSpec(node.path, component, roles)
 
     @staticmethod
-    def _compile_quantum(
+    def _compile_operator(
         system: System,
         *,
         initial: object = None,
         max_dimension: int = DEFAULT_MAX_DIMENSION,
-    ) -> QuantumProblemSpec:
-        """Compile a system of quantum elements into a problem of the quantum form.
+    ) -> OperatorProblemSpec:
+        """Compile a system of operator elements into a problem of the operator form.
 
         Args:
             system:
@@ -692,11 +696,11 @@ class QuantumCompiler(BaseCompiler):
                 elements.
 
             max_dimension:
-                The largest dimension of the Hilbert space, the limit of the quantum solver.
+                The largest dimension of the Hilbert space, the limit of the operator solver.
 
         Returns:
             problem:
-                The quantum problem.
+                The operator problem.
 
         Raises:
             IncompatibleLawsError:
@@ -711,20 +715,20 @@ class QuantumCompiler(BaseCompiler):
         """
         time = symbol('t')
         nodes = FlattenPass._flatten_system(system)
-        QuantumCompiler._check_classical(nodes)
-        quantum = [node for node in nodes if QuantumCompiler._is_quantum_node(node)]
-        subsystems = QuantumCompiler._subsystems_of(quantum)
+        OperatorCompiler._check_classical(nodes)
+        operator_nodes = [node for node in nodes if OperatorCompiler._is_operator_node(node)]
+        subsystems = OperatorCompiler._subsystems_of(operator_nodes)
         dimensions = tuple(item.element.dimension for item in subsystems.values())
-        QuantumCompiler._check_dimension(nodes, list(dimensions), max_dimension)
-        entries, values, symbols = QuantumCompiler._parameters(nodes)
+        OperatorCompiler._check_dimension(nodes, list(dimensions), max_dimension)
+        entries, values, symbols = OperatorCompiler._parameters(nodes)
         p = np.concatenate(values) if values else np.zeros(0)
-        arguments = QuantumCompiler._arguments_of(entries, symbols)
-        lowering = QuantumLowering(time, subsystems, dimensions, arguments).check().prepare()
-        groups = {node.path: node for node in quantum if isinstance(node.component, GroupElement)}
+        arguments = OperatorCompiler._arguments_of(entries, symbols)
+        lowering = OperatorLowering(time, subsystems, dimensions, arguments).check().prepare()
+        groups = {node.path: node for node in operator_nodes if isinstance(node.component, GroupElement)}
         hamiltonians: Hamiltonians = []
         dissipators: Dissipators = []
-        members = QuantumCompiler._element_laws(
-            quantum,
+        members = OperatorCompiler._element_laws(
+            operator_nodes,
             subsystems,
             symbols=symbols,
             time=time,
@@ -733,7 +737,7 @@ class QuantumCompiler(BaseCompiler):
         )
         for node in nodes:
             if isinstance(node.component, BaseInteraction):
-                QuantumCompiler._interaction_laws(
+                OperatorCompiler._interaction_laws(
                     node,
                     node.component,
                     symbols=symbols,
@@ -742,11 +746,11 @@ class QuantumCompiler(BaseCompiler):
                     hamiltonians=hamiltonians,
                     dissipators=dissipators,
                 )
-        QuantumCompiler._check_hermitian(hamiltonians, lowering, p)
+        OperatorCompiler._check_hermitian(hamiltonians, lowering, p)
         total = sum((item for _, item in hamiltonians), SR(0))
-        hamiltonian = QuantumCompiler._terms(lowering, total, 'the Hamiltonian')
-        collapses = QuantumCompiler._dissipator_terms(dissipators, lowering, p)
-        state = QuantumCompiler._stored_state(
+        hamiltonian = OperatorCompiler._terms(lowering, total, 'the Hamiltonian')
+        collapses = OperatorCompiler._dissipator_terms(dissipators, lowering, p)
+        state = OperatorCompiler._stored_state(
             system,
             initial,
             subsystems=subsystems,
@@ -756,12 +760,14 @@ class QuantumCompiler(BaseCompiler):
         )
         pure = state.ndim == 1
         state_entry = EntrySpec(f'{system.label}.state', 0, state.shape, CC, None, is_complex=True)
-        elements = tuple(QuantumCompiler._compiled_element(node) for node in quantum)
+        elements = tuple(OperatorCompiler._compiled_element(node) for node in operator_nodes)
         interactions = tuple(
-            QuantumCompiler._compiled_interaction(node) for node in nodes if isinstance(node.component, BaseInteraction)
+            OperatorCompiler._compiled_interaction(node)
+            for node in nodes
+            if isinstance(node.component, BaseInteraction)
         )
-        return QuantumProblemSpec(
-            form=FormKind.QUANTUM,
+        return OperatorProblemSpec(
+            form=FormKind.OPERATOR,
             states=LayoutSpec((state_entry,)),
             parameters=LayoutSpec(tuple(entries)),
             initial_state=state_entry.encode(state),
@@ -776,7 +782,7 @@ class QuantumCompiler(BaseCompiler):
             hamiltonian=hamiltonian,
             dissipators=collapses,
             pure=pure,
-            namespaces=QuantumCompiler._namespaces(system, members, set(groups)),
+            namespaces=OperatorCompiler._namespaces(system, members, set(groups)),
             members=members,
             lowering=lowering,
             hamiltonian_operator=total,
@@ -798,7 +804,7 @@ class QuantumCompiler(BaseCompiler):
                 name = f'{node.path}.{variable}'
                 if declaration.vector:
                     error_msg = (
-                        f'{name} is a vector parameter, which quantum systems do not hold. Use scalar parameters.'
+                        f'{name} is a vector parameter, which operator systems do not hold. Use scalar parameters.'
                     )
                     raise ValidationError(error_msg)
                 members = node.members
@@ -813,7 +819,7 @@ class QuantumCompiler(BaseCompiler):
                     ),
                 )
                 entries.append(EntrySpec(name, sum(item.size for item in entries), shape, declaration.domain, members))
-                base = f'{variable}_{QuantumCompiler._name_of(node.path)}'
+                base = f'{variable}_{OperatorCompiler._name_of(node.path)}'
                 if members is None:
                     symbols[name] = symbol(base, declaration.domain)
                 else:
@@ -823,8 +829,8 @@ class QuantumCompiler(BaseCompiler):
         return entries, values, symbols
 
     @staticmethod
-    def _contains_quantum(system: System) -> bool:
-        """Check whether a system tree holds a quantum element or group.
+    def _contains_operator(system: System) -> bool:
+        """Check whether a system tree holds an operator element or group.
 
         Args:
             system:
@@ -832,8 +838,8 @@ class QuantumCompiler(BaseCompiler):
 
         Returns:
             found:
-                Whether any element of the tree is quantum.
+                Whether any element of the tree is operator.
         """
-        if any(QuantumCompiler._is_quantum(element) for element in system.elements):
+        if any(OperatorCompiler._is_operator(element) for element in system.elements):
             return True
-        return any(QuantumCompiler._contains_quantum(child) for child in system.systems)
+        return any(OperatorCompiler._contains_operator(child) for child in system.systems)

@@ -10,15 +10,15 @@ from sage.all__sagemath_symbolics import Expression
 
 from ...specs._base_spec import BaseSpec
 from ...specs._local_operator_spec import LocalOperatorSpec
-from ._quantum_view_spec import QuantumViewSpec
+from ._operator_view_spec import OperatorViewSpec
 
 
 @dataclass(frozen=True)
 class _SubsystemSpec(BaseSpec):
-    """Quantum subsystem with its key, its element, its index in the tensor product, its state symbol, and operators."""
+    """Subsystem with its key, its element, its index in the tensor product, its state symbol, and operators."""
 
     key: str
-    element: QuantumViewSpec
+    element: OperatorViewSpec
     index: int
     symbol: Expression
     operators: Mapping[str, LocalOperatorSpec]

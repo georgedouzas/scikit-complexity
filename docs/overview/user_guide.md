@@ -1649,7 +1649,7 @@ visuals are parts of the engine, beside those of every other kind.
 | lattices | `LocalRuleLaw`, `DriveLaw`, `CascadeLaw`, `ExtremalLaw`, `LatticeElement`, `LatticeSpace`, `ObjectiveSpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
 | finitely generated groups | `CayleySpace` | `CayleyVisual` |
 | rewriting, in `skcomplex.models.mathematics.fractals` | `ProductionLaw`, `SubstitutionLaw`, `WordElement`, `PatchElement` | `RewritingCompiler`, `RewritingSolver`, `GeometryVisual` |
-| quantum | `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec` | a system compiler, `UnitarySolver`, `LindbladSolver`, `QuantumTrajectoriesSolver` |
+| quantum | `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec` | a system compiler, `UnitarySolver`, `LindbladSolver`, `JumpTrajectoriesSolver` |
 | fields | `FieldElement`, `FluxLaw`, `MeshSpace`, `laplacian` and the other operators | the fields passes, `IMEXEulerSolver`, `CrankNicolsonSolver`, `SSPRKSolver` |
 | kinetics | `EncounterLaw`, `moment` | the encounter passes, `KineticSolver` |
 | fractional | `StateSpec(order=...)` in `(0, 1)`, `FractionalNoiseLaw` | the fractional passes, `FractionalABMSolver`, `GrunwaldLetnikovSolver`, `FractionalEulerMaruyamaSolver` |
@@ -1662,7 +1662,7 @@ sets `report_`, the issues it found, and `run(initial_state)` raises the errors 
 sets `solver_`, the solver it names for the problem. `Simulation` and `compile_system` take the compiler as the
 `compiler` setting. The default `PassCompiler` compiles every system but quantum ones through its passes, which lower
 each law to the problem of its form, and names the compiler a system needs when it is another. A quantum system takes
-`compiler=QuantumCompiler()`, and a model package can bring the compiler of a form of its own, with the solver it
+`compiler=OperatorCompiler()`, and a model package can bring the compiler of a form of its own, with the solver it
 names, as the fractal models do for rewriting.
 
 ### Writing a law
@@ -5642,7 +5642,7 @@ from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.models.physics.common.quantum import SpinElement
-from skcomplex.engine.compile import QuantumCompiler
+from skcomplex.engine.compile import OperatorCompiler
 
 
 class CouplingInteraction(NeighborInteraction):
@@ -5670,7 +5670,7 @@ chain = System(
     interactions=[CouplingInteraction('coupling', target='chain')],
 )
 observables = [ObservableSpec('sz', sz, group='chain', reduce=sites)]
-trajectory = Simulation(chain, dt=0.5, observables=observables, compiler=QuantumCompiler()).check().prepare().run(until=2.0).trajectory_
+trajectory = Simulation(chain, dt=0.5, observables=observables, compiler=OperatorCompiler()).check().prepare().run(until=2.0).trajectory_
 print(trajectory.values('sz').shape, round(float(np.ptp(trajectory.values('energy'))), 8))
 ```
 
@@ -5678,19 +5678,19 @@ print(trajectory.values('sz').shape, round(float(np.ptp(trajectory.values('energ
 
 A quantum system compiles to the quantum form, whose state is stored as complex pairs under `<system>.state`, a pure
 state for a closed system and a density matrix for an open one. Its solvers hand every frame to QuTiP: `UnitarySolver`
-for the Schrödinger equation, `LindbladSolver`, the default, for the master equation, and `QuantumTrajectoriesSolver`
+for the Schrödinger equation, `LindbladSolver`, the default, for the master equation, and `JumpTrajectoriesSolver`
 for quantum jumps drawn from the run's random stream. An `ObservableSpec` whose expression is an operator records its
 expectation, and one over a group gives one value per member when its `reduce` keeps the values. Every quantum run also
 records its `energy`, and its `purity` when it is open. Groups on a lattice stream the space-time image of their local
-expectations to Rerun. `QuantumAnalysis` analyses quantum systems: its kinds `'spectrum'` and `'ground-state'`
+expectations to Rerun. `OperatorAnalysis` analyses quantum systems: its kinds `'spectrum'` and `'ground-state'`
 diagonalise the Hamiltonian exactly, optionally in the sector of a conserved diagonal operator, and `'purity'` and
 `'entanglement'` read trajectories. `SymbolicAnalysis('hamiltonian')` prints the Hamiltonian in operator notation.
 
 ```python
-from skcomplex.analysis import QuantumAnalysis
+from skcomplex.analysis import OperatorAnalysis
 from skcomplex.models import create
 
-spectrum = QuantumAnalysis(n_states=2).check().prepare(create('quantum_heisenberg', n_sites=4)).run()
+spectrum = OperatorAnalysis(n_states=2).check().prepare(create('quantum_heisenberg', n_sites=4)).run()
 print(spectrum.energies_.round(6).tolist())
 ```
 

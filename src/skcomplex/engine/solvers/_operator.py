@@ -1,4 +1,4 @@
-"""Advance quantum problems with QuTiP by unitary, Lindblad, and quantum trajectory evolution."""
+"""Advance operator problems with QuTiP by unitary, Lindblad, and operator trajectory evolution."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,14 +17,14 @@ from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, Lattice
 from ...errors import SolverError
 from ...specs import RunStateSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind
-from ..compile.passes._quantum_compiler import DEFAULT_MAX_DIMENSION
-from ..problems import QuantumProblemSpec
-from ..problems._quantum_kernel import QuantumKernel
+from ..compile.passes._operator_compiler import DEFAULT_MAX_DIMENSION
+from ..problems import OperatorProblemSpec
+from ..problems._operator_kernel import OperatorKernel
 from ._base import BaseSolver
 
 
-class QuantumSolver(BaseSolver[QuantumProblemSpec]):
-    """Base class of solvers that advance quantum problems with a stepwise QuTiP solver.
+class OperatorSolver(BaseSolver[OperatorProblemSpec]):
+    """Base class of solvers that advance operator problems with a stepwise QuTiP solver.
 
     The solver is created at the first frame and again whenever the parameters change, from the current state, so a
     parameter update or a schedule applies from the next frame on. Coefficients that depend on time stay functions of
@@ -63,7 +63,7 @@ class QuantumSolver(BaseSolver[QuantumProblemSpec]):
     @classmethod
     def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return FormKind.QUANTUM
+        return FormKind.OPERATOR
 
     def __init__(
         self,
@@ -82,9 +82,9 @@ class QuantumSolver(BaseSolver[QuantumProblemSpec]):
         self.random_state = random_state
         self.until = until
 
-    def _operator(self, terms: Sequence[QuantumKernel], p: Array) -> qutip.Qobj | qutip.QobjEvo:
+    def _operator(self, terms: Sequence[OperatorKernel], p: Array) -> qutip.Qobj | qutip.QobjEvo:
         """Return the QuTiP operator of terms, constant or as a function of time, at fixed parameters."""
-        problem = self.quantum_
+        problem = self.operator_
         dims = [list(problem.dimensions)] * 2
         size = math.prod(problem.dimensions)
         constant = qutip.Qobj(sp.csr_array((size, size), dtype=complex), dims=dims)
@@ -99,12 +99,12 @@ class QuantumSolver(BaseSolver[QuantumProblemSpec]):
 
     def _ket(self, vector: npt.NDArray[np.complex128]) -> qutip.Qobj:
         """Return a state vector as a QuTiP ket with the dimensions of the problem."""
-        dimensions = list(self.quantum_.dimensions)
+        dimensions = list(self.operator_.dimensions)
         return qutip.Qobj(vector.reshape(-1, 1), dims=[dimensions, [1] * len(dimensions)])
 
     def _start_state(self, x: Array) -> qutip.Qobj:
         """Return the QuTiP state a solver starts from."""
-        problem = self.quantum_
+        problem = self.operator_
         state = problem._state_of(x)
         if problem.pure:
             return self._ket(state)
@@ -112,7 +112,7 @@ class QuantumSolver(BaseSolver[QuantumProblemSpec]):
 
     def _stored(self, state: qutip.Qobj) -> Array:
         """Return a QuTiP state as a state vector of the problem."""
-        problem = self.quantum_
+        problem = self.operator_
         entry = problem.states.entry(problem.states.names[0])
         values = state.full()
         if problem.pure:
@@ -147,13 +147,13 @@ class QuantumSolver(BaseSolver[QuantumProblemSpec]):
         """Start a QuTiP solver from a state at a time."""
         solver.start(self._start_state(x), t)
 
-    def _unsupported(self, problem: QuantumProblemSpec) -> list[str]:
-        """Return a description of every part of a quantum problem the solver does not run."""
+    def _unsupported(self, problem: OperatorProblemSpec) -> list[str]:
+        """Return a description of every part of an operator problem the solver does not run."""
         del problem
         return []
 
-    def _prepare(self, context: QuantumProblemSpec | None) -> None:
-        """Check that the problem is a quantum problem the solver runs, and create its QuTiP solver at the first frame.
+    def _prepare(self, context: OperatorProblemSpec | None) -> None:
+        """Check that the solver runs the operator problem, and create its QuTiP solver at the first frame.
 
         Args:
             context:
@@ -161,15 +161,17 @@ class QuantumSolver(BaseSolver[QuantumProblemSpec]):
 
         Raises:
             SolverError:
-                The problem is not quantum, or has dissipators or a density matrix the solver does not run.
+                The problem is not of the operator form, or has dissipators or a density matrix the solver does not run.
         """
         super()._prepare(context)
         problem = self.problem_
-        unsupported = self._unsupported(problem) if isinstance(problem, QuantumProblemSpec) else ['a classical problem']
+        unsupported = (
+            self._unsupported(problem) if isinstance(problem, OperatorProblemSpec) else ['a classical problem']
+        )
         if unsupported:
             error_msg = f'{type(self).__name__} cannot run this system. Unsupported: {"; ".join(unsupported)}.'
             raise SolverError(error_msg)
-        self.quantum_: QuantumProblemSpec = problem
+        self.operator_: OperatorProblemSpec = problem
         self.solver_: solver_base.Solver | None = None
         self.parameters_: Array | None = None
 
@@ -200,7 +202,7 @@ class QuantumSolver(BaseSolver[QuantumProblemSpec]):
         return self._stored(self.solver_.step(until))
 
     @staticmethod
-    def _coefficient(term: QuantumKernel, p: Array) -> Callable[[float], complex]:
+    def _coefficient(term: OperatorKernel, p: Array) -> Callable[[float], complex]:
         """Return the coefficient of a term as a function of time, at fixed parameters."""
         parameters = p.copy()
 

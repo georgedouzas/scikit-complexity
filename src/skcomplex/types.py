@@ -123,7 +123,7 @@ class FormKind(StrEnum):
     MONTE_CARLO = 'Monte Carlo sampling'
     RENEWAL = 'renewal process'
     COUPLED = 'co-simulation'
-    QUANTUM = 'quantum dynamics'
+    OPERATOR = 'operator dynamics'
     LEARNING = 'learning by gradient steps'
     STATIC = 'static solution'
 

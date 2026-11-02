@@ -14,7 +14,7 @@ from skcomplex.core.spaces import LatticeSpace, StaticTime
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import ObservableEvaluator, PassCompiler, compile_system
-from skcomplex.engine.compile.passes._quantum_compiler import QuantumCompiler
+from skcomplex.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.errors import RoleError
 from skcomplex.models import catalog, create, describe
 from skcomplex.models.biology.common.populations import PopulationElement
@@ -80,8 +80,8 @@ class ReadInteraction(Interaction):
 def test_reductions_agree_with_observables(name):
     """Test that laws reading a model's observables at a state read the values the observable evaluator records."""
     model, observables, paths = _observed(name)
-    if QuantumCompiler._contains_quantum(model):
-        pytest.skip('A quantum system cannot share a co-simulation with classical readers.')
+    if OperatorCompiler._contains_operator(model):
+        pytest.skip('An operator system cannot share a co-simulation with classical readers.')
     if isinstance(model.time, StaticTime):
         pytest.skip('A static system has no time axis, so rate laws of a continuous system cannot read its values.')
     if 'distribution' in describe(name).tags:

@@ -39,7 +39,7 @@ from ..errors import AnalysisError, ConservationError
 from ..specs._unknown_spec import _UnknownSpec
 from ..types import Array, ComplexArray, DataKind, FormKind
 from ._base import BaseAnalysis
-from ._quantum import QuantumAnalysis
+from ._operator import OperatorAnalysis
 from .types import Source
 
 ASYMPTOTIC_ORDER = 2
@@ -108,7 +108,7 @@ class SymbolicAnalysis(BaseAnalysis):
       raises the error. Parameters give Maxima their sign from their domain, or from their value when their domain is
       real. One linear fractional relaxation `D^alpha x = c x` has the solution `x(0) E_alpha(c t^alpha)`, written
       with the symbolic function `mittag_leffler(alpha, beta, z)`.
-    - `'hamiltonian'`: the Hamiltonian of a quantum system, the sum of the operators of its generator laws, whose
+    - `'hamiltonian'`: the Hamiltonian of an operator system, the sum of the operators of its generator laws, whose
       subsystems are the symbols of the states of the elements, named `<state>_<path>`, and whose parameters are
       named `<parameter>_<path>`.
     - `'conservation'`: the net inflow from the environment of every quantity of a system with a transfer network, after
@@ -179,11 +179,11 @@ class SymbolicAnalysis(BaseAnalysis):
         system = self._read_system(source)
         problem = system if isinstance(system, BaseProblemSpec) else compile_system(system)
         if self.kind == 'hamiltonian':
-            self.problem_ = QuantumAnalysis._quantum_problem(problem)
+            self.problem_ = OperatorAnalysis._operator_problem(problem)
             return
-        if self.kind == 'equations' and problem.form == FormKind.QUANTUM:
+        if self.kind == 'equations' and problem.form == FormKind.OPERATOR:
             error_msg = (
-                'A quantum system has an operator Hamiltonian, not state equations. Use '
+                'An operator system has an operator Hamiltonian, not state equations. Use '
                 "`SymbolicAnalysis('hamiltonian')`."
             )
             raise AnalysisError(error_msg)

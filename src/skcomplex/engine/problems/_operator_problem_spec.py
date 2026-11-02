@@ -1,4 +1,4 @@
-"""Define the quantum problem spec."""
+"""Define the operator problem spec."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,15 +18,15 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ...specs._run_state_spec import RunStateSpec
 from ...types import Array
 from ._base_problem_spec import BaseProblemSpec
-from ._quantum_kernel import QuantumKernel
-from ._quantum_lowering import QuantumLowering
+from ._operator_kernel import OperatorKernel
+from ._operator_lowering import OperatorLowering
 
 REAL_TOLERANCE = 1e-10
 
 
 @dataclass(frozen=True)
-class QuantumProblemSpec(BaseProblemSpec):
-    """Problem of the quantum form, whose state is a pure state or a density matrix stored as complex pairs.
+class OperatorProblemSpec(BaseProblemSpec):
+    """Problem of the operator form, whose state is a pure state or a density matrix stored as complex pairs.
 
     Args:
         dimensions:
@@ -48,7 +48,7 @@ class QuantumProblemSpec(BaseProblemSpec):
             The namespace of every system, by its path, which observables receive.
 
         members:
-            The namespaces of the members of every quantum element or group, by path.
+            The namespaces of the members of every operator element or group, by path.
 
         lowering:
             The lowering of operators to matrices and functions.
@@ -62,25 +62,25 @@ class QuantumProblemSpec(BaseProblemSpec):
 
     dimensions: tuple[int, ...] = ()
     subsystems: tuple[str, ...] = ()
-    hamiltonian: tuple[QuantumKernel, ...] = field(default=(), repr=False)
-    dissipators: tuple[tuple[QuantumKernel, ...], ...] = field(default=(), repr=False)
+    hamiltonian: tuple[OperatorKernel, ...] = field(default=(), repr=False)
+    dissipators: tuple[tuple[OperatorKernel, ...], ...] = field(default=(), repr=False)
     pure: bool = True
     namespaces: Mapping[str, SimpleNamespace] = field(default_factory=dict, repr=False)
     members: Mapping[str, tuple[SimpleNamespace, ...]] = field(default_factory=dict, repr=False)
-    lowering: QuantumLowering | None = field(default=None, repr=False)
+    lowering: OperatorLowering | None = field(default=None, repr=False)
     hamiltonian_operator: Expression = field(default=SR(0), repr=False)
     cache: dict[str, list[sp.csr_array]] = field(default_factory=dict, repr=False, compare=False)
 
     @staticmethod
-    def _matrix_at(terms: Iterable[QuantumKernel], t: float, p: Array, size: int) -> sp.csr_array:
+    def _matrix_at(terms: Iterable[OperatorKernel], t: float, p: Array, size: int) -> sp.csr_array:
         """Return the sum of the terms at a time and a parameter vector."""
-        return QuantumKernel._sum_matrices(
+        return OperatorKernel._sum_matrices(
             (term.run(RunStateSpec(t, np.zeros(0), p)).values_ * term.matrix for term in terms),
             size,
         )
 
     def _state_of(self, x: Array) -> npt.NDArray[np.complex128]:
-        """Return the complex state of a quantum problem, a vector or a density matrix, from a state vector.
+        """Return the complex state of an operator problem, a vector or a density matrix, from a state vector.
 
         Args:
             x:
@@ -92,8 +92,8 @@ class QuantumProblemSpec(BaseProblemSpec):
         """
         return np.asarray(self.states.read(x, self.states.names[0]))
 
-    def _expect(self, terms: Iterable[QuantumKernel], t: float, x: Array, p: Array) -> float | complex:
-        """Return the expectation value of an operator at a state of a quantum problem.
+    def _expect(self, terms: Iterable[OperatorKernel], t: float, x: Array, p: Array) -> float | complex:
+        """Return the expectation value of an operator at a state of an operator problem.
 
         Args:
             terms:
@@ -122,7 +122,7 @@ class QuantumProblemSpec(BaseProblemSpec):
         return total
 
     def _hamiltonian_at(self, t: float, p: Array) -> sp.csr_array:
-        """Return the Hamiltonian matrix of a quantum problem at a time and a parameter vector.
+        """Return the Hamiltonian matrix of an operator problem at a time and a parameter vector.
 
         Args:
             t:
@@ -135,4 +135,4 @@ class QuantumProblemSpec(BaseProblemSpec):
             matrix:
                 The sparse Hamiltonian.
         """
-        return QuantumProblemSpec._matrix_at(self.hamiltonian, t, p, math.prod(self.dimensions))
+        return OperatorProblemSpec._matrix_at(self.hamiltonian, t, p, math.prod(self.dimensions))

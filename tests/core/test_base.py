@@ -51,6 +51,7 @@ FIELD_TERMS = (
     'Prey',
     'Price',
     'Protein',
+    'Quantum',
     'Sheep',
     'Species',
     'Synapse',
@@ -259,7 +260,7 @@ def test_core_names_carry_no_field_term():
 
 
 def test_no_class_defines_magic_methods():
-    """Test that no class of the library defines a magic method but `__init__` and quantum arithmetic."""
+    """Test that no class of the library defines a magic method but `__init__` and operator arithmetic."""
     found = {}
     for module in _modules():
         for _, cls in inspect.getmembers(module, inspect.isclass):

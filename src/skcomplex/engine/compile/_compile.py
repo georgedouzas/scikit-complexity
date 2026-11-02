@@ -27,7 +27,7 @@ def compile_system(
     """Compile a system into a problem of the form its law kinds determine.
 
     The compiler validates the system in `prepare` and compiles it in `run`. `PassCompiler` compiles every system but
-    quantum ones, which `QuantumCompiler` compiles, and a model package can bring the compiler of a form of its own.
+    operator ones, which `OperatorCompiler` compiles, and a model package can bring the compiler of a form of its own.
 
     Args:
         system:
@@ -47,7 +47,7 @@ def compile_system(
 
         initial_state:
             Initial values that replace those of the components, by the dotted name of the state, such as
-            `{'rabbits.n': 20}`. The whole state of a quantum system is `<system label>.state`, which takes a vector, a
+            `{'rabbits.n': 20}`. The state of an operator system is `<system label>.state`, which takes a vector, a
             density matrix, or `'ground'` for the lowest eigenstate of the Hamiltonian at the initial parameters.
 
         compiler:

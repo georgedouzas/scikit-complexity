@@ -10,6 +10,7 @@ from ._conditions import both, either, mod, where
 from ._contractions import contraction, contractions_in
 from ._delays import delay1, delay3, delay_parts, distributed_delay, smooth
 from ._history import delayed, derivative, lag, residence
+from ._local_operators import dagger, has_operator, local_operator, operator_product
 from ._lookups import lookup
 from ._moments import moment
 from ._operators import (
@@ -29,7 +30,6 @@ from ._operators import (
 )
 from ._phase import COORDINATE_PREFIX, coordinate, coordinates_of, maximum_entropy, reduce_axes
 from ._pointwise import clip, hill, logistic, sign
-from ._quantum import dagger, has_operator, local_operator, operator_product
 from ._reductions import (
     NEIGHBOR_REDUCTIONS,
     circular_mean,

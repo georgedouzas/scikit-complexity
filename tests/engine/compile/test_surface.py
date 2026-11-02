@@ -15,11 +15,11 @@ def test_public_names_are_classes_or_compile_system():
 
 def test_compilers_are_public():
     """The bases and the compilers are public, and every compiler derives from the compiler base."""
-    for name in ('BaseCompiler', 'BasePass', 'BaseLowering', 'PassCompiler', 'QuantumCompiler'):
+    for name in ('BaseCompiler', 'BasePass', 'BaseLowering', 'PassCompiler', 'OperatorCompiler'):
         assert name in package.__all__
     for name in ('FlattenPass', 'LayoutPass', 'ProblemPass'):
         assert issubclass(getattr(package, name), package.BasePass)
-    for compiler in (package.PassCompiler, package.QuantumCompiler):
+    for compiler in (package.PassCompiler, package.OperatorCompiler):
         assert issubclass(compiler, package.BaseCompiler)
 
 

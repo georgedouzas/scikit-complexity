@@ -34,9 +34,9 @@ from ._mode_decomposition import ModeDecompositionAnalysis
 from ._motifs import MotifAnalysis
 from ._neighbors import NeighborAnalysis
 from ._networks import NetworkAnalysis
+from ._operator import OperatorAnalysis
 from ._partial_information import PartialInformationAnalysis
 from ._passage import PassageAnalysis
-from ._quantum import QuantumAnalysis
 from ._recurrence import RecurrenceAnalysis
 from ._reservoirs import ReservoirAnalysis
 from ._rolling import RollingAnalysis
@@ -84,9 +84,9 @@ __all__: list[str] = [
     'MotifAnalysis',
     'NeighborAnalysis',
     'NetworkAnalysis',
+    'OperatorAnalysis',
     'PartialInformationAnalysis',
     'PassageAnalysis',
-    'QuantumAnalysis',
     'RecurrenceAnalysis',
     'ReservoirAnalysis',
     'RollingAnalysis',

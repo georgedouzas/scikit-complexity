@@ -1,4 +1,4 @@
-"""Solver of closed quantum systems that evolves a pure state by the Schrödinger equation with QuTiP's `SESolver`."""
+"""Solver of closed operator systems that evolves a pure state by the Schrödinger equation with QuTiP's `SESolver`."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,12 +8,12 @@ import qutip
 from qutip.solver import solver_base
 
 from ...types import Array
-from ..problems import QuantumProblemSpec
-from ._quantum import QuantumSolver
+from ..problems import OperatorProblemSpec
+from ._operator import OperatorSolver
 
 
-class UnitarySolver(QuantumSolver):
-    """Solver of closed quantum systems that evolves a pure state by the Schrödinger equation with QuTiP's `SESolver`.
+class UnitarySolver(OperatorSolver):
+    """Solver of closed operator systems that evolves a pure state by the Schrödinger equation with QuTiP's `SESolver`.
 
     Args:
         atol:
@@ -49,20 +49,20 @@ class UnitarySolver(QuantumSolver):
         ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('x')) / 2)]
         >>> z = [ObservableSpec('z', element='q', variable='z')]
         >>> system = System(elements=[QubitElement('q')])
-        >>> from skcomplex.engine.compile import QuantumCompiler
-        >>> compiler = QuantumCompiler()
+        >>> from skcomplex.engine.compile import OperatorCompiler
+        >>> compiler = OperatorCompiler()
         >>> simulation = Simulation(system, compiler=compiler, solver=UnitarySolver(), dt=np.pi, observables=z)
         >>> simulation = simulation.check().prepare()
         >>> float(round(simulation.run(until=np.pi).trajectory_.values('q.z')[-1], 6))
         -1.0
     """
 
-    def _unsupported(self, problem: QuantumProblemSpec) -> list[str]:
+    def _unsupported(self, problem: OperatorProblemSpec) -> list[str]:
         """Return the dissipators or the density matrix of a problem, which unitary evolution does not run."""
         if problem.dissipators:
-            return ['dissipators, which need the lindblad or quantum_trajectories solver']
+            return ['dissipators, which need the lindblad or jump_trajectories solver']
         return [] if problem.pure else ['a density matrix, which needs the lindblad solver']
 
     def _create(self, p: Array) -> solver_base.Solver:
         """Return QuTiP's Schrödinger solver at fixed parameters."""
-        return qutip.SESolver(self._operator(self.quantum_.hamiltonian, p), options=self._options)
+        return qutip.SESolver(self._operator(self.operator_.hamiltonian, p), options=self._options)

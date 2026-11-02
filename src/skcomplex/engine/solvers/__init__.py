@@ -17,6 +17,7 @@ from ._heun import HeunSolver
 from ._horizon_error import HorizonError
 from ._imex2 import IMEX2Solver
 from ._imex_euler import IMEXEulerSolver
+from ._jump_trajectories import JumpTrajectoriesSolver
 from ._kinetics import KineticSolver
 from ._l1 import L1Solver
 from ._lammps import LammpsSolver
@@ -27,10 +28,9 @@ from ._maps import IterationSolver
 from ._mesa import AgentView, MesaSolver, ModelView
 from ._milstein import MilsteinSolver
 from ._monte_carlo import MonteCarloSolver
+from ._operator import OperatorSolver
 from ._optimal_control import OptimalControlSolver
 from ._pontryagin import PontryaginSolver
-from ._quantum import QuantumSolver
-from ._quantum_trajectories import QuantumTrajectoriesSolver
 from ._renewal import RenewalSolver
 from ._rk4 import RK4Solver
 from ._root import RootSolver
@@ -65,6 +65,7 @@ __all__: list[str] = [
     'IMEX2Solver',
     'IMEXEulerSolver',
     'IterationSolver',
+    'JumpTrajectoriesSolver',
     'KineticSolver',
     'L1Solver',
     'LammpsFixSpec',
@@ -75,10 +76,9 @@ __all__: list[str] = [
     'MilsteinSolver',
     'ModelView',
     'MonteCarloSolver',
+    'OperatorSolver',
     'OptimalControlSolver',
     'PontryaginSolver',
-    'QuantumSolver',
-    'QuantumTrajectoriesSolver',
     'RK4Solver',
     'RenewalSolver',
     'RootSolver',

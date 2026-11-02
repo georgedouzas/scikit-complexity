@@ -16,10 +16,10 @@ from ._linear_term_spec import LinearTermSpec
 from ._loop_term_spec import LoopTermSpec
 from ._lowered_kernels_spec import LoweredKernelsSpec
 from ._observed_spec import ObservedSpec
+from ._operator_problem_spec import OperatorProblemSpec
 from ._output_spec import OutputSpec
 from ._partition_spec import PartitionSpec
 from ._problem_spec import ProblemSpec
-from ._quantum_problem_spec import QuantumProblemSpec
 from ._reduction_schedule_spec import ReductionScheduleSpec
 from ._reference_spec import ReferenceSpec
 from ._set_symbol_spec import SetSymbolSpec
@@ -47,10 +47,10 @@ __all__: list[str] = [
     'LoopTermSpec',
     'LoweredKernelsSpec',
     'ObservedSpec',
+    'OperatorProblemSpec',
     'OutputSpec',
     'PartitionSpec',
     'ProblemSpec',
-    'QuantumProblemSpec',
     'ReductionScheduleSpec',
     'ReferenceSpec',
     'SetSymbolSpec',

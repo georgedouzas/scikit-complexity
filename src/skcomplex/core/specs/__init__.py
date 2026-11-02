@@ -8,7 +8,7 @@ from ._compiled_interaction_spec import CompiledInteractionSpec
 from ._lattice_context_spec import LatticeContextSpec
 from ._lattice_state_spec import LatticeStateSpec
 from ._node_spec import NodeSpec
-from ._quantum_view_spec import QuantumViewSpec
+from ._operator_view_spec import OperatorViewSpec
 from ._scenario_spec import ScenarioSpec
 
 __all__: list[str] = [
@@ -20,6 +20,6 @@ __all__: list[str] = [
     'LatticeContextSpec',
     'LatticeStateSpec',
     'NodeSpec',
-    'QuantumViewSpec',
+    'OperatorViewSpec',
     'ScenarioSpec',
 ]

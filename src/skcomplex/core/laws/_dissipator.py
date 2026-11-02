@@ -1,4 +1,4 @@
-"""Define dissipator laws, the Lindblad terms that make a quantum system open."""
+"""Define dissipator laws, the Lindblad terms that make an operator system open."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +14,7 @@ from .utils import has_operator
 
 
 class DissipatorLaw(BaseLaw):
-    """Lindblad dissipator with a collapse operator and a rate, which makes a quantum system open.
+    """Lindblad dissipator with a collapse operator and a rate, which makes an operator system open.
 
     The master equation gains `rate * (L rho L^† - (L^† L rho + rho L^† L) / 2)`.
 
@@ -43,7 +43,7 @@ class DissipatorLaw(BaseLaw):
         self.rate = rate
 
     def _get_targets(self) -> tuple[object, ...]:
-        """Return no states, since the dissipator changes the quantum state of the whole system."""
+        """Return no states, since the dissipator changes the operator state of the whole system."""
         return ()
 
     def _get_requirements(self) -> RequirementSpec:
@@ -54,7 +54,7 @@ class DissipatorLaw(BaseLaw):
         """Raise an error for a function as the operator or rate, no local operators, or a rate of another type."""
         if any(callable(item) and not isinstance(item, Expression) for item in (self.operator, self.rate)):
             error_msg = (
-                'Quantum dissipators need symbolic operators and rates, so neither can be a function. Give the rate as '
+                'Dissipators need symbolic operators and rates, so neither can be a function. Give the rate as '
                 'a `series` of time, or use a `RateLaw` with a function on the states of a classical system.'
             )
             raise ValidationError(error_msg)

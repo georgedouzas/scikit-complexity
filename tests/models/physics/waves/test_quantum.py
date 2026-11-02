@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.analysis import QuantumAnalysis
-from skcomplex.engine.compile import QuantumCompiler
+from skcomplex.analysis import OperatorAnalysis
+from skcomplex.engine.compile import OperatorCompiler
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ETDRK4Solver
 from skcomplex.engine.viz import RerunObserver
@@ -36,7 +36,7 @@ def test_schrodinger_formulations_agree():
         .run(until=4.0)
     )
     operators = create('schrodinger', n_sites=128, formulation='operators')
-    operators = Simulation(operators, compiler=QuantumCompiler(), dt=0.5).check().prepare().run(until=4.0)
+    operators = Simulation(operators, compiler=OperatorCompiler(), dt=0.5).check().prepare().run(until=4.0)
     density = fields.trajectory_.values('packet.u') ** 2 + fields.trajectory_.values('packet.w') ** 2
     probability = np.abs(operators.trajectory_.values('schrodinger.state')) ** 2
     assert np.allclose(density * spacing, probability, atol=1e-6)
@@ -46,10 +46,10 @@ def test_schrodinger_dephased_packet_keeps_its_trace(tmp_path):
     """Test that a dephased packet keeps trace 1 while its purity falls, and streams its probability."""
     system = create('schrodinger', n_sites=32, length=20.0, formulation='operators', gamma=0.5)
     observer = RerunObserver('dephased', save_path=tmp_path / 'run.rrd')
-    simulation = Simulation(system, compiler=QuantumCompiler(), dt=0.5, observers=[observer])
+    simulation = Simulation(system, compiler=OperatorCompiler(), dt=0.5, observers=[observer])
     trajectory = simulation.check().prepare().run(until=2.0).trajectory_
     traces = np.trace(trajectory.values('schrodinger.state'), axis1=1, axis2=2)
     assert np.allclose(traces, 1, atol=1e-10)
-    assert np.all(np.diff(QuantumAnalysis('purity').check().prepare(trajectory).run().purity_) <= 1e-10)
+    assert np.all(np.diff(OperatorAnalysis('purity').check().prepare(trajectory).run().purity_) <= 1e-10)
     with pytest.raises(ValidationError, match='formulation'):
         create('schrodinger', gamma=0.5)

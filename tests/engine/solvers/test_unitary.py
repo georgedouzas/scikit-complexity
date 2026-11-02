@@ -12,9 +12,9 @@ from skcomplex.core.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
-from skcomplex.engine.compile import QuantumCompiler, compile_system
+from skcomplex.engine.compile import OperatorCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import LindbladSolver, QuantumTrajectoriesSolver, UnitarySolver
+from skcomplex.engine.solvers import JumpTrajectoriesSolver, LindbladSolver, UnitarySolver
 from skcomplex.errors import SolverError
 from skcomplex.models.physics.common.quantum import QUBIT, QubitElement, SpinElement
 from skcomplex.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -130,7 +130,7 @@ def test_unitary_evolution_follows_rabi_oscillations():
     """Test that a driven qubit oscillates as cos(omega t) with a constant norm."""
     system = System(elements=[RabiElement('q')])
     simulation = (
-        Simulation(system, solver=UnitarySolver(), dt=0.05, observables=Z, compiler=QuantumCompiler())
+        Simulation(system, solver=UnitarySolver(), dt=0.05, observables=Z, compiler=OperatorCompiler())
         .check()
         .prepare()
         .run(until=np.pi / OMEGA)
@@ -148,7 +148,7 @@ def test_unitary_evolution_conserves_magnetization_and_energy():
             observables=MAGNETIZATION,
             solver=UnitarySolver(atol=1e-14, rtol=1e-13),
             dt=1.0,
-            compiler=QuantumCompiler(),
+            compiler=OperatorCompiler(),
         )
         .check()
         .prepare()
@@ -165,14 +165,14 @@ def test_unitary_evolution_rejects_open_systems():
         Simulation(
             System(elements=[DecayingElement('q')]),
             solver=UnitarySolver(),
-            compiler=QuantumCompiler(),
+            compiler=OperatorCompiler(),
         ).check().prepare().run(until=1.0)
 
 
 def test_lindblad_evolution_follows_spontaneous_decay():
     """Test that the excited population decays as exp(-gamma t) with trace 1."""
     system = System(elements=[DecayingElement('q')])
-    simulation = Simulation(system, dt=0.5, observables=Z, compiler=QuantumCompiler()).check().prepare().run(until=4.0)
+    simulation = Simulation(system, dt=0.5, observables=Z, compiler=OperatorCompiler()).check().prepare().run(until=4.0)
     assert isinstance(simulation.stepper_, LindbladSolver)
     trajectory = simulation.trajectory_
     assert np.allclose((1 + trajectory.values('z')) / 2, np.exp(-GAMMA * trajectory.times), atol=1e-6)
@@ -183,7 +183,7 @@ def test_lindblad_evolution_follows_spontaneous_decay():
 def test_lindblad_evolution_lowers_purity():
     """Test that dephasing lowers the purity from 1 frame after frame."""
     trajectory = (
-        Simulation(System(elements=[DephasedElement('q')]), dt=0.2, compiler=QuantumCompiler())
+        Simulation(System(elements=[DephasedElement('q')]), dt=0.2, compiler=OperatorCompiler())
         .check()
         .prepare()
         .run(until=4.0)
@@ -194,18 +194,18 @@ def test_lindblad_evolution_lowers_purity():
     assert np.all(np.diff(purity) <= 1e-10)
 
 
-def test_quantum_trajectories_are_reproducible():
+def test_jump_trajectories_are_reproducible():
     """Test that two seeded trajectories of a decaying qubit are identical."""
     system = System(elements=[DecayingElement('q')])
     runs = [
         (
             Simulation(
                 system,
-                solver=QuantumTrajectoriesSolver(),
+                solver=JumpTrajectoriesSolver(),
                 dt=0.5,
                 random_state=3,
                 observables=Z,
-                compiler=QuantumCompiler(),
+                compiler=OperatorCompiler(),
             )
             .check()
             .prepare()
@@ -217,19 +217,19 @@ def test_quantum_trajectories_are_reproducible():
     assert set(np.round(runs[0].trajectory_.values('z'), 8)) <= {-1.0, 1.0}
 
 
-def test_quantum_trajectories_average_to_the_master_equation():
+def test_jump_trajectories_average_to_the_master_equation():
     """Test that 500 trajectories average to the Lindblad decay within three standard errors."""
     system = System(elements=[DecayingElement('q')])
-    problem = compile_system(system, observables=Z, compiler=QuantumCompiler())
+    problem = compile_system(system, observables=Z, compiler=OperatorCompiler())
     rng = np.random.default_rng(0)
     values = np.array(
         [
             Simulation(
                 problem,
-                solver=QuantumTrajectoriesSolver(),
+                solver=JumpTrajectoriesSolver(),
                 dt=0.5,
                 random_state=rng,
-                compiler=QuantumCompiler(),
+                compiler=OperatorCompiler(),
             )
             .check()
             .prepare()
@@ -244,10 +244,10 @@ def test_quantum_trajectories_average_to_the_master_equation():
     assert np.all(np.abs(excited.mean(axis=0) - np.exp(-GAMMA * times)) <= 3 * errors + 1e-9)
 
 
-def test_quantum_solvers_follow_parameter_updates():
+def test_operator_solvers_follow_parameter_updates():
     """Test that a quench of the anisotropy changes the energy after the update."""
     simulation = (
-        Simulation(_chain(6), observables=MAGNETIZATION, dt=0.5, compiler=QuantumCompiler())
+        Simulation(_chain(6), observables=MAGNETIZATION, dt=0.5, compiler=OperatorCompiler())
         .check()
         .prepare()
         .run(until=1.0)

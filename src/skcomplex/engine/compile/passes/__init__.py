@@ -8,7 +8,7 @@ from ._hilbert_space_error import HilbertSpaceError
 from ._lattices import LatticeProblemPass
 from ._lower_fields import LowerFieldsPass
 from ._mask_requests import MaskRequestsPass
-from ._quantum_compiler import DEFAULT_MAX_DIMENSION, QuantumCompiler
+from ._operator_compiler import DEFAULT_MAX_DIMENSION, OperatorCompiler
 from ._request_jumps import RequestJumpsPass
 from ._split_requests import SplitRequestsPass
 from ._topology_functions import TopologyFunctionsPass
@@ -25,7 +25,7 @@ __all__: list[str] = [
     'LatticeProblemPass',
     'LowerFieldsPass',
     'MaskRequestsPass',
-    'QuantumCompiler',
+    'OperatorCompiler',
     'RequestJumpsPass',
     'SplitRequestsPass',
     'TopologyFunctionsPass',

@@ -8,8 +8,8 @@ from ._pass_compiler import PassCompiler
 from .passes._flatten import FlattenPass
 from .passes._hilbert_space_error import HilbertSpaceError
 from .passes._layout import LayoutPass
+from .passes._operator_compiler import OperatorCompiler
 from .passes._problem import ProblemPass
-from .passes._quantum_compiler import QuantumCompiler
 
 __all__: list[str] = [
     'BaseCompiler',
@@ -20,8 +20,8 @@ __all__: list[str] = [
     'HilbertSpaceError',
     'LayoutPass',
     'ObservableEvaluator',
+    'OperatorCompiler',
     'PassCompiler',
     'ProblemPass',
-    'QuantumCompiler',
     'compile_system',
 ]

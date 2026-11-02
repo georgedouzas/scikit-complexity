@@ -1,4 +1,4 @@
-"""Draw the local expectation values of quantum elements and groups as images and series."""
+"""Draw the local expectation values of operator elements and groups as images and series."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,18 +12,18 @@ import scipy.sparse as sp
 from sage.all__sagemath_symbolics import SR
 
 from ...core.spaces import LatticeSpace
-from ...core.specs import CompiledAgentsSpec, CompiledElementSpec, QuantumViewSpec
+from ...core.specs import CompiledAgentsSpec, CompiledElementSpec, OperatorViewSpec
 from ...errors import ValidationError
 from ...types import Array
-from ..compile import QuantumCompiler
-from ..problems import BaseProblemSpec, FrameSpec, QuantumProblemSpec
-from ..problems._quantum_kernel import QuantumKernel
+from ..compile import OperatorCompiler
+from ..problems import BaseProblemSpec, FrameSpec, OperatorProblemSpec
+from ..problems._operator_kernel import OperatorKernel
 from ._base import BaseVisual
 from ._images import _SPACE_TIME, ImageVisual
 
 
 class ExpectationVisual(ImageVisual):
-    """Visual that logs the local expectations of quantum elements and groups.
+    """Visual that logs the local expectations of operator elements and groups.
 
     A group logs the expectation of the displayed local operator of every member, such as `z` of spins, as an image of
     its lattice under `<path>/<name>`, with a space-time image under `<path>/space_time/<name>` in one dimension. A
@@ -50,7 +50,7 @@ class ExpectationVisual(ImageVisual):
     """
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
-        """Log the local expectations of a quantum element or group at one frame.
+        """Log the local expectations of an operator element or group at one frame.
 
         Args:
             recording:
@@ -63,7 +63,7 @@ class ExpectationVisual(ImageVisual):
                 The frame.
         """
         problem = frame.problem
-        if not isinstance(problem, QuantumProblemSpec):
+        if not isinstance(problem, OperatorProblemSpec):
             return
         values = self._local_values(problem, element.path, frame.state)
         shape = self._shape_of(element)
@@ -78,7 +78,7 @@ class ExpectationVisual(ImageVisual):
             self._log_image(recording, path, array.reshape(shape if shape[0] > 0 else (-1,)), cyclic=False)
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return the space-time and image views of a quantum group or particle, or a series view of an element.
+        """Return the space-time and image views of an operator group or particle, or a series view of an element.
 
         Args:
             element:
@@ -111,49 +111,49 @@ class ExpectationVisual(ImageVisual):
         return str(ExpectationVisual._view_of(element).display)
 
     @staticmethod
-    def _view_of(element: CompiledElementSpec) -> QuantumViewSpec:
-        """Return the quantum view of a compiled element, of its first member for a group.
+    def _view_of(element: CompiledElementSpec) -> OperatorViewSpec:
+        """Return the operator view of a compiled element, of its first member for a group.
 
         Args:
             element:
-                The compiled quantum element or group.
+                The compiled operator element or group.
 
         Returns:
             view:
-                The quantum view of the element or of its first member.
+                The operator view of the element or of its first member.
 
         Raises:
             ValidationError:
                 The element is neither an element nor a group of elements.
         """
-        member = QuantumCompiler._member_of(element.element)
+        member = OperatorCompiler._member_of(element.element)
         if member is None:
-            error_msg = f'{element.path} is neither a quantum element nor a group of them.'
+            error_msg = f'{element.path} is neither an operator element nor a group of them.'
             raise ValidationError(error_msg)
-        return QuantumCompiler._view_of(member)
+        return OperatorCompiler._view_of(member)
 
     @staticmethod
     def _shape_of(element: CompiledElementSpec) -> tuple[int, ...] | None:
-        """Return the lattice shape of the local values of a quantum group or particle, or `None` for scalar values."""
+        """Return the lattice shape of the local values of an operator group or particle, or `None` for scalars."""
         space = getattr(element.element, 'space', None)
         if element.members is None and ExpectationVisual._view_of(element).display is not None:
             return None
         return space.shape_ if isinstance(space, LatticeSpace) else (int(element.members or 0) or -1,)
 
     @staticmethod
-    def _probabilities(problem: QuantumProblemSpec, x: Array) -> npt.NDArray[np.float64]:
+    def _probabilities(problem: OperatorProblemSpec, x: Array) -> npt.NDArray[np.float64]:
         """Return the probability of every basis state of the whole space."""
         state = problem._state_of(x)
         return np.abs(state) ** 2 if problem.pure else np.real(np.diagonal(state))
 
     @staticmethod
-    def _local_matrices(problem: QuantumProblemSpec, path: str, name: str) -> list[sp.csr_array]:
+    def _local_matrices(problem: OperatorProblemSpec, path: str, name: str) -> list[sp.csr_array]:
         """Return the matrices on the whole space of one local operator of every member of an element or group."""
         cached = problem.cache.get(f'{path}:{name}')
         if cached is None:
             lowering = problem.lowering
             if lowering is None:
-                error_msg = f'The quantum problem holds no lowering of the operators of {path}.'
+                error_msg = f'The operator problem holds no lowering of the operators of {path}.'
                 raise ValidationError(error_msg)
             subsystems = [
                 item for key, item in lowering.subsystems.items() if key == path or key.startswith(f'{path}[')
@@ -163,8 +163,8 @@ class ExpectationVisual(ImageVisual):
         return cached
 
     @staticmethod
-    def _local_values(problem: QuantumProblemSpec, path: str, x: Array) -> dict[str, npt.NDArray[np.float64] | float]:
-        """Return the local expectations of a quantum element or group at a state, which the visual draws.
+    def _local_values(problem: OperatorProblemSpec, path: str, x: Array) -> dict[str, npt.NDArray[np.float64] | float]:
+        """Return the local expectations of an operator element or group at a state, which the visual draws.
 
         A group gives the expectation of the displayed local operator of every member. A single element without a
         displayed operator, such as a particle on sites, gives the probability of every basis state, and one with it
@@ -172,7 +172,7 @@ class ExpectationVisual(ImageVisual):
 
         Args:
             problem:
-                The quantum problem.
+                The operator problem.
 
             path:
                 The path of the element or group.
@@ -193,14 +193,16 @@ class ExpectationVisual(ImageVisual):
             return {'probability': shaped.sum(axis=others)}
         if element.members is not None and display is not None:
             matrices = ExpectationVisual._local_matrices(problem, path, display)
-            terms = [QuantumKernel(matrix, SR(1)).check().prepare() for matrix in matrices]
+            terms = [OperatorKernel(matrix, SR(1)).check().prepare() for matrix in matrices]
             values = [problem._expect([term], 0.0, x, np.zeros(0)) for term in terms]
             return {display: np.real(np.asarray(values))}
         names = [
             name for name, local in ExpectationVisual._view_of(element).local_operators().items() if local.hermitian
         ]
         return {
-            name: float(np.real(problem._expect([QuantumKernel(matrix, SR(1)).check().prepare()], 0.0, x, np.zeros(0))))
+            name: float(
+                np.real(problem._expect([OperatorKernel(matrix, SR(1)).check().prepare()], 0.0, x, np.zeros(0))),
+            )
             for name in names
             for matrix in ExpectationVisual._local_matrices(problem, path, name)
         }

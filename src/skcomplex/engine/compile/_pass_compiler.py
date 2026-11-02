@@ -73,7 +73,7 @@ from .passes._fractional_form import FractionalFormPass
 from .passes._lattices import LatticeProblemPass
 from .passes._layout import LayoutPass
 from .passes._noise import NoisePass
-from .passes._quantum_compiler import QuantumCompiler
+from .passes._operator_compiler import OperatorCompiler
 from .passes._reduction_lowering import ReductionLowering
 
 _COVARIANCE_TOLERANCE = 1e-12
@@ -420,8 +420,8 @@ class PassCompiler(BaseCompiler):
         except SkcomplexError as error:
             fix = 'Pass elements, groups, interactions, and systems as children.'
             return None, [self._issue_of(error, system.label, 'structure', fix)]
-        if QuantumCompiler._contains_quantum(system):
-            return compilation, [self._compiler_issue(system, 'QuantumCompiler')]
+        if OperatorCompiler._contains_operator(system):
+            return compilation, [self._compiler_issue(system, 'OperatorCompiler')]
         held = _held_observables(system, Compilation._required(compilation.nodes, 'nodes'))
         if held:
             tree, paths = _with_held_observables(system, held)
