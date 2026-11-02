@@ -12,6 +12,7 @@ from ._car_wash_operation import CarWashOperationInteraction
 from ._cobweb import CobwebInteraction, cobweb
 from ._commodities import CommodityMarketElement, commodity_cycle
 from ._cournot_adjustment import CournotAdjustmentInteraction
+from ._cournot_best_response import CournotBestResponseElement
 from ._customer import CustomerElement
 from ._double_auction import double_auction
 from ._duopolist import DuopolistElement
@@ -31,8 +32,12 @@ from ._inventory import CarDealershipElement, car_dealer
 from ._jobseeker import JobseekerElement
 from ._labour import hire, labour_market
 from ._market import MarketElement
+from ._oligopoly import oligopoly_equilibria
 from ._perishables import perishable_goods_duopoly
+from ._price_point import PricePointElement
 from ._prices import QuadraticSupplyMarketElement, riccati_prices
+from ._pricing_firm import PricingFirmElement
+from ._pricing_game_spec import PricingGameSpec
 from ._produce import produce_market
 from ._product import ProductElement
 from ._queues import car_wash
@@ -65,6 +70,7 @@ __all__: list[str] = [
     'CommodityMarketElement',
     'ConsumerElement',
     'CournotAdjustmentInteraction',
+    'CournotBestResponseElement',
     'CustomerElement',
     'DuopolistElement',
     'EchelonElement',
@@ -77,6 +83,9 @@ __all__: list[str] = [
     'HeuristicTraderElement',
     'JobseekerElement',
     'MarketElement',
+    'PricePointElement',
+    'PricingFirmElement',
+    'PricingGameSpec',
     'ProductElement',
     'QuadraticSupplyMarketElement',
     'ResidentElement',
@@ -108,6 +117,7 @@ __all__: list[str] = [
     'labour_market',
     'marginal_rate',
     'maximum_surplus',
+    'oligopoly_equilibria',
     'perishable_goods_duopoly',
     'produce_market',
     'riccati_prices',
