@@ -2,6 +2,8 @@
 
 from ._active_particle import ActiveParticleElement
 from ._alignment import PolarAlignmentInteraction, aligning_active_brownian_particles
+from ._angular_alignment import AngularAlignmentInteraction
+from ._angular_diffusion import AngularDiffusionInteraction
 from ._binary_collisions import BinaryCollisionsInteraction
 from ._chemotaxis import ChemotaxisElement, keller_segel
 from ._cohesive_particle import CohesiveParticleElement
@@ -15,6 +17,7 @@ from ._flocker_view import FlockerView
 from ._flocks import ginelli_nematics, gregoire_chate, vicsek
 from ._gels import active_viscoelastic_gel
 from ._heading_alignment import HeadingAlignmentInteraction
+from ._kinetic_flocks import bertin_droz_gregoire
 from ._model_b import ActiveScalarElement, active_model_b
 from ._nematic_particle import NematicParticleElement
 from ._nonreciprocal import NonreciprocalMoverElement, nonreciprocal_vicsek
@@ -37,6 +40,8 @@ from ._vicsek_particle import VicsekParticleElement
 __all__: list[str] = [
     'ActiveParticleElement',
     'ActiveScalarElement',
+    'AngularAlignmentInteraction',
+    'AngularDiffusionInteraction',
     'BinaryCollisionsInteraction',
     'ChemotaxisElement',
     'CohesiveParticleElement',
@@ -62,6 +67,7 @@ __all__: list[str] = [
     'active_ornstein_uhlenbeck_particles',
     'active_viscoelastic_gel',
     'aligning_active_brownian_particles',
+    'bertin_droz_gregoire',
     'binary_collision_flocking',
     'chiral_active_particles',
     'cucker_smale_flocking',

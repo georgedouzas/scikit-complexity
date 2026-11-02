@@ -11,14 +11,15 @@ class EncounterJacobianPass(BasePass):
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
-        return ('jacobian', 'encounters')
+        return ('jacobian', 'encounters', 'volumes')
 
     def _get_writes(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass writes."""
         return ('jacobian',)
 
     def _run(self, inputs: object = None) -> None:
-        """Drop the Jacobian of a problem with encounter laws."""
+        """Drop the Jacobian of a problem with encounter laws or fluxes that read nonlocal values."""
         compilation = self.compilation_
-        if compilation.encounters:
+        nonlocal_fluxes = any(read is not None for volume in compilation.volumes or () for read in volume.reads)
+        if compilation.encounters or nonlocal_fluxes:
             compilation.jacobian = None

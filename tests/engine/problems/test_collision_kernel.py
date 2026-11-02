@@ -8,7 +8,7 @@ import numpy.typing as npt
 import pytest
 from scipy.interpolate import RegularGridInterpolator
 
-from skcomplex.engine.problems._collision_kernel import CollisionKernel
+from skcomplex.engine.problems import CollisionKernel
 from skcomplex.errors import ValidationError
 from skcomplex.specs import RunStateSpec
 

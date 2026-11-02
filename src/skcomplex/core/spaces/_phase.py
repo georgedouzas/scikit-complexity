@@ -49,6 +49,9 @@ class PhaseSpace(LatticeSpace):
         position_size_:
             The number of positions.
 
+        axes_periodic_:
+            Whether the edges of every axis of the product are joined.
+
     Raises:
         PhaseSpaceTooLargeError:
             The product has more sites than the limit.
@@ -117,7 +120,8 @@ class PhaseSpace(LatticeSpace):
             for axis, width in zip(self.axes, widths, strict=True)
         }
         self.positions_ = np.indices(self.shape_).reshape(self.n_dim_, -1).T * np.asarray(self.spacings_)
-        self.periodic_ = all(self._axis_boundary(axis) == 'periodic' for axis in range(self.n_dim_))
+        self.axes_periodic_ = tuple(self._axis_boundary(axis) == 'periodic' for axis in range(self.n_dim_))
+        self.periodic_ = all(self.axes_periodic_)
         self.default_visual_ = 'image'
 
     def _axis_boundary(self, axis: int) -> str:

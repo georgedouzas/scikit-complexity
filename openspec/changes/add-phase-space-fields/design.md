@@ -200,7 +200,7 @@ The compiler reports:
 
 ### Visualization
 
-`ImageVisual` gains `slice`, a mapping from axis to a fixed index for every axis but two, so a phase-space field logs
+`ImageVisual` gains `slices`, a mapping from axis to a fixed index for every axis but two, so a phase-space field logs
 its position-velocity plane, and `moments`, the orders of the moments over the class axes it logs as series over a
 one-dimensional position lattice or as images over a two-dimensional one.
 

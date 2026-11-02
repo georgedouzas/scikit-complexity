@@ -36,19 +36,19 @@
   on `scipy.fft` shifts and `scipy.ndimage.map_coordinates`, and verify the large transport steps and nonlinear flux
   scenarios
 - [x] 4.2 Keep the source rates of `ProblemSpec` apart from the flux differences, add `StrangSplittingSolver` with its `SupportSpec`, and verify the second order splitting scenario
-- [ ] 4.3 Add the `slice` and `moments` arguments of `ImageVisual`, and verify the two-stream viewer scenario with a
+- [x] 4.3 Add the `slices` and `moments` arguments of `ImageVisual`, and verify the two-stream viewer scenario with a
   recording in memory
 
 ## 5. Library and documentation
 
-- [ ] 5.1 Add `BhatnagarGrossKrookInteraction` and the Boltzmann, BGK, Vlasov-Poisson, and local Enskog factories to
+- [x] 5.1 Add `BhatnagarGrossKrookInteraction` and the Boltzmann, BGK, Vlasov-Poisson, and local Enskog factories to
   `physics/fluids`, and verify the Sod shock tube and Landau damping model scenarios and the conformance suite
-- [ ] 5.2 Add `AngularAlignmentInteraction`, `AngularDiffusionInteraction`, and the Bertin-Droz-Grégoire factory to
+- [x] 5.2 Add `AngularAlignmentInteraction`, `AngularDiffusionInteraction`, and the Bertin-Droz-Grégoire factory to
   `physics/active_matter`, and verify the flocking onset scenario and the conformance suite
-- [ ] 5.3 Move `boltzmann_equation`, `bgk_equation`, `vlasov_equation`, `enskog`, and `bertin_droz_gregoire` from
+- [x] 5.3 Move `boltzmann_equation`, `bgk_equation`, `vlasov_equation`, `enskog`, and `bertin_droz_gregoire` from
   `blocked add-phase-space-fields` to implemented in `docs/overview/inventory.toml`, and verify the inventory check
   passes
-- [ ] 5.4 Document phase spaces, coordinates, moments, encounters, equilibria, collisions, mean fields, and the solvers
+- [x] 5.4 Document phase spaces, coordinates, moments, encounters, equilibria, collisions, mean fields, and the solvers
   in the user guide, with the library survey's outcome, add a changelog entry, and verify the documentation build runs
   the examples
 

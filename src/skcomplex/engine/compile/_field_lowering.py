@@ -35,8 +35,14 @@ from ...errors import ValidationError
 from ...specs import NeighborReadSpec, RunStateSpec
 from ...types import Indices, IntTuple
 from .._utils import domain_of, symbol
-from ..problems import DeclarationsSpec, DiffusiveLimitSpec, ExpressionPrinter, KernelSpec, ReferenceSpec
-from ..problems._collision_kernel import CollisionKernel
+from ..problems import (
+    CollisionKernel,
+    DeclarationsSpec,
+    DiffusiveLimitSpec,
+    ExpressionPrinter,
+    KernelSpec,
+    ReferenceSpec,
+)
 from ..problems._field_operator_kernel import FieldOperatorKernel
 from ..problems._law_kernel import LATTICE_BOUNDARIES, MODES
 from ..types import ReadKind
@@ -329,8 +335,8 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         if not isinstance(space, PhaseSpace) or isinstance(offset, int):
             return MODES[kind]
         kinds = {
-            kind if axis < len(space.position_axes_) else ('periodic' if edges == 'periodic' else 'zero-flux')
-            for axis, edges in enumerate(space._axis_boundary(axis) for axis in range(space.n_dim_))
+            kind if axis in space.position_axes_ else ('periodic' if space.axes_periodic_[axis] else 'zero-flux')
+            for axis in range(space.n_dim_)
             if offset[axis]
         }
         return MODES[kinds.pop() if kinds else kind] if len(kinds) < PLANE else None

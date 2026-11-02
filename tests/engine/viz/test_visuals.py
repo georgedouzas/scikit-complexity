@@ -9,6 +9,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.problems import FrameSpec
 from skcomplex.engine.runtime import BaseObserver, Simulation
 from skcomplex.engine.viz import AgentsVisual, ImageVisual, PointsVisual, ScalarsVisual
+from skcomplex.errors import ValidationError
 from skcomplex.models import create
 from skcomplex.models.physics.statistical_mechanics import XYSpinElement
 from skcomplex.specs import AgentSnapshotSpec
@@ -355,3 +356,40 @@ def test_colors_start_bright_enough_to_see_on_black():
     darkest = logs.of('bodies')[0].colors.as_arrow_array().to_pylist()[0]
     red, green, blue = (darkest >> 24) & 0xFF, (darkest >> 16) & 0xFF, (darkest >> 8) & 0xFF
     assert max(red, green, blue) >= 120
+
+
+def test_image_visual_logs_position_velocity_image_and_density_of_two_stream():
+    """Test that a two-stream model logs its position-velocity image and its density over position every frame."""
+    system = create('vlasov_equation', positions=8, velocities=16, setup='two-stream')
+    problem, frames = _frames(system, steps=3, dt=0.1)
+    logs = Logs()
+    visual = ImageVisual(moments=(0,), history=0, path='gas', recording=logs).check().prepare(problem)
+    for frame in frames:
+        visual.run(frame)
+    images = logs.of('gas/f')
+    assert [_format(image) for image in images] == [(16, 8)] * len(frames)
+    densities = logs.of('gas/f/moment_0')
+    assert [type(item).__name__ for item in densities] == ['BarChart'] * len(frames)
+    assert len(densities[-1].values.as_arrow_array().to_pylist()[0]['buffer']) == 8
+    assert [str(view.origin) for view in visual.views_] == ['gas/f/moment_0', 'gas/f']
+
+
+def test_image_visual_logs_a_plane_of_a_phase_space():
+    """Test that a phase space of three axes logs the plane its slices leave."""
+    system = create('boltzmann_equation', positions=4, velocities=8)
+    problem, frame = _first_frame(system)
+    logs = Logs()
+    visual = ImageVisual(slices={'vy': 2}, moments=(0,), path='gas', recording=logs).check().prepare(problem)
+    visual.run(frame)
+    assert [_format(image) for image in logs.of('gas/f')] == [(8, 4)]
+    assert len(logs.of('gas/f/moment_0')) == 1
+
+
+def test_image_visual_rejects_slices_that_leave_other_than_two_axes():
+    """Test that slices must leave two axes, and that they need a phase space."""
+    problem, _ = _first_frame(create('boltzmann_equation', positions=4, velocities=8))
+    with pytest.raises(ValidationError, match='every axis but two'):
+        ImageVisual(slices={'vx': 1, 'vy': 2}, path='gas').check().prepare(problem)
+    problem, _ = _first_frame(create('gray_scott', shape=(4, 4)))
+    with pytest.raises(ValidationError, match='phase space'):
+        ImageVisual(slices={0: 1}, path=problem.elements[0].path).check().prepare(problem)

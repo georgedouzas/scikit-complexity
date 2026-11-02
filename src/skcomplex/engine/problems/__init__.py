@@ -3,6 +3,7 @@
 from ._base import BaseKernel, BasePrinter, BaseSearch
 from ._base_problem_spec import BaseProblemSpec
 from ._block_spec import BlockSpec
+from ._collision_kernel import CollisionKernel
 from ._compiled_request_spec import CompiledRequestSpec
 from ._declarations_spec import DeclarationsSpec
 from ._diffusive_limit_spec import DiffusiveLimitSpec
@@ -33,6 +34,7 @@ __all__: list[str] = [
     'BaseProblemSpec',
     'BaseSearch',
     'BlockSpec',
+    'CollisionKernel',
     'CompiledRequestSpec',
     'DeclarationsSpec',
     'DiffusiveLimitSpec',

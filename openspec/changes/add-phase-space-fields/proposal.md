@@ -51,7 +51,7 @@ both. Concretely the change adds:
   with its `SupportSpec`.
 - Report through the compile report a phase space larger than its size limit, a `coordinate` or a `moment` over axes
   in a law whose group is not on a `PhaseSpace`, and a collision law on a phase space without continuous class axes.
-- Let `ImageVisual` take a `slice` of two axes and log moments over position, so a phase-space field streams to Rerun
+- Let `ImageVisual` take `slices` of two axes and log moments over position, so a phase-space field streams to Rerun
   as its position-velocity image.
 - Add library models built on these classes: the Boltzmann, BGK, Vlasov-Poisson, and local Enskog equations in
   `physics/fluids`, with `BhatnagarGrossKrookInteraction`, a `RelaxationInteraction` towards the maximum-entropy
@@ -79,7 +79,7 @@ both. Concretely the change adds:
 - `skcomplex.engine.compile` and `skcomplex.engine.problems` lower coordinates, partial moments, per-position
   encounters, the maximum-entropy equilibrium, and collision kernels for the NumPy and Numba backends.
   `skcomplex.engine.solvers` gains `SemiLagrangianSolver` and `StrangSplittingSolver`, and `skcomplex.engine.viz`
-  gains the `slice` and `moments` arguments of `ImageVisual`.
+  gains the `slices` and `moments` arguments of `ImageVisual`.
 - No new runtime dependency: transport and collisions use `scipy.fft` and `scipy.ndimage`, which the project already
   declares. The design records the libraries surveyed and why each was not wrapped.
 - `skcomplex.models.physics.fluids` and `skcomplex.models.physics.active_matter` gain the models, and the inventory

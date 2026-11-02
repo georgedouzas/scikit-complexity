@@ -22,6 +22,7 @@ from skcomplex.core.laws.utils import (
 )
 from skcomplex.core.spaces import LatticeSpace, PhaseSpace
 from skcomplex.core.system import System
+from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import PassCompiler
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
@@ -65,6 +66,21 @@ def test_coordinate_lowering_gives_maxwellian_start_unit_density() -> None:
     simulation = Simulation(System(elements=[field]), dt=0.1, observables=observables).check().prepare()
     values = np.asarray(simulation.run(until=0.1).trajectory_.values('rho'))
     assert np.abs(values - 1.0).max() < 1e-6
+
+
+@pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
+def test_coordinate_lowers_on_numpy_and_numba(backend: object) -> None:
+    """Stream by the same stencils and rates that read a coordinate on the NumPy and the Numba backends."""
+    space = PhaseSpace(LatticeSpace((8,), spacing=0.5), [AxisSpec('v', 4, -1.0, 1.0)]).check().prepare()
+    start = np.outer(2.0 + np.sin(np.arange(8)), np.ones(4))
+    gas = FieldElement('gas', element=DensityElement, space=space, values={'f': start})
+    stream = AdvectionInteraction('s', target='gas', state='f', drift=lambda _: [coordinate('v'), 0], riemann=None)
+    grow = RateInteraction('g', target='gas', state='f', rate=lambda s: coordinate('v') * s.target.f)
+    system = System(elements=[gas], interactions=[stream, grow])
+    simulation = Simulation(system, backend=backend, solver=RK4Solver(dt=0.01)).check().prepare()
+    final = simulation.run(until=0.1).trajectory_.values('gas.f')[-1].reshape(8, 4)
+    grown = np.exp(0.1 * space.coordinates_['v'])
+    assert final.sum(axis=0) == pytest.approx(start.sum(axis=0) * grown, rel=1e-3)
 
 
 def test_coordinate_outside_phase_space_is_a_law_space_issue() -> None:
