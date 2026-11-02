@@ -34,7 +34,7 @@
 
 ## 4. Library
 
-- [ ] 4.1 Add `LandauDeGennesEnergyInteraction` and `dry_active_nematics` to `skcomplex.models.physics.active_matter`,
+- [x] 4.1 Add `LandauDeGennesEnergyInteraction` and `dry_active_nematics` to `skcomplex.models.physics.active_matter`,
   and verify the density conservation scenario and the conformance suite
 - [ ] 4.2 Add `active_gels` with the nematic and polar orders, and verify the passive nematic order, active turbulence,
   and spontaneous flow scenarios and the conformance suite

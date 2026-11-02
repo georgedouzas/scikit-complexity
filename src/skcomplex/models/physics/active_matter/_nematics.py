@@ -1,0 +1,289 @@
+"""Active liquid crystals: a dry active nematic and active nematic and polar gels."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Sequence
+from types import SimpleNamespace
+
+import numpy as np
+from sage.all__sagemath_symbolics import Expression
+from sage.modules.free_module_element import FreeModuleElement
+
+from ....core.elements import FieldElement
+from ....core.interactions import ConservationInteraction
+from ....core.laws.utils import gradient, tensor_divergence
+from ....core.spaces import LatticeSpace
+from ....core.system import System
+from ....engine.backends import NumbaBackend
+from ....engine.solvers import RK4Solver
+from ....errors import ValidationError
+from ....specs import ObservableSpec
+from ..._catalog import register_model
+from ._landau_de_gennes_energy import LandauDeGennesEnergyInteraction
+from ._nematic_density_site import NematicDensitySiteElement
+from ._nematic_gel_site import NematicGelSiteElement
+from ._polar_gel_site import PolarGelSiteElement
+
+GEL_ORDERS = ('nematic', 'polar')
+
+
+def _gel_velocity(s: SimpleNamespace) -> FreeModuleElement:
+    """Return the velocity of the flow of a gel at a site, for the order the namespace holds."""
+    return PolarGelSiteElement._velocity(s) if hasattr(s, 'p') else NematicGelSiteElement._velocity(s)
+
+
+def _velocity_x(s: SimpleNamespace) -> Expression:
+    """Return the velocity along the first axis at a site."""
+    return _gel_velocity(s)[0]
+
+
+def _velocity_y(s: SimpleNamespace) -> Expression:
+    """Return the velocity along the second axis at a site."""
+    return _gel_velocity(s)[1]
+
+
+def _sites(values: np.ndarray) -> np.ndarray:
+    """Return the values of every site, the observed field itself."""
+    return np.array(values)
+
+
+@register_model(
+    field='physics/active_matter',
+    tags=('field', 'active matter', 'nematic', 'tensor', 'liquid crystal', 'giant number fluctuations', 'pde'),
+    references=('Marchetti et al. 2013', 'arXiv:1207.2929'),
+    defaults={'until': 100.0, 'dt': 5.0, 'solver': RK4Solver(dt=0.02), 'backend': NumbaBackend()},
+)
+def dry_active_nematics(
+    shape: Sequence[int] = (64, 64),
+    *,
+    density: float = 1.5,
+    critical_density: float = 1.0,
+    a: float = 1.0,
+    c: float = 2.0,
+    K: float = 1.0,
+    gamma: float = 1.0,
+    D: float = 0.5,
+    current: float = 0.5,
+    beta: float = 0.5,
+    perturbation: float = 0.01,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return a dry active nematic, a conserved density coupled to a symmetric traceless alignment tensor.
+
+    On a periodic lattice the density and the tensor follow Section II.2 of Marchetti et al.,
+
+        rho_t = -div(J),    J = -D grad(rho) - current div(Q),
+        Q_t = H / gamma + beta (partial_i partial_j rho - delta_ij laplacian(rho) / 2),
+
+    with the molecular field `H` of the Landau-de Gennes energy, whose coefficient `a (1 - rho / rho_c)` turns negative
+    above the critical density `rho_c`. The current along `div(Q)` is the active current, which no free energy gives.
+
+    Args:
+        shape:
+            The number of sites along every axis of the periodic lattice.
+
+        density:
+            The mean density, which the dynamics conserve.
+
+        critical_density:
+            The density at which the isotropic state loses stability.
+
+        a:
+            The scale of the coefficient of `tr(Q^2) / 2` of the energy.
+
+        c:
+            The coefficient of `tr(Q^2)^2 / 4` of the energy.
+
+        K:
+            The elastic constant.
+
+        gamma:
+            The rotational viscosity.
+
+        D:
+            The diffusion coefficient of the density.
+
+        current:
+            The coefficient of the active current along `div(Q)`.
+
+        beta:
+            The coupling of the tensor to the curvature of the density.
+
+        perturbation:
+            The standard deviation of the initial noise of the density and the tensor.
+
+        random_state:
+            The seed or generator of the initial noise.
+
+    Returns:
+        system:
+            The model, with the fields `nematic.rho` and `nematic.Q`.
+
+    Examples:
+        >>> from skcomplex.models.physics.active_matter import dry_active_nematics
+        >>> dry_active_nematics((8, 8)).elements[0].values['beta']
+        0.5
+    """
+    shape = tuple(shape)
+    rng = np.random.default_rng(random_state)
+    sites = int(np.prod(shape))
+    values = {
+        'rho': density + perturbation * rng.standard_normal(sites),
+        'Q': perturbation * rng.standard_normal((sites, 2)),
+        'beta': beta,
+    }
+    nematic = FieldElement('nematic', element=NematicDensitySiteElement, space=LatticeSpace(shape), values=values)
+    energy = LandauDeGennesEnergyInteraction(
+        'energy',
+        target='nematic',
+        a=a,
+        c=c,
+        K=K,
+        gamma=gamma,
+        quadratic=lambda s: s.a * (1 - s.target.rho / critical_density),
+    )
+
+    def flux(s: SimpleNamespace) -> list[Expression]:
+        """Return the current of the density, its diffusion and its active current."""
+        active = tensor_divergence(s.target.Q)
+        return [-D * item - current * other for item, other in zip(gradient(s.target.rho), active, strict=True)]
+
+    transport = ConservationInteraction(
+        'transport',
+        target='nematic',
+        state='rho',
+        flux=flux,
+        limiter=None,
+        riemann=None,
+    )
+    return System(elements=[nematic], interactions=[energy, transport])
+
+
+@register_model(
+    field='physics/active_matter',
+    tags=('field', 'active matter', 'nematic', 'polar', 'tensor', 'gel', 'stokes flow', 'active turbulence', 'pde'),
+    references=('Marchetti et al. 2013', 'arXiv:1207.2929', 'Kruse et al. 2005', 'Voituriez, Joanny, and Prost 2005'),
+    defaults={'until': 200.0, 'dt': 1.0, 'solver': RK4Solver(dt=0.05)},
+    observables=lambda system: [
+        ObservableSpec('u_x', _velocity_x, group='gel', reduce=_sites),
+        ObservableSpec('u_y', _velocity_y, group='gel', reduce=_sites),
+    ],
+)
+def active_gels(
+    shape: Sequence[int] = (32, 32),
+    *,
+    order: str = 'nematic',
+    spacing: float = 1.0,
+    a: float = -1.0,
+    c: float | None = None,
+    K: float = 1.0,
+    xi: float = 0.0,
+    gamma: float = 1.0,
+    eta: float = 1.0,
+    zeta: float | None = None,
+    film: bool = False,
+    perturbation: float = 0.01,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return an active gel, a nematic tensor or a polarisation transported in the Stokes flow of its own stresses.
+
+    On a periodic lattice with spectral operators, the order parameter follows its co-rotational derivative in the flow,
+    Section III of Marchetti et al. The flow solves the overdamped Stokes equation of the elastic stress and the active
+    stress, `-zeta Q` for the nematic and `-zeta p p` for the polar gel, and the elastic energy relaxes the order. An
+    extensile nematic, `zeta > 0`, is unstable to bend, and a contractile polar gel, `zeta < 0`, is unstable to splay
+    above a threshold.
+
+    The nematic starts from the tensor along the first axis at the order `sqrt(-2 a / c)`, and the polar gel from the
+    polarisation along the first axis at the length `sqrt(-a / c)`, both with noise. With `film=True` the polarisation
+    along the second axis is odd about the sites 0 and `shape[1] / 2` of the second axis, and the other one even, which
+    holds the polarisation along the first axis at these two walls, with stress-free flow there.
+
+    Args:
+        shape:
+            The number of sites along every axis of the periodic lattice, in two dimensions.
+
+        order:
+            `'nematic'` or `'polar'`.
+
+        spacing:
+            The distance between neighbouring sites.
+
+        a:
+            The coefficient of the quadratic energy, negative in the ordered phase.
+
+        c:
+            The coefficient of the quartic energy, or `None` for 2 for the nematic and 1 for the polar gel.
+
+        K:
+            The elastic constant.
+
+        xi:
+            The flow-alignment parameter.
+
+        gamma:
+            The rotational viscosity.
+
+        eta:
+            The viscosity of the flow.
+
+        zeta:
+            The activity, or `None` for 0.5 for the nematic and -0.5 for the polar gel.
+
+        film:
+            Whether the polar gel lies between walls of fixed polarisation.
+
+        perturbation:
+            The standard deviation of the initial noise of the order parameter.
+
+        random_state:
+            The seed or generator of the initial noise.
+
+    Returns:
+        system:
+            The model, with the field `gel.Q` or `gel.p`.
+
+    Raises:
+        ValidationError:
+            The order is unknown, or a nematic is asked to lie in a film.
+
+    Examples:
+        >>> from skcomplex.models.physics.active_matter import active_gels
+        >>> active_gels((8, 8), order='polar').elements[0].values['zeta']
+        -0.5
+    """
+    if order not in GEL_ORDERS:
+        error_msg = f'The order of the gel is {order!r}. Use one of {", ".join(GEL_ORDERS)}.'
+        raise ValidationError(error_msg)
+    if film and order != 'polar':
+        error_msg = 'A film of the gel holds a polarisation at its walls. Use order=polar.'
+        raise ValidationError(error_msg)
+    shape = tuple(shape)
+    sites = int(np.prod(shape))
+    rng = np.random.default_rng(random_state)
+    polar = order == 'polar'
+    cubic = (1.0 if polar else 2.0) if c is None else c
+    activity = (-0.5 if polar else 0.5) if zeta is None else zeta
+    noise = perturbation * rng.standard_normal((sites, 2))
+    size = np.sqrt(-a / cubic) if polar else np.sqrt(-2 * a / cubic) / 2
+    start = np.column_stack([np.full(sites, size), np.zeros(sites)]) + noise if a < 0 else noise
+    values = {
+        'p' if polar else 'Q': start,
+        'a': a,
+        'c': cubic,
+        'K': K,
+        'xi': xi,
+        'gamma': gamma,
+        'eta': eta,
+        'zeta': activity,
+    }
+    symmetry = {'p': ((None, 'even'), (None, 'odd'))} if film else None
+    gel = FieldElement(
+        'gel',
+        element=PolarGelSiteElement if polar else NematicGelSiteElement,
+        space=LatticeSpace(shape, spacing=spacing),
+        values=values,
+        discretization='spectral',
+        symmetry=symmetry,
+    )
+    return System(elements=[gel])

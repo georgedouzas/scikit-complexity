@@ -17,9 +17,16 @@ from ._flocker_view import FlockerView
 from ._flocks import ginelli_nematics, gregoire_chate, vicsek
 from ._gels import active_viscoelastic_gel
 from ._heading_alignment import HeadingAlignmentInteraction
+<<<<<<< HEAD
 from ._kinetic_flocks import bertin_droz_gregoire
+=======
+from ._landau_de_gennes_energy import LandauDeGennesEnergyInteraction
+>>>>>>> 4abcf74 (feat: Add the dry active nematic and the active nematic and polar gels)
 from ._model_b import ActiveScalarElement, active_model_b
+from ._nematic_density_site import NematicDensitySiteElement
+from ._nematic_gel_site import NematicGelSiteElement
 from ._nematic_particle import NematicParticleElement
+from ._nematics import active_gels, dry_active_nematics
 from ._nonreciprocal import NonreciprocalMoverElement, nonreciprocal_vicsek
 from ._ornstein_uhlenbeck_particle import OrnsteinUhlenbeckParticleElement
 from ._particles import (
@@ -31,6 +38,7 @@ from ._particles import (
 )
 from ._phoretic_attraction import PhoreticAttractionInteraction
 from ._polar_fluid import PolarFluidElement
+from ._polar_gel_site import PolarGelSiteElement
 from ._propulsion_step import PropulsionStepInteraction
 from ._self_propulsion import SelfPropulsionInteraction
 from ._tumbler import TumblerElement
@@ -51,18 +59,23 @@ __all__: list[str] = [
     'FlockerElement',
     'FlockerView',
     'HeadingAlignmentInteraction',
+    'LandauDeGennesEnergyInteraction',
+    'NematicDensitySiteElement',
+    'NematicGelSiteElement',
     'NematicParticleElement',
     'NonreciprocalMoverElement',
     'OrnsteinUhlenbeckParticleElement',
     'PhoreticAttractionInteraction',
     'PolarAlignmentInteraction',
     'PolarFluidElement',
+    'PolarGelSiteElement',
     'PropulsionStepInteraction',
     'SelfPropulsionInteraction',
     'TumblerElement',
     'TumblerView',
     'VicsekParticleElement',
     'active_brownian_particles',
+    'active_gels',
     'active_model_b',
     'active_ornstein_uhlenbeck_particles',
     'active_viscoelastic_gel',
@@ -72,6 +85,7 @@ __all__: list[str] = [
     'chiral_active_particles',
     'cucker_smale_flocking',
     'depot_brownian_particles',
+    'dry_active_nematics',
     'ginelli_nematics',
     'gregoire_chate',
     'keller_segel',

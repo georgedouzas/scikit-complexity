@@ -59,7 +59,8 @@ class FieldElement(LatticeElement):
         symmetry:
             A mapping from state name to its parity along every axis of a periodic lattice, `'odd'`, `'even'`, or
             `None`, which the rates keep exactly. A lattice twice as long as a domain along an axis, with states odd
-            or even about its middle, represents walls there, such as the free-slip walls of convection.
+            or even about its middle, represents walls there, such as the free-slip walls of convection. A vector or a
+            tensor state takes one such sequence for its first component, or one sequence per component.
 
     Attributes:
         default_visual_:
@@ -106,7 +107,7 @@ class FieldElement(LatticeElement):
         values: Mapping[str, object] | None = None,
         visual: VisualSpec | None = None,
         discretization: str = 'finite-difference',
-        symmetry: Mapping[str, Sequence[str | None]] | None = None,
+        symmetry: Mapping[str, Sequence[object]] | None = None,
     ) -> None:
         super().__init__(label, element=element, space=space, values=values, visual=visual)
         self.boundary = boundary

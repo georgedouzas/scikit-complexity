@@ -107,5 +107,5 @@ class DefectAnalysis(BaseAnalysis):
         for angles in self.angles_:
             windings = self._windings(angles)
             found = np.argwhere(np.abs(windings) > CHARGE_TOLERANCE)
-            self.positions_.append(found + 0.5)
+            self.positions_.append(np.asarray(found + 0.5, dtype=float))
             self.charges_.append(np.round(windings[tuple(found.T)], 6))

@@ -5,6 +5,7 @@
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
+from typing import cast
 
 import numpy as np
 import numpy.typing as npt
@@ -135,6 +136,16 @@ class FieldFunctionsPass(BasePass):
         return np.concatenate(indices).astype(np.intp), np.concatenate(values)
 
     @staticmethod
+    def _component_parities(symmetry: Mapping[str, Sequence[object]]) -> list[tuple[str, Sequence[str | None], int]]:
+        """Return the state, the parities, and the column of the components with a parity of their own."""
+        found: list[tuple[str, Sequence[str | None], int]] = []
+        for variable, parities in symmetry.items():
+            own = bool(parities) and all(isinstance(item, list | tuple) for item in parities)
+            rows = parities if own else [parities]
+            found += [(variable, cast(Sequence[str | None], row), column) for column, row in enumerate(rows)]
+        return found
+
+    @staticmethod
     def _symmetries(
         blocks: list[BlockSpec],
     ) -> list[SymmetrySpec]:
@@ -148,7 +159,7 @@ class FieldFunctionsPass(BasePass):
             if not isinstance(space, LatticeSpace) or space.boundary != 'periodic':
                 error_msg = f'Field {block.node.path} declares symmetries, which need a periodic lattice.'
                 raise ValidationError(error_msg)
-            for variable, parities in place.symmetry.items():
+            for variable, parities, column in FieldFunctionsPass._component_parities(place.symmetry):
                 entry = block.entries.get(variable)
                 if entry is None or len(parities) != space.n_dim_:
                     error_msg = f'The symmetry of {block.node.path}.{variable} needs a state and one parity per axis.'
@@ -162,7 +173,7 @@ class FieldFunctionsPass(BasePass):
                         raise ValidationError(error_msg)
                     if parity is not None:
                         signs.append((axis, -1 if parity == 'odd' else 1))
-                indices = entry.start + np.arange(place.size_) * entry.columns
+                indices = entry.start + column + np.arange(place.size_) * entry.columns
                 found.append(SymmetrySpec(indices, space.shape_, tuple(signs)))
         return found
 

@@ -1011,11 +1011,11 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         if not isinstance(value, Expression):
             return
         for call in self._operator_calls(value, 'laplacian'):
-            placeholder = symbol('_laplacian_')
-            expression = SR(value.subs({call: placeholder})).diff(placeholder)
             place = self._place(call.operands()[0])
             if place.discretization not in {'finite-difference', 'finite-volume'}:
                 continue
+            placeholder = symbol('_laplacian_')
+            expression = SR(value.subs({call: placeholder})).diff(placeholder)
             space = place.space
             if isinstance(space, NetworkSpace):
                 stiffness = max((item for _, item in space.graph.degree), default=1)

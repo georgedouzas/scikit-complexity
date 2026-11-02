@@ -149,10 +149,15 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
 
     @staticmethod
     def _namespace_of(block: BlockSpec) -> SimpleNamespace:
-        """Return the namespace of the variables of a block, with tuples for per-entry parameters."""
-        return SimpleNamespace(
-            **{name: tuple(value) if name in block.per else value for name, value in block.symbols.items()},
-        )
+        """Return the namespace of the variables of a block, with tuples for per-entry parameters and tensor states."""
+        symbols: dict[str, object] = {}
+        for name, value in block.symbols.items():
+            entry = block.entries.get(name)
+            if entry is not None and entry.tensor is not None:
+                symbols[name] = entry.tensor.matrix_of(value)
+            else:
+                symbols[name] = tuple(value) if name in block.per else value
+        return SimpleNamespace(**symbols)
 
     @staticmethod
     def _reduced_value(path: str, observable: ObservableSpec, block: BlockSpec) -> object:

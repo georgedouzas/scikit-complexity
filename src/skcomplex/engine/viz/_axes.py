@@ -21,8 +21,8 @@ class AxisVisual(BaseVisual):
     """Visual that logs the axes of a tensor state or the arrows of a vector state at every sampled site of a lattice.
 
     A tensor state logs one segment without head per sampled site along its principal axis, and a vector state one arrow
-    per sampled site, under `<path>/<state>/axes`. A scalar state logs its image under `<path>/<state>/image`, so one view
-    shows both. A site at the row and column of the lattice sits at the same pixel of the image.
+    per sampled site, under `<path>/<state>/axes`. A scalar state logs its image under `<path>/<state>/image`, so one
+    view shows both. A site at the row and column of the lattice sits at the same pixel of the image.
 
     Args:
         state:
@@ -93,9 +93,8 @@ class AxisVisual(BaseVisual):
             ValidationError:
                 The state is no tensor or vector state of a two-dimensional lattice.
         """
-        states = getattr(element, 'states', {})
-        name = states.get(self.state)
-        shape = problem.lattice_shape(name) if name is not None else None
+        name = str(getattr(element, 'states', {}).get(self.state))
+        shape = problem.lattice_shape(name)
         if shape is None or len(shape) != IMAGE_RANK or not problem.states.entry(name).member_shape:
             error_msg = f'{self.path}.{self.state} is no tensor or vector state of a two-dimensional lattice.'
             raise ValidationError(error_msg)
