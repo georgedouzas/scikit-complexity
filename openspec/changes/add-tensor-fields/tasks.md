@@ -41,7 +41,7 @@
 - [x] 4.3 Mark `dry_active_nematics` and `active_gels` implemented in `docs/overview/inventory.toml`, add their gallery
   examples under `docs/examples/physics/active_matter`, and verify the inventory check and the gallery coverage check
 - [x] 4.4 Add the changelog entry for tensor states and the new models, and verify the changelog session passes
-- [ ] 4.5 Compute identical field operator applications once per rate evaluation, with the cache cleared at every evaluation; verify the same trajectories within 1e-12 on `double_gyre` and `active_gels` and the reduced number of applications
+- [x] 4.5 Compute identical field operator applications once per rate evaluation, with the cache cleared at every evaluation; verify the same trajectories within 1e-12 on `double_gyre` and `active_gels` and the reduced number of applications
 
 ## 5. Gate
 
