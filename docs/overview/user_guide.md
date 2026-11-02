@@ -2930,7 +2930,8 @@ systems hold numbers only, in the vectors of their solvers.
 tell analyses what a state means. A group is a particle group when a state has the role `'position'`, and the first
 derivative of that state is its velocity. Analyses read positions, directions, phases, and velocities from these roles,
 not from the names of the states, so a state named `phase` is no phase unless it says so. The scalar states of any other
-group count as series, one per member, and a displacement refuses them, since they are no positions. In a continuous
+group count as series, one per member, and a displacement refuses them, since they are no positions. A variable group
+has no fixed members, so its states are series only when named, with NaN in the rows that hold no member. In a continuous
 space, a vector state with the role `'position'` is the place of its element: the boundary acts on it and neighbourhoods
 measure distances from it. `StateSpec(role='site')` does the same for a place that does not make a member a particle,
 such as the fixed sites of oscillators on a ring.

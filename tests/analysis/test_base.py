@@ -257,6 +257,16 @@ def test_series_leave_out_particles_and_jump_paths():
     assert MeanAnalysis().check().prepare(single).series_.labels == ['a.n']
 
 
+@pytest.mark.parametrize('model', ['jain_krishna', 'sequentially_linear_ecosystem'])
+def test_series_leave_out_variable_groups(model):
+    """Test that a variable group has no default series, its rows holding no one member, but can be read by name."""
+    trajectory = run(model, settings={'until': 5.0}).trajectory_
+    with pytest.raises(AnalysisError, match='no scalar series'):
+        MeanAnalysis().check().prepare(trajectory)
+    series = MeanAnalysis(variables=['species.x']).check().prepare(trajectory).series_
+    np.testing.assert_array_equal(series.values, trajectory.values('species.x'))
+
+
 def test_sites_are_read_as_series_and_not_as_particles():
     """Test that oscillators on fixed sites give no particle snapshots, and their sites are no series."""
     trajectory = run('nonlocal_ring_chimera', n_oscillators=20, R=3, settings={'until': 0.5}).trajectory_
