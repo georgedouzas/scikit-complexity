@@ -168,6 +168,7 @@ def test_default_solver_finishes_a_state_resting_on_a_discontinuity():
 def test_default_solver_leaves_lsoda_when_it_stalls(monkeypatch):
     """Test that a stall moves the default method on to RK45, and raises an error on an explicit LSODA."""
     monkeypatch.setattr(_scipy_ode, '_STALL_STEP', math.inf)
+    monkeypatch.setattr(_scipy_ode, '_STALL_STEPS', 1)
     with pytest.warns(UserWarning, match='LSODA stalled'):
         simulation = Simulation(_tubs(), dt=1).check().prepare().run(until=6)
     assert simulation.stepper_.method_ == 'RK45'
