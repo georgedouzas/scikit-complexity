@@ -754,6 +754,22 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             f'{INDENT * 2}p[{start} + _i_] = _s_{divisor}',
         ]
 
+    def _log_sum_exp_lines(self, reduction: ReductionKernel, index: int, start: str) -> list[str]:
+        """Return the lines of a log-sum-exp reduction, a sum of exponentials shifted by the largest value."""
+        acc, cnt, top = f'_acc{index}_', f'_cnt{index}_', f'_top{index}_'
+        largest = [
+            f'if _c_ and ({cnt} == 0.0 or _a_ > {top}):',
+            f'{INDENT}{top} = _a_',
+            f'{cnt} += 1.0 if _c_ else 0.0',
+        ]
+        shifted = [f'{acc} += np.exp(_a_ - {top}) if _c_ else 0.0']
+        return [
+            f'{INDENT}{top} = 0.0',
+            *self._reduction_loop(reduction, index, largest, parallel=False),
+            *self._reduction_loop(reduction, index, shifted, parallel=True),
+            f'{INDENT}p[{start}] = {top} + np.log({acc}) if {cnt} > 0.0 else 0.0',
+        ]
+
     def _reduction_lines(self, reduction: ReductionKernel, index: int) -> list[str]:
         """Return the lines that compute one reduction and store it in the extended parameter vector."""
         start = f'_L{2 * self._slot(reduction.entry)}_'
@@ -794,6 +810,8 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             ]
             lines += self._reduction_loop(reduction, index, body, parallel=False)
             return [*lines, f'{INDENT}p[{start}] = {acc}']
+        if reduction.kind == 'logsumexp':
+            return lines + self._log_sum_exp_lines(reduction, index, start)
         lines += self._reduction_loop(reduction, index, sums, parallel=True)
         if reduction.kind == 'var':
             lines.append(f'{INDENT}_mean{index}_ = {mean}')

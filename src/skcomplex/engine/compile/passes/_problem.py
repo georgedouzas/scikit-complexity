@@ -11,14 +11,14 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.laws import BaseLaw, CrossingLaw, JumpLaw
+from ....core.laws import BaseLaw, CrossingLaw, JumpLaw, RateLaw
 from ....core.spaces import LatticeSpace
 from ....core.specs import CompiledElementSpec, CompiledInteractionSpec, NodeSpec
 from ....errors import PipelineError, ValidationError
 from ....specs import CallSpec, LayoutSpec, VisualSpec
 from ....specs._breakpoints_spec import _BreakpointsSpec
 from ....specs._delay_spec import _DelaySpec
-from ....types import Array, FormKind, VariableKind
+from ....types import Array, FormKind, Indices, VariableKind
 from ..._utils import components_of, declarations_of, symbols_of
 from ...problems import (
     BlockSpec,
@@ -142,6 +142,15 @@ class ProblemPass(BasePass):
         return kernels.stream if kernels is not None and kernels.stream is not None else RandomStream()
 
     @staticmethod
+    def _unknowns_of(compilation: Compilation, form: FormKind) -> Indices:
+        """Return the positions of the states the residuals of a static problem target, and none for other forms."""
+        rates = (
+            Compilation._required(compilation.kernels, 'kernels').kernels[RateLaw] if form == FormKind.STATIC else []
+        )
+        targets = [item.target.flat_indices for kernel in rates for item in kernel.outputs if item.target is not None]
+        return np.unique(np.concatenate([np.zeros(0, dtype=np.intp), *targets]))
+
+    @staticmethod
     def _problem_of(compilation: Compilation) -> ProblemSpec:
         """Return the problem of the general parts of a compilation, which passes of formalisms add to."""
         declarations = Compilation._required(compilation.layout, 'layout')
@@ -178,6 +187,7 @@ class ProblemPass(BasePass):
             ),
             reductions=reductions.reductions,
             jacobian=compilation.jacobian,
+            unknowns=ProblemPass._unknowns_of(compilation, form),
             stream=ProblemPass._stream_of(compilation),
             breakpoints=ProblemPass._breakpoints_in(reduced, events, time),
             history=ProblemPass._history(blocks),

@@ -9,6 +9,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import scipy.sparse
+from jax.scipy.special import logsumexp
 
 from ...core.laws import EquationLaw, GradientStepLaw, RateLaw, UpdateLaw
 from ...core.spaces import ContinuousTime, DiscreteTime
@@ -183,7 +184,9 @@ class JaxBackend(BaseBackend):
             return mean
         if kind == 'var':
             return jnp.where(condition, (argument - mean) ** 2, 0.0).sum() / jnp.maximum(count, 1)
-        error_msg = f'The reduction {kind!r} has no JAX form. Use sum, mean, max, min, var, or count.'
+        if kind == 'logsumexp':
+            return logsumexp(argument, b=condition)
+        error_msg = f'The reduction {kind!r} has no JAX form. Use sum, mean, max, min, var, logsumexp, or count.'
         raise BackendError(error_msg)
 
     @staticmethod

@@ -96,7 +96,7 @@ class FunctionsPass(BasePass):
                     key = (entry.name, column)
                     if key in excluded:
                         continue
-                    default = component if form == FormKind.DISCRETE else SR(0)
+                    default = component if form in (FormKind.DISCRETE, FormKind.STATIC) else SR(0)
                     terms = contributions.get(key)
                     name = entry.generic_names[column]
                     equations[name] = sum(terms[1:], terms[0]) if terms else default
@@ -194,7 +194,11 @@ class FunctionsPass(BasePass):
             FormKind.SDE: kernels[RateLaw] + kernels[NoiseLaw],
             FormKind.JUMP: kernels[JumpLaw],
         }.get(form, kernels[UpdateLaw])
-        equation_kernels = {FormKind.DISCRETE: kernels[UpdateLaw], FormKind.JUMP: []}.get(form, kernels[RateLaw])
+        equation_kernels = {
+            FormKind.DISCRETE: kernels[UpdateLaw],
+            FormKind.STATIC: kernels[UpdateLaw] or kernels[RateLaw],
+            FormKind.JUMP: [],
+        }.get(form, kernels[RateLaw])
         equations, symbols = (
             FunctionsPass._equations_of(equation_kernels, declarations, form)
             if phases is None

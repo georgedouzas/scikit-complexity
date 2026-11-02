@@ -23,7 +23,7 @@ from ...specs._jump_channels_spec import _JumpChannelsSpec
 from ...specs._layout_spec import LayoutSpec
 from ...specs._variable_spec import VariableSpec
 from ...specs._wiener_block_spec import WienerBlockSpec
-from ...types import Array, VectorFunction
+from ...types import Array, Indices, VectorFunction
 from ._base import BaseKernel
 from ._base_problem_spec import BaseProblemSpec
 from ._diffusive_limit_spec import DiffusiveLimitSpec
@@ -144,6 +144,9 @@ class ProblemSpec(BaseProblemSpec):
         reductions:
             The reductions that laws read, in the order they are evaluated before the kernels.
 
+        unknowns:
+            The positions in the state vector that the equations of a static problem solve for numerically.
+
         jacobian:
             The Jacobian of the drift of an ODE problem, derived from its laws: its sparsity pattern and, for laws with
             a symbolic form, its exact value. `None` for other forms.
@@ -240,6 +243,7 @@ class ProblemSpec(BaseProblemSpec):
     constrained: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     reductions: tuple[ReductionKernel, ...] = field(default=(), repr=False)
     jacobian: JacobianKernel | None = field(default=None, repr=False)
+    unknowns: Indices = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     drift: VectorFunction | None = field(default=None, repr=False)
     diffusion: VectorFunction | None = field(default=None, repr=False)
     noise_rows: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)

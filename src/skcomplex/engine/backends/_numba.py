@@ -74,8 +74,10 @@ _FORM_KINDS: dict[FormKind, list[type]] = {
     FormKind.SDE: [RateLaw, NoiseLaw],
     FormKind.JUMP: [JumpLaw],
     FormKind.DISCRETE: [UpdateLaw],
+    FormKind.STATIC: [RateLaw, UpdateLaw],
 }
 _EVENT_FORMS = (FormKind.JUMP, FormKind.DISCRETE)
+RATE_FORMS = (FormKind.ODE, FormKind.FRACTIONAL, FormKind.SDE, FormKind.STATIC)
 _HEADER = """import math
 
 import numpy as np
@@ -185,10 +187,10 @@ class NumbaBackend(BaseBackend):
         form, size, kernels, draws = inputs.form, inputs.size, inputs.kernels, inputs.draws
         used: dict[type, list[LawKernel]] = {
             BoundaryLaw: kernels.get(BoundaryLaw, []),
-            RateLaw: kernels.get(RateLaw, []) if form in (FormKind.ODE, FormKind.FRACTIONAL, FormKind.SDE) else [],
+            RateLaw: kernels.get(RateLaw, []) if form in RATE_FORMS else [],
             NoiseLaw: kernels.get(NoiseLaw, []) if form == FormKind.SDE else [],
             JumpLaw: kernels.get(JumpLaw, []) if form == FormKind.JUMP else [],
-            UpdateLaw: kernels.get(UpdateLaw, []) if form == FormKind.DISCRETE else [],
+            UpdateLaw: kernels.get(UpdateLaw, []) if form in (FormKind.DISCRETE, FormKind.STATIC) else [],
         }
         reductions = inputs.reductions or ReductionScheduleSpec()
         reduced = bool(reductions.steps)
@@ -312,7 +314,7 @@ class NumbaBackend(BaseBackend):
             for kind in needed
         }
         lowering = LoweredFunctionsSpec(
-            drift=functions[RateLaw] if form in (FormKind.ODE, FormKind.FRACTIONAL, FormKind.SDE) else None,
+            drift=functions[RateLaw] if form in RATE_FORMS else None,
             diffusion=(
                 functions.get(NoiseLaw, BaseBackend._concatenating_function([])) if form == FormKind.SDE else None
             ),
@@ -320,7 +322,7 @@ class NumbaBackend(BaseBackend):
                 functions.get(JumpLaw, BaseBackend._concatenating_function([])) if form == FormKind.JUMP else None
             ),
             jumps=LawKernel._jump_channels(used[JumpLaw], changes) if form == FormKind.JUMP else (),
-            update=functions[UpdateLaw] if form == FormKind.DISCRETE else None,
+            update=functions[UpdateLaw] if form in (FormKind.DISCRETE, FormKind.STATIC) else None,
             boundary=functions.get(BoundaryLaw),
         )
         if form == FormKind.SDE:

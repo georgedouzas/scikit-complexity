@@ -122,7 +122,7 @@ class NumpyBackend(BaseBackend):
         lowering = LoweredFunctionsSpec(
             drift=(
                 BaseBackend._adding_function(kernels.get(RateLaw, []), size)
-                if form in (FormKind.ODE, FormKind.FRACTIONAL, FormKind.SDE)
+                if form in (FormKind.ODE, FormKind.FRACTIONAL, FormKind.SDE, FormKind.STATIC)
                 else None
             ),
             diffusion=(
@@ -134,7 +134,11 @@ class NumpyBackend(BaseBackend):
             jumps=(
                 LawKernel._jump_channels(kernels.get(JumpLaw, []), inputs.jump_changes) if form == FormKind.JUMP else ()
             ),
-            update=(BaseBackend._assigning_function(kernels.get(UpdateLaw, [])) if form == FormKind.DISCRETE else None),
+            update=(
+                BaseBackend._assigning_function(kernels.get(UpdateLaw, []))
+                if form in (FormKind.DISCRETE, FormKind.STATIC)
+                else None
+            ),
             boundary=BaseBackend._assigning_function(boundary) if boundary else None,
         )
         if form == FormKind.SDE:

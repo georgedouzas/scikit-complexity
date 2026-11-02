@@ -11,10 +11,12 @@ from types import SimpleNamespace
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression, matrix
+from sage.all__sagemath_symbolics import SR, Expression, matrix, solve
 from sage.modules.free_module_element import FreeModuleElement
 
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.laws.utils import reductions_in
+from ....core.spaces import StaticTime
 from ....errors import ValidationError
 from ....specs import CallSpec
 from ....specs._orders_spec import _OrdersSpec
@@ -47,12 +49,12 @@ class OrdersPass(BasePass):
         compilation = self.compilation_
         blocks = list(Compilation._required(compilation.layout, 'layout').blocks.values())
         orders = self._orders_of(blocks)
-        compilation.ordered = self._solve_equations(
-            [
-                (spec, self._with_orders(spec, laws, block, orders))
-                for spec, laws, block in Compilation._required(compilation.lowered, 'lowered')
-            ],
-        )
+        specs = [
+            (spec, self._with_orders(spec, laws, block, orders))
+            for spec, laws, block in Compilation._required(compilation.lowered, 'lowered')
+        ]
+        static = isinstance(compilation.system.time, StaticTime)
+        compilation.ordered = self._solve_static(specs) if static else self._solve_equations(specs)
 
     @staticmethod
     def _orders_of(blocks: list[BlockSpec]) -> _OrdersSpec:
@@ -182,10 +184,8 @@ class OrdersPass(BasePass):
         rhs = OrdersPass._substitute(SR(law.rhs_), spec, orders, f'In {description}, it', highest)
         reference = spec.references.get(law.target) if isinstance(law.target, Expression) else None
         key = None if reference is None else (reference.entry.name, reference.column)
-        relation = _RelationSpec(spec, SR(lhs) - SR(rhs), highest, description, key)
-        if key is None:
-            OrdersPass._check_relation(relation)
-        return relation
+        target = None if key is None else law.target
+        return _RelationSpec(spec, SR(lhs) - SR(rhs), highest, description, key, target)
 
     @staticmethod
     def _check_relation(relation: _RelationSpec) -> None:
@@ -199,7 +199,7 @@ class OrdersPass(BasePass):
 
     @staticmethod
     def _summed(relations: list[_RelationSpec]) -> list[_RelationSpec]:
-        """Return the relations with those of one target added into one, checked for a highest derivative."""
+        """Return the relations with those of one target added into one."""
         groups: dict[tuple[str, int] | int, list[_RelationSpec]] = {}
         for index, relation in enumerate(relations):
             groups.setdefault(index if relation.key is None else relation.key, []).append(relation)
@@ -216,8 +216,8 @@ class OrdersPass(BasePass):
                     {key: value for item in group for key, value in item.highest.items()},
                     ' + '.join(item.description for item in group),
                     first.key,
+                    first.target,
                 )
-            OrdersPass._check_relation(first)
             summed.append(first)
         return summed
 
@@ -305,11 +305,19 @@ class OrdersPass(BasePass):
         return solve
 
     @staticmethod
+    def _checked_relations(specs: list[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]]) -> list[_RelationSpec]:
+        """Return the relations of specs with those of one target added, each checked for a highest derivative."""
+        relations = OrdersPass._summed([item for _, laws in specs for item in laws if isinstance(item, _RelationSpec)])
+        for relation in relations:
+            OrdersPass._check_relation(relation)
+        return relations
+
+    @staticmethod
     def _solve_equations(
         specs: list[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]],
     ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
         """Return specs whose equations are replaced by rate laws on the highest derivatives they solve for jointly."""
-        relations = OrdersPass._summed([item for _, laws in specs for item in laws if isinstance(item, _RelationSpec)])
+        relations = OrdersPass._checked_relations(specs)
         kept = [(spec, [law for law in laws if not isinstance(law, _RelationSpec)]) for spec, laws in specs]
         if not relations:
             return kept
@@ -360,3 +368,39 @@ class OrdersPass(BasePass):
                 for index, item in enumerate(unknowns)
             ]
         return [*kept, (merged, laws)]
+
+    @staticmethod
+    def _exact_solution(relations: list[_RelationSpec]) -> list[Expression] | None:
+        """Return the unique explicit solution of static equations for their targets, or `None` when Sage finds none."""
+        unknowns = [item.target for item in relations]
+        reduced = {
+            name for item in relations for call in reductions_in(item.expression) for name in call.call.variables()
+        }
+        if len(relations) > _EQUATION_UNKNOWNS or reduced & set(unknowns):
+            return None
+        known = {name for item in relations for name in item.expression.variables()}
+        solutions = solve([item.expression == 0 for item in relations], unknowns, solution_dict=True)
+        if len(solutions) != 1 or any(item not in solutions[0] for item in unknowns):
+            return None
+        values = [SR(solutions[0][item]) for item in unknowns]
+        explicit = all(set(value.variables()) <= known - set(unknowns) for value in values)
+        return values if explicit else None
+
+    @staticmethod
+    def _solve_static(
+        specs: list[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]],
+    ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
+        """Return specs whose equations are replaced by updates of an exact solution, or else rates of their residuals.
+
+        An equation without a state as its target is left out, since the compiler reports it.
+        """
+        declared = [item for _, laws in specs for item in laws if isinstance(item, _RelationSpec)]
+        relations = OrdersPass._summed([item for item in declared if item.key is not None])
+        kept = [(spec, [law for law in laws if not isinstance(law, _RelationSpec)]) for spec, laws in specs]
+        if not relations:
+            return kept
+        values = OrdersPass._exact_solution(relations)
+        if values is None:
+            return [*kept, *((item.spec, [RateLaw(item.target, item.expression)]) for item in relations)]
+        pairs = zip(relations, values, strict=True)
+        return [*kept, *((item.spec, [UpdateLaw(item.target, value)]) for item, value in pairs)]

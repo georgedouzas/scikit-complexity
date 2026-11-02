@@ -8,17 +8,20 @@ import networkx as nx
 import numpy as np
 import pytest
 import scipy.sparse
+import scipy.special
 from sage.all__sagemath_symbolics import RR, atan2, cos, pi, sin, tanh, var, vector
 
+from skcomplex.core.base import BasePart
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import RateLaw, UpdateLaw
+from skcomplex.core.laws import EquationLaw, RateLaw, UpdateLaw
 from skcomplex.core.laws.utils import (
     NEIGHBOR_REDUCTIONS,
     circular_mean,
     count,
     hyperedges,
     hyperedges_in,
+    log_sum_exp,
     maximum,
     mean,
     minimum,
@@ -37,6 +40,7 @@ from skcomplex.core.spaces import (
     NearestNeighborhood,
     NetworkSpace,
     RadiusNeighborhood,
+    StaticTime,
     VonNeumannNeighborhood,
 )
 from skcomplex.core.system import System
@@ -1083,3 +1087,52 @@ def test_validate_reports_a_hyperedge_reduction_in_a_lattice():
     issues = PassCompiler().check().prepare(system).report_.issues
     assert [issue.code for issue in issues] == ['law-space']
     assert 'hyperedges' in issues[0].message
+
+
+class QuenchedEnergyElement(Element):
+    """Member with a quenched energy."""
+
+    def __init__(self, label: str, energy: Annotated[float, StateSpec()] = 0.0) -> None:
+        super().__init__(label)
+        self.energy = energy
+
+
+class LogPartitionElement(Element):
+    """Element holding the reduction of a group."""
+
+    def __init__(self, label: str, value: Annotated[float, StateSpec()] = 0.0) -> None:
+        super().__init__(label)
+        self.value = value
+
+
+class LogPartitionInteraction(Interaction):
+    """Interaction that equates a state to the log-sum-exp of a group of energies."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        energies: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.energies = energies
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BasePart]:
+        """Return the equation of the reduction."""
+        return [EquationLaw(s.target.value == log_sum_exp(s.energies.energy, over=s.energies), target=s.target.value)]
+
+
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
+def test_log_sum_exp_large_values(backend: type) -> None:
+    """Test that values of order 10^4 over 1000 members give the largest value plus at most `ln 1000`."""
+    values = np.random.default_rng(0).uniform(1e4, 2e4, 1000)
+    group = GroupElement('energies', element=QuenchedEnergyElement, size=1000, values={'energy': values})
+    reader = LogPartitionInteraction('reader', target='reduced', energies='energies')
+    system = System(elements=[group, LogPartitionElement('reduced')], interactions=[reader], time=StaticTime())
+    trajectory = Simulation(system, backend=backend()).check().prepare().run(1.0).trajectory_
+    result = trajectory.values('reduced.value')[0]
+    assert np.isfinite(result)
+    assert values.max() <= result <= values.max() + math.log(1000)
+    assert result == pytest.approx(scipy.special.logsumexp(values))

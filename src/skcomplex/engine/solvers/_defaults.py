@@ -15,6 +15,7 @@ from ._maps import IterationSolver
 from ._mesa import MesaSolver
 from ._monte_carlo import MonteCarloSolver
 from ._renewal import RenewalSolver
+from ._root import RootSolver
 from ._scipy_ode import ScipyODESolver
 
 DEFAULT_SOLVERS: dict[FormKind, type[BaseSolver]] = {
@@ -29,4 +30,5 @@ DEFAULT_SOLVERS: dict[FormKind, type[BaseSolver]] = {
     FormKind.AGENT: MesaSolver,
     FormKind.QUANTUM: LindbladSolver,
     FormKind.LEARNING: GradientDescentSolver,
+    FormKind.STATIC: RootSolver,
 }

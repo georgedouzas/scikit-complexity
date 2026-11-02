@@ -2,21 +2,21 @@
 
 ## 1. Static form
 
-- [ ] 1.1 Add `FormKind.STATIC` to `skcomplex.types` and the compilation of static systems in `PassCompiler`, with the
+- [x] 1.1 Add `FormKind.STATIC` to `skcomplex.types` and the compilation of static systems in `PassCompiler`, with the
   exact solve through Sage and the summed equations of one target per element and per group member, and verify the
   survival at a dose, static system without equations, exact linear solution, and cyclic equations scenarios
-- [ ] 1.2 Add `RootSolver` to `skcomplex.engine.solvers` over `scipy.optimize.root` with the symbolic Jacobian and its
+- [x] 1.2 Add `RootSolver` to `skcomplex.engine.solvers` over `scipy.optimize.root` with the symbolic Jacobian and its
   `SupportSpec`, and verify the numerical solution and no solution scenarios
-- [ ] 1.3 Add the issue `equation-target` to `PassCompiler`, and verify the target that is not a state and rate law
+- [x] 1.3 Add the issue `equation-target` to `PassCompiler`, and verify the target that is not a state and rate law
   under static time scenarios
-- [ ] 1.4 Document the static form and sweeps through `Experiment` in the user guide with a runnable example, and verify
+- [x] 1.4 Document the static form and sweeps through `Experiment` in the user guide with a runnable example, and verify
   the documentation test passes
 
 ## 2. Random ensembles
 
 - [ ] 2.1 Add `log_sum_exp` to `skcomplex.core.laws.utils` with its NumPy and Numba lowering, and verify the large
   values and random energy model entropy scenarios
-- [ ] 2.2 Add `radius` to `ClusterAnalysis` with the contact graph of points, and verify the spanning probability and
+- [x] 2.2 Add `radius` to `ClusterAnalysis` with the contact graph of points, and verify the spanning probability and
   isolated points scenarios
 
 ## 3. Satisfiability and search

@@ -35,6 +35,7 @@ KINDS = {
     'minimum': 'min',
     'variance': 'var',
     'count': 'count',
+    'log_sum_exp': 'logsumexp',
     'reduction': 'function',
 }
 NEIGHBOR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean', 'argmax')
@@ -467,6 +468,36 @@ def variance(expression: object, over: object = None, where: object = None) -> E
         variance(x)
     """
     return _reduce('variance', expression, over, where, None)
+
+
+def log_sum_exp(expression: object, over: object = None, where: object = None) -> Expression:
+    """Return the logarithm of the sum of the exponentials of an expression over the selected members of a group.
+
+    Args:
+        expression:
+            The expression of one member, a logarithm of the terms of the sum.
+
+        over:
+            The namespace of the group to reduce over, or `None` for the group the expression reads.
+
+        where:
+            A condition on the reduced member that selects the members, or `None` for all members.
+
+    Returns:
+        reduction:
+            The unevaluated reduction, 0 when no member is selected.
+
+    Raises:
+        ValidationError:
+            The group is not a namespace or a symbol.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.laws.utils import log_sum_exp
+        >>> log_sum_exp(-var('E') / var('T'))
+        log_sum_exp(-E/T)
+    """
+    return _reduce('log_sum_exp', expression, over, where, None)
 
 
 def count(over: object = None, where: object = None, by: str | None = None) -> Expression:

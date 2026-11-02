@@ -135,6 +135,13 @@ class CensusPass(BasePass):
         return ElementKind.ELEMENT
 
     @staticmethod
+    def _equation_targets(spec: KernelSpec, law: BaseLaw) -> tuple[EntrySpec, ...]:
+        """Return the entry of the state an equation names as its target, and none for any other law or target."""
+        target = law.target if isinstance(law, EquationLaw) else None
+        reference = spec.references.get(target) if isinstance(target, Expression) else None
+        return (reference.entry,) if reference is not None and reference.is_state else ()
+
+    @staticmethod
     def _records_of(
         block: BlockSpec,
         elements: dict[str, BlockSpec],
@@ -151,6 +158,7 @@ class CensusPass(BasePass):
                 items = [item for target in law._get_targets() for item in components_of(target)]
                 references = [spec.references.get(item) for item in items if isinstance(item, Expression)]
                 targets = tuple(dict.fromkeys(item.entry for item in references if item is not None))
+                targets = targets or CensusPass._equation_targets(spec, law)
                 owner = CensusPass._law_owner(spec, law, agents)
                 vectors = frozenset(entry.name for entry in targets if CensusPass._is_vector(entry, elements))
                 kind = CensusPass._component_kind(elements.get(owner, block).node)

@@ -488,8 +488,9 @@ class Simulation(BaseConfig[None, float]):
         if inputs is None:
             error_msg = 'A simulation runs until a time. Pass it to `run`, such as `run(until=10)`.'
             raise ValidationError(error_msg)
-        self._start(inputs)
-        self._loop(inputs)
+        until = 0.0 if self.problem_.form == FormKind.STATIC else inputs
+        self._start(until)
+        self._loop(until)
 
     def extend(self, until: float) -> Self:
         """Continue a finished run from its last frame to `until` in the calling thread.

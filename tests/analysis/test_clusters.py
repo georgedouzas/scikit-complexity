@@ -119,3 +119,46 @@ def test_invalid_settings_and_sources_are_rejected():
         ClusterAnalysis('percolation', periodic=True).check()
     with pytest.raises(AnalysisError, match='not graphs'):
         _clusters('labels', nx.path_graph(3))
+
+
+def _disks(filling: float, seed: int, side: float = 60.0) -> np.ndarray:
+    """Return the centres of disks of radius 1 at a filling factor in a square of a side."""
+    count = round(filling * side**2 / np.pi)
+    return np.random.default_rng(seed).uniform(0.0, side, (count, 2))
+
+
+def test_run_spanning_probability_of_disks() -> None:
+    """Test that disks of radius 1 span a square of side 60 at filling 1.25 but rarely at filling 1.0."""
+    shares = {
+        filling: ClusterAnalysis('spanning', radius=1.0)
+        .check()
+        .prepare(np.stack([_disks(filling, seed) for seed in range(50)]))
+        .run()
+        .probability_
+        for filling in (1.0, 1.25)
+    }
+    assert shares[1.0] < 0.1
+    assert shares[1.25] > 0.9
+
+
+def test_run_isolated_points() -> None:
+    """Test that points on a grid of spacing 1 with radius 0.1 are clusters of size 1."""
+    points = np.stack(np.meshgrid(np.arange(5.0), np.arange(5.0)), axis=-1).reshape(-1, 2)
+    sizes = ClusterAnalysis(kind='sizes', radius=0.1).check().prepare(points).run().sizes_
+    assert sizes.tolist() == [1] * 25
+
+
+def test_run_percolation_of_points() -> None:
+    """Test the strength, mean size, and spanning of a chain of points and one point apart."""
+    points = np.asarray([[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [2.0, 5.0]])
+    result = ClusterAnalysis('percolation', axis=0, radius=0.6).check().prepare(points).run()
+    assert result.sizes_.tolist() == [3, 1]
+    assert result.strength_ == 0.75
+    assert result.mean_size_ == 1.0
+    assert result.spanning_
+
+
+def test_check_radius_rejects_grid_settings() -> None:
+    """Test that a radius takes neither a periodic nor a diagonal setting."""
+    with pytest.raises(AnalysisError, match='radius'):
+        ClusterAnalysis('sizes', radius=1.0, diagonal=True).check()

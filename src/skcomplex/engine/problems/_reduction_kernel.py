@@ -10,6 +10,7 @@ import numpy as np
 import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
+from scipy.special import logsumexp
 
 from ...errors import ValidationError
 from ...specs import EntrySpec, ReadSpec, RunStateSpec
@@ -24,6 +25,7 @@ REDUCTIONS: dict[str, Callable[[AnyArray], npt.ArrayLike]] = {
     'min': lambda array: array.min(axis=0),
     'max': lambda array: array.max(axis=0),
     'var': lambda array: array.var(axis=0),
+    'logsumexp': lambda array: logsumexp(array, axis=0),
 }
 
 
@@ -35,7 +37,7 @@ class ReductionKernel(BaseKernel):
             The placeholder symbol that kernels read instead of the reduction.
 
         kind:
-            `'sum'`, `'mean'`, `'max'`, `'min'`, `'var'`, or `'count'`.
+            `'sum'`, `'mean'`, `'max'`, `'min'`, `'var'`, `'logsumexp'`, or `'count'`.
 
         argument:
             The expression of one reduced member, with nested reductions replaced by their placeholders.
@@ -216,7 +218,8 @@ class ReductionKernel(BaseKernel):
                 One value per member, or one row per member for vector values.
 
             reduce:
-                `'count'`, `'sum'`, `'mean'`, `'min'`, `'max'`, `'var'`, or a function of the array of values.
+                `'count'`, `'sum'`, `'mean'`, `'min'`, `'max'`, `'var'`, `'logsumexp'`, or a function of the array of
+                values.
 
         Returns:
             value:

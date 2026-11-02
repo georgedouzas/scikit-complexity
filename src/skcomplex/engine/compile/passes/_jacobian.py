@@ -1,4 +1,4 @@
-"""Derive the exact Jacobian of the drift of an ODE problem from its rate kernels."""
+"""Derive the exact Jacobian of the drift of an ODE problem, or of the residuals of a static one, from its kernels."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,7 +12,7 @@ from .._compilation import Compilation
 
 
 class JacobianPass(BasePass):
-    """Pass that derives the exact Jacobian of the drift of an ODE problem, and none for other forms."""
+    """Pass that derives the exact Jacobian of an ODE or static problem, and none for other forms."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -33,6 +33,6 @@ class JacobianPass(BasePass):
                 declarations.ends[True],
                 declarations.time,
             ).check()
-            if compilation.form == FormKind.ODE
+            if compilation.form in (FormKind.ODE, FormKind.STATIC)
             else None
         )

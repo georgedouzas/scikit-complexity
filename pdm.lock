@@ -5,10 +5,21 @@
 groups = ["default", "changelog", "checks", "docs", "formatting", "gallery", "maintenance", "release", "tests"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:969298ca5d9b49c05a5967e04d0852b768f92df7c4d46347bd4c78634a2cb55f"
+content_hash = "sha256:162948653c751a86de9c897dbf16c21774c3fc66472be1e73590e1ba2b57f56e"
 
 [[metadata.targets]]
 requires_python = ">=3.12,<3.14"
+
+[[package]]
+name = "about-time"
+version = "4.2.1"
+requires_python = ">=3.7, <4"
+summary = "Easily measure timing and throughput of code blocks, with beautiful human friendly representations."
+groups = ["default"]
+files = [
+    {file = "about-time-4.2.1.tar.gz", hash = "sha256:6a538862d33ce67d997429d14998310e1dbfda6cb7d9bbfbf799c4709847fece"},
+    {file = "about_time-4.2.1-py3-none-any.whl", hash = "sha256:8bbf4c75fe13cbd3d72f49a03b02c5c7dca32169b6d49117c257e7eb3eaee341"},
+]
 
 [[package]]
 name = "absl-py"
@@ -19,6 +30,21 @@ groups = ["default"]
 files = [
     {file = "absl_py-2.5.1-py3-none-any.whl", hash = "sha256:721200f2f0e9960f2ca9dc3a2a706b201f5f75d812c158f059cbbe29eeafbdb8"},
     {file = "absl_py-2.5.1.tar.gz", hash = "sha256:286e71c82c1a38e75bbcf185f9b37d0305ad7786535107cb49bf4df9ff2e1f95"},
+]
+
+[[package]]
+name = "alive-progress"
+version = "3.3.0"
+requires_python = "<4,>=3.9"
+summary = "A new kind of Progress Bar, with real-time throughput, ETA, and very cool animations!"
+groups = ["default"]
+dependencies = [
+    "about-time==4.2.1",
+    "graphemeu==0.7.2",
+]
+files = [
+    {file = "alive-progress-3.3.0.tar.gz", hash = "sha256:457dd2428b48dacd49854022a46448d236a48f1b7277874071c39395307e830c"},
+    {file = "alive_progress-3.3.0-py3-none-any.whl", hash = "sha256:63dd33bb94cde15ad9e5b666dbba8fedf71b72a4935d6fb9a92931e69402c9ff"},
 ]
 
 [[package]]
@@ -109,6 +135,20 @@ groups = ["default", "checks", "maintenance"]
 files = [
     {file = "attrs-26.1.0-py3-none-any.whl", hash = "sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309"},
     {file = "attrs-26.1.0.tar.gz", hash = "sha256:d03ceb89cb322a8fd706d4fb91940737b6642aa36998fe130a9bc96c985eff32"},
+]
+
+[[package]]
+name = "autograd"
+version = "1.9.1"
+requires_python = ">=3.10"
+summary = "Efficiently computes derivatives of NumPy code."
+groups = ["default"]
+dependencies = [
+    "numpy<3",
+]
+files = [
+    {file = "autograd-1.9.1-py3-none-any.whl", hash = "sha256:b788bae3fa010cbffb4cfb7b8ba2a3f0daa6072a8506da6164c779fe9cf3e05a"},
+    {file = "autograd-1.9.1.tar.gz", hash = "sha256:7818c5c69ddf9efb7da74097bd741a4c7920133f41966f68537223a15ef798bc"},
 ]
 
 [[package]]
@@ -341,7 +381,6 @@ version = "2.1.1"
 requires_python = ">=3.10"
 summary = "Foreign Function Interface for Python calling C code."
 groups = ["default", "release"]
-marker = "(platform_machine != \"ppc64le\" and platform_machine != \"s390x\") and sys_platform == \"linux\" and platform_python_implementation != \"PyPy\" or implementation_name == \"pypy\""
 dependencies = [
     "pycparser; implementation_name != \"PyPy\"",
 ]
@@ -459,6 +498,19 @@ groups = ["default"]
 files = [
     {file = "cloudpickle-3.1.2-py3-none-any.whl", hash = "sha256:9acb47f6afd73f60dc1df93bb801b472f05ff42fa6c84167d25cb206be1fbf4a"},
     {file = "cloudpickle-3.1.2.tar.gz", hash = "sha256:7fda9eb655c9c230dab534f1983763de5835249750e85fbcef43aaa30a9a2414"},
+]
+
+[[package]]
+name = "cma"
+version = "4.5.0"
+summary = "CMA-ES, Covariance Matrix Adaptation Evolution Strategy for non-linear numerical optimization in Python"
+groups = ["default"]
+dependencies = [
+    "numpy",
+]
+files = [
+    {file = "cma-4.5.0-py3-none-any.whl", hash = "sha256:9b37fa8bd541f1f4cf8e2cc4f98e6f02ec89d6d39ded8ec8a90d4f44c88c62c8"},
+    {file = "cma-4.5.0.tar.gz", hash = "sha256:5e6774388d4a3798116bf9aff7684cf44d59f966d868f375e61811f74e132934"},
 ]
 
 [[package]]
@@ -822,6 +874,20 @@ files = [
 ]
 
 [[package]]
+name = "deprecated"
+version = "3.0.1"
+requires_python = ">=3.12"
+summary = "Python @deprecated decorator to deprecate old python classes, functions or methods."
+groups = ["default"]
+dependencies = [
+    "wrapt<3,>=1.16",
+]
+files = [
+    {file = "deprecated-3.0.1-py3-none-any.whl", hash = "sha256:eda314c115e8bc0fe52b90a6869e19240ac3cedb7449adfdba5981cf9ef693e1"},
+    {file = "deprecated-3.0.1.tar.gz", hash = "sha256:2f5a9fecc9961e26462846cf1e57f73a612b1d0b79c27dceeed8de647beadcee"},
+]
+
+[[package]]
 name = "deptry"
 version = "0.25.1"
 requires_python = ">=3.10"
@@ -1148,6 +1214,17 @@ files = [
     {file = "gmpy2-2.4.0a1-cp313-cp313-win_amd64.whl", hash = "sha256:b0a654810ff0f134dd53f08674de3d1b358b95ab337e105e83527bf734fbe3a6"},
     {file = "gmpy2-2.4.0a1-cp313-cp313-win_arm64.whl", hash = "sha256:337cb525eae9e1eb2a0b60546894a0d9bb84551e75e9c728702198e6370aa82c"},
     {file = "gmpy2-2.4.0a1.tar.gz", hash = "sha256:8030c2dfcefc035dc9a020368559324dbf5e814d7726bad5c25ac6a559f27c82"},
+]
+
+[[package]]
+name = "graphemeu"
+version = "0.7.2"
+requires_python = ">=3.7"
+summary = "Unicode grapheme helpers"
+groups = ["default"]
+files = [
+    {file = "graphemeu-0.7.2-py3-none-any.whl", hash = "sha256:1444520f6899fd30114fc2a39f297d86d10fa0f23bf7579f772f8bc7efaa2542"},
+    {file = "graphemeu-0.7.2.tar.gz", hash = "sha256:42bbe373d7c146160f286cd5f76b1a8ad29172d7333ce10705c5cc282462a4f8"},
 ]
 
 [[package]]
@@ -2352,6 +2429,28 @@ files = [
     {file = "ml_dtypes-0.6.0-cp313-cp313-win_amd64.whl", hash = "sha256:fb87f46b4f7ad7b5d3ad8f4b452b024bd4229d44c8ff934798c1fe656210387a"},
     {file = "ml_dtypes-0.6.0-cp313-cp313-win_arm64.whl", hash = "sha256:57ed0d6b4ac5e7868361303a9c57fbcf63b768236ee14456f585dfcf260d0292"},
     {file = "ml_dtypes-0.6.0.tar.gz", hash = "sha256:5e60251d32ced5598972e4d5e06a2f044341f9291402551a3f6f0ec44f9299b0"},
+]
+
+[[package]]
+name = "moocore"
+version = "0.3.2"
+requires_python = ">=3.10"
+summary = "Core Algorithms for Multi-Objective Optimization"
+groups = ["default"]
+dependencies = [
+    "cffi>=1.17.1",
+    "numpy>=1.24",
+    "platformdirs",
+]
+files = [
+    {file = "moocore-0.3.2-cp310-abi3-macosx_10_9_universal2.whl", hash = "sha256:19b10372a867e35e34f7816d49909182a2b2290d98289521d3584d5770d05a29"},
+    {file = "moocore-0.3.2-cp310-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:f9bdc963ac4efb0f1e06d290b019950c3d526e5b1499f0f821180d10712a14e8"},
+    {file = "moocore-0.3.2-cp310-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:8557a411c1b3f9fee90263701ad3fe58dbbcdc8e2b695696358fda5f968accfb"},
+    {file = "moocore-0.3.2-cp310-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:6a11c219157b5c22e596eaef25aec654683573dc6cc953a03f2a2d92d4ce872e"},
+    {file = "moocore-0.3.2-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:9d8040d3b2c19ca27e24869efdfb94eb2f4e749283f95d4aa5ebdab7bd8d566c"},
+    {file = "moocore-0.3.2-cp310-abi3-win_amd64.whl", hash = "sha256:aaed31c1a434a846502f922f86766205c3f9d43642fa73782b1b5a5136de0573"},
+    {file = "moocore-0.3.2-cp310-abi3-win_arm64.whl", hash = "sha256:347c3418d174f1d838ba3c82335329925629dc1f0cb81e8c08787feb7bf46d38"},
+    {file = "moocore-0.3.2.tar.gz", hash = "sha256:118f546d27f93e814bf84cc8007ea8e0a2ec2b3e761fe4e54f864165c45e392d"},
 ]
 
 [[package]]
@@ -3566,7 +3665,7 @@ version = "3.11"
 requires_python = ">=3.10"
 summary = "C parser in Python"
 groups = ["default", "release"]
-marker = "(platform_machine != \"ppc64le\" and platform_machine != \"s390x\") and sys_platform == \"linux\" and platform_python_implementation != \"PyPy\" and implementation_name != \"PyPy\" or implementation_name == \"pypy\""
+marker = "implementation_name != \"PyPy\""
 files = [
     {file = "pycparser-3.11-py3-none-any.whl", hash = "sha256:51d5a8ba2be0bbe440b99d2112604c95bbbc3c2748a64260186c541e1729cd80"},
     {file = "pycparser-3.11.tar.gz", hash = "sha256:d875f09c3507d00e1aba0eecc6dcadc1352f30fff09dc6bff2f1c2935e97c2bc"},
@@ -3646,6 +3745,40 @@ dependencies = [
 files = [
     {file = "pymdown_extensions-12.3-py3-none-any.whl", hash = "sha256:345493a8e3497e24382902903a1c43a28e34a52f2b7571a1c9641429b820ca74"},
     {file = "pymdown_extensions-12.3.tar.gz", hash = "sha256:a7f2a4e0bc60c6e6babfa7922cfb3b01cd640eb00fb208f3c582e12bae00ea67"},
+]
+
+[[package]]
+name = "pymoo"
+version = "0.6.2"
+requires_python = ">=3.10"
+summary = "Multi-Objective Optimization in Python"
+groups = ["default"]
+dependencies = [
+    "Deprecated",
+    "alive-progress",
+    "autograd>=1.4",
+    "cma>=3.4.0",
+    "matplotlib>=3",
+    "moocore>=0.1.7",
+    "numpy>=1.19.3",
+    "scipy>=1.1",
+]
+files = [
+    {file = "pymoo-0.6.2-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:749fb57867fd8fda744261d00fbab52a425f7c36cc3343c0126a91505d754b98"},
+    {file = "pymoo-0.6.2-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:d9b8b59d2bd21c8a04fc014ce197c464375c3bbc90324477086ace056eb68caf"},
+    {file = "pymoo-0.6.2-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ad6e3e938105b0e08ea34e5c7caf1b9054b75fe82b0b6c1d3bb2fb882885500c"},
+    {file = "pymoo-0.6.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:9fd4569f0c577bacb9cb48c6817b53044b00a6b2afe52021a18e21478ea6670a"},
+    {file = "pymoo-0.6.2-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:833d795306df5bc2adc4a7ed05c00b77d7f8115a332b4c8e2a765aa162578f10"},
+    {file = "pymoo-0.6.2-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:fb5e9b15e797ad626810e88d7d5b24c37ffbfe372c64a66754924d1b8ed288a0"},
+    {file = "pymoo-0.6.2-cp312-cp312-win_amd64.whl", hash = "sha256:3e4b8ec6e2c2c20408843ffa62d57d90a76817fefd5fc17c4540515d6bfb8a92"},
+    {file = "pymoo-0.6.2-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:a7470b8fe76e566ed6341fe7b4095206b5a5c5bc6e30fff439c3eb9d5a50df1e"},
+    {file = "pymoo-0.6.2-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:1147ce1541c94bc840e9a347f96a386fae0040bb24227bc90abfe94178f5c4fa"},
+    {file = "pymoo-0.6.2-cp313-cp313-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:299e435ec76a16ab2ea6f65da5600f080c245a4ac7e7d839a37ede94b2df4653"},
+    {file = "pymoo-0.6.2-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:38890e6375fb07f2b77c085cca8cfa4ab4707e1a4b7d4033987979b8ffa6c357"},
+    {file = "pymoo-0.6.2-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:98750012fc0630defd40e5aae14ce8098d07f287e40535220b0da8cf422d5e2d"},
+    {file = "pymoo-0.6.2-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:cf6e5d806fcb1648985a4b1d0cfe6b586fb4e9ee7de8420829bdfadcad9b5ce3"},
+    {file = "pymoo-0.6.2-cp313-cp313-win_amd64.whl", hash = "sha256:0d0cc0fe0d4e1500e224b8a86094c30210580595a38ad212851451ba58978c18"},
+    {file = "pymoo-0.6.2.tar.gz", hash = "sha256:6f497c00d7cf7598d176a5cd244b4cc66661811a6e81a715a83e2cd545fefe7d"},
 ]
 
 [[package]]

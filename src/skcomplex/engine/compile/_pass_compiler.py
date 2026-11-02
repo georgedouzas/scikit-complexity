@@ -16,7 +16,7 @@ from sklearn.base import clone
 from ...base import BaseConfig
 from ...core.elements import FieldElement, GroupElement
 from ...core.interactions import HyperedgeInteraction, NeighborInteraction
-from ...core.laws import EncounterLaw, JumpLaw, NoiseLaw, ProliferationLaw
+from ...core.laws import EncounterLaw, EquationLaw, JumpLaw, NoiseLaw, ProliferationLaw
 from ...core.laws.utils import hyperedges_in, neighborhoods_in, reductions_in
 from ...core.spaces import (
     AdjacencyNeighborhood,
@@ -450,6 +450,7 @@ class PassCompiler(BaseCompiler):
         issues = PassCompiler._census_issues(compilation)
         issues += PassCompiler._bound_issues(nodes)
         issues += PassCompiler._law_issues(records, FractionalFormPass._declared_times(system))
+        issues += PassCompiler._equation_issues(compilation)
         issues += PassCompiler._neighborhood_issues(records, nodes)
         issues += PassCompiler._around_issues(records)
         issues += PassCompiler._nonlocal_issues(records, nodes)
@@ -805,6 +806,22 @@ class PassCompiler(BaseCompiler):
                 classes = ' or '.join(f'`{_TIME_CLASSES[item]}`' for item in requires.time)
                 fix = f'Declare {classes} for its system, or use laws that run in {time.__name__}.'
                 issues.append(IssueSpec('law-time', record.path, message, fix))
+        return issues
+
+    @staticmethod
+    def _equation_issues(compilation: Compilation) -> list[IssueSpec]:
+        """Return the equations under static time with no target or with a target that is not a state."""
+        if not isinstance(compilation.system.time, StaticTime):
+            return []
+        issues = []
+        for record in Compilation._required(compilation.census, 'census').records:
+            law = record.law
+            if not isinstance(law, EquationLaw) or record.targets:
+                continue
+            problem = 'names no target' if law.target is None else f'names the target {law.target}, which is no state'
+            message = f'The EquationLaw of {record.path} {problem}. An equation under static time solves for one state.'
+            fix = 'Pass the symbol of a state of the system as `target`.'
+            issues.append(IssueSpec('equation-target', record.path, message, fix))
         return issues
 
     @staticmethod

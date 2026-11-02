@@ -36,7 +36,8 @@ class ObservableSpec(BaseSpec):
             The path of the group to reduce over, relative to the system, or `None` for no reduction.
 
         reduce:
-            `'count'`, `'sum'`, `'mean'`, `'min'`, `'max'`, `'var'`, or a function of the array of member values.
+            `'count'`, `'sum'`, `'mean'`, `'min'`, `'max'`, `'var'`, `'logsumexp'`, or a function of the array of member
+            values.
 
         variable:
             The name of the member variable to reduce, instead of an expression.

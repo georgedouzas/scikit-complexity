@@ -5606,6 +5606,60 @@ True
 
 Open both files with `rerun lotka_volterra.rrd lotka_volterra.rbl` to see the layout.
 
+## Static systems
+
+A system under `StaticTime` has no time axis. Its laws are `EquationLaw`s that name their `target`, and a run solves them
+once and gives one frame:
+- The compiler solves the equations with Sage when it finds a unique explicit solution, and `problem.equations` holds it.
+- `RootSolver` otherwise solves them with `scipy.optimize.root` and their exact Jacobian, from the initial state as the
+  guess, and raises a `SolverError` that names the equations and the largest residual when the solve does not converge.
+- A target on a group gives one unknown per member, and reductions such as `total` couple the members.
+- The equations of one target from every element and interaction add.
+- A system without equations solves to its initial state, so its observables run on quenched states in one frame.
+
+`PassCompiler` reports an equation with no target, or with a target that is not a state, with the code `equation-target`.
+A law that does not run under static time keeps its `law-time` issue.
+
+```python
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import exp
+
+from skcomplex.core.elements import Element
+from skcomplex.core.laws import EquationLaw
+from skcomplex.core.spaces import StaticTime
+from skcomplex.core.system import System
+from skcomplex.experiments import Experiment, GridDesign
+from skcomplex.specs import ParameterSpec, StateSpec
+
+
+class DoseElement(Element):
+    def __init__(
+        self,
+        label: str,
+        survival: Annotated[float, StateSpec()] = 0.0,
+        dose: Annotated[float, ParameterSpec()] = 2.0,
+    ) -> None:
+        super().__init__(label)
+        self.survival = survival
+        self.dose = dose
+
+    def _get_laws(self, s: SimpleNamespace) -> list[EquationLaw]:
+        return [EquationLaw(s.survival == exp(-0.3 * s.dose - 0.03 * s.dose**2), target=s.survival)]
+
+
+def dose_response(dose: float = 2.0) -> System:
+    return System(elements=[DoseElement('cells', dose=dose)], time=StaticTime())
+
+
+sweep = Experiment(dose_response, GridDesign(), {'dose': [0.0, 2.0]}, outputs=['cells.survival'])
+rows = sweep.check().prepare().run().result_.rows
+assert [round(float(row['cells.survival']), 4) for row in rows] == [1.0, 0.4868]
+```
+
+A sweep of a parameter is an `Experiment` with `GridDesign`, one static run per value, as above.
+
 ## Experiments
 
 Complex systems are studied through many runs. `Experiment` runs a model, a factory of systems or a system, over a

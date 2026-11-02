@@ -32,6 +32,7 @@ from ._quantum import QuantumSolver
 from ._quantum_trajectories import QuantumTrajectoriesSolver
 from ._renewal import RenewalSolver
 from ._rk4 import RK4Solver
+from ._root import RootSolver
 from ._scipy_ode import ScipyODESolver
 from ._sde import SDESolver
 from ._solver import Solver
@@ -76,6 +77,7 @@ __all__: list[str] = [
     'QuantumTrajectoriesSolver',
     'RK4Solver',
     'RenewalSolver',
+    'RootSolver',
     'SDESolver',
     'SSPRKSolver',
     'ScipyODESolver',

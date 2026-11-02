@@ -5,6 +5,7 @@
 
 from collections.abc import Iterable
 
+from ....core.spaces import StaticTime
 from ....errors import IncompatibleLawsError
 from ....types import FormKind
 from .._base import BasePass
@@ -27,7 +28,10 @@ class FormPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Infer the form of the problem."""
         compilation = self.compilation_
-        compilation.form = self._infer_form(Compilation._required(compilation.kinds, 'kinds').values())
+        kinds = Compilation._required(compilation.kinds, 'kinds').values()
+        compilation.form = (
+            FormKind.STATIC if isinstance(compilation.system.time, StaticTime) else self._infer_form(kinds)
+        )
 
     @staticmethod
     def _infer_form(owners: Iterable[set[type]]) -> FormKind:

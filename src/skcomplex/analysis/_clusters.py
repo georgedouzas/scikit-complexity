@@ -1,4 +1,4 @@
-"""Measure clusters and percolation: clusters of grids and graphs, the largest cluster, and spanning."""
+"""Measure clusters and percolation: clusters of grids, graphs, and points, the largest cluster, and spanning."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -10,7 +10,9 @@ import numpy as np
 import numpy.typing as npt
 from scipy import ndimage, sparse
 from scipy.sparse import csgraph
+from scipy.spatial import cKDTree
 
+from ..core.spaces import ContinuousSpace
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
 from ..types import DataKind, IntArray
@@ -19,19 +21,24 @@ from .types import Source
 
 KINDS = ('labels', 'sizes', 'percolation', 'spanning')
 SETTINGS = {
-    'labels': {'periodic', 'diagonal', 'axis'},
-    'sizes': {'periodic', 'diagonal'},
-    'percolation': {'diagonal', 'axis'},
-    'spanning': {'diagonal', 'axis'},
+    'labels': {'periodic', 'diagonal', 'axis', 'radius'},
+    'sizes': {'periodic', 'diagonal', 'radius'},
+    'percolation': {'diagonal', 'axis', 'radius'},
+    'spanning': {'diagonal', 'axis', 'radius'},
 }
 """Settings every kind reads, besides `kind` and `variables`."""
 
 
 class ClusterAnalysis(BaseAnalysis):
-    """Clusters of the occupied cells of a grid, or the connected components of a graph, of one kind.
+    """Clusters of the occupied cells of a grid, the components of a graph, or the contacts of points, of one kind.
 
     The grid is a boolean array of any dimension, the last frame of a field of a trajectory, or a graph, the last
     network of a trajectory. Cells are connected through shared faces, or also corners with `diagonal=True`.
+
+    With a `radius`, the source holds points instead, an array with one row per point, a stack of such arrays for the
+    kind `'spanning'`, or the positions of a group of a trajectory in its last frame. Points closer than twice the
+    radius are connected, and a cluster joins two opposite faces along `axis` when it holds points within the radius of
+    both. The faces are those of the space of a trajectory, and those of the bounding box of an array.
 
     - `'labels'`: the label of every cell and the size of every cluster of a grid, in label order, and whether a
       cluster joins the two opposite edges of `axis`.
@@ -56,7 +63,13 @@ class ClusterAnalysis(BaseAnalysis):
         axis:
             The axis whose two opposite edges a spanning cluster joins.
 
+        radius:
+            The contact radius of points, or `None` for grids and graphs.
+
     Attributes:
+        points_:
+            The arrays of points, one per entry of the first axis, or `None` for grids and graphs.
+
         grids_:
             The grids, one per entry of the first axis, or `None` for a graph.
 
@@ -91,6 +104,8 @@ class ClusterAnalysis(BaseAnalysis):
         >>> result = ClusterAnalysis('percolation').check().prepare([[1, 1, 0], [1, 0, 1]]).run()
         >>> result.strength_, result.mean_size_, result.spanning_
         (0.5, 1.0, True)
+        >>> ClusterAnalysis('sizes', radius=0.6).check().prepare([[0, 0], [1, 0], [5, 5]]).run().sizes_.tolist()
+        [2, 1]
     """
 
     def __init__(
@@ -101,19 +116,29 @@ class ClusterAnalysis(BaseAnalysis):
         periodic: bool = False,
         diagonal: bool = False,
         axis: int = 0,
+        radius: float | None = None,
     ) -> None:
         self.kind = kind
         self.variables = variables
         self.periodic = periodic
         self.diagonal = diagonal
         self.axis = axis
+        self.radius = radius
 
     def _check(self) -> None:
-        """Validate the kind and that the kind reads every changed setting."""
+        """Validate the kind, the radius, and that the kind reads every changed setting."""
         if self.kind not in KINDS:
             error_msg = f'{type(self).__name__} has kind={self.kind!r}. Use one of {", ".join(KINDS)}.'
             raise AnalysisError(error_msg)
         self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
+        if self.radius is None:
+            return
+        if self.radius <= 0 or self.periodic or self.diagonal:
+            error_msg = (
+                f'{type(self).__name__} has radius={self.radius!r}, periodic={self.periodic!r}, and '
+                f'diagonal={self.diagonal!r}. A radius is positive, and points take neither of the settings of grids.'
+            )
+            raise AnalysisError(error_msg)
 
     def _get_data_kind(self) -> DataKind:
         """Return the field kind."""
@@ -123,6 +148,10 @@ class ClusterAnalysis(BaseAnalysis):
         """Read a graph, or the grids of the source, the last frame of a trajectory but for spanning."""
         self.grids_: npt.NDArray[np.bool_] | None = None
         self.graph_: nx.Graph | None = None
+        self.points_: npt.NDArray[np.float64] | None = None
+        if self.radius is not None:
+            self._prepare_points(source)
+            return
         if isinstance(source, nx.Graph):
             if self.kind in {'labels', 'spanning'}:
                 error_msg = (
@@ -138,6 +167,51 @@ class ClusterAnalysis(BaseAnalysis):
             self.grids_ = grids
         else:
             self.grids_ = grids[-1:] if isinstance(source, Trajectory) else grids[None]
+
+    def _prepare_points(self, source: Source) -> None:
+        """Read the arrays of points of the source and the faces of the space that holds them."""
+        self.faces_: npt.NDArray[np.float64] | None = None
+        if not isinstance(source, Trajectory):
+            points = np.asarray(source, dtype=float)
+            self.points_ = points if self.kind == 'spanning' else points[None]
+            return
+        system = source.problem.system
+        space = None if system is None else system.space
+        names = [name for name in source.problem.states.names if source.problem.states.entry(name).columns > 1]
+        name = self.variables[0] if self.variables else (names[0] if names else None)
+        if name is None:
+            raise self._get_missing_error(source, 'vector state of positions')
+        self.points_ = np.asarray(source.values(name), dtype=float)[-1:]
+        if isinstance(space, ContinuousSpace) and space.extent:
+            self.faces_ = np.asarray(space.extent, dtype=float)
+
+    def _contacts(self, points: npt.NDArray[np.float64]) -> IntArray:
+        """Return the label of every point, from 0, in the graph of the points closer than twice the radius."""
+        pairs = cKDTree(points).query_pairs(2 * float(self.radius or 0.0), output_type='ndarray')
+        size = len(points)
+        graph = sparse.coo_array((np.ones(len(pairs)), (pairs[:, 0], pairs[:, 1])), shape=(size, size))
+        return csgraph.connected_components(graph, directed=False)[1]
+
+    def _spans_points(self, points: npt.NDArray[np.float64], labels: IntArray) -> bool:
+        """Return whether one cluster holds points within the radius of both faces along the axis."""
+        along = points[:, self.axis]
+        lower, upper = (0.0, float(self.faces_[self.axis])) if self.faces_ is not None else (along.min(), along.max())
+        radius = float(self.radius or 0.0)
+        return bool(set(labels[along <= lower + radius]) & set(labels[along >= upper - radius]))
+
+    def _run_points(self, ensemble: npt.NDArray[np.float64]) -> None:
+        """Compute the measure of the kind from the contact clusters of points."""
+        if self.kind == 'spanning':
+            self.probability_ = float(np.mean([self._spans_points(item, self._contacts(item)) for item in ensemble]))
+            return
+        points = ensemble[0]
+        labels = self._contacts(points)
+        sizes = np.bincount(labels)
+        self.spanning_ = self._spans_points(points, labels)
+        self.labels_, self.sizes_ = labels + 1, sizes if self.kind == 'labels' else np.sort(sizes)[::-1]
+        rest = self.sizes_[1:].astype(float)
+        self.strength_ = float(sizes.max() / len(points))
+        self.mean_size_ = float(np.sum(rest**2) / rest.sum()) if rest.size else 0.0
 
     def _get_grids(self) -> npt.NDArray[np.bool_]:
         """Return the grids the analysis read, raising an error for a graph, which has none."""
@@ -170,7 +244,9 @@ class ClusterAnalysis(BaseAnalysis):
 
     def _run(self, inputs: object = None) -> None:
         """Compute the clusters, their sizes, the percolation observables, or the spanning probability."""
-        if self.kind == 'labels':
+        if self.points_ is not None:
+            self._run_points(self.points_)
+        elif self.kind == 'labels':
             grid = self._get_grids()[0]
             self.labels_, self.sizes_ = self._label(grid, periodic=self.periodic, diagonal=self.diagonal)
             self.spanning_ = self._spans(self.labels_, self.axis)

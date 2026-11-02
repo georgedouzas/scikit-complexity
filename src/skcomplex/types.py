@@ -125,6 +125,7 @@ class FormKind(StrEnum):
     COUPLED = 'co-simulation'
     QUANTUM = 'quantum dynamics'
     LEARNING = 'learning by gradient steps'
+    STATIC = 'static solution'
 
 
 class ElementKind(StrEnum):
