@@ -19,7 +19,7 @@ from skcomplex.models import run
 
 MODEL = 'double_gyre'
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=40)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=50)
 simulation = run(MODEL, settings={'observers': [observer]})
 
 # %%

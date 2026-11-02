@@ -13,6 +13,7 @@ from skcomplex.engine.solvers import (
     FractionalABMSolver,
     GrunwaldLetnikovSolver,
     L1Solver,
+    Solver,
 )
 from skcomplex.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.specs import SupportSpec
@@ -24,7 +25,7 @@ SOLVERS = [
     if inspect.isclass(item)
     and issubclass(item, BaseSolver)
     and not inspect.isabstract(item)
-    and 'supports' in vars(item)
+    and item not in {BaseSolver, Solver}
 ]
 
 
