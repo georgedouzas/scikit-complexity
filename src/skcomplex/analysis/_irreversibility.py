@@ -33,13 +33,13 @@ KINDS = (
 SETTINGS = {
     'entropy-production': set(),
     'jump-entropy-production': {'rates', 'duration'},
-    'langevin-entropy-production': {'force', 'temperature', 'dt'},
+    'langevin-entropy-production': {'drive', 'intensity', 'dt'},
     'count-entropy-production': {'n_states', 'dt'},
     'detailed-balance': {'n_states', 'significance'},
     'fluctuation-theorem': {'bins'},
     'uncertainty-relation': {'entropy', 'resamples', 'random_state'},
     'response': {'unperturbed', 'field'},
-    'fluctuation-dissipation': {'unperturbed', 'field', 'correlation', 'temperature'},
+    'fluctuation-dissipation': {'unperturbed', 'field', 'correlation', 'intensity'},
 }
 """Settings every kind reads, besides `kind` and `variables`."""
 
@@ -62,8 +62,8 @@ class IrreversibilityAnalysis(BaseAnalysis):
       `Σ_{i<j} (p_i k_ij - p_j k_ji) ln(p_i k_ij / (p_j k_ji))`, 0 under detailed balance.
     - `'jump-entropy-production'`: the entropy every jump path produces in the medium, `Σ ln(k_ij / k_ji)` over its
       jumps with the `rates`, and the mean rate over the `duration` of the paths.
-    - `'langevin-entropy-production'`: the heat every overdamped Langevin path releases over the temperature,
-      `∫ F(x) ∘ dx / T`, and the mean rate.
+    - `'langevin-entropy-production'`: the entropy every overdamped Langevin path produces, the work of the `drive`
+      times the `intensity`, `b ∫ F(x) ∘ dx`, and the mean rate.
     - `'count-entropy-production'`: the entropy production rate of a discrete path from its transition counts alone,
       `Σ_{i<j} (N_ij - N_ji) ln(N_ij / N_ji)` per unit time.
     - `'detailed-balance'`: the chi-squared test of detailed balance on the transition counts of discrete paths.
@@ -73,7 +73,7 @@ class IrreversibilityAnalysis(BaseAnalysis):
       times the mean `entropy` produced over the same duration, at least 2 (Barato and Seifert 2015).
     - `'response'`: the integrated response `chi(t) = (<x(t)>_h - <x(t)>_0) / h` of an ensemble with the field
       against the `unperturbed` ensemble.
-    - `'fluctuation-dissipation'`: the response, and the slope of `T chi` against `C(t_w, t_w) - C(t, t_w)` of the
+    - `'fluctuation-dissipation'`: the response, and the slope of `chi / b` against `C(t_w, t_w) - C(t, t_w)` of the
       two-time `correlation` over the same lags, 1 in equilibrium and below 1 in an aging system.
 
     Args:
@@ -89,11 +89,12 @@ class IrreversibilityAnalysis(BaseAnalysis):
         duration:
             The duration of every jump path, or `None` for the duration of a trajectory.
 
-        force:
-            The force as a function of position, or a constant force.
+        drive:
+            The drift along a Langevin path, a function of position or a constant.
 
-        temperature:
-            The temperature of the bath.
+        intensity:
+            The factor `b` of the work of the drive in the entropy, and one over the factor of the response in the
+            fluctuation-dissipation ratio, as in the acceptance `exp(-intensity * change)` of sampling.
 
         dt:
             The time between frames of Langevin paths, or between records of a discrete path.
@@ -202,8 +203,8 @@ class IrreversibilityAnalysis(BaseAnalysis):
         *,
         rates: npt.ArrayLike | None = None,
         duration: float | None = None,
-        force: Callable[[Array], Array] | float = 1.0,
-        temperature: float = 1.0,
+        drive: Callable[[Array], Array] | float = 1.0,
+        intensity: float = 1.0,
         dt: float = 1.0,
         n_states: int | None = None,
         significance: float = 0.05,
@@ -219,8 +220,8 @@ class IrreversibilityAnalysis(BaseAnalysis):
         self.variables = variables
         self.rates = rates
         self.duration = duration
-        self.force = force
-        self.temperature = temperature
+        self.drive = drive
+        self.intensity = intensity
         self.dt = dt
         self.n_states = n_states
         self.significance = significance
@@ -251,10 +252,10 @@ class IrreversibilityAnalysis(BaseAnalysis):
             self._check_needed(['correlation'])
         if self.kind == 'uncertainty-relation':
             self._check_needed(['entropy'])
-        if self.temperature <= 0 or self.dt <= 0 or self.field == 0:
+        if self.intensity <= 0 or self.dt <= 0 or self.field == 0:
             error_msg = (
-                f'{type(self).__name__} has temperature={self.temperature!r}, dt={self.dt!r}, and '
-                f'field={self.field!r}. Use a positive temperature and step and a nonzero field.'
+                f'{type(self).__name__} has intensity={self.intensity!r}, dt={self.dt!r}, and '
+                f'field={self.field!r}. Use a positive intensity and step and a nonzero field.'
             )
             raise AnalysisError(error_msg)
 
@@ -298,11 +299,11 @@ class IrreversibilityAnalysis(BaseAnalysis):
         self.entropy_production_ = float(self.entropies_.mean() / duration)
 
     def _run_langevin(self) -> None:
-        """Compute the heat every Langevin path releases over the temperature."""
+        """Compute the entropy every Langevin path produces, the work of the drive times the intensity."""
         array = self.values_
         midpoints = (array[:, 1:] + array[:, :-1]) / 2
-        forces = self.force(midpoints) if callable(self.force) else np.full_like(midpoints, self.force)
-        self.entropies_ = np.sum(forces * np.diff(array, axis=1), axis=1) / self.temperature
+        drifts = self.drive(midpoints) if callable(self.drive) else np.full_like(midpoints, self.drive)
+        self.entropies_ = self.intensity * np.sum(drifts * np.diff(array, axis=1), axis=1)
         self.entropy_production_ = float(self.entropies_.mean() / (self.dt * (array.shape[1] - 1)))
 
     def _run_detailed_balance(self) -> None:
@@ -379,7 +380,7 @@ class IrreversibilityAnalysis(BaseAnalysis):
                 self.fluctuation_dissipation_ratio_ = self._fluctuation_dissipation_ratio(
                     np.asarray(self.correlation, dtype=float),
                     self.response_,
-                    self.temperature,
+                    self.intensity,
                 )
 
     @staticmethod
@@ -412,9 +413,9 @@ class IrreversibilityAnalysis(BaseAnalysis):
         return (first.mean(axis=0) - second.mean(axis=0)) / field
 
     @staticmethod
-    def _fluctuation_dissipation_ratio(correlation: npt.ArrayLike, susceptibility: Array, temperature: float) -> float:
-        """Return the slope of `T chi` against `C(t_w, t_w) - C(t, t_w)`."""
+    def _fluctuation_dissipation_ratio(correlation: npt.ArrayLike, susceptibility: Array, intensity: float) -> float:
+        """Return the slope of `chi / b` against `C(t_w, t_w) - C(t, t_w)`, with `b` the intensity."""
         values = np.asarray(correlation, dtype=float)
         decay = values[0] - values
-        scaled = temperature * susceptibility
+        scaled = susceptibility / intensity
         return float(np.sum(decay * scaled) / np.sum(decay**2))

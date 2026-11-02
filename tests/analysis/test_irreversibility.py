@@ -66,7 +66,7 @@ def test_entropy_production_same_on_two_domains():
     """Test that a driven Brownian particle produces 1 and a driven jump ring (2 - 1) ln 2 per unit time."""
     rng = np.random.default_rng(0)
     paths = _driven_particles(rng, 500, 20.0, 0.01)
-    particle = _irreversibility('langevin-entropy-production', paths, force=1.0, temperature=1.0, dt=0.01)
+    particle = _irreversibility('langevin-entropy-production', paths, drive=1.0, intensity=1.0, dt=0.01)
     assert particle.entropy_production_ == pytest.approx(1, rel=0.05)
     states, duration = _ring_jumps(rng, 2.0, 1.0, 300_000)
     jumps = _irreversibility('jump-entropy-production', states, rates=RING, duration=duration)
@@ -89,8 +89,26 @@ def test_count_entropy_production_from_counts_alone():
 def test_fluctuation_theorem_of_a_driven_particle():
     """Test that 10,000 runs of the driven particle over time 1 give a slope of ln P(s) / P(-s) near 1."""
     paths = _driven_particles(np.random.default_rng(2), 10_000, 1.0, 0.01)
-    entropies = _irreversibility('langevin-entropy-production', paths, force=np.ones_like, dt=0.01).entropies_
+    entropies = _irreversibility('langevin-entropy-production', paths, drive=np.ones_like, dt=0.01).entropies_
     assert _irreversibility('fluctuation-theorem', entropies, bins=30).slope_ == pytest.approx(1, abs=0.1)
+
+
+def test_intensity_scales_the_entropy_and_the_response():
+    """Test that the intensity multiplies the entropy of Langevin paths and divides the response in the ratio."""
+    paths = [[0.0, 1.0, 3.0]]
+    entropies = _irreversibility('langevin-entropy-production', paths, drive=2.0, intensity=0.5).entropies_
+    assert entropies.tolist() == [3.0]
+    ratios = [
+        _irreversibility(
+            'fluctuation-dissipation',
+            [[0.0, 1.0, 2.0]],
+            unperturbed=[[0.0, 0.0, 0.0]],
+            correlation=[2.0, 1.0, 0.0],
+            intensity=intensity,
+        ).fluctuation_dissipation_ratio_
+        for intensity in (1.0, 2.0)
+    ]
+    assert ratios == pytest.approx([1.0, 0.5])
 
 
 def test_entropy_production_rejects_one_way_jumps():
@@ -192,7 +210,7 @@ def test_fluctuation_dissipation_ratio_in_equilibrium():
         unperturbed=unperturbed[:, 1000:],
         field=0.1,
         correlation=correlation[1],
-        temperature=1.0,
+        intensity=1.0,
     )
     assert ratio.fluctuation_dissipation_ratio_ == pytest.approx(1, abs=0.1)
     response = _irreversibility('response', [[1.0, 2.0]], unperturbed=[[1.0, 1.0]], field=0.5).response_

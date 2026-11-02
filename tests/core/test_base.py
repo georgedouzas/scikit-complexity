@@ -38,6 +38,7 @@ FIELD_TERMS = (
     'Energy',
     'Epidemic',
     'Firm',
+    'Force',
     'Gene',
     'Grass',
     'Heading',
