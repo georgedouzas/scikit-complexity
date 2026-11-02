@@ -30,7 +30,7 @@
 
 - [x] 5.1 Raise clear errors for: a callable Stratonovich amplitude without a derivative (or accept `derivative=`), a non-default activation on update-law phases, grid-only pairings, groupings, movements, and placements in continuous space, and callable values on growing hypergraphs; verify each error message names the hook.
 - [ ] 5.2 Fix the silent results: transitions over a cell with collection or callable sources, matching defaults for missing or misspelled states, and agent imitation ignoring `layer`; verify each with a test that failed before.
-- [ ] 5.3 Record every remaining restriction with its reason in the specs or design (event tie order, the draw registry, growing-hypergraph limits, closed field boundaries and discretizations, all-default group constructors), and correct the 2.10 statement in `complete-general-model-rewrites`'s archived design about roles in both forms; verify `openspec validate`.
+- [x] 5.3 Record every remaining restriction with its reason in the specs or design (event tie order, the draw registry, growing-hypergraph limits, closed field boundaries and discretizations, all-default group constructors), and correct the 2.10 statement in `complete-general-model-rewrites`'s archived design about roles in both forms; verify `openspec validate`.
 
 ## 6. Documentation and gate
 

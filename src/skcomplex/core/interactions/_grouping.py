@@ -226,6 +226,12 @@ class GroupingInteraction(Interaction):
             error_msg = f'The action of {self.label!r} is {self.act!r}. Give a function, or None.'
             raise ValidationError(error_msg)
         if self.form == 'symbolic':
+            if not isinstance(self.groups, str):
+                error_msg = (
+                    f'The symbolic form of {self.label!r} compiles the named groups, so it cannot run {self.groups!r}. '
+                    'Use `form="agent"`, whose groups `_get_groups` draws.'
+                )
+                raise ValidationError(error_msg)
             self._check_symbolic()
             return
         if self.write is not None or self.function is not None:
@@ -279,7 +285,9 @@ class GroupingInteraction(Interaction):
             return self._get_partition(agents, self.size, model)
         if self.groups == 'neighborhood':
             return self._get_neighborhoods(agents)
-        return self._get_shared(agents, model)
+        if self.groups == 'state':
+            return self._get_shared(agents, model)
+        raise self._get_variant_error(self.groups, 'groups', '_get_groups')
 
     def _act_on_groups(self, model: ModelViewProtocol) -> None:
         """Act on every group of one step in random order."""

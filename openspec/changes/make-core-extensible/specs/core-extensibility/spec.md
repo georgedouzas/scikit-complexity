@@ -114,3 +114,11 @@ would lift it.
 #### Scenario: Event ties
 - **WHEN** a user reads why two crossings in one step apply in declaration order
 - **THEN** the specification states the rule, its reason, and the option that would treat them as simultaneous
+
+### Requirement: Tied crossings apply in declaration order
+The crossings of one step SHALL apply earliest first, and crossings at one time within the minimum separation SHALL all
+fire in declaration order, then by member, each reset reading the state the one before it left.
+
+#### Scenario: Two crossings at one time
+- **WHEN** two crossings of one system change sign at one time
+- **THEN** both fire, and swapping their declaration swaps the order of their resets

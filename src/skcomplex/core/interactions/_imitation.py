@@ -235,6 +235,8 @@ class ImitationInteraction(NeighborInteraction):
         if self.rule == 'best':
             best, better = self._get_best(namespace)
             return self._switches(value, self._get_parameter_symbol('rate', namespace) * better, best)
+        if self.rule not in ('random', 'fermi'):
+            raise self._get_variant_error(self.rule, 'rule', '_get_jumps')
         source, target = self._get_member(namespace, 'source'), self._get_member(namespace, 'target')
         return [*self._copies(target, source, namespace), *self._copies(source, target, namespace)]
 
@@ -268,6 +270,8 @@ class ImitationInteraction(NeighborInteraction):
         if self.rule == 'majority':
             leads = self._get_majority(namespace)
             imitated = value + sum((lead * (option - value) for option, lead in leads.items()), SR(0))
+        elif self.rule != 'best':
+            raise self._get_variant_error(self.rule, 'rule', '_get_update')
         else:
             best, better = self._get_best(namespace)
             imitated = where(better == 1, best, value)
@@ -325,6 +329,8 @@ class ImitationInteraction(NeighborInteraction):
         difference = float(getattr(other, self.payoff)) - own
         if self.rule == 'better':
             return float(getattr(other, self.state)) if difference > 0 else None
+        if self.rule != 'fermi':
+            raise self._get_variant_error(self.rule, 'rule', '_choose')
         fermi = 1 / (1 + np.exp(-self._get_parameter_value('intensity', model) * difference))
         return float(getattr(other, self.state)) if rng.random() < fermi else None
 

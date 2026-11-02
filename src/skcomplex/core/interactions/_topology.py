@@ -170,6 +170,8 @@ class TopologyInteraction(NeighborInteraction):
 
     def _get_requests(self) -> list[TopologyRequestSpec]:
         """Return the requests of the action, two for a replacement of a node."""
+        if self.action not in ACTIONS:
+            raise self._get_variant_error(self.action, 'action', '_get_requests')
         values = tuple((self.values or {}).items())
         kinds = ['add-node', 'remove-node'] if self.action == 'replace-node' else [self.action]
         return [

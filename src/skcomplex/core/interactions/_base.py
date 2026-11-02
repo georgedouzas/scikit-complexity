@@ -191,6 +191,29 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {", ".join(accepted)}.'
         raise ValidationError(error_msg)
 
+    def _get_variant_error(self, value: object, name: str, method: str) -> ValidationError:
+        """Return the error for a spec of a variant that no subclass runs.
+
+        Args:
+            value:
+                The value of the variant argument.
+
+            name:
+                The name of the variant argument, such as `'rule'`.
+
+            method:
+                The private method a subclass overrides to run the spec.
+
+        Returns:
+            error:
+                The error that names the variant and the method.
+        """
+        error_msg = (
+            f'{type(self).__name__} {self.label!r} has no way to run the {name} {value!r}. Override `{method}` in a '
+            'subclass to run it.'
+        )
+        return ValidationError(error_msg)
+
     def _update_agents[T](
         self,
         model: ModelViewProtocol,

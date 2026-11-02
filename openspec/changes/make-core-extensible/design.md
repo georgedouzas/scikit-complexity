@@ -118,6 +118,20 @@ a named error from `skcomplex.errors` whose message names the operation, the rea
   needs its own lowering of the operators. A new one is added as a lowering in the engine, not by the user.
 - **Group constructors.** A group builds one instance of its element type from the label alone and sets its `values`
   on it, so every other argument of the element constructor has a default. Per-member values go in `values`.
+- **Event ties.** The crossings of one step apply earliest first. Crossings within the minimum separation of the
+  earliest, a relative `1e-10`, are one tie: all of them fire at that time, by declaration order and then member index,
+  and each reset reads the state the one before it left. The reason is that a reset is a function of one state vector,
+  so resets applied in turn need no rule for two resets that write one state. An option on the event locator that
+  evaluates every reset on the state before the tie, with a rule for conflicting writes, would treat them as
+  simultaneous. Until 2026-11-02 the code fired only the first of a tie, because the guards of the others had already
+  changed sign when the run restarted; `EventLocator.apply` now fires all of them.
+- **Draw registry.** `DRAWS` in `skcomplex.specs._draw_spec` is a module-level mapping from the function name of a draw,
+  such as `uniform_turn`, to its `DrawSpec`, written by every call of `uniform`, `normal`, `bernoulli`, `categorical`,
+  and `draw`. The reason is that a Sage symbolic function holds only a name and arguments, so `draws_in` recovers the
+  kind, the name, and the keywords of a draw from the name of its function. Entries never leave and no run writes them,
+  so they do not change between runs, but two limits follow. An expression unpickled in a process that never called the
+  draw is not recognised as a draw, and `uniform('a')` and `draw('a', 'uniform')` share the function name `uniform_a`,
+  so the later call decides the kind of both. A Sage function class that holds the spec on the operator would lift both.
 
 ## Risks / Trade-offs
 

@@ -611,7 +611,9 @@ class CouplingInteraction(NeighborInteraction):
             return self._get_group_reduction(namespace)
         if self.mode == 'next':
             return self._get_next_reduction(namespace)
-        return self._get_neighbor_reduction(namespace)
+        if self.mode == 'edges':
+            return self._get_neighbor_reduction(namespace)
+        raise self._get_variant_error(self.mode, 'mode', '_get_reduction')
 
     def _get_edge_term(self, namespace: SimpleNamespace, member: SimpleNamespace, other: SimpleNamespace) -> Target:
         """Return the term one end of an edge gets from the other end, weighted and divided for a mean."""

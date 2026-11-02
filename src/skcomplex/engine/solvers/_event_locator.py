@@ -31,6 +31,7 @@ class EventLocator:
         self.records: list[BaseRecordSpec] = []
         self.stopped_at: float | None = None
         self._last: dict[tuple[str, int | None], float] = {}
+        self._tied: list[int] = []
         self._slots = [
             (index, member)
             for index, event in enumerate(problem.events)
@@ -71,7 +72,9 @@ class EventLocator:
     ) -> tuple[float, int] | None:
         """Return the earliest event crossing in a step, with its time and the index of its event.
 
-        An event of the members of a group crosses once per member, and each member has its own index.
+        An event of the members of a group crosses once per member, and each member has its own index. The events
+        that cross with the earliest one, within the minimum separation, are kept for `apply`, since their guards
+        have changed sign by the time the run restarts.
 
         Args:
             t0:
@@ -100,7 +103,7 @@ class EventLocator:
             crossing:
                 The time and the event index, or `None` when no guard crosses zero in its direction.
         """
-        earliest: tuple[float, int] | None = None
+        found: list[tuple[float, int]] = []
         for index, event in enumerate(self.problem.events):
             if event.hidden and not include_hidden:
                 continue
@@ -114,8 +117,12 @@ class EventLocator:
                     if g1[member] == 0
                     else self._past_root(single, float(g0[member]), t0, t1, p=p, interpolant=interpolant)
                 )
-                if earliest is None or time < earliest[0]:
-                    earliest = (time, self._slot_of[(index, slot)])
+                found.append((time, self._slot_of[(index, slot)]))
+        if not found:
+            return None
+        earliest = min(found, key=lambda item: item[0])
+        reach = earliest[0] + SEPARATION * max(1.0, abs(earliest[0]))
+        self._tied = [slot for time, slot in found if time <= reach and slot != earliest[1]]
         return earliest
 
     @staticmethod
@@ -139,30 +146,8 @@ class EventLocator:
             time, nudge = min(t1, time + nudge), 2 * nudge
         return time
 
-    def apply(self, time: float, index: int, state: Array, p: Array) -> Array:
-        """Apply an event's reset at its time, record it, and stop the run when it is terminal.
-
-        Args:
-            time:
-                The time of the crossing.
-
-            index:
-                The index of the event, as the crossing returns it.
-
-            state:
-                The state at the crossing.
-
-            p:
-                The parameter vector.
-
-        Returns:
-            state:
-                The state after the reset.
-
-        Raises:
-            SolverError:
-                The event fires again within the minimum separation, which signals chattering.
-        """
+    def _fire(self, time: float, index: int, state: Array, p: Array) -> Array:
+        """Apply the reset of one event at its time, record it, and stop the run when it is terminal."""
         position, member = self._slots[index]
         event = self.problem.events[position]
         if event.hidden:
@@ -180,6 +165,39 @@ class EventLocator:
         self.records.append(EventRecordSpec(event.label, time, state.copy(), after.copy(), member))
         if event.terminal:
             self.stopped_at = time
+        return after
+
+    def apply(self, time: float, index: int, state: Array, p: Array) -> Array:
+        """Apply the resets of an event and the events tied with it, in the order the system declares them.
+
+        Every reset reads the state the one before it left. A terminal event stops the run after the resets of its
+        step.
+
+        Args:
+            time:
+                The time of the crossing.
+
+            index:
+                The index of the event, as the crossing returns it.
+
+            state:
+                The state at the crossing.
+
+            p:
+                The parameter vector.
+
+        Returns:
+            state:
+                The state after the resets.
+
+        Raises:
+            SolverError:
+                The event fires again within the minimum separation, which signals chattering.
+        """
+        after = state
+        for slot in sorted((index, *self._tied)):
+            after = self._fire(time, slot, after, p)
+        self._tied = []
         return after
 
     @staticmethod

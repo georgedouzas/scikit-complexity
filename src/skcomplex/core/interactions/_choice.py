@@ -232,7 +232,9 @@ class ChoiceInteraction(Interaction):
             return self._draw_softmax(state, utilities, self._get_parameter_symbol('intensity', namespace))
         if self.rule == 'best':
             return self._draw_best(state, utilities)
-        return self._draw_proposal(state, utilities, self._get_parameter_symbol('intensity', namespace))
+        if self.rule in ('metropolis', 'fermi'):
+            return self._draw_proposal(state, utilities, self._get_parameter_symbol('intensity', namespace))
+        raise self._get_variant_error(self.rule, 'rule', '_draw_symbolic')
 
     def _get_utilities(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> np.ndarray:
         """Return the utility of every option for an agent."""
@@ -258,6 +260,8 @@ class ChoiceInteraction(Interaction):
         utilities = self._get_utilities(agent, model)
         if self.rule == 'best':
             return float(self.options[self._pick_best(utilities, self.ties, model)])
+        if self.rule != 'logit':
+            raise self._get_variant_error(self.rule, 'rule', '_draw_agent')
         scaled = np.where(np.isneginf(utilities), -np.inf, intensity * utilities)
         probabilities = softmax(scaled)
         return float(self.options[int(model.rng.choice(len(self.options), p=probabilities))])
