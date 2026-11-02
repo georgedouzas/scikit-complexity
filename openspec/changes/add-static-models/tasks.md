@@ -47,7 +47,7 @@
 
 ## 5. Documentation and gate
 
-- [ ] 5.1 Document `log_sum_exp`, contact clusters, `SatisfiabilityInteraction`, `OptimizationInteraction`, and
+- [x] 5.1 Document `log_sum_exp`, contact clusters, `SatisfiabilityInteraction`, `OptimizationInteraction`, and
   annealing in the user guide, and verify the documentation test passes (the changelog is generated from conventional commits)
 - [ ] 5.2 Run `nox -s formatting`, `nox -s checks`, `nox -s docs`, and `nox -s tests` in that order, and verify all of
   them pass

@@ -5846,6 +5846,83 @@ assert [round(float(row['cells.survival']), 4) for row in rows] == [1.0, 0.4868]
 
 A sweep of a parameter is an `Experiment` with `GridDesign`, one static run per value, as above.
 
+### Log-sum-exp and contact clusters
+
+`log_sum_exp(expression, over=None)` reduces over the members of a group like `total`, as `log sum_j exp(a_j)`, without
+overflow for values of any size. A system-level observable cannot reach a group from another element, so a quantity built
+on it is an `EquationLaw` on a scalar element, read by an interaction that binds the group, as in the random energy model:
+
+```python
+from skcomplex.engine.runtime import Simulation
+from skcomplex.models.physics.statistical_mechanics import random_energy_model
+
+system = random_energy_model(12, temperature=2.0)
+trajectory = Simulation(system).check().prepare().run(1.0).trajectory_
+print(trajectory.values('ensemble.entropy')[0])
+```
+
+Quenched disorder is drawn by the factory, so a disorder average sweeps its `random_state` as an axis of `GridDesign`.
+The `replicates` of an `Experiment` share one draw of the factory and vary only the dynamics.
+
+`ClusterAnalysis(kind, radius=)` reads the positions of points, joins those closer than twice the radius, and measures
+their clusters, and a cluster spans along `axis` when it holds points within the radius of both faces of the space:
+
+```python
+from skcomplex.analysis import ClusterAnalysis
+
+print(ClusterAnalysis('sizes', radius=0.6).check().prepare([[0, 0], [1, 0], [5, 5]]).run().sizes_.tolist())
+```
+
+## Constraints and search
+
+`SatisfiabilityInteraction` binds a group of Boolean states and reveals its constraints step by step, each a
+`ClauseSpec` or a `CardinalitySpec` over literals, a member index from 1, negative for its negation. One PySAT solver
+keeps what it learned, sets the members to a model when one exists, and reports `satisfiable` and `revealed` every step.
+
+```python
+from typing import Annotated
+
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import SatisfiabilityInteraction
+from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import CardinalitySpec, ClauseSpec, StateSpec
+
+
+class BitElement(Element):
+    def __init__(self, label: str, on: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0) -> None:
+        super().__init__(label)
+        self.on = on
+
+
+constraints = [CardinalitySpec((1, 2, 3), 2, 'at-least'), ClauseSpec((-1,)), ClauseSpec((-2,))]
+decide = SatisfiabilityInteraction('decide', target='bits', state='on', constraints=constraints)
+bits = GroupElement('bits', element=BitElement, size=3)
+system = System(elements=[bits], interactions=[decide], time=DiscreteTime())
+print(Simulation(system).check().prepare().run(until=3).trajectory_.values('decide.satisfiable')[1:])
+```
+
+`OptimizationInteraction` moves a group of candidates, each a vector state in the box `bounds`, one generation per step
+through pymoo. The `objective` takes the array of candidates, and the algorithm is a spec,
+`DifferentialEvolutionSpec`, `ParticleSwarmSpec`, `EvolutionStrategySpec`, or `CovarianceAdaptationSpec`. It reports
+`best` and `mean` every step, and once the algorithm stops itself the candidates stay. Runs with the same seed repeat.
+
+```python
+from skcomplex.engine.runtime import Simulation
+from skcomplex.models.computer_science.evolutionary_computation import evolutionary_optimisers
+
+system = evolutionary_optimisers(algorithm='particle-swarm', random_state=1)
+print(Simulation(system, random_state=1).check().prepare().run(until=20).trajectory_.values('search.best')[-1] < 20)
+```
+
+`SamplingInteraction(cooling=)` takes a function of the time symbol that multiplies the temperature, so a Metropolis
+acceptance with the `'gaussian'` move anneals a group of candidates on a one-dimensional `LatticeSpace` whose energy
+reads no neighbours, with one interaction per state. The solver of sampling takes no other laws, so what tracks a run,
+such as the lowest energy so far, sits in a nested system, as in `evolutionary_optimisers(algorithm='annealing')`.
+
 ## Experiments
 
 Complex systems are studied through many runs. `Experiment` runs a model, a factory of systems or a system, over a
