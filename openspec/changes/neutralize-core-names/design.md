@@ -22,6 +22,12 @@ engine, analysis, and experiments from importing the models.
 
 ## Decisions
 
+- **Decided on 2026-11-02.** Only true particle groups take `StateSpec(role='position')`, with the first derivative of a
+  position-role state as its velocity; other groups stop being read as agent snapshots, and each changed default is
+  reported. Also renamed: `MatchSpec.price` and its reporter to `value`, `budget` in matching to `allowance`,
+  `ConeNeighborhood(heading=)` to `direction=`, `StateSpec(role='heading')` to `role='direction'`, and the local
+  `temperature` names in the engine and analysis. `limit` and `clearing` stay.
+
 ### Sampling reads an objective at an intensity
 `ChoiceInteraction` and `ImitationInteraction` already call the same idea `intensity`, so acceptance is
 `exp(-intensity * change)`. `cooling` multiplies one over the intensity, so a schedule keeps its meaning.
