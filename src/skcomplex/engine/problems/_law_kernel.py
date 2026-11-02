@@ -146,6 +146,11 @@ class LawKernel(BaseKernel):
         return {}
 
     @functools.cached_property
+    def _applied(self) -> dict[int, Array]:
+        """Values of the global operators applied in the current evaluation, cleared when an evaluation starts."""
+        return {}
+
+    @functools.cached_property
     def _argument_readers(self) -> list[ReadFunction]:
         """Readers of the arguments of the compiled function, in order."""
         return [self._reader(item) for item in self._arguments]
@@ -197,6 +202,7 @@ class LawKernel(BaseKernel):
             values:
                 One value or one array of values per symbol of `arguments`.
         """
+        self._applied.clear()
         return [read(x, p, None, t) for read in self._argument_readers]
 
     def read(self, symbol: Expression, t: float, x: Array, p: Array) -> object:
@@ -219,6 +225,7 @@ class LawKernel(BaseKernel):
             values:
                 One value or one array of values.
         """
+        self._applied.clear()
         return self._reader(symbol)(x, p, None, t)
 
     @property
@@ -238,8 +245,11 @@ class LawKernel(BaseKernel):
         if reference.source is ReadKind.NEIGHBOR:
             return reference.shifted.read(reference.column_of(x, p), p)
         read = reference.derived
-        values = [self._gather(item, x, p, pairs, t) for item in read.symbols]
-        return read.run(RunStateSpec(t, read.operand_values(t, values, reference.entry.rows), p)).values_
+        if id(read) not in self._applied:
+            values = [self._gather(item, x, p, pairs, t) for item in read.symbols]
+            operand = read.operand_values(t, values, reference.entry.rows)
+            self._applied[id(read)] = read.run(RunStateSpec(t, operand, p)).values_
+        return self._applied[id(read)]
 
     def _reader(self, symbol: Expression) -> ReadFunction:
         """Return the function that reads the values of a symbol for every evaluation index, resolved once."""
@@ -312,6 +322,7 @@ class LawKernel(BaseKernel):
         """Set the number of evaluation indices, the pairs in pair mode, and one array of values per output."""
         state = self._state_of(inputs)
         t, x, p = state.t, state.x, state.p
+        self._applied.clear()
         pairs = self.pairs.run(state).pairs_ if self.pairs is not None else None
         size = len(pairs[0]) if pairs is not None else self.rows
         computed: list[npt.ArrayLike] = []

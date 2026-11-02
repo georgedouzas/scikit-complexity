@@ -113,6 +113,10 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
 
         cross_section_:
             The cross-section of the collision law being lowered, or `None`.
+
+        applied_:
+            The lowered value of every operator call so far, by its name, its lowered operands, and the cross-section,
+            so an identical call shares one value.
     """
 
     fields_: Mapping[str, FieldElement]
@@ -125,6 +129,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
     tables_: dict[tuple[object, ...], tuple[Indices, float | None]]
     solution_boundaries_: dict[Expression, tuple[str, object]]
     cross_section_: Callable[..., object] | None
+    applied_: dict[tuple[object, ...], Expression]
 
     def __init__(self, spec: KernelSpec) -> None:
         self.spec = spec
@@ -147,7 +152,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             raise ValidationError(error_msg)
         self.fields_ = self._field_entries(declarations)
         self.initial_ = self._initial_values(self.spec, declarations)
-        self.shifted_, self.derived_, self.tables_, self.solution_boundaries_ = {}, {}, {}, {}
+        self.shifted_, self.derived_, self.tables_, self.solution_boundaries_, self.applied_ = {}, {}, {}, {}, {}
         self.limits_, self.volume_limits_ = [], []
         self.written_ = defaultdict(list)
         self.cross_section_ = None
@@ -519,7 +524,12 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         operator = call.operator()
         operands = [self._lower(item) for item in call.operands()]
         name = getattr(operator, 'name', lambda: '')()
-        return operator(*operands) if name not in OPERATOR_NAMES else self._lowered_call(name, operands)
+        if name not in OPERATOR_NAMES:
+            return operator(*operands)
+        key = (name, *operands, id(self.cross_section_))
+        if key not in self.applied_:
+            self.applied_[key] = self._lowered_call(name, operands)
+        return self.applied_[key]
 
     def _lowered_call(self, name: str, operands: list[object]) -> Expression:
         """Return the value of one operator whose operands are lowered."""

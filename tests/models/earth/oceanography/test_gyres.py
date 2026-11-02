@@ -1,8 +1,12 @@
 """Test the `_gyres` module of `skcomplex.models.earth.oceanography`."""
 
 import numpy as np
+import scipy.fft
 
+from skcomplex.engine.backends import NumpyBackend
+from skcomplex.engine.compile import compile_system
 from skcomplex.models import run
+from skcomplex.models.earth.oceanography import double_gyre
 
 
 def test_double_gyre_forms_western_intensified_gyres_in_sverdrup_balance():
@@ -24,3 +28,13 @@ def test_double_gyre_forms_western_intensified_gyres_in_sverdrup_balance():
         error = np.abs(psi[interior, row] - sverdrup[interior]).max() / np.abs(sverdrup[interior]).max()
         assert error < 0.1
     assert np.abs(psi - earlier).max() < 1e-3 * np.abs(psi).max()
+
+
+def test_double_gyre_inverts_its_vorticity_once_per_rate(monkeypatch):
+    """Test that a rate of the gyres solves for the streamfunction once, however many stencils read it."""
+    solves = []
+    transform = scipy.fft.dstn
+    monkeypatch.setattr(scipy.fft, 'dstn', lambda *args, **kwargs: solves.append(1) or transform(*args, **kwargs))
+    problem = compile_system(double_gyre(16), backend=NumpyBackend())
+    problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+    assert len(solves) == 1
