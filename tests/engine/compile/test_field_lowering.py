@@ -722,6 +722,7 @@ def test_identical_operators_apply_once_per_evaluation(monkeypatch):
     assert len(transforms) == 2
     doubled = problem.drift(0.0, 2 * state, parameters)
     solution = -2 * np.sin(positions)
-    assert np.allclose(np.ravel(problem.states.read(doubled, 'm.u')), solution**2 + solution + 8 * np.cos(2 * positions))
+    expected = solution**2 + solution + 8 * np.cos(2 * positions)
+    assert np.allclose(np.ravel(problem.states.read(doubled, 'm.u')), expected)
     assert np.array_equal(problem.drift(0.0, state, parameters), first)
     assert len(transforms) == 6
