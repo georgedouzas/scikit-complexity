@@ -25,9 +25,9 @@ class SamplingInteraction(Interaction):
     Every sweep proposes a move of the state of every member and accepts it from the change of the local objective of
     the member, the terms of the objective that involve its value, at the intensity. The local objective is a function
     of the namespace, which holds `namespace.target`, the states and parameters of the member, and
-    `namespace.target.other`, a neighbour, whose values `neighbors(...)` sums over `neighborhood`. A move is `'flip'`, the negative value,
-    `'random-value'`, a value drawn from `values`, `'rotate'`, the value plus a uniform number in `[-width, width]`,
-    `'gaussian'`, the value plus a normal number of standard deviation `width`, or a function
+    `namespace.target.other`, a neighbour, whose values `neighbors(...)` sums over `neighborhood`. A move is `'flip'`,
+    the negative value, `'random-value'`, a value drawn from `values`, `'rotate'`, the value plus a uniform number in
+    `[-width, width]`, `'gaussian'`, the value plus a normal number of standard deviation `width`, or a function
     `move(values, random)` of the array of the current values of some members and the random generator that returns
     their proposed values. The move `'cluster'` is the Wolff algorithm instead: a sweep flips clusters until the flipped
     members number as many as the members, each cluster grown from a random member through the bonds to neighbours
