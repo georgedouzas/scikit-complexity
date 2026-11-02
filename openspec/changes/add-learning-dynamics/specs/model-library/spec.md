@@ -41,8 +41,9 @@ schedule or an experiment changes it, and SHALL keep its trajectory.
 
 ### Requirement: Random Lotka-Volterra community with k-body interactions
 The library SHALL provide `higher_order_random_lotka_volterra` in `biology/ecology` (Sidhom and Galla 2024, arXiv
-2409.10990): a group of species with logistic growth and a rate `x_i contraction(T, x, x) / N` from a random symmetric
-coupling tensor `T` of order 3, a shaped parameter drawn by the factory from its `random_state`, so a schedule or an
+2409.10990): a group of species with the growth `x_i (k - x_i)` and the rate `x_i sum_(j<k) a_ijk x_j x_k` of the
+paper's Eq. 2, written `x_i contraction(a, x, x) / 2`, from a random coupling tensor `a` of order 3 with the mean, variance,
+and correlation of its Eqs. 4 and 5, a shaped parameter drawn by the factory from its `random_state`, so a schedule or an
 experiment changes it, with a curated gallery example.
 
 #### Scenario: No interactions
@@ -53,7 +54,8 @@ experiment changes it, with a curated gallery example.
 - **WHEN** the model runs with its defaults, the equations, scaling, and parameters of Sidhom and Galla (2024, arXiv
   2409.10990), over 20 seeds
 - **THEN** every abundance stays non-negative and finite, and the mean fraction of surviving species matches the
-  paper's result at those parameters within its stated precision
+  paper's result at those parameters within its stated precision: 200 species, `mu = -4`, `sigma = 1`, and `gamma = 0`
+  give 0.928 from its Eq. 17, and the paper states no number, so the check allows 0.02, three standard errors of 20 seeds
 
 ### Requirement: Learning models are recorded in the model inventory
 Every model this change implements SHALL register under the field path of its subfield and SHALL have an entry in the

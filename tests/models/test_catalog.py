@@ -56,7 +56,7 @@ def test_listing_matches_registration():
 
 
 CONFORMANCE_FRAMES = 10
-SLOW = {'cocoa'}
+SLOW = {'cocoa', 'higher_order_random_lotka_volterra'}
 
 
 FIELDS = [
