@@ -73,7 +73,13 @@ class EquationLaw(BaseLaw):
         return SR(self.lhs), SR(self.rhs)
 
     def _check(self) -> None:
-        """Raise an error for an equation without a right side whose left side is not a relation."""
+        """Raise an error for a function as a side, or an equation without a right side that is not a relation."""
+        if any(callable(item) and not isinstance(item, Expression) for item in (self.lhs, self.rhs)):
+            error_msg = (
+                'Equations are solved symbolically, so a side of an equation cannot be a function. Use a `RateLaw` of '
+                'the highest derivative with a function as its value.'
+            )
+            raise ValidationError(error_msg)
         if self.rhs is None and not (isinstance(self.lhs, Expression) and self.lhs.is_relational()):
             error_msg = 'An equation takes a left and a right side, or one relation `lhs == rhs`.'
             raise ValidationError(error_msg)

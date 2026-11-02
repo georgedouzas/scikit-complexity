@@ -259,3 +259,9 @@ def test_equation_with_driver_or_condition_matches_rate(equation, rate):
     first = Simulation(System(elements=[equation('mass')]), solver=PRECISE, dt=0.1).check().prepare().run(until=3)
     second = Simulation(System(elements=[rate('mass')]), solver=PRECISE, dt=0.1).check().prepare().run(until=3)
     assert first.trajectory_.values('mass.x') == pytest.approx(second.trajectory_.values('mass.x'), abs=1e-8)
+
+
+def test_check_names_equations_as_symbolic_only():
+    """Test that a function as a side of an equation raises an error pointing to a rate law."""
+    with pytest.raises(ValidationError, match=r'solved symbolically.*`RateLaw`'):
+        EquationLaw(var('x'), print).check()
