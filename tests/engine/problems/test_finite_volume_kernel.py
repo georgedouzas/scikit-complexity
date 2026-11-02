@@ -80,6 +80,7 @@ def _timed_dam_break(closed):
     return time.perf_counter() - start, simulation.state_
 
 
+@pytest.mark.benchmark
 def test_run_is_faster_with_closed_form_speeds():
     """Test that closed-form speeds run the dam break faster than numerical eigenvalues with the same solution."""
     _timed_dam_break(True)

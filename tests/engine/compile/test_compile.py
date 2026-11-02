@@ -570,6 +570,7 @@ def test_compile_per_entry_parameter_has_one_component_per_entry():
     assert problem.parameters.component_names == ['sum.weights[0]', 'sum.weights[1]', 'sum.weights[2]']
 
 
+@pytest.mark.benchmark
 def test_compile_system_time_grows_linearly_with_interactions():
     """Test that compiling 800 one-link interactions takes at most 2.5 times as long as compiling 400."""
     assert _compile_time(800) <= 2.5 * _compile_time(400)
