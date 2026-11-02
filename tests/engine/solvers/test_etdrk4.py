@@ -200,6 +200,7 @@ def test_mesh_fields_stream_as_meshes(tmp_path):
     assert observer.logged_frames_ == 3
 
 
+@pytest.mark.slow
 def test_decaying_turbulence_loses_energy():
     """Test that decaying turbulence loses energy monotonically and enstrophy faster than energy."""
     vorticity = (

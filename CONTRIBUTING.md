@@ -59,6 +59,8 @@ thumbnail.
 
 - The examples are scripts in the format of `mkdocs-gallery` under `docs/examples/<field>/<subfield>/plot_<model>.py`,
   one per registered model, named after the model.
+- CI runs `nox -s quick_tests`, the fast tests of the core and the engine, in a few minutes. Run `nox -s tests` for the
+  whole suite before a release.
 - The gallery tooling is the `gallery_tools` package in `docs`. It needs the `gallery` dependency group, which holds
   Pillow and Playwright: `pdm install -dG docs -dG gallery`.
 - `nox -s gallery` runs the examples, captures their screenshots, and builds the documentation with them. It takes

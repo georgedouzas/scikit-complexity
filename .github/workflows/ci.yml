@@ -62,9 +62,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-        - ubuntu-latest
-        - macos-latest
+        include:
+        - os: ubuntu-latest
+          python-version: '3.12'
+        - os: macos-latest
+          python-version: '3.13'
 
     runs-on: ${{ matrix.os }}
 
@@ -75,9 +77,7 @@ jobs:
     - name: Install Python versions
       uses: actions/setup-python@v5
       with:
-        python-version: |
-            3.12
-            3.13
+        python-version: ${{ matrix.python-version }}
 
     - name: Set up PDM
       uses: pdm-project/setup-pdm@v4
@@ -88,12 +88,8 @@ jobs:
     - name: Install dependencies
       run: pdm install -dG maintenance -dG tests
 
-    - name: Run the test suite
-      env:
-        PYTEST_ADDOPTS: -v
-      run: |
-        (while sleep 300; do df -h . | tail -1; vm_stat 2>/dev/null | head -2 || true; free -m 2>/dev/null | sed -n 2p || true; done) &
-        pdm tests
+    - name: Run the fast tests
+      run: pdm run nox --default-venv-backend uv --error-on-external-run -R -s quick_tests-${{ matrix.python-version }}
 
   gallery:
 

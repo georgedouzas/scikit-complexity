@@ -13,6 +13,17 @@ os.environ.update({'PDM_IGNORE_SAVED_PYTHON': '1'})
 
 PYTHON_VERSIONS: list[str] = ['3.12', '3.13']
 FILES: list[str] = ['src', 'tests', 'docs', 'noxfile.py']
+QUICK_TESTS: list[str] = [
+    'tests/core',
+    'tests/engine',
+    'tests/experiments',
+    'tests/specs',
+    'tests/test_base.py',
+    'tests/test_errors.py',
+    'tests/test_sources.py',
+    'tests/test_specs.py',
+    'tests/test_types.py',
+]
 TEST_GROUPS: list[list[str]] = [
     ['tests/models'],
     ['tests', '--ignore=tests/models'],
@@ -186,6 +197,17 @@ def checks(session: nox.Session, file: str) -> None:
         ignore_args = [flag for vuln in ignored for flag in ('--ignore-vuln', vuln)]
         session.run('pip-audit', '-r', requirements_path, *ignore_args)
         session.run('deptry', 'src', 'tests')
+
+
+@nox.session(python=PYTHON_VERSIONS)
+def quick_tests(session: nox.Session) -> None:
+    """Run the fast tests of the core and the engine, which CI runs on every push.
+
+    Arguments:
+        session: The nox session.
+    """
+    session.run('pdm', 'install', '-dG', 'tests', external=True)
+    session.run('pytest', '-n', 'auto', *QUICK_TESTS)
 
 
 @nox.session(python=PYTHON_VERSIONS)
