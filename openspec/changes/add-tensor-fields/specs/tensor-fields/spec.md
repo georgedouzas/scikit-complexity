@@ -86,8 +86,8 @@ The `boundary` mapping of `FieldElement` SHALL take a matrix of the state's symm
 state, and SHALL reject a matrix without that symmetry with a `ValidationError` that names the state.
 
 #### Scenario: Anchoring at walls
-- **WHEN** a symmetric traceless state relaxes by `laplacian` between fixed edges holding tensors of perpendicular axes
-- **THEN** the steady principal axis rotates linearly across the gap, within 1% of the angle difference
+- **WHEN** a symmetric traceless state relaxes by `laplacian` between fixed edges holding one symmetric traceless matrix
+- **THEN** the state relaxes to that matrix at every site, within 1e-6
 
 ### Requirement: Principal axes and defects are analysed
 `AlignmentAnalysis` SHALL give, with the kind `'principal-axis'`, the principal axis and the scalar order of a

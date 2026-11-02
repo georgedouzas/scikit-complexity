@@ -38,6 +38,15 @@ See proposal.md for the models. The current core has:
 
 ## Decisions
 
+- **Decided on 2026-11-02.** Anchoring: a Laplacian relaxes each component linearly, so perpendicular walls would hold
+  the axis fixed and then jump it by 90 degrees, and a boundary gives every edge one value; the scenario relaxes to one
+  fixed matrix, and per-edge tensor boundaries wait until a model needs them. Turbulence: `active_gels` at `K=1`,
+  `zeta=1`, `xi=0` on 32 by 32 sites bursts and realigns without defects, so its turbulence defaults come from the
+  source's parameters, never from a sweep. Field operators: identical applications are computed once per rate evaluation,
+  since a 32 by 32 gel otherwise makes 623 Fourier applications from 37 reads. The vector `corotational` is
+  `u.grad(p) - Omega p - xi E p` with `Omega = antisymmetric_part(vector_gradient(u))`, the sign that rotates `p` with
+  the flow and agrees with the tensor form.
+
 ### Library survey
 
 | Library | Fit | Decision |
