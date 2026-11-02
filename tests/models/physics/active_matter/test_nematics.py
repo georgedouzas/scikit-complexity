@@ -67,14 +67,13 @@ def test_active_gels_passive_nematic_relaxes_to_the_scalar_order():
     assert np.abs(order[-1] - np.sqrt(-2 * a / c)).max() < 1e-6
 
 
-@pytest.mark.skip(reason='At 13 times the bend threshold the gel bursts and realigns without defects, so this is open.')
+@pytest.mark.slow
 def test_active_gels_extensile_nematic_turbulence_conserves_the_charge():
     """Well above the bend threshold defects appear in pairs, the charge stays 0, and the kinetic energy settles."""
-    size, K, zeta = 32, 1.0, 1.0
-    threshold = 2 * K * (2 * np.pi / size) ** 2
-    assert zeta > 10 * threshold
-    system = active_gels((size, size), K=K, zeta=zeta, perturbation=0.05, random_state=1)
-    trajectory = _run_gel(system, until=200.0, dt=4.0, step=0.05)
+    system = active_gels()
+    values = system.elements[0].values
+    assert values['zeta'] > 10 * 2 * values['K'] * (2 * np.pi / 10.0) ** 2
+    trajectory = _run_gel(system, until=0.5, dt=0.025, step=5e-4)
     axes = AlignmentAnalysis('principal-axis').check().prepare(np.asarray(trajectory.lattice('gel.Q'))).run().axes_
     angles = np.arctan2(axes[..., 1], axes[..., 0])
     defects = DefectAnalysis(period=np.pi).check().prepare(angles).run()

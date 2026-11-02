@@ -2,12 +2,13 @@
 # Active nematic gels
 
 An extensile nematic in a viscous fluid drives a flow by its own stress, and this flow bends the axes further, so an
-aligned state is unstable. At the default parameters the flow comes in bursts, between which the axes align again.
+aligned state is unstable. Pairs of `+1/2` and `-1/2` defects appear and move in a chaotic flow, active turbulence.
 """
 
 # %%
-# The model is created by name from the catalog on a periodic square of 32 sites. The catalog defaults integrate it with
-# RK4 and stream the velocity as the observables `u_x` and `u_y`.
+# The model is created by name from the catalog on a periodic square of 128 sites and side 10, at the parameters of the
+# chaotic state of Giomi et al. 2012. The catalog defaults integrate it with RK4 and stream the velocity as the
+# observables `u_x` and `u_y`.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,22 +26,22 @@ observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', i
 simulation = (
     Simulation(
         system,
-        dt=1.0,
-        solver=RK4Solver(dt=0.05),
+        dt=0.025,
+        solver=RK4Solver(dt=5e-4),
         observers=[observer],
         observables=describe(MODEL).observables_of(system),
         random_state=0,
     )
     .check()
     .prepare()
-    .run(until=200.0)
+    .run(until=0.5)
 )
 
 # %%
 # Defects and flow
 # ----------------
-# The charges of a periodic lattice sum to 0 at every frame, whatever defects a frame holds. The kinetic energy should
-# rise from the nearly still start while the instability grows, and then come in bursts.
+# Every defect of a periodic lattice has a partner of the opposite charge, so the total charge should stay 0 at every
+# frame. The kinetic energy should rise from the nearly still start while the instability grows, and then settle.
 
 trajectory = simulation.trajectory_
 tensors = trajectory.lattice('gel.Q')

@@ -26,6 +26,11 @@ from ._nematic_gel_site import NematicGelSiteElement
 from ._polar_gel_site import PolarGelSiteElement
 
 GEL_ORDERS = ('nematic', 'polar')
+NEMATIC_BOX = 10.0
+NEMATIC_CRITICAL_DENSITY = 3 * np.pi / 2
+NEMATIC_DENSITY = 2 * NEMATIC_CRITICAL_DENSITY
+NEMATIC_ACTIVITY = 3.0
+NEMATIC_XI = 0.1
 
 
 def _gel_velocity(s: SimpleNamespace) -> FreeModuleElement:
@@ -162,28 +167,35 @@ def dry_active_nematics(
 
 @register_model(
     field='physics/active_matter',
-    tags=('field', 'active matter', 'nematic', 'polar', 'tensor', 'gel', 'stokes flow', 'pde'),
-    references=('Marchetti et al. 2013', 'arXiv:1207.2929', 'Kruse et al. 2005', 'Voituriez, Joanny, and Prost 2005'),
-    defaults={'until': 200.0, 'dt': 1.0, 'solver': RK4Solver(dt=0.05)},
+    tags=('field', 'active matter', 'nematic', 'polar', 'tensor', 'gel', 'stokes flow', 'active turbulence', 'pde'),
+    references=(
+        'Marchetti et al. 2013',
+        'arXiv:1207.2929',
+        'Kruse et al. 2005',
+        'Voituriez, Joanny, and Prost 2005',
+        'Giomi et al. 2012',
+        'arXiv:1110.4338',
+    ),
+    defaults={'until': 0.5, 'dt': 0.025, 'solver': RK4Solver(dt=5e-4)},
     observables=lambda system: [
         ObservableSpec('u_x', _velocity_x, group='gel', reduce=_sites),
         ObservableSpec('u_y', _velocity_y, group='gel', reduce=_sites),
     ],
 )
 def active_gels(
-    shape: Sequence[int] = (32, 32),
+    shape: Sequence[int] = (128, 128),
     *,
     order: str = 'nematic',
-    spacing: float = 1.0,
-    a: float = -1.0,
+    spacing: float | None = None,
+    a: float | None = None,
     c: float | None = None,
     K: float = 1.0,
-    xi: float = 0.0,
+    xi: float | None = None,
     gamma: float = 1.0,
     eta: float = 1.0,
     zeta: float | None = None,
     film: bool = False,
-    perturbation: float = 0.01,
+    perturbation: float = 0.1,
     random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return an active gel, a nematic tensor or a polarisation transported in the Stokes flow of its own stresses.
@@ -193,6 +205,12 @@ def active_gels(
     stress, `-zeta Q` for the nematic and `-zeta p p` for the polar gel, and the elastic energy relaxes the order. An
     extensile nematic, `zeta > 0`, is unstable to bend, and a contractile polar gel, `zeta < 0`, is unstable to splay
     above a threshold.
+
+    The defaults of the nematic are the chaotic state of Giomi et al. 2012, cited by Marchetti et al., whose free energy
+    has the same form: a box of side 10, the critical density `3 pi / 2`, the density twice that, which give `a` and
+    `c`, the activity `3` times the squared density, and the flow alignment 0.1, in units of the elastic constant, the
+    rotational viscosity, and the viscosity. The density stays uniform here. At these defaults pairs of `+1/2` and
+    `-1/2` defects move in a chaotic flow, active turbulence.
 
     The nematic starts from the tensor along the first axis at the order `sqrt(-2 a / c)`, and the polar gel from the
     polarisation along the first axis at the length `sqrt(-a / c)`, both with noise. With `film=True` the polarisation
@@ -207,19 +225,21 @@ def active_gels(
             `'nematic'` or `'polar'`.
 
         spacing:
-            The distance between neighbouring sites.
+            The distance between neighbouring sites, or `None` for a nematic box of side 10 along the first axis and 1
+            for the polar gel.
 
         a:
-            The coefficient of the quadratic energy, negative in the ordered phase.
+            The coefficient of the quadratic energy, negative in the ordered phase, or `None` for `-3 pi / 4` for the
+            nematic and -1 for the polar gel.
 
         c:
-            The coefficient of the quartic energy, or `None` for 2 for the nematic and 1 for the polar gel.
+            The coefficient of the quartic energy, or `None` for `3 pi` for the nematic and 1 for the polar gel.
 
         K:
             The elastic constant.
 
         xi:
-            The flow-alignment parameter.
+            The flow-alignment parameter, or `None` for 0.1 for the nematic and 0 for the polar gel.
 
         gamma:
             The rotational viscosity.
@@ -228,7 +248,7 @@ def active_gels(
             The viscosity of the flow.
 
         zeta:
-            The activity, or `None` for 0.5 for the nematic and -0.5 for the polar gel.
+            The activity, or `None` for `3 (3 pi)^2` for the nematic and -0.5 for the polar gel.
 
         film:
             Whether the polar gel lies between walls of fixed polarisation.
@@ -262,17 +282,20 @@ def active_gels(
     sites = int(np.prod(shape))
     rng = np.random.default_rng(random_state)
     polar = order == 'polar'
-    cubic = (1.0 if polar else 2.0) if c is None else c
-    activity = (-0.5 if polar else 0.5) if zeta is None else zeta
+    quadratic = (-1.0 if polar else (NEMATIC_CRITICAL_DENSITY - NEMATIC_DENSITY) / 2) if a is None else a
+    cubic = (1.0 if polar else NEMATIC_DENSITY) if c is None else c
+    activity = (-0.5 if polar else NEMATIC_ACTIVITY * NEMATIC_DENSITY**2) if zeta is None else zeta
+    alignment = (0.0 if polar else NEMATIC_XI) if xi is None else xi
+    distance = (1.0 if polar else NEMATIC_BOX / shape[0]) if spacing is None else spacing
     noise = perturbation * rng.standard_normal((sites, 2))
-    size = np.sqrt(-a / cubic) if polar else np.sqrt(-2 * a / cubic) / 2
-    start = np.column_stack([np.full(sites, size), np.zeros(sites)]) + noise if a < 0 else noise
+    size = np.sqrt(-quadratic / cubic) if polar else np.sqrt(-2 * quadratic / cubic) / 2
+    start = np.column_stack([np.full(sites, size), np.zeros(sites)]) + noise if quadratic < 0 else noise
     values = {
         'p' if polar else 'Q': start,
-        'a': a,
+        'a': quadratic,
         'c': cubic,
         'K': K,
-        'xi': xi,
+        'xi': alignment,
         'gamma': gamma,
         'eta': eta,
         'zeta': activity,
@@ -281,7 +304,7 @@ def active_gels(
     gel = FieldElement(
         'gel',
         element=PolarGelSiteElement if polar else NematicGelSiteElement,
-        space=LatticeSpace(shape, spacing=spacing),
+        space=LatticeSpace(shape, spacing=distance),
         values=values,
         discretization='spectral',
         symmetry=symmetry,

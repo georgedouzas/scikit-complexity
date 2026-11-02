@@ -133,7 +133,9 @@ Both factories live in `skcomplex.models.physics.active_matter` and use only pub
   whose flux holds the active current along `tensor_divergence(Q)`.
 - `active_gels(order='nematic' | 'polar')` transports `Q` or `p` by `corotational` in the overdamped Stokes velocity of
   the elastic and active stresses, `-ζ Q` for the nematic and `-ζ p p` for the polar gel, written with
-  `leray_projection`.
+  `leray_projection`. 1207.2929 states no numbers for its 2D turbulence, so the nematic defaults are those of its
+  citation Giomi et al. 2012 (arXiv 1110.4338), whose Landau-de Gennes energy has the same form: side 10, `c* = 3π/2`,
+  `c0 = 2 c*`, `a = (c* - c0) / 2`, `c = c0`, `zeta = 3 c0²`, `xi = 0.1`, `K = gamma = eta = 1`, with a uniform density.
 
 ## Risks / Trade-offs
 
