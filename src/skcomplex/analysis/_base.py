@@ -198,7 +198,8 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         """Return the states that count as series: the scalars of single elements and of the members of groups.
 
         A scalar state of a group is one series per member, unless the group is read as particles, the state as a jump
-        path, or the group is variable, whose rows hold no fixed member. A state of a lattice is read as a field instead.
+        path, or the group is variable, whose rows hold no fixed member. A state of a lattice is read as a field
+        instead.
 
         Args:
             problem:
@@ -408,8 +409,8 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         A trajectory gives its states, parameters, reporters, or observables, and a vector or group variable gives one
         column per component, labelled `name[i]`. Without names, a trajectory gives its scalar observables and
         reporters, or else the scalar states of its elements and of its groups, one column per member, leaving out the
-        states of lattices, of particle groups, of variable groups, and of groups of jump paths. A variable group read by
-        name has NaN in the rows that hold no member at a frame.
+        states of lattices, of particle groups, of variable groups, and of groups of jump paths. A variable group read
+        by name has NaN in the rows that hold no member at a frame.
 
         Args:
             source:
