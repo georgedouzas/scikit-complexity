@@ -50,10 +50,10 @@ experiment changes it, with a curated gallery example.
 - **THEN** every species converges to its carrying capacity within 1e-6
 
 #### Scenario: Random community
-- **WHEN** the model runs with its defaults, 100 species and a tensor of mean 0 and standard deviation 0.5, over 20
-  seeds
-- **THEN** every abundance stays non-negative and finite, and the mean fraction of surviving species lies strictly
-  between 0 and 1
+- **WHEN** the model runs with its defaults, the equations, scaling, and parameters of Sidhom and Galla (2024, arXiv
+  2409.10990), over 20 seeds
+- **THEN** every abundance stays non-negative and finite, and the mean fraction of surviving species matches the
+  paper's result at those parameters within its stated precision
 
 ### Requirement: Learning models are recorded in the model inventory
 Every model this change implements SHALL register under the field path of its subfield and SHALL have an entry in the

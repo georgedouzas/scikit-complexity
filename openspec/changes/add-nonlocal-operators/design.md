@@ -43,6 +43,11 @@
 
 ## Decisions
 
+- **GKT fronts move at 10 to 25 km/h** (decided on 2026-11-02): with the parameters of Treiber, Hennecke, and Helbing
+  (cond-mat/9901240, Table I) the downstream fronts move upstream at about 20.4 km/h, which the jump condition between
+  the jam and the outflow confirms and resolution and limiter do not change; the scenario's range is widened instead of
+  recalibrating the parameters.
+
 - **LEGION is compared by its rates** (decided on 2026-11-02): it amplifies rounding so much that perturbing its initial
   state by 1e-14 moves the trajectory by 2e-3, so the rebuild is checked by its rates at many random states and by its
   trajectory over a short window.

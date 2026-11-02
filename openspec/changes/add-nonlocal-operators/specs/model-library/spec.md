@@ -26,7 +26,7 @@ The library SHALL provide, as registered factories built on the general interact
 - **WHEN** the gas-kinetic-based traffic model runs on a ring road with a small local density perturbation, once at a
   density of 15 vehicles per kilometre and once at a density in its unstable range
 - **THEN** the perturbation decays at the low density, and at the unstable density it grows into congested clusters
-  whose downstream fronts move upstream at between 10 and 20 kilometres per hour
+  whose downstream fronts move upstream at between 10 and 25 kilometres per hour
 
 #### Scenario: Contractile gel
 - **WHEN** the active viscoelastic gel runs from a small perturbation of uniform cell density above its contractile

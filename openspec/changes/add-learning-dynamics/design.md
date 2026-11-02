@@ -49,6 +49,11 @@ loss over an unrolled run, and a law that changes the weights by that gradient.
 
 ## Decisions
 
+- **The higher-order Lotka-Volterra model follows its source** (decided on 2026-11-02): the form
+  `x_i(1 - x_i) + x_i contraction(T, x, x)/N` with a tensor of standard deviation 0.5 blows up in finite time for every
+  seed, so the model takes the equations, scaling of the k-body term, self-regulation, and parameters of Sidhom and
+  Galla (2024, arXiv 2409.10990) exactly, and its scenario checks the surviving fraction the paper reports.
+
 - **Adaptive shaped parameters on interactions** (decided on 2026-11-01): interactions accept adaptive parameters only
   when they are shaped, so the Elman couplings learn their weights; they compile as states and are recorded with their
   shape. The exact Jacobian treats their entries as constants, which matters only for implicit solvers.
