@@ -50,12 +50,13 @@ its error. Boltzmann, BGK, and Enskog keep their names as models.
 ### Spreading
 A thin `TransitionInteraction` subclass in each field using it, in `<field>/common/<family>` if several packages share it.
 
-### Quantum moves as a compiler plugin
-Everything quantum moves to `models/physics/common/quantum`. Engine code naming quantum becomes general hooks: the default
-solver comes from the compiler a system names, `PassCompiler` reports a law it cannot lower by the law's declared compiler
-instead of importing `QuantumCompiler`, and the backends' quantum branches move behind the plugin's kernel. If a backend
-branch has no general hook, the task stops and reports rather than leaving quantum names in the engine. `qutip` stays a
-runtime dependency unless only models use it, in which case the dependency placement rule makes it a `quantum` extra.
+### Operator dynamics stay in the core, named for their mathematics
+A linear operator generating an evolution, a Lindblad term of a Markovian master equation, and local operators on a tensor
+product are general mathematics, so they pass the core rule, and `qutip` stays a runtime dependency. Decided on
+2026-11-02 in place of moving them to the models, which would need new engine hooks for no change in behaviour. The
+names become `Operator*`, docstrings state the operation, and physics keeps qubits, spins, and modes in
+`models/physics/common/quantum`. `GeneratorLaw` still asks for a Hermitian operator, and classical generators usually are
+not, so non-Hermitian generators are a recorded limit that a later change can lift.
 
 ### Earth to physics
 `climate`, `oceanography`, and `seismology` become siblings of `fluids`. Catalog names stay, so factories keep working.
@@ -64,8 +65,6 @@ runtime dependency unless only models use it, in which case the dependency place
 
 - [Many models change in one change] → Mechanical renames per group, each with the full model tests, and no other agents
   in those packages meanwhile.
-- [The quantum move is the largest part and may need hooks the engine lacks] → It is its own last group and can stop with a
-  report without blocking the renames.
 - [Open changes name old paths] → Updated in the same change.
 
 ## Migration Plan

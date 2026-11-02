@@ -65,14 +65,14 @@ One bilinear law SHALL express gains and losses of a density at the rate of the 
 - **WHEN** an encounter with a `cross_section` targets a density on two velocity axes
 - **THEN** it gives the fast spectral integral `CollisionInteraction` gave, within 1e-12
 
-### Requirement: Fields and quantum dynamics live in physics
-The core and the engine SHALL name no quantum operator, law, or solver; quantum dynamics SHALL live in
-`skcomplex.models.physics.common.quantum` and compile through `Simulation(compiler=...)`.
+### Requirement: Operator dynamics are named for their mathematics
+The core and the engine SHALL name linear operator dynamics on tensor products by the operation, with no quantum vocabulary
+in their class names, and physics SHALL keep its quantum vocabulary in `skcomplex.models.physics.common.quantum`.
 
 #### Scenario: Quantum system
 - **WHEN** a user runs a catalog quantum model
-- **THEN** it compiles with the quantum compiler of the physics package and gives the trajectory it gave before
+- **THEN** it compiles with the operator compiler and gives the trajectory it gave before
 
-#### Scenario: Core without quantum
-- **WHEN** `skcomplex.core` and `skcomplex.engine` are searched for quantum names
-- **THEN** none is found, and the import contracts hold
+#### Scenario: Core names
+- **WHEN** the class names of `skcomplex.core`, `skcomplex.engine`, and `skcomplex.analysis` are searched for `Quantum`
+- **THEN** none is found

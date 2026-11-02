@@ -17,8 +17,10 @@ fundamental paradigm usable across domains. Later changes will build on these na
 - **BREAKING** `CollisionInteraction` and `CollisionLaw` fold into `EncounterInteraction(cross_section=)`.
 - **BREAKING** `SpreadingInteraction` leaves the core for a thin `TransitionInteraction` subclass in the models that use it.
 - **BREAKING** `corotational` and `upper_convected` move to `models/physics/common`.
-- **BREAKING** Quantum laws, solvers, kernels, lowering, compiler, visuals, and analysis move to
-  `models/physics/common/quantum`, compiled through the existing `Simulation(compiler=...)`.
+- **BREAKING** The quantum machinery is named for its mathematics, operator dynamics on tensor products: `FormKind.QUANTUM`
+  becomes `FormKind.OPERATOR`, and `Quantum*` compilers, problems, kernels, lowering, solvers, analysis, and visuals become
+  `Operator*`. `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec`, `UnitarySolver`, and `LindbladSolver` keep their
+  mathematical names. Physics keeps its words in `models/physics/common/quantum`.
 - **BREAKING** `models/earth/{climate,oceanography,seismology}` move to `models/physics/`, and the earth field goes.
 - `LammpsFixSpec` moves from the root specs next to `LammpsSolver`; `HeadingSpec` becomes `DirectionSpec`; particle groups
   read headings and velocities from `StateSpec(role=...)`, and `HEADING_NAMES` and `VELOCITY_STATES` go; `_Offer` leaves
@@ -34,7 +36,7 @@ None.
 ### Modified Capabilities
 
 - `general-mechanisms`: neutral vocabulary, one partner spec, one bilinear law, collision integrals on encounters, spreading
-  on transitions, and quantum dynamics out of the core.
+  on transitions, and operator dynamics named for their mathematics.
 - `model-library`: the earth field moves to physics, matching spec names, and kinetic equations on encounters.
 - `model-inventory`: the coverage page path of climate.
 - `phase-space-fields`: collisions through `EncounterInteraction`.

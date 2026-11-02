@@ -18,10 +18,10 @@
 
 - [x] 3.1 Move `models/earth/{climate,oceanography,seismology}` to `models/physics/`, removing the earth field from the catalog, inventory, gallery, tests, import-linter contracts, and the open changes; verify the catalog test, inventory check, gallery coverage, and contracts.
 
-## 4. Quantum
+## 4. Operator dynamics
 
-- [ ] 4.1 Replace the quantum names in `engine` and `analysis` by general hooks (default solver by compiler, issue by declared compiler, backend kernels from the plugin); verify the import contracts and the quantum model tests.
-- [ ] 4.2 Move the quantum laws, solvers, kernels, lowering, compiler, visuals, and analysis to `models/physics/common/quantum`, and decide `qutip`'s placement by the dependency rule; verify the quantum scenarios and identical trajectories.
+- [ ] 4.1 Rename `FormKind.QUANTUM` and the `Quantum*` compiler, problem, kernel, lowering, solvers, analysis, and visuals to `Operator*`, with no alias, and move every user; verify the core names scenario and the quantum model tests with identical trajectories.
+- [ ] 4.2 State the operation in the docstrings of `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec`, and the renamed classes, keeping the quantum words in `models/physics/common/quantum`, and record the Hermitian limit; verify `FIELD_TERMS` covers `Quantum` and the doctests pass.
 
 ## 5. Documentation and gate
 
