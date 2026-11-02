@@ -213,6 +213,28 @@ def test_move_best_steps_with_vision_look_along_the_axes():
     assert np.asarray(trajectory.agents('walkers', 2).locations).tolist() == [[7, 4]]
 
 
+def _ring_score(walker: object, cell: tuple[int, int], model: object) -> float:
+    """Return 1 for the four cells two steps from the middle of the lattice along an axis, and 0 elsewhere."""
+    return float(sorted((abs(cell[0] - 4), abs(cell[1] - 4))) == [0, 2])
+
+
+@pytest.mark.parametrize('ties', ['nearest', 'first', None])
+def test_move_best_steps_with_vision_take_the_first_tied_cell_by_the_nearest_and_first_ties(ties):
+    """Test that a best step with a vision takes the first of the tied cells by the ties `'nearest'` and `'first'`."""
+    walk = MovementInteraction('walk', target='walkers', step='best', score=_ring_score, vision=2, ties=ties)
+    trajectory = _lattice_walk(1, walk, size=20)
+    assert {tuple(cell) for cell in np.asarray(trajectory.agents('walkers', 1).locations).tolist()} == {(6, 4)}
+
+
+def test_move_best_steps_with_vision_draw_tied_cells_uniformly_by_the_random_ties():
+    """Test that a best step with a vision and the ties `'random'` takes each tied cell equally often."""
+    walk = MovementInteraction('walk', target='walkers', step='best', score=_ring_score, vision=2, ties='random')
+    trajectory = _lattice_walk(1, walk, size=4000)
+    cells, counts = np.unique(np.asarray(trajectory.agents('walkers', 1).locations), axis=0, return_counts=True)
+    assert sorted(map(tuple, cells.tolist())) == [(2, 4), (4, 2), (4, 6), (6, 4)]
+    np.testing.assert_allclose(counts / counts.sum(), [0.25] * 4, atol=0.03)
+
+
 def test_move_member_schedule_charges_every_walker_in_its_activation():
     """Test that a movement of the member schedule moves every walker once and charges its cost."""
     walk = MovementInteraction('walk', target='walkers', cost=_cost(1.0), schedule='member')
@@ -231,6 +253,7 @@ def test_move_member_schedule_charges_every_walker_in_its_activation():
         {'step': 'best'},
         {'condition': 3},
         {'cost': 'level'},
+        {'ties': 'last'},
     ],
 )
 def test_check_rejects_invalid_arguments(arguments):

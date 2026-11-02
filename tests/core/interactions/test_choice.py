@@ -334,13 +334,14 @@ def test_choice_interaction_keeps_values_among_options():
     ('arguments', 'message'),
     [
         ({'rule': 'glauber'}, 'Unknown rule'),
-        ({'schedule': 'sequential'}, 'Unknown schedule'),
+        ({'schedule': 'ordered'}, 'Unknown schedule'),
         ({'form': 'table'}, 'Unknown form'),
         ({'schedule': 'random-sequential'}, 'only the agent form'),
         ({'schedule': 'member'}, 'only the agent form'),
         ({'options': (1,)}, 'at least 2 options'),
         ({'utility': 1.0}, 'must be callable'),
         ({'proposal': 'current'}, 'Unknown proposal'),
+        ({'ties': 'nearest'}, 'Unknown ties'),
     ],
 )
 def test_check_rejects_invalid_arguments(arguments, message):
@@ -348,3 +349,68 @@ def test_check_rejects_invalid_arguments(arguments, message):
     values = {'target': 'members', 'state': 'option', 'options': (0, 1), 'utility': _fixed, **arguments}
     with pytest.raises(ValidationError, match=message):
         ChoiceInteraction('choice', **values).check()
+
+
+def _flat(namespace: object, option: float) -> float:
+    """Return the same utility for every option."""
+    return 0.0
+
+
+def _flat_agent(agent: object, model: object, option: float) -> float:
+    """Return the same utility for every option, for agents."""
+    return 0.0
+
+
+def test_choice_best_rule_takes_the_first_of_tied_options_by_the_first_ties():
+    """Test that the best rule with the ties `'first'` takes the first of the options of equal utility in both forms."""
+    symbolic = ChoiceInteraction(
+        'choice',
+        target='members',
+        state='option',
+        options=(2, 0, 1),
+        utility=_flat,
+        rule='best',
+        ties='first',
+    )
+    agent = ChoiceInteraction(**{**symbolic.get_params(), 'utility': _flat_agent, 'form': 'agent'})
+    assert set(_run_choice(symbolic, np.zeros(200), 1).values('members.option')[1].tolist()) == {2.0}
+    assert set(_run_choice(agent, np.zeros(200), 1).agents('members', 1).values['option'].tolist()) == {2.0}
+
+
+@pytest.mark.parametrize('form', ['symbolic', 'agent'])
+def test_choice_best_rule_draws_tied_options_uniformly_by_the_random_ties(form):
+    """Test that the best rule with the ties `'random'` draws every option of equal utility equally often."""
+    choice = ChoiceInteraction(
+        'choice',
+        target='members',
+        state='option',
+        options=(0, 1, 2),
+        utility=_flat if form == 'symbolic' else _flat_agent,
+        rule='best',
+        form=form,
+    )
+    trajectory = _run_choice(choice, np.zeros(6000), 1)
+    values = trajectory.values('members.option')[1] if form == 'symbolic' else trajectory.agents('members', 1)
+    options = values if form == 'symbolic' else values.values['option']
+    np.testing.assert_allclose(_frequencies(np.asarray(options), 3), [1 / 3] * 3, atol=0.03)
+
+
+def test_choice_sequential_schedule_reads_the_choices_of_the_members_before():
+    """Test that under the sequential schedule each member reads the choices of the members before it, in order."""
+
+    def scarce(agent: ChooserView, model: ModelView, option: float) -> float:
+        """Return a utility of option 1 that is positive while no agent holds it."""
+        ones = sum(member.option for member in model.agents('target', ChooserView))
+        return option * (0.5 - ones)
+
+    choice = ChoiceInteraction(
+        'choice',
+        target='members',
+        state='option',
+        options=(0, 1),
+        utility=scarce,
+        rule='best',
+        form='agent',
+        schedule='sequential',
+    )
+    assert _run_choice(choice, np.zeros(3), 1).agents('members', 1).values['option'].tolist() == [1.0, 0.0, 0.0]

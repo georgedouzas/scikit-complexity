@@ -364,7 +364,7 @@ class TransitionInteraction(Interaction):
             (other, float(self.destination))
             for other in agent.agents_here(agent.group)
             if other is not agent
-            and float(getattr(other, self.state)) == self.source
+            and self._holds_source(float(getattr(other, self.state)))
             and self._moves_agent(other, model, agent)
         ]
 

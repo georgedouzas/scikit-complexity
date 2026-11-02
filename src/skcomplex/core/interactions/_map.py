@@ -13,15 +13,15 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR
 
 from ...errors import ValidationError
-from ...specs import RoleSpec
+from ...specs import BaseSpec, RoleSpec
 from ..base import BasePart
 from ..laws import RuleLaw, UpdateLaw
 from ..laws.utils import uniform
 from ..types import AgentViewProtocol, ModelViewProtocol
+from ._base import SCHEDULES
 from ._interaction import Interaction
 
 MODES = ('replace', 'increment')
-SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
 FORMS = ('symbolic', 'agent')
 
 
@@ -142,8 +142,8 @@ class MapInteraction(Interaction):
                 function is not callable.
         """
         super()._check()
+        self._check_variant('mode', self.mode, MODES, (BaseSpec,))
         for name, value, variants in (
-            ('mode', self.mode, MODES),
             ('schedule', self.schedule, SCHEDULES),
             ('form', self.form, FORMS),
         ):
@@ -182,10 +182,14 @@ class MapInteraction(Interaction):
         value = float(found)
         return float(getattr(agent, self.state)) + value if self.mode == 'increment' else value
 
+    def _set_value(self, agent: AgentViewProtocol, value: float | npt.NDArray[np.float64]) -> None:
+        """Set the state of an agent to its next value."""
+        setattr(agent, self.state, value)
+
     def _update_member(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
         """Set the state of one member to its next value."""
         if agent.alive:
-            setattr(agent, self.state, self._get_value(agent, model))
+            self._set_value(agent, self._get_value(agent, model))
 
     def update(self, model: ModelViewProtocol) -> None:
         """Set the state of every agent of the target to its next value, by the schedule.
@@ -194,15 +198,7 @@ class MapInteraction(Interaction):
             model:
                 The model view of the interaction.
         """
-        agents = list(model.agents(self._get_role('target')))
-        if self.schedule == 'synchronous':
-            values = [self._get_value(agent, model) for agent in agents]
-            for agent, value in zip(agents, values, strict=True):
-                setattr(agent, self.state, value)
-            return
-        order = model.rng.permutation(len(agents)) if self.schedule == 'random-sequential' else range(len(agents))
-        for index in order:
-            self._update_member(agents[int(index)], model)
+        self._update_agents(model, self.schedule, self._get_value, self._set_value)
 
     def _get_order(self) -> object:
         """Return the order of the members of the symbolic form: none, their own order, or a uniform draw."""

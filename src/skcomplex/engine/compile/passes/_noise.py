@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Mapping
+from numbers import Number
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
@@ -61,8 +62,16 @@ class NoisePass(BasePass):
     ) -> BaseLaw | None:
         """Return the drift correction `alpha sum C_jl G_kl dG_ij/dx_k` of a noise term of a convention, or `None`."""
         alpha = NOISE_CONVENTIONS[term.law.convention]
-        if not alpha or not isinstance(term.amplitude, Expression | int | float):
+        if not alpha:
             return None
+        if not isinstance(term.amplitude, Expression | Number):
+            error_msg = (
+                f'The {term.law.convention} noise law of {term.spec.owner} has an amplitude that is not symbolic, so '
+                'the drift correction of its convention, which needs the derivative of the amplitude, is unknown. '
+                "Write the amplitude as an expression, or use convention='ito' and add the correction "
+                '`alpha g dg/dx` as a rate law.'
+            )
+            raise ValidationError(error_msg)
         amplitude = SR(term.amplitude)
         parts = []
         for other in terms:

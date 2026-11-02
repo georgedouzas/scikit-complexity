@@ -6,7 +6,12 @@ from types import SimpleNamespace
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from skcomplex.core.types import AgentViewProtocol, MatchingRule, Process, Target
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import FeedbackInteraction
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.core.types import AgentViewProtocol, MatchingRule, ModelViewProtocol, Process, Target
+from skcomplex.engine.runtime import Simulation
 from skcomplex.specs import GreedyMatchingSpec, RandomSearchSpec
 
 
@@ -22,10 +27,22 @@ def test_processes_may_be_nothing():
 
 def test_agent_views_have_an_id_a_location_and_a_life():
     """Test that an object with the id, location, and moves of an agent is an agent view, and an id alone is not."""
-    names = ('neighbor_cells', 'neighbors', 'agents_here', 'distance_to', 'move_to', 'remove', 'create', 'referenced')
+    names = (
+        'neighbor_cells',
+        'neighbors',
+        'agents_here',
+        'displacement_to',
+        'distance_to',
+        'move_to',
+        'remove',
+        'create',
+        'referenced',
+        'lags',
+    )
     view = SimpleNamespace(
         id=1,
         group='walkers',
+        group_label='walkers',
         location=(0, 0),
         location_key=(0, 0),
         alive=True,
@@ -41,3 +58,31 @@ def test_matching_rules_are_the_matching_specs():
     assert RandomSearchSpec in rules
     assert GreedyMatchingSpec in rules
     assert len(rules) == 8
+
+
+def test_views_of_the_agent_stepper_offer_every_member_of_the_protocols() -> None:
+    """Test that a rule typed by the protocols reads the members the model and agent views offer."""
+    readings: list[tuple[object, ...]] = []
+
+    def read(model: ModelViewProtocol) -> None:
+        """Record what the model view and the view of the first walker offer."""
+        walker = model.agents('walkers')[0]
+        readings.append(
+            (
+                isinstance(model, ModelViewProtocol),
+                isinstance(walker, AgentViewProtocol),
+                model.round,
+                model.count('walkers'),
+                walker.group_label,
+                walker.displacement_to(walker).tolist(),
+                dict(model.parameters),
+                dict(model.inputs),
+                model.random_empty_cell() not in {(0, 0), (1, 1)},
+            ),
+        )
+
+    walkers = GroupElement('walkers', element=Element, size=2, location=[(0, 0), (1, 1)])
+    census = FeedbackInteraction[ModelViewProtocol]('census', rule=read)
+    system = System(elements=[walkers], interactions=[census], space=LatticeSpace((3, 3)), time=DiscreteTime())
+    Simulation(system, random_state=0).check().prepare().run(until=1)
+    assert readings == [(True, True, 0, 2, 'walkers', [0.0, 0.0], {}, {}, True)]

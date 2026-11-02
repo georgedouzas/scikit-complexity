@@ -1,5 +1,6 @@
 """Test the `_base` module of `skcomplex.core.interactions`."""
 
+from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -9,28 +10,36 @@ import pytest
 from skcomplex.core.elements import GroupElement, LatticeElement
 from skcomplex.core.interactions import (
     BaseInteraction,
+    CascadeInteraction,
     ChoiceInteraction,
     CouplingInteraction,
     CrossingInteraction,
+    EvolutionInteraction,
+    GroupingInteraction,
     ImitationInteraction,
     ImpulseInteraction,
     JumpInteraction,
+    LifeCycleInteraction,
     LocalRuleInteraction,
     MapInteraction,
+    MatchingInteraction,
+    MovementInteraction,
     RateInteraction,
     ReactionInteraction,
     ReinforcementInteraction,
     RelaxationInteraction,
     SamplingInteraction,
     SignAdjustmentInteraction,
+    TopologyInteraction,
+    TransferInteraction,
     TransitionInteraction,
 )
 from skcomplex.core.laws.utils import neighbors
-from skcomplex.core.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
+from skcomplex.core.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, VonNeumannNeighborhood
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.errors import ValidationError
-from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.errors import SpaceError, ValidationError
+from skcomplex.specs import BaseSpec, GreedyMatchingSpec, ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec
 
 from ...conftest import NodeElement
 
@@ -280,3 +289,112 @@ def test_get_parameter_symbol_reads_a_renamed_parameter_in_the_symbolic_form(cas
     plain = _run_nodes(interaction(case, target='nodes', **{**arguments, parameter: value}), discrete)
     aliased = _get_aliased(interaction)(case, target='nodes', renamed=parameter, alias=value, **arguments)
     np.testing.assert_allclose(_run_nodes(aliased, discrete), plain)
+
+
+GRID_ONLY = {
+    'transfer': (
+        TransferInteraction(
+            'trade',
+            source='agents',
+            target='agents',
+            state='x',
+            amount=1.0,
+            pairing='cell',
+            form='agent',
+        ),
+        'pairing',
+    ),
+    'movement': (MovementInteraction('walk', target='agents', step='neighbor'), 'step'),
+    'grouping': (GroupingInteraction('groups', target='agents', groups='neighborhood', act=print), 'groups'),
+    'life cycle': (LifeCycleInteraction('life', target='agents', placement='neighbor'), 'placement'),
+    'matching': (
+        MatchingInteraction(
+            'market',
+            requesters='agents',
+            providers='agents',
+            rule=GreedyMatchingSpec(candidates='neighbors'),
+        ),
+        'candidates',
+    ),
+}
+
+
+@pytest.mark.parametrize('case', list(GRID_ONLY))
+def test_prepare_rejects_grid_variants_in_a_continuous_space(case):
+    """Test that a variant of cells or nodes raises an error naming its alternative in a continuous space."""
+    interaction, name = GRID_ONLY[case]
+    with pytest.raises(SpaceError, match=rf'The {name} .* needs the cells of a grid .* Use '):
+        interaction.check().prepare(ContinuousSpace(extent=(5.0, 5.0)))
+    interaction.prepare(LatticeSpace((5, 5)))
+
+
+@dataclass(frozen=True)
+class FixedSpec(BaseSpec):
+    """Variant a subclass defines, holding the value its dispatch method returns."""
+
+    value: float = 1.0
+
+
+class PruningInteraction(TopologyInteraction):
+    """Topology change whose `FixedSpec` action its dispatch method lowers to the removal of edges."""
+
+    def _get_requests(self):
+        """Return the removal of an edge for a `FixedSpec` action, or the requests of a named action."""
+        if isinstance(self.action, FixedSpec):
+            return [TopologyRequestSpec('remove-edge', self.edges, self.toward, self.keep, self.layer, ())]
+        return super()._get_requests()
+
+
+SPEC_VARIANTS = {
+    'choice rule': lambda spec: ChoiceInteraction(
+        'choice',
+        target='members',
+        state='s',
+        options=(0, 1),
+        utility=lambda s, o: o,
+        rule=spec,
+    ),
+    'imitation rule': lambda spec: ImitationInteraction('imitation', target='players', rule=spec),
+    'grouping groups': lambda spec: GroupingInteraction('groups', target='voters', groups=spec, act=print),
+    'evolution selection': lambda spec: EvolutionInteraction('evolution', target='agents', selection=spec),
+    'evolution replacement': lambda spec: EvolutionInteraction('evolution', target='agents', replacement=spec),
+    'topology action': lambda spec: PruningInteraction('change', target='nodes', action=spec),
+    'cascade mode': lambda spec: CascadeInteraction('cascade', target='sites', state='h', threshold=4, mode=spec),
+    'coupling mode': lambda spec: CouplingInteraction('coupling', target='nodes', read='x', write='x', mode=spec),
+    'map mode': lambda spec: MapInteraction('map', target='nodes', state='x', function=lambda s: 1, mode=spec),
+}
+
+
+@pytest.mark.parametrize('case', list(SPEC_VARIANTS))
+def test_check_accepts_a_spec_for_a_variant_and_rejects_an_unknown_name(case):
+    """Test that a variant argument takes a spec a subclass defines, and an unknown name lists the named values."""
+    assert SPEC_VARIANTS[case](FixedSpec()).check() is not None
+    with pytest.raises(ValidationError, match=r'Unknown .* Use one of .*BaseSpec'):
+        SPEC_VARIANTS[case]('unknown').check()
+
+
+class FixedChoiceInteraction(ChoiceInteraction):
+    """Choice that takes the value of a `FixedSpec` rule, a variant its dispatch method adds."""
+
+    def _draw_agent(self, agent, model, intensity):
+        """Return the value of a `FixedSpec` rule, or the option the parent draws by its named rule."""
+        if isinstance(self.rule, FixedSpec):
+            return self.rule.value
+        return super()._draw_agent(agent, model, intensity)
+
+
+def test_dispatch_method_of_a_subclass_runs_its_spec_variant():
+    """Test that a choice subclass whose dispatch method handles a spec rule sets every agent to its value."""
+    group = GroupElement('members', element=NodeElement, size=3)
+    choice = FixedChoiceInteraction(
+        'choice',
+        target='members',
+        state='x',
+        options=(0, 1, 2),
+        utility=print,
+        rule=FixedSpec(2.0),
+        form='agent',
+    )
+    system = System(elements=[group], interactions=[choice], time=DiscreteTime())
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    assert trajectory.agents('members', 1).values['x'].tolist() == [2.0, 2.0, 2.0]

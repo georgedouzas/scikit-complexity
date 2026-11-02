@@ -13,15 +13,17 @@ from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
-from ...specs import ParameterSpec, RoleSpec
+from ...specs import BaseSpec, ParameterSpec, RoleSpec
 from ..laws import BaseLaw, JumpLaw, RuleLaw, UpdateLaw
 from ..laws.utils import categorical, neighbors, uniform, where
 from ..spaces import AdjacencyNeighborhood
 from ..types import AgentViewProtocol, ModelViewProtocol
+from ._base import SCHEDULES
 from ._neighbor import NeighborInteraction
 
 RULES = ('random', 'majority', 'best', 'better', 'fermi')
 FORMS = ('rate', 'probability', 'agent')
+TIES = ('first', 'random')
 
 
 class ImitationInteraction(NeighborInteraction):
@@ -39,8 +41,11 @@ class ImitationInteraction(NeighborInteraction):
     time. In the `'probability'` form every member imitates with probability `probability` in every step of a
     discrete-time system, all members at once in its `phase`, reading the states the phases before it set. In the
     `'agent'` form the target is an agent group, and every agent imitates its neighbours in the space with probability
-    `probability` in its `phase`, all agents at once, so they read the states of the step before. The rule `'better'`
-    runs in the agent form only.
+    `probability` in its `phase`. The agents imitate at once, reading the states of the step before, under the schedule
+    `'synchronous'`, one after the other in their order or in a new random order every step under `'sequential'` or
+    `'random-sequential'`, each reading the states the agents before it set, or each in its own activation under
+    `'member'`. The rule `'better'` runs in the agent form only. Among neighbours of equal largest payoff, the rule
+    `'best'` of the agent form copies the first under the ties `'first'` and one drawn uniformly under `'random'`.
 
     Args:
         label:
@@ -80,9 +85,17 @@ class ImitationInteraction(NeighborInteraction):
         phase:
             The phase of the step the agent and the probability forms run in, or `None` for the default phase.
 
+        schedule:
+            The order of the agents in the agent form, `'synchronous'`, `'sequential'`, `'random-sequential'`, or
+            `'member'`.
+
+        ties:
+            The neighbour the rule `'best'` of the agent form copies among ties, `'first'` or `'random'`.
+
     Raises:
         ValidationError:
-            The rule or the form is unknown, or the options are not distinct.
+            The rule, the form, the schedule, or the ties are unknown, a schedule or ties other than the defaults are
+            given outside the agent form, or the options are not distinct.
 
     Examples:
         >>> from skcomplex.core.interactions import ImitationInteraction
@@ -109,6 +122,8 @@ class ImitationInteraction(NeighborInteraction):
         probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
         layer: str | None = None,
         phase: str | None = None,
+        schedule: str = 'synchronous',
+        ties: str = 'first',
     ) -> None:
         super().__init__(label, layer=layer)
         self.target = target
@@ -121,24 +136,37 @@ class ImitationInteraction(NeighborInteraction):
         self.form = form
         self.probability = probability
         self.phase = phase
+        self.schedule = schedule
+        self.ties = ties
+
+    def _check_agent_options(self) -> None:
+        """Raise an error for an unknown schedule or ties, or either of them not default outside the agent form."""
+        self._check_variant('schedule', self.schedule, SCHEDULES)
+        self._check_variant('ties', self.ties, TIES)
+        if self.form != 'agent' and (self.schedule != 'synchronous' or self.ties != 'first'):
+            error_msg = (
+                f'The imitation {self.label!r} has the schedule {self.schedule!r} and the ties {self.ties!r}, which '
+                'only the agent form runs. Use form="agent", or schedule="synchronous" and ties="first".'
+            )
+            raise ValidationError(error_msg)
 
     def _check(self) -> None:
-        """Raise an error for an unknown rule or form, or options that are not distinct.
+        """Raise an error for an unknown rule, form, schedule, or ties, or options that are not distinct.
 
         Raises:
             ValidationError:
-                The rule or the form is unknown, or the options are not distinct.
+                The rule, the form, the schedule, or the ties are unknown, a schedule or ties other than the defaults
+                are given outside the agent form, or the options are not distinct.
         """
         super()._check()
-        if self.rule not in RULES:
-            error_msg = f'The rule of imitation is {self.rule!r}. Use one of {", ".join(RULES)}.'
-            raise ValidationError(error_msg)
+        self._check_variant('rule', self.rule, RULES, (BaseSpec,))
         if self.form not in FORMS:
             error_msg = f'The form of imitation is {self.form!r}. Use one of {", ".join(FORMS)}.'
             raise ValidationError(error_msg)
         if self.rule == 'better' and self.form != 'agent':
             error_msg = f'The rule of imitation {self.rule!r} runs in the agent form only. Use form `agent`.'
             raise ValidationError(error_msg)
+        self._check_agent_options()
         if len(set(self.options)) < max(len(self.options), 2):
             error_msg = f'The options of imitation are {self.options!r}. Give at least two distinct values.'
             raise ValidationError(error_msg)
@@ -266,6 +294,8 @@ class ImitationInteraction(NeighborInteraction):
             laws:
                 The jumps of the state between every pair of options, or the update of the state of every member.
         """
+        if self.form == 'agent' and self.schedule == 'member':
+            return [RuleLaw(self._imitate_member, phase=self.phase, members=self._get_role('target'))]
         if self.form == 'agent':
             return [RuleLaw(self._imitate, phase=self.phase)]
         if self.form == 'probability':
@@ -289,7 +319,7 @@ class ImitationInteraction(NeighborInteraction):
         own = float(getattr(agent, self.payoff))
         if self.rule == 'best':
             payoffs = np.array([getattr(other, self.payoff) for other in neighbours], dtype=float)
-            best = int(np.argmax(payoffs))
+            best = self._pick_best(payoffs, self.ties, model)
             return float(getattr(neighbours[best], self.state)) if payoffs[best] > own else None
         other = neighbours[int(rng.integers(len(neighbours)))]
         difference = float(getattr(other, self.payoff)) - own
@@ -298,18 +328,24 @@ class ImitationInteraction(NeighborInteraction):
         fermi = 1 / (1 + np.exp(-self._get_parameter_value('intensity', model) * difference))
         return float(getattr(other, self.state)) if rng.random() < fermi else None
 
+    def _get_choice(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> float | None:
+        """Return the option an agent copies with the probability of imitation, or `None` to keep its own."""
+        groups = set(model.groups(self._get_role('target')))
+        neighbours = [other for other in agent.neighbors(layer=self.layer) if other.group in groups]
+        if not neighbours or model.rng.random() >= self._get_parameter_value('probability', model):
+            return None
+        return self._choose(agent, neighbours, model)
+
+    def _set_choice(self, agent: AgentViewProtocol, choice: float | None) -> None:
+        """Set the state of an agent to the option it copies, if any."""
+        if choice is not None:
+            setattr(agent, self.state, choice)
+
+    def _imitate_member(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
+        """Let one agent imitate its neighbours with the probability of imitation, in its own activation."""
+        if agent.alive:
+            self._set_choice(agent, self._get_choice(agent, model))
+
     def _imitate(self, model: ModelViewProtocol) -> None:
-        """Let every agent imitate its neighbours with the probability of imitation, all agents at once."""
-        agents = list(model.agents(self._get_role('target')))
-        probability = self._get_parameter_value('probability', model)
-        members = {agent.id for agent in agents}
-        choices: list[float | None] = []
-        for agent in agents:
-            neighbours = [other for other in agent.neighbors() if other.id in members]
-            if not neighbours or model.rng.random() >= probability:
-                choices.append(None)
-                continue
-            choices.append(self._choose(agent, neighbours, model))
-        for agent, choice in zip(agents, choices, strict=True):
-            if choice is not None:
-                setattr(agent, self.state, choice)
+        """Let every agent imitate its neighbours with the probability of imitation, by the schedule."""
+        self._update_agents(model, self.schedule, self._get_choice, self._set_choice)

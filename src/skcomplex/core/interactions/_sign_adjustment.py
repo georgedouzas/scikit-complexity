@@ -16,6 +16,7 @@ from ..base import BasePart
 from ..laws import RuleLaw, UpdateLaw
 from ..laws.utils import clip, sign
 from ..types import AgentViewProtocol, ModelViewProtocol
+from ._base import SCHEDULES
 from ._interaction import Interaction
 
 MODES = ('multiplicative', 'additive')
@@ -34,8 +35,11 @@ class SignAdjustmentInteraction(Interaction):
 
     In the `'symbolic'` form, the signal, the step, and the bounds are numbers or functions of the namespace, where
     `namespace.target` holds the states and parameters of the target. In the `'agent'` form, the target is an agent
-    group and they are numbers or functions `f(agent, model)` that return numbers, and every agent steps at once from
-    the states at the start of the rule.
+    group and they are numbers or functions `f(agent, model)` that return numbers. The agents step at once from the
+    states at the start of the rule under the schedule `'synchronous'`, one after the other in their order or in a new
+    random order every step under `'sequential'` or `'random-sequential'`, each reading the states the agents before
+    it set, or each in its own activation under `'member'`, together with the rules of its element and the other
+    member interactions, in the order the system lists them.
 
     Args:
         label:
@@ -68,9 +72,14 @@ class SignAdjustmentInteraction(Interaction):
         phase:
             The phase of the step the agent form runs in, or `None` for the default phase.
 
+        schedule:
+            The order of the agents in the agent form, `'synchronous'`, `'sequential'`, `'random-sequential'`, or
+            `'member'`.
+
     Raises:
         ValidationError:
-            The mode or the form is unknown, or the signal is not callable, raised by `check`.
+            The mode, the form, or the schedule is unknown, the symbolic form is not synchronous, or the signal is not
+            callable, raised by `check`.
 
     Examples:
         >>> from typing import Annotated
@@ -105,6 +114,7 @@ class SignAdjustmentInteraction(Interaction):
         upper: Value | None = None,
         form: str = 'symbolic',
         phase: str | None = None,
+        schedule: str = 'synchronous',
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -116,19 +126,25 @@ class SignAdjustmentInteraction(Interaction):
         self.upper = upper
         self.form = form
         self.phase = phase
+        self.schedule = schedule
 
     def _check(self) -> None:
-        """Raise an error for an unknown mode or form, or a signal that cannot be called.
+        """Raise an error for an unknown mode, form, or schedule, or a signal that cannot be called.
 
         Raises:
             ValidationError:
-                The mode or the form is unknown, or the signal is not callable.
+                The mode, the form, or the schedule is unknown, the symbolic form is not synchronous, or the signal is
+                not callable.
         """
         super()._check()
         for name, value, variants in (('mode', self.mode, MODES), ('form', self.form, FORMS)):
             if value not in variants:
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Use one of {", ".join(variants)}.'
                 raise ValidationError(error_msg)
+        self._check_variant('schedule', self.schedule, SCHEDULES)
+        if self.form == 'symbolic' and self.schedule != 'synchronous':
+            error_msg = f'The schedule {self.schedule!r} of {self.label!r} runs agent rules. Use `form="agent"`.'
+            raise ValidationError(error_msg)
         if not callable(self.signal):
             error_msg = f'The signal of {self.label!r} must be callable, but it is {self.signal!r}.'
             raise ValidationError(error_msg)
@@ -166,17 +182,23 @@ class SignAdjustmentInteraction(Interaction):
             value = max(lower, value)
         return value
 
+    def _set_value(self, agent: AgentViewProtocol, value: float) -> None:
+        """Set the state of an agent to its next value."""
+        setattr(agent, self.state, value)
+
+    def _adjust_member(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
+        """Step the state of one agent, in its own activation."""
+        if agent.alive:
+            self._set_value(agent, self._get_value(agent, model))
+
     def adjust(self, model: ModelViewProtocol) -> None:
-        """Step the state of every agent of the target at once.
+        """Step the state of every agent of the target, by the schedule.
 
         Args:
             model:
                 The model view of the interaction.
         """
-        agents = list(model.agents(self._get_role('target')))
-        values = [self._get_value(agent, model) for agent in agents]
-        for agent, value in zip(agents, values, strict=True):
-            setattr(agent, self.state, value)
+        self._update_agents(model, self.schedule, self._get_value, self._set_value)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
         """Return the update of the state to its stepped value, or the rule of the agent form.
@@ -189,6 +211,8 @@ class SignAdjustmentInteraction(Interaction):
             laws:
                 The update law of the state, or the rule that steps the agents.
         """
+        if self.form == 'agent' and self.schedule == 'member':
+            return [RuleLaw(self._adjust_member, phase=self.phase, members=self._get_role('target'))]
         if self.form == 'agent':
             return [RuleLaw(self.adjust, phase=self.phase)]
         value = SR(getattr(self._get_member(namespace, 'target'), self.state))

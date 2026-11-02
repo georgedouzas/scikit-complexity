@@ -18,11 +18,11 @@ from ..base import BasePart
 from ..laws import RuleLaw, UpdateLaw
 from ..laws.utils import where
 from ..types import AgentViewProtocol, ModelViewProtocol
+from ._base import SCHEDULES
 from ._interaction import Interaction
 
 FORMS = ('symbolic', 'agent')
 RULES = ('average', 'cumulative')
-SCHEDULES = ('synchronous', 'member')
 
 
 class ReinforcementInteraction(Interaction):
@@ -38,7 +38,8 @@ class ReinforcementInteraction(Interaction):
     group is an agent group and `payoff(agent, model, k)` returns the payoff as a number, so it can read the agent and
     the history and storage of the model view. With `chosen`, the name of a state that holds the index of the option a
     member chose, only the score of that option moves, and the payoff of the other options is not read. In the agent
-    form every agent reinforces at once under the schedule `'synchronous'`, and each in its own activation under
+    form every agent reinforces at once under the schedule `'synchronous'`, one after the other in their order or in a
+    new random order every step under `'sequential'` or `'random-sequential'`, and each in its own activation under
     `'member'`, together with the rules of its element and the other member interactions, in the order the system
     lists them, such as after a choice and a transfer in one visit.
 
@@ -74,8 +75,8 @@ class ReinforcementInteraction(Interaction):
             `None` to move every score.
 
         schedule:
-            The order of the agent form, `'synchronous'` for every agent at once, or `'member'` for every agent in its
-            own activation.
+            The order of the agent form, `'synchronous'` for every agent at once, `'sequential'` or
+            `'random-sequential'` for one agent after the other, or `'member'` for every agent in its own activation.
 
     Raises:
         ValidationError:
@@ -187,16 +188,13 @@ class ReinforcementInteraction(Interaction):
             self._write(agent, self._get_scores(agent, model))
 
     def reinforce(self, model: ModelViewProtocol) -> None:
-        """Move the scores of every agent towards the payoffs of its options, all agents at once.
+        """Move the scores of every agent towards the payoffs of its options, by the schedule.
 
         Args:
             model:
                 The model view of the interaction.
         """
-        agents = list(model.agents(self._get_role('target')))
-        scores = [self._get_scores(agent, model) for agent in agents]
-        for agent, new in zip(agents, scores, strict=True):
-            self._write(agent, new)
+        self._update_agents(model, self.schedule, self._get_scores, self._write)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
         """Return the update of every score towards its payoff, or the rule of the agent form.

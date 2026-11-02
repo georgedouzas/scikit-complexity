@@ -856,6 +856,24 @@ def test_stratonovich_correction_of_several_laws_adds_up():
     assert drift[0] == pytest.approx(0.5 * 2.0 + 0.5 * 4 * 2.0)
 
 
+def test_stratonovich_callable_amplitude_raises_an_error_naming_the_drift_correction():
+    """Test that a Stratonovich noise law with a callable amplitude raises an error instead of running as Itô."""
+
+    class CallableNoiseElement(Element):
+        """Element whose noise amplitude is a callable of time and values."""
+
+        def __init__(self, label: str, *, x: Annotated[object, StateSpec()] = 1.0) -> None:
+            super().__init__(label)
+            self.x = x
+
+        def _get_laws(self, s):
+            """Return a Stratonovich noise law with a callable amplitude."""
+            return [NoiseLaw(s.x, lambda t, values: values['noisy.x'], convention='stratonovich')]
+
+    with pytest.raises(ValidationError, match='drift correction'):
+        compile_system(System(elements=[CallableNoiseElement('noisy')]))
+
+
 def test_components_receive_sage_symbols_and_vectors():
     """Test that scalar symbols are Sage expressions with their domains and vector states are Sage vectors."""
     system = System(

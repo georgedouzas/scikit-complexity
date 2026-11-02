@@ -98,6 +98,27 @@ names.
 The fixes listed in the proposal are checks in `_check` or in the pass that would otherwise run silently, each raising
 a named error from `skcomplex.errors` whose message names the operation, the reason, and the hook.
 
+### Restrictions the core keeps
+
+- **Growing hypergraphs.** A hyperedge interaction on hyperedges that change during a run returns rates, noises, and
+  jumps of its members, or updates of the hyperedge member. The compiler switches off the free rows of the group on
+  hyperedges by multiplying each value by the activity of its hyperedge, which only a symbolic value allows, so a
+  callable value raises an error. Lifting it needs the activity passed to callable laws as a value they read.
+- **Grid variants in continuous space.** Cell, neighbour, and site pairings, neighbourhood groups, neighbour steps and
+  placements, and neighbour candidates read the cells or nodes of a grid or network, which a continuous space does not
+  have. They raise a `SpaceError` at `prepare` naming the variant that runs there. The radius candidates of the
+  partner spec lift it for pairings and candidates.
+- **Update phases.** Update laws change all members at once in their phase, so a phase of update laws takes only a
+  period and an offset. An activation or a repeat raises an error, and `UpdateLaw(order=...)` orders members instead.
+- **Stratonovich and anti-Itô noise.** The drift correction needs the derivative of the amplitude, which the compiler
+  takes symbolically, so a callable amplitude of either convention raises an error. A `derivative=` argument would lift
+  it.
+- **Field boundaries and discretizations.** A field takes the boundaries `'periodic'`, `'zero-flux'`, and `'fixed'`
+  and the discretizations `'finite-difference'`, `'spectral'`, `'finite-volume'`, and `'finite-element'`, because each
+  needs its own lowering of the operators. A new one is added as a lowering in the engine, not by the user.
+- **Group constructors.** A group builds one instance of its element type from the label alone and sets its `values`
+  on it, so every other argument of the element constructor has a default. Per-member values go in `values`.
+
 ## Risks / Trade-offs
 
 - [About 30 symbolic sites change at once] → Mechanical edits behind a default that returns today's names, with the

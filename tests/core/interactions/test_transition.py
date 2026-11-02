@@ -344,6 +344,26 @@ def test_agent_transition_over_the_cell_moves_the_members_of_the_cell():
     assert trajectory.agents('members', 1).values['s'].tolist() == [1, 1, 1, 0]
 
 
+@pytest.mark.parametrize('source', [(0, 2), lambda value: value != 1])
+def test_agent_transition_over_the_cell_moves_members_of_every_source_value(source):
+    """Test that members acting on their cell move the members holding any value of a collection or callable source."""
+    cells = [(0, 0), (0, 0), (0, 0), (2, 2)]
+    group = GroupElement('members', element=HolderElement, size=4, values={'s': [1, 0, 2, 0]}, location=cells)
+    spread = TransitionInteraction(
+        'spread',
+        target='members',
+        state='s',
+        source=source,
+        destination=1,
+        condition=lambda agent, other, model: other.s == 1,
+        over='cell',
+        form='agent',
+    )
+    system = System(elements=[group], interactions=[spread], space=LatticeSpace((3, 3)), time=DiscreteTime())
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    assert trajectory.agents('members', 1).values['s'].tolist() == [1, 1, 1, 0]
+
+
 def test_agent_transition_member_schedule_lowers_to_a_member_rule():
     """Test that the member schedule lowers to a rule run by the members of the target."""
     move = TransitionInteraction(

@@ -37,7 +37,7 @@ class RoleError(ValidationError):
 
 
 class SpaceError(ValidationError):
-    """A vector variable has no space to take its dimension from."""
+    """A part needs a kind of space the system does not have, or a vector variable has no space for its dimension."""
 
 
 class SpaceTooLargeError(SpaceError):

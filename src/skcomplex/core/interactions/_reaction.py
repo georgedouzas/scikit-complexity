@@ -18,6 +18,7 @@ from ..base import BasePart
 from ..laws import NoiseLaw, RateLaw, RuleLaw
 from ..laws.utils import where
 from ..types import AgentViewProtocol, ModelViewProtocol
+from ._base import SCHEDULES
 from ._jump import JumpInteraction
 
 MODES = ('rate', 'jump', 'langevin')
@@ -57,7 +58,10 @@ class ReactionInteraction(JumpInteraction):
     of its reactant and modifier states to the power of their coefficients, or the number `propensity(agent, model)`
     returns, and a coefficient that is a function is the number `coefficient(agent, model)` returns. In the mode
     `'rate'` the member adds the changes times its propensity, one unit step of the rate equation, and in the mode
-    `'jump'` it adds the changes with the probability `1 - exp(-propensity)` that an event fires in the step.
+    `'jump'` it adds the changes with the probability `1 - exp(-propensity)` that an event fires in the step. The
+    members react at once from the states at the start of the rule under the schedule `'synchronous'`, one after the
+    other in their order or in a new random order every step under `'sequential'` or `'random-sequential'`, or each in
+    its own activation under `'member'`.
 
     Args:
         label:
@@ -95,12 +99,16 @@ class ReactionInteraction(JumpInteraction):
         phase:
             The phase of the step the agent form runs in, or `None` for the default phase.
 
+        schedule:
+            The order of the members in the agent form, `'synchronous'`, `'sequential'`, `'random-sequential'`, or
+            `'member'`.
+
     Raises:
         ValidationError:
-            The mode or the form is unknown, the reaction has neither reactants nor products, an entry is neither a
-            pair of a path and a state name nor a state name of a given target, a coefficient is neither a positive
-            number nor a function, or the agent form has no target, has an entry that is a pair, or has the mode
-            `'langevin'`.
+            The mode, the form, or the schedule is unknown, the symbolic form is not synchronous, the reaction has
+            neither reactants nor products, an entry is neither a pair of a path and a state name nor a state name of a
+            given target, a coefficient is neither a positive number nor a function, or the agent form has no target,
+            has an entry that is a pair, or has the mode `'langevin'`.
 
     Examples:
         >>> from skcomplex.core.elements import CompartmentElement
@@ -182,6 +190,7 @@ class ReactionInteraction(JumpInteraction):
         mode: str = 'rate',
         form: str = 'symbolic',
         phase: str | None = None,
+        schedule: str = 'synchronous',
     ) -> None:
         super().__init__(label, target='')
         self.target = target
@@ -193,6 +202,7 @@ class ReactionInteraction(JumpInteraction):
         self.mode = mode
         self.form = form
         self.phase = phase
+        self.schedule = schedule
 
     def _get_reactants(self) -> Stoichiometry | None:
         """Return the coefficients of the reactants, which a subclass with roles of its own names returns."""
@@ -326,6 +336,10 @@ class ReactionInteraction(JumpInteraction):
         if self.form not in FORMS:
             error_msg = f'Reaction {self.label!r} has the form {self.form!r}. Use one of {", ".join(FORMS)}.'
             raise ValidationError(error_msg)
+        self._check_variant('schedule', self.schedule, SCHEDULES)
+        if self.form != 'agent' and self.schedule != 'synchronous':
+            error_msg = f'The schedule {self.schedule!r} of reaction {self.label!r} runs agent rules. Use form="agent".'
+            raise ValidationError(error_msg)
         if self.form != 'agent':
             return
         if self.target is None:
@@ -401,19 +415,30 @@ class ReactionInteraction(JumpInteraction):
             return propensity
         return float(model.rng.random() < 1.0 - math.exp(-max(propensity, 0.0)))
 
+    def _get_agent_step(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> dict[str, float]:
+        """Return the change of every state of an agent in the step, its changes times its propensity or its event."""
+        changes, propensity = self._get_agent_changes(agent, model), self._get_agent_propensity(agent, model)
+        scale = self._get_agent_scale(propensity, model)
+        return {state: change * scale for state, change in changes.items()}
+
+    def _apply_agent_step(self, agent: AgentViewProtocol, changes: dict[str, float]) -> None:
+        """Add their changes to the states of an agent."""
+        for state, change in changes.items():
+            setattr(agent, state, float(getattr(agent, state)) + change)
+
+    def _react_member(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
+        """React in one agent on its own states, in its own activation."""
+        if agent.alive:
+            self._apply_agent_step(agent, self._get_agent_step(agent, model))
+
     def react(self, model: ModelViewProtocol) -> None:
-        """React in every agent of the target on its own states, from the states at the start of the step.
+        """React in every agent of the target on its own states, by the schedule.
 
         Args:
             model:
                 The model view of the interaction.
         """
-        agents = list(model.agents(self._get_role('target')))
-        steps = [(self._get_agent_changes(agent, model), self._get_agent_propensity(agent, model)) for agent in agents]
-        for agent, (changes, propensity) in zip(agents, steps, strict=True):
-            scale = self._get_agent_scale(propensity, model)
-            for state, change in changes.items():
-                setattr(agent, state, float(getattr(agent, state)) + change * scale)
+        self._update_agents(model, self.schedule, self._get_agent_step, self._apply_agent_step)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
         """Return the laws of the reaction in its mode, or the rule of the agent form.
@@ -427,6 +452,8 @@ class ReactionInteraction(JumpInteraction):
             laws:
                 The rate laws, the jump law, the rate and noise laws, or the rule of the reaction.
         """
+        if self.form == 'agent' and self.schedule == 'member':
+            return [RuleLaw(self._react_member, phase=self.phase, members=self._get_role('target'))]
         if self.form == 'agent':
             return [RuleLaw(self.react, phase=self.phase)]
         mode = self._get_mode()

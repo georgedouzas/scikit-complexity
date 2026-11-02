@@ -179,6 +179,27 @@ def test_reinforcement_interaction_moves_only_the_score_of_the_chosen_option():
     assert trajectory.values('learners.second')[-1].tolist() == [0.0, 1.0]
 
 
+def _scarce_payoff(agent: LearnerView, model: ModelView, index: int) -> float:
+    """Return a payoff of option 1 while no learner has scored it yet, and zero otherwise."""
+    scored = sum(learner.second for learner in model.agents('target', LearnerView))
+    return float(index == 1 and scored == 0)
+
+
+@pytest.mark.parametrize(('schedule', 'expected'), [('synchronous', [1.0, 1.0]), ('sequential', [1.0, 0.0])])
+def test_reinforcement_interaction_sequential_schedule_reads_the_scores_set_before(schedule, expected):
+    """Test that sequential reinforcement reads the scores earlier agents set, while synchronous does not."""
+    reinforcement = ReinforcementInteraction(
+        'reinforcement',
+        target='learners',
+        scores=('first', 'second'),
+        payoff=_scarce_payoff,
+        rule='cumulative',
+        schedule=schedule,
+        form='agent',
+    )
+    assert _run([reinforcement], {}, 2, 1).agents('learners', 1).values['second'].tolist() == expected
+
+
 def test_reinforcement_interaction_members_reinforce_their_chosen_option_in_their_activation():
     """Test that under the member schedule every agent moves the score of its chosen option after its choice."""
     choice = ChoiceInteraction(

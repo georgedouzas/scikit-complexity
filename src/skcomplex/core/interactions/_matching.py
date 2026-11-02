@@ -30,10 +30,12 @@ from ...specs import (
 from ..base import BasePart
 from ..laws import RuleLaw
 from ..laws.utils import transfer
+from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, MatchingRule, ModelViewProtocol, Pairing
 from ._interaction import Interaction
 
 SIGNS = (-1, 1)
+DEFAULT_STATES = ('limit', 'quantity', 'budget')
 RULES = (
     RandomSearchSpec,
     PartnerSwitchSpec,
@@ -93,13 +95,16 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
             pairs, each matched at the midpoint of both limits.
 
         limit:
-            The state with the limit of both sides, or a pair of the requesters' and the providers' states.
+            The state with the limit of both sides, or a pair of the requesters' and the providers' states. An agent
+            without the default state `'limit'` has no limit as a requester and the limit 0 as a provider.
 
         quantity:
-            The state with the quantity of both sides, or a pair of the requesters' and the providers' states.
+            The state with the quantity of both sides, or a pair of the requesters' and the providers' states. An
+            agent without the default state `'quantity'` offers the quantity 1.
 
         budget:
-            The state of a requester with the most value it can give.
+            The state of a requester with the most value it can give. A requester without the default state
+            `'budget'` has no budget limit.
 
         transfers:
             The states every match moves, each with the sign `-1` for a move from the requester to the provider or
@@ -114,7 +119,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     Raises:
         ValidationError:
             A transfer has a sign other than `-1` or `1`, or the rule is neither a matching spec nor a function, or
-            it is invalid, raised by `check`.
+            it is invalid, raised by `check`, or an agent lacks a state other than a default one that names its
+            limit, quantity, or budget, raised by `run`.
 
     Examples:
         >>> from skcomplex.core.interactions import MatchingInteraction
@@ -162,10 +168,17 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         """Return the state of the requesters and of the providers of a name given once or as a pair."""
         return (name, name) if isinstance(name, str) else name
 
-    @staticmethod
-    def _read(agent: AgentViewProtocol, name: str, default: float) -> float:
-        """Return a state of an agent, or a default when it has none."""
-        return float(getattr(agent, name, default))
+    def _read(self, agent: AgentViewProtocol, name: str, default: float) -> float:
+        """Return a state of an agent, or a default when it lacks a state of a default name."""
+        if hasattr(agent, name):
+            return float(getattr(agent, name))
+        if name in DEFAULT_STATES:
+            return default
+        error_msg = (
+            f'The agents of {agent.group!r} have no state {name!r}, which the matching {self.label!r} reads. Declare '
+            f'the state on their element, or name one of their states.'
+        )
+        raise ValidationError(error_msg)
 
     @staticmethod
     def _book(trades: list[MatchSpec], requester: _Offer, provider: _Offer, value: float) -> None:
@@ -641,6 +654,11 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         model.report('price', price)
         model.report('volume', volume)
         model.report('unmatched', unmatched)
+
+    def _check_space(self, space: BaseSpace | None) -> None:
+        """Raise an error for candidates in neighbouring cells or nodes in a continuous space."""
+        if isinstance(self.rule, GreedyMatchingSpec) and self.rule.candidates == 'neighbors':
+            self._check_grid('candidates', self.rule.candidates, space, 'a radius as the candidates')
 
     def _check(self) -> None:
         """Raise an error for a declaration the matching cannot take, a transfer without a sign, or a bad rule.

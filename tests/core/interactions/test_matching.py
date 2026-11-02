@@ -308,3 +308,11 @@ def test_check_rejects_an_unknown_rule_naming_the_specs_and_functions():
     """Test that a rule that is neither a matching spec nor a function raises an error naming both."""
     with pytest.raises(ValidationError, match=r'RandomSearchSpec.*GreedyMatchingSpec, a function'):
         MatchingInteraction('matching', requesters='a', providers='b', rule='greedy').check()
+
+
+def test_match_rejects_a_misspelled_state_instead_of_defaulting_it():
+    """Test that a budget state the requesters lack raises an error naming it instead of leaving them unbounded."""
+    _, _, system = _auction(5, np.random.default_rng(1))
+    system.interactions[0].set_params(budget='mony')
+    with pytest.raises(ValidationError, match="no state 'mony'"):
+        Simulation(system, random_state=0).check().prepare().run(until=1)

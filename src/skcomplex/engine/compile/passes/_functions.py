@@ -344,7 +344,8 @@ class FunctionsPass(BasePass):
 
         Raises:
             ValidationError:
-                An update law runs in a phase the schedule does not declare, or a phase of update laws repeats.
+                An update law runs in a phase the schedule does not declare, or a phase of update laws repeats or has an
+                activation other than the default.
         """
         declared = FunctionsPass._declared_phases(compilation.system)
         kernels: dict[str, list[LawKernel]] = defaultdict(list)
@@ -368,6 +369,13 @@ class FunctionsPass(BasePass):
                 error_msg = (
                     f'The phase {phase.name!r} repeats {phase.repeat} times, but update laws run once per phase, since '
                     'they draw once per step. Give it one round, or move the update laws to a phase of their own.'
+                )
+                raise ValidationError(error_msg)
+            if phase.name in kernels and phase.activation != PhaseSpec.activation:
+                error_msg = (
+                    f'The phase {phase.name!r} has the activation {phase.activation!r}, but update laws change all '
+                    'members at once, and their phases take only a period and an offset. Remove the activation, or '
+                    'order the members with `UpdateLaw(order=...)`.'
                 )
                 raise ValidationError(error_msg)
         return [(phase, kernels[phase.name]) for phase in plan if phase.name in kernels]

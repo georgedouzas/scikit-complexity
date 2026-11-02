@@ -8,6 +8,7 @@ from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import SignAdjustmentInteraction
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
+from skcomplex.core.types import AgentViewProtocol, ModelViewProtocol
 from skcomplex.engine.runtime import Simulation, Trajectory
 from skcomplex.errors import ValidationError
 from skcomplex.specs import StateSpec, VisualSpec
@@ -78,7 +79,38 @@ def test_sign_adjustment_agent_form_steps_every_agent_within_its_bound():
     assert trajectory.agents('quotes', 2).values['x'].tolist() == pytest.approx([0.8, 9.0])
 
 
-@pytest.mark.parametrize('arguments', [{'mode': 'power'}, {'form': 'rule'}, {'signal': 1.0}])
+def _crowded(agent: AgentViewProtocol, model: ModelViewProtocol) -> float:
+    """Return a signal that is positive while the quotes of the group sum to less than 2.5."""
+    return 2.5 - sum(other.x for other in model.agents('target'))
+
+
+@pytest.mark.parametrize(
+    ('schedule', 'expected'),
+    [('synchronous', [2.0, 2.0]), ('sequential', [2.0, 0.0]), ('member', [0.0, 2.0])],
+)
+def test_sign_adjustment_agent_schedules_read_the_states_set_before(schedule, expected):
+    """Test that sequential and member steps read the quotes earlier agents set, while synchronous steps do not."""
+    quotes = GroupElement('quotes', element=QuoteElement, size=2, values={'x': [1.0, 1.0]})
+    search = SignAdjustmentInteraction(
+        'search',
+        target='quotes',
+        state='x',
+        signal=_crowded,
+        step=1.0,
+        mode='additive',
+        form='agent',
+        schedule=schedule,
+    )
+    values = _run(quotes, search, 1).agents('quotes', 1).values['x'].tolist()
+    assert sorted(values) == sorted(expected)
+    if schedule == 'sequential':
+        assert values == expected
+
+
+@pytest.mark.parametrize(
+    'arguments',
+    [{'mode': 'power'}, {'form': 'rule'}, {'signal': 1.0}, {'schedule': 'member'}, {'schedule': 'parallel'}],
+)
 def test_check_rejects_invalid_arguments(arguments):
     """Test that an unknown mode or form, or a signal that is not callable, fails."""
     settings = {'signal': lambda s: 1, **arguments}

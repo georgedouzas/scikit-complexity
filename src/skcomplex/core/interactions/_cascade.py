@@ -10,7 +10,7 @@ from typing import Annotated
 import numpy as np
 
 from ...errors import ValidationError
-from ...specs import RoleSpec
+from ...specs import BaseSpec, RoleSpec
 from ...types import Array
 from ..laws import BaseLaw, CascadeLaw, DriveLaw, LocalRuleLaw
 from ..spaces import BaseNeighborhood, LatticeNeighborhood, VonNeumannNeighborhood
@@ -122,9 +122,7 @@ class CascadeInteraction(NeighborInteraction):
                 mode `'random'` has no lattice neighbourhood or a threshold that is not a whole number of parcels.
         """
         super()._check()
-        if self.mode not in MODES:
-            error_msg = f'The mode of the cascade is {self.mode!r}. Use one of {", ".join(MODES)}.'
-            raise ValidationError(error_msg)
+        self._check_variant('mode', self.mode, MODES, (BaseSpec,))
         if self.drive is not None and not callable(self.drive):
             error_msg = f'The drive of the cascade must be callable, but it is {self.drive!r}.'
             raise ValidationError(error_msg)

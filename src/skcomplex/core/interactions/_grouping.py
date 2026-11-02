@@ -10,9 +10,10 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import ReductionSpec, RoleSpec
+from ...specs import BaseSpec, ReductionSpec, RoleSpec
 from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import both, count, maximum, mean, minimum, reductions_in, total, variance
+from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
 
@@ -193,6 +194,11 @@ class GroupingInteraction(Interaction):
             )
             raise ValidationError(error_msg)
 
+    def _check_space(self, space: BaseSpace | None) -> None:
+        """Raise an error for groups of neighbouring cells or nodes in a continuous space."""
+        if self.groups == 'neighborhood':
+            self._check_grid('groups', self.groups, space, "groups='pairs', 'partition', or 'state'")
+
     def _check(self) -> None:
         """Raise an error for an unknown kind of groups, a size below two, a missing state, or a capacity below one.
 
@@ -206,9 +212,7 @@ class GroupingInteraction(Interaction):
         if self.form not in FORMS:
             error_msg = f'Unknown form {self.form!r} of {self.label!r}. Use one of {", ".join(FORMS)}.'
             raise ValidationError(error_msg)
-        if self.groups not in GROUPS:
-            error_msg = f'Unknown groups {self.groups!r} of {self.label!r}. Use one of {", ".join(GROUPS)}.'
-            raise ValidationError(error_msg)
+        self._check_variant('groups', self.groups, GROUPS, (BaseSpec,))
         if isinstance(self.size, bool) or not isinstance(self.size, int) or self.size < PAIR:
             error_msg = f'The size of the groups of {self.label!r} is {self.size!r}. Give a whole number of at least 2.'
             raise ValidationError(error_msg)

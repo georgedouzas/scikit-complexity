@@ -494,7 +494,7 @@ def test_coupling_over_edges_needs_edges_for_its_rates():
 @pytest.mark.parametrize(
     ('arguments', 'match'),
     [
-        ({'mode': 'chain'}, 'mode of coupling'),
+        ({'mode': 'chain'}, 'Unknown mode'),
         ({'reduce': 'median'}, 'reduce of coupling'),
         ({'source': 'others'}, 'needs the mode group'),
         ({'mode': 'next', 'reduce': 'max'}, 'sum or mean'),

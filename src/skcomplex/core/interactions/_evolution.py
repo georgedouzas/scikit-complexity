@@ -12,7 +12,7 @@ import numpy.typing as npt
 from sage.sets.real_set import RealSet
 
 from ...errors import SimulationError, ValidationError
-from ...specs import ParameterSpec, RoleSpec
+from ...specs import BaseSpec, ParameterSpec, RoleSpec
 from ...types import Array
 from ..laws import BaseLaw, RuleLaw
 from ..types import AgentViewProtocol, ModelViewProtocol
@@ -221,9 +221,9 @@ class EvolutionInteraction(Interaction):
                 neither a probability nor a function, a count is invalid, or the evaluation is not callable.
         """
         super()._check()
+        self._check_variant('selection', self.selection, SELECTIONS, (BaseSpec,))
+        self._check_variant('replacement', self.replacement, REPLACEMENTS, (BaseSpec,))
         for name, value, variants in (
-            ('selection', self.selection, SELECTIONS),
-            ('replacement', self.replacement, REPLACEMENTS),
             ('change', self.change, CHANGES),
             ('parents', self.parents, PARENTS),
         ):

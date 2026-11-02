@@ -15,7 +15,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
-from ...specs import ClampSpec, ParameterSpec, RadiusSpec, RoleSpec
+from ...specs import BaseSpec, ClampSpec, ParameterSpec, RadiusSpec, RoleSpec
 from ...types import Array
 from ..laws import BaseLaw, RateLaw, RuleLaw, UpdateLaw
 from ..laws.utils import count, delayed, hyperedges, maximum, minimum, neighbors, shift_member, total
@@ -216,8 +216,8 @@ class CouplingInteraction(NeighborInteraction):
 
     def _check_variants(self) -> None:
         """Raise an error for an unknown mode, reduction, or form, or a function or combination that is not callable."""
+        self._check_variant('mode', self.mode, MODES, (BaseSpec,))
         for name, value, known in (
-            ('mode', self.mode, MODES),
             ('reduce', self.reduce, REDUCTIONS),
             ('form', self.form, FORMS),
         ):

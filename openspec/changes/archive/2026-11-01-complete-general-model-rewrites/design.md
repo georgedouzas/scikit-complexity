@@ -56,9 +56,11 @@ grid lines, the contour cell, boids, and the Couzin model run on it.
 `BaseInteraction._get_role(role)` returns the role unchanged by default; every agent-form lookup of a role by a fixed
 name (`model.agents`, `model.groups`, `model.create`, `model.deposit`, `RuleLaw(members=...)`) and the default
 `TransferInteraction._get_holders` go through it, so a subclass that only renames its roles overrides `_get_role` in
-both forms. The meadow's `GrazingInteraction` (a cell-paired transfer from `pasture` to a sink) and
+the agent forms. The symbolic forms read `namespace.<role>` directly, so a renamed role worked in them only from
+`make-core-extensible`, which reads every role through `_get_member`. The meadow's `GrazingInteraction` (a cell-paired transfer from `pasture` to a sink) and
 `HerdingInteraction` (a movement to the nearest free grown patch, removing a cow with none) run on it, equal over 20
-seeds with unchanged tests. Parameters are still read by fixed names, so a movement subclass declares `probability`.
+seeds with unchanged tests. Parameters were still read by fixed names here, so a movement subclass declared
+`probability` until `make-core-extensible` added `_get_parameter`.
 
 ### Core extensions and social rebuilds (2.9)
 

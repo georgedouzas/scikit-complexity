@@ -3,14 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 
-from ...errors import ValidationError
+import numpy as np
+import numpy.typing as npt
+
+from ...errors import SpaceError, ValidationError
 from ...specs import ParameterSpec, StateSpec
 from ..base import BasePart
-from ..spaces import BaseSpace
-from ..types import ModelViewProtocol
+from ..spaces import BaseSpace, ContinuousSpace
+from ..types import AgentViewProtocol, ModelViewProtocol
+
+SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
 
 
 class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
@@ -186,6 +191,65 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {", ".join(accepted)}.'
         raise ValidationError(error_msg)
 
+    def _update_agents[T](
+        self,
+        model: ModelViewProtocol,
+        schedule: str,
+        get_next: Callable[[AgentViewProtocol, ModelViewProtocol], T],
+        set_next: Callable[[AgentViewProtocol, T], None],
+    ) -> None:
+        """Set the next value of every agent of the target, all at once or one after the other, by the schedule.
+
+        Args:
+            model:
+                The model view of the interaction.
+
+            schedule:
+                `'synchronous'` for every agent from the values at the start of the rule, or `'sequential'` or
+                `'random-sequential'` for one agent after the other, in their order or in a new random order, each
+                reading the values the agents before it set.
+
+            get_next:
+                The function of an agent and the model view that returns its next value.
+
+            set_next:
+                The function that sets the next value of an agent.
+        """
+        agents = list(model.agents(self._get_role('target')))
+        if schedule == 'synchronous':
+            values = [get_next(agent, model) for agent in agents]
+            for agent, value in zip(agents, values, strict=True):
+                set_next(agent, value)
+            return
+        order = model.rng.permutation(len(agents)) if schedule == 'random-sequential' else range(len(agents))
+        for index in order:
+            agent = agents[int(index)]
+            if agent.alive:
+                set_next(agent, get_next(agent, model))
+
+    def _pick_best(self, scores: npt.ArrayLike, ties: str, model: ModelViewProtocol) -> int:
+        """Return the position of the largest score, the first one or one drawn uniformly among ties.
+
+        Args:
+            scores:
+                The scores of the options, in their order.
+
+            ties:
+                `'first'` for the first of the largest scores, or `'random'` for one of them drawn uniformly.
+
+            model:
+                The model view of the interaction, whose random stream draws among ties.
+
+        Returns:
+            position:
+                The position of the chosen option.
+        """
+        values = np.asarray(scores, dtype=float)
+        best = np.flatnonzero(values == values.max())
+        if ties == 'first':
+            return int(best[0])
+        return int(best[int(model.rng.integers(len(best)))])
+
     def _check_states(self) -> None:
         """Raise an error for a type that declares states or adaptive parameters without a shape."""
         specs = self._get_specs()
@@ -218,10 +282,51 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         """
         self._check_states()
 
+    def _check_grid(self, name: str, value: object, space: BaseSpace | None, alternative: str) -> None:
+        """Raise an error for a variant that needs the cells of a grid or the nodes of a network in a continuous space.
+
+        Args:
+            name:
+                The name of the variant argument, such as `'pairing'`.
+
+            value:
+                The value of the variant argument.
+
+            space:
+                The space of the system.
+
+            alternative:
+                The variant or argument that runs in a continuous space.
+
+        Raises:
+            SpaceError:
+                The space is continuous.
+        """
+        if not isinstance(space, ContinuousSpace):
+            return
+        error_msg = (
+            f'The {name} {value!r} of {self.label!r} needs the cells of a grid or the nodes of a network, but the '
+            f'system has a continuous space. Use {alternative}.'
+        )
+        raise SpaceError(error_msg)
+
+    def _check_space(self, space: BaseSpace | None) -> None:
+        """Raise an error for a variant the space of the system cannot run, none by default.
+
+        Args:
+            space:
+                The space of the system, or `None`.
+        """
+
     def _prepare(self, context: BaseSpace | None = None) -> None:
-        """Leave the interaction as it is, since it has nothing to prepare.
+        """Raise an error for a variant the space of the system cannot run.
 
         Args:
             context:
-                The space the interaction inherits from its system, which an interaction does not read.
+                The space the interaction inherits from its system.
+
+        Raises:
+            SpaceError:
+                A variant needs a kind of space the system does not have.
         """
+        self._check_space(context)

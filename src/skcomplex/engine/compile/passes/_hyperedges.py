@@ -4,6 +4,7 @@
 # License: MIT
 
 from dataclasses import replace
+from numbers import Number
 from types import SimpleNamespace
 
 import numpy as np
@@ -326,8 +327,15 @@ class HyperedgeTables:
         )
 
     @staticmethod
-    def _scaled(value: object, activity: Expression) -> Expression | FreeModuleElement:
-        """Return a scalar or a vector value multiplied by an activity."""
+    def _scaled(spec: KernelSpec, law: BaseLaw, value: object, activity: Expression) -> Expression | FreeModuleElement:
+        """Return a scalar or a vector value multiplied by an activity, refusing a value that is not symbolic."""
+        if not isinstance(value, Expression | FreeModuleElement | Number):
+            error_msg = (
+                f'{spec.owner} returns {type(law).__name__} with the value {value!r} for the members of hyperedges '
+                'that change during a run, but a free row of the hypergraph switches off only a symbolic value. Write '
+                'the value as an expression, or keep the hyperedges fixed.'
+            )
+            raise ValidationError(error_msg)
         if isinstance(value, FreeModuleElement):
             return vector(SR(item) * activity for item in value)
         return SR(value) * activity
@@ -352,15 +360,16 @@ class HyperedgeTables:
 
         Raises:
             ValidationError:
-                A law of the focal member other than a rate, a noise, or a jump runs on a growing hypergraph.
+                A law of the focal member other than a rate, a noise, or a jump runs on a growing hypergraph, or its
+                value is not symbolic.
         """
         activity = HyperedgeTables._activity(spec)
         if activity is None:
             return law
         if isinstance(law, RateLaw | NoiseLaw):
-            return BasePass._replaced(law, value=HyperedgeTables._scaled(law.value, activity)).check()
+            return BasePass._replaced(law, value=HyperedgeTables._scaled(spec, law, law.value, activity)).check()
         if isinstance(law, JumpLaw):
-            return BasePass._replaced(law, rate=HyperedgeTables._scaled(law.rate, activity)).check()
+            return BasePass._replaced(law, rate=HyperedgeTables._scaled(spec, law, law.rate, activity)).check()
         if isinstance(law, UpdateLaw) and spec.hyperedge == HYPEREDGE_LAWS:
             return law
         error_msg = (

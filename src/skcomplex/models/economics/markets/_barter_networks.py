@@ -160,7 +160,7 @@ def wilhite_trade_networks(
                 requesters='traders',
                 providers='traders',
                 rule=GreedyMatchingSpec(score=BarterTraderElement.get_rate_gap),
-                quantity=('request', 'partners'),
+                quantity=('quantity', 'partners'),
                 units=units,
             ),
         ],

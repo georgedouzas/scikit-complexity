@@ -14,17 +14,18 @@ from sage.sets.real_set import RealSet
 from scipy.special import expit, softmax
 
 from ...errors import ValidationError
-from ...specs import ParameterSpec, RoleSpec
+from ...specs import BaseSpec, ParameterSpec, RoleSpec
 from ..base import BasePart
 from ..laws import RuleLaw, UpdateLaw
 from ..laws.utils import categorical, uniform, where
 from ..types import AgentViewProtocol, ModelViewProtocol
+from ._base import SCHEDULES
 from ._interaction import Interaction
 
 RULES = ('logit', 'metropolis', 'fermi', 'best')
-SCHEDULES = ('synchronous', 'random-sequential', 'member')
 FORMS = ('symbolic', 'agent')
 PROPOSALS = ('others', 'all')
+TIES = ('random', 'first')
 MIN_OPTIONS = 2
 
 
@@ -36,18 +37,18 @@ class ChoiceInteraction(Interaction):
     `'fermi'` propose one of the other options uniformly, or with the proposal `'all'` one of all the options
     including the current one, and accept it with probability `min(1, exp(beta (u_new - u_old)))` or
     `1 / (1 + exp(-beta (u_new - u_old)))`, so the rule `'fermi'` with the proposal `'all'` is the heat-bath rule of a
-    uniform proposal. The rule `'best'` draws uniformly
-    among the options of largest utility. Every step, each member revises its choice with probability `activity` and
-    keeps it otherwise.
+    uniform proposal. The rule `'best'` draws uniformly among the options of largest utility under the ties
+    `'random'`, and takes the first of them under `'first'`. Every step, each member revises its choice with probability
+    `activity` and keeps it otherwise.
 
     In the `'symbolic'` form, `utility(namespace, option)` returns the utility as a symbolic expression, where
     `namespace.target` holds the states and parameters of the group, and every member draws at once. In the `'agent'`
     form, the group is an agent group and `utility(agent, model, option)` returns the utility as a number, so it can
     read the agent, its neighbours, and the history and storage of the model view. Its members draw at once, from the
-    choices of the last step, under the `'synchronous'` schedule, and one after the other in a random order, each
-    seeing the choices made before it, under the `'random-sequential'` schedule, and each in its own activation under
-    the `'member'` schedule, together with the rules of its element and the other member interactions, in the order
-    the system lists them. An option of utility `-inf` is never drawn in the agent form.
+    choices of the last step, under the `'synchronous'` schedule, one after the other in their order or in a new random
+    order, each seeing the choices made before it, under the `'sequential'` or `'random-sequential'` schedule, and each
+    in its own activation under the `'member'` schedule, together with the rules of its element and the other member
+    interactions, in the order the system lists them. An option of utility `-inf` is never drawn in the agent form.
 
     Args:
         label:
@@ -73,8 +74,8 @@ class ChoiceInteraction(Interaction):
             The intensity of choice `beta`, zero for uniform choice.
 
         schedule:
-            The order in which the members revise, `'synchronous'` or, in the agent form, `'random-sequential'` or
-            `'member'`.
+            The order in which the members revise, `'synchronous'` or, in the agent form, `'sequential'`,
+            `'random-sequential'`, or `'member'`.
 
         activity:
             The probability that a member revises its choice in a step.
@@ -89,10 +90,14 @@ class ChoiceInteraction(Interaction):
             The options the rules `'metropolis'` and `'fermi'` propose from, `'others'` for the options other than the
             current one, or `'all'` for every option.
 
+        ties:
+            The option the rule `'best'` takes among options of equal largest utility, `'random'` for one drawn
+            uniformly or `'first'` for the first in the order of the options.
+
     Raises:
         ValidationError:
-            The rule, the schedule, the form, or the proposal is unknown, the schedule is not synchronous in the
-            symbolic form, there are fewer than two options, or the utility is not callable.
+            The rule, the schedule, the form, the proposal, or the ties are unknown, the schedule is not synchronous in
+            the symbolic form, there are fewer than two options, or the utility is not callable.
 
     Examples:
         >>> from skcomplex.core.interactions import ChoiceInteraction
@@ -129,6 +134,7 @@ class ChoiceInteraction(Interaction):
         form: str = 'symbolic',
         phase: str | None = None,
         proposal: str = 'others',
+        ties: str = 'random',
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -142,14 +148,16 @@ class ChoiceInteraction(Interaction):
         self.form = form
         self.phase = phase
         self.proposal = proposal
+        self.ties = ties
 
     def _check_variants(self) -> None:
         """Raise an error for an unknown variant, or a symbolic choice that is not synchronous."""
+        self._check_variant('rule', self.rule, RULES, (BaseSpec,))
         for name, value, variants in (
-            ('rule', self.rule, RULES),
             ('schedule', self.schedule, SCHEDULES),
             ('form', self.form, FORMS),
             ('proposal', self.proposal, PROPOSALS),
+            ('ties', self.ties, TIES),
         ):
             if value not in variants:
                 error_msg = f'Unknown {name} {value!r} of {self.label!r}. Use one of {variants}.'
@@ -166,7 +174,7 @@ class ChoiceInteraction(Interaction):
 
         Raises:
             ValidationError:
-                The type declares states, the rule, the schedule, the form, or the proposal is unknown, the
+                The type declares states, the rule, the schedule, the form, the proposal, or the ties are unknown, the
                 schedule is not synchronous in the symbolic form, there are fewer than two options, or the utility is
                 not callable.
         """
@@ -193,7 +201,12 @@ class ChoiceInteraction(Interaction):
         largest = utilities[0]
         for utility in utilities[1:]:
             largest = where(utility > largest, utility, largest)
-        index = categorical(f'{state}_best', [where(utility >= largest, 1, 0) for utility in utilities])
+        weights = [where(utility >= largest, 1, 0) for utility in utilities]
+        if self.ties == 'first':
+            weights = [
+                weight * where(sum(weights[:position], SR(0)) > 0, 0, 1) for position, weight in enumerate(weights)
+            ]
+        index = categorical(f'{state}_best', weights)
         return self._select(index, [SR(option) for option in self.options])
 
     def _draw_proposal(self, state: Expression, utilities: Sequence[Expression], intensity: Expression) -> Expression:
@@ -244,8 +257,7 @@ class ChoiceInteraction(Interaction):
             return self._draw_agent_proposal(agent, model, intensity)
         utilities = self._get_utilities(agent, model)
         if self.rule == 'best':
-            best = np.flatnonzero(utilities == utilities.max())
-            return float(self.options[int(best[model.rng.integers(len(best))])])
+            return float(self.options[self._pick_best(utilities, self.ties, model)])
         scaled = np.where(np.isneginf(utilities), -np.inf, intensity * utilities)
         probabilities = softmax(scaled)
         return float(self.options[int(model.rng.choice(len(self.options), p=probabilities))])
@@ -254,10 +266,21 @@ class ChoiceInteraction(Interaction):
         """Return whether a member revises its choice in this step."""
         return activity >= 1 or bool(model.rng.random() < activity)
 
+    def _get_choice(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> float | None:
+        """Return the option an agent draws if it revises in this step, or `None` to keep its own."""
+        if not self._is_active(model, self._get_parameter_value('activity', model)):
+            return None
+        return self._draw_agent(agent, model, self._get_parameter_value('intensity', model))
+
+    def _set_choice(self, agent: AgentViewProtocol, option: float | None) -> None:
+        """Set the state of an agent to the option it draws, if any."""
+        if option is not None:
+            setattr(agent, self.state, option)
+
     def _choose_member(self, agent: AgentViewProtocol, model: ModelViewProtocol) -> None:
         """Set the state of one agent to the option it draws if it revises, in its own activation."""
-        if agent.alive and self._is_active(model, self._get_parameter_value('activity', model)):
-            setattr(agent, self.state, self._draw_agent(agent, model, self._get_parameter_value('intensity', model)))
+        if agent.alive:
+            self._set_choice(agent, self._get_choice(agent, model))
 
     def choose(self, model: ModelViewProtocol) -> None:
         """Set the state of every agent that revises in this step to the option it draws, by the schedule.
@@ -266,21 +289,7 @@ class ChoiceInteraction(Interaction):
             model:
                 The model view of the interaction.
         """
-        agents = list(model.agents(self._get_role('target')))
-        intensity, activity = self._get_parameter_value('intensity', model), self._get_parameter_value(
-            'activity',
-            model,
-        )
-        if self.schedule == 'random-sequential':
-            for index in model.rng.permutation(len(agents)):
-                if self._is_active(model, activity):
-                    setattr(agents[index], self.state, self._draw_agent(agents[index], model, intensity))
-            return
-        chosen = [
-            (agent, self._draw_agent(agent, model, intensity)) for agent in agents if self._is_active(model, activity)
-        ]
-        for agent, option in chosen:
-            setattr(agent, self.state, option)
+        self._update_agents(model, self.schedule, self._get_choice, self._set_choice)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
         """Return the update of the state of every member that revises, or the rule of the agent form.

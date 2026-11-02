@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from typing import Annotated
 
 from ...errors import ValidationError
-from ...specs import RoleSpec, TopologyRequestSpec
+from ...specs import BaseSpec, RoleSpec, TopologyRequestSpec
 from ..laws import BaseLaw, JumpLaw, UpdateLaw
 from ..laws.utils import where
 from ._neighbor import NeighborInteraction
@@ -150,9 +150,7 @@ class TopologyInteraction(NeighborInteraction):
                 than `'add-node'` has no target, or a hyperedge is given to an action other than `'add-node'`.
         """
         super()._check()
-        if self.action not in ACTIONS:
-            error_msg = f'Unknown action {self.action!r} of {self.label!r}. Use one of {", ".join(ACTIONS)}.'
-            raise ValidationError(error_msg)
+        self._check_variant('action', self.action, ACTIONS, (BaseSpec,))
         if self.rate is not None and self.probability is not None:
             error_msg = f'{self.label!r} fires at a rate and with a probability. Give one of them.'
             raise ValidationError(error_msg)

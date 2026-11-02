@@ -14,12 +14,15 @@ from sage.sets.real_set import RealSet
 from ...errors import ValidationError
 from ...specs import ParameterSpec, RoleSpec
 from ..laws import BaseLaw, RuleLaw
+from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
 from ._transfer import TransferInteraction
 
 STEPS = ('neighbor', 'gaussian', 'levy', 'best')
 SCHEDULES = ('sequential', 'random-sequential', 'member')
+TIES = ('random', 'first', 'nearest')
+GRID_STEPS = ('neighbor', 'best')
 
 type Step = str | Callable[[AgentViewProtocol, ModelViewProtocol], object]
 type Cost = TransferInteraction | Callable[[AgentViewProtocol, ModelViewProtocol], None]
@@ -36,11 +39,12 @@ class MovementInteraction(Interaction):
       `scale`, in a continuous space.
     - `'levy'` moves an agent in a uniformly drawn direction by a Pareto length, whose least value is `scale` and whose
       tail exponent is `exponent`, in a continuous space.
-    - `'best'` moves an agent to the cell or node next to its own with the highest `score(agent, cell, model)`, ties
-      broken at random. With a `vision`, a number or a function of the agent and the model view, it looks instead
-      along every direction of the neighbourhood of a lattice up to that many cells, and at the cell of the agent, and
-      moves to the cell of the highest score, the nearest of them among ties, and the first of those in the order of
-      the axes, the positive direction first.
+    - `'best'` moves an agent to the cell or node next to its own with the highest `score(agent, cell, model)`. With a
+      `vision`, a number or a function of the agent and the model view, it looks instead along every direction of the
+      neighbourhood of a lattice up to that many cells, and at the cell of the agent, in the order of the axes, the
+      positive direction first. Among cells of equal highest score, the ties `'random'` draw one uniformly, `'first'`
+      take the first in that order, and `'nearest'` take the nearest, the first of them among equal distances. By
+      default the ties are `'random'` without a vision and `'nearest'` with one.
     - A function `step(agent, model)` returns the destination, or `None` to stay.
 
     An agent for which `condition(agent, model)` holds attempts one step every step of time, or a Poisson number of
@@ -99,13 +103,17 @@ class MovementInteraction(Interaction):
         schedule:
             The order of the agents, `'sequential'`, `'random-sequential'`, or `'member'`.
 
+        ties:
+            The cell the step `'best'` takes among cells of equal highest score, `'random'`, `'first'`, or `'nearest'`,
+            or `None` for `'random'` without a vision and `'nearest'` with one.
+
         phase:
             The phase of the step the movement runs in, or `None` for the default phase.
 
     Raises:
         ValidationError:
-            The step or the schedule is unknown, the rate is not positive, a function is not callable, or the step
-            `'best'` has no score, raised by `check`.
+            The step, the schedule, or the ties are unknown, the rate is not positive, a function is not callable, or
+            the step `'best'` has no score, raised by `check`.
 
     Examples:
         >>> from skcomplex.core.elements import Element, GroupElement
@@ -140,6 +148,7 @@ class MovementInteraction(Interaction):
         vision: Vision | None = None,
         schedule: str = 'random-sequential',
         phase: str | None = None,
+        ties: str | None = None,
     ) -> None:
         super().__init__(label)
         self.target = target
@@ -156,6 +165,7 @@ class MovementInteraction(Interaction):
         self.vision = vision
         self.schedule = schedule
         self.phase = phase
+        self.ties = ties
 
     def _check_functions(self) -> None:
         """Raise an error for a condition, an acceptance, a score, or a cost that cannot be called."""
@@ -170,13 +180,18 @@ class MovementInteraction(Interaction):
             error_msg = f'The cost of {self.label!r} is {self.cost!r}. Give a TransferInteraction, a function, or None.'
             raise ValidationError(error_msg)
 
+    def _check_space(self, space: BaseSpace | None) -> None:
+        """Raise an error for a step to a neighbouring cell or node in a continuous space."""
+        if isinstance(self.step, str) and self.step in GRID_STEPS:
+            self._check_grid('step', self.step, space, "step='gaussian' or step='levy', or a step function")
+
     def _check(self) -> None:
         """Raise an error for an unknown step, a rate that is not positive, or a function that cannot be called.
 
         Raises:
             ValidationError:
-                The step or the schedule is unknown, the rate is not positive, a function is not callable, or the
-                step `'best'` has no score.
+                The step, the schedule, or the ties are unknown, the rate is not positive, a function is not callable,
+                or the step `'best'` has no score.
         """
         super()._check()
         self._check_variant('step', self.step, STEPS, functions=True)
@@ -186,6 +201,8 @@ class MovementInteraction(Interaction):
         if self.schedule not in SCHEDULES:
             error_msg = f'Unknown schedule {self.schedule!r} of {self.label!r}. Use one of {", ".join(SCHEDULES)}.'
             raise ValidationError(error_msg)
+        if self.ties is not None:
+            self._check_variant('ties', self.ties, TIES)
         if self.vision is not None and not callable(self.vision) and not isinstance(self.vision, int | float):
             error_msg = f'The vision of {self.label!r} is {self.vision!r}. Give a number, a function, or None.'
             raise ValidationError(error_msg)
@@ -212,15 +229,17 @@ class MovementInteraction(Interaction):
         model: ModelViewProtocol,
         distances: list[int] | None = None,
     ) -> object:
-        """Return the cell of the highest score, drawn at random among ties, or the nearest and first one in sight."""
+        """Return the cell of the highest score, chosen among ties by the tie rule."""
         if self.score is None or not cells:
             return None
-        scores = np.asarray([self.score(agent, cell, model) for cell in cells], dtype=float)
-        best = np.flatnonzero(scores == scores.max())
-        if distances is not None:
-            near = np.asarray([distances[int(index)] for index in best])
-            return cells[int(best[near == near.min()][0])]
-        return cells[int(best[int(model.rng.integers(len(best)))])]
+        scores = [self.score(agent, cell, model) for cell in cells]
+        ties = self.ties or ('random' if distances is None else 'nearest')
+        if ties != 'nearest':
+            return cells[self._pick_best(scores, ties, model)]
+        values = np.asarray(scores, dtype=float)
+        best = np.flatnonzero(values == values.max())
+        near = np.asarray([1 if distances is None else distances[int(index)] for index in best])
+        return cells[int(best[near == near.min()][0])]
 
     @staticmethod
     def _shift(here: tuple[int, ...], cell: tuple[int, ...], model: ModelViewProtocol) -> tuple[int, ...]:

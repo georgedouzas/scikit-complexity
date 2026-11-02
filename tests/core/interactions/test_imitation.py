@@ -13,7 +13,7 @@ from skcomplex.core.spaces import ContinuousTime, DiscreteTime, LatticeSpace, Ne
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
-from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from skcomplex.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 SIZE = 50
 RUNS = 200
@@ -253,10 +253,14 @@ def test_agents_copy_the_neighbour_of_larger_payoff_in_the_agent_form(rule):
 @pytest.mark.parametrize(
     ('arguments', 'match'),
     [
-        ({'rule': 'copy'}, 'rule of imitation'),
+        ({'rule': 'copy'}, 'Unknown rule'),
         ({'form': 'events'}, 'form of imitation'),
         ({'options': (1.0, 1.0)}, 'two distinct'),
         ({'rule': 'better'}, 'agent form only'),
+        ({'schedule': 'member'}, 'only the agent form'),
+        ({'ties': 'random'}, 'only the agent form'),
+        ({'ties': 'nearest', 'form': 'agent'}, 'Unknown ties'),
+        ({'schedule': 'parallel', 'form': 'agent'}, 'Unknown schedule'),
     ],
 )
 def test_check_rejects_unknown_rules_and_equal_options(arguments, match):
@@ -299,3 +303,60 @@ def test_imitate_reads_a_renamed_target_and_probability_in_the_agent_form(rule):
         trajectory = Simulation(system, random_state=SEED).check().prepare().run(until=10).trajectory_
         finals.append(trajectory.agents('players', 10).values['state'])
     np.testing.assert_array_equal(finals[1], finals[0])
+
+
+def _chain(schedule: str, seed: int, ties: str = 'first', payoffs: tuple[float, ...] = (3.0, 2.0, 1.0)) -> list[float]:
+    """Return the states after one step of best imitation of agents on a chain, the first holding option 1."""
+    group = GroupElement(
+        'players',
+        element=PlayerElement,
+        size=len(payoffs),
+        values={'state': [1.0] + [0.0] * (len(payoffs) - 1), 'payoff': list(payoffs)},
+        location=[(cell,) for cell in range(len(payoffs))],
+    )
+    imitation = ImitationInteraction(
+        'imitation',
+        target='players',
+        rule='best',
+        form='agent',
+        schedule=schedule,
+        ties=ties,
+    )
+    space = LatticeSpace((len(payoffs),), boundary='fixed')
+    system = System(elements=[group], interactions=[imitation], space=space, time=DiscreteTime())
+    trajectory = Simulation(system, random_state=seed).check().prepare().run(until=1).trajectory_
+    return trajectory.agents('players', 1).values['state'].tolist()
+
+
+def test_agent_imitation_sequential_and_member_schedules_read_the_states_set_before():
+    """Test that sequential and member imitation read the states earlier agents set, while synchronous does not."""
+    assert _chain('synchronous', 0) == [1.0, 1.0, 0.0]
+    assert _chain('sequential', 0) == [1.0, 1.0, 1.0]
+    members = {tuple(_chain('member', seed)) for seed in range(20)}
+    assert members == {(1.0, 1.0, 0.0), (1.0, 1.0, 1.0)}
+
+
+def test_agent_imitation_best_rule_draws_tied_neighbours_by_the_random_ties():
+    """Test that best imitation copies one fixed neighbour among ties by the first ties, and either by random ties."""
+    payoffs = (3.0, 1.0, 3.0)
+    assert len({_chain('synchronous', seed, 'first', payoffs)[1] for seed in range(20)}) == 1
+    copies = [_chain('synchronous', seed, 'random', payoffs)[1] for seed in range(200)]
+    assert np.mean(copies) == pytest.approx(0.5, abs=0.1)
+
+
+def test_agent_imitation_reads_the_neighbours_of_its_layer():
+    """Test that agent imitation on a layer copies the neighbours of that layer, not those of the network graph."""
+    work = nx.Graph([(0, 2)])
+    work.add_node(1)
+    group = GroupElement(
+        'players',
+        element=PlayerElement,
+        size=3,
+        values={'state': [1.0, 0.0, 0.0]},
+        location=[0, 1, 2],
+    )
+    imitation = ImitationInteraction('imitation', target='players', form='agent', layer='work')
+    space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', work)])
+    system = System(elements=[group], interactions=[imitation], space=space, time=DiscreteTime())
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    assert trajectory.agents('players', 1).values['state'].tolist() == [0.0, 0.0, 1.0]

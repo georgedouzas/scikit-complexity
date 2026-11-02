@@ -149,7 +149,7 @@ def test_random_mode_drives_a_stochastic_sandpile_to_a_stationary_density():
 @pytest.mark.parametrize(
     ('arguments', 'match'),
     [
-        ({'mode': 'flip'}, 'mode of the cascade'),
+        ({'mode': 'flip'}, 'Unknown mode'),
         ({'drive': 1.0}, 'callable'),
         ({'neighborhood': VonNeumannNeighborhood()}, 'center=True'),
         ({'mode': 'random', 'neighborhood': AdjacencyNeighborhood(center=True)}, 'lattice neighbourhood'),

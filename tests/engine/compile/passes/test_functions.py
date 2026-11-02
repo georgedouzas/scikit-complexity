@@ -112,10 +112,11 @@ def test_lower_composes_the_equations_of_the_phases():
     [
         ((PhaseSpec('count'),), 'which the system does not declare'),
         ((PhaseSpec('count', repeat=2), PhaseSpec('copy')), 'repeats 2 times'),
+        ((PhaseSpec('count', activation='simultaneous'), PhaseSpec('copy')), 'take only a period and an offset'),
     ],
 )
 def test_lower_rejects_undeclared_and_repeated_phases_of_update_laws(phases, match):
-    """Test that an update law in an undeclared phase, or in a phase of several rounds, raises an error."""
+    """Test that an update law in an undeclared phase, or a phase that repeats or has an activation, fails."""
     with pytest.raises(ValidationError, match=match):
         compile_system(_system(*phases))
 

@@ -328,6 +328,25 @@ def test_reaction_agent_form_jumps_whole_units_at_the_step_probability():
     assert np.mean(counts == 2.0) == pytest.approx(1 - np.exp(-0.3), abs=0.03)
 
 
+@pytest.mark.parametrize('schedule', ['sequential', 'random-sequential', 'member'])
+def test_reaction_agent_schedules_react_in_every_member_once(schedule):
+    """Test that every agent schedule reacts once in every member per step, by its rate or at the step probability."""
+    rate = _agent_decay('rate', size=3)
+    rate.interactions[0].set_params(schedule=schedule)
+    trajectory = Simulation(rate).check().prepare().run(until=3).trajectory_
+    np.testing.assert_allclose(trajectory.agents('cells', 3).values['n'], 3 * 0.9**3)
+    jump = _agent_decay('jump')
+    jump.interactions[0].set_params(schedule=schedule)
+    counts = Simulation(jump, random_state=0).check().prepare().run(until=1).trajectory_.agents('cells', 1).values['n']
+    assert np.mean(counts == 2.0) == pytest.approx(1 - np.exp(-0.3), abs=0.03)
+
+
+def test_reaction_symbolic_form_refuses_an_agent_schedule():
+    """Test that a symbolic reaction with a schedule other than synchronous raises an error."""
+    with pytest.raises(ValidationError, match='runs agent rules'):
+        ReactionInteraction('decay', target='cells', reactants={'n': 1}, schedule='member').check()
+
+
 @pytest.mark.parametrize('mode', ['rate', 'jump'])
 def test_get_laws_reads_a_renamed_target(mode):
     """Test that a reaction that binds its field as `sites` gives the trajectory of the plain reaction."""

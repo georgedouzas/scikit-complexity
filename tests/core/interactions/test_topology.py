@@ -8,8 +8,8 @@ import pytest
 
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import BaseInteraction, HyperedgeInteraction, TopologyInteraction
-from skcomplex.core.laws import UpdateLaw
-from skcomplex.core.spaces import DiscreteTime, NetworkSpace
+from skcomplex.core.laws import RateLaw, UpdateLaw
+from skcomplex.core.spaces import ContinuousTime, DiscreteTime, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.runtime import Simulation, Trajectory
@@ -279,3 +279,26 @@ def test_get_laws_reads_a_renamed_target_end():
         sorted(_run(nx.cycle_graph(20), change, 5, mark=marks).network(5).graph().edges) for change in (plain, renamed)
     ]
     assert graphs[1] == graphs[0]
+
+
+class CallableMarkingInteraction(HyperedgeInteraction):
+    """Marking of the members of every triangle at a rate a callable gives."""
+
+    def __init__(self, label: str, *, nodes: Annotated[str, RoleSpec()], triangles: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label, size=3)
+        self.nodes = nodes
+        self.triangles = triangles
+
+    def _get_laws(self, s):
+        """Return a rate of the mark of the member whose value is a callable of time and values."""
+        return [RateLaw(s.member.mark, lambda t, values: 1.0)]
+
+
+def test_get_laws_refuses_a_callable_value_on_a_growing_hypergraph():
+    """Test that a callable rate of the members of hyperedges that change during a run raises an error."""
+    growth = TopologyInteraction('growth', action='add-node', hyperedge=3, rate=1.0)
+    marking = CallableMarkingInteraction('marking', nodes='nodes', triangles='triangles')
+    system = _triangles(growth, marking)
+    system.time = ContinuousTime()
+    with pytest.raises(ValidationError, match='switches off only a symbolic value'):
+        Simulation(system, random_state=0).check().prepare()

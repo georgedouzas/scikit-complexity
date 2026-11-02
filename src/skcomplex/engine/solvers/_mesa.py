@@ -608,17 +608,29 @@ class AgentView:
         """
         return [cell.coordinate for cell in self._agent.cell.neighborhood]
 
-    def neighbors(self, radius: float | None = None) -> list['AgentView']:
-        """Return the agents in the cells or nodes around the agent, or within a radius in a continuous space.
+    def neighbors(self, radius: float | None = None, layer: str | None = None) -> list['AgentView']:
+        """Return the agents in the cells or nodes around the agent, within a radius, or around it in a layer.
 
         Args:
             radius:
                 The distance within which agents are neighbours in a continuous space.
 
+            layer:
+                The layer of a network space whose edges join the agent to its neighbours, or `None` for the graph of
+                the network.
+
         Returns:
             agents:
                 The neighbouring agents.
         """
+        if layer is not None:
+            graph = getattr(self._stepper.problem_.agent_space, 'graphs_', {})[layer]
+            cells = self._stepper._cells()
+            return [
+                MesaSolver._view_of(agent)
+                for node in graph.neighbors(self.location_key)
+                for agent in cells[MesaSolver._cell_key(node)].agents
+            ]
         if radius is not None:
             agents, _ = self._agent.get_neighbors_in_radius(radius)
             return [MesaSolver._view_of(agent) for agent in agents if agent is not self._agent]

@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Hashable, MutableMapping, Sequence
+from collections.abc import Callable, Hashable, Mapping, MutableMapping, Sequence
 from types import SimpleNamespace
 from typing import Protocol, runtime_checkable
 
@@ -123,6 +123,10 @@ class AgentViewProtocol(Protocol):
         """Path of the group of the agent."""
 
     @property
+    def group_label(self) -> str:
+        """Label of the agent's group, the last part of its path."""
+
+    @property
     def location(self) -> object:
         """Grid coordinates, network node, or position of the agent."""
 
@@ -140,11 +144,14 @@ class AgentViewProtocol(Protocol):
     def agents_here(self, group: str | None = None) -> Sequence[AgentViewProtocol]:
         """Return the other agents of the agent's cell or node, of every group or of the group of a path."""
 
+    def displacement_to(self, other: AgentViewProtocol | object) -> npt.NDArray[np.float64]:
+        """Return the vector from the agent to another agent or a location, the shortest one on a torus."""
+
     def distance_to(self, other: AgentViewProtocol | object) -> float:
         """Return the distance to another agent or a location, the number of hops on a network."""
 
-    def neighbors(self, radius: float | None = None) -> Sequence[AgentViewProtocol]:
-        """Return the other agents in the neighbouring cells or nodes, or within a radius in a continuous space."""
+    def neighbors(self, radius: float | None = None, layer: str | None = None) -> Sequence[AgentViewProtocol]:
+        """Return the other agents in the neighbouring cells or nodes, within a radius, or around it in a layer."""
 
     def move_to(self, location: object) -> None:
         """Move the agent to a cell, a node, or a position."""
@@ -157,6 +164,9 @@ class AgentViewProtocol(Protocol):
 
     def referenced(self, state: str) -> AgentViewProtocol | None:
         """Return the member of another group that a reference state of the agent names, or `None`."""
+
+    def lags(self, state: str, window: int | None = None) -> npt.NDArray[np.float64]:
+        """Return the past values of a state of the agent at the ends of the last steps, the last one last."""
 
 
 @runtime_checkable
@@ -187,6 +197,30 @@ class ModelViewProtocol(Protocol):
 
     def parameter(self, name: str) -> float:
         """Return the current value of a parameter of the owner."""
+
+    @property
+    def parameters(self) -> dict[str, float]:
+        """Current values of every parameter by dotted name."""
+
+    def set_parameter(self, name: str, value: float) -> None:
+        """Set a parameter of any group or interaction during the run, recorded in the trajectory."""
+
+    @property
+    def inputs(self) -> Mapping[str, object]:
+        """Values of the states of other partitions at the last synchronisation point, by dotted name."""
+
+    @property
+    def round(self) -> int:
+        """Index of the current round of a repeated phase, `0` outside repeated phases."""
+
+    def count(self, name: str) -> int:
+        """Return the number of agents of a group, a role of the owner or a path."""
+
+    def random_empty_cell(self) -> object:
+        """Return the coordinates of a random empty cell of the grid or network."""
+
+    def observable(self, name: str) -> object:
+        """Return the current value of an observable of the system, such as an aggregate of a group."""
 
     def field(self, name: str, cell: object) -> float:
         """Return the value of a field state, by path or as `<role>.<state>`, at a cell or node."""

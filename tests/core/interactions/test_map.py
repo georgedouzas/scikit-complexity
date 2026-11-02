@@ -252,7 +252,7 @@ def test_agent_map_rejects_a_vector_of_another_shape():
 @pytest.mark.parametrize(
     ('arguments', 'match'),
     [
-        ({'mode': 'assign', 'function': lambda s: 0.0}, 'mode of map'),
+        ({'mode': 'assign', 'function': lambda s: 0.0}, 'Unknown mode'),
         ({'schedule': 'parallel', 'function': lambda s: 0.0}, 'schedule of map'),
         ({'form': 'mesa', 'function': lambda s: 0.0}, 'form of map'),
         ({'schedule': 'member', 'function': lambda s: 0.0}, 'only the agent form'),

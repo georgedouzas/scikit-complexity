@@ -10,6 +10,7 @@ from typing import Annotated, ClassVar
 from ...errors import ValidationError
 from ...specs import RoleSpec
 from ..laws import BaseLaw, RuleLaw
+from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
 
@@ -212,6 +213,11 @@ class LifeCycleInteraction(Interaction):
         if self.schedule == 'member' and self.arrival is not None:
             error_msg = f'{self.label!r} runs member by member, so no agent brings arrivals. Give `arrival=None`.'
             raise ValidationError(error_msg)
+
+    def _check_space(self, space: BaseSpace | None) -> None:
+        """Raise an error for a placement in a neighbouring cell or node in a continuous space."""
+        if self.placement == 'neighbor':
+            self._check_grid('placement', self.placement, space, "placement='here', or a placement function")
 
     def _check(self) -> None:
         """Raise an error for an unknown placement, a birth by both probability and rate, or a bad function.

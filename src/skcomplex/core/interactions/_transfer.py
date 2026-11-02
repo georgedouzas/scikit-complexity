@@ -14,11 +14,13 @@ from ...errors import SimulationError, ValidationError
 from ...specs import RoleSpec
 from ..laws import BaseLaw, RuleLaw, Sink, Source, TransferLaw
 from ..laws.utils import shift_member, where
+from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, ModelViewProtocol, Pairing
 from ._interaction import Interaction
 
 FORMS = ('symbolic', 'agent')
 PAIRINGS = ('members', 'random', 'pairs', 'neighbors', 'neighbor-pairs', 'cell', 'site')
+GRID_PAIRINGS = ('neighbors', 'neighbor-pairs', 'cell', 'site')
 SCHEDULES = ('random-sequential', 'member')
 ACTORS = ('source', 'target')
 REMOVALS = ('source', 'target')
@@ -274,6 +276,11 @@ class TransferInteraction(Interaction):
         if names and self.form == 'agent':
             error_msg = f'The agent form of {self.label!r} reports no flows, but it names {names!r}. Remove the names.'
             raise ValidationError(error_msg)
+
+    def _check_space(self, space: BaseSpace | None) -> None:
+        """Raise an error for a pairing of cells, nodes, or sites in a continuous space."""
+        if isinstance(self.pairing, str) and self.pairing in GRID_PAIRINGS:
+            self._check_grid('pairing', self.pairing, space, "pairing='random', or a pairing function")
 
     def _check(self) -> None:
         """Raise an error for an unknown form or pairing, a malformed leg, or an option the form does not take.

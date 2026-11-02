@@ -111,7 +111,7 @@ class System(BasePart[BaseSpace, SimpleNamespace]):
         for part in (*self.elements, *self.systems):
             part.prepare(space)
         for part in self.interactions:
-            part.prepare()
+            part.prepare(space)
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Set `laws_`, the laws of the system for a namespace of symbols.
