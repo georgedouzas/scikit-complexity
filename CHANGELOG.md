@@ -6,22 +6,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 <!-- insertion marker -->
-## Unreleased
-
-### Features
-
-- `PhaseSpace(position, axes)` and `AxisSpec` hold fields over position and class axes, `coordinate` reads their
-  coordinates in laws, and `moment` takes `axes`.
-- `EncounterInteraction` runs at every position of a phase space and takes no `field` for a linear redistribution.
-- `CollisionInteraction` and `CollisionLaw` give the binary collision integral by the fast spectral method, and
-  `maximum_entropy` gives the equilibrium with the moments of a density.
-- `ConservationInteraction` and `AdvectionInteraction` take `sources`, and `FluxLaw` fluxes read moments and field
-  operators.
-- `SemiLagrangianSolver` and `StrangSplittingSolver` advance transport and collisions, and `ProblemSpec.sources` keeps
-  the source rates apart from the flux differences.
-- `ImageVisual` takes `slices` and `moments`.
-- The library gains `boltzmann_equation`, `bgk_equation`, `vlasov_equation`, `enskog`, and `bertin_droz_gregoire`.
-
 ## [0.1.0](https://github.com/georgedouzas/sage-physics/releases/tag/0.1.0) - 2023-09-19
 
 <small>[Compare with first commit](https://github.com/georgedouzas/sage-physics/compare/eb1319601a393032e7230466e82e3cebb325f57c...0.1.0)</small>
