@@ -21,6 +21,7 @@ QUICK_TESTS: list[str] = [
     'tests/engine/problems',
     'tests/engine/runtime',
     'tests/engine/solvers/test_lammps.py',
+    'tests/engine/solvers/test_scipy_ode.py',
     'tests/engine/viz',
     'tests/experiments',
     'tests/specs',
