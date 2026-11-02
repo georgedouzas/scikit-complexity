@@ -34,6 +34,16 @@
 
 # scikit-complexity
 
+| Category          | Tools    |
+| ------------------| -------- |
+| **Development**   | [![black][black badge]][black] [![ruff][ruff badge]][ruff] [![mypy][mypy badge]][mypy] [![docformatter][docformatter badge]][docformatter] |
+| **Testing**       | [![pytest][pytest badge]][pytest] [![coverage][coverage badge]][coverage] [![interrogate][interrogate badge]][interrogate] |
+| **Security**      | [![pip-audit][pip-audit badge]][pip-audit] [![bandit][bandit badge]][bandit] |
+| **Automation**    | [![nox][nox badge]][nox] [![pre-commit][pre-commit badge]][pre-commit] |
+| **Package**       | ![version][version badge] ![pythonversion][pythonversion badge] ![downloads][downloads badge] |
+| **Documentation** | [![properdocs][properdocs badge]][properdocs]|
+| **Communication** | [![discussions][discussions badge]][discussions] |
+
 ## One framework for complex systems, from turbulence to traffic
 
 **`scikit-complexity` lets you describe a model from any science in a few lines, and takes care of the rest:** it works
@@ -199,18 +209,6 @@ harvested = System(
 )
 print(SymbolicAnalysis().check().prepare(harvested).run().equations_['fish.n'])
 ```
-
-## Project health
-
-| Category          | Tools    |
-| ------------------| -------- |
-| **Development**   | [![black][black badge]][black] [![ruff][ruff badge]][ruff] [![mypy][mypy badge]][mypy] [![docformatter][docformatter badge]][docformatter] |
-| **Testing**       | [![pytest][pytest badge]][pytest] [![coverage][coverage badge]][coverage] [![interrogate][interrogate badge]][interrogate] |
-| **Security**      | [![pip-audit][pip-audit badge]][pip-audit] [![bandit][bandit badge]][bandit] |
-| **Automation**    | [![nox][nox badge]][nox] [![pre-commit][pre-commit badge]][pre-commit] |
-| **Package**       | ![version][version badge] ![pythonversion][pythonversion badge] ![downloads][downloads badge] |
-| **Documentation** | [![properdocs][properdocs badge]][properdocs]|
-| **Communication** | [![discussions][discussions badge]][discussions] |
 
 ## Spec-driven development
 
