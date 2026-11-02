@@ -1,56 +1,123 @@
 """Development tasks."""
 
-from __future__ import annotations
-
+import argparse
 import os
+import shutil
+import tomllib
 from pathlib import Path
-from typing import Any
 
 import nox
 
 os.environ.update({'PDM_IGNORE_SAVED_PYTHON': '1'})
 
-PYTHON_VERSIONS: list[str] = ['3.12']
+
+PYTHON_VERSIONS: list[str] = ['3.12', '3.13']
 FILES: list[str] = ['src', 'tests', 'docs', 'noxfile.py']
-CHANGELOG_ARGS: dict[str, Any] = {
-    'repository': '.',
-    'convention': 'angular',
-    'template': 'keepachangelog',
-    'parse_trailers': True,
-    'parse_refs': False,
-    'sections': ['feat', 'fix', 'docs', 'style', 'refactor', 'tests', 'chore'],
-    'bump_latest': True,
-    'output': 'CHANGELOG.md',
-}
+CHANGELOG_ARGS: list[str] = [
+    '--convention',
+    'angular',
+    '--template',
+    'keepachangelog',
+    '--trailers',
+    '--sections',
+    'feat,fix,docs,style,refactor,tests,chore',
+    '--bump',
+    'auto',
+    '.',
+]
 
 
-def check_cli(session: nox.Session, args: list[str]) -> None:
+def check_cli(session: nox.Session, args: list[str], default: str = 'all') -> str:
     """Check the CLI arguments.
 
     Arguments:
         session: The nox session.
         args: The available CLI arguments.
+        default: The subcommand used when none is given.
     """
     available_args = ', '.join([f'`{arg}`' for arg in args])
     msg = f'Available subcommands are one of {available_args}.'
-    if not session.posargs:
-        session.skip(f'{msg} No subbcommand was provided')
-    elif len(session.posargs) > 1 or session.posargs[0] not in args:
-        session.skip(f'{msg} Instead `{" ".join(session.posargs)}` was given')
+    session_args = list(session.posargs) or [default]
+    if len(session_args) > 1 or session_args[0] not in args:
+        session.skip(f'{msg} Instead `{" ".join(session_args)}` was given')
+    return session_args[0]
 
 
 @nox.session
+def clean(session: nox.Session) -> None:
+    """Clean build artifacts and cache files.
+
+    Arguments:
+        session: The nox session.
+    """
+    paths = [
+        '.mypy_cache',
+        '.pytest_cache',
+        'tests/.pytest_cache',
+        'build',
+        'dist',
+        'htmlcov',
+        'pip-wheel-metadata',
+        'site',
+        '__pycache__',
+        'docs/generated',
+        '.nox',
+        '.ruff_cache',
+        'coverage.xml',
+    ]
+    for path in paths:
+        shutil.rmtree(path, ignore_errors=True)
+    for cache_path in Path().rglob('__pycache__'):
+        shutil.rmtree(cache_path, ignore_errors=True)
+    for file in Path().rglob('*.rej'):
+        if file.exists():
+            file.unlink()
+    for file in Path().rglob('.coverage*'):
+        if file.exists():
+            file.unlink()
+
+
+@nox.session(python=PYTHON_VERSIONS[-1])
 def docs(session: nox.Session) -> None:
     """Build or serve the documentation.
 
     Arguments:
         session: The nox session.
     """
-    check_cli(session, ['serve', 'build'])
-    session.run('mkdocs', session.posargs[0])
+    arg = check_cli(session, ['serve', 'build'], default='serve')
+    session.run('pdm', 'install', '-dG', 'docs', external=True)
+    # mkdocs-gallery imports MkDocs' deprecated `warning_filter` when the plugin loads, before any hook can filter it.
+    env = {'PYTHONWARNINGS': "ignore:warning_filter doesn't do anything:DeprecationWarning", 'PYTHONPATH': 'docs'}
+    session.run('properdocs', arg, env=env)
 
 
-@nox.session
+@nox.session(python=PYTHON_VERSIONS[-1])
+def gallery(session: nox.Session) -> None:
+    """Run the gallery examples, capture their screenshots into the cache, and build the documentation with them.
+
+    Arguments:
+        session: The nox session.
+    """
+    parser = argparse.ArgumentParser(prog='nox -s gallery --')
+    parser.add_argument('--backend', choices=['native', 'web'], default='native')
+    parser.add_argument('--jobs', type=int, default=max(1, (os.cpu_count() or 2) // 2))
+    parser.add_argument('--curated', action='store_true', help='run the curated examples only')
+    arguments = parser.parse_args(session.posargs)
+    session.run('pdm', 'install', '-dG', 'docs', '-dG', 'gallery', external=True)
+    if arguments.backend == 'web':
+        session.run('pdm', 'run', 'python', '-m', 'playwright', 'install', 'chromium', external=True)
+    selection = [] if arguments.curated else ['--all']
+    env = {
+        'PYTHONPATH': 'docs',
+        'SKCOMPLEX_GALLERY': '' if arguments.curated else 'all',
+        'SKCOMPLEX_GALLERY_BACKEND': arguments.backend,
+    }
+    run = ['pdm', 'run', 'python', '-m', 'gallery_tools', 'run', '--backend', arguments.backend]
+    session.run(*run, '--jobs', str(arguments.jobs), *selection, env=env, external=True)
+    session.run('pdm', 'run', 'properdocs', 'build', '--strict', env=env, external=True)
+
+
+@nox.session(python=PYTHON_VERSIONS[-1])
 @nox.parametrize('file', FILES)
 def formatting(session: nox.Session, file: str) -> None:
     """Format the code.
@@ -59,14 +126,16 @@ def formatting(session: nox.Session, file: str) -> None:
         session: The nox session.
         file: The file to be formatted.
     """
-    check_cli(session, ['all', 'code', 'docstrings'])
-    if session.posargs[0] in ['code', 'all']:
+    arg = check_cli(session, ['all', 'code', 'docstrings'])
+    session.run('pdm', 'install', '-dG', 'formatting', '--no-default', external=True)
+    # Black runs last, since docformatter sets the blank lines around some docstrings differently.
+    if arg in ['docstrings', 'all']:
+        session.run('docformatter', file, success_codes=[0, 3])
+    if arg in ['code', 'all']:
         session.run('black', file)
-    if session.posargs[0] in ['docstrings', 'all']:
-        session.run('docformatter', '--in-place', '--recursive', '--close-quotes-on-newline', file)
 
 
-@nox.session
+@nox.session(python=PYTHON_VERSIONS)
 @nox.parametrize('file', FILES)
 def checks(session: nox.Session, file: str) -> None:
     """Check code quality, dependencies or type annotations.
@@ -75,14 +144,26 @@ def checks(session: nox.Session, file: str) -> None:
         session: The nox session.
         file: The file to be checked.
     """
-    check_cli(session, ['all', 'quality', 'dependencies', 'types'])
-    if session.posargs[0] in ['quality', 'all']:
+    arg = check_cli(session, ['all', 'quality', 'dependencies', 'types', 'security', 'docs'])
+    session.run('pdm', 'install', '-dG', 'checks', '--no-default', external=True)
+    if arg in ['quality', 'all']:
         session.run('ruff', 'check', file)
-    if session.posargs[0] in ['types', 'all']:
+        if file == 'src':
+            session.run('lint-imports', env={'PYTHONPATH': 'src'})
+    if arg in ['types', 'all']:
         session.run('mypy', file)
-    if session.posargs[0] in ['dependencies', 'all']:
+    if arg in ['security', 'all']:
+        session.run('bandit', '-c', 'pyproject.toml', '-r', file, '-x', 'docs/gallery_tools')
+        if file == 'docs':
+            # The gallery tools run the installed Rerun viewer in a subprocess.
+            session.run('bandit', '-c', 'pyproject.toml', '-r', 'docs/gallery_tools', '-s', 'B101,B404,B603')
+    if arg in ['docs', 'all'] and file == 'src':
+        session.run('interrogate', file)
+        session.run('pydoclint', file)
+    if arg in ['dependencies', 'all']:
         requirements_path = (Path(session.create_tmp()) / 'requirements.txt').as_posix()
-        args_groups = [['--prod']] + [['-dG', group] for group in ['tests', 'docs', 'maintenance']]
+        # The runtime dependencies are the default group, so only the development groups leave it out.
+        args_groups = [['--prod']] + [['-dG', group, '--no-default'] for group in ['tests', 'docs', 'maintenance']]
         requirements_types = zip(FILES, args_groups, strict=True)
         args = [
             'pdm',
@@ -90,57 +171,59 @@ def checks(session: nox.Session, file: str) -> None:
             '-f',
             'requirements',
             '--without-hashes',
-            '--no-default',
             '--pyproject',
             '-o',
             requirements_path,
         ]
         session.run(*(args + dict(requirements_types)[file]), external=True)
-        session.run('safety', 'check', '-r', requirements_path)
+        config = tomllib.loads(Path('pyproject.toml').read_text())
+        ignored = config.get('tool', {}).get('pip-audit', {}).get('ignore-vulns', [])
+        ignore_args = [flag for vuln in ignored for flag in ('--ignore-vuln', vuln)]
+        session.run('pip-audit', '-r', requirements_path, *ignore_args)
+        session.run('deptry', 'src', 'tests')
 
 
-@nox.session
+@nox.session(python=PYTHON_VERSIONS)
 def tests(session: nox.Session) -> None:
     """Run tests and coverage.
 
     Arguments:
         session: The nox session.
     """
+    session.run('pdm', 'install', '-dG', 'tests', external=True)
     env = {'COVERAGE_FILE': f'.coverage.{session.python}'}
+    options = ['-n', 'auto', '--slow', '--cov=src', '--cov=tests']
     if session.posargs:
-        session.run('pytest', '-n', 'auto', '-k', *session.posargs, 'tests', env=env)
+        session.run('pytest', *options, '-k', *session.posargs, env=env)
     else:
-        session.run('pytest', '-n', 'auto', 'tests', env=env)
+        session.run('pytest', *options, env=env)
     session.run('coverage', 'combine')
     session.run('coverage', 'report')
     session.run('coverage', 'html')
+    session.run('coverage', 'xml')
 
 
-@nox.session
+@nox.session(python=PYTHON_VERSIONS[-1])
 def changelog(session: nox.Session) -> None:
     """Build the changelog.
 
     Arguments:
         session: The nox session.
     """
-    from git_changelog.cli import build_and_render
+    session.run('pdm', 'install', '-dG', 'changelog', '--no-default', external=True)
+    session.run('git-changelog', *CHANGELOG_ARGS, '--output', 'CHANGELOG.md')
 
-    build_and_render(**CHANGELOG_ARGS)
 
-
-@nox.session
+@nox.session(python=PYTHON_VERSIONS[-1])
 def release(session: nox.Session) -> None:
     """Kick off a release process.
 
     Arguments:
         session: The nox session.
     """
-    from git_changelog.cli import build_and_render
-
-    changelog, _ = build_and_render(**CHANGELOG_ARGS)
-    version = changelog.versions_list[0].planned_tag
-    if version is None:
-        version = changelog.versions_list[0].tag
+    session.run('pdm', 'install', '-dG', 'changelog', '--no-default', external=True)
+    session.run('git-changelog', *CHANGELOG_ARGS, '--output', 'CHANGELOG.md')
+    version = str(session.run('git-changelog', *CHANGELOG_ARGS, '--bumped-version', silent=True)).strip()
 
     # Create release branch and commit changelog
     session.run('git', 'checkout', '-b', f'release_{version}', external=True)
@@ -149,15 +232,11 @@ def release(session: nox.Session) -> None:
     session.run('git', 'push', '-u', 'origin', f'release_{version}', external=True)
 
     # Create and merge PR from release branch to main
-    session.run('gh', 'pr', 'create', '--base', 'main', external=True)
+    session.run('gh', 'pr', 'create', '--base', 'main', '--fill', external=True)
     session.run('gh', 'pr', 'merge', '--rebase', '--delete-branch', external=True)
 
-    # Create tag
+    # Create and push the release tag, which is what the pipeline reacts to
     session.run('git', 'checkout', 'main', external=True)
     session.run('git', 'pull', '--rebase', external=True)
     session.run('git', 'tag', version, external=True)
-    session.run('git', 'push', '--tags', external=True)
-
-    # Build and upload artifacts
-    session.run('pdm', 'build', external=True)
-    session.run('twine', 'upload', '--skip-existing', 'dist/*')
+    session.run('git', 'push', 'origin', version, external=True)

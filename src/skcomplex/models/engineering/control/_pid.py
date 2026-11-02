@@ -1,0 +1,106 @@
+"""Define the proportional-integral-derivative controller of a control input of a plant."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from types import SimpleNamespace
+from typing import Annotated
+
+from ....core.interactions import Interaction
+from ....core.laws import BaseLaw, BoundaryLaw, RateLaw
+from ....core.laws.utils import clip, derivative
+from ....specs import ParameterSpec, RoleSpec
+
+
+class PIDInteraction(Interaction):
+    """Proportional-integral-derivative controller that sets a control input of a plant from the error of a measure.
+
+    The error is `e = setpoint - y` for the measured state `y`, and the controller sets the control input to
+    `u = kp e + ki I - kd y'`, clipped to the limits, with the derivative taken on the measure. The integral
+    `I' = e` of the error lives in an `IntegratorElement` bound to the role `integrator`. The control input is an
+    adaptive parameter of the plant, which the controller sets after every solver step, so it holds within a step like a
+    sampled controller. The derivative term reads the first derivative of the measure, so a measure with a derivative
+    term is a state of order 2.
+
+    Args:
+        label:
+            The label of the controller.
+
+        plant:
+            The path of the element that holds the measure and the control input.
+
+        integrator:
+            The path of the integrator of the error.
+
+        kp:
+            The proportional gain.
+
+        ki:
+            The integral gain.
+
+        kd:
+            The derivative gain.
+
+        setpoint:
+            The value the measure is kept at.
+
+        control:
+            The name of the adaptive parameter of the plant that the controller sets.
+
+        measure:
+            The name of the measured state of the plant.
+
+        limits:
+            The lower and upper limit of the control input, or `None` for no limits.
+
+    Examples:
+        >>> from skcomplex.models.engineering.control import PIDInteraction
+        >>> PIDInteraction('pid', plant='cart', integrator='memory', control='force', measure='theta', kp=40.0).kp
+        40.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        plant: Annotated[str, RoleSpec()],
+        integrator: Annotated[str, RoleSpec()],
+        kp: Annotated[float, ParameterSpec()] = 1.0,
+        ki: Annotated[float, ParameterSpec()] = 0.0,
+        kd: Annotated[float, ParameterSpec()] = 0.0,
+        setpoint: Annotated[float, ParameterSpec()] = 0.0,
+        control: str = 'u',
+        measure: str = 'y',
+        limits: tuple[float, float] | None = None,
+    ) -> None:
+        super().__init__(label)
+        self.plant = plant
+        self.integrator = integrator
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+        self.setpoint = setpoint
+        self.control = control
+        self.measure = measure
+        self.limits = limits
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rate of the integral of the error and the control input it sets.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        measured = getattr(s.plant, self.measure)
+        error = s.setpoint - measured
+        output = s.kp * error + s.ki * s.integrator.value
+        if self.kd != 0:
+            output -= s.kd * derivative(measured, 1)
+        return [
+            RateLaw(s.integrator.value, error),
+            BoundaryLaw(getattr(s.plant, self.control), clip(output, *(self.limits or (None, None)))),
+        ]

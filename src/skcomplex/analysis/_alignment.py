@@ -1,0 +1,263 @@
+"""Measure the alignment of angles or vectors: mean vector, mean rotation, axial order, and mean phase."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Sequence
+
+import numpy as np
+import numpy.typing as npt
+
+from ..engine.runtime import Trajectory
+from ..errors import AnalysisError
+from ..specs import TensorSpec
+from ..types import Array, DataKind
+from ._base import BaseAnalysis
+from .types import Source
+
+KINDS = ('mean-vector', 'mean-rotation', 'axial', 'mean-phase', 'principal-axis')
+SETTINGS = {
+    'mean-vector': {'variables', 'group', 'vectors'},
+    'mean-rotation': {'group'},
+    'axial': {'variables', 'group'},
+    'mean-phase': {'variables', 'group'},
+    'principal-axis': {'variables'},
+}
+"""Settings every kind reads, besides `kind`."""
+
+READ_KINDS = (DataKind.AGENTS, DataKind.FIELD, DataKind.SERIES)
+VECTOR_DIMENSIONS = 2
+SYMMETRIC_TENSORS = {
+    2: TensorSpec('traceless', 2),
+    3: TensorSpec('symmetric', 2),
+    5: TensorSpec('traceless', 3),
+    6: TensorSpec('symmetric', 3),
+}
+
+
+class AlignmentAnalysis(BaseAnalysis):
+    """Alignment of the members of a source at every frame, of one kind.
+
+    The members are the agents of a group, the sites of a field, or the columns of a set of series, and each holds an
+    angle or a vector. A trajectory gives the agents of a group with their directions or phases, velocities, and
+    positions, else every frame of a field of angles, or of vectors with `vectors=True`, else the series of `variables`
+    or the states with the role `'phase'`, one column per member and one row per sample.
+
+    - `'mean-vector'`: the length of the mean unit vector, 1 when every member points the same way and about
+      `1 / sqrt(n)` for random directions. It reads vectors when the source has them, and angles otherwise.
+    - `'mean-rotation'`: the mean normalized angular momentum of agents about their centre in a plane, 1 when every
+      agent turns the same way and near 0 for a polarized or disordered group. It reads positions and velocities.
+    - `'axial'`: `|<exp(2 i theta)>|` of the angles, which ignores the sign of a direction.
+    - `'mean-phase'`: the modulus `r` and the argument `psi` of the mean `r exp(i psi) = <exp(i theta)>` of the
+      angles, the synchrony and the mean phase.
+    - `'principal-axis'`: the eigenvector of the largest eigenvalue of a symmetric tensor at every site, `axes_`, and
+      the scalar order of the tensor at every site, `order_`. It reads a field of a symmetric tensor state, or an array
+      of its independent components on the last axis, whose number gives the symmetry and the dimension: 2 and 5 for a
+      symmetric traceless tensor in 2 and 3 dimensions, and 3 and 6 for a symmetric tensor.
+
+    Angles are derived from the first two components of vectors when a source has no angles, and a vector of one
+    component points at the angle 0 or `pi` by its sign. An array of angles holds
+    one snapshot when it has one dimension, and one frame per row of its first axis otherwise, every other axis
+    indexing members. An array of vectors, with `vectors=True`, holds the components along its last axis, and one
+    snapshot when it has two dimensions. An array for `'mean-rotation'` holds the positions followed by the
+    velocities of every agent along its last axis.
+
+    Args:
+        kind:
+            The alignment to compute, one of the kinds above.
+
+        variables:
+            The field or the series of a trajectory to read, or `None` for its agents, or else its first field, its
+            states with the role `'phase'`, or its scalar series.
+
+        group:
+            The path of the agent group of a trajectory, or `None` for the first one.
+
+        vectors:
+            Whether the members hold vectors rather than angles.
+
+    Attributes:
+        angles_:
+            The angles, frames by members, or `None` without them.
+
+        vectors_:
+            The vectors or velocities, frames by members by components, or `None` without them.
+
+        positions_:
+            The positions of agents, frames by agents by dimensions, or `None` without them.
+
+        order_:
+            The alignment of every frame, between 0 and 1, or the scalar order of every site of every frame.
+
+        tensors_:
+            The independent components of the tensors, with one frame per row of the first axis, for `'principal-axis'`.
+
+        axes_:
+            The principal axis of every site of every frame, with the components on the last axis, for
+            `'principal-axis'`.
+
+        phase_:
+            The mean phase of every frame, for `'mean-phase'`.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.analysis import AlignmentAnalysis
+        >>> AlignmentAnalysis().check().prepare([0.0, 0.0, 0.0]).run().order_.tolist()
+        [1.0]
+        >>> AlignmentAnalysis('axial').check().prepare([0.0, np.pi]).run().order_.round(6).tolist()
+        [1.0]
+        >>> angles = np.linspace(0, 2 * np.pi, 8, endpoint=False)
+        >>> ring = np.column_stack([np.cos(angles), np.sin(angles)])
+        >>> mill = np.hstack([ring, np.column_stack([-ring[:, 1], ring[:, 0]])])
+        >>> AlignmentAnalysis('mean-rotation').check().prepare(mill).run().order_.round(6).tolist()
+        [1.0]
+        >>> phases = AlignmentAnalysis('mean-phase').check().prepare([[0.5, 0.5], [0.0, np.pi]]).run()
+        >>> phases.order_.round(6).tolist(), phases.phase_.round(6)[:1].tolist()
+        ([1.0, 0.0], [0.5])
+        >>> tensors = AlignmentAnalysis('principal-axis').check().prepare([[0.5, 0.0], [0.0, 0.5]]).run()
+        >>> tensors.order_.tolist()
+        [[1.0, 1.0]]
+    """
+
+    angles_: Array | None
+    vectors_: Array | None
+    positions_: Array | None
+
+    def __init__(
+        self,
+        kind: str = 'mean-vector',
+        variables: Sequence[str] | None = None,
+        *,
+        group: str | None = None,
+        vectors: bool = False,
+    ) -> None:
+        self.kind = kind
+        self.variables = variables
+        self.group = group
+        self.vectors = vectors
+
+    def _check(self) -> None:
+        """Validate the kind and that the kind reads every changed setting."""
+        self._check_choice('kind', self.kind, KINDS)
+        self._check_settings('kind', SETTINGS[self.kind])
+
+    def _get_data_kind(self) -> DataKind:
+        """Return the agents kind, the first of the kinds the analysis reads."""
+        return DataKind.AGENTS
+
+    def _prepare_array(self, source: Source) -> None:
+        """Read the angles, the vectors, or the positions and velocities of one snapshot or of every frame."""
+        array = np.asarray(source, dtype=float)
+        if self.kind == 'principal-axis':
+            self.tensors_ = array[None] if array.ndim == VECTOR_DIMENSIONS else array
+        elif self.kind == 'mean-rotation':
+            frames = array[None] if array.ndim == VECTOR_DIMENSIONS else array
+            half = frames.shape[-1] // 2
+            self.positions_, self.vectors_ = frames[..., :half], frames[..., half:]
+        elif self.vectors:
+            frames = array[None] if array.ndim == VECTOR_DIMENSIONS else array
+            self.vectors_ = frames.reshape(frames.shape[0], -1, frames.shape[-1])
+        else:
+            frames = array[None] if array.ndim == 1 else array
+            self.angles_ = frames.reshape(frames.shape[0], -1)
+
+    def _prepare(self, source: Source) -> None:
+        """Read the agents of a trajectory, or else its field or its series, or the snapshots of an array."""
+        self.angles_ = self.vectors_ = self.positions_ = None
+        if not isinstance(source, Trajectory):
+            self._prepare_array(source)
+            return
+        kinds = self._get_data_kinds(source)
+        name = self.variables[0] if self.variables else None
+        if DataKind.AGENTS in kinds and (self.group is not None or self.variables is None):
+            snapshots = self._read_snapshots(source, self.group)
+            self.angles_ = snapshots.directions if snapshots.directions is not None else snapshots.phases
+            self.vectors_ = snapshots.velocities
+            self.positions_ = snapshots.positions
+        elif DataKind.FIELD in kinds and (name is None or name in self._get_lattice_names(source.problem)):
+            self._prepare_array(self._read_fields(source, name))
+        elif DataKind.SERIES in kinds:
+            names = self.variables or self._get_phase_states(source.problem) or None
+            self.angles_ = np.asarray(self._read_series(source, names).values, dtype=float)
+        else:
+            held = ', '.join(kind.value for kind in kinds) or 'none'
+            error_msg = (
+                f'{type(self).__name__} reads {", ".join(kind.value for kind in READ_KINDS)}, but the trajectory holds '
+                f'{held}. Use a source with agents, a field of angles or vectors, or series of angles.'
+            )
+            raise AnalysisError(error_msg)
+
+    def _run_principal_axis(self) -> None:
+        """Set the principal axis and the scalar order of every site of every frame."""
+        columns = self.tensors_.shape[-1]
+        if columns not in SYMMETRIC_TENSORS:
+            error_msg = f'A symmetric tensor has 2, 3, 5, or 6 independent components, but the source has {columns}.'
+            raise AnalysisError(error_msg)
+        self.axes_, self.order_ = SYMMETRIC_TENSORS[columns].principal_of(self.tensors_)
+
+    def _run(self, inputs: object = None) -> None:
+        """Compute the alignment of every frame."""
+        if self.kind == 'principal-axis':
+            self._run_principal_axis()
+            return
+        angles, vectors, positions = self.angles_, self.vectors_, self.positions_
+        if angles is None and vectors is not None:
+            across = vectors[..., 1] if vectors.shape[-1] > 1 else np.zeros_like(vectors[..., 0])
+            angles = np.arctan2(across, vectors[..., 0])
+        error_msg = (
+            f'{type(self).__name__} of kind {self.kind!r} needs the angles, vectors, or positions that the source '
+            'lacks. Use a source with them.'
+        )
+        if self.kind == 'mean-rotation':
+            if positions is None or vectors is None:
+                raise AnalysisError(error_msg)
+            self.order_ = self._mean_rotation(positions, vectors)
+            return
+        if angles is None:
+            raise AnalysisError(error_msg)
+        if self.kind == 'mean-vector':
+            self.order_ = (
+                self._mean_vector_length(vectors, vectors=True)
+                if vectors is not None
+                else self._mean_vector_length(angles)
+            )
+        elif self.kind == 'axial':
+            self.order_ = self._axial_order(angles)
+        else:
+            mean = self._mean_phase(angles)
+            self.order_ = np.abs(mean)
+            self.phase_ = np.angle(mean)
+
+    @staticmethod
+    def _unit_vectors(values: npt.ArrayLike, *, vectors: bool) -> Array:
+        """Return unit vectors from angles, or normalized vectors, with members on the second to last axis."""
+        array = np.asarray(values, dtype=float)
+        if not vectors:
+            return np.stack([np.cos(array), np.sin(array)], axis=-1)
+        norms = np.linalg.norm(array, axis=-1, keepdims=True)
+        return array / np.where(norms > 0, norms, 1.0)
+
+    @staticmethod
+    def _mean_vector_length(values: npt.ArrayLike, *, vectors: bool = False) -> Array:
+        """Return the length of the mean unit vector of angles or vectors, over the members of every frame."""
+        units = AlignmentAnalysis._unit_vectors(values, vectors=vectors)
+        return np.linalg.norm(units.mean(axis=-2), axis=-1)
+
+    @staticmethod
+    def _axial_order(angles: npt.ArrayLike) -> Array:
+        """Return `|<exp(2 i theta)>|` of angles over the members of every frame."""
+        return np.abs(np.mean(np.exp(2j * np.asarray(angles, dtype=float)), axis=-1))
+
+    @staticmethod
+    def _mean_phase(angles: npt.ArrayLike) -> npt.NDArray[np.complex128]:
+        """Return the mean `<exp(i theta)>` of angles over the members of every frame."""
+        return np.asarray(np.mean(np.exp(1j * np.asarray(angles, dtype=float)), axis=-1), dtype=np.complex128)
+
+    @staticmethod
+    def _mean_rotation(positions: npt.ArrayLike, velocities: npt.ArrayLike) -> Array:
+        """Return the mean normalized angular momentum of agents in a plane about their centre, for every frame."""
+        places = np.asarray(positions, dtype=float)
+        moving = AlignmentAnalysis._unit_vectors(velocities, vectors=True)
+        relative = AlignmentAnalysis._unit_vectors(places - places.mean(axis=-2, keepdims=True), vectors=True)
+        momentum = relative[..., 0] * moving[..., 1] - relative[..., 1] * moving[..., 0]
+        return np.abs(momentum.mean(axis=-1))

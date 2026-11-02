@@ -1,0 +1,46 @@
+"""
+# Binary perceptron satisfiability
+
+A perceptron of `N` weights `+-1` must give the right output on random patterns, revealed one at a time. Each pattern is
+a cardinality constraint, and an incremental SAT solver decides whether weights that satisfy them all still exist. The
+solutions run out near the critical load `p / N = 0.83`.
+"""
+
+# %%
+# The model reveals one pattern per step, and logs the weights the solver finds until none exist.
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
+from skcomplex.experiments import Experiment, GridDesign
+from skcomplex.models import create
+from skcomplex.models.computer_science.neural_networks import perceptron_satisfiability
+
+MODEL = 'perceptron_satisfiability'
+
+system = create(MODEL)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=31)
+
+# %%
+# The satisfiable share against the load
+# --------------------------------------
+# The patterns are quenched, so an `Experiment` sweeps the `random_state` of the factory, and the share of satisfiable
+# draws falls ever more sharply as the system grows.
+
+fig, ax = plt.subplots(figsize=(7, 4))
+for n_weights in (15, 21):
+    bounds = {'n_weights': [n_weights], 'random_state': list(range(20))}
+    outputs = ['decide.satisfiable']
+    experiment = Experiment(perceptron_satisfiability, GridDesign(), bounds, until=31, outputs=outputs)
+    shares = experiment.check().prepare().run().result_.series('decide.satisfiable').mean(axis=0)
+    ax.plot(np.arange(1, shares.size) / n_weights, shares[1:], 'o-', markersize=3, label=f'N = {n_weights}')
+ax.axvline(0.83, color='black', linestyle='--', label='critical load 0.83')
+ax.set_xlabel('load p / N')
+ax.set_ylabel('share of satisfiable draws')
+ax.set_title('The solutions run out near the critical load')
+ax.legend()
+fig.tight_layout()
+plt.show()

@@ -1,0 +1,41 @@
+"""Run the Python blocks of the user guide in a module that pickle can import."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+import sys
+import types
+
+from pytest_markdown_docs._runners import DefaultRunner, register_runner
+from pytest_markdown_docs.definitions import FenceTestDefinition
+
+FENCE_MODULE = 'fence'
+
+
+class _ImportableFence(types.ModuleType):
+    """Module whose names are the globals of the running block, so pickle finds the functions a block defines."""
+
+    def __init__(self, names: dict[str, object]) -> None:
+        super().__init__(FENCE_MODULE)
+        self.__dict__.update(names)
+        self._names = names
+
+    def __getattr__(self, name: str) -> object:
+        """Return a global of the running block."""
+        try:
+            return self._names[name]
+        except KeyError as error:
+            raise AttributeError(name) from error
+
+
+@register_runner(default=True)
+class ImportableRunner(DefaultRunner):
+    """Runner that registers the running block's module, so functions the block defines pickle by reference."""
+
+    def runtest(self, test: FenceTestDefinition, args: dict[str, object], *, asyncio_runner: object = None) -> None:
+        """Run a block with its module registered under its name."""
+        sys.modules[FENCE_MODULE] = _ImportableFence(args)
+        try:
+            super().runtest(test, args, asyncio_runner=asyncio_runner)
+        finally:
+            sys.modules.pop(FENCE_MODULE, None)

@@ -1,0 +1,131 @@
+site_name: "scikit-complexity"
+site_description: "A Python package to create and simulate complex systems."
+site_url: "https://georgedouzas.github.io/scikit-complexity"
+repo_url: "https://github.com/georgedouzas/scikit-complexity"
+repo_name: "georgedouzas/scikit-complexity"
+site_dir: "site"
+watch: [README.md, CONTRIBUTING.md, CHANGELOG.md, src/skcomplex]
+
+theme:
+  name: material
+  features:
+  - content.code.annotate
+  - navigation.tabs
+  - navigation.tabs.sticky
+  - navigation.top
+  palette:
+    primary: blue
+
+nav:
+  - Overview:
+    - index.md
+    - User guide: overview/user_guide.md
+    - Compatibility: overview/compatibility.md
+    - Changelog: overview/changelog.md
+    - License: overview/license.md
+  - Models:
+    - Coverage: models/coverage.md
+    - Physics: models/physics.md
+    - Chemistry: models/chemistry.md
+    - Biology: models/biology.md
+    - Economics: models/economics.md
+    - Social: models/social.md
+    - Engineering: models/engineering.md
+    - Mathematics: models/mathematics.md
+    - Computer science: models/computer_science.md
+  - API: api/
+  - Examples:
+    - Physics: generated/gallery/physics
+    - Chemistry: generated/gallery/chemistry
+    - Biology: generated/gallery/biology
+    - Earth: generated/gallery/earth
+    - Economics: generated/gallery/economics
+    - Social: generated/gallery/social
+    - Engineering: generated/gallery/engineering
+    - Mathematics: generated/gallery/mathematics
+    - Computer science: generated/gallery/computer_science
+  - Development:
+    - development/index.md
+    - Contributing: development/contributing.md
+    - Code of Conduct: development/code_of_conduct.md
+
+exclude_docs: |
+  gallery_tools/
+  gallery_hooks.py
+  generated/gallery/_cache/
+
+hooks:
+  - docs/gallery_hooks.py
+
+extra_javascript:
+  - js/rerun_embed.js
+
+extra_css:
+  - css/style.css
+  - css/material.css
+  - css/mkdocstrings.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - callouts
+  - pymdownx.details
+  - pymdownx.emoji
+  - pymdownx.magiclink
+  - pymdownx.snippets:
+      check_paths: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist
+
+plugins:
+  - search
+  - autorefs
+  - gallery:
+      conf_script: docs/gallery_conf.py
+      examples_dirs:
+        - docs/examples/physics
+        - docs/examples/chemistry
+        - docs/examples/biology
+        - docs/examples/economics
+        - docs/examples/social
+        - docs/examples/engineering
+        - docs/examples/mathematics
+        - docs/examples/computer_science
+      gallery_dirs:
+        - docs/generated/gallery/physics
+        - docs/generated/gallery/chemistry
+        - docs/generated/gallery/biology
+        - docs/generated/gallery/earth
+        - docs/generated/gallery/economics
+        - docs/generated/gallery/social
+        - docs/generated/gallery/engineering
+        - docs/generated/gallery/mathematics
+        - docs/generated/gallery/computer_science
+  - markdown-exec
+  - gen-files:
+      scripts:
+      - docs/generate_api.py
+      - docs/generate_models.py
+      - docs/generate_compatibility.py
+  - literate-nav:
+      nav_file: SUMMARY.md
+  - section-index
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            docstring_options:
+              ignore_init_summary: yes
+              warn_unknown_params: no
+              warn_missing_types: no
+            merge_init_into_class: yes
+            show_submodules: no
+
+extra:
+  social:
+  - icon: fontawesome/brands/github
+    link: https://github.com/georgedouzas

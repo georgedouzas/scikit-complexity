@@ -1,6 +1,6 @@
 [build-system]
-requires = ["pdm-pep517"]
-build-backend = "pdm.pep517.api"
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
 
 [project]
 name = "scikit-complexity"
@@ -8,24 +8,65 @@ description = "A Python package to create and simulate complex systems."
 authors = [{name = "Georgios Douzas", email = "gdouzas@icloud.com"}]
 license = "MIT"
 readme = "README.md"
-requires-python = ">=3.12, <3.13"
+requires-python = ">=3.12, <3.14"
 keywords = []
 dynamic = ["version"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Documentation",
     "Topic :: Software Development",
     "Topic :: Utilities",
     "Typing :: Typed",
 ]
 dependencies = [
+    "numpy>=2.1.0",
+    "scipy>=1.13.0",
+    "passagemath-symbolics>=10.8.13",
+    "passagemath-maxima>=10.8.13",
+    "passagemath-gap>=10.8.13",
+    "cysignals>=1.12.6",
+    "rerun-sdk>=0.39.0",
+    "numba>=0.61.0",
+    "lammps>=2025.7.22.4.0",
+    "mpich>=4.3.0",
+    "mesa>=3.5.0",
+    "networkx>=3.3",
+    "igraph>=1.0.0",
+    "xgi>=0.10.2",
     "scikit-learn>=1.5.1",
-    "lammps>=2024.8.29.0.0",
+    "SALib>=1.5",
+    "pandas>=2.2.2",
+    "scikit-fem>=10.0",
+    "shapely>=2.1",
+    "antropy>=0.2.3",
+    "ordpy>=1.2.3",
+    "nolds>=0.6.3",
+    "powerlaw>=2.0.0",
+    "ennemi>=1.6.0",
+    "tidynamics>=1.1.2",
+    "mrestimator>=0.2.0",
+    "kramersmoyal>=0.4.1",
+    "deeptime>=0.4.5",
+    "dit>=2.3",
+    "qutip<6,>=5.3",
+    "matching>=1.4.3",
+    "pysindy>=2.1.0",
+    "pydmd>=2025.8.1",
+    "reservoirpy>=0.4.2",
+    "python-sat>=1.8.dev16",
+    "pymoo>=0.6.2",
+    "passagemath-groups>=10.8.13",
+    "jax>=0.11.2",
+    "optax>=0.2.8",
+    "diffrax>=0.7.2",
 ]
 
 [project.urls]
@@ -35,23 +76,21 @@ Changelog = "https://georgedouzas.github.io/scikit-complexity/changelog"
 Repository = "https://github.com/georgedouzas/scikit-complexity"
 Issues = "https://github.com/georgedouzas/scikit-complexity/issues"
 Discussions = "https://github.com/georgedouzas/scikit-complexity/discussions"
-Gitter = "https://gitter.im/scikit-complexity/community"
 Funding = "https://github.com/sponsors/georgedouzas"
 
-[tool.pdm]
-version = {source = "scm"}
-build = {package-dir = "src"}
+[tool.pdm.version]
+source = "scm"
+
+[tool.pdm.build]
+package-dir = "src"
+editable-backend = "editables"
 
 [tool.pdm.scripts]
-clean = {shell = """rm -rf .mypy_cache .pytest_cache tests/.pytest_cache build dist \
-htmlcov pip-wheel-metadata site __pycache__ docs/generated .nox .ruff_cache pdm.lock \
-&& find . -type d -name __pycache__ | xargs rm -rf \
-&& find . -name '*.rej'  -delete \
-&& find . -name '.coverage*'  -delete"""}
+clean = "nox --error-on-external-run -R -s clean"
 docs = "nox --error-on-external-run -R -s docs -- {args:serve}"
 formatting = "nox --error-on-external-run -R -s formatting -- {args:all}"
 checks = "nox --default-venv-backend uv --error-on-external-run -R -s checks -- {args:all}"
-tests = "nox --default-venv-backend uv --error-on-external-run -R -s tests"
+tests = "nox --default-venv-backend {args:uv} --error-on-external-run -R -s tests"
 changelog = "nox --error-on-external-run -R -s changelog"
 release = "nox --error-on-external-run -R -s release"
 
@@ -59,35 +98,29 @@ release = "nox --error-on-external-run -R -s release"
 maintenance = [
     "nox[uv]>=2024.4.15",
 ]
-docs = [
-    "mkdocs>=1.6.0",
-    "mkdocs-coverage>=1.1.0",
-    "mkdocs-gen-files>=0.5.0",
-    "mkdocs-literate-nav>=0.6.1",
-    "mkdocs-material>=9.5.27",
-    "mkdocs-gallery>=0.10.1",
-    "mkdocs-section-index>=0.3.9",
-    "mkdocstrings[python]>=0.25.1",
-    "markdown-callouts>=0.4.0",
-    "markdown-exec>=1.9.3",
-    'pandas>=2.2.2',
-]
 formatting = [
     "black>=24.4.2",
     "docformatter>=1.7.5",
 ]
 checks = [
     "ruff>=0.5.0",
-    "safety>=3.2.3",
+    "pip-audit>=2.7.3",
+    "bandit[toml]>=1.7.5",
     "mypy>=1.10.1",
     "types-markdown>=3.6.0.20240316",
     "types-toml>=0.10.8.20240310",
+    "interrogate>=1.7.0",
+    "pydoclint>=0.9.1",
+    "deptry>=0.25.1",
+    "import-linter>=2.15",
 ]
 tests = [
     "pytest>=8.2.2",
     "pytest-cov>=5.0.0",
     "pytest-randomly>=3.15.0",
     "pytest-xdist>=3.6.1",
+    "quantecon>=0.10",
+    "pytest-markdown-docs>=0.9.2",
 ]
 changelog = [
     "git-changelog>=2.5.2",
@@ -95,11 +128,26 @@ changelog = [
 release = [
     "twine>=5.1.1",
 ]
+gallery = [
+    "pillow>=11.0",
+    "playwright>=1.50",
+]
 
 [tool.black]
 line-length = 120
 extend-exclude = "(tests/fixtures|docs/generated)"
 skip-string-normalization = true
+target-version = ["py312"]
+
+[tool.docformatter]
+in-place = true
+recursive = true
+# The gallery docstrings open with a Markdown title on their own line, as mkdocs-gallery reads them.
+exclude = ["examples", "generated"]
+black = true
+close-quotes-on-newline = true
+wrap-descriptions = 120
+wrap-summaries = 120
 
 [tool.ruff]
 extend-exclude = ["docs/generated"]
@@ -112,27 +160,316 @@ ignore = ["D202", "N806", "N803", "S101", "INP001", "Q000", "TRY002", "PLR0913",
 select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 "BLE", "A", "COM", "C4", "DTZ", "T10", "EM", "EXE", "ISC", "ICN", "G",
 "INP", "PIE", "T20", "PT", "Q", "RET501", "RET502", "RET503", "SIM",
-"PTH", "PD", "PGH", "PL", "TRY", "RUF", "PLE", "PLR", "PLW", "TRY", "RUF"]
+"PTH", "PD", "PGH", "PL", "TRY", "RUF", "PLE", "PLR", "PLW", "TRY", "RUF", "TID251"]
+
+[tool.ruff.lint.flake8-bugbear]
+# Specs are frozen dataclasses, so a spec in a default argument is shared safely.
+extend-immutable-calls = ["skcomplex.specs.VisualSpec", "skcomplex.specs.HilbertSpec", "skcomplex.specs.RandomSearchSpec", "skcomplex.specs.DifferentialEvolutionSpec"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"sympy".msg = "Sage is the symbolic layer. Write expressions with Sage, through `skcomplex.core.base` or `sage.all__sagemath_symbolics`."
 
 [tool.ruff.lint.per-file-ignores]
-"docs/examples/*" = ["ANN", "D", "B018"]
+"docs/examples/*" = ["ANN", "D", "B018", "PLR2004"]
 "docs/generated/*" = ["ANN", "D"]
-"test_*" = ["ANN"]
+# Test classes document their arguments in the class docstring, so their `__init__` methods carry none.
+"test_*" = ["ANN", "PLR2004", "D107"]
+"conftest.py" = ["D107"]
+"src/skcomplex/core/declarations.py" = ["ANN401"]
+# Numba-compiled loops take positional arrays and compiled functions, whose Numba types have no Python annotation.
+"src/skcomplex/analysis/_lyapunov.py" = ["PLR0917", "ANN401"]
+# The background run keeps any error it meets for `wait` to raise in the calling thread.
+"src/skcomplex/engine/runtime/_simulations.py" = ["BLE001"]
+# Model element constructors only store their many arguments, which trips the statement count.
+"src/skcomplex/models/**" = ["PLR0915"]
+# The gallery tools run the installed Rerun viewer in a subprocess and import Playwright only for the web backend.
+"docs/gallery_tools/**" = ["S404", "S603", "PLC0415"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.mypy]
-plugins = "numpy.typing.mypy_plugin"
 ignore_missing_imports = true
 exclude = ["tests/fixtures/", "docs/examples/", "docs/generated/"]
 warn_unused_ignores = true
 show_error_codes = true
 
+[tool.pydoclint]
+# Verifies docstrings match the signature, which interrogate cannot: interrogate counts
+# docstrings, this one reads them.
+style = "google"
+arg-type-hints-in-docstring = false
+check-return-types = false
+check-yield-types = false
+# The constitution documents dataclass fields under Args and keeps Attributes for learned state only.
+check-class-attributes = false
+# Raises sections name propagated exceptions too, which pydoclint cannot see in the function body.
+skip-checking-raises = true
+# Constructors carry their own docstrings, as ruff D107 asks, beside the class docstring.
+allow-init-docstring = true
+
+[tool.bandit]
+# Read by the checks nox session, which passes `-c pyproject.toml`. B101 is the
+# bandit counterpart of the ruff S101 ignore above: asserts are how tests assert.
+skips = ["B101"]
+
+[tool.pip-audit]
+# Advisory IDs to ignore, read by the checks nox session. PYSEC-2022-42969 is a
+# won't-fix ReDoS in py, pulled in transitively by interrogate.
+ignore-vulns = ["PYSEC-2022-42969"]
+
+[tool.deptry]
+# The gallery tooling lives in `docs` and is imported by its tests with `docs` on the path.
+known_first_party = ["gallery_tools"]
+
+[tool.deptry.package_module_name_map]
+rerun-sdk = "rerun"
+scikit-learn = "sklearn"
+passagemath-symbolics = "sage"
+SALib = "SALib"
+scikit-fem = "skfem"
+python-sat = "pysat"
+
+[tool.deptry.per_rule_ignores]
+# Maxima, cysignals, and the Sage groups that pickle GAP groups are loaded by Sage, and MPI by LAMMPS, so the package never imports them. The analysis
+# libraries are imported on first use through `skcomplex.analysis._lazy.module`, by name, and GAP on the first
+# group space that needs it, by name.
+DEP002 = [
+    "passagemath-maxima",
+    "passagemath-gap",
+    "passagemath-groups",
+    "cysignals",
+    "mpich",
+    "antropy",
+    "powerlaw",
+    "mrestimator",
+    "kramersmoyal",
+    "deeptime",
+    "dit",
+    "igraph",
+    "pysindy",
+    "pydmd",
+    "reservoirpy",
+]
+
+[tool.importlinter]
+root_package = "skcomplex"
+
+[[tool.importlinter.contracts]]
+name = "Experiments build on analysis, which builds on the engine, which builds on the core, which builds on the root modules"
+type = "layers"
+layers = [
+    "skcomplex.experiments",
+    "skcomplex.analysis",
+    "skcomplex.engine",
+    "skcomplex.core",
+    "skcomplex.specs",
+    "skcomplex.base",
+    "skcomplex.types | skcomplex.errors",
+]
+
+[[tool.importlinter.contracts]]
+name = "Core packages import only the packages listed before them"
+type = "layers"
+containers = ["skcomplex.core"]
+layers = [
+    "specs",
+    "system",
+    "elements | interactions",
+    "laws",
+    "spaces",
+    "base",
+]
+
+[[tool.importlinter.contracts]]
+name = "Engine packages import only the packages listed before them"
+type = "layers"
+containers = ["skcomplex.engine"]
+layers = [
+    "viz",
+    "runtime",
+    "solvers",
+    "compile",
+    "backends",
+    "problems",
+    "types",
+]
+
+[[tool.importlinter.contracts]]
+name = "The core, the engine, experiments, and analysis never import the models"
+type = "forbidden"
+source_modules = [
+    "skcomplex.analysis",
+    "skcomplex.core",
+    "skcomplex.engine",
+    "skcomplex.experiments",
+]
+forbidden_modules = ["skcomplex.models"]
+
+[[tool.importlinter.contracts]]
+name = "Models import only public modules of the core, the engine, experiments, and analysis"
+type = "forbidden"
+source_modules = ["skcomplex.models"]
+forbidden_modules = [
+    "skcomplex.analysis.*",
+    "skcomplex.core.**",
+    "skcomplex.engine.**",
+    "skcomplex.experiments.*",
+]
+allow_indirect_imports = true
+ignore_imports = [
+    "skcomplex.models.** -> skcomplex.core.*",
+    "skcomplex.models.** -> skcomplex.core.laws.utils",
+    "skcomplex.models.** -> skcomplex.engine.*",
+]
+
+[[tool.importlinter.contracts]]
+name = "Model subfield packages are self-contained"
+type = "independence"
+modules = [
+    "skcomplex.models.biology.collective_behaviour",
+    "skcomplex.models.biology.ecology",
+    "skcomplex.models.biology.epidemiology",
+    "skcomplex.models.biology.evolution",
+    "skcomplex.models.biology.neuroscience",
+    "skcomplex.models.biology.oncology",
+    "skcomplex.models.biology.physiology",
+    "skcomplex.models.biology.systems_biology",
+    "skcomplex.models.chemistry.kinetics",
+    "skcomplex.models.chemistry.pattern_formation",
+    "skcomplex.models.computer_science.automata",
+    "skcomplex.models.computer_science.evolutionary_computation",
+    "skcomplex.models.computer_science.neural_networks",
+    "skcomplex.models.economics.econophysics",
+    "skcomplex.models.economics.finance",
+    "skcomplex.models.economics.innovation",
+    "skcomplex.models.economics.macroeconomics",
+    "skcomplex.models.economics.markets",
+    "skcomplex.models.economics.resources",
+    "skcomplex.models.engineering.circuits",
+    "skcomplex.models.engineering.control",
+    "skcomplex.models.engineering.power_systems",
+    "skcomplex.models.engineering.processes",
+    "skcomplex.models.engineering.robotics",
+    "skcomplex.models.engineering.traffic",
+    "skcomplex.models.mathematics.dynamical_systems",
+    "skcomplex.models.mathematics.fractals",
+    "skcomplex.models.mathematics.fractional_dynamics",
+    "skcomplex.models.mathematics.networks",
+    "skcomplex.models.mathematics.stochastic_processes",
+    "skcomplex.models.physics.active_matter",
+    "skcomplex.models.physics.celestial_mechanics",
+    "skcomplex.models.physics.climate",
+    "skcomplex.models.physics.cosmology",
+    "skcomplex.models.physics.criticality",
+    "skcomplex.models.physics.fluids",
+    "skcomplex.models.physics.heat",
+    "skcomplex.models.physics.mechanics",
+    "skcomplex.models.physics.nonlinear_oscillators",
+    "skcomplex.models.physics.oceanography",
+    "skcomplex.models.physics.pattern_formation",
+    "skcomplex.models.physics.seismology",
+    "skcomplex.models.physics.soft_matter",
+    "skcomplex.models.physics.statistical_mechanics",
+    "skcomplex.models.physics.synchronization",
+    "skcomplex.models.physics.waves",
+    "skcomplex.models.social.cooperation",
+    "skcomplex.models.social.crowds",
+    "skcomplex.models.social.opinion_dynamics",
+    "skcomplex.models.social.organizations",
+    "skcomplex.models.social.segregation",
+    "skcomplex.models.social.spreading",
+]
+
+[[tool.importlinter.contracts]]
+name = "Models of biology use only the shared code of their own field"
+type = "forbidden"
+source_modules = ["skcomplex.models.biology"]
+forbidden_modules = [
+    "skcomplex.models.economics.common",
+    "skcomplex.models.engineering.common",
+    "skcomplex.models.physics.common",
+]
+
+[[tool.importlinter.contracts]]
+name = "Models of chemistry use only the shared code of their own field"
+type = "forbidden"
+source_modules = ["skcomplex.models.chemistry"]
+forbidden_modules = [
+    "skcomplex.models.biology.common",
+    "skcomplex.models.economics.common",
+    "skcomplex.models.engineering.common",
+    "skcomplex.models.physics.common",
+]
+
+[[tool.importlinter.contracts]]
+name = "Models of computer_science use only the shared code of their own field"
+type = "forbidden"
+source_modules = ["skcomplex.models.computer_science"]
+forbidden_modules = [
+    "skcomplex.models.biology.common",
+    "skcomplex.models.economics.common",
+    "skcomplex.models.engineering.common",
+    "skcomplex.models.physics.common",
+]
+
+[[tool.importlinter.contracts]]
+name = "Models of economics use only the shared code of their own field"
+type = "forbidden"
+source_modules = ["skcomplex.models.economics"]
+forbidden_modules = [
+    "skcomplex.models.biology.common",
+    "skcomplex.models.engineering.common",
+    "skcomplex.models.physics.common",
+]
+
+[[tool.importlinter.contracts]]
+name = "Models of engineering use only the shared code of their own field"
+type = "forbidden"
+source_modules = ["skcomplex.models.engineering"]
+forbidden_modules = [
+    "skcomplex.models.biology.common",
+    "skcomplex.models.economics.common",
+    "skcomplex.models.physics.common",
+]
+
+[[tool.importlinter.contracts]]
+name = "Models of mathematics use only the shared code of their own field"
+type = "forbidden"
+source_modules = ["skcomplex.models.mathematics"]
+forbidden_modules = [
+    "skcomplex.models.biology.common",
+    "skcomplex.models.economics.common",
+    "skcomplex.models.engineering.common",
+    "skcomplex.models.physics.common",
+]
+
+[[tool.importlinter.contracts]]
+name = "Models of physics use only the shared code of their own field"
+type = "forbidden"
+source_modules = ["skcomplex.models.physics"]
+forbidden_modules = [
+    "skcomplex.models.biology.common",
+    "skcomplex.models.economics.common",
+    "skcomplex.models.engineering.common",
+]
+
+[[tool.importlinter.contracts]]
+name = "Models of social use only the shared code of their own field"
+type = "forbidden"
+source_modules = ["skcomplex.models.social"]
+forbidden_modules = [
+    "skcomplex.models.biology.common",
+    "skcomplex.models.economics.common",
+    "skcomplex.models.engineering.common",
+    "skcomplex.models.physics.common",
+]
+
 [tool.pytest.ini_options]
 python_files = ["test_*.py"]
-addopts = "--cov"
-testpaths = ["tests"]
+addopts = "--doctest-modules --markdown-docs"
+testpaths = ["tests", "src/skcomplex", "README.md", "docs/overview/user_guide.md"]
+doctest_optionflags = ["ELLIPSIS"]
 
 [tool.coverage.run]
 branch = true
@@ -148,3 +485,19 @@ omit = ["src/*/__init__.py", "tests/__init__.py"]
 
 [tool.coverage.json]
 output = "htmlcov/coverage.json"
+
+[dependency-groups]
+docs = [
+    "properdocs>=1.6.7",
+    "mkdocs-coverage>=1.1.0",
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs-literate-nav>=0.6.1",
+    "mkdocs-material>=9.5.27",
+    "mkdocs-gallery>=0.10.1",
+    "mkdocs-section-index>=0.3.9",
+    "mkdocstrings[python]>=0.25.1",
+    "markdown-callouts>=0.4.0",
+    "markdown-exec>=1.9.3",
+    'pandas>=2.2.2',
+    "matplotlib>=3.9",
+]

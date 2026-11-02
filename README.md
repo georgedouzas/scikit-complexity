@@ -6,13 +6,25 @@
 [ruff]: <https://github.com/charliermarsh/ruff>
 [mypy badge]: <http://www.mypy-lang.org/static/mypy_badge.svg>
 [mypy]: <http://mypy-lang.org>
-[mkdocs badge]: <https://img.shields.io/badge/docs-mkdocs%20material-blue.svg?style=flat>
-[mkdocs]: <https://squidfunk.github.io/mkdocs-material>
+[properdocs badge]: <https://img.shields.io/badge/docs-properdocs-blue.svg?style=flat>
+[properdocs]: <https://properdocs.org>
+[pip-audit badge]: <https://img.shields.io/badge/security-pip--audit-green>
+[pip-audit]: <https://github.com/pypa/pip-audit>
+[bandit badge]: <https://img.shields.io/badge/security-bandit-yellow>
+[bandit]: <https://github.com/PyCQA/bandit>
+[pytest badge]: <https://img.shields.io/badge/tests-pytest-blue>
+[pytest]: <https://github.com/pytest-dev/pytest>
+[coverage badge]: <https://img.shields.io/badge/coverage-pytest--cov-blue>
+[coverage]: <https://github.com/nedbat/coveragepy>
+[interrogate badge]: <https://img.shields.io/badge/docstring-interrogate-blue>
+[interrogate]: <https://github.com/econchick/interrogate>
+[pre-commit badge]: <https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit>
+[pre-commit]: <https://github.com/pre-commit/pre-commit>
+[nox badge]: <https://img.shields.io/badge/%F0%9F%A6%8A-Nox-D85E00.svg>
+[nox]: <https://github.com/wntrblm/nox>
 [version badge]: <https://img.shields.io/pypi/v/scikit-complexity.svg>
 [pythonversion badge]: <https://img.shields.io/pypi/pyversions/scikit-complexity.svg>
 [downloads badge]: <https://img.shields.io/pypi/dd/scikit-complexity>
-[gitter]: <https://gitter.im/scikit-complexity/community>
-[gitter badge]: <https://badges.gitter.im/join%20chat.svg>
 [discussions]: <https://github.com/georgedouzas/scikit-complexity/discussions>
 [discussions badge]: <https://img.shields.io/github/discussions/georgedouzas/scikit-complexity>
 [ci]: <https://github.com/georgedouzas/scikit-complexity/actions?query=workflow>
@@ -25,87 +37,212 @@
 | Category          | Tools    |
 | ------------------| -------- |
 | **Development**   | [![black][black badge]][black] [![ruff][ruff badge]][ruff] [![mypy][mypy badge]][mypy] [![docformatter][docformatter badge]][docformatter] |
+| **Testing**       | [![pytest][pytest badge]][pytest] [![coverage][coverage badge]][coverage] [![interrogate][interrogate badge]][interrogate] |
+| **Security**      | [![pip-audit][pip-audit badge]][pip-audit] [![bandit][bandit badge]][bandit] |
+| **Automation**    | [![nox][nox badge]][nox] [![pre-commit][pre-commit badge]][pre-commit] |
 | **Package**       | ![version][version badge] ![pythonversion][pythonversion badge] ![downloads][downloads badge] |
-| **Documentation** | [![mkdocs][mkdocs badge]][mkdocs]|
-| **Communication** | [![gitter][gitter badge]][gitter] [![discussions][discussions badge]][discussions] |
+| **Documentation** | [![properdocs][properdocs badge]][properdocs]|
+| **Communication** | [![discussions][discussions badge]][discussions] |
 
-## Introduction
+## Overview
 
-A Python package to create and simulate complex systems.
+`scikit-complexity` lets you describe a model from any science in a few lines, and takes care of the rest: it works
+out the mathematics, picks a solver, runs the simulation, and streams it live to the [Rerun](https://rerun.io) viewer.
 
-## Prerequisites
+Flocks, epidemics, markets, fluids, neural networks and cellular automata are usually written in separate tools with
+separate conventions. Here they share one small vocabulary, in the spirit of scikit-learn: elements carry state,
+interactions change it through laws, and systems nest and compose. Learn it once, and every field opens up.
 
-Either `sagemath-standard` or an installation of [SageMath](https://www.sagemath.org/) is required with a version greater than
-10.0.
+<table>
+  <tr>
+    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/physics.png" alt="Decaying 2D turbulence" width="100%"><br><b>Physics</b><br><sub>Decaying 2D turbulence</sub></td>
+    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/chemistry.png" alt="Gray-Scott patterns" width="100%"><br><b>Chemistry</b><br><sub>Gray-Scott patterns</sub></td>
+    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/biology.png" alt="Boids flocking" width="100%"><br><b>Biology</b><br><sub>Boids flocking</sub></td>
+    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/economics.png" alt="Sugarscape" width="100%"><br><b>Economics</b><br><sub>Sugarscape</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/engineering.png" alt="Nagel-Schreckenberg traffic" width="100%"><br><b>Engineering</b><br><sub>Nagel-Schreckenberg traffic</sub></td>
+    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/mathematics.png" alt="Julia sets" width="100%"><br><b>Mathematics</b><br><sub>Julia sets</sub></td>
+    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/computer_science.png" alt="Game of Life" width="100%"><br><b>Computer science</b><br><sub>Game of Life</sub></td>
+    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/social.png" alt="Schelling segregation" width="100%"><br><b>Social science</b><br><sub>Schelling segregation</sub></td>
+  </tr>
+</table>
+
+<p align="center"><em>A few of the 549 ready-to-run models, each with a documented example in the
+<a href="https://georgedouzas.github.io/scikit-complexity">gallery</a>.</em></p>
+
+## Features
+
+- Every kind of dynamics, one interface. Differential equations, stochastic processes, jump processes, discrete maps,
+  cellular automata, agents, networks and hypergraphs, fields and PDEs, quantum systems, and models that learn by gradient
+  descent.
+- The form of your model is inferred. Write the laws; the framework decides whether it is an ODE, an SDE or a jump
+  process, and compiles it for NumPy, Numba, or JAX.
+- Symbols when you want them, code when you don't. Laws are Sage symbolic expressions you can inspect and solve exactly,
+  or plain Python functions.
+- Watch it run. Stream any simulation to Rerun in real time, and change its parameters while it runs.
+- Analysis included. Nearly 50 analyses, from Lyapunov exponents and entropy to network motifs, scaling laws and system
+  identification, plus experiments for parameter sweeps, sensitivity, calibration and basin stability.
+- Standing on mature libraries. SciPy, NetworkX, Mesa, LAMMPS, QuTiP, JAX and others do the heavy lifting.
+- Extend it, don't fork it. Models are written with the same public classes you use, so each one doubles as an example
+  for your own.
 
 ## Installation
 
-Initially, create a Python virtual environment with one of the following two ways: 
-
-- Use the command `sage -python -m venv --system-site-packages .venv` to create and activate Python virtual environment with all the prerequisites installed:
-
-- Use one of the standard ways to create a Python virtual environment and install the package `sagemath-standard`.
-
-You can install `scikit-complexity` either as a normal user or for development purposes.
-
-### User
-
-For user installation, `scikit-complexity` is currently available on the PyPi's repository, and you can
-install it via `pip`:
+`scikit-complexity` supports Python 3.12 and 3.13 on Linux and on macOS 13 or later with Apple silicon, and is available on
+PyPI:
 
 ```bash
 pip install scikit-complexity
 ```
 
-### Development
+The installation includes Sage through the [passagemath](https://github.com/passagemath/passagemath) distributions,
+LAMMPS, Mesa, Numba, JAX, and Rerun. Windows has no passagemath wheels, so on Windows the package runs in WSL.
 
-Development installation requires to clone the repository and change directory to the project's root:
+For development, clone the repository and install the project with [PDM](https://github.com/pdm-project/pdm):
 
 ```bash
 git clone https://github.com/georgedouzas/scikit-complexity.git
 cd scikit-complexity
-```
-
-Finally, use [PDM](https://github.com/pdm-project/pdm) to select the virtual environment and install the project as well as the
-main and development dependencies:
-
-```bash
-pdm use .venv
 pdm install
 ```
 
 ## Usage
 
-One of the `scikit-complexity` main goals is to provide a unified interface for modelling various complex systems.
-For example, let's define two independent harmonic oscillators that oscillate in the axes x and y:
+Build your own model from a few general classes, or start from one of the 549 ready-made models, which are written with
+the same classes and work as examples for your own.
+
+### Build a model
+
+A predator and prey model assembles from ready-made interactions:
 
 ```python
-from sage.all import assume, symbolic_expression, var, cos, sin, sqrt
-from skcomplex.physics import (
-    ClassicalMechanicsSystem,
-    ExternalForce,
-    PointParticle,
+from skcomplex.core.system import System
+from skcomplex.models.biology.common.populations import (
+    LogisticGrowthInteraction,
+    MortalityInteraction,
+    PopulationElement,
 )
-from skcomplex.spaces import EuclideanSpace
-k, x__1, y__2 = var('k x__1 y__2')
-assume(k > 0)
-system = ClassicalMechanicsSystem(
-    particles=[PointParticle('1'), PointParticle('2')],
-    external_interactions=[
-        ExternalForce('elastic1', '1', [-k * x__1, 0]),
-        ExternalForce('elastic2', '2', [0, -k * y__2])
+from skcomplex.models.biology.ecology import PredationInteraction
+
+system = System(
+    elements=[PopulationElement('rabbits', n=40), PopulationElement('foxes', n=9)],
+    interactions=[
+        LogisticGrowthInteraction('growth', target='rabbits', r=1.1, K=1000),
+        PredationInteraction('hunt', predator='foxes', prey='rabbits', a=0.4, b=0.1),
+        MortalityInteraction('death', target='foxes', d=0.4),
     ],
-    space=EuclideanSpace('euclidean', n_dim=2),
 )
 ```
 
-We can simulate the system and solve the dynamical equations:
+A simulation runs it and records the trajectory. Adding a `RerunObserver` streams the run to the Rerun viewer, and a
+`RealTimeClock` paces it against wall time:
+
+```python continuation
+from skcomplex.engine.runtime import RealTimeClock, Simulation
+from skcomplex.engine.viz import RerunObserver
+
+simulation = Simulation(
+    system,
+    dt=0.05,
+    clock=RealTimeClock(speed=20.0),
+    observers=[RerunObserver('lotka-volterra', spawn=True)],
+).check().prepare()
+trajectory = simulation.run(until=30).trajectory_
+print(round(float(trajectory.values('rabbits.n').max())))
+```
+
+A simulation started with `start` runs in the background, and its parameters can change while it runs:
+
+```python continuation
+from skcomplex.engine.runtime import RealTimeClock, Simulation
+
+simulation = Simulation(system, dt=0.05, clock=RealTimeClock(speed=20.0)).check().prepare().start(until=30)
+simulation.update_parameters({'hunt.a': 0.2})
+simulation.wait()
+```
+
+A new interaction takes a few lines. It declares its roles and parameters as annotated arguments of its constructor,
+and returns its laws from `_get_laws`, where the namespace `s` holds the symbols of its parameters and of the elements
+bound to its roles:
 
 ```python
-system.simulate()
-var('_K1 _K2 m__1 m__2 t')
-assert system.simulation_results_['dynamic_equations']['solutions'] == {
-    '1': [_K2*cos(sqrt(k)*t/sqrt(m__1)) + _K1*sin(sqrt(k)*t/sqrt(m__1)), _K2*t + _K1],
-    '2': [_K2*t + _K1, _K2*cos(sqrt(k)*t/sqrt(m__2)) + _K1*sin(sqrt(k)*t/sqrt(m__2))]
-}
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from skcomplex.analysis import SymbolicAnalysis
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import RateLaw
+from skcomplex.specs import ParameterSpec, RoleSpec
+from skcomplex.core.system import System
+from skcomplex.models.biology.common.populations import LogisticGrowthInteraction, PopulationElement
+
+
+class HarvestInteraction(Interaction):
+    def __init__(
+        self,
+        label,
+        *,
+        target: Annotated[str, RoleSpec()],
+        h: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ):
+        super().__init__(label)
+        self.target = target
+        self.h = h
+
+    def _get_laws(self, s):
+        return [RateLaw(s.target.n, -s.h * s.target.n)]
+
+
+harvested = System(
+    elements=[PopulationElement('fish', n=500)],
+    interactions=[
+        LogisticGrowthInteraction('growth', target='fish', r=0.5, K=1000),
+        HarvestInteraction('fishing', target='fish', h=0.1),
+    ],
+)
+print(SymbolicAnalysis().check().prepare(harvested).run().equations_['fish.n'])
 ```
+
+### Use a ready-made model
+
+Every model comes with a description, tags, parameters and references, so you can browse the catalog from Python:
+
+```python
+from skcomplex.models import catalog, describe
+
+for model in catalog(field='biology/ecology'):
+    print(model.name, '-', model.description)
+
+print([model.name for model in catalog() if 'oscillation' in model.tags])
+
+entry = describe('lotka_volterra')
+print(entry.description, entry.formalism, entry.parameters, entry.references)
+```
+
+Run any of them in one line:
+
+```python
+from skcomplex.models import run
+
+trajectory = run('sir').trajectory_
+print(trajectory.values('I.n').max().round())
+```
+
+Each run can stream to the Rerun viewer:
+
+<table>
+  <tr>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/lotka_volterra.png" alt="Prey and predators cycle" width="100%"><br><code>lotka_volterra</code><br><sub>Prey and predators cycle</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/sir.png" alt="An epidemic rises and fades" width="100%"><br><code>sir</code><br><sub>An epidemic rises and fades</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/wolf_sheep.png" alt="Wolves, sheep and grass on a grid" width="100%"><br><code>wolf_sheep</code><br><sub>Wolves, sheep and grass on a grid</sub></td>
+  </tr>
+</table>
+
+## Spec-driven development
+
+The project's engineering constitution lives in `openspec/constitution.md` and binds all work. The
+project uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) for spec-driven development, and
+`openspec/config.yaml` names the constitution as binding.
