@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 import scipy.sparse
 import scipy.special
-from sage.all__sagemath_symbolics import RR, atan2, cos, pi, sin, tanh, var, vector
+from sage.all__sagemath_symbolics import RR, atan2, cos, exp, pi, sin, tanh, var, vector
 
 from skcomplex.core.base import BasePart
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
@@ -50,6 +50,7 @@ from skcomplex.engine.problems._reduction_kernel import ReductionKernel
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.errors import ValidationError
+from skcomplex.experiments import Experiment, GridDesign
 from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -1136,3 +1137,70 @@ def test_log_sum_exp_large_values(backend: type) -> None:
     assert np.isfinite(result)
     assert values.max() <= result <= values.max() + math.log(1000)
     assert result == pytest.approx(scipy.special.logsumexp(values))
+
+
+class BoltzmannElement(Element):
+    """Element holding the log partition function, the mean energy, and the entropy per spin of a group of levels."""
+
+    def __init__(
+        self,
+        label: str,
+        log_partition: Annotated[float, StateSpec()] = 0.0,
+        energy: Annotated[float, StateSpec()] = 0.0,
+        entropy: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.log_partition = log_partition
+        self.energy = energy
+        self.entropy = entropy
+
+
+class BoltzmannInteraction(Interaction):
+    """Interaction that equates the states of a Boltzmann element to their sums over a group of levels."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        levels: Annotated[str, RoleSpec()],
+        n_spins: Annotated[float, ParameterSpec()] = 20.0,
+        temperature: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.levels = levels
+        self.n_spins = n_spins
+        self.temperature = temperature
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BasePart]:
+        """Return the equations of the log partition function, the mean energy, and the entropy per spin."""
+        weight = -s.levels.energy / s.temperature
+        log_partition = log_sum_exp(weight, over=s.levels)
+        energy = total(s.levels.energy * exp(weight - log_partition), over=s.levels)
+        entropy = (s.target.log_partition + s.target.energy / s.temperature) / s.n_spins
+        return [
+            EquationLaw(s.target.log_partition == log_partition, target=s.target.log_partition),
+            EquationLaw(s.target.energy == energy, target=s.target.energy),
+            EquationLaw(s.target.entropy == entropy, target=s.target.entropy),
+        ]
+
+
+def _random_levels(temperature: float = 1.0, random_state: int = 0) -> System:
+    """Return 2^20 quenched Gaussian energies of variance N/2 and their Boltzmann sums at a temperature."""
+    n_spins = 20
+    energies = np.random.default_rng(random_state).normal(0.0, np.sqrt(n_spins / 2), 2**n_spins)
+    levels = GroupElement('levels', element=QuenchedEnergyElement, size=2**n_spins, values={'energy': energies})
+    reader = BoltzmannInteraction('reader', target='sums', levels='levels', n_spins=n_spins, temperature=temperature)
+    return System(elements=[levels, BoltzmannElement('sums')], interactions=[reader], time=StaticTime())
+
+
+def test_log_sum_exp_random_energy_model_entropy() -> None:
+    """Test that the entropy of random levels over 10 seeds follows the theory above the glass temperature."""
+    bounds = {'temperature': [1.0, 2.0, 0.3], 'random_state': list(range(10))}
+    experiment = Experiment(_random_levels, GridDesign(), bounds, until=1.0, outputs=['sums.entropy'])
+    result = experiment.check().prepare().run().result_
+    entropies = result.series('sums.entropy')[:, 0].reshape(3, 10).mean(axis=1)
+    assert entropies[0] == pytest.approx(math.log(2) - 1 / 4, abs=0.02)
+    assert entropies[1] == pytest.approx(math.log(2) - 1 / 16, abs=0.02)
+    assert entropies[2] < 0.1

@@ -170,20 +170,24 @@ class OptimizationInteraction(Interaction):
             setattr(agent, self.state, row)
 
     def _advance(self, model: ModelViewProtocol) -> None:
-        """Advance the population by one generation, write it into the members, and report its values."""
+        """Advance the population by one generation, unless the algorithm has converged, and report its values."""
         agents = model.agents(self._get_role('target'))
         if 'algorithm' not in model.storage:
             candidates = np.array([getattr(agent, self.state) for agent in agents], dtype=float)
             seed = int(model.rng.integers(SEEDS))
             model.storage.update(algorithm=self._get_algorithm(candidates, seed), best=np.inf)
         algorithm = cast(Algorithm, model.storage['algorithm'])
+        if not algorithm.has_next():
+            model.report('best', cast(float, model.storage['best']))
+            model.report('mean', cast(float, model.storage['mean']))
+            return
         population = algorithm.ask()
         generation = population.get('X')
         values = np.asarray(self.objective(generation), dtype=float).ravel()
         population.set('F', values[:, None])
         algorithm.tell(infills=population)
         best = min(cast(float, model.storage['best']), float(values.min()))
-        model.storage['best'] = best
+        model.storage.update(best=best, mean=float(values.mean()))
         self._write(agents, generation)
         model.report('best', best)
         model.report('mean', float(values.mean()))

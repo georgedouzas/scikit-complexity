@@ -76,6 +76,19 @@ def test_run_same_seed_identical(algorithm: object) -> None:
     assert np.all(np.diff(first.values('search.best')[1:]) <= 0)
 
 
+def test_run_algorithm_that_converges_keeps_its_population() -> None:
+    """Test that the steps after the algorithm stops itself report the same values and keep the candidates."""
+    trajectory = (
+        Simulation(_system(CovarianceAdaptationSpec()), random_state=1).check().prepare().run(until=400).trajectory_
+    )
+    best = trajectory.values('search.best')
+    assert best[-1] == best[-2]
+    assert np.array_equal(
+        trajectory.agents('swarm', 399).values['x'].tolist(),
+        trajectory.agents('swarm', 400).values['x'].tolist(),
+    )
+
+
 def test_check_algorithm_not_a_spec() -> None:
     """Test that an algorithm that is not a spec raises an error that lists the specs."""
     interaction = OptimizationInteraction(

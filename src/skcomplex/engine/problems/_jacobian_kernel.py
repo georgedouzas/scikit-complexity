@@ -10,6 +10,7 @@ import numpy as np
 import numpy.typing as npt
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression
+from scipy.special import logsumexp
 
 from ...errors import ValidationError
 from ...specs import ReadSpec, RunStateSpec
@@ -45,8 +46,8 @@ class JacobianKernel(BaseKernel):
 
     Every reading member depends on every member a reduction reads, so the Jacobian has the rank-one block
     `dF_i/dR dR/dx_j` of every reduction `R`, with `dR/dx_j` the derivative of the reduced member's argument, divided by
-    the count for a mean, weighted by `W_ij` with weights, at the first extreme member for a maximum or a minimum, and 0
-    for a count.
+    the count for a mean, weighted by `W_ij` with weights, at the first extreme member for a maximum or a minimum, by
+    the softmax of the arguments for a log-sum-exp, and 0 for a count.
 
     Args:
         kernels:
@@ -234,6 +235,8 @@ class JacobianKernel(BaseKernel):
         if reduction.kind == 'var':
             mean = float(argument[condition].mean())
             factors = 2 * mask * (argument - mean) / selected
+        elif reduction.kind == 'logsumexp':
+            factors = mask * np.exp(argument - logsumexp(argument[condition]))
         else:
             factors = mask / selected if reduction.kind == 'mean' else mask
         return scipy.sparse.csr_array(factors[np.newaxis, :] @ members)

@@ -10,12 +10,13 @@ from typing import Annotated
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR, cos, exp, var
+from scipy.special import logsumexp
 
 from skcomplex.core.base import BasePart
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import EquationLaw, RateLaw
-from skcomplex.core.laws.utils import total
+from skcomplex.core.laws.utils import log_sum_exp, total
 from skcomplex.core.spaces import StaticTime
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
@@ -83,6 +84,14 @@ class MeanFieldElement(ValueElement):
     def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
         """Return the coupled equation of one member."""
         return [EquationLaw(s.x == s.b + total(s.x) / 10, target=s.x)]
+
+
+class SoftmaxFieldElement(ValueElement):
+    """Member whose equation reads the log-sum-exp of its group."""
+
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+        """Return the coupled equation of one member."""
+        return [EquationLaw(s.x == s.b - log_sum_exp(s.x), target=s.x)]
 
 
 class TermElement(ValueElement):
@@ -255,6 +264,14 @@ def test_run_group_coupled_through_total() -> None:
     group = GroupElement('g', element=MeanFieldElement, size=5, values={'b': np.arange(1.0, 6.0)})
     frames = _simulated(System(elements=[group], time=StaticTime())).trajectory_.values('g.x')
     assert frames[0].tolist() == pytest.approx([4.0, 5.0, 6.0, 7.0, 8.0], abs=1e-8)
+
+
+def test_run_group_coupled_through_log_sum_exp() -> None:
+    """Test that the Jacobian of a log-sum-exp solves members that read it, from a guess far from the solution."""
+    values = {'b': np.arange(1.0, 6.0), 'x': np.full(5, 10.0)}
+    group = GroupElement('g', element=SoftmaxFieldElement, size=5, values=values)
+    x = _simulated(System(elements=[group], time=StaticTime())).trajectory_.values('g.x')[0]
+    assert x == pytest.approx(np.arange(1.0, 6.0) - logsumexp(x), abs=1e-8)
 
 
 def test_run_no_solution() -> None:
