@@ -10,10 +10,10 @@
 
 ## 2. Partner selection
 
-- [ ] 2.1 Add `PartnerSpec(candidates, choice, fallback, capacity)` to `skcomplex.specs` with radius candidates from a number or a state, lowered through `MatchLaw` on grids, networks, and continuous space; verify the within-reach-else-nearest and continuous-space scenarios.
-- [ ] 2.2 Accept `PartnerSpec` or a pairing callable in transfers, matching, and groupings, with today's named pairings as shorthands giving identical draws; verify every model using them over 20 seeds.
-- [ ] 2.3 Let a transfer settle both partners from one shared draw through a settlement callable; verify the meal scenario.
-- [ ] 2.4 Rebuild the obesity `EaterElement` on the partner spec, the settlement, periodic phases, and movement; verify its tests over 20 seeds.
+- [x] 2.1 Add `PartnerSpec(candidates, choice, fallback, capacity)` to `skcomplex.specs` with radius candidates from a number or a state, lowered through `MatchLaw` on grids, networks, and continuous space; verify the within-reach-else-nearest and continuous-space scenarios.
+- [x] 2.2 Accept `PartnerSpec` or a pairing callable in transfers, matching, and groupings, with today's named pairings as shorthands giving identical draws; verify every model using them over 20 seeds.
+- [x] 2.3 Let a transfer settle both partners from one shared draw through a settlement callable; verify the meal scenario.
+- [x] 2.4 Rebuild the obesity `EaterElement` on the partner spec, the settlement, periodic phases, and movement; verify its tests over 20 seeds.
 
 ## 3. Callables
 
