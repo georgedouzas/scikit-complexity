@@ -5,8 +5,9 @@ import math
 import numpy as np
 import pytest
 
+from skcomplex.analysis import DisplacementAnalysis
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models import describe
+from skcomplex.models import describe, run
 from skcomplex.models.mathematics.dynamical_systems import (
     cubic_chaotic_map,
     doubling_map,
@@ -76,6 +77,14 @@ def test_cubic_chaotic_map_walk_diffuses():
     assert np.all(np.abs(trajectory.values('displacement')[1:]) < STANDARD_DEVIATIONS * np.sqrt(square[1:] / 1000))
     steps = 2 * trajectory.values('walkers.x')[100:] - 1
     assert np.mean(steps[1:] * steps[:-1]) < -0.3 * np.mean(steps**2)
+
+
+def test_cubic_chaotic_map_displacement_reads_the_walker():
+    """Test that the displacement of the model reads the walker `y`, not the map value `x`, and spreads."""
+    trajectory = run('cubic_chaotic_map', settings={'until': 500}).trajectory_
+    analysis = DisplacementAnalysis().check().prepare(trajectory).run()
+    np.testing.assert_array_equal(analysis.positions_[..., 0], trajectory.values('walkers.y'))
+    assert analysis.exponent_ > 0.8
 
 
 def test_cubic_chaotic_map_settles_below_chaos():

@@ -142,6 +142,15 @@ def test_alignment_of_a_field_of_vectors():
     assert _order('mean-vector', field, vectors=True).tolist() == [1.0, 0.0]
 
 
+def test_alignment_of_velocities_along_a_line():
+    """Test that agents moving along a line align by the sign of their velocities, per frame and per member."""
+    trajectory = run('random_walk_with_memory', n_walkers=200, settings={'until': 5.0}).trajectory_
+    signs = np.sign(trajectory.values('walkers.v'))
+    expected = np.abs(np.where(signs == 0, 0.0, signs).mean(axis=1))
+    assert _alignment('mean-vector', trajectory).order_ == pytest.approx(expected, abs=1e-12)
+    assert _alignment('mean-phase', run('optimal_velocity', settings={'until': 1.0}).trajectory_).order_[-1] == 1.0
+
+
 @pytest.mark.parametrize(('model', 'state'), [('swarmalators', 'units.theta'), ('kuramoto', 'oscillators.theta')])
 def test_alignment_reads_phases(model, state):
     """Test that particles and series with the role phase give the synchrony of their phases, not their observables."""

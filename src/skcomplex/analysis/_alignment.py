@@ -55,7 +55,8 @@ class AlignmentAnalysis(BaseAnalysis):
       of its independent components on the last axis, whose number gives the symmetry and the dimension: 2 and 5 for a
       symmetric traceless tensor in 2 and 3 dimensions, and 3 and 6 for a symmetric tensor.
 
-    Angles are derived from the first two components of vectors when a source has no angles. An array of angles holds
+    Angles are derived from the first two components of vectors when a source has no angles, and a vector of one
+    component points at the angle 0 or `pi` by its sign. An array of angles holds
     one snapshot when it has one dimension, and one frame per row of its first axis otherwise, every other axis
     indexing members. An array of vectors, with `vectors=True`, holds the components along its last axis, and one
     snapshot when it has two dimensions. An array for `'mean-rotation'` holds the positions followed by the
@@ -201,7 +202,8 @@ class AlignmentAnalysis(BaseAnalysis):
             return
         angles, vectors, positions = self.angles_, self.vectors_, self.positions_
         if angles is None and vectors is not None:
-            angles = np.arctan2(vectors[..., 1], vectors[..., 0])
+            across = vectors[..., 1] if vectors.shape[-1] > 1 else np.zeros_like(vectors[..., 0])
+            angles = np.arctan2(across, vectors[..., 0])
         error_msg = (
             f'{type(self).__name__} of kind {self.kind!r} needs the angles, vectors, or positions that the source '
             'lacks. Use a source with them.'
