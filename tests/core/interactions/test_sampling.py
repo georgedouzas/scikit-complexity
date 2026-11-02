@@ -167,7 +167,7 @@ def _quadratic_energy(s: SimpleNamespace) -> object:
     return s.target.x**2
 
 
-def _geometric(t: object) -> object:
+def _geometric(t: float) -> float:
     """Return the factor that falls geometrically to 1e-3 of its start in 500 steps."""
     return (1e-3) ** (t / 500)
 
