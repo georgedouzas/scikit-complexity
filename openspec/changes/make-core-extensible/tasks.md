@@ -17,14 +17,14 @@
 
 ## 3. Callables
 
-- [ ] 3.1 Accept callables for crossing guards and resets, jump changes, transition matrices, renewal samplers, reduction functions, and observables of non-agent systems, and `FluxLaw(speed=...)` for Rusanov; verify each against its symbolic form on NumPy, and on Numba with the Python-fallback warning.
-- [ ] 3.2 Add `relative`, `random`, and `vectorized` to `CallSpec`; verify the portable element, reproducible stochastic policy, and batch scenarios.
-- [ ] 3.3 Make equations, quantum generators and dissipators, and Godunov fluxes raise an error naming them as symbolic only and the callable alternative; update the user guide's callable section; verify the errors.
+- [x] 3.1 Accept callables for crossing guards and resets, jump changes, transition matrices, renewal samplers, reduction functions, and observables of non-agent systems, and `FluxLaw(speed=...)` for Rusanov; verify each against its symbolic form on NumPy, and on Numba with the Python-fallback warning.
+- [x] 3.2 Add `relative`, `random`, and `vectorized` to `CallSpec`; verify the portable element, reproducible stochastic policy, and batch scenarios.
+- [x] 3.3 Make equations, quantum generators and dissipators, and Godunov fluxes raise an error naming them as symbolic only and the callable alternative; update the user guide's callable section; verify the errors.
 
 ## 4. Object states
 
-- [ ] 4.1 Let agent states hold hashable objects: 1-D object snapshots, compositions by value, histories of any value, and analyses refusing object states by name; verify the queue scenario.
-- [ ] 4.2 Give agent snapshot fields explicit roles in the snapshot spec instead of name guesses; verify an agent with a state named `phase` that is not a heading.
+- [x] 4.1 Let agent states hold hashable objects: 1-D object snapshots, compositions by value, histories of any value, and analyses refusing object states by name; verify the queue scenario.
+- [x] 4.2 Give agent snapshot fields explicit roles in the snapshot spec instead of name guesses; verify an agent with a state named `phase` that is not a heading.
 
 ## 5. Errors and records
 
@@ -34,5 +34,5 @@
 
 ## 6. Documentation and gate
 
-- [ ] 6.1 Document the hooks, partner spec, callable options, and object states in the user guide with runnable examples, and add the changelog entry; verify `pytest --markdown-docs docs/overview`.
+- [x] 6.1 Document the hooks, partner spec, callable options, and object states in the user guide with runnable examples, and add the changelog entry; verify `pytest --markdown-docs docs/overview`.
 - [ ] 6.2 Run formatting, checks, the docs build, and the full suite through nox; verify they pass apart from the known timing tests.

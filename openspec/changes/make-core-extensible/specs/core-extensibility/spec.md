@@ -30,13 +30,18 @@ without declaring it as a parameter.
 - **THEN** every agent moves at every step
 
 ### Requirement: Variants accept specs and callables
-Every variant argument of a general interaction (pairing, rule, step, grouping, selection, replacement, placement,
-action, mode) SHALL accept a spec besides its named values, and pairings, steps, and placements SHALL also accept a
-callable, so a subclass adds a variant without bypassing the checks of its parent.
+Every variant argument of a general interaction SHALL let a subclass add a variant without bypassing the checks of its
+parent. A pairing, rule, grouping, selection, replacement, action, or mode SHALL accept a spec besides its named values,
+and a pairing SHALL also accept a callable. A step, placement, or move SHALL accept its named values or a callable, and a
+pick its named values; each of these SHALL refuse a spec with a clear error, since a callable says what a spec would say.
 
 #### Scenario: Custom pairing
 - **WHEN** a transfer receives a callable that pairs each agent with the agent of largest wealth in its cell
 - **THEN** the transfer runs with those pairs, and the other checks of the transfer still apply
+
+#### Scenario: Spec given to a step
+- **WHEN** a movement receives a spec as its step
+- **THEN** the check raises an error listing the named steps and saying that a function is accepted
 
 #### Scenario: Unknown name
 - **WHEN** a variant receives a name that is neither a named value, a spec, nor a callable
@@ -57,7 +62,8 @@ take a tie rule (random, first, or nearest), with defaults that keep today's beh
 ### Requirement: Callable laws on every numeric path
 Every law kind whose value the engine evaluates numerically SHALL accept a callable: rates, noise, jumps and their
 changes, updates, boundaries, crossing guards and resets, flux wave speeds, transition matrices, renewal waiting times,
-reductions, and observables.
+reductions, and observables. An emission matrix and a reset of a renewal stay symbolic, because each shares its draws
+with another law, and each says so when given a callable.
 
 #### Scenario: Callable crossing
 - **WHEN** a crossing law has a callable guard and a callable reset

@@ -56,6 +56,10 @@ action, and cascade, coupling, and map modes accept their named values or a spec
 interaction's private dispatch method; only pairings, steps, and placements, which have a natural signature, also take
 callables.
 
+Decided on 2026-11-02: `step`, `placement`, and `move` take their names and functions, and `pick` takes its names. None
+of them takes a spec: a function already says what a spec would say, and `pick` has only two values. A spec given to any
+of them raises the error of `_check_variant`, which lists the names and says whether a function is accepted.
+
 
 Each variant argument accepts its named values, a spec of the matching family in `skcomplex.specs`, or a callable. The
 check accepts a spec or a callable and keeps validating the rest. Dispatch goes to the spec's private method on the
@@ -91,18 +95,29 @@ audit showed "within reach, else the nearest" is a general rule (facility choice
 ### Callables on every numeric path
 - Crossing guards and resets are evaluated numerically by `EventKernel`, so a callable passes straight through.
 - `FluxLaw(speed=callable)` gives the Rusanov wave speed; Godunov stays symbolic.
-- Transition matrices, jump changes, renewal samplers `f(rng, **args)`, reduction functions, and
+- Transition matrices, jump changes, renewal samplers `f(rng, size=, t=, **values)`, reduction functions, and
   `ObservableSpec(function=f(t, values))` take callables on NumPy, with a Python fallback on Numba and its warning.
 
 Callables gain three options on `CallSpec`: `relative=True` passes values keyed by the component's own names,
-`random=True` passes the simulation's stream, `vectorized=True` calls once with arrays over a group. The plain
-`f(t, values)` form stays as it is.
+`random=True` passes the simulation's stream as the keyword `rng`, `vectorized=True` calls once with arrays over a group.
+The plain `f(t, values)` form stays as it is, and `CallSpec(f, None)` spells it with these options. The stream is one
+`RandomStream` per problem, which the solver binds when it prepares. A reduction function keeps its name in the
+expression and waits in a module-level mapping, for the reason of the draw registry below.
+
+Decided on 2026-11-02, for what the callable paths leave out:
+- An emission matrix stays symbolic, because it draws from the next value of the hidden state, which only the symbolic
+  draw lowering shares with the transition of that state.
+- A reset of a renewal stays symbolic, because it shares its draws with the waiting time.
+- A guard, a reset, a matrix, and a jump change take `f(t, values)` or `CallSpec(f, relative=True)`. They read no
+  delays, and a crossing draws nothing.
 
 ### Object states for agents
 A state declared with `domain=None` or an object domain holds any hashable value. Mesa snapshots store 1-D object arrays,
 `composition` counts by hashable value, `history` keeps any value, and `analysis._base` refuses object states by name.
 Snapshot fields get explicit roles (position, velocity, heading) in the snapshot spec instead of being guessed from
-names.
+names. `StateSpec(role='heading' | 'velocity')` declares them, and every agent model that an analysis read through the
+names of its states declares its roles. The position is the location of the agent. A particle group is not an agent
+group, so it keeps its reading of vector states and heading names.
 
 ### Matching defaults (decided on 2026-11-02)
 

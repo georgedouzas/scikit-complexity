@@ -189,6 +189,123 @@ culled = System(
 print(round(float(Simulation(culled, dt=1.0).check().prepare().run(until=20).trajectory_.values('deer.n')[-1])))
 ```
 
+### Functions as laws
+
+Every law whose value the engine evaluates numerically takes a function. A function runs in Python, so on the Numba
+backend the laws of its kind fall back to Python with a `BackendWarning`.
+
+| Law | Argument | Function |
+| --- | --- | --- |
+| `RateLaw`, `NoiseLaw`, `UpdateLaw`, `BoundaryLaw` | `value` | `f(t, values)` or `CallSpec` |
+| `JumpLaw` | `rate`, and each value of `changes` | `f(t, values)` or `CallSpec` |
+| `JumpLaw` on a clock of waiting times | `waiting` | `f(rng, size=, t=, **values)` |
+| `CrossingLaw` | `guard`, and each value of `reset` | `f(t, values)` or `CallSpec(f, relative=True)` |
+| `FluxLaw` | `speed` | `f(t, values)`, which gives the wave speed of the Rusanov flux |
+| `TransitionLaw` | `matrix` | `f(t, values)` or `CallSpec(f, relative=True)` |
+| `reduction(function, expression)` | `function` | `f(array)` of the values of the members |
+| `ObservableSpec` | `function` | `f(t, values)`, a module-level function |
+
+`CallSpec` sets how a function runs. `CallSpec(f, (s.x, s.k))` calls `f(t, x, k)` once per member. Three options change
+that:
+
+- `relative=True` calls `f(t, values)` with the names of the component of the law, such as `x` for a state of the
+  element and `target.x` for a state of the element bound to the role `target`. One element class then works under any
+  label and inside any system.
+- `random=True` passes the random stream of the simulation as the keyword `rng`, so one seed repeats the run.
+- `vectorized=True` calls the function once per evaluation with one array per argument, instead of once per member.
+
+`arguments=None` calls `f(t, values)` with the dotted names, like a plain function, and takes the options `random` and
+`vectorized`.
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.laws import CrossingLaw, JumpLaw, RateLaw, UpdateLaw
+from skcomplex.core.laws.utils import reduction
+from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import CallSpec, ObservableSpec, ParameterSpec, StateSpec
+
+
+class TankElement(Element):
+    def __init__(
+        self,
+        label,
+        visual=None,
+        *,
+        level: Annotated[float, StateSpec()] = 1.0,
+        rate: Annotated[float, ParameterSpec()] = 0.5,
+    ):
+        super().__init__(label, visual=visual)
+        self.level = level
+        self.rate = rate
+
+    def _get_laws(self, s):
+        grow = CallSpec(lambda t, values: values['rate'] * values['level'], relative=True)
+        full = CallSpec(lambda t, values: values['level'] - 2.0, relative=True)
+        return [RateLaw(s.level, grow), CrossingLaw(full, {s.level: lambda t, values: 1.0}, direction=1)]
+
+
+tanks = System(elements=[TankElement('a')], systems=[System('plant', elements=[TankElement('b')])])
+trajectory = Simulation(tanks, dt=0.01).check().prepare().run(until=2).trajectory_
+print(len(trajectory.events) > 0, trajectory.values('a.level')[-1] == trajectory.values('plant/b.level')[-1])
+
+
+class WalkerElement(TankElement):
+    def _get_laws(self, s):
+        return [UpdateLaw(s.level, CallSpec(lambda t, level, rng: level + rng.normal(), (s.level,), random=True))]
+
+
+def walk(seed):
+    system = System(elements=[WalkerElement('a')], time=DiscreteTime())
+    return Simulation(system, random_state=seed).check().prepare().run(until=5).trajectory_.values('a.level')
+
+
+print(np.array_equal(walk(1), walk(1)))
+
+
+class HerdElement(TankElement):
+    def _get_laws(self, s):
+        return [RateLaw(s.level, CallSpec(lambda t, level, rate: rate * level, (s.level, s.rate), vectorized=True))]
+
+
+class MedianElement(TankElement):
+    def _get_laws(self, s):
+        return [RateLaw(s.level, reduction(np.median, s.level) - s.level)]
+
+
+for element in (HerdElement, MedianElement):
+    herd = System(elements=[GroupElement('herd', element=element, size=3, values={'level': [1.0, 2.0, 4.0]})])
+    print(Simulation(herd, dt=0.01).check().prepare().run(until=1).trajectory_.values('herd.level').shape)
+
+
+class DoublerElement(TankElement):
+    def _get_laws(self, s):
+        return [JumpLaw(s.rate, {s.level: CallSpec(lambda t, values: values['level'], relative=True)})]
+
+
+doubling = Simulation(System(elements=[DoublerElement('a')]), random_state=0).check().prepare().run(until=10)
+print(float(np.log2(doubling.trajectory_.values('a.level')[-1])).is_integer())
+
+
+def total_level(t, values):
+    return values['a.level'] + values['a.rate']
+
+
+observed = Simulation(System(elements=[TankElement('a')]), dt=0.5, observables=[ObservableSpec('sum', function=total_level)])
+print(observed.check().prepare().run(until=1).trajectory_.values('sum').shape)
+```
+
+Some laws need symbols by nature, and each says so when given a function. `EquationLaw` is solved symbolically, so a
+function goes in a `RateLaw` of the highest derivative. `GeneratorLaw` and `DissipatorLaw` build quantum operators from
+symbols, and a `FluxLaw` takes the derivative of its flux, for the wave speeds and for the critical points of the Godunov
+flux, so a function goes in `speed=` or in a `RateLaw`. A crossing, a matrix, and a jump change read no delays, and a
+reset of a renewal stays symbolic, because it shares its draws with the waiting time.
+
 ### Symbolic expressions
 
 Laws are Sage expressions. The symbols in `s` are Sage symbols that carry the domains of their variables, vector states
@@ -2583,6 +2700,179 @@ x, t, theta = var('x t theta')
 print(float(hill(x, 2, 3).subs(x=2)), float(logistic(x, 1, 2).subs(x=1)))
 print([clip(x, 0, 1).subs(x=value) for value in (-2, 0.5, 3)], [sign(x).subs(x=value) for value in (-2, 0, 3)])
 print([float(pulse_train(t, 10, 1, count=2).subs({t: time})) for time in (10.5, 20.5)], circular_mean(theta))
+```
+
+## Extending the general classes
+
+A general class names a mathematical operation, and a subclass names what it means in a field. It overrides hooks, and
+the checks and the laws of its parent keep working.
+
+### Roles and parameters
+
+`_get_role` renames a role in the symbolic form and the agent form alike, and `_get_parameter` renames a parameter. An
+argument the class does not declare as a parameter is a plain value, so a subclass fixes a parameter by setting it.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import MovementInteraction, RateInteraction
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
+
+
+class StockElement(Element):
+    def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label, visual=visual)
+        self.level = level
+
+
+class InflowInteraction(RateInteraction):
+    def __init__(self, label, *, stock: Annotated[str, RoleSpec()]):
+        super().__init__(label, target=stock, state='level', rate=lambda s: 1.0)
+        self.stock = stock
+
+    def _get_role(self, role):
+        return {'target': 'stock'}.get(role, role)
+
+
+inflow = System(elements=[StockElement('tank')], interactions=[InflowInteraction('fill', stock='tank')])
+print(round(float(Simulation(inflow, dt=0.1).check().prepare().run(until=1).trajectory_.values('tank.level')[-1]), 3))
+
+
+class BoldWalkInteraction(MovementInteraction):
+    def __init__(self, label, *, target: Annotated[str, RoleSpec()], boldness: Annotated[float, ParameterSpec()] = 1.0):
+        super().__init__(label, target=target)
+        self.boldness = boldness
+
+    def _get_parameter(self, name):
+        return {'probability': 'boldness'}.get(name, name)
+
+
+class WalkerElement(StockElement):
+    def _get_laws(self, s):
+        return []
+
+
+walkers = GroupElement('walkers', element=WalkerElement, size=2, location=[(2, 2)] * 2)
+walk = System(
+    elements=[walkers],
+    interactions=[BoldWalkInteraction('walk', target='walkers')],
+    space=LatticeSpace((5, 5)),
+    time=DiscreteTime(),
+)
+print(len(Simulation(walk, random_state=0).check().prepare().run(until=2).trajectory_.agent_locations('walkers')))
+```
+
+### Variants
+
+The pairing of a transfer, a matching, or a grouping takes a `PartnerSpec` or a function. The rule of a choice or an
+imitation, the groups of a grouping, the selection and the replacement of an evolution, the action of a topology, and
+the mode of a cascade, a coupling, or a map take their named values or a spec of a subclass. A step, a placement, and a
+move take their named values or a function, and a pick takes its named values. None of them takes a spec, because a
+function already says what a spec would, and a spec raises an error that lists what the argument takes. Every other value
+raises the same error, so the checks of the parent keep working.
+
+### Partners and settlement
+
+`PartnerSpec(candidates, choice, fallback, capacity, score)` says whom an agent pairs with. The candidates are `'all'`,
+`'neighbors'`, `'cell'`, a distance, or the name of a state that holds a distance per agent, so it works in continuous
+space too. The choice is `'uniform'`, `'score'`, `'nearest'`, or `'all'`, and the fallback `'nearest'` takes the nearest
+partner when no one is within reach. A `settlement(source, target, amounts, model)` of a transfer receives both partners
+and the drawn amounts, so both ends credit one draw.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import TransferInteraction
+from skcomplex.core.laws import RuleLaw
+from skcomplex.core.spaces import ContinuousSpace, DiscreteTime
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import PartnerSpec, StateSpec
+
+
+class EaterElement(Element):
+    def __init__(
+        self,
+        label,
+        visual=None,
+        *,
+        level: Annotated[float, StateSpec()] = 0.0,
+        sold: Annotated[float, StateSpec()] = 0.0,
+    ):
+        super().__init__(label, visual=visual)
+        self.level = level
+        self.sold = sold
+
+    def _get_laws(self, s):
+        return [RuleLaw(lambda agent, model: None)]
+
+
+def settle(source, target, amounts, model):
+    source.level += sum(amounts)
+    target.sold += 1.0
+
+
+space = ContinuousSpace(extent=(10.0, 10.0))
+eaters = GroupElement('eaters', element=EaterElement, size=3, space=space)
+providers = GroupElement('providers', element=EaterElement, size=2, space=space)
+meal = TransferInteraction(
+    'meal',
+    source='eaters',
+    target='providers',
+    state='level',
+    into='sold',
+    amount=lambda source, target, model: 2.0,
+    pairing=PartnerSpec(1.0, fallback='nearest'),
+    form='agent',
+    settlement=settle,
+)
+system = System(elements=[eaters, providers], interactions=[meal], time=DiscreteTime())
+trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+print(trajectory.agents('eaters', 1).values['level'].tolist())
+```
+
+### Agent states that hold objects
+
+A state of an agent with `StateSpec(domain=None)` or `StateSpec(domain=object)` holds any hashable value, such as a tuple,
+a string, or a frozen set. A snapshot keeps one object per agent in a one-dimensional array, a composition counts the
+agents by value, and a history keeps any value. An analysis that needs numbers names the state and refuses it. Symbolic
+systems hold numbers only, in the vectors of their solvers.
+
+`StateSpec(role='heading')` and `StateSpec(role='velocity')` tell analyses what a state of an agent means. Analyses read
+headings and velocities from these roles, not from the names of the states, so a state named `phase` is no heading unless
+it says so.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.laws import RuleLaw
+from skcomplex.core.spaces import DiscreteTime
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class QueueElement(Element):
+    def __init__(self, label, visual=None, *, orders: Annotated[object, StateSpec(domain=None)] = ()):
+        super().__init__(label, visual=visual)
+        self.orders = orders
+
+    def _get_laws(self, s):
+        return [RuleLaw(self._step)]
+
+    def _step(self, agent, model):
+        agent.orders = (*agent.orders, int(model.time))[-2:]
+
+
+group = GroupElement('queues', element=QueueElement, size=2, values={'orders': [(), (7,)]})
+trajectory = Simulation(System(elements=[group], time=DiscreteTime()), random_state=0).check().prepare().run(until=1).trajectory_
+print(trajectory.agents('queues', 1).values['orders'].tolist())
 ```
 
 ## The model library
