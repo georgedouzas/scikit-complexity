@@ -10,6 +10,7 @@ from ._bone_marrow_blood import BoneMarrowBloodElement
 from ._cell_cycle import CellCycleElement
 from ._cell_kinetics import cell_cycle_chemotherapy, erythropoiesis_mercaptopurine
 from ._cell_quota_prostate import CellQuotaProstateElement
+from ._cell_survival import lq_cell_survival
 from ._checkpoint_tumour import CheckpointTumourElement
 from ._chemoimmunotherapy_tumour import ChemoimmunotherapyTumourElement
 from ._chemotherapy import (
@@ -74,6 +75,7 @@ from ._irradiated_tumour import IrradiatedTumourElement
 from ._irradiation import IrradiationInteraction
 from ._kirschner_panetta_tumour import KirschnerPanettaTumourElement
 from ._leukaemia_stem_cells import LeukaemiaStemCellsElement
+from ._linear_quadratic_survival import LinearQuadraticSurvivalElement
 from ._log_kill import LogKillInteraction
 from ._metastasis_chemotherapy import MetastasisChemotherapyElement
 from ._multidrug_resistance import MultidrugResistanceElement
@@ -127,6 +129,7 @@ __all__: list[str] = [
     'IrradiationInteraction',
     'KirschnerPanettaTumourElement',
     'LeukaemiaStemCellsElement',
+    'LinearQuadraticSurvivalElement',
     'LogKillInteraction',
     'MetastasisChemotherapyElement',
     'MultidrugResistanceElement',
@@ -182,6 +185,7 @@ __all__: list[str] = [
     'immune_observables',
     'kirschner_panetta',
     'leukaemia_stem_cells',
+    'lq_cell_survival',
     'lq_radiosensitizer',
     'mean_activity',
     'multidrug_resistance',
