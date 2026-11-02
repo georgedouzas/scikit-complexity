@@ -10,6 +10,7 @@ in the expression as a symbol named after a digest of their value.
 
 import hashlib
 import numbers
+from collections.abc import Callable
 from types import SimpleNamespace
 
 import numpy as np
@@ -21,16 +22,26 @@ from sage.symbolic.function import Function
 from ....errors import ValidationError
 from ....specs import HyperedgeReductionSpec, LayerSpec, NeighborReductionSpec, ReductionSpec
 from ....specs._draw_spec import draws_in
+from ....types import AnyArray
 from ...spaces import AdjacencyNeighborhood, BaseNeighborhood, LatticeNeighborhood, MemoryNeighborhood
 from ...spaces._lattice import BOUNDARIES
 from ._conditions import both
 from ._pointwise import _largest, _smallest
 
-KINDS = {'total': 'sum', 'mean': 'mean', 'maximum': 'max', 'minimum': 'min', 'variance': 'var', 'count': 'count'}
+KINDS = {
+    'total': 'sum',
+    'mean': 'mean',
+    'maximum': 'max',
+    'minimum': 'min',
+    'variance': 'var',
+    'count': 'count',
+    'reduction': 'function',
+}
 NEIGHBOR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean', 'argmax')
 MIN_HYPEREDGE_SIZE = 2
 COMPONENT_REDUCTIONS = ('label', 'size', 'largest', 'giant')
 WEIGHTS: dict[str, object] = {}
+FUNCTIONS: dict[str, Callable[[AnyArray], object]] = {}
 NEIGHBORHOODS: dict[str, object] = {}
 
 
@@ -192,6 +203,52 @@ def _reduce(
     where = _keyed(over, where, by)
     condition = SR(1) if where is None else SR(where)
     return REDUCTIONS[name](SR(expression), condition, _weights_symbol(weights), _over_symbol(over))
+
+
+def reduction(
+    function: Callable[[AnyArray], object],
+    expression: object,
+    over: object = None,
+    where: object = None,
+) -> Expression:
+    """Return a reduction over a group by a function of the array of member values.
+
+    The function runs in Python, so a law that reads it falls back to Python on the Numba backend. The name of the
+    function stands in the expression and the function waits in a module-level mapping, for the same reason as the
+    draws: a Sage symbolic function holds only a name and arguments.
+
+    Args:
+        function:
+            The function of the one-dimensional array of the values of the members that `where` selects.
+
+        expression:
+            The value of one member, a symbolic expression.
+
+        over:
+            The group to reduce over, or `None` for the group the expression reads.
+
+        where:
+            A condition on each member, or `None` for every member.
+
+    Returns:
+        reduction:
+            The reduction, a symbolic expression.
+
+    Examples:
+        >>> import numpy as np
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.core.laws.utils import reduction, reductions_in
+        >>> x = var('x')
+        >>> [item.kind for item in reductions_in(reduction(np.median, x))]
+        ['function']
+    """
+    if not callable(function):
+        error_msg = f'A reduction takes a function of the array of member values, but got {function!r}.'
+        raise ValidationError(error_msg)
+    name = f'_reduction_{id(function)}'
+    FUNCTIONS[name] = function
+    condition = SR(1) if where is None else SR(where)
+    return REDUCTIONS['reduction'](SR(expression), condition, var(name), _over_symbol(over))
 
 
 def total(
@@ -760,8 +817,13 @@ def reductions_in(expression: object) -> list[ReductionSpec]:
                 kind=KINDS[call.operator().name()],
                 argument=argument,
                 condition=None if _is_placeholder(condition, 1) else condition,
-                weights=None if _is_placeholder(weights, 0) else WEIGHTS.get(str(weights), weights),
+                weights=(
+                    None
+                    if _is_placeholder(weights, 0) or str(weights) in FUNCTIONS
+                    else WEIGHTS.get(str(weights), weights)
+                ),
                 over=None if _is_placeholder(over, 0) else over,
+                function=FUNCTIONS.get(str(weights)),
             ),
         )
     return reductions

@@ -143,8 +143,11 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     def _lower_law(self, law: BaseLaw, spec: KernelSpec) -> BaseLaw:
         """Return a law with every reduction in its values, its guard, and its reset replaced by its placeholder."""
         if isinstance(law, CrossingLaw):
-            reset = {target: self._lower(SR(value), spec) for target, value in (law.reset or {}).items()}
-            guard = self._lower(SR(law.guard), spec)
+            reset = {
+                target: value if BaseLaw._is_function(value) else self._lower(SR(value), spec)
+                for target, value in (law.reset or {}).items()
+            }
+            guard = law.guard if BaseLaw._is_function(law.guard) else self._lower(SR(law.guard), spec)
             return BasePass._replaced(law, guard=guard, reset=reset if law.reset is not None else None)
         if isinstance(law, JumpLaw):
             return JumpLaw(self._lower(law.rate, spec), law.changes)
@@ -152,7 +155,8 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             return law
         value = law.value
         if isinstance(value, CallSpec):
-            value = CallSpec(value.function, tuple(self._lower(argument, spec) for argument in value.arguments))
+            arguments = None if value.arguments is None else tuple(self._lower(item, spec) for item in value.arguments)
+            value = replace(value, arguments=arguments)
         else:
             value = self._lower(value, spec)
         return BasePass._replaced(law, value=value)
@@ -693,6 +697,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
                     reads=reads,
                     time=self.declarations_.time,
                     members=members,
+                    function=reduction.function,
                 )
                 .check()
                 .prepare()

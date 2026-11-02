@@ -82,9 +82,14 @@ class MemberLowering(BaseLowering[list[BaseLaw]]):
         for law in inputs or []:
             if isinstance(law, JumpLaw):
                 changes: dict[Expression, float] = defaultdict(float)
+                functions: dict[Expression, object] = {}
                 for target, increment in (law.changes or {}).items():
-                    changes[SR(self._lower(target)) if isinstance(target, Expression) else target] += increment
-                result.append(JumpLaw(self._lower(law.rate), dict(changes)))
+                    key = SR(self._lower(target)) if isinstance(target, Expression) else target
+                    if BaseLaw._is_function(increment):
+                        functions[key] = increment
+                    else:
+                        changes[key] += float(SR(increment))
+                result.append(JumpLaw(self._lower(law.rate), {**changes, **functions}))
             elif isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):
                 result.append(BasePass._replaced(law, value=self._lower(law.value)))
             else:

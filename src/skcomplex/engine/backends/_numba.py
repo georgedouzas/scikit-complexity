@@ -196,6 +196,10 @@ class NumbaBackend(BaseBackend):
         compiled: dict[type, bool] = {
             kind: fused and all(self._is_compilable(kernel) for kernel in items) for kind, items in used.items()
         }
+        if JumpLaw in compiled and any(
+            not isinstance(increment, float) for changes in inputs.jump_changes.values() for _, increment in changes
+        ):
+            compiled[JumpLaw] = False
         backends = self._report_fallbacks(self._get_name(), used, compiled, reductions)
         plan: dict[type, tuple[str, str]] = {
             RateLaw: ('drift', 'add'),
@@ -258,7 +262,7 @@ class NumbaBackend(BaseBackend):
         *,
         used: Mapping[type, list[LawKernel]],
         compiled: Mapping[type, bool],
-        changes: Mapping[int, list[tuple[ReferenceSpec, float]]],
+        changes: Mapping[int, list[tuple[ReferenceSpec, object]]],
         size: int,
         module: ModuleType,
         layout: tuple[np.ndarray, list[tuple[int, np.ndarray]]],
@@ -443,13 +447,20 @@ class NumbaBackend(BaseBackend):
             for reference in kernel.references.values()
         )
         return lattice and all(
-            output.function is None or (output.arguments is not None and isinstance(output.function, Dispatcher))
+            output.function is None
+            or (
+                output.arguments is not None
+                and isinstance(output.function, Dispatcher)
+                and not (output.relative or output.random or output.vectorized)
+            )
             for output in kernel.outputs
         )
 
     @staticmethod
     def _reductions_compile(reductions: ReductionScheduleSpec) -> bool:
         """Check whether every reduction prints in Numba's dialect."""
+        if any(reduction.function is not None for reduction in reductions.reductions):
+            return False
         try:
             for reduction in reductions.reductions:
                 condition = reduction.condition if reduction.condition is not None else 1
@@ -495,6 +506,8 @@ class NumbaBackend(BaseBackend):
     def _unprinted_reduction(reductions: ReductionScheduleSpec) -> str | None:
         """Return the first reduction that does not print in the scalar dialect, or `None` when every one prints."""
         for reduction in reductions.reductions:
+            if reduction.function is not None:
+                return f'the function reduction {reduction.argument}'
             try:
                 condition = reduction.condition if reduction.condition is not None else 1
                 ExpressionPrinter('scalar').check().prepare().run([reduction.argument, condition])

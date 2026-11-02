@@ -7,6 +7,7 @@ from collections.abc import Sequence
 
 from sage.all__sagemath_symbolics import Expression
 
+from ...errors import ValidationError
 from ...specs import RequirementSpec
 from ..spaces import DiscreteTime
 from ._base import BaseLaw
@@ -62,6 +63,12 @@ class EmissionLaw(BaseLaw):
 
     def _check(self) -> None:
         """Raise an error for a matrix that is not a nonempty sequence of rows of equal length."""
+        if self._is_function(self.matrix):
+            error_msg = (
+                'The matrix of an EmissionLaw is a function, but an emission matrix is symbolic only, because it draws '
+                'from the next value of the hidden state. Use a TransitionLaw, or an UpdateLaw with a `CallSpec`.'
+            )
+            raise ValidationError(error_msg)
         self._check_matrix('matrix')
 
     def _run(self, inputs: object) -> None:

@@ -223,6 +223,23 @@ class RenewalProblemPass(BasePass):
         return np.asarray(places, dtype=np.intp).reshape(len(places), rows)
 
     @staticmethod
+    def _named_reads(
+        group: str,
+        references: Mapping[Expression, ReferenceSpec],
+        sampler: object,
+    ) -> dict[str, ReferenceSpec]:
+        """Return the scalar states and parameters of the renewing members by name, for a function of the wait."""
+        if sampler is None:
+            return {}
+        return {
+            reference.entry.name.rpartition('.')[2]: reference
+            for reference in references.values()
+            if reference.source in _READ_SOURCES
+            and reference.entry.columns == 1
+            and reference.entry.name.rpartition('.')[0] == group
+        }
+
+    @staticmethod
     def _compile_renewal(
         owner: str,
         law: RenewalLaw,
@@ -280,7 +297,8 @@ class RenewalProblemPass(BasePass):
                 components_of(value) if isinstance(value, FreeModuleElement) else [value] * len(components_of(target))
             )
         ]
-        waiting = SR(law.waiting)
+        sampler = law.waiting if callable(law.waiting) and not isinstance(law.waiting, Expression) else None
+        waiting = SR(0) if sampler is not None else SR(law.waiting)
         if any(reductions_in(item) for item in [*values, waiting]):
             error_msg = (
                 f'The {description} of {owner} reads a reduction over a group. Renewal laws read the states and '
@@ -331,6 +349,8 @@ class RenewalProblemPass(BasePass):
                 waiting=RenewalProblemPass._member_function(owner, [waiting.subs(calls)], references, names, time),
                 before=samplers(first),
                 after=samplers(later),
+                sampler=sampler,
+                reads=RenewalProblemPass._named_reads(group, references, sampler),
             )
             .check()
             .prepare()

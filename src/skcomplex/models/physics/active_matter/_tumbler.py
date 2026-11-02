@@ -54,7 +54,7 @@ class TumblerElement(Element):
         label: str,
         visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'theta'}),
         *,
-        theta: Annotated[float, StateSpec()] = 0.0,
+        theta: Annotated[float, StateSpec(role='heading')] = 0.0,
         speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         tumble_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,

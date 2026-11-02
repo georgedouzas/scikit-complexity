@@ -21,10 +21,14 @@ class CrossingLaw(BaseLaw):
 
     Args:
         guard:
-            A symbolic expression of states and time whose crossing of zero triggers the event.
+            A symbolic expression of states and time whose crossing of zero triggers the event, or a function
+            `f(t, values)` of time and the mapping from the dotted name of every state and parameter to its value, or
+            `CallSpec(f, relative=True)` to read the names of the component. Over a group it returns one value per
+            member. It runs in Python, and a function does not lower the order of derivatives or read delays.
 
         reset:
-            A mapping from state symbol to its new value, applied all at once, or `None` to keep the states.
+            A mapping from state symbol to its new value, applied all at once, or `None` to keep the states. A value
+            may be a function like the guard's.
 
         direction:
             `1` for crossings from negative to positive, `-1` for the opposite, and `0` for both.

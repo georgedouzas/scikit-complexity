@@ -12,6 +12,8 @@ from sage.all__sagemath_symbolics import RR
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
 
+ROLES = ('heading', 'velocity', None)
+
 
 @dataclass(frozen=True)
 class StateSpec(BaseSpec):
@@ -24,7 +26,8 @@ class StateSpec(BaseSpec):
         domain:
             The Sage set of the values of the state, such as `RR`, `ZZ`, `RealSet.closed_open(0, oo)`, or
             `FiniteEnumeratedSet(['S', 'I', 'R'])`, or `None` for a structure rewritten as a whole, such as a word,
-            whose element checks it.
+            whose element checks it. A state of an agent with the domain `None` or `object` holds any hashable value,
+            such as a tuple, a string, or a frozen set.
 
         vector:
             Whether the state has one component per dimension of the enclosing space.
@@ -60,6 +63,11 @@ class StateSpec(BaseSpec):
             initial values of the group give the position of the member among the initial members of the referenced
             group, which the agent stepper turns into its id, and rules read the member with `agent.referenced(state)`.
 
+        role:
+            What the state means in a snapshot of agents, `'heading'` for an angle or `'velocity'` for one component of
+            a velocity, or `None` for any other state. Analyses read headings and velocities from these roles alone, so
+            a state named `phase` is no heading unless it says so.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
@@ -81,6 +89,7 @@ class StateSpec(BaseSpec):
     history: object = None
     position: bool = False
     reference: str | None = None
+    role: str | None = None
 
     def _check(self) -> None:
         """Raise an error for an invalid order, lags, or initial values, or a reference of a state that is not scalar.
@@ -90,6 +99,9 @@ class StateSpec(BaseSpec):
                 The order or the lags are invalid, there are more initial values than derivatives or lags, or a state
                 naming a member of a group is not a scalar of order 1 without lags.
         """
+        if self.role not in ROLES:
+            error_msg = f"The role of a state is 'heading', 'velocity', or None, but got {self.role!r}."
+            raise ValidationError(error_msg)
         if self.reference is not None and (self.vector or self.order != 1 or self.lags):
             error_msg = f'The state naming a member of {self.reference!r} is not a scalar of order 1 without lags.'
             raise ValidationError(error_msg)

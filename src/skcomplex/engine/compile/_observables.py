@@ -251,8 +251,13 @@ class ObservableEvaluator:
             if path in self.getters_:
                 error_msg = f'Two observables have the path {path}. Give observables of one system distinct labels.'
                 raise ValidationError(error_msg)
+            if observable.function is not None:
+                self.getters_[path] = self._function_getter(path, observable.function)
+                continue
             if observable.group is None and observable.expression is None:
-                error_msg = f'ObservableSpec {path} has neither an expression nor a group. Give one of them.'
+                error_msg = (
+                    f'ObservableSpec {path} has neither an expression, a function, nor a group. Give one of them.'
+                )
                 raise ValidationError(error_msg)
             observed = self.problem.observed if isinstance(self.problem, ProblemSpec) else {}
             if observable.group is None:
@@ -268,6 +273,28 @@ class ObservableEvaluator:
         for recorded in transfer_network.recorded if transfer_network is not None else ():
             self.getters_[recorded.path] = self._recorded_getter(recorded)
         return self
+
+    def _function_getter(
+        self,
+        path: str,
+        function: Callable[[float, Mapping[str, object]], object],
+    ) -> ObservableFunction:
+        """Return a getter that calls a function of time and the values of the states and parameters by name."""
+        problem = self.problem
+        if not isinstance(problem, ProblemSpec) or problem.agents:
+            error_msg = (
+                f'ObservableSpec {path} is a function of the values of a system, which a system with agents or a '
+                'quantum system does not hold as a vector. Give an expression, or an expression of each agent.'
+            )
+            raise ValidationError(error_msg)
+        states, parameters = problem.states, problem.parameters
+
+        def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
+            del done
+            value = np.asarray(function(t, {**states.values(x), **parameters.values(p)}))
+            return float(value) if value.ndim == 0 else value
+
+        return get
 
     def _scalar_sources(self) -> dict[Expression, tuple[str, int]]:
         """Return the vector and flat index of every symbol of a single element or interaction."""
@@ -507,6 +534,7 @@ class ObservableEvaluator:
         if not any(spec.path == group for spec in self.problem.agents) and not self.problem.partition_problems:
             error_msg = f'ObservableSpec {path} reduces {group}, which is neither an element group nor an agent group.'
             raise ValidationError(error_msg)
+        objects = {name for spec in self.problem.agents if spec.path == group for name in spec.objects}
 
         def read_agents(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             del t, x, p
@@ -523,6 +551,11 @@ class ObservableEvaluator:
                 values = [observable.expression(agent) for agent in agents]
             else:
                 values = agents
+            if observable.variable in objects:
+                return ReductionKernel._reduce_values(
+                    np.fromiter(values, dtype=object, count=len(values)),
+                    observable.reduce,
+                )
             return ReductionKernel._reduce_values(values, observable.reduce)
 
         return read_agents

@@ -229,11 +229,8 @@ class OrdersPass(BasePass):
             return JumpLaw(OrdersPass._substitute(law.rate, spec, orders, owner), law.changes)
         if isinstance(law, CrossingLaw | RenewalLaw):
             reset = {
-                OrdersPass._substitute(SR(target), spec, orders, owner): OrdersPass._substitute(
-                    SR(value),
-                    spec,
-                    orders,
-                    owner,
+                OrdersPass._substitute(SR(target), spec, orders, owner): (
+                    value if BaseLaw._is_function(value) else OrdersPass._substitute(SR(value), spec, orders, owner)
                 )
                 for target, value in (law.reset or {}).items()
             }
@@ -241,12 +238,20 @@ class OrdersPass(BasePass):
             if isinstance(law, RenewalLaw):
                 return BasePass._replaced(
                     law,
-                    waiting=OrdersPass._substitute(SR(law.waiting), spec, orders, owner),
+                    waiting=(
+                        law.waiting
+                        if BaseLaw._is_function(law.waiting)
+                        else OrdersPass._substitute(SR(law.waiting), spec, orders, owner)
+                    ),
                     reset=reset_value,
                 )
             return BasePass._replaced(
                 law,
-                guard=OrdersPass._substitute(SR(law.guard), spec, orders, owner),
+                guard=(
+                    law.guard
+                    if BaseLaw._is_function(law.guard)
+                    else OrdersPass._substitute(SR(law.guard), spec, orders, owner)
+                ),
                 reset=reset_value,
             )
         if not isinstance(law, RateLaw | NoiseLaw | UpdateLaw | BoundaryLaw):

@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from types import SimpleNamespace
 
@@ -104,6 +104,25 @@ class KernelSpec(BaseSpec):
             error_msg = f'A law of {self.owner} targets {target!r}, which is not a state symbol of the namespace `s`.'
             raise ValidationError(error_msg)
         return references
+
+    def _relative_names(self, names: Iterable[str]) -> dict[str, str]:
+        """Return the dotted name of every variable by its name in the component.
+
+        A variable of the component takes its own name, and a variable of the element bound to a role, or of its
+        elements, takes the role and its name, such as `target.x`.
+        """
+        prefixes = {self.owner: ''}
+        for role, paths in self.roles.items():
+            if isinstance(paths, str):
+                prefixes[paths] = f'{role}.'
+            else:
+                prefixes.update({path: f'{role}.{index}.' for index, path in enumerate(paths)})
+        return {
+            f'{local}{name.removeprefix(path + ".")}': name
+            for path, local in prefixes.items()
+            for name in names
+            if name.startswith(f'{path}.')
+        }
 
     def _state_name(self, target: Expression) -> str:
         """Return the dotted name of the state a target symbol of the namespace stands for, or the symbol itself."""

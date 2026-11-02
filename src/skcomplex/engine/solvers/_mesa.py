@@ -4,6 +4,7 @@
 # License: MIT
 
 import math
+import numbers
 from collections import deque
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from typing import overload
@@ -228,7 +229,7 @@ class ModelView:
         """
         return sum(len(self._stepper._group_agents(path)) for path in self._paths(name))
 
-    def composition(self, name: str, state: str) -> dict[float, int]:
+    def composition(self, name: str, state: str) -> dict[Hashable, int]:
         """Return the number of agents of a group that hold every value of a state, for the values some agent holds.
 
         The stepper keeps the counts as agents are created, removed, and change the state, so reading them costs no
@@ -249,7 +250,7 @@ class ModelView:
             SimulationError:
                 No role or group has that name, or its agents have no such state.
         """
-        counts: dict[float, int] = {}
+        counts: dict[Hashable, int] = {}
         for path in self._paths(name):
             for value, count in self._stepper._composition(path, state).items():
                 counts[value] = counts.get(value, 0) + count
@@ -423,8 +424,9 @@ class ModelView:
                 'variable `reports` of the interaction or element type.'
             )
             raise SimulationError(error_msg)
-        self._stepper.reports_[full] = float(value)
-        self._stepper.reported_.setdefault(full, deque(maxlen=_HISTORY_LENGTH)).append(float(value))
+        kept = float(value) if isinstance(value, numbers.Real) else value
+        self._stepper.reports_[full] = kept
+        self._stepper.reported_.setdefault(full, deque(maxlen=_HISTORY_LENGTH)).append(kept)
 
     def history(self, name: str, window: int | None = None) -> npt.NDArray[np.float64]:
         """Return the past values of a reporter, or of an observable at the end of each earlier step, the last one last.
@@ -444,7 +446,11 @@ class ModelView:
         stepper = self._stepper
         history = stepper.reported_
         values = history.get(self._report_name(name), history.get(name, stepper.observed_.get(name, ())))
-        array = np.asarray(values, dtype=float)
+        array = (
+            np.asarray(values, dtype=float)
+            if all(isinstance(item, numbers.Real) for item in values)
+            else np.fromiter(values, dtype=object, count=len(values))
+        )
         return array if window is None else array[len(array) - min(window, len(array)) :]
 
     def observable(self, name: str) -> object:
@@ -875,14 +881,14 @@ class MesaSolver(ExternalSolver):
         self.parameters_ = problem.initial_parameters.copy()
         self.inputs_: Mapping[str, object] = {}
         self.deposits_ = np.zeros(problem.states.size)
-        self.reports_: dict[str, float] = {}
-        self.reported_: dict[str, deque[float]] = {}
+        self.reports_: dict[str, object] = {}
+        self.reported_: dict[str, deque[object]] = {}
         self.storage_: dict[str, dict[str, object]] = {}
         self.buffer_: dict[tuple[mesa.Agent, str], object] | None = None
         self.round_ = 0
         self.visit_ = (0, 0)
-        self.observed_: dict[str, deque[float]] = {}
-        self._compositions: dict[tuple[str, str], dict[float, int]] = {}
+        self.observed_: dict[str, deque[object]] = {}
+        self._compositions: dict[tuple[str, str], dict[Hashable, int]] = {}
         self._live: Array | None = None
         self._state: Array = problem.initial_state
         self._evaluator: ObservableEvaluator | None = None
@@ -1075,7 +1081,7 @@ class MesaSolver(ExternalSolver):
         network_nodes = list(space.graph.nodes) if isinstance(space, NetworkSpace) else []
         given = spec.element.location if isinstance(spec.element, GroupElement) else None
         for index in range(spec.size):
-            values = {name: self._member_value(value, index, spec.size) for name, value in spec.values.items()}
+            values = {name: self._member_of(spec, name, value, index) for name, value in spec.values.items()}
             location = self._member_location(given, index, spec.size)
             if location is None and spec.size <= len(network_nodes):
                 location = network_nodes[index]
@@ -1179,7 +1185,7 @@ class MesaSolver(ExternalSolver):
         """Make new parameter values visible to the rules."""
         self.parameters_ = p.copy()
 
-    def _composition(self, path: str, state: str) -> dict[float, int]:
+    def _composition(self, path: str, state: str) -> dict[Hashable, int]:
         """Return the counts of the values of a state among the agents of a group, kept from their first reading.
 
         Args:
@@ -1205,7 +1211,7 @@ class MesaSolver(ExternalSolver):
         if counts is None:
             counts = {}
             for agent in self._group_agents(path):
-                value = float(getattr(agent, state))
+                value = MesaSolver._counted(getattr(agent, state))
                 counts[value] = counts.get(value, 0) + 1
             self._compositions[path, state] = counts
         return counts
@@ -1217,7 +1223,7 @@ class MesaSolver(ExternalSolver):
         path = self._spec_of(agent).path
         for (group, state), counts in self._compositions.items():
             if group == path and (names is None or state in names):
-                value = float(getattr(agent, state))
+                value = MesaSolver._counted(getattr(agent, state))
                 counts[value] = counts.get(value, 0) + change
 
     def _write(self, agent: mesa.Agent, name: str, value: object) -> None:
@@ -1234,9 +1240,14 @@ class MesaSolver(ExternalSolver):
             self._evaluator = ObservableEvaluator(self.problem_).prepare()
         values = self._evaluator.evaluate(float(self.model_.time), self._state, self.parameters_, self._agents_of)
         for name, value in values.items():
-            array = np.asarray(value)
-            if array.ndim == 0 and np.issubdtype(array.dtype, np.number):
-                self.observed_.setdefault(name, deque(maxlen=_HISTORY_LENGTH)).append(float(np.real(array)))
+            array = value if isinstance(value, np.ndarray) else None
+            history = self.observed_.setdefault(name, deque(maxlen=_HISTORY_LENGTH))
+            if isinstance(value, numbers.Number) or (
+                array is not None and array.ndim == 0 and np.issubdtype(array.dtype, np.number)
+            ):
+                history.append(float(np.real(np.asarray(value))))
+            elif isinstance(value, Hashable):
+                history.append(value)
 
     def _run_rules(self) -> None:
         """Run the phases due in a step, or activate the agents in random order and run the model rules once."""
@@ -1396,6 +1407,7 @@ class MesaSolver(ExternalSolver):
             groups[spec.path] = self._snapshot_of(
                 agents[spec.path],
                 {name: self._attribute(name) for name in spec.states},
+                spec,
             )
         reporters = {f'{path}.count': float(len(snapshot.ids)) for path, snapshot in groups.items()}
         super()._collect()
@@ -1466,14 +1478,22 @@ class MesaSolver(ExternalSolver):
     def _snapshot_of(
         agents: list[mesa.Agent],
         reporters: Mapping[str, Callable[[mesa.Agent], object]],
+        spec: CompiledAgentsSpec,
     ) -> AgentSnapshotSpec:
-        """Return the ids, reported values, and locations of agents."""
+        """Return the ids, reported values, and locations of agents, one value per agent for a state of objects."""
         agents = sorted(agents, key=lambda agent: agent.unique_id)
         ids = np.array([agent.unique_id for agent in agents], dtype=np.int64)
-        values = {name: np.asarray([reporter(agent) for agent in agents]) for name, reporter in reporters.items()}
+        values = {
+            name: (
+                np.fromiter(map(reporter, agents), dtype=object, count=len(agents))
+                if name in spec.objects
+                else np.asarray([reporter(agent) for agent in agents])
+            )
+            for name, reporter in reporters.items()
+        }
         locations = [MesaSolver._location_of(agent) for agent in agents]
         has_locations = any(location is not None for location in locations)
-        return AgentSnapshotSpec(ids, values, np.asarray(locations) if has_locations else None)
+        return AgentSnapshotSpec(ids, values, np.asarray(locations) if has_locations else None, spec.roles)
 
     @staticmethod
     def _member_location(location: object, index: int, size: int) -> object:
@@ -1531,6 +1551,23 @@ class MesaSolver(ExternalSolver):
             error_msg = f'The view of {spec.path} is {base.__name__}, which does not derive from AgentView.'
             raise ValidationError(error_msg)
         return type(f'{spec.path.replace("/", "_")}_view', (base,), names)
+
+    @staticmethod
+    def _counted(value: object) -> Hashable:
+        """Return the key that counts a value of a state: a float for a number, and an object as it is."""
+        if isinstance(value, numbers.Real):
+            return float(value)
+        if not isinstance(value, Hashable):
+            error_msg = f'A composition counts hashable values, but an agent holds {value!r}. Give it as a tuple.'
+            raise SimulationError(error_msg)
+        return value
+
+    @staticmethod
+    def _member_of(spec: CompiledAgentsSpec, name: str, value: object, index: int) -> object:
+        """Return the initial value of one agent: of a list of one object per agent, or of one shared value."""
+        if name not in spec.objects:
+            return MesaSolver._member_value(value, index, spec.size)
+        return value[index] if isinstance(value, list | np.ndarray) and len(value) == spec.size else value
 
     @staticmethod
     def _member_value(value: object, index: int, size: int) -> object:

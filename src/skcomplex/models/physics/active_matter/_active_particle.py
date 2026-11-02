@@ -58,7 +58,7 @@ class ActiveParticleElement(Element):
         visual: VisualSpec | None = POINTS,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True)] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
+        theta: Annotated[float, StateSpec(period=2 * pi, role='heading')] = 0.0,
         D_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         D_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         omega: Annotated[float, ParameterSpec()] = 0.0,

@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ...specs._base_spec import BaseSpec
 from ...specs._visual_spec import VisualSpec
@@ -42,6 +42,12 @@ class CompiledAgentsSpec(BaseSpec):
 
         visual:
             The visual that draws the agents.
+
+        objects:
+            The names of the states that hold hashable objects.
+
+        roles:
+            A mapping from the name of a state with a role in a snapshot to its role.
     """
 
     path: str
@@ -52,3 +58,5 @@ class CompiledAgentsSpec(BaseSpec):
     parameters: Mapping[str, str]
     rules: tuple[BaseLaw, ...]
     visual: VisualSpec
+    objects: tuple[str, ...] = ()
+    roles: Mapping[str, str] = field(default_factory=dict)

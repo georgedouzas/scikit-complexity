@@ -14,6 +14,7 @@ from sage.all__sagemath_symbolics import Expression, I
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...core.laws import BaseLaw
+from ...errors import ValidationError
 from ...specs._accelerated_spec import AcceleratedSpec
 from ...specs._breakpoints_spec import _BreakpointsSpec
 from ...specs._delay_spec import _DelaySpec
@@ -33,6 +34,7 @@ from ._jacobian_kernel import JacobianKernel
 from ._law_kernel import LawKernel
 from ._linear_term_spec import LinearTermSpec
 from ._partition_spec import PartitionSpec
+from ._random_stream import RandomStream
 from ._reduction_kernel import ReductionKernel
 
 
@@ -74,6 +76,9 @@ class ProblemSpec(BaseProblemSpec):
 
         equation_symbols:
             A mapping from the names of `equations` to the symbol of the component.
+
+        stream:
+            The random stream the functions of the laws receive, which a solver binds when it prepares.
 
         has_callables:
             Whether any law is a callable.
@@ -230,6 +235,7 @@ class ProblemSpec(BaseProblemSpec):
     diffusive_limits: tuple[DiffusiveLimitSpec, ...] = field(default=(), repr=False)
     linear: tuple[LinearTermSpec, ...] = field(default=(), repr=False)
     observed: Mapping[str, LawKernel] = field(default_factory=dict, repr=False)
+    stream: RandomStream = field(default_factory=RandomStream, compare=False, repr=False)
     volumes: tuple[FiniteVolumeKernel, ...] = field(default=(), repr=False)
     constrained: npt.NDArray[np.intp] = field(default_factory=lambda: np.zeros(0, dtype=np.intp), repr=False)
     reductions: tuple[ReductionKernel, ...] = field(default=(), repr=False)
@@ -310,6 +316,9 @@ class ProblemSpec(BaseProblemSpec):
     @property
     def stoichiometry(self) -> Array:
         """Increments of the state vector, one row per jump channel."""
+        if any(channels.changes for channels in self.jumps):
+            error_msg = 'A jump law changes a state by a function, so the increments have no matrix. Give numbers.'
+            raise ValidationError(error_msg)
         n_channels = sum(channels.size for channels in self.jumps)
         matrix = np.zeros((n_channels, self.states.size))
         for channels in self.jumps:

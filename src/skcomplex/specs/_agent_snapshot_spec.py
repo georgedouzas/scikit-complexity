@@ -4,7 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..types import AnyArray, IntArray
 from ._base_spec import BaseSpec
@@ -23,8 +23,12 @@ class AgentSnapshotSpec(BaseSpec):
 
         locations:
             One row per agent: grid coordinates, a network node, or a continuous position, or `None` without a space.
+
+        roles:
+            A mapping from the name of a state with a role to its role, `'heading'` or `'velocity'`.
     """
 
     ids: IntArray
     values: Mapping[str, AnyArray]
     locations: AnyArray | None = None
+    roles: Mapping[str, str] = field(default_factory=dict)

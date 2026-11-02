@@ -26,7 +26,6 @@ from ..specs import JumpPathSpec, NetworkSnapshotSpec, SamplesSpec, SeriesSpec, 
 from ..types import Array, DataKind, DomainKind, FormKind
 from .types import Run, Runs, Source
 
-VELOCITY_NAMES = ('vx', 'vy', 'vz')
 HEADING_NAMES = ('heading', 'theta', 'angle', 'phase')
 POSITION_STATE = 'x'
 VELOCITY_STATES = ('x_d1', 'v')
@@ -291,6 +290,18 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         return np.asarray([lookup[int(item)] for item in wanted], dtype=np.intp)
 
     @staticmethod
+    def _refuse_objects(trajectory: Trajectory, group: str, names: Sequence[str]) -> None:
+        """Raise an error for a state of objects of an agent group that an analysis reads as numbers."""
+        for spec in trajectory.problem.agents:
+            found = [name for name in names if spec.path == group and name in spec.objects]
+            if found:
+                error_msg = (
+                    f'The state {found[0]} of the agents of {group} holds objects, and this analysis needs numbers. '
+                    'Read a numeric state, or give it a numeric domain.'
+                )
+                raise ValidationError(error_msg)
+
+    @staticmethod
     def _read_agent_snapshots(trajectory: Trajectory, group: str) -> SnapshotsSpec:
         """Return the snapshots of an agent group, aligned on the agents present in every frame."""
         frames = [trajectory.agents(group, frame) for frame in range(len(trajectory.times))]
@@ -312,11 +323,13 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
                 ],
             )
             positions = BaseAnalysis._unwrap(raw.reshape(len(frames), ids.size, -1), box, periodic=periodic)
-        velocity_names = [name for name in VELOCITY_NAMES if name in states]
+        roles = frames[0].roles
+        velocity_names = [name for name in frames[0].values if roles.get(name) == 'velocity']
+        BaseAnalysis._refuse_objects(trajectory, group, [name for name in roles if name in states])
         velocities = (
             np.stack([states.pop(name) for name in velocity_names], axis=-1).astype(float) if velocity_names else None
         )
-        heading = next((name for name in HEADING_NAMES if name in states), None)
+        heading = next((name for name in frames[0].values if roles.get(name) == 'heading'), None)
         headings = np.asarray(states.pop(heading), dtype=float) if heading is not None else None
         times = np.asarray(trajectory.times, dtype=float)
         return SnapshotsSpec(times, ids, positions, velocities, headings, states, box, periodic)
@@ -376,6 +389,9 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
             raise self._get_missing_error(source, 'scalar series')
         columns, labels = [], []
         for name in chosen:
+            for spec in source.problem.agents:
+                if name.rpartition('.')[0] == spec.path:
+                    BaseAnalysis._refuse_objects(source, spec.path, [name.rpartition('.')[2]])
             values = np.asarray(source.values(name), dtype=float).reshape(len(source.times), -1)
             columns.append(values)
             labels.extend([name] if values.shape[1] == 1 else [f'{name}[{index}]' for index in range(values.shape[1])])
@@ -447,8 +463,8 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
     def _read_snapshots(self, source: Source, group: str | None = None) -> SnapshotsSpec:
         """Return the agents of a group of a trajectory at every frame.
 
-        Agent groups give their positions unwrapped across periodic sides, velocities from the states `vx`, `vy`, and
-        `vz`, and headings from a state named `heading`, `theta`, `angle`, or `phase`. Particle groups give their vector
+        Agent groups give their positions unwrapped across periodic sides, and velocities and headings from the states
+        with the role `'velocity'` or `'heading'` in their `StateSpec`. Particle groups give their vector
         state `x` and its first derivative `x_d1`, or else their state `v`.
 
         Args:

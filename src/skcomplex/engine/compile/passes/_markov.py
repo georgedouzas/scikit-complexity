@@ -5,6 +5,7 @@
 
 import re
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import replace
 
 import numpy as np
 import numpy.typing as npt
@@ -13,7 +14,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from ....core.laws import BaseLaw, EmissionLaw, TransitionLaw, UpdateLaw
 from ....core.laws.utils import categorical, where
 from ....errors import ValidationError
-from ....specs import EntrySpec, MatrixLawSpec, RunStateSpec
+from ....specs import CallSpec, EntrySpec, MatrixLawSpec, RunStateSpec
 from ....types import Array, DomainKind
 from ..._utils import symbols_of
 from ...problems import DeclarationsSpec, ExpressionPrinter, KernelSpec, ReferenceSpec
@@ -21,6 +22,9 @@ from ...problems._markov_kernel import MarkovKernel
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import BlockLaws, Compilation
+
+SHARED_NDIM = 2
+MEMBER_NDIM = 3
 
 
 class MarkovPass(BasePass):
@@ -40,7 +44,7 @@ class MarkovPass(BasePass):
         lowered: BlockLaws = []
         markov: list[tuple[KernelSpec, MatrixLawSpec]] = []
         for spec, laws, block in Compilation._required(compilation.lowered, 'lowered'):
-            kept, matrices = self._markov_laws(spec.owner, laws, spec.references)
+            kept, matrices = self._markov_laws(spec, laws)
             lowered.append((spec, kept, block))
             markov.extend((spec, matrix) for matrix in matrices)
         compilation.lowered = lowered
@@ -224,12 +228,11 @@ class MarkovPass(BasePass):
         return UpdateLaw(law._get_targets()[0], value), MatrixLawSpec(owner, description, law.matrix)
 
     @staticmethod
-    def _transition(
-        owner: str,
-        law: TransitionLaw,
-        references: Mapping[Expression, ReferenceSpec],
-    ) -> tuple[UpdateLaw, MatrixLawSpec]:
-        """Return the update law a transition law becomes and its matrix."""
+    def _transition(spec: KernelSpec, law: TransitionLaw) -> tuple[UpdateLaw, MatrixLawSpec | None]:
+        """Return the update law a transition law becomes, and its matrix unless a function gives it."""
+        owner, references = spec.owner, spec.references
+        if isinstance(law.matrix, CallSpec) or callable(law.matrix):
+            return MarkovPass._function_transition(spec, law, law.matrix), None
         description = f'transition law of {owner}.{law._get_targets()[0]}'
         size = MarkovPass._alphabet_size(description, references.get(law._get_targets()[0]))
         MarkovPass._check_shape(description, law.matrix, size, size)
@@ -241,22 +244,63 @@ class MarkovPass(BasePass):
         return UpdateLaw(law._get_targets()[0], value), MatrixLawSpec(owner, description, law.matrix)
 
     @staticmethod
+    def _next_values(rows: Array, draws: Array, description: str) -> npt.NDArray[np.intp]:
+        """Return the next value of every member from the row of its matrix, after checking the rows."""
+        if np.any(rows < 0) or not np.allclose(rows.sum(axis=1), 1.0):
+            error_msg = (
+                f'The {description} returned {rows}. Give a matrix with nonnegative entries whose rows sum to 1.'
+            )
+            raise ValidationError(error_msg)
+        return np.minimum((draws[:, None] >= np.cumsum(rows, axis=1)).sum(axis=1), rows.shape[1] - 1)
+
+    @staticmethod
+    def _function_transition(
+        spec: KernelSpec,
+        law: TransitionLaw,
+        given: CallSpec | Callable[..., object],
+    ) -> UpdateLaw:
+        """Return the update law of a transition whose matrix is a function, which draws from the random stream."""
+        target = law._get_targets()[0]
+        reference = spec.references.get(target)
+        description = f'transition law of {spec.owner}.{target}'
+        size = MarkovPass._alphabet_size(description, reference)
+        call = given if isinstance(given, CallSpec) else CallSpec(given, None)
+        function = call.function
+        if call.arguments or call.random or call.vectorized or not callable(function) or reference is None:
+            error_msg = (
+                f'The {description} has the matrix {given!r}. Give a function `f(t, values)` or '
+                '`CallSpec(f, relative=True)`.'
+            )
+            raise ValidationError(error_msg)
+        names = spec._relative_names([reference.entry.name])
+        name = next(iter(names)) if call.relative else reference.entry.name
+
+        def step(t: float, values: Mapping[str, object], *, rng: np.random.Generator) -> npt.NDArray[np.intp]:
+            current = np.atleast_1d(np.asarray(values[name], dtype=float)).astype(np.intp)
+            matrix = np.asarray(function(t, values), dtype=float)
+            if matrix.ndim not in {SHARED_NDIM, MEMBER_NDIM} or (
+                size is not None and matrix.shape[-2:] != (size, size)
+            ):
+                error_msg = f'The {description} returned a matrix of shape {matrix.shape}, not one row per value.'
+                raise ValidationError(error_msg)
+            rows = matrix[current] if matrix.ndim == SHARED_NDIM else matrix[np.arange(current.size), current]
+            return MarkovPass._next_values(rows, rng.random(current.size), description)
+
+        return UpdateLaw(target, replace(call, function=step, random=True))
+
+    @staticmethod
     def _markov_laws(
-        owner: str,
+        spec: KernelSpec,
         laws: list[BaseLaw],
-        references: Mapping[Expression, ReferenceSpec],
     ) -> tuple[list[BaseLaw], list[MatrixLawSpec]]:
         """Return the laws of a component with transition and emission laws rewritten as update laws with draws.
 
         Args:
-            owner:
-                The path of the component.
+            spec:
+                The kernel spec of the component, with its path and the references of the symbols the laws read.
 
             laws:
                 The laws of the component.
-
-            references:
-                The references of the symbols the laws read.
 
         Returns:
             rewritten:
@@ -267,13 +311,14 @@ class MarkovPass(BasePass):
                 A Markov law targets a state that is not over a finite alphabet, its matrix has the wrong shape, or an
                 emission reads a hidden state that no update law of the component sets.
         """
+        owner, references = spec.owner, spec.references
         matrices: list[MatrixLawSpec] = []
         rewritten: list[BaseLaw] = []
         for law in laws:
             if isinstance(law, TransitionLaw):
-                update, matrix = MarkovPass._transition(owner, law, references)
+                update, found = MarkovPass._transition(spec, law)
                 rewritten.append(update)
-                matrices.append(matrix)
+                matrices.extend([found] if found is not None else [])
             else:
                 rewritten.append(law)
         updates = {str(law._get_targets()[0]): law.value for law in rewritten if isinstance(law, UpdateLaw)}

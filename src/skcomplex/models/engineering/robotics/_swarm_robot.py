@@ -86,7 +86,7 @@ class SwarmRobotElement(Element):
         label: str,
         visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'illuminated', 'color_range': (0.0, 1.0)}),
         *,
-        heading: Annotated[float, StateSpec()] = 0.0,
+        heading: Annotated[float, StateSpec(role='heading')] = 0.0,
         connections: Annotated[float, StateSpec(domain=NN)] = 0.0,
         illuminated: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
         speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,

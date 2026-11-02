@@ -121,7 +121,7 @@ class TangledNatureLifeCycleInteraction(LifeCycleInteraction):
         composition = model.composition('target', 'trait')
         size = sum(composition.values())
         row = self._get_couplings(self.seed, self.length)[int(agent.trait)]
-        coupling = sum(row[int(genome)] * count for genome, count in composition.items())
+        coupling = sum(row[int(np.asarray(genome))] * count for genome, count in composition.items())
         return float(expit(model.parameter('k') / size * coupling - model.parameter('mu') * size))
 
     def compute_kill(self, agent: IndividualView, model: ModelView) -> float:

@@ -105,6 +105,7 @@ class VariableSpec(BaseSpec):
     adaptive: bool = False
     bounds: tuple[float, float] | None = None
     reference: str | None = None
+    role: str | None = None
     shape: tuple[str, ...] | None = None
 
     @property

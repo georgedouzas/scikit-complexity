@@ -15,13 +15,14 @@ from ....core.laws import BaseLaw, CrossingLaw, JumpLaw
 from ....core.spaces import LatticeSpace
 from ....core.specs import CompiledElementSpec, CompiledInteractionSpec, NodeSpec
 from ....errors import PipelineError, ValidationError
-from ....specs import LayoutSpec, VisualSpec
+from ....specs import CallSpec, LayoutSpec, VisualSpec
 from ....specs._breakpoints_spec import _BreakpointsSpec
 from ....specs._delay_spec import _DelaySpec
 from ....types import Array, FormKind, VariableKind
 from ..._utils import components_of, declarations_of, symbols_of
 from ...problems import (
     BlockSpec,
+    DeclarationsSpec,
     ExpressionPrinter,
     KernelSpec,
     ProblemSpec,
@@ -30,6 +31,7 @@ from ...problems import (
 )
 from ...problems._delayed_state_spec import _DelayedStateSpec
 from ...problems._event_kernel import EventKernel
+from ...problems._random_stream import RandomStream
 from ...types import ReadKind, ScalarsFunction
 from .._base import BasePass
 from .._compilation import Compilation
@@ -134,6 +136,12 @@ class ProblemPass(BasePass):
         )
 
     @staticmethod
+    def _stream_of(compilation: Compilation) -> RandomStream:
+        """Return the random stream that the kernels of a compilation hold."""
+        kernels = compilation.kernels
+        return kernels.stream if kernels is not None and kernels.stream is not None else RandomStream()
+
+    @staticmethod
     def _problem_of(compilation: Compilation) -> ProblemSpec:
         """Return the problem of the general parts of a compilation, which passes of formalisms add to."""
         declarations = Compilation._required(compilation.layout, 'layout')
@@ -165,11 +173,12 @@ class ProblemPass(BasePass):
             companions=ProblemPass._companions(blocks),
             delays=ProblemPass._compile_delays(delays, time),
             events=(
-                *ProblemPass._compile_events(events, time, reductions),
+                *ProblemPass._compile_events(events, time, reductions, declarations),
                 *(ProblemPass._hidden_events(reduced, time, reductions) if form == FormKind.ODE else ()),
             ),
             reductions=reductions.reductions,
             jacobian=compilation.jacobian,
+            stream=ProblemPass._stream_of(compilation),
             breakpoints=ProblemPass._breakpoints_in(reduced, events, time),
             history=ProblemPass._history(blocks),
             matrices=Compilation._required(compilation.matrices, 'matrices'),
@@ -495,7 +504,7 @@ class ProblemPass(BasePass):
                 expressions += (
                     [item for item in components_of(value) if isinstance(item, Expression)] if value is not None else []
                 )
-        expressions += [event.guard for _, event in events]
+        expressions += [event.guard for _, event in events if not BaseLaw._is_function(event.guard)]
         return ProblemPass._breakpoints_of(expressions, time)
 
     @staticmethod
@@ -536,10 +545,112 @@ class ProblemPass(BasePass):
         return tuple(compiled)
 
     @staticmethod
+    def _symbolic_value(
+        spec: KernelSpec,
+        value: object,
+        reductions: ReductionScheduleSpec,
+        time: Expression,
+    ) -> Callable[[float, Array, Array], object]:
+        """Return the function of time and both vectors of a symbolic guard or reset next to a function."""
+        expression = SR(value)
+        arguments = sorted(symbols_of([expression]) - {time}, key=str)
+        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run([expression]).code_
+        if not callable(function):
+            error_msg = f'The printer returns no function of an event of {spec.owner}.'
+            raise TypeError(error_msg)
+        reads = [
+            (spec.references[item].is_state, ProblemPass._reset_indices(spec.references[item])) for item in arguments
+        ]
+
+        def evaluate(t: float, x: Array, p: Array) -> object:
+            q = reductions.extend(t, x, p)
+            results = function(t, *((x if is_state else q)[index] for is_state, index in reads))
+            if not isinstance(results, list):
+                error_msg = f'The function of an event of {spec.owner} returns no list of values.'
+                raise TypeError(error_msg)
+            return results[0]
+
+        return evaluate
+
+    @staticmethod
+    def _value_function(
+        spec: KernelSpec,
+        value: object,
+        reductions: ReductionScheduleSpec,
+        declarations: DeclarationsSpec,
+    ) -> Callable[[float, Array, Array], object]:
+        """Return the function of time and both vectors of one guard or reset value of an event."""
+        if not BaseLaw._is_function(value):
+            return ProblemPass._symbolic_value(spec, value, reductions, declarations.time)
+        if isinstance(value, CallSpec) and (value.arguments or value.random or value.vectorized):
+            error_msg = (
+                f'An event of {spec.owner} has the guard or reset {value!r}. An event takes `f(t, values)` or '
+                '`CallSpec(f, relative=True)`, because it reads its values by name and draws nothing.'
+            )
+            raise ValidationError(error_msg)
+        states, parameters = LayoutSpec(tuple(declarations.states)), LayoutSpec(tuple(declarations.parameters))
+        relative = isinstance(value, CallSpec) and value.relative
+        function = value.function if isinstance(value, CallSpec) else value
+        if not callable(function):
+            error_msg = f'An event of {spec.owner} calls {function!r}, which is not a function.'
+            raise ValidationError(error_msg)
+        names = spec._relative_names((*states.names, *parameters.names))
+
+        def evaluate(t: float, x: Array, p: Array) -> object:
+            values = {**states.values(x), **parameters.values(p)}
+            return function(t, {name: values[path] for name, path in names.items()} if relative else values)
+
+        return evaluate
+
+    @staticmethod
+    def _function_event(
+        spec: KernelSpec,
+        event: CrossingLaw,
+        label: str,
+        reductions: ReductionScheduleSpec,
+        declarations: DeclarationsSpec,
+    ) -> EventKernel:
+        """Return an event whose guard or reset is a function, with one guard value per member over a group."""
+        guard = ProblemPass._value_function(spec, event.guard, reductions, declarations)
+        reset = event.reset or {}
+        targets = list(reset)
+        places = ProblemPass._reset_places(spec, targets)
+        values = [ProblemPass._value_function(spec, reset[item], reductions, declarations) for item in targets]
+        rows = spec.rows if spec.rows > 1 else 0
+
+        def guard_values(t: float, x: Array, p: Array) -> Array | float:
+            found = np.asarray(guard(t, x, p), dtype=float)
+            return np.broadcast_to(found, (rows,)) if rows else float(found)
+
+        def apply(t: float, x: Array, p: Array, member: int | None = None) -> Array:
+            state = x.copy()
+            for place, value in zip(places, values, strict=True):
+                found = np.broadcast_to(np.asarray(value(t, x, p), dtype=float), place.shape)
+                if member is None or place.size == 1:
+                    state[place] = found
+                else:
+                    state[place[member]] = found[member]
+            return state
+
+        return (
+            EventKernel(
+                label,
+                guard_values,
+                apply if targets else None,
+                int(event.direction),
+                bool(event.terminal),
+                members=rows,
+            )
+            .check()
+            .prepare()
+        )
+
+    @staticmethod
     def _compile_events(
         events: list[tuple[KernelSpec, CrossingLaw]],
         time: Expression,
         reductions: ReductionScheduleSpec,
+        declarations: DeclarationsSpec,
     ) -> tuple[EventKernel, ...]:
         """Return the events of a system compiled into guard and reset functions of the state vector.
 
@@ -553,6 +664,9 @@ class ProblemPass(BasePass):
             reductions:
                 The reductions the guards and resets read.
 
+            declarations:
+                The layout of the variables that functions of guards and resets read.
+
         Returns:
             events:
                 The compiled events.
@@ -564,6 +678,9 @@ class ProblemPass(BasePass):
             position = positions[spec.owner]
             positions[spec.owner] += 1
             label = event.label or (spec.owner if counts[spec.owner] == 1 else f'{spec.owner}:{position}')
+            if BaseLaw._is_function(event.guard) or any(map(BaseLaw._is_function, (event.reset or {}).values())):
+                compiled.append(ProblemPass._function_event(spec, event, label, reductions, declarations))
+                continue
             if ProblemPass._reads_members(spec, SR(event.guard)):
                 compiled.append(
                     EventKernel(

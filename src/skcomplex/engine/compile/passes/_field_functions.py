@@ -330,6 +330,56 @@ class FieldFunctionsPass(BasePass):
         return [SR(value) for value in found]
 
     @staticmethod
+    def _function_speeds(
+        laws: Sequence[tuple[FluxLaw, ReferenceSpec, Mapping[Expression, ReferenceSpec]]],
+        parameters: Sequence[ReferenceSpec],
+        n_dim: int,
+        owner: str,
+    ) -> tuple[Callable[..., object], ...]:
+        """Return one function per dimension of the wave speeds a flux law gives as functions, or none.
+
+        Args:
+            laws:
+                The flux laws of the field.
+
+            parameters:
+                The references of the other values the fluxes read.
+
+            n_dim:
+                The number of dimensions of the lattice.
+
+            owner:
+                The path of the field.
+
+        Returns:
+            speeds:
+                The functions of time, the states, and the parameters, or an empty tuple.
+        """
+        given = [law.speed for law, _, _ in laws if law.speed is not None]
+        if not given:
+            return ()
+        if any(item is not given[0] for item in given):
+            error_msg = f'The fluxes of {owner} give different wave speeds. A field has one, so give it in one law.'
+            raise ValidationError(error_msg)
+        candidates = list(given[0]) if isinstance(given[0], list | tuple) else [given[0]] * n_dim
+        functions = [item for item in candidates if callable(item)]
+        if len(functions) != n_dim or len(candidates) != n_dim:
+            error_msg = f'The speed of a flux of {owner} is {given[0]!r}. Give a function, or one per dimension.'
+            raise ValidationError(error_msg)
+        names = [
+            reference.entry.name.rpartition('.')[2]
+            for reference in (*(reference for _, reference, _ in laws), *parameters)
+        ]
+
+        def speed_of(function: Callable[..., object]) -> Callable[..., object]:
+            def speed(t: float, *values: object) -> list[object]:
+                return [function(t, dict(zip(names, values, strict=True)))]
+
+            return speed
+
+        return tuple(speed_of(function) for function in functions)
+
+    @staticmethod
     def _compile_speeds(
         columns: list[tuple[Expression, ...]],
         states: list[Expression],
@@ -446,7 +496,10 @@ class FieldFunctionsPass(BasePass):
                 riemann=first.riemann,
                 critical=critical,
                 expressions=tuple(columns),
-                speeds=FieldFunctionsPass._compile_speeds(columns, states, printer, owner),
+                speeds=(
+                    FieldFunctionsPass._function_speeds(laws, parameters, n_dim, owner)
+                    or FieldFunctionsPass._compile_speeds(columns, states, printer, owner)
+                ),
             )
             .check()
             .prepare()

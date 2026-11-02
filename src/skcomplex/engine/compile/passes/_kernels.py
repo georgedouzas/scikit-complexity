@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 import numbers
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
@@ -20,6 +21,7 @@ from ....types import ProcessKey
 from ..._utils import components_of, symbols_of
 from ...problems import DeclarationsSpec, KernelSpec, LoweredKernelsSpec, OutputSpec, ReferenceSpec
 from ...problems._law_kernel import LawKernel
+from ...problems._random_stream import RandomStream
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation, Laws
@@ -53,31 +55,41 @@ class KernelsPass(BasePass):
         )
 
     @staticmethod
+    def _call_outputs(value: CallSpec, targets: Sequence[ReferenceSpec | None], owner: str) -> list[OutputSpec]:
+        """Return the outputs of a call for its target components, one call per law."""
+        named = value.arguments is None or value.relative
+        given = () if named else value.arguments or ()
+        arguments = tuple(
+            item for argument in given for item in KernelsPass._symbolic_components(argument, 1, owner) or []
+        )
+        if len(arguments) != len(given):
+            error_msg = f'A Call in a {owner} has an argument that is not a symbolic expression.'
+            raise ValidationError(error_msg)
+        function = value.function
+        if not callable(function):
+            error_msg = f'A Call in a {owner} calls {function!r}, which is not a function.'
+            raise ValidationError(error_msg)
+        if value.relative or value.random or value.vectorized:
+            function = functools.partial(function)
+        return [
+            OutputSpec(
+                target,
+                function=function,
+                arguments=None if named else arguments,
+                component=index,
+                components=len(targets),
+                relative=value.relative,
+                random=value.random,
+                vectorized=value.vectorized,
+            )
+            for index, target in enumerate(targets)
+        ]
+
+    @staticmethod
     def _outputs_of(value: object, targets: Sequence[ReferenceSpec | None], owner: str) -> list[OutputSpec]:
         """Return the outputs of one law value for its target components, with the law and component as owner."""
         if isinstance(value, CallSpec):
-            arguments = tuple(
-                item
-                for argument in value.arguments
-                for item in KernelsPass._symbolic_components(argument, 1, owner) or []
-            )
-            if len(arguments) != len(value.arguments):
-                error_msg = f'A Call in a {owner} has an argument that is not a symbolic expression.'
-                raise ValidationError(error_msg)
-            function = value.function
-            if not callable(function):
-                error_msg = f'A Call in a {owner} calls {function!r}, which is not a function.'
-                raise ValidationError(error_msg)
-            return [
-                OutputSpec(
-                    target,
-                    function=function,
-                    arguments=arguments,
-                    component=index,
-                    components=len(targets),
-                )
-                for index, target in enumerate(targets)
-            ]
+            return KernelsPass._call_outputs(value.check(), targets, owner)
         expressions = KernelsPass._symbolic_components(value, len(targets), owner)
         if expressions is None:
             if not callable(value):
@@ -215,7 +227,9 @@ class KernelsPass(BasePass):
         """Return the kernels of every law kind, with the law of every output, the update laws of each phase apart."""
         states, parameters = LayoutSpec(tuple(declarations.states)), LayoutSpec(tuple(declarations.parameters))
         kernels: defaultdict[type, list[LawKernel]] = defaultdict(list)
-        jump_changes: dict[int, list[tuple[ReferenceSpec, float]]] = {}
+        jump_changes: dict[int, list[tuple[ReferenceSpec, object]]] = {}
+        stream = RandomStream()
+        names = (*states.names, *parameters.names)
         laws_of: dict[int, tuple[KernelSpec, BaseLaw]] = {}
         assigned: dict[tuple[type, str | None], defaultdict[tuple[object, ...], list[BaseLaw]]] = defaultdict(
             lambda: defaultdict(list),
@@ -228,7 +242,10 @@ class KernelsPass(BasePass):
                 if isinstance(law, JumpLaw):
                     output = KernelsPass._outputs_of(law.rate, [None], f'JumpLaw of {spec.owner}')[0]
                     jump_changes[id(output)] = [
-                        (spec._target_references(target)[0], float(increment))
+                        (
+                            spec._target_references(target)[0],
+                            increment if BaseLaw._is_function(increment) else float(SR(increment)),
+                        )
                         for target, increment in (law.changes or {}).items()
                     ]
                     laws_of[id(output)] = (spec, law)
@@ -266,11 +283,13 @@ class KernelsPass(BasePass):
                         layout_parameters=parameters,
                         pairs=spec.pairs,
                         outputs=kind_outputs,
+                        names=spec._relative_names(names),
+                        stream=stream,
                     )
                     .check()
                     .prepare(),
                 )
-        return LoweredKernelsSpec(kernels, jump_changes, laws_of)
+        return LoweredKernelsSpec(kernels, jump_changes, laws_of, stream=stream)
 
     @staticmethod
     def _covariance_factor(covariance: object) -> npt.NDArray[np.float64]:

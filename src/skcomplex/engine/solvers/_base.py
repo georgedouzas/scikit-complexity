@@ -174,6 +174,8 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
             raise SolverError(error_msg)
         self.problem_ = problem
         self.rng_ = self._generator()
+        if isinstance(problem, ProblemSpec):
+            problem.stream.bind(self.rng_)
         self.initial_state_ = problem.initial_state.copy()
         self.events_ = []
         self.stopped_at_ = None

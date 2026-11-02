@@ -3,11 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 
 import numpy as np
+import numpy.typing as npt
 
-from ...errors import SolverError
+from ...errors import SolverError, ValidationError
 from ...specs import DrawSpec, RenewalRecordSpec, RunStateSpec
 from ...types import Array, Indices
 from ..types import Drawn, ReadKind
@@ -62,6 +63,13 @@ class RenewalKernel(BaseKernel):
         after:
             The draws of the waiting time alone, taken after the reset.
 
+        sampler:
+            A function `f(rng, size=, t=, **values)` that returns the waiting times, or `None` for a symbolic one. It
+            receives the random stream, the number of renewing members, their times, and their values by name.
+
+        reads:
+            The states and parameters of the renewing members that a sampler receives, by name.
+
     Attributes:
         values_:
             The next renewal time of every member of the last run.
@@ -82,6 +90,8 @@ class RenewalKernel(BaseKernel):
         waiting: MemberFunction,
         before: tuple[Sampler, ...],
         after: tuple[Sampler, ...],
+        sampler: Callable[..., npt.ArrayLike] | None = None,
+        reads: Mapping[str, ReferenceSpec] | None = None,
     ) -> None:
         self.label = label
         self.members = members
@@ -93,6 +103,8 @@ class RenewalKernel(BaseKernel):
         self.waiting = waiting
         self.before = before
         self.after = after
+        self.sampler = sampler
+        self.reads = reads
 
     @staticmethod
     def _evaluate(
@@ -132,6 +144,18 @@ class RenewalKernel(BaseKernel):
             values = self._evaluate(arguments, times, x, p, fired, drawn=drawn) if draw.arguments else []
             drawn[draw.name] = DrawKernel._sample_draw(draw, values, fired.size, rng)
 
+    def _sampled(self, times: Array, x: Array, p: Array, fired: Indices, *, rng: np.random.Generator) -> Array:
+        """Return the waiting times a function draws for the renewing members."""
+        if self.sampler is None:
+            error_msg = f'The renewal law {self.label} has no function of its waiting time.'
+            raise ValidationError(error_msg)
+        values = {
+            name: reader.column_of(x, p)[fired] if reader.source is ReadKind.MEMBER else reader.column_of(x, p)
+            for name, reader in (self.reads or {}).items()
+        }
+        found = self.sampler(rng, size=fired.size, t=times, **values)
+        return np.broadcast_to(np.asarray(found, dtype=float), fired.shape).copy()
+
     def _wait(
         self,
         times: Array,
@@ -144,7 +168,11 @@ class RenewalKernel(BaseKernel):
     ) -> Array:
         """Return the next renewal times of members from their states, after drawing the waiting time's draws."""
         self._sample(self.after, times, x, p, fired, drawn=drawn, rng=rng)
-        waiting = self._evaluate(self.waiting, times, x, p, fired, drawn=drawn)[0]
+        waiting = (
+            self._evaluate(self.waiting, times, x, p, fired, drawn=drawn)[0]
+            if self.sampler is None
+            else self._sampled(times, x, p, fired, rng=rng)
+        )
         if not np.all(waiting >= 0):
             error_msg = (
                 f'The renewal law {self.label} drew the waiting time {waiting[~(waiting >= 0)][0]}, but waiting '

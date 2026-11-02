@@ -11,7 +11,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import LayoutSpec, NoiseProcessSpec, RunStateSpec, WienerBlockSpec
+from ...specs import CallSpec, LayoutSpec, NoiseProcessSpec, RunStateSpec, WienerBlockSpec
 from ...specs._jump_channels_spec import _JumpChannelsSpec
 from ...types import Array, Indices
 from ..types import OptionalPairs, ReadFunction, ReadKind
@@ -20,6 +20,7 @@ from ._edge_search import EdgeSearch
 from ._expression_printer import ExpressionPrinter
 from ._output_spec import OutputSpec
 from ._pair_search import PairSearch
+from ._random_stream import RandomStream
 from ._reference_spec import PairsSearch, ReferenceSpec
 
 MODES = {'periodic': 0, 'zero-flux': 1, 'fixed': 2}
@@ -57,6 +58,12 @@ class LawKernel(BaseKernel):
         outputs:
             The outputs of the laws.
 
+        names:
+            A mapping from the name a relative function reads to the dotted name of the variable.
+
+        stream:
+            The random stream a function with `random=True` receives, or `None` for a kernel without one.
+
     Attributes:
         values_:
             The number of evaluation indices, the pairs in pair mode, and one array of values per output, of the last
@@ -76,6 +83,8 @@ class LawKernel(BaseKernel):
         layout_parameters: LayoutSpec,
         pairs: PairsSearch | None = None,
         outputs: Sequence[OutputSpec] = (),
+        names: Mapping[str, str] | None = None,
+        stream: RandomStream | None = None,
     ) -> None:
         self.owner = owner
         self.time = time
@@ -85,6 +94,8 @@ class LawKernel(BaseKernel):
         self.layout_parameters = layout_parameters
         self.pairs = pairs
         self.outputs = outputs
+        self.names = names
+        self.stream = stream
 
     @functools.cached_property
     def _plan(self) -> tuple[list[tuple[int, int]], list[Expression]]:
@@ -324,21 +335,62 @@ class LawKernel(BaseKernel):
             values.append(function_results[key][:, output.component])
         self.values_ = size, pairs, values
 
+    def _named_values(self, x: Array, p: Array, *, relative: bool) -> dict[str, object]:
+        """Return the value of every state and parameter, by dotted name or by the name in the component."""
+        values: dict[str, object] = {**self.layout_states.values(x), **self.layout_parameters.values(p)}
+        if not relative:
+            return values
+        return {name: values[path] for name, path in (self.names or {}).items() if path in values}
+
+    def _keywords(self, output: OutputSpec) -> dict[str, np.random.Generator]:
+        """Return the keyword arguments of a function: the random stream when it asks for it."""
+        if not output.random:
+            return {}
+        if self.stream is None:
+            error_msg = f'A function of {self.owner} asks for the random stream, which this kind of law does not take.'
+            raise ValidationError(error_msg)
+        return {'rng': self.stream.generator}
+
     def _call(self, output: OutputSpec, t: float, x: Array, p: Array, *, size: int, arguments: list[Array]) -> Array:
         """Return the result of a function as one row per evaluation index and one column per component."""
-        function = output.function
+        function: Callable[..., object] | None = output.function
         if function is None:
             error_msg = f'The output of {self.owner} computed by a function holds no function.'
             raise ValidationError(error_msg)
-        if output.arguments is not None:
-            rows = [np.atleast_1d(np.asarray(function(t, *row), dtype=float)) for row in zip(*arguments, strict=True)]
+        keywords = self._keywords(output)
+        if output.arguments is not None and not output.vectorized:
+            rows = [
+                np.atleast_1d(np.asarray(function(t, *row, **keywords), dtype=float))
+                for row in zip(*arguments, strict=True)
+            ]
             result = np.asarray(rows, dtype=float).reshape(size, -1) if rows else np.zeros((0, output.components))
             return np.broadcast_to(result, (size, output.components))
-        values = {**self.layout_states.values(x), **self.layout_parameters.values(p)}
-        result = np.asarray(function(t, values), dtype=float)
+        if output.arguments is not None:
+            result = np.asarray(function(t, *arguments, **keywords), dtype=float)
+        else:
+            values = self._named_values(x, p, relative=output.relative)
+            result = np.asarray(function(t, values, **keywords), dtype=float)
         if result.size == size * output.components:
             return result.reshape(size, output.components)
         return np.broadcast_to(result.reshape(-1)[: output.components], (size, output.components))
+
+    def _change_function(self, value: object) -> Callable[[float, Array, Array], Array]:
+        """Return the function that gives the change of a jump for every evaluation index."""
+        relative = isinstance(value, CallSpec) and value.relative
+        function = value.function if isinstance(value, CallSpec) else value
+        if not callable(function) or (isinstance(value, CallSpec) and value.arguments):
+            error_msg = (
+                f'A change of a jump of {self.owner} is {value!r}. Give a number, a function `f(t, values)`, or '
+                '`CallSpec(f, relative=True)`.'
+            )
+            raise ValidationError(error_msg)
+        rows = self.rows
+
+        def change(t: float, x: Array, p: Array) -> Array:
+            values = self._named_values(x, p, relative=relative)
+            return np.broadcast_to(np.asarray(function(t, values), dtype=float), (rows,))
+
+        return change
 
     @staticmethod
     def _single_reader(is_state: bool, index: int) -> ReadFunction:
@@ -456,7 +508,7 @@ class LawKernel(BaseKernel):
     @staticmethod
     def _jump_channels(
         kernels: list['LawKernel'],
-        changes: Mapping[int, list[tuple[ReferenceSpec, float]]],
+        changes: Mapping[int, list[tuple[ReferenceSpec, object]]],
     ) -> tuple[_JumpChannelsSpec, ...]:
         """Return the channels of every jump law of jump kernels.
 
@@ -479,8 +531,17 @@ class LawKernel(BaseKernel):
                     [LawKernel._member_indices(reference, kernel.rows, kernel.pairs) for reference, _ in law_changes],
                     dtype=np.intp,
                 ).reshape(len(law_changes), kernel.rows)
-                increments = np.array([increment for _, increment in law_changes], dtype=float)
-                channels.append(_JumpChannelsSpec(offset, targets, increments))
+                increments = np.array(
+                    [increment if isinstance(increment, float) else np.nan for _, increment in law_changes],
+                    dtype=float,
+                )
+                functions = tuple(
+                    None if isinstance(increment, float) else kernel._change_function(increment)
+                    for _, increment in law_changes
+                )
+                channels.append(
+                    _JumpChannelsSpec(offset, targets, increments, functions if any(functions) else ()),
+                )
                 offset += kernel.rows
         return tuple(channels)
 

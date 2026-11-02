@@ -30,7 +30,7 @@ class OutputSpec(BaseSpec):
             The callable or `Call` function that produces the values of every component of its target, or `None`.
 
         arguments:
-            The argument expressions of a `Call` function, or `None` for a callable law.
+            The argument expressions of a `Call` function, or `None` for a function of time and the named values.
 
         component:
             The component of the callable's result that this output holds.
@@ -52,6 +52,15 @@ class OutputSpec(BaseSpec):
         counts:
             The number of rows, over every kernel, that write the member of every row of an output that reduces, or
             `None`.
+
+        relative:
+            Whether a function reads the values keyed by the names of its component.
+
+        random:
+            Whether a function receives the random stream as the keyword argument `rng`.
+
+        vectorized:
+            Whether a `Call` function runs once per evaluation with arrays.
     """
 
     target: ReferenceSpec | None
@@ -64,3 +73,6 @@ class OutputSpec(BaseSpec):
     combined: bool = False
     reduce: str | None = None
     counts: Indices | None = field(default=None, compare=False, repr=False)
+    relative: bool = False
+    random: bool = False
+    vectorized: bool = False

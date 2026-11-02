@@ -89,7 +89,7 @@ class NonreciprocalMoverElement(Element):
         visual: VisualSpec | None = SPECIES,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True)] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
+        theta: Annotated[float, StateSpec(period=2 * pi, role='heading')] = 0.0,
         species: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
         J_aa: Annotated[float, ParameterSpec()] = 1.0,

@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import numbers
 from collections.abc import Mapping, Sequence
 
 import numpy as np
@@ -117,7 +118,10 @@ class Trajectory:
             values = entry.read(np.asarray(self.problem.parameters.read(self.parameters, name)))
             return self._present(name, values)
         if self.reporters and name in self.reporters[0]:
-            return np.asarray([frame[name] for frame in self.reporters], dtype=float)
+            found = [frame[name] for frame in self.reporters]
+            if all(isinstance(item, numbers.Real) for item in found):
+                return np.asarray(found, dtype=float)
+            return np.fromiter(found, dtype=object, count=len(found))
         if self.observables and name in self.observables[0]:
             return np.asarray([frame[name] for frame in self.observables])
         reporter_names = list(self.reporters[0]) if self.reporters else []

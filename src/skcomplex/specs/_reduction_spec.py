@@ -3,10 +3,12 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from sage.all__sagemath_symbolics import Expression
 
+from ..types import AnyArray
 from ._base_spec import BaseSpec
 
 
@@ -32,6 +34,9 @@ class ReductionSpec(BaseSpec):
 
         over:
             A symbol of the group to reduce over, or `None` for the group the argument reads.
+
+        function:
+            The function of the array of member values of a reduction of the kind `'function'`, or `None`.
     """
 
     call: Expression
@@ -40,3 +45,4 @@ class ReductionSpec(BaseSpec):
     condition: Expression | None
     weights: object
     over: Expression | None
+    function: Callable[[AnyArray], object] | None = None

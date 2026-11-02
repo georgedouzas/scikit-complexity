@@ -172,9 +172,17 @@ class DelaysPass(BasePass):
         result: list[BaseLaw] = []
         for law in laws:
             if isinstance(law, CrossingLaw):
-                guard = DelaysPass._substitute_delays(SR(law.guard), spec, compilation, references)
+                guard = (
+                    law.guard
+                    if BaseLaw._is_function(law.guard)
+                    else DelaysPass._substitute_delays(SR(law.guard), spec, compilation, references)
+                )
                 reset = {
-                    target: DelaysPass._substitute_delays(SR(value), spec, compilation, references)
+                    target: (
+                        value
+                        if BaseLaw._is_function(value)
+                        else DelaysPass._substitute_delays(SR(value), spec, compilation, references)
+                    )
                     for target, value in (law.reset or {}).items()
                 }
                 events.append(

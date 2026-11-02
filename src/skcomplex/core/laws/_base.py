@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import inspect
+import numbers
 from abc import abstractmethod
 from collections.abc import Collection, Mapping
 from types import SimpleNamespace
@@ -111,10 +112,17 @@ class BaseLaw(BasePart[str, object]):
             elif isinstance(value, FreeModuleElement | list | tuple):
                 stack += reversed(list(value))
             elif isinstance(value, CallSpec):
-                stack += reversed(value.arguments)
+                stack += reversed(value.arguments or ())
             else:
                 found.append(value)
         return found
+
+    @staticmethod
+    def _is_function(value: object) -> bool:
+        """Check whether a law value is a function or a call, not a symbolic expression, which is also callable."""
+        return isinstance(value, CallSpec) or (
+            callable(value) and not isinstance(value, Expression | FreeModuleElement | numbers.Number)
+        )
 
     def _evaluate(self, value: object, inputs: object) -> object:
         """Return a value with every symbol substituted by its input, a number when nothing symbolic is left."""

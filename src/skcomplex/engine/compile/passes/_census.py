@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping
+from dataclasses import replace
 
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
@@ -355,7 +356,9 @@ class CensusPass(BasePass):
                 for key, item in value.items()
             }
         if isinstance(value, CallSpec):
-            return CallSpec(value.function, tuple(CensusPass._substituted(item, mapping) for item in value.arguments))
+            if value.arguments is None:
+                return value
+            return replace(value, arguments=tuple(CensusPass._substituted(item, mapping) for item in value.arguments))
         return type(value)(CensusPass._substituted(item, mapping) for item in value)
 
     @staticmethod

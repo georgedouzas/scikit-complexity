@@ -238,7 +238,7 @@ class ModelViewProtocol(Protocol):
     def history(self, name: str, window: int | None = None) -> npt.NDArray[np.float64]:
         """Return the past values of a reporter, or of an observable at the end of every earlier step."""
 
-    def composition(self, name: str, state: str) -> dict[float, int]:
+    def composition(self, name: str, state: str) -> dict[Hashable, int]:
         """Return the number of agents of a group, a role of the owner or a path, by value of a state."""
 
     def occupancy(self, name: str) -> dict[Hashable, int]:

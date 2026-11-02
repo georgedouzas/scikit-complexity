@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import RequirementSpec
+from ...specs import CallSpec, RequirementSpec
 from ..spaces import ContinuousTime
 from ._base import BaseLaw
 
@@ -57,7 +57,7 @@ class JumpLaw(BaseLaw):
     def __init__(
         self,
         rate: object = None,
-        changes: Mapping[Expression, float] | None = None,
+        changes: Mapping[Expression, object] | None = None,
         waiting: object = None,
         reset: Mapping[Expression, object] | None = None,
         *,
@@ -96,19 +96,32 @@ class JumpLaw(BaseLaw):
         )
         raise ValidationError(error_msg)
 
+    def _check_reset(self) -> None:
+        """Raise an error for a function in the reset of a renewal, whose values lower with its symbolic draws."""
+        if isinstance(self.waiting, CallSpec):
+            error_msg = 'The waiting time of a jump takes a function `f(rng, size=, t=, **values)`, not a `CallSpec`.'
+            raise ValidationError(error_msg)
+        if any(self._is_function(value) for value in (self.reset or {}).values()):
+            error_msg = (
+                'The reset of a jump on a waiting-time clock takes symbolic values, because they share draws with the '
+                'waiting time. Give symbols, or a function as the `waiting` time.'
+            )
+            raise ValidationError(error_msg)
+
     def _check_changes(self) -> None:
         """Raise an error for an increment that holds a symbol."""
         for state, increment in (self.changes or {}).items():
-            if not SR(increment).is_numeric():
+            if not self._is_function(increment) and not SR(increment).is_numeric():
                 error_msg = (
                     f'The jump of {state} has the increment {increment}, which holds a symbol. Give the increment as a '
-                    'number.'
+                    'number or as a function `f(t, values)` of time and the values of the states and parameters.'
                 )
                 raise ValidationError(error_msg)
 
     def _check(self) -> None:
         """Raise an error for a jump with an invalid clock, a rate that is a NumPy array, or a symbolic increment."""
         self._check_clock()
+        self._check_reset()
         self._check_array('rate')
         self._check_array('waiting')
         self._check_changes()

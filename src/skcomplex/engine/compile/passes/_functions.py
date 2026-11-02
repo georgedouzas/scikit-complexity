@@ -204,7 +204,8 @@ class FunctionsPass(BasePass):
         return _ProblemFunctionsSpec(
             equations=equations,
             equation_symbols=symbols,
-            has_callables=any(item.expression is None for kernel in main for item in kernel.outputs),
+            has_callables=any(item.expression is None for kernel in main for item in kernel.outputs)
+            or any(not isinstance(value, float) for changes in lowered.jump_changes.values() for _, value in changes),
             has_group_sums=any(
                 FunctionsPass._sums_over_members(kernel, item) for kernel in main for item in kernel.outputs
             ),

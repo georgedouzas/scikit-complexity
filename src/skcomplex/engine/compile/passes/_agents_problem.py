@@ -134,6 +134,10 @@ class AgentsProblemPass(BasePass):
                     parameters={name: entry.name for name, entry in block.entries.items()},
                     rules=by_owner.get(node.path, ()),
                     visual=AgentsProblemPass._agent_visual(node),
+                    objects=tuple(
+                        name for name, item in declared.items() if item.domain is None or item.domain is object
+                    ),
+                    roles={name: item.role for name, item in declared.items() if item.role is not None},
                 ),
             )
         return tuple(agents)

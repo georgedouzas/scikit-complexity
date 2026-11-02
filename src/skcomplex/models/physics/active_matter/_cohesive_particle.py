@@ -78,7 +78,7 @@ class CohesiveParticleElement(Element):
         visual: VisualSpec | None = None,
         *,
         x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True)] = 0.0,
-        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
+        theta: Annotated[float, StateSpec(period=2 * pi, role='heading')] = 0.0,
         eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
         alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,

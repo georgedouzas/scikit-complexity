@@ -544,7 +544,7 @@ class TopologyKernel(BaseKernel):
         requests = [item for item in changes if isinstance(item, TopologyRequestSpec)]
         if not requests:
             return None
-        if len(changes) > 1 or float(changes[requests[0]]) != 1:
+        if len(changes) > 1 or changes[requests[0]] != 1:
             error_msg = (
                 f'A jump requests {requests[0]!r} next to other changes or with an increment other than 1. A jump that '
                 'changes the topology fires one request, `JumpLaw(rate, {request: 1})`.'

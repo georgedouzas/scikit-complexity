@@ -426,6 +426,9 @@ class LayoutPass(BasePass):
         if variable not in values:
             return default
         value = values[variable]
+        declaration = declarations_of(component.element, VariableKind.STATE).get(variable)
+        if declaration is not None and (declaration.domain is None or declaration.domain is object):
+            return value
         shape = np.shape(np.asarray(value))
         space = getattr(component, 'space', None)
         if isinstance(space, LatticeSpace) and shape == space.shape_:

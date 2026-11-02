@@ -35,7 +35,7 @@ class FlockerElement(Element):
         label: str,
         visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'theta', 'color_range': (0.0, 2 * math.pi)}),
         *,
-        theta: Annotated[float, StateSpec()] = 0.0,
+        theta: Annotated[float, StateSpec(role='heading')] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.theta = theta

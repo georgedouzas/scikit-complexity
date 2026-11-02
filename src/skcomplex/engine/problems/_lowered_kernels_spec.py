@@ -13,6 +13,7 @@ from ...specs._base_spec import BaseSpec
 from ...types import FormKind
 from ._draw_kernel import DrawKernel
 from ._law_kernel import LawKernel
+from ._random_stream import RandomStream
 from ._reduction_schedule_spec import ReductionScheduleSpec
 from ._reference_spec import ReferenceSpec
 
@@ -43,12 +44,16 @@ class LoweredKernelsSpec(BaseSpec):
         draws:
             The random values a stochastic map draws at every step into the parameter vector extended after its
             parameters, or `None` for a deterministic problem.
+
+        stream:
+            The random stream the functions of the laws receive, or `None`.
     """
 
     kernels: defaultdict[type, list[LawKernel]]
-    jump_changes: dict[int, list[tuple[ReferenceSpec, float]]]
+    jump_changes: dict[int, list[tuple[ReferenceSpec, object]]]
     laws: dict[int, tuple[object, BaseLaw]]
     form: FormKind | None = None
     size: int = 0
     reductions: ReductionScheduleSpec | None = None
     draws: DrawKernel | None = None
+    stream: RandomStream | None = None

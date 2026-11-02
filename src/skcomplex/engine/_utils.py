@@ -170,6 +170,7 @@ def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:
         history=spec.history,
         position=spec.position,
         reference=spec.reference,
+        role=spec.role,
     )
 
 

@@ -105,6 +105,11 @@ class CrossingInteraction(Interaction):
             error_msg = f'The guard and the new values of crossing {self.label!r} must be functions of the namespace.'
             raise ValidationError(error_msg)
 
+    @staticmethod
+    def _get_law_value(value: object) -> object:
+        """Return what a function of the namespace returned: a function as it is, or a symbolic expression."""
+        return value if BaseLaw._is_function(value) else SR(value)
+
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the crossing law of the guard with the new values of the states.
 
@@ -117,12 +122,12 @@ class CrossingInteraction(Interaction):
                 The crossing law.
         """
         reset = {
-            getattr(self._get_member(namespace, 'target'), name): SR(f(namespace))
+            getattr(self._get_member(namespace, 'target'), name): self._get_law_value(f(namespace))
             for name, f in (self.reset or {}).items()
         }
         return [
             CrossingLaw(
-                SR(self.guard(namespace)),
+                self._get_law_value(self.guard(namespace)),
                 reset or None,
                 self.direction,
                 self.terminal,

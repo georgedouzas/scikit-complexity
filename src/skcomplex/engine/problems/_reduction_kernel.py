@@ -64,6 +64,9 @@ class ReductionKernel(BaseKernel):
 
         members:
             The entry of the reduced group that gives its size to compiled loops, or `None` for an element set.
+
+        function:
+            The function of the array of member values of a reduction of the kind `'function'`, or `None`.
     """
 
     values_: None
@@ -82,6 +85,7 @@ class ReductionKernel(BaseKernel):
         reads: dict[Expression, ReadSpec],
         time: Expression,
         members: EntrySpec | None = None,
+        function: Callable[[AnyArray], object] | None = None,
     ) -> None:
         self.symbol = symbol
         self.kind = kind
@@ -94,6 +98,7 @@ class ReductionKernel(BaseKernel):
         self.reads = reads
         self.time = time
         self.members = members
+        self.function = function
 
     @functools.cached_property
     def _symbols(self) -> list[Expression]:
@@ -191,7 +196,7 @@ class ReductionKernel(BaseKernel):
         q = state.p
         argument, condition = self.values(state.t, state.x, q)
         if self.weights is None:
-            q[self.entry.start] = self._reduce_values(argument[condition], self.kind)
+            q[self.entry.start] = self._reduce_values(argument[condition], self.function or self.kind)
             return
         weighted = self.weight_matrix(state.x, q) @ np.where(condition, argument, 0.0)
         if self.kind == 'mean':

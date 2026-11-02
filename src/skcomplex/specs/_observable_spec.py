@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from multiprocessing.reduction import ForkingPickler
 
@@ -41,6 +41,11 @@ class ObservableSpec(BaseSpec):
         variable:
             The name of the member variable to reduce, instead of an expression.
 
+        function:
+            A function `f(t, values)` of time and the mapping from the dotted name of every state and parameter to its
+            value, instead of an expression, for a system without agents. A module-level function, since observables
+            are pickled.
+
     Examples:
         >>> from skcomplex.specs import ObservableSpec
         >>> ObservableSpec('mean_wealth', group='traders', variable='wealth').check().reduce
@@ -53,6 +58,7 @@ class ObservableSpec(BaseSpec):
     group: str | None = None
     reduce: str | Callable[[AnyArray], object] = 'mean'
     variable: str | None = None
+    function: Callable[[float, Mapping[str, object]], object] | None = None
 
     def _check(self) -> None:
         """Raise an error for an expression or a function reduction that cannot be pickled, such as a lambda.
@@ -61,7 +67,7 @@ class ObservableSpec(BaseSpec):
             ValidationError:
                 The expression or the reduction cannot be pickled.
         """
-        for name, value in (('expression', self.expression), ('reduction', self.reduce)):
+        for name, value in (('expression', self.expression), ('reduction', self.reduce), ('function', self.function)):
             try:
                 ForkingPickler.dumps(value)
             except Exception as error:

@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
@@ -19,6 +20,19 @@ class _JumpChannelsSpec(BaseSpec):
     offset: int
     targets: npt.NDArray[np.intp]
     increments: Array
+    changes: tuple[Callable[[float, Array, Array], Array] | None, ...] = ()
+
+    def increments_at(self, t: float, x: Array, p: Array, member: int) -> Array:
+        """Return the increment of every target at a firing, from the function of a target that has one."""
+        if not self.changes:
+            return self.increments
+        return np.array(
+            [
+                increment if change is None else change(t, x, p)[member]
+                for increment, change in zip(self.increments, self.changes, strict=True)
+            ],
+            dtype=float,
+        )
 
     @property
     def size(self) -> int:
