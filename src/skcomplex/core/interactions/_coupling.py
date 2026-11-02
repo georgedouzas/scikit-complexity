@@ -676,15 +676,15 @@ class CouplingInteraction(NeighborInteraction):
         norm, size = float(np.linalg.norm(value)), float(np.linalg.norm(current))
         if norm == 0 or size == 0:
             return value
-        direction, heading = value / norm, current / size
-        angle = float(np.arccos(np.clip(heading @ direction, -1.0, 1.0)))
+        direction, facing = value / norm, current / size
+        angle = float(np.arccos(np.clip(facing @ direction, -1.0, 1.0)))
         if angle <= max_angle:
             return value
         if angle == np.pi:
-            direction = np.eye(len(heading))[int(np.argmin(np.abs(heading)))]
-        normal = direction - (heading @ direction) * heading
+            direction = np.eye(len(facing))[int(np.argmin(np.abs(facing)))]
+        normal = direction - (facing @ direction) * facing
         normal = normal / np.linalg.norm(normal)
-        return norm * (np.cos(max_angle) * heading + np.sin(max_angle) * normal)
+        return norm * (np.cos(max_angle) * facing + np.sin(max_angle) * normal)
 
     def _get_clamped(self, agent: AgentViewProtocol, current: Array, value: Array) -> Array:
         """Return a new vector with its turn and its norm clamped."""

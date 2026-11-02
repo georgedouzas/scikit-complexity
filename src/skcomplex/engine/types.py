@@ -67,7 +67,7 @@ type Colors = tuple[int, int, int] | list[tuple[int, int, int, int]]
 
 # laws, operators, and observables the compiler reads
 type KineticLaw = EncounterLaw | BilinearLaw
-type Hamiltonians = list[tuple[str, Expression]]
+type Generators = list[tuple[str, Expression]]
 type Dissipators = list[tuple[str, Expression, object]]
 type Declared = dict[str, tuple[str, ObservableSpec]]
 type Number = RingElement | int | float | complex

@@ -43,6 +43,6 @@ class SwarmalatorElement(SitedOscillatorElement):
         *,
         theta: float = 0.0,
         omega: float = 1.0,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True, role='position')] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual, theta=theta, omega=omega, x=x)

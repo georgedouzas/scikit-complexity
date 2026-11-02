@@ -49,7 +49,7 @@ class BoundaryLawsPass(BasePass):
         declarations = declarations_of(block.node.component_type, VariableKind.STATE)
         laws: list[BaseLaw] = []
         for name, declaration in declarations.items():
-            if not declaration.position:
+            if not declaration.is_place:
                 continue
             velocity_name = f'{name}_d1' if declaration.order > 1 else None
             positions = [SR(item) for item in components_of(getattr(spec.namespace, name))]

@@ -44,7 +44,7 @@ class WalkerElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        y: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+        y: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         phase: Annotated[object, StateSpec()] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual)

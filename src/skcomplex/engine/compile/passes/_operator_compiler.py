@@ -29,7 +29,7 @@ from ...problems import BaseProblemSpec, OperatorProblemSpec
 from ...problems._operator_kernel import OperatorKernel
 from ...problems._operator_lowering import OperatorLowering
 from ...problems._operator_problem_spec import REAL_TOLERANCE
-from ...types import Dissipators, Hamiltonians
+from ...types import Dissipators, Generators
 from .._base import BaseCompiler
 from ._flatten import FlattenPass
 from ._hilbert_space_error import HilbertSpaceError
@@ -396,14 +396,14 @@ class OperatorCompiler(BaseCompiler):
         return members[path] if path in groups else members[path][0]
 
     @staticmethod
-    def _collect_laws(hamiltonians: Hamiltonians, dissipators: Dissipators, owner: str, items: object) -> None:
-        """Add the Hamiltonian and dissipator laws a component returns, rejecting every other law."""
+    def _collect_laws(generators: Generators, dissipators: Dissipators, owner: str, items: object) -> None:
+        """Add the generator and dissipator laws a component returns, rejecting every other law."""
         if not isinstance(items, Iterable):
             error_msg = f'{owner} returns a {type(items).__name__}, not a list of laws.'
             raise TypeError(error_msg)
         for law in items:
             if isinstance(law, GeneratorLaw):
-                hamiltonians.append((owner, law.check().operator))
+                generators.append((owner, law.check().operator))
             elif isinstance(law, DissipatorLaw):
                 dissipators.append((owner, law.check().operator, law.rate))
             else:
@@ -421,7 +421,7 @@ class OperatorCompiler(BaseCompiler):
         symbols: Mapping[str, object],
         members: Mapping[str, tuple[SimpleNamespace, ...]],
         groups: dict[str, NodeSpec],
-        hamiltonians: Hamiltonians,
+        generators: Generators,
         dissipators: Dissipators,
     ) -> None:
         """Add the laws of an interaction of a node, once per pair of neighbours of its group for a neighbour one."""
@@ -445,7 +445,7 @@ class OperatorCompiler(BaseCompiler):
             for source, target in space.check().prepare()._neighbor_pairs(interaction.layer):
                 namespace = SimpleNamespace(source=members[path][source], target=members[path][target], **parameters)
                 OperatorCompiler._collect_laws(
-                    hamiltonians,
+                    generators,
                     dissipators,
                     f'{node.path} on the pair ({source}, {target})',
                     interaction.run(namespace).laws_,
@@ -456,7 +456,7 @@ class OperatorCompiler(BaseCompiler):
             for name in declarations_of(interaction, VariableKind.ROLE)
         }
         OperatorCompiler._collect_laws(
-            hamiltonians,
+            generators,
             dissipators,
             node.path,
             interaction.run(SimpleNamespace(**roles, **parameters)).laws_,
@@ -483,8 +483,8 @@ class OperatorCompiler(BaseCompiler):
         return lowering.run((operator, owner)).kernels_
 
     @staticmethod
-    def _check_hermitian(hamiltonians: Hamiltonians, lowering: OperatorLowering, p: Array) -> None:
-        """Raise an error when the Hamiltonian is not Hermitian at sampled parameter values."""
+    def _check_hermitian(generators: Generators, lowering: OperatorLowering, p: Array) -> None:
+        """Raise an error when the generator is not Hermitian at sampled parameter values."""
         size = math.prod(lowering.dimensions)
         rng = np.random.default_rng(0)
         sample = p * (1 + 0.1 * rng.random(p.size)) + 0.01 * rng.random(p.size)
@@ -494,16 +494,14 @@ class OperatorCompiler(BaseCompiler):
             difference = matrix - matrix.conj().T
             return float(abs(difference).max()) if difference.nnz else 0.0
 
-        total = [
-            term for owner, operator in hamiltonians for term in OperatorCompiler._terms(lowering, operator, owner)
-        ]
+        total = [term for owner, operator in generators for term in OperatorCompiler._terms(lowering, operator, owner)]
         if asymmetry(total) <= _HERMITIAN_TOLERANCE:
             return
         owners = [
-            owner for owner, operator in hamiltonians if asymmetry(OperatorCompiler._terms(lowering, operator, owner))
+            owner for owner, operator in generators if asymmetry(OperatorCompiler._terms(lowering, operator, owner))
         ]
         error_msg = (
-            f'The Hamiltonian of {", ".join(owners)} is not Hermitian. Add the adjoint of every non-Hermitian '
+            f'The generator of {", ".join(owners)} is not Hermitian. Add the adjoint of every non-Hermitian '
             'term, `dagger(term)`, to the law.'
         )
         raise ValidationError(error_msg)
@@ -610,7 +608,7 @@ class OperatorCompiler(BaseCompiler):
         *,
         symbols: Mapping[str, object],
         time: Expression,
-        hamiltonians: Hamiltonians,
+        generators: Generators,
         dissipators: Dissipators,
     ) -> dict[str, tuple[SimpleNamespace, ...]]:
         """Add the laws of every operator element and member, and return the member namespaces by path.
@@ -627,7 +625,7 @@ class OperatorCompiler(BaseCompiler):
                 namespace = SimpleNamespace(**state, **OperatorCompiler._parameter_symbols(node, symbols, index))
                 namespaces.append(namespace)
                 OperatorCompiler._collect_laws(
-                    hamiltonians,
+                    generators,
                     dissipators,
                     key,
                     element.element.check().prepare().run(SimpleNamespace(**vars(namespace), t=time)).laws_,
@@ -641,7 +639,7 @@ class OperatorCompiler(BaseCompiler):
         initial: object,
         *,
         subsystems: Mapping[str, _SubsystemSpec],
-        hamiltonian: tuple[OperatorKernel, ...],
+        generator: tuple[OperatorKernel, ...],
         p: Array,
         is_open: bool,
     ) -> npt.NDArray[np.complex128]:
@@ -652,7 +650,7 @@ class OperatorCompiler(BaseCompiler):
         size = product.size
 
         def ground() -> npt.NDArray[np.complex128]:
-            matrix = OperatorProblemSpec._matrix_at(hamiltonian, 0.0, p, size)
+            matrix = OperatorProblemSpec._matrix_at(generator, 0.0, p, size)
             return np.asarray(qutip.Qobj(matrix).groundstate(sparse=size > DENSE_LIMIT)[1].full().ravel())
 
         state = OperatorCompiler._system_initial(system, initial, product, ground)
@@ -692,7 +690,7 @@ class OperatorCompiler(BaseCompiler):
 
             initial:
                 The initial state of the whole system, a vector, a density matrix, `'ground'` for the lowest eigenstate
-                of the Hamiltonian at the initial parameters, or `None` for the product of the initial states of the
+                of the generator at the initial parameters, or `None` for the product of the initial states of the
                 elements.
 
             max_dimension:
@@ -704,13 +702,13 @@ class OperatorCompiler(BaseCompiler):
 
         Raises:
             IncompatibleLawsError:
-                The system holds classical elements or laws other than Hamiltonians and dissipators.
+                The system holds classical elements or laws other than generators and dissipators.
 
             HilbertSpaceError:
                 The dimension of the Hilbert space exceeds the limit.
 
             ValidationError:
-                A coefficient reads a symbol other than parameters and time, the Hamiltonian is not Hermitian, a rate is
+                A coefficient reads a symbol other than parameters and time, the generator is not Hermitian, a rate is
                 negative, or an initial state is not normalised.
         """
         time = symbol('t')
@@ -725,14 +723,14 @@ class OperatorCompiler(BaseCompiler):
         arguments = OperatorCompiler._arguments_of(entries, symbols)
         lowering = OperatorLowering(time, subsystems, dimensions, arguments).check().prepare()
         groups = {node.path: node for node in operator_nodes if isinstance(node.component, GroupElement)}
-        hamiltonians: Hamiltonians = []
+        generators: Generators = []
         dissipators: Dissipators = []
         members = OperatorCompiler._element_laws(
             operator_nodes,
             subsystems,
             symbols=symbols,
             time=time,
-            hamiltonians=hamiltonians,
+            generators=generators,
             dissipators=dissipators,
         )
         for node in nodes:
@@ -743,18 +741,18 @@ class OperatorCompiler(BaseCompiler):
                     symbols=symbols,
                     members=members,
                     groups=groups,
-                    hamiltonians=hamiltonians,
+                    generators=generators,
                     dissipators=dissipators,
                 )
-        OperatorCompiler._check_hermitian(hamiltonians, lowering, p)
-        total = sum((item for _, item in hamiltonians), SR(0))
-        hamiltonian = OperatorCompiler._terms(lowering, total, 'the Hamiltonian')
+        OperatorCompiler._check_hermitian(generators, lowering, p)
+        total = sum((item for _, item in generators), SR(0))
+        generator = OperatorCompiler._terms(lowering, total, 'the generator')
         collapses = OperatorCompiler._dissipator_terms(dissipators, lowering, p)
         state = OperatorCompiler._stored_state(
             system,
             initial,
             subsystems=subsystems,
-            hamiltonian=hamiltonian,
+            generator=generator,
             p=p,
             is_open=bool(collapses),
         )
@@ -779,13 +777,13 @@ class OperatorCompiler(BaseCompiler):
             system=system,
             dimensions=dimensions,
             subsystems=tuple(subsystems),
-            hamiltonian=hamiltonian,
+            generator=generator,
             dissipators=collapses,
             pure=pure,
             namespaces=OperatorCompiler._namespaces(system, members, set(groups)),
             members=members,
             lowering=lowering,
-            hamiltonian_operator=total,
+            generator_operator=total,
         )
 
     @staticmethod

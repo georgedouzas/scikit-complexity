@@ -25,7 +25,7 @@
 - [x] 4.3 Read group states as series in analysis, so models with no position keep default data, and give phases their own role so alignment reads them; verify `generalized_lotka_volterra`, `hypercycles`, `replicator_dynamics`, `closed_contour_cell_exchange`, `doubling_map`, `skew_tent_map`, `on_off_intermittency`, `mirollo_strogatz`, and `swarmalators` have analysis data again.
 - [x] 4.4 Restore the results of particle analyses that changed: `cubic_chaotic_map` measures what it did, and scalar positions keep their previous shape where analyses read them; verify against the code at 72e2adde.
 - [x] 4.5 Rename the `temperature` and `force` arguments of `IrreversibilityAnalysis` to neutral names; verify `FIELD_TERMS` and its tests.
-- [ ] 4.6 Rename `SnapshotsSpec.headings` and the `heading` locals to `direction`, `hamiltonian` in the operator code to `generator`, merge `StateSpec.position` with `role='position'`, and remove the fallback to a state named `x`; verify the model tests.
+- [x] 4.6 Rename `SnapshotsSpec.headings` and the `heading` locals to `direction`, `hamiltonian` in the operator code to `generator`, merge `StateSpec.position` with `role='position'`, and remove the fallback to a state named `x`; verify the model tests.
 
 ## 5. Documentation and gate
 

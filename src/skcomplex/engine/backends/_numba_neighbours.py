@@ -36,18 +36,18 @@ def _shape(side: float, low: Array, high: Array, box: PeriodicBox) -> CellShape:
 def _inside(positions: Array, member: int, other: int, limit: float, context: CellSearch) -> tuple[bool, float]:
     """Return whether a member is a neighbour of another within a squared distance and a cone, and its distance."""
     _, aim, box = context
-    headings, cosine, cone = aim
+    directions, cosine, cone = aim
     periods, periodic = box
-    squared, dot, heading = 0.0, 0.0, 0.0
+    squared, dot, length = 0.0, 0.0, 0.0
     for dimension in range(positions.shape[1]):
         difference = positions[member, dimension] - positions[other, dimension]
         if periodic:
             difference -= periods[dimension] * np.rint(difference / periods[dimension])
         squared += difference * difference
         if cone:
-            dot += headings[member, dimension] * -difference
-            heading += headings[member, dimension] * headings[member, dimension]
-    inside = squared <= limit and (not cone or dot >= cosine * (math.sqrt(heading) * math.sqrt(squared)))
+            dot += directions[member, dimension] * -difference
+            length += directions[member, dimension] * directions[member, dimension]
+    inside = squared <= limit and (not cone or dot >= cosine * (math.sqrt(length) * math.sqrt(squared)))
     return inside, squared
 
 
@@ -318,19 +318,19 @@ def _radius_neighbours(
 @njit(cache=True)
 def _cone_neighbours(
     positions: Array,
-    headings: Array,
+    directions: Array,
     cone: tuple[float, float],
     box: PeriodicBox,
     center: bool,
 ) -> tuple[IntArray, IntArray]:
-    """Return the members within a radius and inside the cone around the heading of every member, as CSR rows.
+    """Return the members within a radius and inside the cone around the direction of every member, as CSR rows.
 
     Args:
         positions:
             One row of position components per member.
 
-        headings:
-            One row of heading components per member.
+        directions:
+            One row of direction components per member.
 
         cone:
             The largest distance of a neighbour and the cosine of the half-angle of the cone.
@@ -346,7 +346,7 @@ def _cone_neighbours(
             The start of the neighbours of every member, and the neighbours.
     """
     radius, cosine = cone
-    return _within(positions, radius, (headings, cosine, True), box, center)
+    return _within(positions, radius, (directions, cosine, True), box, center)
 
 
 @njit(cache=True)

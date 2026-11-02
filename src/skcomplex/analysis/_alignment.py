@@ -39,7 +39,7 @@ class AlignmentAnalysis(BaseAnalysis):
     """Alignment of the members of a source at every frame, of one kind.
 
     The members are the agents of a group, the sites of a field, or the columns of a set of series, and each holds an
-    angle or a vector. A trajectory gives the agents of a group with their headings or phases, velocities, and
+    angle or a vector. A trajectory gives the agents of a group with their directions or phases, velocities, and
     positions, else every frame of a field of angles, or of vectors with `vectors=True`, else the series of `variables`
     or the states with the role `'phase'`, one column per member and one row per sample.
 
@@ -171,7 +171,7 @@ class AlignmentAnalysis(BaseAnalysis):
         name = self.variables[0] if self.variables else None
         if DataKind.AGENTS in kinds and (self.group is not None or self.variables is None):
             snapshots = self._read_snapshots(source, self.group)
-            self.angles_ = snapshots.headings if snapshots.headings is not None else snapshots.phases
+            self.angles_ = snapshots.directions if snapshots.directions is not None else snapshots.phases
             self.vectors_ = snapshots.velocities
             self.positions_ = snapshots.positions
         elif DataKind.FIELD in kinds and (name is None or name in self._get_lattice_names(source.problem)):

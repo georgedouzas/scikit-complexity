@@ -601,7 +601,7 @@ class ObservableEvaluator:
             value = expression(problem.namespaces[scope]) if callable(expression) else expression
             terms = ObservableEvaluator._terms_of(problem, ObservableEvaluator._operator_of(path, value), path)
             getters[path] = ObservableEvaluator._expectation_getter(problem, terms)
-        getters.setdefault('energy', ObservableEvaluator._expectation_getter(problem, problem.hamiltonian))
+        getters.setdefault('energy', ObservableEvaluator._expectation_getter(problem, problem.generator))
         if not problem.pure:
             getters.setdefault('purity', ObservableEvaluator._purity_getter(problem))
         return getters

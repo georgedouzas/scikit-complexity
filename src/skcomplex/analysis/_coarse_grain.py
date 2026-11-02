@@ -34,7 +34,7 @@ class CoarseGrainAnalysis(BaseAnalysis):
             The sides of the box, or `None` for the box of the space of a trajectory.
 
         values:
-            One value or one row of values per agent of an array, such as unit headings for a polarization field, or
+            One value or one row of values per agent of an array, such as unit directions for a polarization field, or
             `None` to count agents.
 
         over:

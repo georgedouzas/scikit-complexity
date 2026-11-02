@@ -74,9 +74,9 @@ class JumpTrajectoriesSolver(OperatorSolver):
     def _create(self, p: Array) -> solver_base.Solver:
         """Return QuTiP's Monte Carlo solver at fixed parameters."""
         problem = self.operator_
-        hamiltonian = self._operator(problem.hamiltonian, p)
+        generator = self._operator(problem.generator, p)
         collapses = [self._operator(terms, p) for terms in problem.dissipators]
-        return qutip.MCSolver(hamiltonian, c_ops=collapses, options=self._options)
+        return qutip.MCSolver(generator, c_ops=collapses, options=self._options)
 
     def _start_state(self, x: Array) -> qutip.Qobj:
         """Return the pure state a trajectory starts from, the eigenvector of a pure density matrix."""

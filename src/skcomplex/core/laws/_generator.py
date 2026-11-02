@@ -37,7 +37,7 @@ class GeneratorLaw(BaseLaw):
         self.operator = operator
 
     def _get_targets(self) -> tuple[object, ...]:
-        """Return no states, since the Hamiltonian changes the operator state of the whole system."""
+        """Return no states, since the generator changes the operator state of the whole system."""
         return ()
 
     def _get_requirements(self) -> RequirementSpec:

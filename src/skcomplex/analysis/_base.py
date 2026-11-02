@@ -350,12 +350,12 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         velocities = (
             np.stack([states.pop(name) for name in velocity_names], axis=-1).astype(float) if velocity_names else None
         )
-        heading = next((name for name in frames[0].values if roles.get(name) == 'direction'), None)
-        headings = np.asarray(states.pop(heading), dtype=float) if heading is not None else None
+        direction = next((name for name in frames[0].values if roles.get(name) == 'direction'), None)
+        directions = np.asarray(states.pop(direction), dtype=float) if direction is not None else None
         phase = next((name for name in frames[0].values if roles.get(name) == 'phase'), None)
         phases = np.asarray(states.pop(phase), dtype=float) if phase is not None else None
         times = np.asarray(trajectory.times, dtype=float)
-        return SnapshotsSpec(times, ids, positions, velocities, headings, states, box, periodic, phases)
+        return SnapshotsSpec(times, ids, positions, velocities, directions, states, box, periodic, phases)
 
     @staticmethod
     def _get_role_states(element: CompiledElementSpec, role: str) -> list[str]:
@@ -393,13 +393,13 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
             for name, dotted in element.states.items()
             if name not in {*located, *moving}
         }
-        heading = next(iter(BaseAnalysis._get_role_states(element, 'direction')), None)
-        headings = np.asarray(others.pop(heading), dtype=float) if heading is not None else None
+        direction = next(iter(BaseAnalysis._get_role_states(element, 'direction')), None)
+        directions = np.asarray(others.pop(direction), dtype=float) if direction is not None else None
         phase = next(iter(BaseAnalysis._get_role_states(element, 'phase')), None)
         phases = np.asarray(others.pop(phase), dtype=float) if phase is not None else None
         ids = np.arange(positions.shape[1], dtype=np.int64)
         times = np.asarray(trajectory.times, dtype=float)
-        return SnapshotsSpec(times, ids, positions, velocities, headings, others, box, periodic, phases)
+        return SnapshotsSpec(times, ids, positions, velocities, directions, others, box, periodic, phases)
 
     def _read_series(self, source: Source, names: Sequence[str] | None = None) -> SeriesSpec:
         """Return named series of a trajectory, or the columns of an array, one series per column.
@@ -508,7 +508,7 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
     def _read_snapshots(self, source: Source, group: str | None = None) -> SnapshotsSpec:
         """Return the agents of a group of a trajectory at every frame.
 
-        Agent groups give their positions unwrapped across periodic sides, and velocities and headings from the states
+        Agent groups give their positions unwrapped across periodic sides, and velocities and directions from the states
         with the role `'velocity'` or `'direction'` in their `StateSpec`. Particle groups give the states with the role
         `'position'`, the first derivatives of those states or else the states with the role `'velocity'`, and the state
         with the role `'direction'`. Either kind of group gives the state with the role `'phase'` as its phases.

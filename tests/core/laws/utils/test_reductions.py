@@ -159,7 +159,7 @@ class PositionedReducingElement(ReducingElement):
         y: Annotated[object, StateSpec()] = 0.0,
         over: object = None,
         reduce: str = 'sum',
-        x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+        x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual, out=out, y=y, over=over, reduce=reduce)
         self.x = x
@@ -177,7 +177,7 @@ class HeadedReducingElement(PositionedReducingElement):
         y: Annotated[object, StateSpec()] = 0.0,
         over: object = None,
         reduce: str = 'sum',
-        x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+        x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         phi: Annotated[object, StateSpec(domain=RR)] = 0.0,
     ) -> None:
         super().__init__(label, visual=visual, out=out, y=y, over=over, reduce=reduce, x=x)
@@ -391,7 +391,7 @@ def test_neighbour_positions_are_read_by_minimum_image(backend):
             visual: VisualSpec | None = None,
             *,
             out: Annotated[object, StateSpec()] = 0.0,
-            x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+            x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         ) -> None:
             super().__init__(label, visual=visual)
             self.out = out
@@ -406,6 +406,31 @@ def test_neighbour_positions_are_read_by_minimum_image(backend):
     space = ContinuousSpace(extent=(10.0, 10.0), boundary='periodic')
     system = System(elements=[GroupElement('g', element=reading, size=2, values={'x': positions})], space=space)
     assert np.allclose(_outputs(system, backend), [-0.3, 0.3], atol=1e-12)
+
+
+def test_neighbourhood_reads_a_place_by_its_role_and_not_a_state_named_x():
+    """Test that a vector state named `x` without a role gives a neighbourhood no position to measure from."""
+
+    class UnplacedElement(ReducingElement):
+        """Reducing element with a vector state `x` that has no role."""
+
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            out: Annotated[object, StateSpec()] = 0.0,
+            y: Annotated[object, StateSpec()] = 0.0,
+            over: object = None,
+            reduce: str = 'sum',
+            x: Annotated[object, StateSpec(vector=True)] = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual, out=out, y=y, over=over, reduce=reduce)
+            self.x = x
+
+    group = GroupElement('g', element=UnplacedElement, size=2, values={'over': RadiusNeighborhood(1.0)})
+    with pytest.raises(ValidationError, match='position'):
+        compile_system(System(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0))))
 
 
 def test_interaction_reduces_over_the_neighbours_of_its_group():
@@ -527,7 +552,7 @@ def test_validate_accepts_a_cone_along_the_velocity():
             *,
             out: Annotated[object, StateSpec()] = 0.0,
             y: Annotated[object, StateSpec()] = 0.0,
-            x: Annotated[object, StateSpec(vector=True, position=True, order=2)] = 0.0,
+            x: Annotated[object, StateSpec(vector=True, order=2, role='position')] = 0.0,
             x_d1: object = 0.0,
         ) -> None:
             super().__init__(label, visual=visual)
@@ -635,7 +660,7 @@ class MoverElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+        x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
         v0: Annotated[object, ParameterSpec()] = 0.03,
         eta: Annotated[object, ParameterSpec()] = 0.1,

@@ -389,7 +389,7 @@ class NumbaBackend(BaseBackend):
 
     @staticmethod
     def _search_entries(search: object) -> dict[str, EntrySpec]:
-        """Return the entries a neighbourhood search reads, the edges of a changing layer or positions and headings."""
+        """Return the entries a neighbourhood search reads, a changing layer's edges or positions and directions."""
         if isinstance(search, EdgeRowSearch):
             return {entry.name: entry for entry in (search.source, search.target, search.active)}
         if not isinstance(search, MetricSearch):

@@ -48,7 +48,7 @@ def compile_system(
         initial_state:
             Initial values that replace those of the components, by the dotted name of the state, such as
             `{'rabbits.n': 20}`. The state of an operator system is `<system label>.state`, which takes a vector, a
-            density matrix, or `'ground'` for the lowest eigenstate of the Hamiltonian at the initial parameters.
+            density matrix, or `'ground'` for the lowest eigenstate of the generator at the initial parameters.
 
         compiler:
             The compiler, whose backend, solver, and observables this function sets, or `None` for `PassCompiler`.

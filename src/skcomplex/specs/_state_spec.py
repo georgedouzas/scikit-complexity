@@ -13,7 +13,7 @@ from ..errors import ValidationError
 from ._base_spec import BaseSpec
 from ._tensor_spec import TENSOR_SYMMETRIES
 
-ROLES = ('position', 'direction', 'phase', 'velocity', None)
+ROLES = ('position', 'site', 'direction', 'phase', 'velocity', None)
 
 
 @dataclass(frozen=True)
@@ -54,10 +54,6 @@ class StateSpec(BaseSpec):
             The values of the state before the start, which delayed laws read, a number or a function of time, or
             `None` to keep the initial value before the start.
 
-        position:
-            Whether a vector state is the position of its element in a continuous space, on which the boundary of the
-            space acts.
-
         reference:
             The path of the agent group, relative to the element's system, a member of which the state names by its
             id, or `None`. A negative value names no member, nor does any value in a model without that group. The
@@ -65,12 +61,15 @@ class StateSpec(BaseSpec):
             group, which the agent stepper turns into its id, and rules read the member with `agent.referenced(state)`.
 
         role:
-            What the state means in a snapshot of agents or particles, `'position'` for a coordinate or a vector of
-            coordinates in space, `'direction'` for the angle a member points along, `'phase'` for the angle of a
+            What the state means in space or in a snapshot of agents or particles, `'position'` for a coordinate or a
+            vector of coordinates in space, `'site'` for a vector of coordinates that places a member without making it
+            a particle, `'direction'` for the angle a member points along, `'phase'` for the angle of a
             cycle a member goes through, `'velocity'` for one component of a velocity or a vector of them, or `None` for
             any other state. A group is a particle group when a state has the role `'position'`, and the first
             derivative of that state is its velocity. Analyses read positions, directions, phases, and velocities from
-            these roles alone, so a state named `phase` is no phase unless it says so.
+            these roles alone, so a state named `phase` is no phase unless it says so. A vector state with the role
+            `'position'` or `'site'` is the place of its element in a continuous space, on which the boundary of the
+            space acts and from which neighbourhoods measure distances, and only `'position'` makes a particle group.
 
         tensor:
             The symmetry of a rank-2 tensor state, `'full'`, `'symmetric'`, `'antisymmetric'`, or `'traceless'`, which
@@ -98,7 +97,6 @@ class StateSpec(BaseSpec):
     period: float | None = None
     quantity: str | None = None
     history: object = None
-    position: bool = False
     reference: str | None = None
     role: str | None = None
     tensor: str | None = None

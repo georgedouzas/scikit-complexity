@@ -21,7 +21,7 @@ class WalkerElement(Element):
         self,
         label: str,
         *,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True)] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
         super().__init__(label)

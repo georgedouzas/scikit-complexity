@@ -393,7 +393,7 @@ class NeighborhoodKernel(BaseKernel):
 
     @staticmethod
     def _position_state(states: Mapping[str, VariableSpec]) -> str | None:
-        """Return the position state of an element type: the vector state declared as position, else the vector `x`.
+        """Return the position state of an element type: the first vector state with the role position or site.
 
         Args:
             states:
@@ -403,11 +403,7 @@ class NeighborhoodKernel(BaseKernel):
             name:
                 The name of the position state, or `None` without one.
         """
-        declared = next((name for name, item in states.items() if item.position and item.vector), None)
-        if declared is not None:
-            return declared
-        found = states.get('x')
-        return 'x' if found is not None and found.vector else None
+        return next((name for name, item in states.items() if item.is_place), None)
 
     @staticmethod
     def _cone_direction(cone: ConeNeighborhood, states: Mapping[str, VariableSpec], n_dim: int) -> str:
@@ -443,7 +439,7 @@ class NeighborhoodKernel(BaseKernel):
             ...     def __init__(
             ...         self,
             ...         label,
-            ...         x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+            ...         x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
             ...         theta: Annotated[float, StateSpec()] = 0.0,
             ...     ):
             ...         super().__init__(label)
@@ -466,7 +462,7 @@ class NeighborhoodKernel(BaseKernel):
         if position is None or states[position].order <= 1:
             error_msg = (
                 'The cone has no direction: the position of the members has no first derivative. Declare the position '
-                "of order 2, `state(vector=True, position=True, order=2)`, or name a direction state, such as "
+                "of order 2, `state(vector=True, order=2, role='position')`, or name a direction state, such as "
                 "`ConeNeighborhood(r, angle, direction='theta')`."
             )
             raise ValidationError(error_msg)
@@ -563,7 +559,7 @@ class NeighborhoodKernel(BaseKernel):
         if position is None or not isinstance(space, ContinuousSpace):
             error_msg = (
                 f'A reduction over {over!r} measures distances between positions, but the members declare no vector '
-                "position state. Declare one with `state(vector=True, position=True)`."
+                "position state. Declare one with `state(vector=True, role='position')`."
             )
             raise ValidationError(error_msg)
         continuous = space

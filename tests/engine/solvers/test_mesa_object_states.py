@@ -121,7 +121,7 @@ def test_snapshots_read_headings_from_roles_alone():
         .trajectory_
     )
     snapshots = AlignmentAnalysis(group='walkers')._read_snapshots(trajectory, 'walkers')
-    assert np.all(snapshots.headings == 0.5)
+    assert np.all(snapshots.directions == 0.5)
     assert np.all(snapshots.states['phase'] == 3.0)
 
 

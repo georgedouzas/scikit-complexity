@@ -63,8 +63,8 @@ class LindbladSolver(OperatorSolver):
     def _create(self, p: Array) -> solver_base.Solver:
         """Return QuTiP's master equation solver, or its Schrödinger solver for a pure closed problem."""
         problem = self.operator_
-        hamiltonian = self._operator(problem.hamiltonian, p)
+        generator = self._operator(problem.generator, p)
         if problem.pure:
-            return qutip.SESolver(hamiltonian, options=self._options)
+            return qutip.SESolver(generator, options=self._options)
         collapses = [self._operator(terms, p) for terms in problem.dissipators]
-        return qutip.MESolver(hamiltonian, c_ops=collapses, options=self._options)
+        return qutip.MESolver(generator, c_ops=collapses, options=self._options)

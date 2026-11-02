@@ -2930,7 +2930,10 @@ systems hold numbers only, in the vectors of their solvers.
 tell analyses what a state means. A group is a particle group when a state has the role `'position'`, and the first
 derivative of that state is its velocity. Analyses read positions, directions, phases, and velocities from these roles,
 not from the names of the states, so a state named `phase` is no phase unless it says so. The scalar states of any other
-group count as series, one per member, and a displacement refuses them, since they are no positions.
+group count as series, one per member, and a displacement refuses them, since they are no positions. In a continuous
+space, a vector state with the role `'position'` is the place of its element: the boundary acts on it and neighbourhoods
+measure distances from it. `StateSpec(role='site')` does the same for a place that does not make a member a particle,
+such as the fixed sites of oscillators on a ring.
 
 ```python
 from typing import Annotated
@@ -5625,10 +5628,10 @@ an index, or a vector.
 
 Laws name the operators of a subsystem with `local_operator(s.psi, name)`, from `skcomplex.core.laws.utils`, which
 combine by sums, numbers, and symbolic coefficients of parameters and time, and `operator_product` and `dagger` keep
-the order of products and adjoints. `GeneratorLaw(operator)` adds to the Hamiltonian, with `ħ = 1`, and
+the order of products and adjoints. `GeneratorLaw(operator)` adds to the generator, with `ħ = 1`, and
 `DissipatorLaw(operator, rate)` adds a Lindblad dissipator, which makes the system open. A `NeighborInteraction` is
 written once for a bond, with `s.source` and `s.target`, and acts on every pair of neighbours of the space of the
-group its one role binds. Compiling checks that the Hamiltonian is Hermitian and that the dimension stays within the
+group its one role binds. Compiling checks that the generator is Hermitian and that the dimension stays within the
 `max_dimension` of the operator solver. A whole-system initial state, such as an entangled vector or `'ground'`, is
 given to the simulation as `initial_state={'<system label>.state': value}`.
 
@@ -5687,7 +5690,7 @@ for quantum jumps drawn from the run's random stream. An `ObservableSpec` whose 
 expectation, and one over a group gives one value per member when its `reduce` keeps the values. Every quantum run also
 records its `energy`, and its `purity` when it is open. Groups on a lattice stream the space-time image of their local
 expectations to Rerun. `OperatorAnalysis` analyses quantum systems: its kinds `'spectrum'` and `'ground-state'`
-diagonalise the Hamiltonian exactly, optionally in the sector of a conserved diagonal operator, and `'purity'` and
+diagonalise the generator exactly, optionally in the sector of a conserved diagonal operator, and `'purity'` and
 `'entanglement'` read trajectories. `SymbolicAnalysis('hamiltonian')` prints the Hamiltonian in operator notation.
 
 ```python

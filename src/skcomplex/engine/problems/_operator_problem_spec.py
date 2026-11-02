@@ -35,8 +35,8 @@ class OperatorProblemSpec(BaseProblemSpec):
         subsystems:
             The keys of the subsystems, such as `chain[3]`, in tensor product order.
 
-        hamiltonian:
-            The terms of the Hamiltonian.
+        generator:
+            The terms of the generator.
 
         dissipators:
             The terms of every collapse operator, each with the square root of its rate in the coefficients.
@@ -53,7 +53,7 @@ class OperatorProblemSpec(BaseProblemSpec):
         lowering:
             The lowering of operators to matrices and functions.
 
-        hamiltonian_operator:
+        generator_operator:
             The sum of the operators of the generator laws, a Sage expression of local operators.
 
         cache:
@@ -62,13 +62,13 @@ class OperatorProblemSpec(BaseProblemSpec):
 
     dimensions: tuple[int, ...] = ()
     subsystems: tuple[str, ...] = ()
-    hamiltonian: tuple[OperatorKernel, ...] = field(default=(), repr=False)
+    generator: tuple[OperatorKernel, ...] = field(default=(), repr=False)
     dissipators: tuple[tuple[OperatorKernel, ...], ...] = field(default=(), repr=False)
     pure: bool = True
     namespaces: Mapping[str, SimpleNamespace] = field(default_factory=dict, repr=False)
     members: Mapping[str, tuple[SimpleNamespace, ...]] = field(default_factory=dict, repr=False)
     lowering: OperatorLowering | None = field(default=None, repr=False)
-    hamiltonian_operator: Expression = field(default=SR(0), repr=False)
+    generator_operator: Expression = field(default=SR(0), repr=False)
     cache: dict[str, list[sp.csr_array]] = field(default_factory=dict, repr=False, compare=False)
 
     @staticmethod
@@ -121,8 +121,8 @@ class OperatorProblemSpec(BaseProblemSpec):
             return float(total.real)
         return total
 
-    def _hamiltonian_at(self, t: float, p: Array) -> sp.csr_array:
-        """Return the Hamiltonian matrix of an operator problem at a time and a parameter vector.
+    def _generator_at(self, t: float, p: Array) -> sp.csr_array:
+        """Return the generator matrix of an operator problem at a time and a parameter vector.
 
         Args:
             t:
@@ -133,6 +133,6 @@ class OperatorProblemSpec(BaseProblemSpec):
 
         Returns:
             matrix:
-                The sparse Hamiltonian.
+                The sparse generator.
         """
-        return OperatorProblemSpec._matrix_at(self.hamiltonian, t, p, math.prod(self.dimensions))
+        return OperatorProblemSpec._matrix_at(self.generator, t, p, math.prod(self.dimensions))

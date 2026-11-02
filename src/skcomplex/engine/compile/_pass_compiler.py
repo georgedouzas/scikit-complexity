@@ -1081,7 +1081,7 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _neighborhood_issues(records: list[CensusRecordSpec], nodes: list[NodeSpec]) -> list[IssueSpec]:
-        """Return the neighbourhood reductions whose space does not offer them, and the cones without a heading."""
+        """Return the neighbourhood reductions whose space does not offer them, and the cones without a direction."""
         by_path = {node.path: node for node in nodes}
         issues = []
         for record in records:
@@ -1117,7 +1117,7 @@ class PassCompiler(BaseCompiler):
                         f'The {name} reduces over {over!r}, which measures distances between positions, but '
                         f'{record.owner} declares no vector position state.'
                     )
-                    fix = 'Declare the position with `StateSpec(vector=True, position=True)`.'
+                    fix = "Declare the position with `StateSpec(vector=True, role='position')`."
                     issues.append(IssueSpec('law-domain', record.path, message, fix))
                     continue
                 if isinstance(over, ConeNeighborhood):
@@ -1125,7 +1125,7 @@ class PassCompiler(BaseCompiler):
                         NeighborhoodKernel._cone_direction(over, states, getattr(record.space, 'n_dim_', 0))
                     except ValidationError as error:
                         fix = (
-                            'Declare the position of order 2, `StateSpec(vector=True, position=True, order=2)`, or '
+                            "Declare the position of order 2, `StateSpec(vector=True, order=2, role='position')`, or "
                             "name a direction state, such as `ConeNeighborhood(r, angle, direction='theta')`."
                         )
                         issues.append(IssueSpec('law-domain', record.path, f'The {name}: {error}', fix))

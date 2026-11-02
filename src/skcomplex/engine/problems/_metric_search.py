@@ -134,10 +134,10 @@ class MetricSearch(BaseSearch):
     def _inside(self, x: Array, readers: Indices, others: Indices, cone: ConeNeighborhood) -> npt.NDArray[np.bool_]:
         """Return whether every pair has its neighbour inside the reader's cone."""
         assert self.direction is not None
-        direction = -self.differences(x, readers, others)
-        heading = self.direction.vectors(x)[readers]
-        dot = np.sum(heading * direction, axis=1)
-        norms = np.sqrt(np.sum(heading * heading, axis=1)) * np.sqrt(np.sum(direction * direction, axis=1))
+        separation = -self.differences(x, readers, others)
+        direction = self.direction.vectors(x)[readers]
+        dot = np.sum(direction * separation, axis=1)
+        norms = np.sqrt(np.sum(direction * direction, axis=1)) * np.sqrt(np.sum(separation * separation, axis=1))
         return dot >= np.cos(cone.angle) * norms
 
     @staticmethod

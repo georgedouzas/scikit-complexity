@@ -663,6 +663,33 @@ def test_compile_reflecting_box_keeps_ode_form():
     assert problem.boundary is not None
 
 
+@pytest.mark.parametrize(('role', 'wrapped'), [('position', 0.25), ('site', 0.25), (None, 1.25)])
+def test_compile_periodic_box_wraps_places_by_their_role(role, wrapped):
+    """Test that a periodic box wraps a vector state with the role position or site, and no other."""
+
+    class PlacedElement(Element):
+        """Element with a vector state of the role under test."""
+
+        def __init__(self, label, visual=None, *, x: Annotated[object, StateSpec(vector=True, role=role)] = 0.0):
+            super().__init__(label, visual=visual)
+            self.x = x
+
+        def _get_laws(self, s):
+            """Return the rest of the state."""
+            return [RateLaw(s.x, 0.0 * s.x)]
+
+    problem = compile_system(
+        System(
+            elements=[GroupElement('gas', element=PlacedElement, size=1, values={'x': [[1.25, 0.5]]})],
+            space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
+        ),
+    )
+    state = problem.initial_state
+    if problem.boundary is not None:
+        state = problem.boundary(0.0, state, problem.initial_parameters)
+    assert problem.states.read(state, 'gas.x')[0, 0] == pytest.approx(wrapped)
+
+
 def test_compile_periodic_box_wraps_positions():
     """Test that a periodic box wraps a position that left the box."""
     problem = compile_system(

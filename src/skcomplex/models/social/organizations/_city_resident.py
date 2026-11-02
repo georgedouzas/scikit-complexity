@@ -33,7 +33,7 @@ class CityResidentElement(Element):
     def __init__(
         self,
         label: str,
-        x: Annotated[npt.ArrayLike, StateSpec(vector=True, position=True, role='position')] = 0.0,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
         contacts: Annotated[float, StateSpec()] = 0.0,
     ) -> None:
         super().__init__(label)

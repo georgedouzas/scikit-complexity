@@ -196,7 +196,7 @@ class SymbolicAnalysis(BaseAnalysis):
         elif self.kind == 'solve':
             self.solutions_ = self._solve(self.problem_, use_initial_state=self.use_initial_state)
         elif self.kind == 'hamiltonian':
-            self.hamiltonian_ = self.problem_.hamiltonian_operator
+            self.hamiltonian_ = self.problem_.generator_operator
         else:
             self.inflows_ = self._conservation(self.problem_)
 

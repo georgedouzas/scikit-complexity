@@ -579,7 +579,7 @@ class LammpsSolver(ExternalSolver):
             (
                 name
                 for name, declaration in declarations.items()
-                if declaration.vector and declaration.position and declaration.order == POSITION_ORDER
+                if declaration.is_place and declaration.order == POSITION_ORDER
             ),
             None,
         )

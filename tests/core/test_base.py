@@ -63,21 +63,6 @@ FIELD_TERMS = (
     'Wolf',
     'Worker',
 )
-ARITHMETIC = {
-    '__add__',
-    '__radd__',
-    '__sub__',
-    '__rsub__',
-    '__mul__',
-    '__rmul__',
-    '__truediv__',
-    '__rtruediv__',
-    '__matmul__',
-    '__rmatmul__',
-    '__neg__',
-    '__pos__',
-    '__pow__',
-}
 
 
 class DoublingPart(BasePart):
@@ -261,17 +246,13 @@ def test_core_names_carry_no_field_term():
 
 
 def test_no_class_defines_magic_methods():
-    """Test that no class of the library defines a magic method but `__init__` and operator arithmetic."""
+    """Test that no class of the library defines a magic method but `__init__`."""
     found = {}
     for module in _modules():
         for _, cls in inspect.getmembers(module, inspect.isclass):
             if cls.__module__ != module.__name__:
                 continue
             extra = set(_hand_written(cls)) - {'__init__'}
-            if cls.__qualname__ == 'Operator' and module.__name__.startswith(
-                'skcomplex.engine.problems._operator',
-            ):
-                extra -= ARITHMETIC
             if extra:
                 found[f'{module.__name__}.{cls.__qualname__}'] = sorted(extra)
     assert found == {}, found

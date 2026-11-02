@@ -53,7 +53,7 @@ class DataKind(StrEnum):
             DataKind.SERIES: 'a series of values, or the columns of an array as series',
             DataKind.PATH: 'the jump times and the states after every jump',
             DataKind.FIELD: 'a grid of values, or frames of grids',
-            DataKind.AGENTS: 'positions, velocities, headings, or states of agents, one row per agent',
+            DataKind.AGENTS: 'positions, velocities, directions, or states of agents, one row per agent',
             DataKind.NETWORK: 'a NetworkX graph, or one graph per frame',
             DataKind.ENSEMBLE: 'one row per run and one column per common time',
             DataKind.SYSTEM: (

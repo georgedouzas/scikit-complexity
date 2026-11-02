@@ -168,7 +168,6 @@ def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:
         spec.period,
         quantity=spec.quantity,
         history=spec.history,
-        position=spec.position,
         reference=spec.reference,
         role=spec.role,
         tensor=spec.tensor,

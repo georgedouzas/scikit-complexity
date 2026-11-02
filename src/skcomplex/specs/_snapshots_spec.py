@@ -29,8 +29,8 @@ class SnapshotsSpec(BaseSpec):
         velocities:
             The velocities, shaped like the positions, or `None` without them.
 
-        headings:
-            The heading angles, frames by agents, or `None` without them.
+        directions:
+            The direction angles, frames by agents, or `None` without them.
 
         states:
             Every other state of the agents, frames by agents.
@@ -49,7 +49,7 @@ class SnapshotsSpec(BaseSpec):
     ids: npt.NDArray[np.int64]
     positions: Array | None
     velocities: Array | None
-    headings: Array | None
+    directions: Array | None
     states: dict[str, npt.NDArray[np.generic]] = field(default_factory=dict)
     box: Array | None = None
     periodic: bool = False

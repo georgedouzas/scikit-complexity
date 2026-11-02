@@ -64,7 +64,7 @@ class MoverElement(Element):
         label: str,
         visual: VisualSpec | None = None,
         *,
-        x: Annotated[object, StateSpec(vector=True, position=True)] = 0.0,
+        x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
         theta: Annotated[object, StateSpec(period=2 * pi)] = 0.0,
         v0: Annotated[object, ParameterSpec()] = 0.0,
     ) -> None:

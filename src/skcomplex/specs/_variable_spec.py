@@ -69,9 +69,6 @@ class VariableSpec(BaseSpec):
         history:
             The values of a state before the start, or `None`.
 
-        position:
-            Whether a vector state is the position of its element in a continuous space.
-
         adaptive:
             Whether a parameter is adaptive, which laws may change.
 
@@ -104,13 +101,17 @@ class VariableSpec(BaseSpec):
     per: str | None = None
     quantity: str | None = None
     history: object = None
-    position: bool = False
     adaptive: bool = False
     bounds: tuple[float, float] | None = None
     reference: str | None = None
     role: str | None = None
     shape: tuple[str, ...] | None = None
     tensor: str | None = None
+
+    @property
+    def is_place(self) -> bool:
+        """Whether a vector state is the place of its element in a continuous space, by its role."""
+        return self.vector and self.role in {'position', 'site'}
 
     @property
     def is_fractional(self) -> bool:

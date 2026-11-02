@@ -863,24 +863,24 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         if not isinstance(neighbourhood, ConeNeighborhood):
             call = f'_radius_neighbours(_pos{index}_, {neighbourhood.radius!r}, _per{index}_, {periodic}, {center})'
             return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
-        heading = search.direction
-        assert heading is not None
-        first = f'_L{2 * self._slot(heading.entry)}_'
-        if heading.angle:
+        direction = search.direction
+        assert direction is not None
+        first = f'_L{2 * self._slot(direction.entry)}_'
+        if direction.angle:
             lines += [
-                f'{INDENT}_hd{index}_ = np.empty(({reduction.size}, 2))',
+                f'{INDENT}_dr{index}_ = np.empty(({reduction.size}, 2))',
                 f'{INDENT}for _i_ in range({reduction.size}):',
-                f'{INDENT * 2}_hd{index}_[_i_, 0] = math.cos(x[{first} + _i_])',
-                f'{INDENT * 2}_hd{index}_[_i_, 1] = math.sin(x[{first} + _i_])',
+                f'{INDENT * 2}_dr{index}_[_i_, 0] = math.cos(x[{first} + _i_])',
+                f'{INDENT * 2}_dr{index}_[_i_, 1] = math.sin(x[{first} + _i_])',
             ]
         else:
             lines.append(
-                f'{INDENT}_hd{index}_ = x[{first} : {first} + {reduction.size} * {columns}].reshape(({reduction.size}, '
+                f'{INDENT}_dr{index}_ = x[{first} : {first} + {reduction.size} * {columns}].reshape(({reduction.size}, '
                 f'{columns}))',
             )
         cosine = repr(float(np.cos(neighbourhood.angle)))
         call = (
-            f'_cone_neighbours(_pos{index}_, _hd{index}_, ({neighbourhood.radius!r}, {cosine}), (_per{index}_, '
+            f'_cone_neighbours(_pos{index}_, _dr{index}_, ({neighbourhood.radius!r}, {cosine}), (_per{index}_, '
             f'{periodic}), {center})'
         )
         return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']

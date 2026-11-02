@@ -40,11 +40,11 @@ class OperatorAnalysis(BaseAnalysis):
 
     The kinds read a system or a trajectory:
 
-    - `'spectrum'`: the lowest eigenvalues and eigenstates of the Hamiltonian, by exact diagonalisation. QuTiP
+    - `'spectrum'`: the lowest eigenvalues and eigenstates of the generator, by exact diagonalisation. QuTiP
       diagonalises small spaces densely and larger ones with a sparse eigensolver. A sector restricts the basis to the
       states with a given eigenvalue of a conserved operator that is diagonal in the product basis, such as the total
       magnetisation.
-    - `'ground-state'`: the lowest eigenvalue and eigenstate of the Hamiltonian.
+    - `'ground-state'`: the lowest eigenvalue and eigenstate of the generator.
     - `'purity'`: the purity `Tr(rho^2)` of the state of a trajectory at every frame, 1 for pure states.
     - `'entanglement'`: the von Neumann entropy of the reduced state of some subsystems at every frame of a
       trajectory, in nats.
@@ -180,7 +180,7 @@ class OperatorAnalysis(BaseAnalysis):
         self.problem_ = self._operator_problem(self._read_system(source))
 
     def _run(self, inputs: object = None) -> None:
-        """Diagonalise the Hamiltonian, or measure the states of the trajectory."""
+        """Diagonalise the generator, or measure the states of the trajectory."""
         if self.kind == 'purity':
             problem, states = self._states_of(self.trajectory_)
             if problem.pure:
@@ -272,9 +272,9 @@ class OperatorAnalysis(BaseAnalysis):
         k: int,
         basis: npt.NDArray[np.intp] | None,
     ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.complex128]]:
-        """Return the lowest eigenvalues and eigenstates of the Hamiltonian at time 0 through QuTiP, within a basis."""
+        """Return the lowest eigenvalues and eigenstates of the generator at time 0 through QuTiP, within a basis."""
         dimension = math.prod(problem.dimensions)
-        matrix = problem._hamiltonian_at(0.0, p)
+        matrix = problem._generator_at(0.0, p)
         indices = np.arange(dimension) if basis is None else np.asarray(basis, dtype=np.intp)
         matrix = sp.csr_array(matrix[indices][:, indices])
         count = min(k, indices.size)

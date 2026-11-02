@@ -55,26 +55,26 @@ class HeisenbergInteraction(NeighborInteraction):
 
 
 class FixedElement(QubitElement):
-    """Qubit with a constant Hamiltonian."""
+    """Qubit with a constant generator."""
 
     def _get_laws(self, s):
-        """Return the constant Hamiltonian."""
+        """Return the constant generator."""
         return [GeneratorLaw(0.5 * local_operator(s.psi, 'z') + local_operator(s.psi, 'x'))]
 
 
 class PlusElement(QubitElement):
-    """Qubit whose Hamiltonian is a ladder operator without its adjoint."""
+    """Qubit whose generator is a ladder operator without its adjoint."""
 
     def _get_laws(self, s):
-        """Return the non-Hermitian Hamiltonian."""
+        """Return the non-Hermitian generator."""
         return [GeneratorLaw(local_operator(s.psi, 'plus'))]
 
 
 class ForeignElement(QubitElement):
-    """Qubit whose Hamiltonian reads a classical symbol."""
+    """Qubit whose generator reads a classical symbol."""
 
     def _get_laws(self, s):
-        """Return the Hamiltonian with a classical coefficient."""
+        """Return the generator with a classical coefficient."""
         return [GeneratorLaw(symbol('n_rabbits') * local_operator(s.psi, 'z'))]
 
 
@@ -128,7 +128,7 @@ def test_compile_system_counts_one_exchange_term_per_bond():
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
     problem = compile_system(system, compiler=OperatorCompiler())
-    matrix = problem._hamiltonian_at(0.0, problem.initial_parameters).toarray()
+    matrix = problem._generator_at(0.0, problem.initial_parameters).toarray()
     spins = [[qutip.jmat(0.5, axis) for axis in 'xyz'] for _ in range(8)]
     expected = 0
     for site in range(8):
@@ -137,24 +137,24 @@ def test_compile_system_counts_one_exchange_term_per_bond():
             factors[site], factors[(site + 1) % 8] = spins[site][axis], spins[site][axis]
             expected = expected + qutip.tensor(*factors)
     assert np.allclose(matrix, expected.full())
-    assert len(problem.hamiltonian) == 1
+    assert len(problem.generator) == 1
 
 
-def test_compile_system_folds_constant_hamiltonians():
-    """Test that a Hamiltonian with numeric coefficients folds to one constant matrix."""
+def test_compile_system_folds_constant_generators():
+    """Test that a generator with numeric coefficients folds to one constant matrix."""
     system = System(
         elements=[
             FixedElement('q'),
         ],
     )
     problem = compile_system(system, compiler=OperatorCompiler())
-    assert len(problem.hamiltonian) == 1
-    assert problem.hamiltonian[0].function is None
+    assert len(problem.generator) == 1
+    assert problem.generator[0].function is None
 
 
-def test_compile_system_rejects_non_hermitian_hamiltonians():
-    """Test that a Hamiltonian without its adjoint raises an error that names the law."""
-    with pytest.raises(ValidationError, match=r'Hamiltonian of q is not Hermitian.*adjoint'):
+def test_compile_system_rejects_non_hermitian_generators():
+    """Test that a generator without its adjoint raises an error that names the law."""
+    with pytest.raises(ValidationError, match=r'generator of q is not Hermitian.*adjoint'):
         compile_system(System(elements=[PlusElement('q')]), compiler=OperatorCompiler())
 
 

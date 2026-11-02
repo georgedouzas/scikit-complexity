@@ -189,7 +189,7 @@ def test_snapshots_unwrap_agent_positions():
     assert snapshots.periodic
     assert steps.max() < 5
     assert np.ptp(snapshots.positions) > 10
-    assert snapshots.headings.shape == (201, 50)
+    assert snapshots.directions.shape == (201, 50)
 
 
 def test_snapshots_of_particle_groups():
@@ -214,7 +214,7 @@ def test_snapshots_stack_position_components():
     trajectory = run('light_seeking_robots', settings={'until': 0.5}).trajectory_
     snapshots = AgentAnalysis().check().prepare(trajectory).snapshots_
     assert snapshots.positions.shape[-1] == 2
-    assert snapshots.headings is not None
+    assert snapshots.directions is not None
     assert 'x' not in snapshots.states
 
 
@@ -257,12 +257,20 @@ def test_series_leave_out_particles_and_jump_paths():
     assert MeanAnalysis().check().prepare(single).series_.labels == ['a.n']
 
 
+def test_sites_are_read_as_series_and_not_as_particles():
+    """Test that oscillators on fixed sites give no particle snapshots, and their sites are no series."""
+    trajectory = run('nonlocal_ring_chimera', n_oscillators=20, R=3, settings={'until': 0.5}).trajectory_
+    assert trajectory.problem.elements[0].roles == {'x': 'site', 'theta': 'phase'}
+    with pytest.raises(AnalysisError, match='no agent group'):
+        AgentAnalysis().check().prepare(trajectory)
+
+
 def test_snapshots_of_phases():
     """Test that a state with the role phase gives the phases of the snapshots, not a direction or another state."""
     trajectory = run('swarmalators', settings={'until': 0.5}).trajectory_
     snapshots = AgentAnalysis().check().prepare(trajectory).snapshots_
     np.testing.assert_array_equal(snapshots.phases, trajectory.values('units.theta'))
-    assert snapshots.headings is None
+    assert snapshots.directions is None
     assert 'theta' not in snapshots.states
 
 

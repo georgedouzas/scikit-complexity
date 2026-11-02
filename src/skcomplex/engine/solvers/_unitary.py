@@ -65,4 +65,4 @@ class UnitarySolver(OperatorSolver):
 
     def _create(self, p: Array) -> solver_base.Solver:
         """Return QuTiP's Schrödinger solver at fixed parameters."""
-        return qutip.SESolver(self._operator(self.operator_.hamiltonian, p), options=self._options)
+        return qutip.SESolver(self._operator(self.operator_.generator, p), options=self._options)
