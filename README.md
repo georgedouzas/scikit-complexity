@@ -44,7 +44,7 @@
 | **Documentation** | [![properdocs][properdocs badge]][properdocs]|
 | **Communication** | [![discussions][discussions badge]][discussions] |
 
-## One framework for complex systems, from turbulence to traffic
+## Overview
 
 **`scikit-complexity` lets you describe a model from any science in a few lines, and takes care of the rest:** it works
 out the mathematics, picks a solver, runs the simulation, and streams it live to the [Rerun](https://rerun.io) viewer.
@@ -71,32 +71,7 @@ separate conventions. Here they share one small vocabulary, in the spirit of sci
 <p align="center"><em>A few of the <b>549 ready-to-run models</b>, each with a documented example in the
 <a href="https://georgedouzas.github.io/scikit-complexity">gallery</a>.</em></p>
 
-### Find a model
-
-Every model comes with a description, tags, parameters and references, so you can browse the catalog from Python:
-
-```python
-from skcomplex.models import catalog, describe
-
-for model in catalog(field='biology/ecology'):
-    print(model.name, '-', model.description)
-
-print([model.name for model in catalog() if 'oscillation' in model.tags])
-
-entry = describe('lotka_volterra')
-print(entry.description, entry.formalism, entry.parameters, entry.references)
-```
-
-### Try a model in one line
-
-```python
-from skcomplex.models import run
-
-trajectory = run('sir').trajectory_
-print(trajectory.values('I.n').max().round())
-```
-
-### Why scikit-complexity
+## Features
 
 - **Every kind of dynamics, one interface.** Differential equations, stochastic processes, jump processes, discrete maps,
   cellular automata, agents, networks and hypergraphs, fields and PDEs, quantum systems, and models that learn by gradient
@@ -132,7 +107,12 @@ cd scikit-complexity
 pdm install
 ```
 
-## Build your own model
+## Usage
+
+Build your own model from a few general classes, or start from one of the 549 ready-made models, which are written with
+the same classes and work as examples for your own.
+
+### Build a model
 
 A predator and prey model assembles from ready-made interactions:
 
@@ -224,6 +204,31 @@ harvested = System(
     ],
 )
 print(SymbolicAnalysis().check().prepare(harvested).run().equations_['fish.n'])
+```
+
+### Use a ready-made model
+
+Every model comes with a description, tags, parameters and references, so you can browse the catalog from Python:
+
+```python
+from skcomplex.models import catalog, describe
+
+for model in catalog(field='biology/ecology'):
+    print(model.name, '-', model.description)
+
+print([model.name for model in catalog() if 'oscillation' in model.tags])
+
+entry = describe('lotka_volterra')
+print(entry.description, entry.formalism, entry.parameters, entry.references)
+```
+
+Run any of them in one line:
+
+```python
+from skcomplex.models import run
+
+trajectory = run('sir').trajectory_
+print(trajectory.values('I.n').max().round())
 ```
 
 ## Spec-driven development
