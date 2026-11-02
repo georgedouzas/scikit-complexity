@@ -38,6 +38,15 @@ The parts of the current code this change builds on:
 
 ## Decisions
 
+- **Disorder averages sweep the seed** (decided on 2026-11-02): `Experiment` compiles once per factory arguments, so
+  `replicates` shares one quenched draw and varies only the dynamics. A disorder average sweeps the factory's
+  `random_state` as a `GridDesign` axis, with no new `Experiment` argument. Wherever a scenario here says "over N
+  replicates" of a disordered model, it means N values of that axis. A random energy model at N = 20 over 10 seeds gives
+  entropies 0.4434 at T = 1 and 0.6307 at T = 2, against the theoretical 0.4431 and 0.6306.
+- **Cooling is checked by accepted proposals** (decided on 2026-11-02): near equilibrium, detailed balance keeps accepted
+  uphill and downhill moves about equal at any temperature, so the share of accepted moves that raise the energy cannot
+  fall to zero. The scenario checks the share of proposals accepted and the final energy.
+
 - **Reference numbers are checked before they become thresholds.** The urban scaling exponent and the fictitious-play
   distance are first reproduced from the cited source; when a run disagrees, the scenario uses the measured value
   with a tolerance from the spread over seeds, and design.md records the source, the measured value, and why they

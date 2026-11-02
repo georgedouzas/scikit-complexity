@@ -29,4 +29,5 @@ acceptance with the `'gaussian'` move anneals a group of candidates whose energy
 
 #### Scenario: Cooling
 - **WHEN** simulated annealing runs with `cooling` falling geometrically to 1e-3 of the initial temperature
-- **THEN** the share of accepted moves that raise the energy falls below 0.05 in the last tenth of the run
+- **THEN** the share of proposals accepted falls with the temperature, from above 0.8 at the start to below 0.2 in the
+  last tenth of the run, and the energy of a quadratic objective ends within 0.01 of its minimum
