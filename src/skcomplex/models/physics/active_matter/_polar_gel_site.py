@@ -13,8 +13,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import Element
 from ....core.laws import BaseLaw, RateLaw
-from ....core.laws.utils import corotational, inverse_laplacian, laplacian, leray_projection, tensor_divergence
+from ....core.laws.utils import inverse_laplacian, laplacian, leray_projection, tensor_divergence
 from ....specs import ParameterSpec, StateSpec, VisualSpec
+from ..common.fields import corotational
 
 
 class PolarGelSiteElement(Element):

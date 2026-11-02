@@ -397,8 +397,8 @@ class NumbaBackend(BaseBackend):
         if not isinstance(search, MetricSearch):
             return {}
         found = {search.positions.name: search.positions}
-        if search.heading is not None:
-            found[search.heading.entry.name] = search.heading.entry
+        if search.direction is not None:
+            found[search.direction.entry.name] = search.direction.entry
         return found
 
     @staticmethod

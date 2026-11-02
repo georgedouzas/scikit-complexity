@@ -1,4 +1,4 @@
-"""Define the heading spec."""
+"""Define the direction spec."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,29 +13,29 @@ from ._entry_spec import EntrySpec
 
 
 @dataclass(frozen=True)
-class HeadingSpec(BaseSpec):
-    """State that holds the heading of the members, a vector or a heading angle in two dimensions.
+class DirectionSpec(BaseSpec):
+    """State that holds the direction of the members, a vector or an angle in two dimensions.
 
     Args:
         entry:
             The entry of the state.
 
         angle:
-            Whether the state is a scalar angle, whose heading is `(cos, sin)`.
+            Whether the state is a scalar angle, whose direction is `(cos, sin)`.
     """
 
     entry: EntrySpec
     angle: bool
 
     def vectors(self, x: Array) -> Array:
-        """Return the heading of every member as one row of components.
+        """Return the direction of every member as one row of components.
 
         Args:
             x:
                 The state vector.
 
         Returns:
-            headings:
+            directions:
                 One row per member.
         """
         values = self.entry.view(x)

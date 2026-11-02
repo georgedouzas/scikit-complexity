@@ -6,8 +6,8 @@
 from collections.abc import Callable
 
 from .....core.interactions import BaseInteraction
+from .....engine.solvers import LammpsFixSpec
 from .....engine.types import PairArguments
-from .....specs import LammpsFixSpec
 from .....types import Array
 from ._constant_force import ConstantForceInteraction
 from ._damping import DampingInteraction

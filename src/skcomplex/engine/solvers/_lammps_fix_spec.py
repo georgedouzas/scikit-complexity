@@ -6,8 +6,8 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from ..types import Array
-from ._base_spec import BaseSpec
+from ...specs import BaseSpec
+from ...types import Array
 
 
 @dataclass(frozen=True)
@@ -36,3 +36,6 @@ class LammpsFixSpec(BaseSpec):
     value: Callable[[str], Array]
     mass: Callable[[], float]
     seed: Callable[[], int]
+
+
+type FixCommand = Callable[[LammpsFixSpec], str]

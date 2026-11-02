@@ -20,6 +20,7 @@ from ._imex_euler import IMEXEulerSolver
 from ._kinetics import KineticSolver
 from ._l1 import L1Solver
 from ._lammps import LammpsSolver
+from ._lammps_fix_spec import LammpsFixSpec
 from ._lattice import LatticeSolver
 from ._lindblad import LindbladSolver
 from ._maps import IterationSolver
@@ -66,6 +67,7 @@ __all__: list[str] = [
     'IterationSolver',
     'KineticSolver',
     'L1Solver',
+    'LammpsFixSpec',
     'LammpsSolver',
     'LatticeSolver',
     'LindbladSolver',

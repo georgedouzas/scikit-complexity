@@ -48,22 +48,6 @@ RULES = (
 )
 
 
-class _Offer:
-    """Offer of one participant of a matching during one clearing, which the clearing lowers as it matches."""
-
-    def __init__(self, agent: AgentViewProtocol, limit: float, quantity: float, budget: float = math.inf) -> None:
-        self.agent = agent
-        self.limit = limit
-        self.quantity = quantity
-        self.budget = budget
-
-    def get_affordable(self, value: float) -> float:
-        """Return the quantity the participant can still match at a value within its budget."""
-        if value <= 0:
-            return self.quantity
-        return max(0.0, min(self.quantity, self.budget / value))
-
-
 class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     """Matching of the members of a group of requesters with those of a group of providers by a rule.
 
@@ -182,9 +166,16 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         raise ValidationError(error_msg)
 
     @staticmethod
-    def _book(trades: list[MatchSpec], requester: _Offer, provider: _Offer, value: float) -> None:
+    def _get_affordable(offer: SimpleNamespace, value: float) -> float:
+        """Return the quantity a participant can still match at a value within its budget."""
+        if value <= 0:
+            return float(offer.quantity)
+        return max(0.0, min(offer.quantity, offer.budget / value))
+
+    @staticmethod
+    def _book(trades: list[MatchSpec], requester: SimpleNamespace, provider: SimpleNamespace, value: float) -> None:
         """Record a match of the largest quantity both sides can match at a value and lower both offers."""
-        quantity = min(requester.get_affordable(value), provider.quantity)
+        quantity = min(MatchingInteraction._get_affordable(requester, value), provider.quantity)
         if quantity <= 0:
             return
         requester.quantity -= quantity
@@ -193,7 +184,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         trades.append(MatchSpec(requester.agent, provider.agent, quantity, value))
 
     @staticmethod
-    def _get_value(requester: _Offer, provider: _Offer, clearing: str) -> float:
+    def _get_value(requester: SimpleNamespace, provider: SimpleNamespace, clearing: str) -> float:
         """Return the value of a match under a clearing rule."""
         if clearing == 'requester':
             return requester.limit
@@ -202,7 +193,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         return (requester.limit + provider.limit) / 2
 
     @staticmethod
-    def _order(offers: list[_Offer], order: str, rng: np.random.Generator) -> list[_Offer]:
+    def _order(offers: list[SimpleNamespace], order: str, rng: np.random.Generator) -> list[SimpleNamespace]:
         """Return offers in random order, by decreasing limit, or in order of creation."""
         if order == 'limit':
             return sorted(offers, key=lambda item: (-item.limit, item.agent.id))
@@ -210,20 +201,25 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
             return sorted(offers, key=lambda item: item.agent.id)
         return [offers[index] for index in rng.permutation(len(offers))]
 
-    def _get_offers(self, model: ModelT) -> tuple[list[_Offer], list[_Offer]]:
-        """Return the offers of the requesters and of the providers with a positive quantity."""
+    def _get_offers(self, model: ModelT) -> tuple[list[SimpleNamespace], list[SimpleNamespace]]:
+        """Return the offers of the requesters and of the providers with a positive quantity, which matches lower."""
         limits, quantities = self._get_sides(self.limit), self._get_sides(self.quantity)
         requesters = [
-            _Offer(
-                agent,
-                self._read(agent, limits[0], math.inf),
-                self._read(agent, quantities[0], 1.0),
-                self._read(agent, self.budget, math.inf),
+            SimpleNamespace(
+                agent=agent,
+                limit=self._read(agent, limits[0], math.inf),
+                quantity=self._read(agent, quantities[0], 1.0),
+                budget=self._read(agent, self.budget, math.inf),
             )
             for agent in model.agents(self._get_role('requesters'))
         ]
         providers = [
-            _Offer(agent, self._read(agent, limits[1], 0.0), self._read(agent, quantities[1], 1.0))
+            SimpleNamespace(
+                agent=agent,
+                limit=self._read(agent, limits[1], 0.0),
+                quantity=self._read(agent, quantities[1], 1.0),
+                budget=math.inf,
+            )
             for agent in model.agents(self._get_role('providers'))
         ]
         return [offer for offer in requesters if offer.quantity > 0], [
@@ -233,8 +229,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     def _match_random_search(
         self,
         rule: RandomSearchSpec,
-        requesters: list[_Offer],
-        providers: list[_Offer],
+        requesters: list[SimpleNamespace],
+        providers: list[SimpleNamespace],
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
         """Return the matches of requesters in random order that meet random providers and match on crossing limits."""
@@ -253,10 +249,10 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     @staticmethod
     def _choose_partner(
         rule: PartnerSwitchSpec,
-        best: _Offer,
-        current: _Offer | None,
+        best: SimpleNamespace,
+        current: SimpleNamespace | None,
         rng: np.random.Generator,
-    ) -> _Offer:
+    ) -> SimpleNamespace:
         """Return the provider a requester matches with, its current partner or the best of its sample."""
         if current is None or current.quantity <= 0:
             return best
@@ -270,8 +266,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     def _match_partner_switch(
         self,
         rule: PartnerSwitchSpec,
-        requesters: list[_Offer],
-        providers: list[_Offer],
+        requesters: list[SimpleNamespace],
+        providers: list[SimpleNamespace],
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
         """Return the matches of every requester with its kept or new partner, at the partner's limit."""
@@ -295,8 +291,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     def _match_queue(
         self,
         rule: QueueSpec,
-        requesters: list[_Offer],
-        providers: list[_Offer],
+        requesters: list[SimpleNamespace],
+        providers: list[SimpleNamespace],
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
         """Return the matches of the queue of requesters served by the lowest providers at their limits."""
@@ -312,11 +308,20 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         return trades
 
     @staticmethod
-    def _adjust(rule: IterativeMatchingSpec, requesters: list[_Offer], providers: list[_Offer], start: float) -> float:
+    def _adjust(
+        rule: IterativeMatchingSpec,
+        requesters: list[SimpleNamespace],
+        providers: list[SimpleNamespace],
+        start: float,
+    ) -> float:
         """Return the value the tâtonnement reaches from a start."""
         value = start
         for _ in range(rule.iterations):
-            requested = sum(requester.get_affordable(value) for requester in requesters if requester.limit >= value)
+            requested = sum(
+                MatchingInteraction._get_affordable(requester, value)
+                for requester in requesters
+                if requester.limit >= value
+            )
             provided = sum(provider.quantity for provider in providers if provider.limit <= value)
             total = requested + provided
             if not total or abs(requested - provided) / total < rule.tolerance:
@@ -326,8 +331,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
 
     def _match_at(
         self,
-        requesters: list[_Offer],
-        providers: list[_Offer],
+        requesters: list[SimpleNamespace],
+        providers: list[SimpleNamespace],
         value: float,
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
@@ -338,7 +343,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         pairs = iter(willing_providers)
         provider = next(pairs, None)
         for requester in willing_requesters:
-            while provider is not None and requester.get_affordable(value) > 0:
+            while provider is not None and MatchingInteraction._get_affordable(requester, value) > 0:
                 self._book(trades, requester, provider, value)
                 if provider.quantity <= 0:
                     provider = next(pairs, None)
@@ -347,8 +352,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     def _match_iterative(
         self,
         rule: IterativeMatchingSpec,
-        requesters: list[_Offer],
-        providers: list[_Offer],
+        requesters: list[SimpleNamespace],
+        providers: list[SimpleNamespace],
         rng: np.random.Generator,
         storage: MutableMapping[str, object],
     ) -> list[MatchSpec]:
@@ -365,10 +370,10 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     @staticmethod
     def _arrange(
         rule: ContinuousMatchingSpec,
-        requesters: list[_Offer],
-        providers: list[_Offer],
+        requesters: list[SimpleNamespace],
+        providers: list[SimpleNamespace],
         rng: np.random.Generator,
-    ) -> list[tuple[_Offer, bool]]:
+    ) -> list[tuple[SimpleNamespace, bool]]:
         """Return the offers in their order of arrival, each with whether it is a request."""
         offers = [(offer, True) for offer in requesters] + [(offer, False) for offer in providers]
         if rule.arrival == 'sequential':
@@ -378,45 +383,57 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     def _match_continuous(
         self,
         rule: ContinuousMatchingSpec,
-        requesters: list[_Offer],
-        providers: list[_Offer],
+        requesters: list[SimpleNamespace],
+        providers: list[SimpleNamespace],
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
         """Return the matches of every arriving offer with the best resting offers of the other side."""
-        requests: list[tuple[float, int, _Offer]] = []
-        provisions: list[tuple[float, int, _Offer]] = []
+        requests: list[tuple[float, int, SimpleNamespace]] = []
+        provisions: list[tuple[float, int, SimpleNamespace]] = []
         trades: list[MatchSpec] = []
         for time, (offer, is_request) in enumerate(self._arrange(rule, requesters, providers, rng)):
             if is_request:
-                while provisions and provisions[0][0] <= offer.limit and offer.get_affordable(provisions[0][0]) > 0:
+                while (
+                    provisions
+                    and provisions[0][0] <= offer.limit
+                    and MatchingInteraction._get_affordable(offer, provisions[0][0]) > 0
+                ):
                     resting = provisions[0][2]
                     self._book(trades, offer, resting, resting.limit)
                     if resting.quantity <= 0:
                         heapq.heappop(provisions)
-                if offer.get_affordable(offer.limit) > 0:
+                if MatchingInteraction._get_affordable(offer, offer.limit) > 0:
                     heapq.heappush(requests, (-offer.limit, time, offer))
                 continue
             while requests and -requests[0][0] >= offer.limit and offer.quantity > 0:
                 resting = requests[0][2]
                 self._book(trades, resting, offer, resting.limit)
-                if resting.get_affordable(resting.limit) <= 0:
+                if MatchingInteraction._get_affordable(resting, resting.limit) <= 0:
                     heapq.heappop(requests)
             if offer.quantity > 0:
                 heapq.heappush(provisions, (offer.limit, time, offer))
         return trades
 
     @staticmethod
-    def _get_requested(offer: _Offer) -> float:
+    def _get_requested(offer: SimpleNamespace) -> float:
         """Return the quantity a requester can match at its own limit."""
-        return offer.quantity if not math.isfinite(offer.budget) else offer.get_affordable(offer.limit)
+        return (
+            offer.quantity
+            if not math.isfinite(offer.budget)
+            else MatchingInteraction._get_affordable(offer, offer.limit)
+        )
 
-    def _pair(self, requesters: list[_Offer], providers: list[_Offer]) -> tuple[list[tuple[_Offer, _Offer]], float]:
+    def _pair(
+        self,
+        requesters: list[SimpleNamespace],
+        providers: list[SimpleNamespace],
+    ) -> tuple[list[tuple[SimpleNamespace, SimpleNamespace]], float]:
         """Return the pairs of crossing offers in order of their limits and the value of the last pair."""
         ranked_requesters = sorted(requesters, key=lambda offer: (-offer.limit, offer.agent.id))
         ranked_providers = sorted(providers, key=lambda offer: (offer.limit, offer.agent.id))
         left = {id(offer): self._get_requested(offer) for offer in ranked_requesters}
         offered = {id(offer): offer.quantity for offer in ranked_providers}
-        pairs: list[tuple[_Offer, _Offer]] = []
+        pairs: list[tuple[SimpleNamespace, SimpleNamespace]] = []
         marginal = math.nan
         requester_iter, provider_iter = iter(ranked_requesters), iter(ranked_providers)
         requester, provider = next(requester_iter, None), next(provider_iter, None)
@@ -432,7 +449,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
                 provider = next(provider_iter, None)
         return pairs, marginal
 
-    def _match_batch(self, requesters: list[_Offer], providers: list[_Offer]) -> list[MatchSpec]:
+    def _match_batch(self, requesters: list[SimpleNamespace], providers: list[SimpleNamespace]) -> list[MatchSpec]:
         """Return the matches of the crossing offers at the midpoint of the last crossing pair."""
         pairs, marginal = self._pair(requesters, providers)
         trades: list[MatchSpec] = []
@@ -441,14 +458,14 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         return trades
 
     @staticmethod
-    def _score_provider(rule: StableMatchingSpec, requester: _Offer, provider: _Offer) -> float:
+    def _score_provider(rule: StableMatchingSpec, requester: SimpleNamespace, provider: SimpleNamespace) -> float:
         """Return the score of a provider for a requester, higher for a preferred provider."""
         if rule.requester_preference is None:
             return -provider.limit
         return rule.requester_preference(requester.agent, provider.agent)
 
     @staticmethod
-    def _score_requester(rule: StableMatchingSpec, provider: _Offer, requester: _Offer) -> float:
+    def _score_requester(rule: StableMatchingSpec, provider: SimpleNamespace, requester: SimpleNamespace) -> float:
         """Return the score of a requester for a provider, higher for a preferred requester."""
         if rule.provider_preference is None:
             return requester.limit
@@ -457,8 +474,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     def _rank_providers(
         self,
         rule: StableMatchingSpec,
-        requesters: list[_Offer],
-        providers: list[_Offer],
+        requesters: list[SimpleNamespace],
+        providers: list[SimpleNamespace],
     ) -> dict[int, list[int]]:
         """Return the ids of the acceptable providers of every requester, the preferred first."""
         capacities = {provider.agent.id for provider in providers if int(provider.quantity) > 0}
@@ -480,8 +497,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         self,
         rule: StableMatchingSpec,
         ranks: dict[int, list[int]],
-        providers: list[_Offer],
-        by_id: dict[int, _Offer],
+        providers: list[SimpleNamespace],
+        by_id: dict[int, SimpleNamespace],
     ) -> dict[int, list[int]]:
         """Return the ids of the requesters that rank every provider, the preferred first."""
         provider_ranks = {}
@@ -498,8 +515,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     def _match_stable(
         self,
         rule: StableMatchingSpec,
-        requesters: list[_Offer],
-        providers: list[_Offer],
+        requesters: list[SimpleNamespace],
+        providers: list[SimpleNamespace],
     ) -> list[MatchSpec]:
         """Return the matches of the requester-optimal stable matching, one unit per pair."""
         by_id = {offer.agent.id: offer for offer in itertools.chain(requesters, providers)}
@@ -518,7 +535,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
             for resident in residents:
                 requester = by_id[resident.name]
                 value = self._get_value(requester, provider, rule.clearing)
-                quantity = min(1.0, requester.get_affordable(value), provider.quantity)
+                quantity = min(1.0, MatchingInteraction._get_affordable(requester, value), provider.quantity)
                 if quantity > 0:
                     requester.quantity -= quantity
                     requester.budget -= quantity * value
@@ -529,8 +546,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     def _match_partners(
         self,
         rule: PartnerSpec,
-        requesters: list[_Offer],
-        providers: list[_Offer],
+        requesters: list[SimpleNamespace],
+        providers: list[SimpleNamespace],
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
         """Return the matches of every requester, in random order, with the feasible partners its rule picks."""
@@ -557,8 +574,8 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     def _match_function(
         self,
         rule: Pairing,
-        requesters: list[_Offer],
-        providers: list[_Offer],
+        requesters: list[SimpleNamespace],
+        providers: list[SimpleNamespace],
         rng: np.random.Generator,
     ) -> list[MatchSpec]:
         """Return the matches of the pairs of a function, each at the midpoint of the limits."""
@@ -572,7 +589,12 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
             self._book(trades, first, second, self._get_value(first, second, 'midpoint'))
         return trades
 
-    def _get_matches(self, requesters: list[_Offer], providers: list[_Offer], model: ModelT) -> list[MatchSpec]:
+    def _get_matches(
+        self,
+        requesters: list[SimpleNamespace],
+        providers: list[SimpleNamespace],
+        model: ModelT,
+    ) -> list[MatchSpec]:
         """Return the matches of the offers by the algorithm the rule names, none when a side has no offers."""
         if not requesters or not providers:
             return []

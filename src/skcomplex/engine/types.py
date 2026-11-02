@@ -19,7 +19,7 @@ from sage.all__sagemath_symbolics import Expression
 from sage.structure.element import RingElement
 
 from ..core.laws import DestructionLaw, EncounterLaw, ProliferationLaw
-from ..specs import LammpsFixSpec, ObservableSpec
+from ..specs import ObservableSpec
 from ..types import Array, ComplexArray, Indices, IntArray, IntTuple
 
 # arrays and indices
@@ -74,7 +74,6 @@ type Number = RingElement | int | float | complex
 
 # solvers backed by libraries
 type MesaSpace = OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network | MesaContinuousSpace
-type FixCommand = Callable[[LammpsFixSpec], str]
 type SpectralBlock = tuple[IntTuple, list[Indices], ComplexArray]
 
 

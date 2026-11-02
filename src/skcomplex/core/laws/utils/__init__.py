@@ -50,12 +50,10 @@ from ._reductions import (
 from ._signals import pulse, pulse_train, ramp, series, step
 from ._tensors import (
     antisymmetric_part,
-    corotational,
     distribute_operators,
     leray_projection,
     symmetric_part,
     tensor_divergence,
-    upper_convected,
     vector_gradient,
 )
 
@@ -76,7 +74,6 @@ __all__: list[str] = [
     'convolve',
     'coordinate',
     'coordinates_of',
-    'corotational',
     'count',
     'dagger',
     'delay1',
@@ -136,7 +133,6 @@ __all__: list[str] = [
     'total',
     'transfer',
     'uniform',
-    'upper_convected',
     'upwind',
     'variance',
     'vector_gradient',

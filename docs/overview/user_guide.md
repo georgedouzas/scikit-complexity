@@ -2717,9 +2717,9 @@ terms of the independent ones, and a `RateLaw` on it takes a matrix.
 - `symmetric_part(M)` and `antisymmetric_part(M)` split a matrix, so the strain rate of a velocity is
   `symmetric_part(vector_gradient(u))`.
 - `T.apply_map(laplacian)` is the Laplacian of a matrix, entry by entry, as `v.apply_map(laplacian)` is that of a vector.
-- `corotational(T, u, xi)` is the transport of a symmetric tensor or a vector that advects it, rotates it with the
-  vorticity, and aligns it with the strain rate by `xi`. `upper_convected(T, u)` is the upper-convected transport. A law
-  subtracts them from its rate.
+- `corotational(T, u, xi)` of `skcomplex.models.physics.common.fields` is the transport of a symmetric tensor or a vector
+  that advects it, rotates it with the vorticity, and aligns it with the strain rate by `xi`. `upper_convected(T, u)` is
+  the upper-convected transport. A law subtracts them from its rate.
 - `leray_projection(v)` is the divergence-free part of a vector, `v - gradient(inverse_laplacian(divergence(v)))`, exact
   on spectral fields of periodic lattices. A velocity odd about the middle of an axis, set by the `symmetry` of the field,
   gives walls there.
@@ -2735,7 +2735,8 @@ import numpy as np
 
 from skcomplex.core.elements import Element, FieldElement
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.laws.utils import corotational, inverse_laplacian, laplacian, leray_projection, tensor_divergence
+from skcomplex.core.laws.utils import inverse_laplacian, laplacian, leray_projection, tensor_divergence
+from skcomplex.models.physics.common.fields import corotational
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation

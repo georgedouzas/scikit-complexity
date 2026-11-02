@@ -863,7 +863,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         if not isinstance(neighbourhood, ConeNeighborhood):
             call = f'_radius_neighbours(_pos{index}_, {neighbourhood.radius!r}, _per{index}_, {periodic}, {center})'
             return [*lines, f'{INDENT}_ip{index}_, _ix{index}_ = {call}']
-        heading = search.heading
+        heading = search.direction
         assert heading is not None
         first = f'_L{2 * self._slot(heading.entry)}_'
         if heading.angle:

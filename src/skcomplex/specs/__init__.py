@@ -21,6 +21,7 @@ from ._covariance_adaptation_spec import CovarianceAdaptationSpec
 from ._dataset_spec import DatasetSpec
 from ._dialect_spec import DialectSpec
 from ._differential_evolution_spec import DifferentialEvolutionSpec
+from ._direction_spec import DirectionSpec
 from ._draw_spec import DrawSpec
 from ._entry_spec import EntrySpec
 from ._event_record_spec import EventRecordSpec
@@ -28,13 +29,11 @@ from ._evolution_strategy_spec import EvolutionStrategySpec
 from ._extremal_record_spec import ExtremalRecordSpec
 from ._fractional_rows_spec import FractionalRowsSpec
 from ._fractional_state_spec import FractionalStateSpec
-from ._heading_spec import HeadingSpec
 from ._hilbert_spec import HilbertSpec
 from ._hyperedge_reduction_spec import HyperedgeReductionSpec
 from ._issue_spec import IssueSpec
 from ._iterative_matching_spec import IterativeMatchingSpec
 from ._jump_path_spec import JumpPathSpec
-from ._lammps_fix_spec import LammpsFixSpec
 from ._layer_spec import LayerSpec
 from ._layout_spec import LayoutSpec
 from ._local_operator_spec import LocalOperatorSpec
@@ -124,6 +123,7 @@ __all__ = [
     'DatasetSpec',
     'DialectSpec',
     'DifferentialEvolutionSpec',
+    'DirectionSpec',
     'DrawSpec',
     'EntrySpec',
     'EventRecordSpec',
@@ -131,13 +131,11 @@ __all__ = [
     'ExtremalRecordSpec',
     'FractionalRowsSpec',
     'FractionalStateSpec',
-    'HeadingSpec',
     'HilbertSpec',
     'HyperedgeReductionSpec',
     'IssueSpec',
     'IterativeMatchingSpec',
     'JumpPathSpec',
-    'LammpsFixSpec',
     'LayerSpec',
     'LayoutSpec',
     'LocalOperatorSpec',

@@ -4,7 +4,7 @@
 
 - [x] 1.1 Rename the sampling vocabulary to `objective` and `intensity` in `SamplingInteraction`, `SampleLaw`, `SamplerSpec`, and `ObjectiveSpec`, with a thin `temperature` subclass in `models/physics/common`, moving its users; verify the sampling scenarios and the statistical mechanics models over 20 seeds.
 - [x] 1.2 Rename the clearing specs to matching specs, and merge `GreedyMatchingSpec` into `PartnerSpec`, moving their users; verify the greedy scenario and every model using them over 20 seeds.
-- [ ] 1.3 Move `corotational` and `upper_convected` to `models/physics/common`, rename `HeadingSpec` to `DirectionSpec`, move `LammpsFixSpec` next to `LammpsSolver`, and take `_Offer` out of `core/interactions`; verify the import contracts and the model tests.
+- [x] 1.3 Move `corotational` and `upper_convected` to `models/physics/common`, rename `HeadingSpec` to `DirectionSpec`, move `LammpsFixSpec` next to `LammpsSolver`, and take `_Offer` out of `core/interactions`; verify the import contracts and the model tests.
 - [ ] 1.4 Give particle groups explicit `StateSpec(role=...)` and remove `HEADING_NAMES`, `POSITION_STATE`, and `VELOCITY_STATES` from `analysis/_base.py`; verify the analyses of particle models.
 - [ ] 1.5 Check `KineticSolver` and every other solver and analysis name against the core rule, and rename or record each; verify `tests/core/test_base.py` `FIELD_TERMS` covers the removed words.
 

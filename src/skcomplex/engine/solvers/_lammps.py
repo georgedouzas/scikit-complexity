@@ -22,15 +22,16 @@ from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, Lattice
 from ...core.specs import CompiledElementSpec, CompiledInteractionSpec
 from ...core.system import System
 from ...errors import BackendError, SolverError
-from ...specs import LammpsFixSpec, SupportSpec
+from ...specs import SupportSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind, VariableKind
 from .._utils import declarations_of, symbol, symbols_of
 from ..backends import NumpyBackend
 from ..compile import compile_system
 from ..problems import ExpressionPrinter, ProblemSpec
 from ..problems._steps import step_count
-from ..types import FixCommand, PairArguments
+from ..types import PairArguments
 from ._external import ExternalSolver
+from ._lammps_fix_spec import FixCommand, LammpsFixSpec
 
 _LAMMPS_ARGUMENTS = ['-screen', 'none', '-log', 'none', '-nocite']
 _DIMENSIONS = ('x', 'y', 'z')

@@ -13,7 +13,7 @@ from ...core.spaces import (
     NearestNeighborhood,
     RadiusNeighborhood,
 )
-from ...specs import EntrySpec, HeadingSpec, RunStateSpec
+from ...specs import DirectionSpec, EntrySpec, RunStateSpec
 from ...types import Array, Indices
 from ..types import EdgesFound, Pairs
 from ._base import BaseSearch
@@ -32,8 +32,8 @@ class MetricSearch(BaseSearch):
         periods:
             The sides of a periodic box, or `None` for distances without minimum images.
 
-        heading:
-            The heading state of a cone, or `None`.
+        direction:
+            The state with the direction of a cone, or `None`.
 
     Attributes:
         pairs_:
@@ -47,12 +47,12 @@ class MetricSearch(BaseSearch):
         neighbourhood: RadiusNeighborhood | NearestNeighborhood | ConeNeighborhood,
         positions: EntrySpec,
         periods: tuple[float, ...] | None = None,
-        heading: HeadingSpec | None = None,
+        direction: DirectionSpec | None = None,
     ) -> None:
         self.neighbourhood = neighbourhood
         self.positions = positions
         self.periods = periods
-        self.heading = heading
+        self.direction = direction
 
     def wrapped(self, x: Array) -> Array:
         """Return the positions of the members, wrapped into a periodic box.
@@ -133,9 +133,9 @@ class MetricSearch(BaseSearch):
 
     def _inside(self, x: Array, readers: Indices, others: Indices, cone: ConeNeighborhood) -> npt.NDArray[np.bool_]:
         """Return whether every pair has its neighbour inside the reader's cone."""
-        assert self.heading is not None
+        assert self.direction is not None
         direction = -self.differences(x, readers, others)
-        heading = self.heading.vectors(x)[readers]
+        heading = self.direction.vectors(x)[readers]
         dot = np.sum(heading * direction, axis=1)
         norms = np.sqrt(np.sum(heading * heading, axis=1)) * np.sqrt(np.sum(direction * direction, axis=1))
         return dot >= np.cos(cone.angle) * norms

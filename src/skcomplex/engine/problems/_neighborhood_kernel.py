@@ -26,7 +26,7 @@ from ...core.spaces import (
     RadiusNeighborhood,
 )
 from ...errors import ValidationError
-from ...specs import EntrySpec, HeadingSpec, PairReadSpec, RunStateSpec, VariableSpec
+from ...specs import DirectionSpec, EntrySpec, PairReadSpec, RunStateSpec, VariableSpec
 from ...types import Array, Indices
 from ..types import Pairs
 from ._base import BaseKernel
@@ -571,7 +571,7 @@ class NeighborhoodKernel(BaseKernel):
         heading = None
         if isinstance(over, ConeNeighborhood):
             name = NeighborhoodKernel._cone_heading(over, states, continuous.n_dim_)
-            heading = HeadingSpec(entries[name], not states[name].vector) if name in entries else None
+            heading = DirectionSpec(entries[name], not states[name].vector) if name in entries else None
             if heading is None:
                 error_msg = f'The cone reads the heading {name!r}, which the members do not hold.'
                 raise ValidationError(error_msg)
