@@ -1461,3 +1461,164 @@ packages by subclassing their bases and general classes.
 - **WHEN** the avalanche analysis dissolves into the general event analysis
 - **THEN** the crackling-noise relation stays available as a realization of the criticality models, with the same
   values as before
+
+### Requirement: Higher-order probe models
+The library SHALL provide the probe models of higher-order interactions that the inventory records as pending or
+blocked by this change, each with a curated gallery example, built on the classes and reductions this change adds.
+
+#### Scenario: Inventory models registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are registered under their names and field paths and marked implemented:
+  - `hypergraph_kuramoto` in `physics/synchronization`
+  - `hypergraph_consensus` in `social/opinion_dynamics`
+  - `simplicial_social_dilemmas` and `hypergraph_public_goods` in `social/cooperation`
+  - `simplicial_contagion` and `hypergraph_exposure_sis` in `social/spreading`
+  - `triadic_percolation`, `hypergraph_random_walk`, and `growing_simplicial_complex` in `mathematics/networks`
+
+#### Scenario: Explosive synchronization
+- **WHEN** `hypergraph_kuramoto` sweeps the three-body coupling up and down
+- **THEN** the order parameter shows hysteresis, as Majhi et al. (2022) review
+
+#### Scenario: Bistable contagion
+- **WHEN** `simplicial_contagion` runs with a triangle infection rate above the critical value
+- **THEN** the epidemic has two stable prevalences depending on the initial seed
+
+### Requirement: Group mechanisms run as symbolic groupings
+`galam_majority` and `public_goods_game` SHALL be built on `GroupingInteraction(form='symbolic')`, and SHALL agree with
+their previous trajectories over 20 seeds. Kolkata and the minority game SHALL keep their agent forms.
+
+#### Scenario: Galam on the symbolic grouping
+- **WHEN** `galam_majority` runs from a share of 0.6 for 20 steps over 20 seeds
+- **THEN** the mean final share agrees with the previous agent form within the standard error of the 20 seeds
+
+### Requirement: Hamiltonian mechanics models
+The library SHALL build the Kepler problem `two_body_orbit`, the restricted three-body problem, and Hénon-Heiles on
+`HamiltonianInteraction`, and their catalog entries SHALL pass the Hamiltonian as an observable with an invariant
+tolerance, so the `InvariantObserver` checks its drift.
+
+#### Scenario: Kepler orbit
+- **WHEN** `two_body_orbit` runs for ten periods of a bound orbit with `Yoshida4Solver`
+- **THEN** the orbit closes on itself within 1e-6 relative error and the energy drift stays below 1e-8
+
+#### Scenario: Hénon-Heiles below the escape energy
+- **WHEN** `henon_heiles` runs from an energy of 1/12 to time 1000
+- **THEN** the orbit stays bounded and the energy stays within its invariant tolerance
+
+### Requirement: Variational mechanics models are recorded in the model inventory
+Every model this change rebuilds SHALL keep its name and field path in the model inventory, and SHALL list the
+`variational-mechanics` primitive.
+
+#### Scenario: Inventory models rebuilt
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are rebuilt on `HamiltonianInteraction` under their names and field paths, list the primitive
+  `variational-mechanics`, and are marked implemented:
+  - `two_body_orbit` in `physics/celestial_mechanics`
+  - `restricted_three_body` in `physics/celestial_mechanics`
+  - `henon_heiles` in `physics/nonlinear_oscillators`
+
+### Requirement: Elman simple recurrent network
+The library SHALL provide Elman's simple recurrent network (Gros 2015 §10.5.1, Eq. 10.18, and Elman 1990) as a
+registered factory of a system under discrete time in epochs. It SHALL nest the discrete map
+`s(t) = σ(A s(t-1) + D x(t) + b)`, `y(t) = σ(W s(t) + c)` with adaptive shaped parameters, and train it with a
+`TrainingInteraction` on the squared error of predicting the next input, by default on Elman's temporal XOR stream.
+
+#### Scenario: Temporal XOR
+- **WHEN** `run('elman_network', settings={'until': 200, 'random_state': 0})` trains 4 hidden units with Adam on a
+  stream of 3000 bits
+- **THEN** after 200 epochs the metric `xor_error`, the mean squared error of the predictions of every third bit, is
+  below 0.05, the metric `random_error` of the predictions of the other bits stays above 0.2, and
+  `training/loss` at the last frame is below its value at frame 0
+
+#### Scenario: Elman's original rule
+- **WHEN** `elman_network` is created with `truncation=1`
+- **THEN** it trains with the previous hidden states as constant context inputs, and `xor_error` still falls below
+  `random_error` within 500 epochs
+
+#### Scenario: Gallery example of the Elman network
+- **WHEN** the gallery runs `docs/examples/computer_science/neural_networks/plot_elman_network.py`
+- **THEN** it records at most 300 frames, its thumbnail is the time series view of the loss and the two metrics, in
+  which `xor_error` falls toward 0 while `random_error` stays near 0.25, and below the screenshot a Matplotlib figure
+  shows the mean squared prediction error at each position of the bit triple before and after training, with the
+  third position alone near 0 after training
+
+### Requirement: The generalized Lotka-Volterra matrix is a parameter
+`generalized_lotka_volterra` SHALL hold its interaction matrix as a shaped parameter of a `CouplingInteraction`, so a
+schedule or an experiment changes it, and SHALL keep its trajectory.
+
+#### Scenario: Rebuilt community keeps its trajectory
+- **WHEN** `generalized_lotka_volterra` runs with its catalog defaults
+- **THEN** its trajectory equals the trajectory of the previous constant matrix within 1e-10
+
+#### Scenario: Matrix swept by an experiment
+- **WHEN** a grid experiment sets the matrix parameter to two matrices that differ off the diagonal
+- **THEN** the two members of the experiment differ in their final abundances
+
+### Requirement: Random Lotka-Volterra community with k-body interactions
+The library SHALL provide `higher_order_random_lotka_volterra` in `biology/ecology` (Sidhom and Galla 2024, arXiv
+2409.10990): a group of species with the growth `x_i (k - x_i)` and the rate `x_i sum_(j<k) a_ijk x_j x_k` of the
+paper's Eq. 2, written `x_i contraction(a, x, x) / 2`, from a random coupling tensor `a` of order 3 with the mean, variance,
+and correlation of its Eqs. 4 and 5, a shaped parameter drawn by the factory from its `random_state`, so a schedule or an
+experiment changes it, with a curated gallery example.
+
+#### Scenario: No interactions
+- **WHEN** the model runs with a tensor of zeros
+- **THEN** every species converges to its carrying capacity within 1e-6
+
+#### Scenario: Random community
+- **WHEN** the model runs with its defaults, the equations, scaling, and parameters of Sidhom and Galla (2024, arXiv
+  2409.10990), over 20 seeds
+- **THEN** every abundance stays non-negative and finite, and the mean fraction of surviving species matches the
+  paper's result at those parameters within its stated precision: 200 species, `mu = -4`, `sigma = 1`, and `gamma = 0`
+  give 0.928 from its Eq. 17, and the paper states no number, so the check allows 0.02, three standard errors of 20 seeds
+
+### Requirement: Learning models are recorded in the model inventory
+Every model this change implements SHALL register under the field path of its subfield and SHALL have an entry in the
+model inventory, and a model the inventory records as blocked by this change SHALL register under the name of its
+entry.
+
+#### Scenario: Inventory models registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are registered under their field paths and marked implemented:
+  - `elman_network` in `computer_science/neural_networks`, with the sources Gr 10.5.1 and Elman 1990
+  - `higher_order_random_lotka_volterra` in `biology/ecology`
+
+### Requirement: Nonlocal field models
+The library SHALL provide, as registered factories built on the general interactions and the nonlocal operators:
+- `amari_neural_field` under `biology/neuroscience` (2112.12147 §1.3.1);
+- `double_gyre` under `earth/oceanography` (1910.00583 §III.6.1);
+- `gkt_traffic` under `engineering/traffic` (cond-mat/0012229 §III.E.4);
+- `active_viscoelastic_gel` under `physics/active_matter` (2306.08868 VI).
+
+#### Scenario: Amari bump
+- **WHEN** the Amari neural field `tau u_t = -u + convolve(H(u), w) + h` runs on a line with a lateral-inhibition
+  kernel `w`, a Heaviside firing rate, and a resting level `h < 0`, from a localized excitation
+- **THEN** a stationary bump forms, and its width is within 5% of the root `a` of `W(a) + h = 0` with `w(a) < 0`,
+  where `W(a)` is the integral of `w` from 0 to `a`
+
+#### Scenario: Double gyre circulation
+- **WHEN** the quasi-geostrophic double gyre runs in a closed square basin from rest under the symmetric double-gyre
+  wind stress `-tau0 cos(2 pi y / L)` in its viscous, steady regime
+- **THEN** the streamfunction forms two gyres of opposite sign, one on each side of the mid-basin latitude, with each
+  extremum in the western fifth of the basin, and along the central latitude of each gyre the interior streamfunction
+  is within 10% of the Sverdrup balance `beta psi_x = curl(tau)`
+
+#### Scenario: Stop-and-go waves
+- **WHEN** the gas-kinetic-based traffic model runs on a ring road with a small local density perturbation, once at a
+  density of 15 vehicles per kilometre and once at a density in its unstable range
+- **THEN** the perturbation decays at the low density, and at the unstable density it grows into congested clusters
+  whose downstream fronts move upstream at between 10 and 25 kilometres per hour
+
+#### Scenario: Contractile gel
+- **WHEN** the active viscoelastic gel runs from a small perturbation of uniform cell density above its contractile
+  threshold
+- **THEN** the density concentrates into peaks, and the velocity at every step solves the force balance within 1e-10
+
+### Requirement: Field couplings are interactions
+`legion` and `nanotube_gap_junction_exchange` SHALL write the coupling of their fields with `CouplingInteraction`, so
+`TermanWangElement` and `ExchangingCellElement` hold only the dynamics of one site, and SHALL keep their trajectories.
+
+#### Scenario: Rebuilt couplings keep the trajectories
+- **WHEN** `legion` and `nanotube_gap_junction_exchange` run with their catalog defaults
+- **THEN** the trajectory of `nanotube_gap_junction_exchange` equals that of the previous elements within 1e-10, and the
+  rates of `legion` equal those of the previous elements within 1e-12 at many random states, with its trajectories
+  equal within 1e-10 over a short window before rounding grows

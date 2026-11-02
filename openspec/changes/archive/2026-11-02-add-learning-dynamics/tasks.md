@@ -71,4 +71,4 @@
 - [x] 7.1 Document the training interaction and its law, its difference from `GradientInteraction`, nested inner
   models, datasets, losses, truncation, optimizers, shaped parameters, and the zero gradient of step functions in the
   user guide, and add the changelog entry; verify the documentation build runs the examples
-- [ ] 7.2 Run formatting, checks, the docs build, and tests through nox; verify all of them pass
+- [x] 7.2 Run formatting, checks, the docs build, and tests through nox; verify all of them pass

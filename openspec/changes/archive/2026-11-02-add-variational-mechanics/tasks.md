@@ -34,4 +34,4 @@
 
 - [x] 5.1 Document `HamiltonianInteraction`, `InvariantAnalysis`, and `Yoshida4Solver` in the user guide next to
   `EulerLagrangeInteraction`, and add the changelog entry; verify the documentation test passes
-- [ ] 5.2 Run formatting, checks, the docs build, and tests through nox; verify all of them pass
+- [x] 5.2 Run formatting, checks, the docs build, and tests through nox; verify all of them pass

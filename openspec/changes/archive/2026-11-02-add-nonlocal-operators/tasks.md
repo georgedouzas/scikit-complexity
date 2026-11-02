@@ -67,4 +67,4 @@
 
 - [x] 7.1 Document the inversion, kernels and convolution, shifted reads, and couplings on fields in the user guide's
   fields page with runnable examples, and add the changelog entry; verify the docs build runs them
-- [ ] 7.2 Run formatting, checks, the docs build, and tests through nox; verify all of them pass
+- [x] 7.2 Run formatting, checks, the docs build, and tests through nox; verify all of them pass
