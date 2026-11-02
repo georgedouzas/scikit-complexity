@@ -91,7 +91,9 @@ jobs:
     - name: Run the test suite
       env:
         PYTEST_ADDOPTS: -v
-      run: pdm tests
+      run: |
+        (while sleep 300; do df -h . | tail -1; vm_stat 2>/dev/null | head -2 || true; free -m 2>/dev/null | sed -n 2p || true; done) &
+        pdm tests
 
   gallery:
 
