@@ -22,6 +22,11 @@ engine, analysis, and experiments from importing the models.
 
 ## Decisions
 
+- **Decided on 2026-11-02, after the renames.** Removing the name guess must not lose analysis data: group states count as
+  series, and phases take `role='phase'`, so alignment reads them. Analyses of particle models keep their previous results
+  and shapes where the guess gave a correct reading. `IrreversibilityAnalysis` takes neutral arguments, and the remaining
+  field words in names go.
+
 - **Decided on 2026-11-02.** Only true particle groups take `StateSpec(role='position')`, with the first derivative of a
   position-role state as its velocity; other groups stop being read as agent snapshots, and each changed default is
   reported. Also renamed: `MatchSpec.price` and its reporter to `value`, `budget` in matching to `allowance`,
