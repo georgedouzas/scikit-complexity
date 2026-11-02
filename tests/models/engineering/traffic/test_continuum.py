@@ -5,6 +5,7 @@ import pytest
 
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import SSPRKSolver
+from skcomplex.models import run
 from skcomplex.models.engineering.traffic import (
     kerner_konhauser,
     lighthill_whitham_richards,
@@ -48,3 +49,20 @@ def test_kerner_konhauser_forms_a_cluster():
     density = trajectory.values('road.rho')
     assert density[-1].max() > 0.35
     assert density.sum(axis=1)[-1] == pytest.approx(density.sum(axis=1)[0])
+
+
+def test_gkt_traffic_forms_stop_and_go_waves_at_unstable_densities():
+    """Test that a perturbation decays in light traffic and grows into clusters with upstream-moving fronts."""
+    light = np.asarray(run('gkt_traffic', density=15.0, amplitude=10.0).trajectory_.values('road.rho'))
+    assert np.ptp(light[-1]) < 0.5 * np.ptp(light[0])
+    density = np.asarray(run('gkt_traffic').trajectory_.values('road.rho'))
+    assert np.ptp(density[-1]) > 20.0
+    assert density.sum(axis=1)[-1] == pytest.approx(density.sum(axis=1)[0])
+    spacing, lag = 10.0 / 200, 10
+    shifts = []
+    for earlier, later in zip(density[30:-lag], density[30 + lag :], strict=True):
+        correlation = np.fft.irfft(np.conj(np.fft.rfft(earlier - earlier.mean())) * np.fft.rfft(later - later.mean()))
+        shift = int(np.argmax(correlation))
+        shifts.append((shift - 200 if shift > 100 else shift) * spacing)
+    velocity = np.mean(shifts) / (lag / 60)
+    assert -25.0 <= velocity <= -10.0
