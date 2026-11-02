@@ -58,7 +58,7 @@ def _sites(values: np.ndarray) -> np.ndarray:
     field='earth/oceanography',
     tags=('quasi-geostrophic', 'gyre', 'western boundary current', 'field', 'inversion', 'pde'),
     references=('Munk 1950', 'arXiv:1910.00583'),
-    defaults={'until': 400.0, 'dt': 0.5, 'solver': RK4Solver(dt=0.5)},
+    defaults={'until': 400.0, 'dt': 0.4, 'solver': RK4Solver(dt=0.4)},
     observables=lambda system: [ObservableSpec('psi', _streamfunction, group='basin', reduce=_sites)],
 )
 def double_gyre(
