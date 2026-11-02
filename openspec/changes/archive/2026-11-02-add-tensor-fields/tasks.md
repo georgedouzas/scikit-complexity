@@ -45,5 +45,5 @@
 
 ## 5. Gate
 
-- [ ] 5.1 Run `nox -s formatting`, `nox -s checks`, `nox -s docs`, and `nox -s tests` in that order, and verify all of
+- [x] 5.1 Run `nox -s formatting`, `nox -s checks`, `nox -s docs`, and `nox -s tests` in that order, and verify all of
   them pass
