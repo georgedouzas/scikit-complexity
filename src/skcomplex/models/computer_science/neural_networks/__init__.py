@@ -1,5 +1,6 @@
 """Neural networks: Hopfield's memory, its diluted version, the echo state network, and Elman's recurrent network."""
 
+from ._binary_weight import BinaryWeightElement
 from ._diluted import DilutedNeuronElement, diluted_hopfield
 from ._echo_state import ReservoirUnitElement, echo_state_network
 from ._elman import elman_network
@@ -9,10 +10,12 @@ from ._hopfield_update import HopfieldUpdateInteraction
 from ._input_coupling import InputCouplingInteraction
 from ._input_unit import InputUnitElement
 from ._output_unit import OutputUnitElement
+from ._perceptron import perceptron_satisfiability
 from ._readout_coupling import ReadoutCouplingInteraction
 from ._recurrence_coupling import RecurrenceCouplingInteraction
 
 __all__: list[str] = [
+    'BinaryWeightElement',
     'DilutedNeuronElement',
     'HiddenUnitElement',
     'HopfieldUpdateInteraction',
@@ -27,4 +30,5 @@ __all__: list[str] = [
     'echo_state_network',
     'elman_network',
     'hopfield',
+    'perceptron_satisfiability',
 ]
