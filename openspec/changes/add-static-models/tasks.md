@@ -36,7 +36,7 @@
   fractionation, glass transition, percolation threshold, and von Thünen rings scenarios and the conformance suite
 - [x] 4.2 Add `oligopoly_equilibria` with its static and fictitious-play dynamics, and verify the mixed price
   equilibrium and fictitious play scenarios and the conformance suite
-- [ ] 4.3 Add `perceptron_satisfiability` and `evolutionary_optimisers`, and verify the satisfiable fraction and
+- [x] 4.3 Add `perceptron_satisfiability` and `evolutionary_optimisers`, and verify the satisfiable fraction and
   algorithms compared scenarios and the conformance suite
 - [ ] 4.4 Add `gravity_urban_scaling` and the package `skcomplex.models.social.language` with
   `mandelbrot_least_effort`, and verify the urban scaling exponent and least-effort frequencies scenarios and the
