@@ -277,8 +277,15 @@ class Simulation(BaseConfig[None, float]):
         self.time_ = 0.0
         self.state_ = self.stepper_.initial_state_.copy()
         self._step = 0
+        self._frame_parameters: npt.NDArray[np.float64] | None = None
         for observer in self.observers_:
             observer.check().prepare(self.problem_)
+
+    def _get_frame_parameters(self) -> npt.NDArray[np.float64]:
+        """Return a copy of the parameters for a frame, shared with the previous frame while they stay the same."""
+        if self._frame_parameters is None or not np.array_equal(self._frame_parameters, self.parameters_):
+            self._frame_parameters = self.parameters_.copy()
+        return self._frame_parameters
 
     def _emit(self, step: int) -> None:
         """Hand the current frame, with the events since the previous one, to every observer."""
@@ -291,7 +298,7 @@ class Simulation(BaseConfig[None, float]):
             step,
             self.time_,
             self.state_.copy(),
-            self.parameters_.copy(),
+            self._get_frame_parameters(),
             self.problem_,
             agents,
             reporters,
