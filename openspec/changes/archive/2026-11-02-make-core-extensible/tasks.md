@@ -35,4 +35,4 @@
 ## 6. Documentation and gate
 
 - [x] 6.1 Document the hooks, partner spec, callable options, and object states in the user guide with runnable examples, and add the changelog entry; verify `pytest --markdown-docs docs/overview`.
-- [ ] 6.2 Run formatting, checks, the docs build, and the full suite through nox; verify they pass apart from the known timing tests.
+- [x] 6.2 Run formatting, checks, the docs build, and the full suite through nox; verify they pass apart from the known timing tests.
