@@ -16,6 +16,7 @@ from sage.sets.real_set import RealSet
 
 from ..types import Array, ComplexArray, DomainKind
 from ._base_spec import BaseSpec
+from ._tensor_spec import TensorSpec
 
 PARTS = 2
 
@@ -53,12 +54,19 @@ class EntrySpec(BaseSpec):
         period:
             The period that values of the variable wrap around, or `None`.
 
+        tensor:
+            The independent components of a rank-2 tensor variable, or `None`.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import CC, RR
         >>> from skcomplex.specs import EntrySpec
         >>> entry = EntrySpec('a.z', 0, (2,), CC, is_complex=True)
         >>> entry.size, entry.component_names
         (4, ['a.z[0].real', 'a.z[0].imag', 'a.z[1].real', 'a.z[1].imag'])
+        >>> from skcomplex.specs import TensorSpec
+        >>> tensor = EntrySpec('a.Q', 0, (2,), RR, tensor=TensorSpec('traceless', 2))
+        >>> tensor.component_names, tensor.kind.value
+        (['a.Q_xx', 'a.Q_xy'], 'tensor')
     """
 
     name: str
@@ -68,6 +76,7 @@ class EntrySpec(BaseSpec):
     members: int | None = None
     is_complex: bool = False
     period: float | None = None
+    tensor: TensorSpec | None = None
 
     def _parts(self, names: list[str]) -> list[str]:
         """Return names with the suffixes of the real and imaginary parts for a complex variable."""
@@ -104,6 +113,11 @@ class EntrySpec(BaseSpec):
     def component_names(self) -> list[str]:
         """Names of the components, with an index suffix for vectors, a member index for groups, and complex parts."""
         components = math.prod(self.member_shape)
+        if self.tensor is not None:
+            names = [f'{self.name}_{name}' for name in self.tensor.names]
+            if self.members is None:
+                return names
+            return [f'{name}[{member}]' for member in range(self.rows) for name in names]
         if self.members is None:
             if not self.shape:
                 return self._parts([self.name])
@@ -119,6 +133,8 @@ class EntrySpec(BaseSpec):
         """Names of the components of one member, with the member index `i` for groups."""
         if self.members is None:
             return self.component_names
+        if self.tensor is not None:
+            return [f'{self.name}_{name}[i]' for name in self.tensor.names]
         if not self.member_shape:
             return self._parts([f'{self.name}[i]'])
         return self._parts([f'{self.name}[i, {index}]' for index in range(math.prod(self.member_shape))])
@@ -179,7 +195,9 @@ class EntrySpec(BaseSpec):
 
     @property
     def kind(self) -> DomainKind:
-        """Kind of value the variable takes, an angle for a periodic variable."""
+        """Kind of value the variable takes, an angle for a periodic variable and a tensor for a tensor component."""
+        if self.tensor is not None:
+            return DomainKind.TENSOR
         return EntrySpec._domain_kind(self.domain, self.period)
 
     def contains(self, value: object) -> bool:

@@ -151,7 +151,7 @@ class GroupElement(BaseElement):
                 shape = np.asarray(value).shape
             except ValueError:
                 continue
-            shared = 1 if spec.vector else 0
+            shared = 1 if spec.vector or getattr(spec, 'tensor', None) else 0
             if len(shape) <= shared or shape[0] == self.size_:
                 continue
             error_msg = (

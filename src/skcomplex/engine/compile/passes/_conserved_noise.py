@@ -169,7 +169,7 @@ class ConservedNoisePass(BasePass):
         for reference in targets:
             place = places.get(reference.entry.name)
             field, space = ConservedNoisePass._check_place(owner, reference, place)
-            kind, _ = field._get_boundary(reference.entry.name.rpartition('.')[2])
+            kind, _ = field._get_boundary(reference.entry.name.rpartition('.')[2], reference.column)
             tables = ConservedNoisePass._link_tables(space.shape_, kind == 'periodic')
             key = ('conserved', reference.entry.name, reference.column)
             dimension = len(tables) * space.size_

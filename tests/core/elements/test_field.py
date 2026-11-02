@@ -157,3 +157,70 @@ def test_conserved_noise_gives_flat_structure_factor():
     factor = SpectrumAnalysis('structure-factor', frames=True).check().prepare(frames).run()
     np.testing.assert_allclose(factor.power_, 0.5, rtol=0.1)
     np.testing.assert_allclose(np.abs(np.fft.fftn(frames, axes=(1, 2))[:, 0, 0]) ** 2, 0.0, atol=1e-18)
+
+
+class _RelaxingTensorElement(Element):
+    """Element whose symmetric traceless state relaxes by its Laplacian."""
+
+    def __init__(self, label, Q: Annotated[object, StateSpec(tensor='traceless')] = 0.0):
+        super().__init__(label)
+        self.Q = Q
+
+    def _get_laws(self, namespace):
+        """Return the rate of the state, the Laplacian of its matrix."""
+        return [RateLaw(namespace.Q, namespace.Q.apply_map(laplacian))]
+
+
+class _DecayingTensorElement(Element):
+    """Element whose symmetric traceless state decays."""
+
+    def __init__(self, label, Q: Annotated[object, StateSpec(tensor='traceless')] = 0.0):
+        super().__init__(label)
+        self.Q = Q
+
+    def _get_laws(self, namespace):
+        """Return the rate of the state, minus its matrix."""
+        return [RateLaw(namespace.Q, -namespace.Q)]
+
+
+@pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
+def test_rate_law_relaxes_a_tensor_state(backend):
+    """A relaxation of the matrix of a tensor state gives every independent component its rate."""
+    field = FieldElement(
+        'film',
+        element=_DecayingTensorElement,
+        space=LatticeSpace((3, 3)),
+        values={'Q': np.tile([1.0, 0.5], (9, 1))},
+    )
+    simulation = Simulation(System(elements=[field]), dt=0.01, backend=backend()).check().prepare().run(until=1.0)
+    final = simulation.trajectory_.values('film.Q')[-1]
+    assert np.allclose(final, np.tile([1.0, 0.5], (9, 1)) * np.exp(-1.0), rtol=1e-4)
+
+
+def test_boundary_gives_every_component_of_a_fixed_matrix():
+    """Fixed edges that hold a matrix pull every independent component to its own value."""
+    anchor = np.array([[0.4, 0.3], [0.3, -0.4]])
+    field = FieldElement(
+        'film',
+        element=_RelaxingTensorElement,
+        space=LatticeSpace((5, 5), boundary='fixed'),
+        boundary={'Q': ('fixed', anchor)},
+    )
+    field.check()
+    assert field._get_boundary('Q', 0) == ('fixed', 0.4)
+    assert field._get_boundary('Q', 1) == ('fixed', 0.3)
+    simulation = Simulation(System(elements=[field]), dt=0.05).check().prepare().run(until=60.0)
+    final = simulation.trajectory_.values('film.Q')[-1]
+    assert np.allclose(final, np.tile([0.4, 0.3], (25, 1)), atol=1e-6)
+
+
+def test_boundary_rejects_an_asymmetric_matrix():
+    """A fixed matrix without the symmetry of its state raises an error that names the state."""
+    field = FieldElement(
+        'film',
+        element=_RelaxingTensorElement,
+        space=LatticeSpace((4, 4)),
+        boundary={'Q': ('fixed', [[0.0, 1.0], [2.0, 0.0]])},
+    )
+    with pytest.raises(ValidationError, match=r'film\.Q'):
+        field.check()

@@ -171,6 +171,7 @@ def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:
         position=spec.position,
         reference=spec.reference,
         role=spec.role,
+        tensor=spec.tensor,
     )
 
 

@@ -24,6 +24,14 @@ class ConservationError(ValidationError):
     """A conserved quantity changes outside its flows, or an invariant of a run moves beyond its tolerance."""
 
 
+class TensorShapeError(ValidationError):
+    """A tensor operation is given an expression of the wrong shape, such as the tensor divergence of a scalar."""
+
+
+class TensorSymmetryError(ValidationError):
+    """A rate law on a tensor state breaks the declared symmetry of the state."""
+
+
 class LabelError(ValidationError):
     """A label is missing, duplicated, or produces a name collision."""
 

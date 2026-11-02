@@ -83,6 +83,9 @@ class VariableSpec(BaseSpec):
 
         shape:
             The names of the roles whose group sizes give the shape of a parameter, or `None`.
+
+        tensor:
+            The symmetry of a rank-2 tensor state, or `None`.
     """
 
     kind: VariableKind
@@ -107,6 +110,7 @@ class VariableSpec(BaseSpec):
     reference: str | None = None
     role: str | None = None
     shape: tuple[str, ...] | None = None
+    tensor: str | None = None
 
     @property
     def is_fractional(self) -> bool:

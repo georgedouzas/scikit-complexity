@@ -145,6 +145,8 @@ class SpecsPass(BasePass):
                 symbols[name] = SpecsPass._renamed(value, mapping)
             elif name in block.per:
                 symbols[name] = tuple(SpecsPass._renamed(item, mapping) for item in value)
+            elif name in block.entries and (tensor := block.entries[name].tensor) is not None:
+                symbols[name] = tensor.matrix_of(SpecsPass._renamed(item, mapping) for item in value)
             else:
                 symbols[name] = vector(SpecsPass._renamed(item, mapping) for item in value)
         return SimpleNamespace(**symbols)

@@ -6,8 +6,11 @@
 from collections.abc import Mapping
 from dataclasses import replace
 
+import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
+from sage.structure.element import Matrix
+from sage.symbolic.function import SymbolicFunction
 
 from ....core.base import BasePart
 from ....core.elements import FieldElement, GroupElement
@@ -28,12 +31,12 @@ from ....core.laws import (
     TransferLaw,
     UpdateLaw,
 )
-from ....core.laws.utils import hyperedges_in, laplacian, neighborhoods_in, reductions_in, shifted
+from ....core.laws.utils import distribute_operators, hyperedges_in, laplacian, neighborhoods_in, reductions_in, shifted
 from ....core.spaces import LatticeSpace
 from ....core.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ....core.system import System
-from ....errors import SkcomplexError, ValidationError
-from ....specs import CallSpec, EntrySpec
+from ....errors import SkcomplexError, TensorShapeError, TensorSymmetryError, ValidationError
+from ....specs import CallSpec, EntrySpec, TensorSpec
 from ....types import ElementKind, ProcessKey, VariableKind
 from ..._utils import components_of, declarations_of, symbol, symbols_of, vector
 from ...problems import BlockSpec, DeclarationsSpec, KernelSpec
@@ -43,6 +46,7 @@ from ...problems._topology_kernel import TopologyKernel
 from ...types import ReadKind
 from .._base import BasePass
 from .._compilation import Compilation
+from .._field_lowering import FieldLowering
 from .._observables import ObservableEvaluator
 from .._observer import Observer
 from .._renewal_law import RenewalLaw
@@ -52,6 +56,8 @@ from ._noise import NoisePass
 from ._specs import SpecsPass
 
 EDGE_REQUESTS = ('remove-edge', 'rewire')
+SYMMETRY_TOLERANCE = 1e-9
+SYMMETRY_TRIALS = 3
 
 
 class CensusPass(BasePass):
@@ -111,7 +117,7 @@ class CensusPass(BasePass):
         if block is None:
             return False
         declaration = declarations_of(block.node.component_type, VariableKind.STATE).get(name)
-        return declaration is not None and declaration.vector
+        return declaration is not None and (declaration.vector or declaration.tensor is not None)
 
     @staticmethod
     def _handle_uses(law: BaseLaw, handles: Mapping[Expression, tuple[str, int]]) -> tuple[str, ...]:
@@ -618,6 +624,100 @@ class CensusPass(BasePass):
         return kept
 
     @staticmethod
+    def _opaque_calls(expression: Expression) -> dict[Expression, Expression]:
+        """Return a symbol for every outermost call of a symbolic function, which has no value at numbers."""
+        if isinstance(expression.operator(), SymbolicFunction):
+            return {expression: SR.symbol(f'_call_{abs(hash(str(expression)))}')}
+        found: dict[Expression, Expression] = {}
+        for operand in expression.operands():
+            found.update(CensusPass._opaque_calls(operand))
+        return found
+
+    @staticmethod
+    def _breaks_symmetry(residual: Expression) -> bool:
+        """Check whether an expression that a symmetry needs to be 0 is not 0 at random values of its symbols."""
+        opaque = residual.subs(CensusPass._opaque_calls(residual))
+        symbols = opaque.variables()
+        generator = np.random.default_rng(len(symbols))
+        for _ in range(SYMMETRY_TRIALS):
+            values = dict(zip(symbols, generator.uniform(0.1, 1.0, len(symbols)).tolist(), strict=True))
+            value = opaque.subs(values)
+            if not value.is_numeric() or abs(complex(value)) > SYMMETRY_TOLERANCE:
+                return bool(value.is_numeric())
+        return False
+
+    @staticmethod
+    def _check_tensor_rate(law: RateLaw, name: str, tensor: TensorSpec, value: Matrix) -> None:
+        """Raise an error for a matrix rate whose dependent entries are not the ones its independent entries give."""
+        expected = tensor.matrix_of(value[row, column] for row, column in tensor.indices)
+        size = tensor.n_dim
+        for row in range(size):
+            for column in range(size):
+                residual = distribute_operators(SR(value[row, column] - expected[row, column])).expand()
+                if residual.is_zero() or residual.simplify_full().is_zero():
+                    continue
+                if not CensusPass._breaks_symmetry(residual):
+                    continue
+                last = row == column == size - 1 and tensor.symmetry == 'traceless'
+                where = f'the trace {value.trace()}' if last else f'the entry [{row}, {column}]'
+                error_msg = (
+                    f'The rate law {law.label or repr(law.value)} on the tensor state {name} breaks its symmetry '
+                    f'{tensor.symmetry!r} at {where}, by the comparison at random component values, since Sage does '
+                    'not simplify the difference to 0.'
+                )
+                raise TensorSymmetryError(error_msg)
+
+    @staticmethod
+    def _component_rates(spec: KernelSpec, law: BaseLaw) -> list[BaseLaw]:
+        """Return a rate law on a tensor state, or a field operator rate on a vector, as one rate per component.
+
+        Args:
+            spec:
+                The kernel spec of the component.
+
+            law:
+                The law as the component returns it.
+
+        Returns:
+            laws:
+                The rate of every independent component, or any other law as it is.
+
+        Raises:
+            TensorShapeError:
+                The target is not the matrix of a tensor state, or the rate does not have its shape.
+
+            TensorSymmetryError:
+                The rate breaks the symmetry of the state.
+        """
+        if not isinstance(law, RateLaw):
+            return [law]
+        if isinstance(law.target, FreeModuleElement) and isinstance(law.value, FreeModuleElement):
+            if not any(FieldLowering._has_operators(item) for item in law.value):
+                return [law]
+            pairs = zip(law.target, law.value, strict=True)
+            return [RateLaw(target, rate, law.order, label=law.label) for target, rate in pairs]
+        if not isinstance(law.target, Matrix):
+            return [law]
+        references = [spec.references.get(item) for item in law.target.variables()]
+        entry = next((item.entry for item in references if item is not None and item.entry.tensor is not None), None)
+        if entry is None or entry.tensor is None:
+            error_msg = f'A rate law of {spec.owner} targets the matrix {law.target}, which is no tensor state.'
+            raise TensorShapeError(error_msg)
+        tensor = entry.tensor
+        targets = [law.target[row, column] for row, column in tensor.indices]
+        if BaseLaw._is_function(law.value):
+            return [RateLaw(vector(targets), law.value, law.order, label=law.label)]
+        if not isinstance(law.value, Matrix) or law.value.dimensions() != law.target.dimensions():
+            error_msg = (
+                f'A rate law of {spec.owner} on the tensor state {entry.name} has the value {law.value}. Give a matrix '
+                f'of {tensor.n_dim} rows and {tensor.n_dim} columns.'
+            )
+            raise TensorShapeError(error_msg)
+        CensusPass._check_tensor_rate(law, entry.name, tensor, law.value)
+        rates = [law.value[row, column] for row, column in tensor.indices]
+        return [RateLaw(target, rate, law.order, label=law.label) for target, rate in zip(targets, rates, strict=True)]
+
+    @staticmethod
     def _declared_laws(spec: KernelSpec, component: BasePart) -> list[BaseLaw]:
         """Return the laws a component returns for its namespace, after checking their classes against its binding.
 
@@ -641,7 +741,8 @@ class CensusPass(BasePass):
         if not isinstance(returned, list | tuple) or len(laws) < len(returned):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'
             raise ValidationError(error_msg)
-        declared = [law.check().prepare(spec.owner) for law in laws]
+        split = [item for law in laws for item in CensusPass._component_rates(spec, law)]
+        declared = [law.check().prepare(spec.owner) for law in split]
         if spec.hyperedge is not None:
             declared = CensusPass._hyperedge_laws(spec, declared)
         searched = spec.pairs is not None and spec.edges is None

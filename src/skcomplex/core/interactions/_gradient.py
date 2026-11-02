@@ -8,15 +8,16 @@ from math import prod
 from types import SimpleNamespace
 from typing import Annotated
 
-from sage.all__sagemath_symbolics import SR, Expression, vector
+from sage.all__sagemath_symbolics import SR, Expression, matrix, vector
 from sage.modules.free_module_element import FreeModuleElement
+from sage.structure.element import Matrix
 from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
 from ..base import BasePart
 from ..laws import RateLaw
-from ..laws.utils import laplacian, partial
+from ..laws.utils import distribute_operators, laplacian, partial
 from ..types import Target
 from ._interaction import Interaction
 
@@ -28,7 +29,8 @@ class GradientInteraction(Interaction):
     divisor of its member: a state or parameter of the member, an expression of them such as a moment of inertia
     `m l^2`, or one divisor per state, such as the masses of two coordinates of one element. On a state of order 1
     this is the gradient flow `x' = -dU/dx / d`, with `d` a friction, and on a state of order 2 it is Newton's law
-    `x'' = -dU/dx / d`, with `d` an inertia. A vector state gets the gradient of every component.
+    `x'' = -dU/dx / d`, with `d` an inertia. A vector state gets the gradient of every component, and a tensor state
+    the matrix gradient, the projection of the derivative onto the matrices of its symmetry.
 
     On a field the potential is the density `f` of a functional `F = integral f`, which may read the field, its
     derivatives `partial(x, k)` or `gradient(x)`, and its `laplacian(x)`. A variational interaction moves the field by
@@ -222,8 +224,33 @@ class GradientInteraction(Interaction):
                 total += constant * laplacian(varying)
         return total
 
+    def _get_matrix_derivative(self, potential: Expression, state: Matrix) -> Matrix:
+        """Return the matrix gradient of a potential at a tensor state, written in the matrices of its symmetry.
+
+        The derivative with respect to the independent components is the product of the matrices of the components, the
+        metric of the state, and the coefficients of the gradient, so the metric gives the coefficients.
+        """
+        if self.conserved:
+            error_msg = f'{self.label!r} conserves the tensor state {state}. Give a scalar state.'
+            raise ValidationError(error_msg)
+        components = sorted(state.variables(), key=str)
+        units = [state.derivative(component) for component in components]
+        metric = matrix(SR, [[(first.transpose() * second).trace() for second in units] for first in units])
+        density = distribute_operators(potential)
+        derivatives = [
+            self._get_variation(density, component) if self.variational else density.diff(component)
+            for component in components
+        ]
+        coefficients = metric.inverse() * vector(SR, derivatives)
+        total = matrix(SR, state.nrows(), state.ncols())
+        for coefficient, unit in zip(coefficients, units, strict=True):
+            total += coefficient * unit
+        return total
+
     def _get_derivative(self, potential: Expression, state: Target) -> Target:
         """Return the derivative of the potential with respect to a state, every component of a vector state."""
+        if isinstance(state, Matrix):
+            return self._get_matrix_derivative(potential, state)
         if isinstance(state, FreeModuleElement):
             if self.variational or self.conserved:
                 error_msg = f'{self.label!r} moves the vector state {state} of a field. Give a scalar state.'

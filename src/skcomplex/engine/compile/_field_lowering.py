@@ -244,7 +244,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         reference = self._known_reference(item)
         variable = reference.entry.name.rpartition('.')[2]
         if reference.is_state:
-            kind, value = place._get_boundary(variable)
+            kind, value = place._get_boundary(variable, reference.column)
         else:
             kind, value = (
                 'periodic' if getattr(place.space, 'boundary', 'periodic') == 'periodic' else 'zero-flux',
@@ -366,7 +366,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
                 continue
             place = self._field_of(base)
             if place is not None:
-                found.append(place._get_boundary(reference.entry.name.rpartition('.')[2]))
+                found.append(place._get_boundary(reference.entry.name.rpartition('.')[2], reference.column))
         return found
 
     def _boundary(self, expression: Expression, place: FieldElement) -> tuple[str, object]:

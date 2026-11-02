@@ -86,6 +86,7 @@ from ._support_spec import SupportSpec
 from ._symmetry_spec import SymmetrySpec
 from ._table_spec import TableSpec
 from ._table_values_spec import TableValuesSpec
+from ._tensor_spec import TensorSpec
 from ._topology_request_spec import EDGE_KINDS, ENDS, TOPOLOGY_KINDS, TopologyRequestSpec
 from ._totalistic_spec import TotalisticSpec
 from ._validation_report_spec import ValidationReportSpec
@@ -190,6 +191,7 @@ __all__ = [
     'SymmetrySpec',
     'TableSpec',
     'TableValuesSpec',
+    'TensorSpec',
     'TopologyRequestSpec',
     'TotalisticSpec',
     'ValidationReportSpec',

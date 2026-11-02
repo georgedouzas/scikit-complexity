@@ -14,7 +14,16 @@ from sage.all__sagemath_symbolics import Expression
 from ...base import BaseConfig
 from ...core.laws import BaseLaw
 from ...core.system import System
-from ...errors import LabelError, ParameterError, RoleError, SkcomplexError, SpaceError, ValidationError
+from ...errors import (
+    LabelError,
+    ParameterError,
+    RoleError,
+    SkcomplexError,
+    SpaceError,
+    TensorShapeError,
+    TensorSymmetryError,
+    ValidationError,
+)
 from ...specs import IssueSpec, ObservableSpec, SupportSpec, ValidationReportSpec
 from ...types import FormKind
 from ..backends import BaseBackend, NumbaBackend, NumpyBackend
@@ -27,6 +36,8 @@ _FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     RoleError: ('role', 'Bind every role to the path of an element, group, or member of the system.'),
     SpaceError: ('space-missing', 'Give the system a space whose kind the component supports.'),
     ParameterError: ('parameter', 'Give the parameter a value inside its domain.'),
+    TensorShapeError: ('law-domain', 'Give the tensor operation a matrix or a vector of the shape it reads.'),
+    TensorSymmetryError: ('tensor-symmetry', 'Give the state a rate of its declared symmetry.'),
 }
 
 

@@ -20,7 +20,7 @@ from ....core.laws.utils import COORDINATE_PREFIX, coordinate
 from ....core.spaces import BaseSpace, LatticeSpace, NetworkSpace, PhaseSpace
 from ....core.specs import NodeSpec
 from ....errors import LabelError, SpaceError, ValidationError
-from ....specs import EntrySpec, VariableSpec, WienerProcessSpec
+from ....specs import EntrySpec, TensorSpec, VariableSpec, WienerProcessSpec
 from ....types import Array, VariableKind
 from ..._utils import components_of, declarations_of, default_of, symbol, vector
 from ...problems import BlockSpec, DeclarationsSpec, ReferenceSpec
@@ -193,9 +193,11 @@ class LayoutPass(BasePass):
         )
         is_complex = declaration.domain is CC
         start = declarations.ends[is_state]
-        entry = EntrySpec(name, start, shape, declaration.domain, members, is_complex, declaration.period)
+        tensor = LayoutPass._tensor_of(declaration, node.space)
+        entry = EntrySpec(name, start, shape, declaration.domain, members, is_complex, declaration.period, tensor)
         base = f'{variable}_{re.sub(r"[^0-9A-Za-z]", "_", node.path)}'
-        names = [f'{base}_{index}' for index in range(member_shape[0])] if member_shape else [base]
+        suffixes = tensor.names if tensor is not None else range(member_shape[0] if member_shape else 0)
+        names = [f'{base}_{suffix}' for suffix in suffixes] if member_shape else [base]
         columns = [f'{item}_{part}' for item in names for part in ('re', 'im')] if is_complex else names
         domain = RR if is_complex else declaration.domain
         components = [symbol(item, domain) for item in columns]
@@ -494,6 +496,13 @@ class LayoutPass(BasePass):
         return (entries,)
 
     @staticmethod
+    def _tensor_of(declaration: VariableSpec, space: BaseSpace | None) -> TensorSpec | None:
+        """Return the independent components of a declared tensor state in its space, or `None` for any other state."""
+        if declaration.tensor is None or space is None:
+            return None
+        return TensorSpec(declaration.tensor, int(space.n_dim_)).check()
+
+    @staticmethod
     def _shape_of(name: str, declaration: VariableSpec, space: BaseSpace | None) -> tuple[int, ...]:
         """Return the shape of a declared variable in its space.
 
@@ -509,24 +518,27 @@ class LayoutPass(BasePass):
 
         Returns:
             shape:
-                `()` for a scalar and `(n_dim,)` for a vector.
+                `()` for a scalar, `(n_dim,)` for a vector, and the number of independent components for a tensor.
 
         Raises:
             SpaceError:
-                A vector variable has no enclosing space.
+                A vector or a tensor variable has no enclosing space.
 
             ValidationError:
                 The space dimension is not a positive integer.
         """
-        if not declaration.vector:
+        if not declaration.vector and declaration.tensor is None:
             return ()
         if space is None:
-            error_msg = f'{name} is a vector, so the system that holds it or one of its parents must have a space.'
+            error_msg = (
+                f'{name} is a vector or a tensor, so the system that holds it or one of its parents must have a space.'
+            )
             raise SpaceError(error_msg)
         if not EntrySpec._contains(RealSet.open(0, oo), space.n_dim_) or not EntrySpec._contains(ZZ, space.n_dim_):
             error_msg = f'The space of {name} has n_dim = {space.n_dim_!r}, which is not a positive integer.'
             raise ValidationError(error_msg)
-        return (int(space.n_dim_),)
+        tensor = LayoutPass._tensor_of(declaration, space)
+        return (int(space.n_dim_),) if tensor is None else (len(tensor.indices),)
 
     @staticmethod
     def _describe(value: object) -> str:

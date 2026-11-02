@@ -48,12 +48,23 @@ from ._reductions import (
     variance,
 )
 from ._signals import pulse, pulse_train, ramp, series, step
+from ._tensors import (
+    antisymmetric_part,
+    corotational,
+    distribute_operators,
+    leray_projection,
+    symmetric_part,
+    tensor_divergence,
+    upper_convected,
+    vector_gradient,
+)
 
 __all__: list[str] = [
     'COORDINATE_PREFIX',
     'INVERSION_BOUNDARIES',
     'NEIGHBOR_REDUCTIONS',
     'advection',
+    'antisymmetric_part',
     'bernoulli',
     'both',
     'categorical',
@@ -65,6 +76,7 @@ __all__: list[str] = [
     'convolve',
     'coordinate',
     'coordinates_of',
+    'corotational',
     'count',
     'dagger',
     'delay1',
@@ -73,6 +85,7 @@ __all__: list[str] = [
     'delayed',
     'derivative',
     'displacement',
+    'distribute_operators',
     'distributed_delay',
     'divergence',
     'draw',
@@ -87,6 +100,7 @@ __all__: list[str] = [
     'inverse_laplacian',
     'lag',
     'laplacian',
+    'leray_projection',
     'local_operator',
     'log_sum_exp',
     'logistic',
@@ -117,10 +131,14 @@ __all__: list[str] = [
     'sign',
     'smooth',
     'step',
+    'symmetric_part',
+    'tensor_divergence',
     'total',
     'transfer',
     'uniform',
+    'upper_convected',
     'upwind',
     'variance',
+    'vector_gradient',
     'where',
 ]

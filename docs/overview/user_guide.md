@@ -2702,6 +2702,70 @@ print([clip(x, 0, 1).subs(x=value) for value in (-2, 0.5, 3)], [sign(x).subs(x=v
 print([float(pulse_train(t, 10, 1, count=2).subs({t: time})) for time in (10.5, 20.5)], circular_mean(theta))
 ```
 
+### Tensor fields
+
+`StateSpec(tensor=symmetry)` declares a rank-2 tensor state of a field on a lattice of 2 or 3 dimensions, with the
+symmetry `'full'`, `'symmetric'`, `'antisymmetric'`, or `'traceless'`, which means symmetric and traceless. The element
+stores only the independent components, as `Q_xx` and `Q_xy` for a symmetric traceless state in 2 dimensions, and initial
+values give one value per independent component. Laws read `s.Q` as a Sage matrix whose dependent entries are written in
+terms of the independent ones, and a `RateLaw` on it takes a matrix.
+
+- `vector_gradient(v)` is the matrix `partial(v_i, j)`, and `tensor_divergence(T)` the vector of the sums of
+  `partial(T_ij, j)` over `j`.
+- `symmetric_part(M)` and `antisymmetric_part(M)` split a matrix, so the strain rate of a velocity is
+  `symmetric_part(vector_gradient(u))`.
+- `T.apply_map(laplacian)` is the Laplacian of a matrix, entry by entry, as `v.apply_map(laplacian)` is that of a vector.
+- `corotational(T, u, xi)` is the transport of a symmetric tensor or a vector that advects it, rotates it with the
+  vorticity, and aligns it with the strain rate by `xi`. `upper_convected(T, u)` is the upper-convected transport. A law
+  subtracts them from its rate.
+- `leray_projection(v)` is the divergence-free part of a vector, `v - gradient(inverse_laplacian(divergence(v)))`, exact
+  on spectral fields of periodic lattices. A velocity odd about the middle of an axis, set by the `symmetry` of the field,
+  gives walls there.
+
+The `boundary` of a field takes a matrix of the symmetry of the state as the fixed value `('fixed', matrix)`, which gives
+every edge of the lattice that matrix. `PassCompiler` reports a rate law that breaks the declared symmetry with the code
+`tensor-symmetry`, and a tensor operation given the wrong shape with the code `law-domain`.
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.elements import Element, FieldElement
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.laws.utils import corotational, inverse_laplacian, laplacian, leray_projection, tensor_divergence
+from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class StirredElement(Element):
+    def __init__(self, label, Q: Annotated[object, StateSpec(tensor='traceless')] = 0.0):
+        super().__init__(label)
+        self.Q = Q
+
+    def _get_laws(self, s):
+        force = tensor_divergence(s.Q)
+        velocity = leray_projection(force.apply_map(lambda item: inverse_laplacian(-item)))
+        return [RateLaw(s.Q, -corotational(s.Q, velocity, 0.5) + s.Q.apply_map(laplacian) - s.Q)]
+
+
+size = 16
+spacing = 2 * np.pi / size
+x, y = np.meshgrid(np.arange(size) * spacing, np.arange(size) * spacing, indexing='ij')
+start = np.stack([0.1 * np.cos(x).ravel(), 0.1 * np.sin(y).ravel()], axis=1)
+film = FieldElement(
+    'film',
+    element=StirredElement,
+    space=LatticeSpace((size, size), spacing=spacing),
+    values={'Q': start},
+    discretization='spectral',
+)
+trajectory = Simulation(System(elements=[film]), dt=0.01).check().prepare().run(until=0.2).trajectory_
+print(bool(np.max(np.abs(trajectory.values('film.Q')[-1])) < np.max(np.abs(start))))
+```
+
 ## Extending the general classes
 
 A general class names a mathematical operation, and a subclass names what it means in a field. It overrides hooks, and

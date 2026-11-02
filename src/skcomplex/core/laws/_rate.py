@@ -18,11 +18,11 @@ class RateLaw(BaseLaw):
 
     Args:
         target:
-            The symbol of a scalar state, or the column of symbols of a vector state.
+            The symbol of a scalar state, the column of symbols of a vector state, or the matrix of a tensor state.
 
         value:
-            A symbolic expression, a `Call`, or a callable `f(t, values)` where `values` maps dotted state and parameter
-            names to their current values.
+            A symbolic expression, a matrix of the shape of a tensor state, a `Call`, or a callable `f(t, values)` where
+            `values` maps dotted state and parameter names to their current values.
 
         order:
             The order of the derivative the rate gives, checked against the state's order, or `None` to use it.

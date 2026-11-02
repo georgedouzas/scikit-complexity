@@ -4,12 +4,12 @@ from typing import Annotated
 
 import networkx as nx
 import pytest
-from sage.all__sagemath_symbolics import sqrt
+from sage.all__sagemath_symbolics import SR, cos, identity_matrix, sin, sqrt
 
 from skcomplex.core.elements import Element, FieldElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.laws.utils import convolve, displacement, inverse_helmholtz
+from skcomplex.core.laws.utils import convolve, displacement, inverse_helmholtz, laplacian, tensor_divergence
 from skcomplex.core.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, QuantumCompiler
@@ -189,3 +189,66 @@ def test_compiler_raises_every_nonlocal_issue_at_once():
     compiler = PassCompiler().check().prepare(System(elements=[network, lattice]))
     with pytest.raises(ValidationError, match=r'(?s)net: .*law-space.*grid: .*screening'):
         compiler.run()
+
+
+class _TensorElement(Element):
+    """Element with a symmetric traceless state and a scalar, whose rate a function of the test gives."""
+
+    rate = staticmethod(lambda s: -s.Q)
+
+    def __init__(self, label, Q: Annotated[object, StateSpec(tensor='traceless')] = 0.0):
+        super().__init__(label)
+        self.Q = Q
+
+    def _get_laws(self, namespace):
+        """Return the rate of the tensor state."""
+        return [RateLaw(namespace.Q, type(self).rate(namespace), label='relax')]
+
+
+def _tensor_issues(rate):
+    """Return the issues of a field whose tensor state has the given rate."""
+
+    class RatedElement(_TensorElement):
+        pass
+
+    RatedElement.rate = staticmethod(rate)
+    field = FieldElement('film', element=RatedElement, space=LatticeSpace((4, 4)))
+    return PassCompiler().check().prepare(System(elements=[field])).report_.issues
+
+
+def test_prepare_reports_a_rate_with_a_trace_on_a_traceless_state():
+    """A rate with a nonzero trace is reported with the law, the state, and the trace."""
+    issues = _tensor_issues(lambda s: s.Q + identity_matrix(SR, 2))
+    assert [issue.code for issue in issues] == ['tensor-symmetry']
+    assert 'relax' in issues[0].message
+    assert 'film.Q' in issues[0].message
+    assert 'trace' in issues[0].message
+    assert 'random component values' in issues[0].message
+
+
+def test_prepare_accepts_the_entrywise_laplacian_of_a_traceless_state():
+    """The Laplacian of a dependent entry, which Sage keeps unevaluated, keeps the symmetry."""
+    assert _tensor_issues(lambda s: s.Q.apply_map(laplacian)) == ()
+
+
+def test_prepare_accepts_a_rate_that_needs_simplification():
+    """A rate whose trace vanishes only after an identity keeps the symmetry."""
+    assert _tensor_issues(lambda s: (sin(s.Q[0, 0]) ** 2 + cos(s.Q[0, 0]) ** 2 - 1) * identity_matrix(SR, 2)) == ()
+
+
+def test_prepare_reports_the_tensor_divergence_of_a_scalar():
+    """The tensor divergence of a scalar state is reported with the utility and the state."""
+
+    class ScalarElement(Element):
+        def __init__(self, label, u: Annotated[float, StateSpec()] = 0.0):
+            super().__init__(label)
+            self.u = u
+
+        def _get_laws(self, namespace):
+            return [RateLaw(namespace.u, tensor_divergence(namespace.u)[0])]
+
+    field = FieldElement('film', element=ScalarElement, space=LatticeSpace((4, 4)))
+    issues = PassCompiler().check().prepare(System(elements=[field])).report_.issues
+    assert [issue.code for issue in issues] == ['law-domain']
+    assert 'tensor_divergence' in issues[0].message
+    assert 'u_film' in issues[0].message

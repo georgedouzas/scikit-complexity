@@ -11,6 +11,7 @@ from sage.all__sagemath_symbolics import RR
 
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
+from ._tensor_spec import TENSOR_SYMMETRIES
 
 ROLES = ('heading', 'velocity', None)
 
@@ -68,6 +69,11 @@ class StateSpec(BaseSpec):
             a velocity, or `None` for any other state. Analyses read headings and velocities from these roles alone, so
             a state named `phase` is no heading unless it says so.
 
+        tensor:
+            The symmetry of a rank-2 tensor state, `'full'`, `'symmetric'`, `'antisymmetric'`, or `'traceless'`, which
+            means symmetric and traceless, or `None` for a state that is no tensor. The state stores its independent
+            components, and laws read it as a Sage matrix whose dependent entries are written in terms of them.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
@@ -77,6 +83,8 @@ class StateSpec(BaseSpec):
         (True, False)
         >>> StateSpec(reference='banks').check().reference
         'banks'
+        >>> StateSpec(tensor='traceless').check().tensor
+        'traceless'
     """
 
     domain: object = RR
@@ -90,6 +98,7 @@ class StateSpec(BaseSpec):
     position: bool = False
     reference: str | None = None
     role: str | None = None
+    tensor: str | None = None
 
     def _check(self) -> None:
         """Raise an error for an invalid order, lags, or initial values, or a reference of a state that is not scalar.
@@ -97,12 +106,19 @@ class StateSpec(BaseSpec):
         Raises:
             ValidationError:
                 The order or the lags are invalid, there are more initial values than derivatives or lags, or a state
-                naming a member of a group is not a scalar of order 1 without lags.
+                naming a member of a group is not a scalar of order 1 without lags, or the tensor symmetry is unknown or
+                given together with a vector.
         """
+        if self.tensor is not None and self.vector:
+            error_msg = f'A state takes either vector=True or tensor={self.tensor!r}, not both.'
+            raise ValidationError(error_msg)
+        if self.tensor is not None and self.tensor not in TENSOR_SYMMETRIES:
+            error_msg = f'The tensor symmetry is {self.tensor!r}. Use one of {", ".join(TENSOR_SYMMETRIES)}.'
+            raise ValidationError(error_msg)
         if self.role not in ROLES:
             error_msg = f"The role of a state is 'heading', 'velocity', or None, but got {self.role!r}."
             raise ValidationError(error_msg)
-        if self.reference is not None and (self.vector or self.order != 1 or self.lags):
+        if self.reference is not None and (self.vector or self.tensor or self.order != 1 or self.lags):
             error_msg = f'The state naming a member of {self.reference!r} is not a scalar of order 1 without lags.'
             raise ValidationError(error_msg)
         integral = float(self.order).is_integer()

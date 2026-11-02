@@ -14,6 +14,7 @@ from types import SimpleNamespace
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
+from sage.structure.element import Matrix
 
 from ...errors import ValidationError
 from ...specs import CallSpec, RequirementSpec
@@ -121,7 +122,7 @@ class BaseLaw(BasePart[str, object]):
     def _is_function(value: object) -> bool:
         """Check whether a law value is a function or a call, not a symbolic expression, which is also callable."""
         return isinstance(value, CallSpec) or (
-            callable(value) and not isinstance(value, Expression | FreeModuleElement | numbers.Number)
+            callable(value) and not isinstance(value, Expression | FreeModuleElement | Matrix | numbers.Number)
         )
 
     def _evaluate(self, value: object, inputs: object) -> object:

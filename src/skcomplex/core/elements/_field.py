@@ -4,14 +4,19 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
+from typing import cast
+
+import numpy as np
+from sage.structure.element import Matrix
 
 from ...errors import ValidationError
-from ...specs import VisualSpec
+from ...specs import StateSpec, TensorSpec, VisualSpec
 from ..spaces import BaseSpace, LatticeSpace, MeshSpace, NetworkSpace
 from ._base import BaseElement
 from ._lattice import LatticeElement
 
 FIELD_BOUNDARIES = ('periodic', 'zero-flux', 'fixed')
+MATRIX_RANK = 2
 DISCRETIZATIONS = ('finite-difference', 'spectral', 'finite-volume', 'finite-element')
 
 
@@ -39,7 +44,8 @@ class FieldElement(LatticeElement):
             The lattice, the network, or the mesh.
 
         boundary:
-            A mapping from state name to its boundary condition, which overrides the edges of the lattice.
+            A mapping from state name to its boundary condition, which overrides the edges of the lattice. The value of
+            `('fixed', value)` for a tensor state may be a matrix of the symmetry of the state.
 
         values:
             Arrays of the lattice shape, or with one value per network node in node order, or shared values.
@@ -107,7 +113,14 @@ class FieldElement(LatticeElement):
         self.discretization = discretization
         self.symmetry = symmetry
 
-    def _get_boundary(self, state: str) -> tuple[str, object]:
+    def _tensor_of(self, state: str) -> TensorSpec | None:
+        """Return the independent components of a tensor state of the element, or `None` for any other state."""
+        spec = self.element._get_specs().get(state)
+        if not isinstance(spec, StateSpec) or spec.tensor is None:
+            return None
+        return TensorSpec(spec.tensor, int(cast(BaseSpace, self.space).check().prepare().n_dim_)).check()
+
+    def _get_boundary(self, state: str, column: int = 0) -> tuple[str, object]:
         """Return the boundary condition of a state and the value read outside fixed edges.
 
         A state without a boundary condition of its own takes the edges of the space: periodic edges stay periodic,
@@ -116,6 +129,9 @@ class FieldElement(LatticeElement):
         Args:
             state:
                 The name of the state.
+
+            column:
+                The independent component of a tensor state, whose fixed value a matrix gives.
 
         Returns:
             boundary:
@@ -130,6 +146,9 @@ class FieldElement(LatticeElement):
         edges = 'reflecting' if isinstance(self.space, MeshSpace) else getattr(self.space, 'boundary', 'periodic')
         condition = (self.boundary or {}).get(state, default.get(edges, 'periodic'))
         if isinstance(condition, tuple | list):
+            tensor = self._tensor_of(state)
+            if tensor is not None and (isinstance(condition[1], Matrix) or np.ndim(condition[1]) == MATRIX_RANK):
+                return str(condition[0]), float(tensor.components_of(condition[1])[column])
             return str(condition[0]), condition[1] if callable(condition[1]) else float(condition[1])
         return str(condition), 0.0
 
@@ -138,14 +157,19 @@ class FieldElement(LatticeElement):
 
         Raises:
             ValidationError:
-                The discretization or a boundary condition is unknown.
+                The discretization or a boundary condition is unknown, or the matrix of a tensor state does not have
+                its symmetry.
         """
         super()._check()
         if self.discretization not in DISCRETIZATIONS:
             error_msg = f'Unknown discretization {self.discretization!r} of {self.label}. Use one of {DISCRETIZATIONS}.'
             raise ValidationError(error_msg)
         for state in self.boundary or {}:
-            kind, _ = self._get_boundary(state)
+            try:
+                kind, _ = self._get_boundary(state)
+            except ValidationError as error:
+                error_msg = f'The boundary of {self.label}.{state} is not valid: {error}'
+                raise ValidationError(error_msg) from error
             if kind not in FIELD_BOUNDARIES:
                 error_msg = (
                     f"Unknown boundary {kind!r} of {self.label}.{state}. Use 'periodic', 'zero-flux', or "

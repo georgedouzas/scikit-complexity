@@ -597,7 +597,8 @@ class FieldFunctionsPass(BasePass):
         boundaries = tuple(
             (kind, float(SR(value)) if not callable(value) else 0.0)
             for kind, value in (
-                place._get_boundary(reference.entry.name.rpartition('.')[2]) for _, reference, _ in laws
+                place._get_boundary(reference.entry.name.rpartition('.')[2], reference.column)
+                for _, reference, _ in laws
             )
         )
         return (
