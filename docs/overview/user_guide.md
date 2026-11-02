@@ -4420,6 +4420,128 @@ two-dimensional incompressible flow in vorticity-streamfunction form, with Bouss
 in the subfields `fluids`, `pattern_formation`, and `heat` of `skcomplex.models.physics`, and `burgers`,
 `shallow_water`, `decaying_turbulence`, and `rayleigh_benard` in `skcomplex.models.physics.fluids`.
 
+### Nonlocal operators
+
+Three operators of `skcomplex.core.laws.utils` read beyond the nearest sites, and a law writes them as a reference
+writes them:
+
+- `inverse_helmholtz(expression, screening, boundary=None)` is the solution of
+  `(laplacian - screening**2) psi = expression`, and `inverse_laplacian(u)` is its case without screening. It runs on
+  spectral fields, on finite-difference lattices with periodic, zero-flux, or fixed edges, where the fast transforms of
+  SciPy invert the stencil that `laplacian` uses, and on networks and meshes with a sparse factorization. An operand
+  that mixes states of different boundaries needs `boundary=`.
+- `convolve(expression, kernel, radius=None)` sums an expression over the sites of a lattice against a kernel written
+  in the symbols `displacement(axis)` and the parameters. The kernel is sampled when the problem is compiled, wraps
+  around periodic edges, and is cut at fixed and zero-flux edges, where the operand is padded with the fixed value or
+  its mirror image.
+- `shifted(expression, offset, order=1)` reads an expression at a physical displacement, one component per axis, which
+  may depend on the states. A displacement of whole sites reads the neighbour tables and stays compilable to Numba, and
+  any other one interpolates with `order=1` or `order=3`, following the boundary of the field.
+
+The stencil operators read a nonlocal result at the neighbouring sites, so `partial` and `gradient` apply to an inverted
+streamfunction. Laws with these operators run on the NumPy backend, except whole-site reads. The sparsity pattern of the
+Jacobian marks a convolution as coupling the sites within its radius and an inversion as dense, so implicit solvers stay
+correct but slow, and explicit or exponential solvers suit them best. An observable may use them too, which streams a
+streamfunction as an image.
+
+```python
+from typing import Annotated
+
+import numpy as np
+from sage.all__sagemath_symbolics import exp, pi, sqrt
+
+from skcomplex.core.elements import Element, FieldElement
+from skcomplex.core.interactions import RateInteraction
+from skcomplex.core.laws.utils import convolve, displacement, inverse_helmholtz, partial, shifted
+from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import ParameterSpec, StateSpec
+
+
+class SiteElement(Element):
+    def __init__(
+        self,
+        label,
+        *,
+        u: Annotated[float, StateSpec()] = 0.0,
+        k: Annotated[float, ParameterSpec()] = 2.0,
+    ):
+        super().__init__(label)
+        self.u = u
+        self.k = k
+
+
+def rate_of(rate):
+    centers = np.arange(128) * 0.1
+    values = {'u': np.exp(-((centers - 6.4) ** 2))}
+    line = FieldElement('line', element=SiteElement, space=LatticeSpace(128, spacing=0.1), values=values)
+    interaction = RateInteraction('rate', target='line', state='u', rate=rate)
+    simulation = Simulation(System(elements=[line], interactions=[interaction]), dt=0.05)
+    return simulation.check().prepare().run(until=0.2).trajectory_.values('line.u')
+
+
+def smoothing(s):
+    kernel = exp(-displacement(0) ** 2) / sqrt(pi)
+    return convolve(s.target.u, kernel) - s.target.u
+
+
+def screened_drift(s):
+    return partial(inverse_helmholtz(s.target.u, s.target.k), 0)
+
+
+def look_ahead(s):
+    return shifted(s.target.u, [0.25 + s.target.u]) - s.target.u
+
+
+for rate in (smoothing, screened_drift, look_ahead):
+    print(rate.__name__, rate_of(rate)[-1].sum().round(3))
+```
+
+The misuses are issues of the compiler's report, each with the path of the law and a fix: `law-space` for a convolution
+or a shifted read on a network or a mesh and for a spectral operator on a lattice without periodic edges, `kernel-state`
+for a kernel that reads a state, `screening` for a screening that reads a state or whose square can be negative, and
+`operator-spaces` for an operand that reads fields of more than one space.
+
+A `CouplingInteraction` on a field sums a function of both ends over the neighbours of every site, reading a fixed
+boundary value as `laplacian` does. A constant times `s.other.u - s.member.u` lowers to `laplacian`, so spectral and
+finite-element fields keep their own operator.
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.elements import Element, FieldElement
+from skcomplex.core.interactions import CouplingInteraction
+from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+
+
+class CellElement(Element):
+    def __init__(self, label, *, u: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.u = u
+
+
+cells = FieldElement('cells', element=CellElement, space=LatticeSpace(32), values={'u': np.eye(32)[16]})
+exchange = CouplingInteraction(
+    'exchange',
+    target='cells',
+    read='u',
+    write='u',
+    function=lambda s: 0.2 * (s.other.u - s.member.u),
+)
+system = System(elements=[cells], interactions=[exchange])
+trajectory = Simulation(system, dt=0.5).check().prepare().run(until=2.0).trajectory_
+print(trajectory.values('cells.u')[-1].sum().round(6))
+```
+
+`amari_neural_field` holds a bump with a convolution, `double_gyre` streams the streamfunction of a closed basin,
+`gkt_traffic` brakes on the traffic read ahead, and `active_viscoelastic_gel` solves its force balance at every step.
+
 ## Backends and speed
 
 Compiling a system produces numeric functions with a backend. `NumpyBackend` evaluates every law with NumPy arrays,
