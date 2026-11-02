@@ -46,12 +46,12 @@
 
 ## Overview
 
-**`scikit-complexity` lets you describe a model from any science in a few lines, and takes care of the rest:** it works
+`scikit-complexity` lets you describe a model from any science in a few lines, and takes care of the rest: it works
 out the mathematics, picks a solver, runs the simulation, and streams it live to the [Rerun](https://rerun.io) viewer.
 
 Flocks, epidemics, markets, fluids, neural networks and cellular automata are usually written in separate tools with
-separate conventions. Here they share one small vocabulary, in the spirit of scikit-learn: **elements** carry state,
-**interactions** change it through laws, and **systems** nest and compose. Learn it once, and every field opens up.
+separate conventions. Here they share one small vocabulary, in the spirit of scikit-learn: elements carry state,
+interactions change it through laws, and systems nest and compose. Learn it once, and every field opens up.
 
 <table>
   <tr>
@@ -68,23 +68,23 @@ separate conventions. Here they share one small vocabulary, in the spirit of sci
   </tr>
 </table>
 
-<p align="center"><em>A few of the <b>549 ready-to-run models</b>, each with a documented example in the
+<p align="center"><em>A few of the 549 ready-to-run models, each with a documented example in the
 <a href="https://georgedouzas.github.io/scikit-complexity">gallery</a>.</em></p>
 
 ## Features
 
-- **Every kind of dynamics, one interface.** Differential equations, stochastic processes, jump processes, discrete maps,
+- Every kind of dynamics, one interface. Differential equations, stochastic processes, jump processes, discrete maps,
   cellular automata, agents, networks and hypergraphs, fields and PDEs, quantum systems, and models that learn by gradient
   descent.
-- **The form of your model is inferred.** Write the laws; the framework decides whether it is an ODE, an SDE or a jump
+- The form of your model is inferred. Write the laws; the framework decides whether it is an ODE, an SDE or a jump
   process, and compiles it for NumPy, Numba, or JAX.
-- **Symbols when you want them, code when you don't.** Laws are Sage symbolic expressions you can inspect and solve exactly,
+- Symbols when you want them, code when you don't. Laws are Sage symbolic expressions you can inspect and solve exactly,
   or plain Python functions.
-- **Watch it run.** Stream any simulation to Rerun in real time, and change its parameters while it runs.
-- **Analysis included.** Nearly 50 analyses, from Lyapunov exponents and entropy to network motifs, scaling laws and system
+- Watch it run. Stream any simulation to Rerun in real time, and change its parameters while it runs.
+- Analysis included. Nearly 50 analyses, from Lyapunov exponents and entropy to network motifs, scaling laws and system
   identification, plus experiments for parameter sweeps, sensitivity, calibration and basin stability.
-- **Standing on mature libraries.** SciPy, NetworkX, Mesa, LAMMPS, QuTiP, JAX and others do the heavy lifting.
-- **Extend it, don't fork it.** Models are written with the same public classes you use, so each one doubles as an example
+- Standing on mature libraries. SciPy, NetworkX, Mesa, LAMMPS, QuTiP, JAX and others do the heavy lifting.
+- Extend it, don't fork it. Models are written with the same public classes you use, so each one doubles as an example
   for your own.
 
 ## Installation
