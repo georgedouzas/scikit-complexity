@@ -2,8 +2,7 @@
 # Active nematic gels
 
 An extensile nematic in a viscous fluid drives a flow by its own stress, and this flow bends the axes further, so an
-aligned state is unstable. Pairs of `+1/2` and `-1/2` defects appear and move in a chaotic flow, active turbulence. The
-image shows the first component of the tensor at the end of the run.
+aligned state is unstable. At the default parameters the flow comes in bursts, between which the axes align again.
 """
 
 # %%
@@ -40,8 +39,8 @@ simulation = (
 # %%
 # Defects and flow
 # ----------------
-# Every defect of a periodic lattice has a partner of the opposite charge, so the total charge should stay 0 at every
-# frame. The kinetic energy should rise from the nearly still start while the instability grows.
+# The charges of a periodic lattice sum to 0 at every frame, whatever defects a frame holds. The kinetic energy should
+# rise from the nearly still start while the instability grows, and then come in bursts.
 
 trajectory = simulation.trajectory_
 tensors = trajectory.lattice('gel.Q')

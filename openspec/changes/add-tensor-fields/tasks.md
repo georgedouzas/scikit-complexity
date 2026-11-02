@@ -38,7 +38,7 @@
   and verify the density conservation scenario and the conformance suite
 - [ ] 4.2 Add `active_gels` with the nematic and polar orders, and verify the passive nematic order, active turbulence,
   and spontaneous flow scenarios and the conformance suite
-- [ ] 4.3 Mark `dry_active_nematics` and `active_gels` implemented in `docs/overview/inventory.toml`, add their gallery
+- [x] 4.3 Mark `dry_active_nematics` and `active_gels` implemented in `docs/overview/inventory.toml`, add their gallery
   examples under `docs/examples/physics/active_matter`, and verify the inventory check and the gallery coverage check
 - [ ] 4.4 Add the changelog entry for tensor states and the new models, and verify the changelog session passes
 

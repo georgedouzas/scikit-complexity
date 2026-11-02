@@ -162,7 +162,7 @@ def dry_active_nematics(
 
 @register_model(
     field='physics/active_matter',
-    tags=('field', 'active matter', 'nematic', 'polar', 'tensor', 'gel', 'stokes flow', 'active turbulence', 'pde'),
+    tags=('field', 'active matter', 'nematic', 'polar', 'tensor', 'gel', 'stokes flow', 'pde'),
     references=('Marchetti et al. 2013', 'arXiv:1207.2929', 'Kruse et al. 2005', 'Voituriez, Joanny, and Prost 2005'),
     defaults={'until': 200.0, 'dt': 1.0, 'solver': RK4Solver(dt=0.05)},
     observables=lambda system: [

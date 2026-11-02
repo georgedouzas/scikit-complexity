@@ -247,7 +247,7 @@ class GradientInteraction(Interaction):
             total += coefficient * unit
         return total
 
-    def _get_derivative(self, potential: Expression, state: Target) -> Target:
+    def _get_derivative(self, potential: Expression, state: Target | Matrix) -> Target | Matrix:
         """Return the derivative of the potential with respect to a state, every component of a vector state."""
         if isinstance(state, Matrix):
             return self._get_matrix_derivative(potential, state)

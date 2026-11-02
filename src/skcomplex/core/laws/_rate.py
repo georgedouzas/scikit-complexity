@@ -4,6 +4,8 @@
 # License: MIT
 
 
+from sage.structure.element import Matrix
+
 from ...specs import RequirementSpec
 from ..spaces import ContinuousTime
 from ..types import Target
@@ -38,7 +40,7 @@ class RateLaw(BaseLaw):
         6.0
     """
 
-    def __init__(self, target: Target, value: object, order: int | None = None, *, label: str = '') -> None:
+    def __init__(self, target: Target | Matrix, value: object, order: int | None = None, *, label: str = '') -> None:
         super().__init__(label)
         self.target = target
         self.value = value
