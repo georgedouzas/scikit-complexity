@@ -10,7 +10,7 @@ from skcomplex.core.elements import Element, FieldElement, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw, RuleLaw
 from skcomplex.core.laws.utils import inverse_helmholtz, total
-from skcomplex.core.spaces import LatticeSpace
+from skcomplex.core.spaces import LatticeSpace, StaticTime
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import ObservableEvaluator, PassCompiler, compile_system
@@ -82,6 +82,8 @@ def test_reductions_agree_with_observables(name):
     model, observables, paths = _observed(name)
     if QuantumCompiler._contains_quantum(model):
         pytest.skip('A quantum system cannot share a co-simulation with classical readers.')
+    if isinstance(model.time, StaticTime):
+        pytest.skip('A static system has no time axis, so rate laws of a continuous system cannot read its values.')
     if 'distribution' in describe(name).tags:
         pytest.skip('The observables of a distribution take its moments, which laws read only inside its reductions.')
     if not paths:
