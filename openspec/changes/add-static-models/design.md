@@ -29,8 +29,8 @@ The parts of the current code this change builds on:
 - Name every new core class for its operation, and keep field quantities in the model packages.
 
 **Non-Goals:**
-- A sweep axis inside a simulation. A sweep is an `Experiment` with `GridDesign`, and a disorder average is its
-  `replicates`.
+- A sweep axis inside a simulation. A sweep is an `Experiment` with `GridDesign`, and a disorder average sweeps the
+  factory's `random_state` as one of its axes.
 - Equilibria of finite games by support or vertex enumeration. No model needs them, and the learning dynamics of games
   are compositions of `ChoiceInteraction` and `ReinforcementInteraction`.
 - Estimators trained by epochs, which `add-learning-dynamics` covers, so the real-weight perceptron is left to it.
@@ -158,8 +158,8 @@ stay with `EvolutionInteraction`, so no genetic algorithm spec is added.
 | `gravity_urban_scaling` | `social/organizations` | `StaticTime`, a group of residents in a disc of area `A ∝ N^alpha` with the `EquationLaw` of each resident's interaction, a sum of `r^-gamma` over the others |
 | `mandelbrot_least_effort` | `social/language` | `StaticTime`, a group of words with costs, probabilities `exp(-lambda c_i) / Z` as `EquationLaw`s, and `lambda` solved from the stationarity of cost over entropy |
 
-The sweeps of the gallery examples are `Experiment`s with `GridDesign`, and the disorder averages are their
-`replicates`.
+The sweeps of the gallery examples are `Experiment`s with `GridDesign`, and the disorder averages sweep the factory's
+`random_state` as one of its axes.
 
 ## Risks / Trade-offs
 
