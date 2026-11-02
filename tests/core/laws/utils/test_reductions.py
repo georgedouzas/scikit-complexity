@@ -1195,6 +1195,7 @@ def _random_levels(temperature: float = 1.0, random_state: int = 0) -> System:
     return System(elements=[levels, BoltzmannElement('sums')], interactions=[reader], time=StaticTime())
 
 
+@pytest.mark.slow
 def test_log_sum_exp_random_energy_model_entropy() -> None:
     """Test that the entropy of random levels over 10 seeds follows the theory above the glass temperature."""
     bounds = {'temperature': [1.0, 2.0, 0.3], 'random_state': list(range(10))}

@@ -47,6 +47,32 @@ The parts of the current code this change builds on:
   uphill and downhill moves about equal at any temperature, so the share of accepted moves that raise the energy cannot
   fall to zero. The scenario checks the share of proposals accepted and the final energy.
 
+- **Fictitious play distance, measured** (decided on 2026-11-02): the 0.1 of the scenario was an estimate, not a number of
+  Forrest (2018), which gives the equilibrium and no learning dynamics. At `alpha = 0.25` on 21 prices, 20 seeds give a
+  Kolmogorov distance of 0.123 with a standard deviation of 0.026 and a largest value of 0.162 at 2000 rounds, and 0.117
+  with 0.027 at 8000, so it levels off above 0.1: best responses cycle, and the grid and the shared switchers of a tie keep
+  the discrete equilibrium away from `F(P)`. A NumPy prototype gave the same at 11 to 101 prices. The scenario uses 0.2,
+  the mean plus three standard deviations.
+- **Urban scaling exponent, measured** (decided on 2026-11-02): Ribeiro and Netto (2024 §4, arXiv 2404.02642) give
+  `Y ~ N^(2 - gamma / D_P)`, which is `2 - alpha gamma / 2` for `D_P = 2 / alpha`, with no numerical example. Over 40 seeds
+  of 100 to 1600 residents, the mean exponent is 1.503 against 1.5 at `(alpha, gamma) = (1, 1)`, with a standard deviation
+  of 0.013, and 1.704 against 1.7 at `(1.2, 0.5)`, with 0.005, so one seed holds the 0.05 of the scenario. Close pairs make
+  the sum heavy-tailed as `gamma` nears 2: the standard deviation is 0.071 at `(0.8, 1.5)`, whose mean total over seeds
+  fits 1.404 against 1.4, and 0.21 at `(1, 1.9)`, whose fit is 1.14 against 1.05. The scenario holds for one seed up to
+  `gamma = 1`, and for totals averaged over seeds at `gamma = 1.5`.
+- **Random energy model at a finite size, measured** (decided on 2026-11-02): over 10 seeds at `N = 20`, the entropy is
+  0.631 at `T = 2` and 0.443 at `T = 1`, within 0.001 of `ln 2 - 1 / (4 T^2)`, but 0.331 at `T = 0.8` against 0.303, and
+  0.267 at `T = 0.7` against 0.183. The difference falls slowly with `N`, 0.321 at `T = 0.8` and `N = 22`, since few levels
+  carry the weight near `T_g`. The test uses 0.02 at `T >= 1` and 0.05 at `T = 0.8`.
+- **The spanning crossing, measured** (decided on 2026-11-02): over 300 seeds the spanning probabilities at the fillings
+  1.0 and 1.25 are 0.18 and 0.68 at the side 20, 0.18 and 0.80 at 30, and 0.06 and 0.91 at 60, so the sizes cross between
+  them. The test compares the sides 20 and 60 over 40 seeds, since 30 and 60 are too close at that many.
+- **Annealing reports its best through a partition** (decided on 2026-11-02): `MonteCarloSolver` takes only sample and
+  boundary laws, and a form takes no update law with them, so `evolutionary_optimisers` under annealing nests the sampled
+  candidates and an element of the running best as coupled partitions, which an observable of the lowest energy joins.
+- **The profit of the pricing game is an observable** (decided on 2026-11-02): Sage's solution of the profit from `F(P)`
+  divides by `(1 - P)^(1 / (m - 1))`, which is 0/0 at `P = 1`, so the profit reads the solved state in observables instead.
+
 - **Reference numbers are checked before they become thresholds.** The urban scaling exponent and the fictitious-play
   distance are first reproduced from the cited source; when a run disagrees, the scenario uses the measured value
   with a tolerance from the spread over seeds, and design.md records the source, the measured value, and why they
