@@ -23,7 +23,7 @@ def _draw_tensor(
     gamma: float,
     rng: np.random.Generator,
 ) -> npt.NDArray[np.float64]:
-    """Return the coupling tensor with the mean, the variance, and the correlation of Sidhom and Galla, Eqs. 4 and 5."""
+    """Return the coupling tensor with the moments and the correlation of Sidhom and Galla, equations 4 and 5."""
     pairs = comb(size - 1, 2)
     correlation = (1 - gamma) * np.eye(3) + gamma * np.ones((3, 3))
     triples = np.array(list(combinations(range(size), 3)))
