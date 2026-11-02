@@ -34,37 +34,69 @@
 
 # scikit-complexity
 
-| Category          | Tools    |
-| ------------------| -------- |
-| **Development**   | [![black][black badge]][black] [![ruff][ruff badge]][ruff] [![mypy][mypy badge]][mypy] [![docformatter][docformatter badge]][docformatter] |
-| **Testing**       | [![pytest][pytest badge]][pytest] [![coverage][coverage badge]][coverage] [![interrogate][interrogate badge]][interrogate] |
-| **Security**      | [![pip-audit][pip-audit badge]][pip-audit] [![bandit][bandit badge]][bandit] |
-| **Automation**    | [![nox][nox badge]][nox] [![pre-commit][pre-commit badge]][pre-commit] |
-| **Package**       | ![version][version badge] ![pythonversion][pythonversion badge] ![downloads][downloads badge] |
-| **Documentation** | [![properdocs][properdocs badge]][properdocs]|
-| **Communication** | [![discussions][discussions badge]][discussions] |
+## One framework for complex systems, from turbulence to traffic
 
-## Introduction
+**`scikit-complexity` lets you describe a model from any science in a few lines, and takes care of the rest:** it works
+out the mathematics, picks a solver, runs the simulation, and streams it live to the [Rerun](https://rerun.io) viewer.
 
-`scikit-complexity` describes models from any science as elements that carry state, interactions that change that
-state through laws, and systems that nest and compose. It infers the mathematical form of a model from its laws,
-simulates it offline or in real time, and streams the run to the [Rerun](https://rerun.io) viewer.
+Flocks, epidemics, markets, fluids, neural networks and cellular automata are usually written in separate tools with
+separate conventions. Here they share one small vocabulary, in the spirit of scikit-learn: **elements** carry state,
+**interactions** change it through laws, and **systems** nest and compose. Learn it once, and every field opens up.
 
-- Rate laws give ordinary differential equations, rate and noise laws give stochastic differential equations, jump
-  laws give jump processes simulated with the Gillespie method, and update laws give discrete maps.
-- Laws are Sage symbolic expressions or plain Python functions. Symbolic laws can be inspected and solved exactly.
-- Ready-made models cover physics, ecology, epidemiology, economics, and finance.
+<table>
+  <tr>
+    <td align="center" width="25%"><img src="docs/assets/readme/physics.png" alt="Decaying 2D turbulence" width="100%"><br><b>Physics</b><br><sub>Decaying 2D turbulence</sub></td>
+    <td align="center" width="25%"><img src="docs/assets/readme/chemistry.png" alt="Gray-Scott patterns" width="100%"><br><b>Chemistry</b><br><sub>Gray-Scott patterns</sub></td>
+    <td align="center" width="25%"><img src="docs/assets/readme/biology.png" alt="Boids flocking" width="100%"><br><b>Biology</b><br><sub>Boids flocking</sub></td>
+    <td align="center" width="25%"><img src="docs/assets/readme/economics.png" alt="Sugarscape" width="100%"><br><b>Economics</b><br><sub>Sugarscape</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="25%"><img src="docs/assets/readme/engineering.png" alt="Nagel-Schreckenberg traffic" width="100%"><br><b>Engineering</b><br><sub>Nagel-Schreckenberg traffic</sub></td>
+    <td align="center" width="25%"><img src="docs/assets/readme/mathematics.png" alt="Julia sets" width="100%"><br><b>Mathematics</b><br><sub>Julia sets</sub></td>
+    <td align="center" width="25%"><img src="docs/assets/readme/computer_science.png" alt="Game of Life" width="100%"><br><b>Computer science</b><br><sub>Game of Life</sub></td>
+    <td align="center" width="25%"><img src="docs/assets/readme/social.png" alt="Schelling segregation" width="100%"><br><b>Social science</b><br><sub>Schelling segregation</sub></td>
+  </tr>
+</table>
+
+<p align="center"><em>A few of the <b>549 ready-to-run models</b>, each with a documented example in the
+<a href="https://georgedouzas.github.io/scikit-complexity">gallery</a>.</em></p>
+
+### Try a model in one line
+
+```python
+from skcomplex.models import run
+
+trajectory = run('sir').trajectory_
+print(trajectory.values('I.n').max().round())
+```
+
+### Why scikit-complexity
+
+- **Every kind of dynamics, one interface.** Differential equations, stochastic processes, jump processes, discrete maps,
+  cellular automata, agents, networks and hypergraphs, fields and PDEs, quantum systems, and models that learn by gradient
+  descent.
+- **The form of your model is inferred.** Write the laws; the framework decides whether it is an ODE, an SDE or a jump
+  process, and compiles it for NumPy, Numba, or JAX.
+- **Symbols when you want them, code when you don't.** Laws are Sage symbolic expressions you can inspect and solve exactly,
+  or plain Python functions.
+- **Watch it run.** Stream any simulation to Rerun in real time, and change its parameters while it runs.
+- **Analysis included.** Nearly 50 analyses, from Lyapunov exponents and entropy to network motifs, scaling laws and system
+  identification, plus experiments for parameter sweeps, sensitivity, calibration and basin stability.
+- **Standing on mature libraries.** SciPy, NetworkX, Mesa, LAMMPS, QuTiP, JAX and others do the heavy lifting.
+- **Extend it, don't fork it.** Models are written with the same public classes you use, so each one doubles as an example
+  for your own.
 
 ## Installation
 
-`scikit-complexity` supports Python 3.12 and 3.13 on Linux and macOS 13 or later, and is available on PyPI:
+`scikit-complexity` supports Python 3.12 and 3.13 on Linux and on macOS 13 or later with Apple silicon, and is available on
+PyPI:
 
 ```bash
 pip install scikit-complexity
 ```
 
 The installation includes Sage through the [passagemath](https://github.com/passagemath/passagemath) distributions,
-LAMMPS, Mesa, Numba, and Rerun. Windows has no passagemath wheels, so on Windows the package runs in WSL.
+LAMMPS, Mesa, Numba, JAX, and Rerun. Windows has no passagemath wheels, so on Windows the package runs in WSL.
 
 For development, clone the repository and install the project with [PDM](https://github.com/pdm-project/pdm):
 
@@ -74,7 +106,7 @@ cd scikit-complexity
 pdm install
 ```
 
-## Usage
+## Build your own model
 
 A predator and prey model assembles from ready-made interactions:
 
@@ -167,6 +199,18 @@ harvested = System(
 )
 print(SymbolicAnalysis().check().prepare(harvested).run().equations_['fish.n'])
 ```
+
+## Project health
+
+| Category          | Tools    |
+| ------------------| -------- |
+| **Development**   | [![black][black badge]][black] [![ruff][ruff badge]][ruff] [![mypy][mypy badge]][mypy] [![docformatter][docformatter badge]][docformatter] |
+| **Testing**       | [![pytest][pytest badge]][pytest] [![coverage][coverage badge]][coverage] [![interrogate][interrogate badge]][interrogate] |
+| **Security**      | [![pip-audit][pip-audit badge]][pip-audit] [![bandit][bandit badge]][bandit] |
+| **Automation**    | [![nox][nox badge]][nox] [![pre-commit][pre-commit badge]][pre-commit] |
+| **Package**       | ![version][version badge] ![pythonversion][pythonversion badge] ![downloads][downloads badge] |
+| **Documentation** | [![properdocs][properdocs badge]][properdocs]|
+| **Communication** | [![discussions][discussions badge]][discussions] |
 
 ## Spec-driven development
 
