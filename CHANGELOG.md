@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Features
 
+- `StateSpec(tensor=symmetry)` declares rank-2 tensor states, which store their independent components and which laws
+  read as Sage matrices, and `TensorSpec` holds those components. `RateLaw` takes a matrix rate, and `FieldElement` takes
+  a matrix as a fixed boundary value.
+- `PassCompiler` reports a rate that breaks the symmetry of a tensor state with the code `tensor-symmetry`.
+- `vector_gradient`, `tensor_divergence`, `symmetric_part`, `antisymmetric_part`, `corotational`, `upper_convected`,
+  `leray_projection`, and `distribute_operators` are new law utilities.
+- `AlignmentAnalysis` has the kind `'principal-axis'`, `DefectAnalysis` finds point defects by their winding, and
+  `AxisVisual` streams axes and arrows to Rerun.
+- `dry_active_nematics`, `active_gels`, and `LandauDeGennesEnergyInteraction` join `physics/active_matter`.
 - `PhaseSpace(position, axes)` and `AxisSpec` hold fields over position and class axes, `coordinate` reads their
   coordinates in laws, and `moment` takes `axes`.
 - `EncounterInteraction` runs at every position of a phase space and takes no `field` for a linear redistribution.

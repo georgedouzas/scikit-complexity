@@ -40,7 +40,7 @@
   and spontaneous flow scenarios and the conformance suite
 - [x] 4.3 Mark `dry_active_nematics` and `active_gels` implemented in `docs/overview/inventory.toml`, add their gallery
   examples under `docs/examples/physics/active_matter`, and verify the inventory check and the gallery coverage check
-- [ ] 4.4 Add the changelog entry for tensor states and the new models, and verify the changelog session passes
+- [x] 4.4 Add the changelog entry for tensor states and the new models, and verify the changelog session passes
 
 ## 5. Gate
 
