@@ -106,7 +106,7 @@ def gallery(session: nox.Session) -> None:
     parser = argparse.ArgumentParser(prog='nox -s gallery --')
     parser.add_argument('--backend', choices=['native', 'web'], default='native')
     parser.add_argument('--jobs', type=int, default=max(1, (os.cpu_count() or 2) // 2))
-    parser.add_argument('--sample', action='store_true', help='run one fast model per field only')
+    parser.add_argument('--sample', action='store_true', help='run three fast models per field only')
     arguments = parser.parse_args(session.posargs)
     session.run('pdm', 'install', '-dG', 'docs', '-dG', 'gallery', external=True)
     if arguments.backend == 'web':

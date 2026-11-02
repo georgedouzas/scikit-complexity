@@ -20,14 +20,30 @@ BACKEND_VARIABLE = 'SKCOMPLEX_GALLERY_BACKEND'
 RUN_ALL = 'all'
 SAMPLE_MODELS = frozenset(
     {
+        'agent_based_sir',
+        'baumslag_solitar_automaton',
+        'boolean_repressilator',
         'brusselator_ode',
         'chua',
         'cooling_coffee',
+        'correlated_geometric_brownian_motion',
+        'cubic_autocatalysis',
+        'cyclic_cellular_automaton',
+        'duffing',
         'finite_time_blow_up',
+        'fishery_capital',
+        'free_group_automaton',
         'game_of_life',
         'geometric_brownian_motion',
         'hegselmann_krause',
+        'hypergraph_public_goods',
+        'hypergraph_random_walk',
+        'julia',
+        'memristor_oscillator',
+        'mirollo_strogatz',
+        'prisoners_dilemma_tournament',
         'replicator_dynamics',
+        'tunnel_diode_oscillator',
     },
 )
 NOTHING = r'^$'
@@ -46,7 +62,7 @@ class GalleryBuild:
             The root of the generated gallery, with one folder per field.
 
         run_all:
-            Whether to run every example, or only the sample of one fast model per field.
+            Whether to run every example, or only the sample of three fast models per field.
 
         backend:
             The capture backend.
