@@ -28,10 +28,10 @@ from ....core.specs import LatticeContextSpec, LatticeStateSpec
 from ....errors import ValidationError
 from ....specs import (
     ArgumentsSpec,
-    EnergySpec,
     IssueSpec,
     LookupSpec,
     MoveSpec,
+    ObjectiveSpec,
     OuterTotalisticSpec,
     SamplerSpec,
     TableSpec,
@@ -137,14 +137,14 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _monte_carlo_step(spec: KernelSpec, law: SampleLaw, context: LatticeContextSpec) -> LatticeStep:
-        """Return the Monte Carlo sampling of a sample, with Metropolis acceptance at `temperature` by default."""
+        """Return the Monte Carlo sampling of a sample, with Metropolis acceptance at `intensity` by default."""
         sampler = law.sampler
         if sampler is None:
-            if not hasattr(spec.namespace, 'temperature'):
-                error_msg = f'{spec.owner} declares a sample without a sampler and no parameter `temperature`.'
+            if not hasattr(spec.namespace, 'intensity'):
+                error_msg = f'{spec.owner} declares a sample without a sampler and no parameter `intensity`.'
                 raise ValidationError(error_msg)
-            sampler = SamplerSpec(temperature=spec.namespace.temperature)
-        return LatticeProblemPass._compile_monte_carlo(law.energy, law.move, sampler, context)
+            sampler = SamplerSpec(intensity=spec.namespace.intensity)
+        return LatticeProblemPass._compile_monte_carlo(law.objective, law.move, sampler, context)
 
     @staticmethod
     def _lattice_step(spec: KernelSpec, law: BaseLaw, context: LatticeContextSpec) -> LatticeStep | None:
@@ -418,7 +418,7 @@ class LatticeProblemPass(BasePass):
         expression: Expression,
         target: Expression,
         *,
-        energy: EnergySpec,
+        objective: ObjectiveSpec,
         context: LatticeContextSpec,
         neighbors: Sequence[Expression],
         masks: Sequence[Expression],
@@ -428,10 +428,10 @@ class LatticeProblemPass(BasePass):
         moved = context.states[target].name
         replacements = {}
         for reduction in neighborhoods_in(expression):
-            if reduction.kind != 'sum' or reduction.over not in (None, energy.over):
+            if reduction.kind != 'sum' or reduction.over not in (None, objective.over):
                 error_msg = (
-                    f'{owner} reduce {reduction.call}, but a local energy only sums over the neighbourhood of the '
-                    f'energy, {energy.over!r}.'
+                    f'{owner} reduce {reduction.call}, but a local objective only sums over the neighbourhood of the '
+                    f'objective, {objective.over!r}.'
                 )
                 raise ValidationError(error_msg)
             inner = SR(reduction.argument) if reduction.weight is None else SR(reduction.weight) * reduction.argument
@@ -641,16 +641,16 @@ class LatticeProblemPass(BasePass):
         masks: list[Expression],
         owner: str,
     ) -> Expression:
-        """Return the half change of the local energy with one neighbour when the site flips and then the neighbour.
+        """Return the half change of the local objective with one neighbour when the site flips and then the neighbour.
 
-        This is `f(s, n) - f(-s, n)` for an energy of pair terms `f` that the flip of both values keeps, which gives the
-        Wolff bond probability `1 - exp(min(0, -(f(-s, n) - f(s, n)) / T))`.
+        This is `f(s, n) - f(-s, n)` for an objective of pair terms `f` that the flip of both values keeps, which gives
+        the Wolff bond probability `1 - exp(min(0, -intensity * (f(-s, n) - f(s, n))))`.
         """
         flipped = local.subs({item: -item for item in [target, *neighbours]})
         if not bool((flipped - local).expand().is_trivial_zero()):
             error_msg = (
-                f'{owner} make cluster moves on the energy {local}, which changes when every value flips. Cluster '
-                'moves take an energy of pair terms that the flip of both values keeps, such as one without an '
+                f'{owner} make cluster moves on the objective {local}, which changes when every value flips. Cluster '
+                'moves take an objective of pair terms that the flip of both values keeps, such as one without an '
                 'external field.'
             )
             raise ValidationError(error_msg)
@@ -667,16 +667,16 @@ class LatticeProblemPass(BasePass):
 
     @staticmethod
     def _compile_monte_carlo(
-        energy: EnergySpec,
+        objective: ObjectiveSpec,
         move: MoveSpec,
         sampler: SamplerSpec,
         context: LatticeContextSpec,
     ) -> MonteCarloKernel:
-        """Return Monte Carlo sampling compiled from a local energy, a move, and a sampler.
+        """Return Monte Carlo sampling compiled from a local objective, a move, and a sampler.
 
         Args:
-            energy:
-                The local energy.
+            objective:
+                The local objective.
 
             move:
                 The move.
@@ -700,7 +700,7 @@ class LatticeProblemPass(BasePass):
             )
             raise ValidationError(error_msg)
         space = target.space
-        over = energy.over
+        over = objective.over
         if not isinstance(over, LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood):
             error_msg = (
                 f'{owner} sum over a {type(over).__name__}. Sum over a lattice, adjacency, or memory neighbourhood.'
@@ -711,9 +711,9 @@ class LatticeProblemPass(BasePass):
         neighbours = [symbol(f'_neighbor_{index}') for index in range(table.shape[1])]
         masks = [symbol(f'_mask_{index}') for index in range(table.shape[1])]
         expression = LatticeProblemPass._lower_neighbor_sums(
-            SR(energy.expression),
+            SR(objective.expression),
             move.target,
-            energy=energy,
+            objective=objective,
             context=context,
             neighbors=neighbours,
             masks=masks,
@@ -737,7 +737,7 @@ class LatticeProblemPass(BasePass):
         time = symbol('t')
         known = {move.target, proposal, time, *neighbours, *masks}
         extra = sorted(
-            {item for item in (*change.variables(), *SR(sampler.temperature).variables()) if item not in known},
+            {item for item in (*change.variables(), *SR(sampler.intensity).variables()) if item not in known},
             key=str,
         )
         for item in extra:
@@ -752,12 +752,12 @@ class LatticeProblemPass(BasePass):
             tuple(item[3] for item in found),
         )
         reads = [move.target, *neighbours, proposal, *(masks if masked else []), *extra]
-        energy_change = ExpressionPrinter(time=time, compiled=True).check().prepare(reads).run([change]).code_
-        temperature = (
-            ExpressionPrinter(time=time, compiled=True).check().prepare(extra).run([SR(sampler.temperature)]).code_
+        objective_change = ExpressionPrinter(time=time, compiled=True).check().prepare(reads).run([change]).code_
+        intensity = (
+            ExpressionPrinter(time=time, compiled=True).check().prepare(extra).run([SR(sampler.intensity)]).code_
         )
-        if not callable(energy_change) or not callable(temperature):
-            error_msg = 'The compiled printer returned no function of the energy change or of the temperature.'
+        if not callable(objective_change) or not callable(intensity):
+            error_msg = 'The compiled printer returned no function of the objective change or of the intensity.'
             raise TypeError(error_msg)
         bond_change = (
             None
@@ -769,16 +769,16 @@ class LatticeProblemPass(BasePass):
             .code_
         )
         if bond is not None and not callable(bond_change):
-            error_msg = 'The compiled printer returned no function of the energy of a bond.'
+            error_msg = 'The compiled printer returned no function of the objective of a bond.'
             raise TypeError(error_msg)
         return (
             MonteCarloKernel(
                 context.owner,
                 target,
                 table,
-                energy_change,
+                objective_change,
                 arguments,
-                temperature=temperature,
+                intensity=intensity,
                 move=move,
                 sampler=sampler,
                 classes=classes,

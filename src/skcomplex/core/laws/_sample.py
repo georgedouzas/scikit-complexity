@@ -1,27 +1,27 @@
-"""Define sample laws, Monte Carlo sweeps that accept moves from the change of a local energy."""
+"""Define sample laws, Monte Carlo sweeps that accept moves from the change of a local objective."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 
-from ...specs import EnergySpec, MoveSpec, RequirementSpec, SamplerSpec
+from ...specs import MoveSpec, ObjectiveSpec, RequirementSpec, SamplerSpec
 from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ._base import BaseLaw
 
 
 class SampleLaw(BaseLaw):
-    """Monte Carlo sweep that samples states by moves accepted from the change of an energy, one per unit of time.
+    """Monte Carlo sweep that samples states by moves accepted from the change of an objective, one per unit of time.
 
     Args:
-        energy:
-            The local energy of a site and its neighbourhood.
+        objective:
+            The local objective of a site and its neighbourhood.
 
         move:
             The move proposed at a site.
 
         sampler:
-            The acceptance of moves, with its temperature and schedule, or `None` for Metropolis acceptance at the
-            parameter `temperature` of the element.
+            The acceptance of moves, with its intensity and schedule, or `None` for Metropolis acceptance at the
+            parameter `intensity` of the element.
 
         label:
             The name of the law, or the empty string for a law without one.
@@ -30,23 +30,23 @@ class SampleLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import SampleLaw
         >>> from skcomplex.core.spaces import VonNeumannNeighborhood
-        >>> from skcomplex.specs import EnergySpec, MoveSpec, SamplerSpec
+        >>> from skcomplex.specs import ObjectiveSpec, MoveSpec, SamplerSpec
         >>> spin = var('spin')
-        >>> law = SampleLaw(EnergySpec(-spin, VonNeumannNeighborhood()), MoveSpec(spin), SamplerSpec('glauber', 2.0))
+        >>> law = SampleLaw(ObjectiveSpec(-spin, VonNeumannNeighborhood()), MoveSpec(spin), SamplerSpec('glauber', 2.0))
         >>> law.check().prepare().targets_
         (spin,)
     """
 
     def __init__(
         self,
-        energy: EnergySpec,
+        objective: ObjectiveSpec,
         move: MoveSpec,
         sampler: SamplerSpec | None = None,
         *,
         label: str = '',
     ) -> None:
         super().__init__(label)
-        self.energy = energy
+        self.objective = objective
         self.move = move
         self.sampler = sampler
 
@@ -59,7 +59,7 @@ class SampleLaw(BaseLaw):
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
     def _check(self) -> None:
-        """Check the energy, the move, and the sampler."""
-        for spec in (self.energy, self.move, self.sampler):
+        """Check the objective, the move, and the sampler."""
+        for spec in (self.objective, self.move, self.sampler):
             if spec is not None:
                 spec.check()

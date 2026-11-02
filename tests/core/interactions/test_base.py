@@ -76,7 +76,7 @@ RENAMED = {
     ),
     'sampling': (
         SamplingInteraction,
-        lambda role: {'state': 'x', 'energy': lambda n: -getattr(n, role).x * neighbors(getattr(n, role).other.x)},
+        lambda role: {'state': 'x', 'objective': lambda n: -getattr(n, role).x * neighbors(getattr(n, role).other.x)},
         True,
     ),
     'reinforcement': (ReinforcementInteraction, lambda role: {'scores': ('x',), 'payoff': lambda n, index: 1.0}, True),
@@ -102,7 +102,7 @@ SYMBOLIC_ALIASES = {
     'choice-intensity': (ChoiceInteraction, 'intensity', 2.0, RENAMED['choice'][1]('target'), True),
     'choice-activity': (ChoiceInteraction, 'activity', 0.5, RENAMED['choice'][1]('target'), True),
     'reinforcement-rate': (ReinforcementInteraction, 'rate', 0.3, RENAMED['reinforcement'][1]('target'), True),
-    'sampling-temperature': (SamplingInteraction, 'temperature', 2.0, RENAMED['sampling'][1]('target'), True),
+    'sampling-intensity': (SamplingInteraction, 'intensity', 2.0, RENAMED['sampling'][1]('target'), True),
     'reaction-k': (ReactionInteraction, 'k', 0.4, {'reactants': {'x': 1}, 'products': {}}, False),
     'coupling-lag': (CouplingInteraction, 'lag', 0.3, {'read': 'x', 'write': 'x'}, False),
 }

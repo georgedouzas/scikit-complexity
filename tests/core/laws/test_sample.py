@@ -6,10 +6,10 @@ from sage.all__sagemath_symbolics import var
 from skcomplex.core.laws import SampleLaw
 from skcomplex.core.spaces import VonNeumannNeighborhood
 from skcomplex.errors import ValidationError
-from skcomplex.specs import EnergySpec, MoveSpec, SamplerSpec
+from skcomplex.specs import MoveSpec, ObjectiveSpec, SamplerSpec
 
 SPIN = var('spin')
-ENERGY = EnergySpec(-SPIN, VonNeumannNeighborhood())
+ENERGY = ObjectiveSpec(-SPIN, VonNeumannNeighborhood())
 
 
 def test_sample_targets_the_state_of_its_move():

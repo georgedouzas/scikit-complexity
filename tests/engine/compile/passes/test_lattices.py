@@ -32,9 +32,9 @@ from skcomplex.experiments import Experiment, GridDesign
 from skcomplex.models.physics.criticality import hexagonal_forest_fire
 from skcomplex.models.physics.statistical_mechanics import graph_ising
 from skcomplex.specs import (
-    EnergySpec,
     ExtremalRecordSpec,
     MoveSpec,
+    ObjectiveSpec,
     OuterTotalisticSpec,
     ParameterSpec,
     SamplerSpec,
@@ -335,9 +335,12 @@ def test_neighbor_sum_ignores_padding():
             """Return the laws of the x y element."""
             return [
                 SampleLaw(
-                    EnergySpec(-s.J * neighbors(cos(s.theta - s.other.theta), reduce='sum'), AdjacencyNeighborhood()),
+                    ObjectiveSpec(
+                        -s.J * neighbors(cos(s.theta - s.other.theta), reduce='sum'),
+                        AdjacencyNeighborhood(),
+                    ),
                     MoveSpec(s.theta, 'rotate', width=1.0),
-                    SamplerSpec('metropolis', s.temperature, schedule='colored'),
+                    SamplerSpec('metropolis', 1 / s.temperature, schedule='colored'),
                 ),
             ]
 
@@ -408,12 +411,12 @@ def test_colored_schedule_partitions_triangular_lattice():
             """Return the laws of the spin element."""
             return [
                 SampleLaw(
-                    EnergySpec(
+                    ObjectiveSpec(
                         -s.spin * sum(neighbors(s.spin, TriangularNeighborhood(), reduce='each')),
                         TriangularNeighborhood(),
                     ),
                     MoveSpec(s.spin),
-                    SamplerSpec('metropolis', s.temperature, schedule='colored'),
+                    SamplerSpec('metropolis', 1 / s.temperature, schedule='colored'),
                 ),
             ]
 

@@ -88,7 +88,7 @@ the edge values around the one face.
 - **THEN** they equal `exterior_derivative` of the link angles at the same plaquettes
 
 ### Requirement: Monte Carlo samples link states
-`SamplingInteraction` SHALL sample a state of a group on the edges of a cell complex, with a local energy that reduces
+`SamplingInteraction` SHALL sample a state of a group on the edges of a cell complex, with a local objective that reduces
 over `CofaceNeighborhood`, under discrete time, one sweep of all links per unit of time. Its `'colored'` schedule SHALL
 update together only links that share no face, and every draw SHALL come from the simulation's random stream.
 

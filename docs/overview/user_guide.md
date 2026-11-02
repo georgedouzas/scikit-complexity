@@ -1646,7 +1646,7 @@ visuals are parts of the engine, beside those of every other kind.
 | Kind | Core | Engine |
 | --- | --- | --- |
 | agents | `RuleLaw`, `MatchLaw` | the agents passes, `MesaSolver` |
-| lattices | `LocalRuleLaw`, `DriveLaw`, `CascadeLaw`, `ExtremalLaw`, `LatticeElement`, `LatticeSpace`, `EnergySpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
+| lattices | `LocalRuleLaw`, `DriveLaw`, `CascadeLaw`, `ExtremalLaw`, `LatticeElement`, `LatticeSpace`, `ObjectiveSpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
 | finitely generated groups | `CayleySpace` | `CayleyVisual` |
 | rewriting, in `skcomplex.models.mathematics.fractals` | `ProductionLaw`, `SubstitutionLaw`, `WordElement`, `PatchElement` | `RewritingCompiler`, `RewritingSolver`, `GeometryVisual` |
 | quantum | `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec` | a system compiler, `UnitarySolver`, `LindbladSolver`, `QuantumTrajectoriesSolver` |
@@ -2261,8 +2261,10 @@ events = Simulation(system, dt=0.5).check().prepare().run(until=2.2).trajectory_
 print([(event.label, round(event.time, 3)) for event in events])
 ```
 
-`SamplingInteraction(target, state, energy, move='flip', temperature=1.0)` runs Monte Carlo sweeps whose moves are
-accepted from the change of an energy, or Wolff cluster flips with `move='cluster'`.
+`SamplingInteraction(target, state, objective, move='flip', intensity=1.0)` runs Monte Carlo sweeps whose moves are
+accepted from the change of an objective with probability `exp(-intensity * change)`, or Wolff cluster flips with
+`move='cluster'`. Physics models read an energy at a temperature through its thin subclass
+`ThermalSamplingInteraction` of `skcomplex.models.physics.common.spins`, which gives the core one over the temperature.
 
 ```python
 from typing import Annotated
@@ -2282,8 +2284,8 @@ class SpinElement(Element):
         self.s = s
 
 
-energy = lambda n: -n.target.s * neighbors(n.target.other.s)
-ising = SamplingInteraction('ising', target='spins', state='s', energy=energy, temperature=1.0)
+objective = lambda n: -n.target.s * neighbors(n.target.other.s)
+ising = SamplingInteraction('ising', target='spins', state='s', objective=objective, intensity=1.0)
 spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((8, 8)))
 system = System(elements=[spins], interactions=[ising], time=DiscreteTime())
 print(abs(Simulation(system, random_state=0).check().prepare().run(until=20).trajectory_.states[-1].mean()) > 0.9)
@@ -3477,11 +3479,12 @@ trajectory = Simulation(sandpile((20, 20)), dt=100, random_state=0).check().prep
 print(max(event.size for event in trajectory.events))
 ```
 
-**Monte Carlo.** A `SampleLaw(energy, move, sampler)` samples states. `EnergySpec(expression, over)` is the local
-energy of a site, every term of the total energy that involves it, with neighbour values read through `neighbors`.
+**Monte Carlo.** A `SampleLaw(objective, move, sampler)` samples states. `ObjectiveSpec(expression, over)` is the local
+objective of a site, every term of the total objective that involves it, with neighbour values read through `neighbors`.
 `MoveSpec(target, kind)` proposes changes, with the kinds `'flip'`, `'random-value'`, and `'rotate'`, and
-`SamplerSpec('metropolis' | 'glauber' | 'heat-bath', temperature)` accepts them. The energy change of a move is derived
-symbolically, sweeps update the two sublattices in turn, and the temperature is a parameter that changes live.
+`SamplerSpec('metropolis' | 'glauber' | 'heat-bath', intensity)` accepts them. The change of the objective is derived
+symbolically, sweeps update the two sublattices in turn, and the intensity is an expression of parameters that change
+live.
 
 ```python
 from typing import Annotated
@@ -3492,7 +3495,7 @@ from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import SampleLaw
 from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import LatticeSpace, VonNeumannNeighborhood
-from skcomplex.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec
+from skcomplex.specs import MoveSpec, ObjectiveSpec, ParameterSpec, SamplerSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -3515,8 +3518,8 @@ class SpinElement(Element):
 
     def _get_laws(self, s):
         energy = -s.J * s.spin * sum(neighbors(s.spin, nearest, reduce='each'))
-        sampler = SamplerSpec('metropolis', s.temperature)
-        return [SampleLaw(EnergySpec(energy, nearest), MoveSpec(s.spin, 'flip'), sampler)]
+        sampler = SamplerSpec('metropolis', 1 / s.temperature)
+        return [SampleLaw(ObjectiveSpec(energy, nearest), MoveSpec(s.spin, 'flip'), sampler)]
 
 
 spins = System(elements=[LatticeElement('spins', element=SpinElement, space=LatticeSpace((32, 32)))])
@@ -3587,7 +3590,7 @@ from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.laws import SampleLaw
 from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import AdjacencyNeighborhood, NetworkSpace
-from skcomplex.specs import EnergySpec, MoveSpec, ParameterSpec, SamplerSpec, StateSpec
+from skcomplex.specs import MoveSpec, ObjectiveSpec, ParameterSpec, SamplerSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
@@ -3608,8 +3611,8 @@ class GraphSpinElement(Element):
 
     def _get_laws(self, s):
         energy = -s.J * s.spin * neighbors(s.other.spin, reduce='sum')
-        sampler = SamplerSpec('metropolis', s.temperature, schedule='colored')
-        return [SampleLaw(EnergySpec(energy, AdjacencyNeighborhood()), MoveSpec(s.spin, 'flip'), sampler)]
+        sampler = SamplerSpec('metropolis', 1 / s.temperature, schedule='colored')
+        return [SampleLaw(ObjectiveSpec(energy, AdjacencyNeighborhood()), MoveSpec(s.spin, 'flip'), sampler)]
 
 
 graph = nx.random_regular_graph(4, 200, seed=0)
@@ -5918,9 +5921,9 @@ system = evolutionary_optimisers(algorithm='particle-swarm', random_state=1)
 print(Simulation(system, random_state=1).check().prepare().run(until=20).trajectory_.values('search.best')[-1] < 20)
 ```
 
-`SamplingInteraction(cooling=)` takes a function of the time symbol that multiplies the temperature, so a Metropolis
-acceptance with the `'gaussian'` move anneals a group of candidates on a one-dimensional `LatticeSpace` whose energy
-reads no neighbours, with one interaction per state. The solver of sampling takes no other laws, so what tracks a run,
+`SamplingInteraction(cooling=)` takes a function of the time symbol that multiplies one over the intensity, so a
+Metropolis acceptance with the `'gaussian'` move anneals a group of candidates on a one-dimensional `LatticeSpace` whose
+objective reads no neighbours, with one interaction per state. The solver of sampling takes no other laws, so what tracks a run,
 such as the lowest energy so far, sits in a nested system, as in `evolutionary_optimisers(algorithm='annealing')`.
 
 ## Experiments

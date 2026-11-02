@@ -90,7 +90,7 @@ def _search_observables(system: System) -> list[ObservableSpec]:
     """Return the lowest energy of the candidates of simulated annealing, which a population optimiser does not need."""
     if not system.systems:
         return []
-    energy = MEMBER_ENERGIES[system.systems[0].interactions[0].energy]
+    energy = MEMBER_ENERGIES[system.systems[0].interactions[0].objective]
     return [ObservableSpec('search/lowest', energy, group='candidates', reduce='min')]
 
 
@@ -113,10 +113,10 @@ def _annealing(
             f'anneal_{state}',
             target='candidates',
             state=state,
-            energy=energy,
+            objective=energy,
             move='gaussian',
             width=width,
-            temperature=temperature,
+            intensity=1 / temperature,
             schedule='colored',
             neighborhood=VonNeumannNeighborhood(n_dim=1),
             cooling=lambda t: COOLED ** (t / generations),

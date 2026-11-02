@@ -15,7 +15,7 @@ from skcomplex.specs import PartnerSpec
         (MovementInteraction('a', target='b', step=PartnerSpec()), 'Unknown step .*a function'),
         (LifeCycleInteraction('a', target='b', placement=PartnerSpec()), 'Unknown placement .*a function'),
         (
-            SamplingInteraction('a', target='b', state='x', energy=lambda s: 0.0, move=PartnerSpec()),
+            SamplingInteraction('a', target='b', state='x', objective=lambda s: 0.0, move=PartnerSpec()),
             'Unknown move .*a function',
         ),
         (LifeCycleInteraction('a', target='b', pick=PartnerSpec()), "Unknown pick .*'first', 'random'"),

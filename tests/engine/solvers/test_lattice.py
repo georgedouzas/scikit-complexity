@@ -25,8 +25,8 @@ from skcomplex.models.computer_science.automata import elementary_automaton, gam
 from skcomplex.models.physics.criticality import forest_fire
 from skcomplex.models.physics.statistical_mechanics import ising, xy
 from skcomplex.specs import (
-    EnergySpec,
     MoveSpec,
+    ObjectiveSpec,
     OuterTotalisticSpec,
     ParameterSpec,
     SamplerSpec,
@@ -463,18 +463,18 @@ def test_monte_carlo_energy_change_is_symbolic():
             *,
             spin: Annotated[object, StateSpec(domain=ZZ)] = 1.0,
             J: Annotated[object, ParameterSpec()] = 1.0,
-            temperature: Annotated[object, ParameterSpec()] = 1.0,
+            intensity: Annotated[object, ParameterSpec()] = 1.0,
         ) -> None:
             super().__init__(label, visual=visual)
             self.spin = spin
             self.J = J
-            self.temperature = temperature
+            self.intensity = intensity
 
         def _get_laws(self, s):
             """Return the laws of the spin element."""
             return [
                 SampleLaw(
-                    EnergySpec(-s.J * s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest),
+                    ObjectiveSpec(-s.J * s.spin * sum(neighbors(s.spin, nearest, reduce='each')), nearest),
                     MoveSpec(s.spin),
                 ),
             ]

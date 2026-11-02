@@ -9,7 +9,7 @@ ensemble one member per step, and measure the geometry of point chains. The biol
 ## ADDED Requirements
 
 ### Requirement: Monte Carlo moves are accepted by row scores
-`SamplingInteraction` SHALL take a `RowScoreSpec` as its energy, a function of the values of one row of a lattice state
+`SamplingInteraction` SHALL take a `RowScoreSpec` as its objective, a function of the values of one row of a lattice state
 along its last axis and the target's parameters that returns one number. It SHALL propose a declared number of moves
 per row and unit of time through its move, accept each by its rule on the change of the score of the row, give every
 row its own draws from the simulation's stream, and record the score of every row in the trajectory.
@@ -34,9 +34,9 @@ row its own draws from the simulation's stream, and record the score of every ro
 - **THEN** each proposal differs from the row at exactly one site, and each other letter is drawn with frequency 1/3
   within 0.01 over 30000 proposals
 
-### Requirement: Sampling accepts a temperature of zero
-The temperature of `SamplingInteraction` SHALL take the value zero, at which the Metropolis rule accepts a move only
-when the energy does not grow.
+### Requirement: Sampling accepts an infinite intensity
+The intensity of `SamplingInteraction` SHALL take an infinite value, the zero temperature of its thin subclass in
+physics, at which the Metropolis rule accepts a move only when the objective does not grow.
 
 #### Scenario: Zero temperature on a local energy
 - **WHEN** an Ising energy on a lattice is sampled at temperature zero

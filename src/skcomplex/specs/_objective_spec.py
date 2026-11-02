@@ -1,4 +1,4 @@
-"""Define the energy spec."""
+"""Define the objective spec."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,16 +9,16 @@ from ._base_spec import BaseSpec
 
 
 @dataclass(frozen=True)
-class EnergySpec(BaseSpec):
-    """Spec of the local energy of a lattice site, every term of the total energy that involves the value of the site.
+class ObjectiveSpec(BaseSpec):
+    """Spec of the local objective of a lattice site, every term of the total objective that involves the site's value.
 
-    The energy change of a move is the difference of the local energy at the proposed and the current value. Neighbour
+    The change of a move is the difference of the local objective at the proposed and the current value. Neighbour
     values are read with `neighbors(..., reduce='each')` in neighbourhood order, or summed with
     `neighbors(..., reduce='sum')`.
 
     Args:
         expression:
-            The local energy, a symbolic expression of the states of the site, its neighbours, and parameters.
+            The local objective, a symbolic expression of the states of the site, its neighbours, and parameters.
 
         over:
             The neighbourhood that `neighbors` reads in the expression.
@@ -26,9 +26,9 @@ class EnergySpec(BaseSpec):
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.spaces import VonNeumannNeighborhood
-        >>> from skcomplex.specs import EnergySpec
+        >>> from skcomplex.specs import ObjectiveSpec
         >>> spin, J = var('spin J')
-        >>> EnergySpec(-J * spin, VonNeumannNeighborhood()).check().expression
+        >>> ObjectiveSpec(-J * spin, VonNeumannNeighborhood()).check().expression
         -J*spin
     """
 

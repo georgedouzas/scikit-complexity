@@ -13,7 +13,7 @@
 - [ ] 2.1 Add `RowScoreSpec` to `skcomplex.specs` and its acceptance per row as a private method of
   `SamplingInteraction`, with the row scores recorded as observables, and verify the neutral walk, domain-agnostic
   score, score at a positive temperature, and point mutation as a function move scenarios
-- [ ] 2.2 Widen the temperature domain of `SamplingInteraction` to `[0, oo)` with the zero-temperature Metropolis rule,
+- [ ] 2.2 Widen the intensity domain of `SamplingInteraction` to `(0, oo]` with the zero-temperature Metropolis rule,
   and verify the zero temperature on a local energy scenario
 - [ ] 2.3 Pass `time` to a `DriveLaw` function that names it, and verify the replay of an ensemble scenario
 - [ ] 2.4 Add `ShapeAnalysis` to `skcomplex.analysis`, and verify the freely rotating chain and superposition scenarios

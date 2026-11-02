@@ -32,13 +32,13 @@ from skcomplex.specs import (
     ClampSpec,
     ContinuousClearingSpec,
     DatasetSpec,
-    EnergySpec,
     GreedyMatchingSpec,
     HilbertSpec,
     IterativeClearingSpec,
     LayerSpec,
     MatchSpec,
     MoveSpec,
+    ObjectiveSpec,
     ObservableSpec,
     ParameterSpec,
     PartnerSpec,
@@ -464,7 +464,7 @@ def test_schedule_spec_has_nothing_to_check():
 def test_monte_carlo_specs_check_their_kinds():
     """Test that an energy has nothing to check, and that moves, samplers, and schedules must be known."""
     spin = var('spin')
-    assert EnergySpec(-spin, VonNeumannNeighborhood()).check().expression == -spin
+    assert ObjectiveSpec(-spin, VonNeumannNeighborhood()).check().expression == -spin
     assert MoveSpec(spin, 'rotate', width=0.5).check().width == 0.5
     assert MoveSpec(spin, 'gaussian', width=0.5).check().kind == 'gaussian'
     assert MoveSpec(spin, 'function', function=lambda values, random: values).check().kind == 'function'

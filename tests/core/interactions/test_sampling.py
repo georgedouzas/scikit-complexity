@@ -50,27 +50,34 @@ def _spins(seed=1):
 
 
 def test_ising_magnetization_orders_well_below_the_critical_temperature():
-    """Test that the Ising energy sampled at temperature 1 orders with absolute magnetization above 0.9."""
-    sampling = SamplingInteraction('ising', target='sites', state='s', energy=_ising, temperature=1.0)
+    """Test that the Ising energy sampled at intensity 1 orders with absolute magnetization above 0.9."""
+    sampling = SamplingInteraction('ising', target='sites', state='s', objective=_ising, intensity=1.0)
     assert abs(_final(sampling, 300, _spins()).mean()) > 0.9
 
 
 def test_ising_magnetization_vanishes_well_above_the_critical_temperature():
-    """Test that the Ising energy sampled at temperature 5 stays disordered."""
-    sampling = SamplingInteraction('ising', target='sites', state='s', energy=_ising, temperature=5.0, rule='glauber')
+    """Test that the Ising energy sampled at intensity 1 / 5 stays disordered."""
+    sampling = SamplingInteraction(
+        'ising',
+        target='sites',
+        state='s',
+        objective=_ising,
+        intensity=1 / 5.0,
+        rule='glauber',
+    )
     assert abs(_final(sampling, 100, np.ones(SIDE * SIDE)).mean()) < 0.3
 
 
 def test_gaussian_moves_sample_the_boltzmann_distribution():
-    """Test that Gaussian moves in a harmonic energy sample values of variance equal to the temperature."""
+    """Test that Gaussian moves in a harmonic energy sample values of variance equal to one over the intensity."""
     sampling = SamplingInteraction(
         'harmonic',
         target='sites',
         state='s',
-        energy=lambda n: n.target.s**2 / 2,
+        objective=lambda n: n.target.s**2 / 2,
         move='gaussian',
         width=1.5,
-        temperature=2.0,
+        intensity=1 / 2.0,
     )
     values = np.concatenate([_final(sampling, 200, np.zeros(SIDE * SIDE), seed) for seed in range(4)])
     assert values.var() == pytest.approx(2.0, rel=0.1)
@@ -88,9 +95,9 @@ def test_function_moves_propose_the_values_it_returns():
                 'ising',
                 target='sites',
                 state='s',
-                energy=_ising,
+                objective=_ising,
                 move=redraw,
-                temperature=temperature,
+                intensity=1 / temperature,
             ),
             100,
             np.ones(SIDE * SIDE),
@@ -108,8 +115,8 @@ def _magnetization(move, temperature, seed):
         'ising',
         target='sites',
         state='s',
-        energy=_ising,
-        temperature=temperature,
+        objective=_ising,
+        intensity=1 / temperature,
         move=move,
     )
     sites = LatticeElement('sites', element=SiteElement, space=LatticeSpace((SIDE, SIDE)), values={'s': _spins(seed)})
@@ -132,7 +139,7 @@ def test_cluster_moves_reject_an_energy_that_the_flip_changes():
         'ising',
         target='sites',
         state='s',
-        energy=lambda n: _ising(n) - 0.5 * n.target.s,
+        objective=lambda n: _ising(n) - 0.5 * n.target.s,
         move='cluster',
     )
     with pytest.raises(ValidationError, match='changes when every value flips'):
@@ -142,14 +149,14 @@ def test_cluster_moves_reject_an_energy_that_the_flip_changes():
 @pytest.mark.parametrize(
     ('arguments', 'match'),
     [
-        ({'energy': _ising, 'move': 'swap'}, 'Unknown move'),
-        ({'energy': 1.0}, 'function of the namespace'),
-        ({'energy': _ising, 'rule': 'greedy'}, 'Unknown sampler'),
-        ({'energy': _ising, 'schedule': 'synchronous'}, 'Unknown Monte Carlo schedule'),
+        ({'objective': _ising, 'move': 'swap'}, 'Unknown move'),
+        ({'objective': 1.0}, 'function of the namespace'),
+        ({'objective': _ising, 'rule': 'greedy'}, 'Unknown sampler'),
+        ({'objective': _ising, 'schedule': 'synchronous'}, 'Unknown Monte Carlo schedule'),
     ],
 )
 def test_check_rejects_moves_rules_and_energies_it_cannot_take(arguments, match):
-    """Test that an unknown move, rule, or schedule, or an energy that is not a function, raise errors."""
+    """Test that an unknown move, rule, or schedule, or an objective that is not a function, raise errors."""
     with pytest.raises(ValidationError, match=match):
         SamplingInteraction('sampling', target='sites', state='s', **arguments).check()
 
@@ -178,10 +185,10 @@ def test_run_cooling_reduces_accepted_moves() -> None:
         'anneal',
         target='candidates',
         state='x',
-        energy=_quadratic_energy,
+        objective=_quadratic_energy,
         move='gaussian',
         width=0.5,
-        temperature=5.0,
+        intensity=1 / 5.0,
         schedule='colored',
         neighborhood=VonNeumannNeighborhood(n_dim=1),
         cooling=_geometric,
@@ -198,4 +205,4 @@ def test_run_cooling_reduces_accepted_moves() -> None:
 def test_check_cooling_not_callable() -> None:
     """Test that a cooling that is no function is refused."""
     with pytest.raises(ValidationError, match='cooling'):
-        SamplingInteraction('a', target='g', state='x', energy=_quadratic_energy, cooling=0.5).check()
+        SamplingInteraction('a', target='g', state='x', objective=_quadratic_energy, cooling=0.5).check()

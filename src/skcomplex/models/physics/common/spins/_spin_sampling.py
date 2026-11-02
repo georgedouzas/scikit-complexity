@@ -7,13 +7,13 @@ from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from .....core.interactions import SamplingInteraction
 from .....core.laws import BaseLaw
 from .....core.spaces import BaseNeighborhood
 from .....specs import RoleSpec
+from ._thermal_sampling import ThermalSamplingInteraction
 
 
-class SpinSamplingInteraction(SamplingInteraction):
+class SpinSamplingInteraction(ThermalSamplingInteraction):
     """Monte Carlo sweeps of the spins of a lattice or network group at the temperature of the spins.
 
     The temperature is the parameter `temperature` of the spins, so it lives with the couplings and fields of the

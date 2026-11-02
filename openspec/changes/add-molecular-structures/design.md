@@ -5,10 +5,10 @@
 The parts of the current code this change builds on:
 - `LatticeElement(label, element=, space=LatticeSpace(shape))` in `skcomplex.core.elements` holds one value per site.
   A state with the domain `FiniteEnumeratedSet(['A', 'C', 'G', 'U'])` is categorical, and `EntrySpec` names its labels.
-- `SamplingInteraction(target, state, energy, move, temperature, rule, schedule, neighborhood, values, width)` in
-  `skcomplex.core.interactions` lowers to a `SampleLaw` with an `EnergySpec`, a `MoveSpec`, and a `SamplerSpec`, and
-  runs on `MonteCarloSolver` under `DiscreteTime`. Its energy is a local function of the namespace, its move may be a
-  function `move(values, random)`, and its temperature is a parameter in `(0, oo)`.
+- `SamplingInteraction(target, state, objective, move, intensity, rule, schedule, neighborhood, values, width)` in
+  `skcomplex.core.interactions` lowers to a `SampleLaw` with an `ObjectiveSpec`, a `MoveSpec`, and a `SamplerSpec`, and
+  runs on `MonteCarloSolver` under `DiscreteTime`. Its objective is a local function of the namespace, its move may be a
+  function `move(values, random)`, and its intensity is a parameter in `(0, oo)`, one over the temperature of its thin subclass in physics.
 - `DriveLaw(target, function)` changes a whole lattice state by `function(values, *, random, **parameters)`.
 - `PointsVisual(position, color_by, color_range, trail)` and `ImageVisual` in `skcomplex.engine.viz`.
 - `EntropyAnalysis` and `DistributionAnalysis` in `skcomplex.analysis`, and `register_model(field=, observables=)` in
@@ -82,13 +82,13 @@ Every model runs under `DiscreteTime()`.
 
 `RowScoreSpec(function, proposals=1)` is a frozen spec of `skcomplex.specs` whose `function(row, **parameters)` takes
 the values of one row of a lattice state, the last axis, and the parameters of the target that it names, and returns
-one number. `SamplingInteraction` takes it as its `energy` and runs it as a private method of its own: each step it
+one number. `SamplingInteraction` takes it as its `objective` and runs it as a private method of its own: each step it
 proposes `proposals` moves per row through its move, evaluates the function on the proposed row, and accepts by its
 rule on the difference. The rows are independent copies, each with its own draws from the simulation's stream. The
 score of every row is recorded as the observable `<label>.score`.
 
-The temperature domain of `SamplingInteraction` becomes `[0, oo)`. At temperature zero the Metropolis rule accepts a
-move only when the energy does not grow, which gives neutral walks, with a score of 0 on the target phenotype and 1 off
+The intensity domain of `SamplingInteraction` becomes `(0, oo]`. At an infinite intensity, the zero temperature of its
+thin subclass in physics, the Metropolis rule accepts a move only when the objective does not grow, which gives neutral walks, with a score of 0 on the target phenotype and 1 off
 it, and adaptive walks, with the base-pair distance. A `RowScoreSpec` whose function is not callable, or whose target is
 not on a `LatticeSpace`, raises a `ValidationError` that the compiler reports with the existing code `law-space` or
 `value`.

@@ -9,7 +9,7 @@ See proposal.md for the motivation. The current core has:
   per part of a network space, and `FieldElement` for sites of lattices.
 - The law utilities `gradient`, `divergence`, `laplacian`, and `neighbors(expression, over=, reduce=, weight=)` of
   `skcomplex.core.laws.utils`, and the neighbourhoods of `skcomplex.core.spaces` that derive from `BaseNeighborhood`.
-- `SamplingInteraction(target, state, energy, move, temperature, rule, schedule, neighborhood, values, width)`, which
+- `SamplingInteraction(target, state, objective, move, intensity, rule, schedule, neighborhood, values, width)`, which
   lowers to a `SampleLaw` and runs on `MonteCarloSolver` under `DiscreteTime`. Its target is a group on the sites of a
   lattice or the nodes of a network, and its `'colored'` schedule colors the conflict graph with
   `networkx.greedy_color`.
@@ -132,7 +132,7 @@ is the holonomy angle, so no holonomy function is needed.
 
 ### Sampling edge groups
 
-`SamplingInteraction` accepts a target on the edges of a `CellComplexSpace`. Its energy reduces over
+`SamplingInteraction` accepts a target on the edges of a `CellComplexSpace`. Its objective reduces over
 `CofaceNeighborhood()`, its moves are the existing `'rotate'` for U(1) and `'random-value'` with `values=range(n)` for
 Z_N, whose `'heat-bath'` rule already draws among all values by their Boltzmann weights. The `'colored'` schedule colors
 the graph of edges that share a face with the existing greedy coloring, so lattices of odd size need no special case.

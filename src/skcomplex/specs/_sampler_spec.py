@@ -14,15 +14,16 @@ MONTE_CARLO_SCHEDULES = ('checkerboard', 'random-sequential', 'colored')
 
 @dataclass(frozen=True)
 class SamplerSpec(BaseSpec):
-    """Spec of the acceptance of Monte Carlo moves at a temperature, with one sweep of the lattice per unit of time.
+    """Spec of the acceptance of Monte Carlo moves at an intensity, with one sweep of the lattice per unit of time.
 
     Args:
         kind:
-            `'metropolis'` to accept with probability `min(1, exp(-dE / T))`, `'glauber'` with `1 / (1 + exp(dE / T))`,
-            or `'heat-bath'` to draw the new value among all values of a discrete move with Boltzmann weights.
+            `'metropolis'` to accept a change `d` of the objective with probability `min(1, exp(-intensity * d))`,
+            `'glauber'` with `1 / (1 + exp(intensity * d))`, or `'heat-bath'` to draw the new value among all values of
+            a discrete move with weights `exp(-intensity * objective)`.
 
-        temperature:
-            The temperature, usually a parameter symbol so that it changes live.
+        intensity:
+            The intensity, usually a parameter symbol so that it changes live.
 
         schedule:
             `'checkerboard'` to update the two sublattices of a square lattice in turn, `'colored'` to update the
@@ -36,7 +37,7 @@ class SamplerSpec(BaseSpec):
     """
 
     kind: str = 'metropolis'
-    temperature: object = 1.0
+    intensity: object = 1.0
     schedule: str = 'checkerboard'
 
     def _check(self) -> None:

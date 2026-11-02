@@ -21,9 +21,9 @@ from skcomplex.engine.solvers import LammpsSolver, MilsteinSolver, PontryaginSol
 from skcomplex.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.errors import ValidationError, ValidationWarning
 from skcomplex.specs import (
-    EnergySpec,
     IssueSpec,
     MoveSpec,
+    ObjectiveSpec,
     ObservableSpec,
     ParameterSpec,
     RoleSpec,
@@ -276,7 +276,7 @@ class GroupSpinElement(Element):
     def _get_laws(self, s):
         """Return the Glauber sampling of a ferromagnetic energy on the generators."""
         memory = MemoryNeighborhood(('a', 'a^-1', 'b', 'b^-1'))
-        energy = EnergySpec(-s.spin * sum(neighbors(s.spin, memory, reduce='each')), memory)
+        energy = ObjectiveSpec(-s.spin * sum(neighbors(s.spin, memory, reduce='each')), memory)
         return [SampleLaw(energy, MoveSpec(s.spin), SamplerSpec('glauber', 2.0))]
 
 

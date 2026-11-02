@@ -22,7 +22,6 @@ from ._dataset_spec import DatasetSpec
 from ._dialect_spec import DialectSpec
 from ._differential_evolution_spec import DifferentialEvolutionSpec
 from ._draw_spec import DrawSpec
-from ._energy_spec import EnergySpec
 from ._entry_spec import EntrySpec
 from ._event_record_spec import EventRecordSpec
 from ._evolution_strategy_spec import EvolutionStrategySpec
@@ -50,6 +49,7 @@ from ._neighbor_reduction_spec import NeighborReductionSpec
 from ._network_rows_spec import NetworkRowsSpec
 from ._network_snapshot_spec import NetworkSnapshotSpec
 from ._noise_process_spec import NoiseProcessSpec
+from ._objective_spec import ObjectiveSpec
 from ._observable_spec import ObservableSpec
 from ._operator_spec import OperatorSpec
 from ._outer_totalistic_spec import OuterTotalisticSpec
@@ -126,7 +126,6 @@ __all__ = [
     'DialectSpec',
     'DifferentialEvolutionSpec',
     'DrawSpec',
-    'EnergySpec',
     'EntrySpec',
     'EventRecordSpec',
     'EvolutionStrategySpec',
@@ -154,6 +153,7 @@ __all__ = [
     'NetworkRowsSpec',
     'NetworkSnapshotSpec',
     'NoiseProcessSpec',
+    'ObjectiveSpec',
     'ObservableSpec',
     'OperatorSpec',
     'OuterTotalisticSpec',

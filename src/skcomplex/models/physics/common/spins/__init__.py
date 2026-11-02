@@ -3,11 +3,13 @@
 from ._ising_sampling import IsingSamplingInteraction
 from ._potts_sampling import PottsSamplingInteraction
 from ._spin_sampling import SpinSamplingInteraction
+from ._thermal_sampling import ThermalSamplingInteraction
 from ._xy_sampling import XYSamplingInteraction
 
 __all__: list[str] = [
     'IsingSamplingInteraction',
     'PottsSamplingInteraction',
     'SpinSamplingInteraction',
+    'ThermalSamplingInteraction',
     'XYSamplingInteraction',
 ]

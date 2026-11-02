@@ -1,4 +1,4 @@
-"""Monte Carlo sampling of a lattice state compiled from its local energy, move, and sampler."""
+"""Monte Carlo sampling of a lattice state compiled from its local objective, move, and sampler."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,11 +16,11 @@ from ._expression_printer import ExpressionPrinter
 
 
 class MonteCarloKernel(BaseKernel):
-    """Monte Carlo sampling of a lattice state compiled from its local energy, move, and sampler.
+    """Monte Carlo sampling of a lattice state compiled from its local objective, move, and sampler.
 
     Args:
         owner:
-            The path of the component that declares the energy.
+            The path of the component that declares the objective.
 
         target:
             The lattice state the move changes.
@@ -29,13 +29,13 @@ class MonteCarloKernel(BaseKernel):
             The member index of every neighbour of every site.
 
         delta:
-            The energy change `delta(value, *neighbours, proposal, **arguments)` over arrays of sites.
+            The objective change `delta(value, *neighbours, proposal, **arguments)` over arrays of sites.
 
         arguments:
-            The parameters and states the energy and the temperature read.
+            The parameters and states the objective and the intensity read.
 
-        temperature:
-            The temperature as a function of the arguments.
+        intensity:
+            The intensity of the acceptance as a function of the arguments.
 
         move:
             The move.
@@ -47,10 +47,10 @@ class MonteCarloKernel(BaseKernel):
             The sites of every class of the colored or checkerboard schedule.
 
         masked:
-            Whether the energy change reads the mask of the real neighbours of a neighbour sum.
+            Whether the objective change reads the mask of the real neighbours of a neighbour sum.
 
         bond:
-            For cluster moves, the half change `bond(value, neighbour, **arguments)` of the energy of a site with one
+            For cluster moves, the half change `bond(value, neighbour, **arguments)` of the objective of a site with one
             neighbour when the value of the site flips and then the value of the neighbour flips, or `None`.
     """
 
@@ -64,7 +64,7 @@ class MonteCarloKernel(BaseKernel):
         delta: Callable[..., object],
         arguments: ArgumentsSpec,
         *,
-        temperature: Callable[..., object],
+        intensity: Callable[..., object],
         move: MoveSpec,
         sampler: SamplerSpec,
         classes: tuple[Indices, ...] = (),
@@ -76,14 +76,14 @@ class MonteCarloKernel(BaseKernel):
         self.table = table
         self.delta = delta
         self.arguments = arguments
-        self.temperature = temperature
+        self.intensity = intensity
         self.move = move
         self.sampler = sampler
         self.classes = classes
         self.masked = masked
         self.bond = bond
 
-    def _energy_change(
+    def _objective_change(
         self,
         x: Array,
         values: Array,
@@ -91,7 +91,7 @@ class MonteCarloKernel(BaseKernel):
         proposal: Array,
         keywords: Mapping[str, object],
     ) -> Array:
-        """Return the energy change of moving some sites to proposed values."""
+        """Return the objective change of moving some sites to proposed values."""
         rows = self.table[sites]
         neighbours = np.append(x[self.target.sites], self.target.space.fill)[rows]
         masks = (rows != self.target.size).astype(float).T if self.masked else ()
@@ -112,16 +112,16 @@ class MonteCarloKernel(BaseKernel):
             return np.broadcast_to(np.asarray(self.move.function(values.copy(), rng), dtype=float), values.shape)
         return values + rng.uniform(-self.move.width, self.move.width, size=values.size)
 
-    def _temperature_of(self, keywords: Mapping[str, object]) -> Array:
-        """Return the temperature at some sites, after checking that it is positive."""
-        temperature = np.asarray(
-            ExpressionPrinter._values_of(self.temperature(self.time_, *keywords.values()))[0],
+    def _intensity_of(self, keywords: Mapping[str, object]) -> Array:
+        """Return the intensity at some sites, after checking that it is positive."""
+        intensity = np.asarray(
+            ExpressionPrinter._values_of(self.intensity(self.time_, *keywords.values()))[0],
             dtype=float,
         )
-        if np.any(temperature <= 0):
-            error_msg = f'The temperature of {self.owner} is {temperature}, but it must be positive.'
+        if np.any(intensity <= 0):
+            error_msg = f'The intensity of {self.owner} is {intensity}, but it must be positive.'
             raise SolverError(error_msg)
-        return temperature
+        return intensity
 
     def _grow(self, x: Array, p: Array, values: Array, sites: Indices, rng: np.random.Generator) -> Indices:
         """Return the neighbours that bonds add to a cluster from its newest sites."""
@@ -130,15 +130,15 @@ class MonteCarloKernel(BaseKernel):
             name: value[:, None] if isinstance(value, np.ndarray) else value
             for name, value in self.arguments.values(x, p, sites).items()
         }
-        temperature = self._temperature_of(keywords)
+        intensity = self._intensity_of(keywords)
         neighbours = np.append(values, self.target.space.fill)[rows]
         if self.bond is None:
-            error_msg = f'The Monte Carlo laws of {self.owner} make cluster moves without the energy of a bond.'
+            error_msg = f'The Monte Carlo laws of {self.owner} make cluster moves without the objective of a bond.'
             raise SolverError(error_msg)
         bond = ExpressionPrinter._values_of(self.bond(0.0, values[sites][:, None], neighbours, *keywords.values()))[0]
         bonds = np.broadcast_to(np.asarray(bond, dtype=float), rows.shape)
         with np.errstate(over='ignore'):
-            probability = 1.0 - np.exp(np.minimum(bonds / temperature, 0.0))
+            probability = 1.0 - np.exp(np.minimum(bonds * intensity, 0.0))
         added = (rows != self.target.size) & (rng.random(rows.shape) < probability)
         return np.unique(rows[added])
 
@@ -159,7 +159,7 @@ class MonteCarloKernel(BaseKernel):
     def _update(self, x: Array, p: Array, sites: Indices, rng: np.random.Generator) -> None:
         """Propose and accept moves at sites that do not neighbour each other."""
         keywords = self.arguments.values(x, p, sites)
-        temperature = self._temperature_of(keywords)
+        intensity = self._intensity_of(keywords)
         values = x[self.target.start + sites]
         if self.sampler.kind == 'heat-bath':
             candidates = (
@@ -167,21 +167,24 @@ class MonteCarloKernel(BaseKernel):
                 if self.move.kind == 'flip'
                 else np.asarray(self.move.values)
             )
-            energies = np.stack(
-                [self._energy_change(x, values, sites, np.full(values.shape, value), keywords) for value in candidates],
+            objectives = np.stack(
+                [
+                    self._objective_change(x, values, sites, np.full(values.shape, value), keywords)
+                    for value in candidates
+                ],
             )
-            weights = np.exp(-(energies - energies.min(axis=0)) / temperature)
+            weights = np.exp(-(objectives - objectives.min(axis=0)) * intensity)
             cumulative = np.cumsum(weights / weights.sum(axis=0), axis=0)
             chosen = (rng.random(values.size) > cumulative).sum(axis=0)
             x[self.target.start + sites] = candidates[np.minimum(chosen, candidates.size - 1)]
             return
         proposal = self._propose(values, rng)
-        change = self._energy_change(x, values, sites, proposal, keywords)
+        change = self._objective_change(x, values, sites, proposal, keywords)
         with np.errstate(over='ignore'):
             if self.sampler.kind == 'metropolis':
-                probability = np.exp(-np.maximum(change, 0.0) / temperature)
+                probability = np.exp(-np.maximum(change, 0.0) * intensity)
             else:
-                probability = 1.0 / (1.0 + np.exp(change / temperature))
+                probability = 1.0 / (1.0 + np.exp(change * intensity))
         accepted = rng.random(values.size) < probability
         x[self.target.start + sites[accepted]] = proposal[accepted]
 

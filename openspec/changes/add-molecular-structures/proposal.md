@@ -29,10 +29,10 @@ model packages that use them.
 
 ## What Changes
 
-- Add `RowScoreSpec(function, proposals=1)` to `skcomplex.specs`, which `SamplingInteraction` takes as its `energy`: a
+- Add `RowScoreSpec(function, proposals=1)` to `skcomplex.specs`, which `SamplingInteraction` takes as its `objective`: a
   function of the whole row of a lattice state and the target's parameters that returns one number, accepted by the
-  change of that number per row. Let the temperature of `SamplingInteraction` be zero, which accepts only moves that do
-  not raise the energy.
+  change of that number per row. Let the intensity of `SamplingInteraction` be infinite, the zero temperature of its thin
+  subclass in physics, which accepts only moves that do not raise the objective.
 - Let the function of `DriveLaw` take the keyword `time`, the time of the step, when it names it, so a drive replays one
   member of an ensemble per step.
 - Add `ShapeAnalysis` to `skcomplex.analysis`, with the kinds `'gyration'`, `'end-to-end'`, and `'rmsd'`, the last after
@@ -62,7 +62,7 @@ model packages that use them.
 
 ## Impact
 
-- `skcomplex.specs` gains `RowScoreSpec`, and `SamplingInteraction` accepts it and a temperature of zero.
+- `skcomplex.specs` gains `RowScoreSpec`, and `SamplingInteraction` accepts it and an infinite intensity.
 - `skcomplex.core.laws.DriveLaw` passes `time` to a function that names it.
 - `skcomplex.analysis` gains `ShapeAnalysis`, and `skcomplex.engine.viz.PointsVisual` gains `strip`.
 - `skcomplex.errors` gains `MissingExtraError`.
