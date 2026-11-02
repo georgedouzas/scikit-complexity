@@ -194,34 +194,58 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         return [name for name, value in first.items() if isinstance(value, nx.Graph)]
 
     @staticmethod
+    def _get_series_states(problem: BaseProblemSpec) -> list[str]:
+        """Return the states that count as series: the scalars of single elements and of the members of groups.
+
+        A scalar state of a group is one series per member, unless the group is read as particles or the state as a
+        jump path. A state of a lattice is read as a field instead.
+
+        Args:
+            problem:
+                The compiled problem.
+
+        Returns:
+            names:
+                The dotted names of the states.
+        """
+        lattice = set(BaseAnalysis._get_lattice_names(problem))
+        particle_groups = set(BaseAnalysis._get_particle_groups(problem))
+        particles = {
+            name for element in problem.elements if element.path in particle_groups for name in element.states.values()
+        }
+        apart = particles.union(BaseAnalysis._get_path_names(problem))
+        return [
+            entry.name
+            for entry in problem.states.entries
+            if entry.name not in lattice
+            and (entry.shape == () or (entry.shape == (entry.members,) and entry.name not in apart))
+        ]
+
+    @staticmethod
+    def _get_phase_states(problem: BaseProblemSpec) -> list[str]:
+        """Return the dotted names of the states with the role `'phase'`."""
+        return [
+            element.states[name]
+            for element in problem.elements
+            for name in BaseAnalysis._get_role_states(element, 'phase')
+        ]
+
+    @staticmethod
     def _get_scalar_series(trajectory: Trajectory) -> list[str]:
-        """Return the scalar observables and reporters, or the scalar states of single elements without them."""
+        """Return the scalar observables and reporters, or the states that count as series without them."""
         first = trajectory.observables[0] if trajectory.observables else {}
         observed = [
             name for name, value in first.items() if not isinstance(value, nx.Graph) and np.ndim(np.asarray(value)) == 0
         ]
         reported = list(trajectory.reporters[0]) if trajectory.reporters else []
-        if observed or reported:
-            return observed + reported
-        lattice = set(BaseAnalysis._get_lattice_names(trajectory.problem))
-        return [
-            entry.name
-            for entry in trajectory.problem.states.entries
-            if entry.shape == () and entry.members is None and entry.name not in lattice
-        ]
+        return observed + reported or BaseAnalysis._get_series_states(trajectory.problem)
 
     @staticmethod
     def _has_series(source: Trajectory | System | BaseProblemSpec, problem: BaseProblemSpec) -> bool:
-        """Check whether a source records scalar series: observables, reporters, or scalar states."""
+        """Check whether a source records scalar series: observables, reporters, or states that count as series."""
         if isinstance(source, Trajectory):
             return bool(BaseAnalysis._get_scalar_series(source))
-        if problem.observables:
-            return True
-        lattice = set(BaseAnalysis._get_lattice_names(problem))
-        return any(
-            entry.shape == () and entry.members is None and entry.name not in lattice
-            for entry in problem.states.entries
-        )
+        return bool(problem.observables or BaseAnalysis._get_series_states(problem))
 
     @staticmethod
     def _get_data_kinds(source: Source | BaseProblemSpec) -> list[DataKind]:
@@ -328,8 +352,10 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         )
         heading = next((name for name in frames[0].values if roles.get(name) == 'direction'), None)
         headings = np.asarray(states.pop(heading), dtype=float) if heading is not None else None
+        phase = next((name for name in frames[0].values if roles.get(name) == 'phase'), None)
+        phases = np.asarray(states.pop(phase), dtype=float) if phase is not None else None
         times = np.asarray(trajectory.times, dtype=float)
-        return SnapshotsSpec(times, ids, positions, velocities, headings, states, box, periodic)
+        return SnapshotsSpec(times, ids, positions, velocities, headings, states, box, periodic, phases)
 
     @staticmethod
     def _get_role_states(element: CompiledElementSpec, role: str) -> list[str]:
@@ -369,23 +395,26 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         }
         heading = next(iter(BaseAnalysis._get_role_states(element, 'direction')), None)
         headings = np.asarray(others.pop(heading), dtype=float) if heading is not None else None
+        phase = next(iter(BaseAnalysis._get_role_states(element, 'phase')), None)
+        phases = np.asarray(others.pop(phase), dtype=float) if phase is not None else None
         ids = np.arange(positions.shape[1], dtype=np.int64)
         times = np.asarray(trajectory.times, dtype=float)
-        return SnapshotsSpec(times, ids, positions, velocities, headings, others, box, periodic)
+        return SnapshotsSpec(times, ids, positions, velocities, headings, others, box, periodic, phases)
 
     def _read_series(self, source: Source, names: Sequence[str] | None = None) -> SeriesSpec:
         """Return named series of a trajectory, or the columns of an array, one series per column.
 
         A trajectory gives its states, parameters, reporters, or observables, and a vector or group variable gives one
-        column per component, labelled `name[i]`.
+        column per component, labelled `name[i]`. Without names, a trajectory gives its scalar observables and
+        reporters, or else the scalar states of its elements and of its groups, one column per member, leaving out the
+        states of lattices, of particle groups, and of groups of jump paths.
 
         Args:
             source:
                 A trajectory, a series, or an array with one row per time and one column per series.
 
             names:
-                The variables of a trajectory, or `None` for every scalar observable and reporter, or every scalar
-                state without them.
+                The variables of a trajectory, or `None` for every scalar series.
 
         Returns:
             series:
@@ -482,7 +511,7 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         Agent groups give their positions unwrapped across periodic sides, and velocities and headings from the states
         with the role `'velocity'` or `'direction'` in their `StateSpec`. Particle groups give the states with the role
         `'position'`, the first derivatives of those states or else the states with the role `'velocity'`, and the state
-        with the role `'direction'`.
+        with the role `'direction'`. Either kind of group gives the state with the role `'phase'` as its phases.
 
         Args:
             source:

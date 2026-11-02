@@ -39,9 +39,9 @@ class AlignmentAnalysis(BaseAnalysis):
     """Alignment of the members of a source at every frame, of one kind.
 
     The members are the agents of a group, the sites of a field, or the columns of a set of series, and each holds an
-    angle or a vector. A trajectory gives the agents of a group with their headings, velocities, and positions, else
-    every frame of a field of angles, or of vectors with `vectors=True`, else the series of `variables`, one column per
-    member and one row per sample, such as the phases of oscillators.
+    angle or a vector. A trajectory gives the agents of a group with their headings or phases, velocities, and
+    positions, else every frame of a field of angles, or of vectors with `vectors=True`, else the series of `variables`
+    or the states with the role `'phase'`, one column per member and one row per sample.
 
     - `'mean-vector'`: the length of the mean unit vector, 1 when every member points the same way and about
       `1 / sqrt(n)` for random directions. It reads vectors when the source has them, and angles otherwise.
@@ -66,8 +66,8 @@ class AlignmentAnalysis(BaseAnalysis):
             The alignment to compute, one of the kinds above.
 
         variables:
-            The field or the series of a trajectory to read, or `None` for its agents, or else its first field or its
-            scalar series.
+            The field or the series of a trajectory to read, or `None` for its agents, or else its first field, its
+            states with the role `'phase'`, or its scalar series.
 
         group:
             The path of the agent group of a trajectory, or `None` for the first one.
@@ -170,13 +170,14 @@ class AlignmentAnalysis(BaseAnalysis):
         name = self.variables[0] if self.variables else None
         if DataKind.AGENTS in kinds and (self.group is not None or self.variables is None):
             snapshots = self._read_snapshots(source, self.group)
-            self.angles_ = snapshots.headings
+            self.angles_ = snapshots.headings if snapshots.headings is not None else snapshots.phases
             self.vectors_ = snapshots.velocities
             self.positions_ = snapshots.positions
         elif DataKind.FIELD in kinds and (name is None or name in self._get_lattice_names(source.problem)):
             self._prepare_array(self._read_fields(source, name))
         elif DataKind.SERIES in kinds:
-            self.angles_ = np.asarray(self._read_series(source, self.variables).values, dtype=float)
+            names = self.variables or self._get_phase_states(source.problem) or None
+            self.angles_ = np.asarray(self._read_series(source, names).values, dtype=float)
         else:
             held = ', '.join(kind.value for kind in kinds) or 'none'
             error_msg = (

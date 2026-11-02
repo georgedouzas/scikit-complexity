@@ -166,7 +166,8 @@ class SignatureAnalysis(BaseAnalysis):
         if snapshots.velocities is not None:
             polar = AlignmentAnalysis._mean_vector_length(snapshots.velocities, vectors=True)
         else:
-            polar = AlignmentAnalysis._mean_vector_length(np.asarray(snapshots.headings))
+            angles = snapshots.headings if snapshots.headings is not None else snapshots.phases
+            polar = AlignmentAnalysis._mean_vector_length(np.asarray(angles))
         curves = {'polar order': (snapshots.times, polar)}
         planar = snapshots.positions is not None and snapshots.positions.shape[-1] == PLANE
         if snapshots.velocities is not None and snapshots.positions is not None and planar:
@@ -197,7 +198,7 @@ class SignatureAnalysis(BaseAnalysis):
     def _get_agents_signature(self) -> SignatureSpec:
         """Return the polar and milling orders over time, or the nearest-neighbour distances against the Poisson law."""
         snapshots = self.snapshots_
-        if snapshots.velocities is not None or snapshots.headings is not None:
+        if snapshots.velocities is not None or snapshots.headings is not None or snapshots.phases is not None:
             return self._get_order_signature()
         if snapshots.positions is None:
             counts = np.full(snapshots.times.size, float(snapshots.ids.size))

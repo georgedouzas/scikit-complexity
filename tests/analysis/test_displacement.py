@@ -17,12 +17,20 @@ from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import AgentView, ModelView
 from skcomplex.errors import AnalysisError
+from skcomplex.models import run
 from skcomplex.specs import StateSpec, VisualSpec
 
 
 def _displacement(source: object, **settings: object) -> DisplacementAnalysis:
     """Return the displacement analysis of a source, run."""
     return DisplacementAnalysis(**settings).check().prepare(source).run()
+
+
+def test_displacement_refuses_states_that_are_no_positions():
+    """Test that a group whose states are series has no displacement, and the error names what it holds."""
+    trajectory = run('replicator_dynamics', settings={'until': 1.0}).trajectory_
+    with pytest.raises(AnalysisError, match='Its data kinds are: series'):
+        _displacement(trajectory)
 
 
 class GridWalkerElement(Element):

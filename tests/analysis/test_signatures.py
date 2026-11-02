@@ -65,10 +65,25 @@ def test_signature_analysis_of_agents_without_motion():
 
 def test_signature_analysis_of_a_network():
     """Test that a network gives its degree distribution with its moments."""
-    (signature,) = _signatures(run('network_diffusion', settings={'until': 0.5}).trajectory_)
+    signature = _signatures(run('network_diffusion', settings={'until': 0.5}).trajectory_)[0]
     assert signature.kind == 'network'
     assert signature.values['mean degree'] > 0
     assert 'clustering' in signature.values
+
+
+def test_signature_analysis_of_group_states():
+    """Test that the scalar states of a group without positions give a series signature with one curve per member."""
+    (signature,) = _signatures(run('replicator_dynamics', settings={'until': 5.0}).trajectory_)
+    assert signature.kind == 'series'
+    assert set(signature.curves) == {'population.x[0]', 'population.x[1]'}
+
+
+def test_signature_analysis_of_phases_of_particles():
+    """Test that particles with a phase and no velocity give the order of their phases over time."""
+    trajectory = run('swarmalators', settings={'until': 1.0}).trajectory_
+    (signature,) = _signatures(trajectory)
+    expected = np.abs(np.exp(1j * trajectory.values('units.theta')).mean(axis=1))
+    assert signature.curves['polar order'][1] == pytest.approx(expected)
 
 
 def test_signature_analysis_reads_a_trajectory():

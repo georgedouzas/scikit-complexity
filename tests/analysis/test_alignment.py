@@ -142,6 +142,14 @@ def test_alignment_of_a_field_of_vectors():
     assert _order('mean-vector', field, vectors=True).tolist() == [1.0, 0.0]
 
 
+@pytest.mark.parametrize(('model', 'state'), [('swarmalators', 'units.theta'), ('kuramoto', 'oscillators.theta')])
+def test_alignment_reads_phases(model, state):
+    """Test that particles and series with the role phase give the synchrony of their phases, not their observables."""
+    trajectory = run(model, settings={'until': 1.0}).trajectory_
+    expected = np.abs(np.exp(1j * trajectory.values(state)).mean(axis=1))
+    assert _alignment('mean-vector', trajectory).order_ == pytest.approx(expected, abs=1e-12)
+
+
 def test_alignment_rejects_a_source_without_a_readable_kind():
     """Test that a trajectory with no agents, field, or series names the kinds read and the kinds held."""
     trajectory = run('poisson_process', n_processes=1, settings={'until': 3.0, 'random_state': 0}).trajectory_

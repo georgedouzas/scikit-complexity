@@ -225,6 +225,47 @@ def test_snapshots_refuse_a_group_without_a_position_role():
         AgentAnalysis().check().prepare(trajectory)
 
 
+@pytest.mark.parametrize(
+    ('model', 'state'),
+    [
+        ('generalized_lotka_volterra', 'species.x'),
+        ('hypercycles', 'soup.x'),
+        ('replicator_dynamics', 'population.x'),
+        ('closed_contour_cell_exchange', 'cells.x'),
+        ('doubling_map', 'points.x'),
+        ('skew_tent_map', 'points.x'),
+        ('on_off_intermittency', 'variables.x'),
+        ('mirollo_strogatz', 'oscillators.x'),
+    ],
+)
+def test_series_of_group_states(model, state):
+    """Test that the scalar states of a group without positions are series, one column per member."""
+    trajectory = run(model, settings={'until': 1.0}).trajectory_
+    series = MeanAnalysis().check().prepare(trajectory).run().series_
+    np.testing.assert_array_equal(series.values, trajectory.values(state))
+    assert series.labels[0] == f'{state}[0]'
+
+
+def test_series_leave_out_particles_and_jump_paths():
+    """Test that a group of particles or of jump paths has no series, while a single jump state keeps one."""
+    particles = run('random_walk_with_memory', n_walkers=5, settings={'until': 1.0}).trajectory_
+    paths = run('poisson_process', n_processes=2, settings={'until': 1.0}).trajectory_
+    for trajectory in (particles, paths):
+        with pytest.raises(AnalysisError, match='no scalar series'):
+            MeanAnalysis().check().prepare(trajectory)
+    single = Simulation(System(elements=[BirthDeathElement('a')])).check().prepare().run(until=1.0).trajectory_
+    assert MeanAnalysis().check().prepare(single).series_.labels == ['a.n']
+
+
+def test_snapshots_of_phases():
+    """Test that a state with the role phase gives the phases of the snapshots, not a direction or another state."""
+    trajectory = run('swarmalators', settings={'until': 0.5}).trajectory_
+    snapshots = AgentAnalysis().check().prepare(trajectory).snapshots_
+    np.testing.assert_array_equal(snapshots.phases, trajectory.values('units.theta'))
+    assert snapshots.headings is None
+    assert 'theta' not in snapshots.states
+
+
 def test_networks_of_a_network_space():
     """Test that a field on a network gives its graph at every frame."""
     trajectory = run('network_diffusion', settings={'until': 0.5}).trajectory_

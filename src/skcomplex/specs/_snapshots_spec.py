@@ -40,6 +40,9 @@ class SnapshotsSpec(BaseSpec):
 
         periodic:
             Whether opposite sides of the box are joined.
+
+        phases:
+            The phase angles, frames by agents, or `None` without them.
     """
 
     times: Array
@@ -50,3 +53,4 @@ class SnapshotsSpec(BaseSpec):
     states: dict[str, npt.NDArray[np.generic]] = field(default_factory=dict)
     box: Array | None = None
     periodic: bool = False
+    phases: Array | None = None

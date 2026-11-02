@@ -13,7 +13,7 @@ from ..errors import ValidationError
 from ._base_spec import BaseSpec
 from ._tensor_spec import TENSOR_SYMMETRIES
 
-ROLES = ('position', 'direction', 'velocity', None)
+ROLES = ('position', 'direction', 'phase', 'velocity', None)
 
 
 @dataclass(frozen=True)
@@ -66,10 +66,11 @@ class StateSpec(BaseSpec):
 
         role:
             What the state means in a snapshot of agents or particles, `'position'` for a coordinate or a vector of
-            coordinates in space, `'direction'` for an angle, `'velocity'` for one component of a velocity or a vector
-            of them, or `None` for any other state. A group is a particle group when a state has the role `'position'`,
-            and the first derivative of that state is its velocity. Analyses read positions, directions, and velocities
-            from these roles alone, so a state named `phase` is no direction unless it says so.
+            coordinates in space, `'direction'` for the angle a member points along, `'phase'` for the angle of a
+            cycle a member goes through, `'velocity'` for one component of a velocity or a vector of them, or `None` for
+            any other state. A group is a particle group when a state has the role `'position'`, and the first
+            derivative of that state is its velocity. Analyses read positions, directions, phases, and velocities from
+            these roles alone, so a state named `phase` is no phase unless it says so.
 
         tensor:
             The symmetry of a rank-2 tensor state, `'full'`, `'symmetric'`, `'antisymmetric'`, or `'traceless'`, which
@@ -118,7 +119,7 @@ class StateSpec(BaseSpec):
             error_msg = f'The tensor symmetry is {self.tensor!r}. Use one of {", ".join(TENSOR_SYMMETRIES)}.'
             raise ValidationError(error_msg)
         if self.role not in ROLES:
-            error_msg = f"The role of a state is 'position', 'direction', 'velocity', or None, but got {self.role!r}."
+            error_msg = f'The role of a state is one of {", ".join(map(repr, ROLES))}, but got {self.role!r}.'
             raise ValidationError(error_msg)
         if self.reference is not None and (self.vector or self.tensor or self.order != 1 or self.lags):
             error_msg = f'The state naming a member of {self.reference!r} is not a scalar of order 1 without lags.'
