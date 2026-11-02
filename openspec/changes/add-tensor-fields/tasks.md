@@ -8,7 +8,7 @@
   `tests/specs/test_state_spec.py` and `tests/specs/test_entry_spec.py`
 - [x] 1.2 Read the rates of a `RateLaw` on a tensor state from the entries of its matrix value, and verify that a
   relaxation `RateLaw(s.Q, -s.Q)` runs on the NumPy and Numba backends
-- [ ] 1.3 Accept a matrix as the fixed boundary value of a tensor state in `FieldElement`, and verify the anchoring at
+- [x] 1.3 Accept a matrix as the fixed boundary value of a tensor state in `FieldElement`, and verify the anchoring at
   walls scenario and the rejected asymmetric matrix
 - [x] 1.4 Add the issue `tensor-symmetry` to `PassCompiler` with its numeric fallback, and verify the law that breaks
   the symmetry scenario in `tests/engine/compile/test_pass_compiler.py`
