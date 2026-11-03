@@ -10,6 +10,8 @@ from pathlib import Path
 from gallery_tools import build_from_environment, check_coverage, find_examples
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.exceptions import PluginError
+from mkdocs.plugins import event_priority
+from mkdocs.structure.files import Files
 from mkdocs.structure.pages import Page
 from mkdocs_gallery import glr_path_static
 
@@ -22,6 +24,7 @@ for message in (r'ast\.Str is deprecated', r'Attribute s is deprecated'):
 
 LOGGER = logging.getLogger('mkdocs.plugins.skcomplex_gallery')
 GALLERY_PAGES = 'generated/gallery/'
+MODELS_NAVIGATION = 'models/SUMMARY.md'
 RUNNING_TIME = '**Total running time of the script:**'
 EMPTY_SUBSECTION = re.compile(r'^## [^\n]*\n\s*<div class="mkd-glr-clear"></div>\s*<!-- \S+ -->\n*', re.MULTILINE)
 
@@ -74,6 +77,27 @@ def on_page_markdown(markdown: str, page: Page, **kwargs: object) -> str:
     references = '\n'.join(f'- {reference}' for reference in entry.references)
     head, marker, tail = markdown.partition(RUNNING_TIME)
     return f'{head}## About the model\n\n{entry.description}\n\n## References\n\n{references}\n\n{marker}{tail}'
+
+
+@event_priority(-200)
+def on_files(files: Files, **kwargs: object) -> Files:
+    """Remove the navigation file of the models, so the build does not publish it as a page.
+
+    The low priority runs this after `literate-nav`, which reads the file at priority -100.
+
+    Args:
+        files:
+            The files of the documentation.
+
+        **kwargs:
+            The other arguments of the event.
+
+    Returns:
+        files:
+            The files without the navigation file of the models.
+    """
+    files.remove(files.src_uris[MODELS_NAVIGATION])
+    return files
 
 
 def on_pre_build(config: MkDocsConfig, **kwargs: object) -> None:

@@ -3053,21 +3053,20 @@ print(create('draining_tank').elements[0].level)
 Every registered factory needs defaults for all of its arguments, so the catalog can create, compile, simulate,
 visualize, and clone every model through the same interface.
 
-### Coverage
+### Inventory
 
-The model inventory records every model surveyed from the reference books and articles, with its sources and status:
-implemented, pending a planned change, or blocked by a missing feature of the core. The coverage page, under Models in
-the documentation, renders it by field and subfield. A model the core cannot express is recorded as blocked on the
-OpenSpec change that specifies the missing general feature, never worked around inside the model package, and a test
-checks the inventory against the catalog and the changes.
+The model inventory, `docs/overview/inventory.toml`, records every model surveyed from the reference books and articles,
+with its sources and status: implemented, pending a planned change, or blocked by a missing feature of the core. A model
+the core cannot express is recorded as blocked on the OpenSpec change that specifies the missing general feature, never
+worked around inside the model package, and a test checks the inventory against the catalog and the changes. Every
+registered model has its own page under Models in the documentation, by field and subfield.
 
 Models exist first to exercise the core, and ready-made models are a by-product. Every entry lists the core primitives
 it exercises, such as `rates`, `jumps`, `groups`, `reductions`, `member-offsets`, `lattices`, `fields`, `agents`, or
 `stocks-and-flows`, from a vocabulary the inventory defines, and a primitive that the core does not have yet names the
 change that adds it. An entry's priority is `core` when it exercises a primitive or a combination of primitives that
-no earlier implemented entry exercises, or needs a missing one, and `example` when it repeats a covered pattern. The
-coverage page shows, for every primitive, the implemented models that exercise it, and flags the uncovered primitives
-with the changes that add them, so new models go first where the core is least exercised.
+no earlier implemented entry exercises, or needs a missing one, and `example` when it repeats a covered pattern, so new
+models go first where the core is least exercised.
 
 ## Groups of many elements
 

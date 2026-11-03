@@ -49,13 +49,14 @@ it, and SHALL build the feature on the chosen library unless its design states w
 - **WHEN** a contributor reads the design of a change that specifies a missing feature
 - **THEN** it names the libraries it considered and the one the feature wraps, or why it implements the feature itself
 
-### Requirement: The inventory is published
-The documentation SHALL publish the inventory as a coverage page grouped by field and subfield, with every entry's
-sources and status and, for implemented models, a link to the model's documentation.
+### Requirement: Every registered model has a page
+The documentation SHALL give every registered model its own page, reached from a navigation grouped by field and
+subfield, and every field an index page that links its models. The inventory SHALL stay a checked source file, and the
+documentation SHALL NOT publish a page of its entries, statuses, or coverage.
 
-#### Scenario: Coverage page
-- **WHEN** a user opens the coverage page and the section `physics/climate`
-- **THEN** it lists every surveyed climate model with its sources, and links each implemented one to its documentation
+#### Scenario: Model page
+- **WHEN** a user opens the section `physics/climate` under Models in the navigation
+- **THEN** it lists every registered climate model, and each entry opens the page of that model
 
 ### Requirement: Models exist to exercise the core
 The library's models SHALL serve first to reveal what the core needs and to exercise its general primitives, and only
@@ -69,14 +70,6 @@ vocabulary the inventory defines, and the inventory check SHALL reject a primiti
 #### Scenario: Unknown primitive
 - **WHEN** an entry names a primitive that the vocabulary does not define
 - **THEN** the inventory check fails and names the entry and the primitive
-
-### Requirement: Coverage is reported by primitive
-The coverage page SHALL show, for every primitive of the vocabulary, the implemented models that exercise it, and SHALL
-flag every primitive that no implemented model exercises and every primitive that a pending or blocked change adds.
-
-#### Scenario: Uncovered primitive
-- **WHEN** a primitive of the vocabulary is exercised only by models blocked on a change
-- **THEN** the coverage page lists it as uncovered and names the change that adds it
 
 ### Requirement: Surveys prioritise new primitives
 Every inventory entry SHALL carry a priority: `core` when it exercises a primitive or a combination of primitives that
@@ -94,16 +87,11 @@ change that implements models SHALL implement its `core` entries first, and MAY 
 ### Requirement: Entries map to the system vocabulary
 Every inventory entry SHALL declare its time kind, its space kind, its component kinds, its interaction bindings, and
 its law classes from the vocabulary of `system-modeling`, implemented and pending entries alike. A check SHALL fail on any
-entry that does not map. Coverage SHALL be reported per category of the vocabulary.
+entry that does not map.
 
 #### Scenario: Unmapped entry
 - **WHEN** an entry lists a law class that the vocabulary does not define
 - **THEN** the inventory check fails, names the entry, and asks for the general primitive to be specified
-
-#### Scenario: Coverage by category
-- **WHEN** the inventory is published
-- **THEN** its coverage table counts implemented and pending entries for every time kind, space kind, component kind,
-  binding, and law class
 
 ### Requirement: Every reference source is surveyed section by section
 Every textbook and paper in `references` SHALL be surveyed section by section, and the survey SHALL be recorded with the
@@ -134,4 +122,4 @@ the check finds:
 
 #### Scenario: Consistent inventory
 - **WHEN** the inventory agrees with the catalog and follows its rules, and the documentation is built
-- **THEN** the build writes the model pages and the coverage page
+- **THEN** the build writes the model pages
