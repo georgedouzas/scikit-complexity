@@ -1,4 +1,4 @@
-"""Generate the coverage page of the model inventory and one page per field with the pattern of every model."""
+"""Generate one page per model with its pattern, one index per field, and the navigation of the models."""
 
 import ast
 import inspect
@@ -20,7 +20,6 @@ from skcomplex.models import catalog, create, describe
 DOCS = Path(str(files('gallery_tools'))).parent
 INVENTORY = DOCS / 'overview' / 'inventory.toml'
 GALLERY = build_from_environment(DOCS)
-SELECTED_MODELS = {example.model for example in GALLERY.selected()}
 EQUATION_FORMS = {
     'ordinary differential equations',
     'fractional differential equations',
@@ -28,41 +27,29 @@ EQUATION_FORMS = {
     'delay differential equations',
     'discrete map',
 }
-SHOWN_MODELS = 8
-STATUS_LABELS = {'implemented': 'Implemented', 'pending': 'Pending', 'blocked': 'Blocked'}
 
 
-def _load() -> tuple[dict[str, str], dict[str, Any]]:
-    """Return the source keys and the inventory by field and subfield."""
+def _inventory() -> dict[str, Any]:
+    """Return the inventory by field and subfield."""
     data = tomllib.loads(INVENTORY.read_text())
-    data.pop('primitives')
-    data.pop('vocabulary')
-    return data.pop('sources'), data
+    for section in ('sources', 'primitives', 'vocabulary'):
+        data.pop(section)
+    return data
 
 
-def _vocabulary() -> dict[str, dict[str, str]]:
-    """Return the primitive vocabulary of the inventory, by name."""
-    return tomllib.loads(INVENTORY.read_text())['primitives']
+def _titles(inventory: dict[str, Any]) -> dict[str, str]:
+    """Return the title of every model of the inventory, by name."""
+    return {
+        name: entry['title']
+        for subfields in inventory.values()
+        for models in subfields.values()
+        for name, entry in models.items()
+    }
 
 
 def _title(name: str) -> str:
     """Return the title of a field or a subfield."""
     return name.replace('_', ' ').capitalize()
-
-
-def _source(source: str, keys: dict[str, str]) -> str:
-    """Return a source with its key expanded to the reference it stands for."""
-    key, _, section = source.partition(' ')
-    return f'{keys[key]} {section}'.strip() if key in keys else source
-
-
-def _status(entry: dict[str, Any]) -> str:
-    """Return the status of an entry as Markdown, naming the change it waits for."""
-    status, _, change = entry['status'].partition(' ')
-    if status in {'pending', 'blocked'}:
-        detail = f': {entry["feature"]}' if status == 'blocked' else ''
-        return f'{STATUS_LABELS[status]} on `{change}`{detail}'
-    return STATUS_LABELS[status]
 
 
 def _examples() -> dict[str, Example]:
@@ -76,150 +63,17 @@ def _page_of(example: Example) -> str:
 
 
 def _gallery_lines(name: str, examples: dict[str, Example]) -> list[str]:
-    """Return the screenshot of a model and the link to its example, for a page one folder below the documentation."""
+    """Return the screenshot of a model and the link to its example, for a page three folders below the docs."""
     example = examples.get(name)
     if example is None:
         return []
-    page = f'../{_page_of(example)}'
+    page = f'../../../{_page_of(example)}'
     screenshot = GALLERY.screenshot(example)
     lines = [f'[Example]({page})', '']
     if screenshot.exists():
-        image = f'../{screenshot.relative_to(DOCS).as_posix()}'
+        image = f'../../../{screenshot.relative_to(DOCS).as_posix()}'
         lines = [f'[![The {name} example]({image}){{ width="480" }}]({page})', '', *lines]
     return lines
-
-
-def _primitive_users(inventory: dict[str, Any]) -> tuple[dict[str, list[str]], dict[str, set[str]]]:
-    """Return the links of the implemented models of every primitive, and the changes its other entries wait for."""
-    users: dict[str, list[str]] = {name: [] for name in _vocabulary()}
-    waiting: dict[str, set[str]] = {name: set() for name in users}
-    entries = [
-        (field, name, entry)
-        for field, subfields in inventory.items()
-        for models in subfields.values()
-        for name, entry in models.items()
-    ]
-    for field, name, entry in entries:
-        status, _, change = entry['status'].partition(' ')
-        for primitive in entry['primitives']:
-            if status == 'implemented':
-                users[primitive].append(f'[{name}]({field}.md#{name})')
-            else:
-                waiting[primitive].add(change)
-    return users, waiting
-
-
-def _coverage(models: list[str], waiting: set[str], change: str | None) -> str:
-    """Return the coverage of one primitive from its implemented models and the changes that add or need it."""
-    if models:
-        return f'Covered by {len(models)}'
-    coverage = f'Uncovered, added by `{change}`' if change else 'Uncovered'
-    if waiting - {change}:
-        coverage += ', waited for by ' + ', '.join(f'`{name}`' for name in sorted(waiting))
-    return coverage
-
-
-def primitive_lines(inventory: dict[str, Any]) -> list[str]:
-    """Return the coverage of every primitive: the implemented models that exercise it, or the change that adds it.
-
-    Args:
-        inventory:
-            The inventory by field and subfield.
-
-    Returns:
-        lines:
-            The Markdown lines of the section.
-    """
-    users, waiting = _primitive_users(inventory)
-    lines = [
-        '',
-        '## Coverage by primitive',
-        '',
-        'Models exist first to exercise the core. Every entry records the core primitives it exercises. Its priority',
-        'is `core` when it exercises a primitive or a combination that no implemented model exercises, or needs a',
-        'missing one, and `example` when it repeats a covered pattern. A primitive is uncovered when no implemented',
-        'model exercises it.',
-        '',
-        '| Primitive | Description | Coverage | Implemented models |',
-        '|---|---|---|---|',
-    ]
-    for primitive, item in _vocabulary().items():
-        models = users[primitive]
-        shown = ', '.join(models[:SHOWN_MODELS])
-        if len(models) > SHOWN_MODELS:
-            shown += f', and {len(models) - SHOWN_MODELS} more'
-        coverage = _coverage(models, waiting[primitive], item.get('change'))
-        lines.append(f'| `{primitive}` | {item["description"]} | {coverage} | {shown} |')
-    return lines
-
-
-def system_lines(inventory: dict[str, Any]) -> list[str]:
-    """Return the number of implemented and pending entries for every term of the system vocabulary.
-
-    Args:
-        inventory:
-            The inventory by field and subfield.
-
-    Returns:
-        lines:
-            The Markdown lines of the section.
-    """
-    vocabulary = tomllib.loads(INVENTORY.read_text())['vocabulary']
-    entries = [entry for subfields in inventory.values() for models in subfields.values() for entry in models.values()]
-    lines = [
-        '',
-        '## Coverage by system vocabulary',
-        '',
-        'A system is its components, interactions, space, and time, and its dynamics are laws. Every entry maps to',
-        'this vocabulary. A term no implemented entry uses is a general primitive the core still needs.',
-        '',
-        '| Category | Term | Description | Implemented | Pending |',
-        '|---|---|---|---|---|',
-    ]
-    for category, terms in vocabulary.items():
-        for term, item in terms.items():
-            description = item['description'] if isinstance(item, dict) else item
-            users = [entry['status'].split(' ')[0] for entry in entries if term in entry['system'][category]]
-            implemented = users.count('implemented')
-            lines.append(f'| {category} | `{term}` | {description} | {implemented} | {len(users) - implemented} |')
-    return lines
-
-
-def coverage_page() -> str:
-    """Return the coverage page: the inventory grouped by field and subfield, with sources and status."""
-    keys, inventory = _load()
-    examples = _examples()
-    lines = [
-        '# Model coverage',
-        '',
-        'Every model surveyed from the reference books and articles, with its sources and status. Implemented models',
-        'link to the page of their field, which shows how each is built from the core interface.',
-        '',
-        '| Field | Implemented | Pending | Blocked |',
-        '|---|---|---|---|',
-    ]
-    for field, subfields in inventory.items():
-        statuses = [entry['status'].split(' ')[0] for models in subfields.values() for entry in models.values()]
-        counts = [statuses.count(status) for status in STATUS_LABELS]
-        lines.append(f'| [{_title(field)}](#{field.replace("_", "-")}) | {" | ".join(map(str, counts))} |')
-    lines += system_lines(inventory)
-    lines += primitive_lines(inventory)
-    for field, subfields in inventory.items():
-        lines += ['', f'## {_title(field)} {{#{field.replace("_", "-")}}}']
-        for subfield, models in subfields.items():
-            header = ['| Model | Sources | Primitives | Priority | Status | Example |', '|---|---|---|---|---|---|']
-            lines += ['', f'### {field}/{subfield}', '', *header]
-            for name, entry in models.items():
-                model, example = entry['title'], ''
-                if entry['status'] == 'implemented':
-                    model = f'[{model}]({field}.md#{name})'
-                if name in examples:
-                    example = f'[{examples[name].path.stem}](../{_page_of(examples[name])})'
-                sources = '; '.join(_source(source, keys) for source in entry['sources'])
-                primitives = ', '.join(f'`{primitive}`' for primitive in entry['primitives'])
-                cells = [model, sources, primitives, entry['priority'], _status(entry), example]
-                lines.append(f'| {" | ".join(cells)} |')
-    return '\n'.join(lines) + '\n'
 
 
 def _component_types(system: System) -> list[type]:
@@ -260,21 +114,22 @@ def _equations(name: str) -> str | None:
     return '\n'.join(f'{target}: {equation}' for target, equation in equations.items())
 
 
-def model_section(name: str, examples: dict[str, Example]) -> str:
-    """Return the section of one model: its screenshot, description, references, factory, types, and equations."""
+def model_page(name: str, title: str, examples: dict[str, Example]) -> str:
+    """Return the page of one model: its screenshot, description, references, factory, types, and equations."""
     entry = describe(name)
     system = create(name)
     lines = [
-        f'## {name}',
+        f'# {title}',
         '',
         entry.description,
         '',
+        f'- Name: `{name}`',
         f'- Field: `{entry.field}`',
         f'- Formalism: {entry.formalism}',
         f'- References: {"; ".join(entry.references)}',
         '',
         *_gallery_lines(name, examples),
-        '### Factory',
+        '## Factory',
         '',
         '```python',
         inspect.getsource(entry.factory).rstrip(),
@@ -282,37 +137,46 @@ def model_section(name: str, examples: dict[str, Example]) -> str:
     ]
     sources = [source for source in (_class_source(kind) for kind in _component_types(system)) if source]
     if sources:
-        lines += ['', '### Components', '', '```python', '\n\n'.join(source.rstrip() for source in sources), '```']
+        lines += ['', '## Components', '', '```python', '\n\n'.join(source.rstrip() for source in sources), '```']
     equations = _equations(name)
     if equations is not None:
-        lines += ['', '### Equations', '', '```text', equations, '```']
-    return '\n'.join(lines)
+        lines += ['', '## Equations', '', '```text', equations, '```']
+    return '\n'.join(lines) + '\n'
 
 
-def field_page(field: str) -> str:
-    """Return the page of a field: the pattern of every registered model of the field."""
-    entries = [entry for entry in catalog(field=field) if GALLERY.run_all or entry.name in SELECTED_MODELS]
-    examples = _examples()
+def field_page(field: str, titles: dict[str, str]) -> str:
+    """Return the index page of a field: the link and the description of every registered model, by subfield."""
+    entries = sorted(catalog(field=field), key=lambda entry: titles[entry.name])
     lines = [
         f'# {_title(field)}',
         '',
-        f'The registered models of `skcomplex.models.{field}`. Each shows its factory, its component types with their',
-        'states, parameters, and laws as written, and, for the forms that have them, its equations as',
+        f'The registered models of `skcomplex.models.{field}`. The page of each shows its factory, its component types',
+        'with their states, parameters, and laws as written, and, for the forms that have them, its equations as',
         '`SymbolicAnalysis` returns them, so it serves as the pattern for a model of your own.',
     ]
     for subfield in sorted({entry.field for entry in entries}):
-        lines += ['', f'# {subfield}', '']
-        lines += [model_section(entry.name, examples) + '\n' for entry in entries if entry.field == subfield]
-    return '\n'.join(lines)
+        lines += ['', f'## {_title(subfield.partition("/")[2])}', '']
+        lines += [
+            f'- [{titles[entry.name]}]({subfield.partition("/")[2]}/{entry.name}.md): {entry.description}'
+            for entry in entries
+            if entry.field == subfield
+        ]
+    return '\n'.join(lines) + '\n'
 
 
-def fields() -> list[str]:
-    """Return the fields of the inventory in order."""
-    return list(_load()[1])
+def index_page(inventory: dict[str, Any]) -> str:
+    """Return the landing page of the models: the link and the number of registered models of every field."""
+    lines = ['# Models', '', 'The registered models of `skcomplex.models`, by field and subfield.', '']
+    lines += [
+        f'- [{_title(field)}]({field}/index.md): {len(catalog(field=field))} models'
+        for field in inventory
+        if catalog(field=field)
+    ]
+    return '\n'.join(lines) + '\n'
 
 
 def main() -> None:
-    """Write the coverage page and the field pages into the documentation, after checking the inventory.
+    """Write the page of every model, the index of every field, and their navigation, after checking the inventory.
 
     Raises:
         InventoryError:
@@ -324,12 +188,27 @@ def main() -> None:
             problems,
         )
         raise InventoryError(error_msg)
-    with mkdocs_gen_files.open('models/coverage.md', 'w') as file:
-        file.write(coverage_page())
-    for field in fields():
-        if catalog(field=field):
-            with mkdocs_gen_files.open(f'models/{field}.md', 'w') as file:
-                file.write(field_page(field))
+    inventory = _inventory()
+    titles = _titles(inventory)
+    examples = _examples()
+    nav = mkdocs_gen_files.nav.Nav()
+    nav[('Models',)] = 'index.md'
+    with mkdocs_gen_files.open('models/index.md', 'w') as file:
+        file.write(index_page(inventory))
+    for field in inventory:
+        entries = sorted(catalog(field=field), key=lambda entry: (entry.field, titles[entry.name]))
+        if not entries:
+            continue
+        nav[(_title(field),)] = f'{field}/index.md'
+        with mkdocs_gen_files.open(f'models/{field}/index.md', 'w') as file:
+            file.write(field_page(field, titles))
+        for entry in entries:
+            page = f'{entry.field}/{entry.name}.md'
+            nav[(_title(field), _title(entry.field.partition('/')[2]), titles[entry.name])] = page
+            with mkdocs_gen_files.open(f'models/{page}', 'w') as file:
+                file.write(model_page(entry.name, titles[entry.name], examples))
+    with mkdocs_gen_files.open('models/SUMMARY.md', 'w') as file:
+        file.writelines(nav.build_literate_nav())
 
 
 main()

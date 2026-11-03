@@ -23,7 +23,7 @@ TRIANGLE = 3
 def _simplicial_complex(n_nodes: int, links: float, triangles: float, seed: int) -> tuple[nx.Graph, list[tuple]]:
     """Return a random simplicial complex: random links, and random filled triangles whose sides join the links."""
     simplices = xgi.random_simplicial_complex(n_nodes, [links, triangles], seed=seed)
-    members = [tuple(sorted(edge)) for edge in simplices.edges.members()]
+    members = [tuple(sorted(edge)) for edge in simplices.edges.members(dtype=list)]
     graph = nx.Graph()
     graph.add_nodes_from(range(n_nodes))
     graph.add_edges_from(edge for edge in members if len(edge) == PAIR)

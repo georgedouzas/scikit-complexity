@@ -490,6 +490,7 @@ def _elapsed(problem, rng):
     return min(elapsed)
 
 
+@pytest.mark.benchmark
 def test_compile_system_runs_compiled_chains_fast():
     """Test that 100000 two-state chains take less than 10 times a deterministic map of the same size."""
 

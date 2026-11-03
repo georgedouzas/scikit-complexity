@@ -18,6 +18,19 @@ def _markov(kind: str, source: object, **settings: object) -> MarkovAnalysis:
 
 
 THREE_STATES = np.asarray([[0.90, 0.08, 0.02], [0.04 / 0.3, 1 - 0.04 / 0.3 - 0.12, 0.12], [0.05, 0.18, 0.77]])
+FOUR_STATES = np.asarray(
+    [[0.90, 0.09, 0.01, 0.0], [0.08, 0.90, 0.02, 0.0], [0.0, 0.02, 0.90, 0.08], [0.01, 0.0, 0.09, 0.90]],
+)
+DOUBLE_WELL = np.asarray(
+    [
+        [0.8, 0.2, 0.0, 0.0, 0.0, 0.0],
+        [0.3, 0.5, 0.2, 0.0, 0.0, 0.0],
+        [0.0, 0.45, 0.5, 0.05, 0.0, 0.0],
+        [0.0, 0.0, 0.05, 0.5, 0.45, 0.0],
+        [0.0, 0.0, 0.0, 0.2, 0.5, 0.3],
+        [0.0, 0.0, 0.0, 0.0, 0.2, 0.8],
+    ],
+)
 
 
 def _chain(matrix: np.ndarray, steps: int, rng: np.random.Generator) -> np.ndarray:
@@ -92,6 +105,132 @@ def test_markov_state_model_double_well_on_two_domains():
         assert len(model.metastable_sets_) == 2
         there, back = _dwell_times(states, *cores, dt)
         assert model.timescales_[0] == pytest.approx(1 / (1 / there + 1 / back), rel=0.2)
+
+
+@pytest.mark.parametrize(
+    ('settings', 'matrix', 'stationary', 'timescales'),
+    [
+        (
+            {'reversible': True},
+            [
+                [0.904124, 0.086266, 0.005074, 0.004535],
+                [0.081714, 0.896502, 0.021784, 0.0],
+                [0.003981, 0.018042, 0.898018, 0.079959],
+                [0.004589, 0.0, 0.103147, 0.892264],
+            ],
+            [0.231562, 0.244462, 0.295165, 0.228811],
+            [34.048475, 5.093107, 4.434706],
+        ),
+        (
+            {'reversible': True, 'lag': 3, 'dt': 0.5},
+            [
+                [0.755455, 0.214517, 0.017822, 0.012206],
+                [0.203109, 0.737574, 0.054408, 0.004909],
+                [0.013976, 0.045062, 0.750127, 0.190835],
+                [0.012347, 0.005245, 0.246176, 0.736233],
+            ],
+            [0.231485, 0.244487, 0.295194, 0.228834],
+            [17.354038, 2.529955, 2.224246],
+        ),
+        (
+            {'reversible': False},
+            [
+                [0.904124, 0.085727, 0.010149, 0.0],
+                [0.082225, 0.896502, 0.021272, 0.0],
+                [0.0, 0.018465, 0.898018, 0.083517],
+                [0.009178, 0.0, 0.098558, 0.892264],
+            ],
+            [0.231562, 0.244462, 0.295165, 0.228811],
+            [33.785728, 5.065865, 4.461684],
+        ),
+        (
+            {'reversible': False, 'lag': 3, 'dt': 0.5},
+            [
+                [0.755455, 0.213437, 0.028516, 0.002592],
+                [0.204132, 0.737574, 0.055226, 0.003068],
+                [0.00559, 0.044384, 0.750127, 0.199898],
+                [0.022072, 0.007212, 0.234484, 0.736233],
+            ],
+            [0.231485, 0.244487, 0.295194, 0.228834],
+            [17.223849, 2.520568, 2.236057],
+        ),
+    ],
+)
+def test_state_model_keeps_its_reference_values(
+    settings: dict[str, object],
+    matrix: list[list[float]],
+    stationary: list[float],
+    timescales: list[float],
+):
+    """Test the fits of a fixed path against the values recorded from the previous library."""
+    model = _markov('state-model', _chain(FOUR_STATES, 20_000, np.random.default_rng(0)), **settings)
+    assert model.states_.tolist() == [0, 1, 2, 3]
+    np.testing.assert_allclose(model.transition_matrix_, matrix, rtol=1e-3, atol=1e-6)
+    np.testing.assert_allclose(model.stationary_, stationary, rtol=1e-3)
+    np.testing.assert_allclose(model.timescales_, timescales, rtol=1e-3)
+
+
+def test_state_model_of_several_paths_keeps_its_reference_values():
+    """Test that the rows of two paths count together, against the recorded values."""
+    path = _chain(FOUR_STATES, 20_000, np.random.default_rng(0))
+    model = _markov('state-model', np.vstack([path[:10_000], path[10_000:]]))
+    np.testing.assert_allclose(model.stationary_, [0.231573, 0.244474, 0.29513, 0.228823], rtol=1e-3)
+    np.testing.assert_allclose(model.timescales_, [34.047193, 5.09301, 4.434383], rtol=1e-3)
+
+
+def test_state_model_keeps_the_largest_connected_set():
+    """Test that a transient state leaves the model and that a tie gives the later set, as recorded."""
+    transient = _markov('state-model', [3, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1])
+    assert transient.states_.tolist() == [0, 1]
+    np.testing.assert_allclose(transient.transition_matrix_, [[0.2, 0.8], [0.75, 0.25]], rtol=1e-3)
+    np.testing.assert_allclose(transient.stationary_, [0.483871, 0.516129], rtol=1e-3)
+    np.testing.assert_allclose(transient.timescales_, [1.672697], rtol=1e-3)
+    tie = _markov('state-model', [0, 1, 0, 1, 0, 2, 3, 2, 3, 2], reversible=False)
+    assert tie.states_.tolist() == [2, 3]
+    assert tie.timescales_.tolist() == [np.inf]
+
+
+def test_state_model_finds_the_recorded_metastable_sets():
+    """Test the partition of a double-well chain and its timescales against the recorded values."""
+    model = _markov('state-model', _chain(DOUBLE_WELL, 20_000, np.random.default_rng(1)), n_metastable=2)
+    assert sorted(found.tolist() for found in model.metastable_sets_) == [[0, 1, 2], [3, 4, 5]]
+    np.testing.assert_allclose(model.timescales_, [82.644678, 2.623531, 2.207486, 0.557418, 0.467036], rtol=1e-3)
+
+
+def test_timescales_keep_their_reference_values():
+    """Test the timescales at every lag of both fits, and that a large number stops at the modes there are."""
+    path = _chain(FOUR_STATES, 20_000, np.random.default_rng(0))
+    reversible = _markov('timescales', path, lags=[1, 3], n_timescales=2, dt=0.5).timescales_
+    np.testing.assert_allclose(reversible, [[17.024238, 2.546553], [17.354038, 2.529955]], rtol=1e-3)
+    irreversible = _markov('timescales', path, lags=[1, 3], n_timescales=2, reversible=False).timescales_
+    np.testing.assert_allclose(irreversible, [[33.785728, 5.065865], [34.447698, 5.041137]], rtol=1e-3)
+    every = _markov('timescales', path, n_timescales=9).timescales_
+    np.testing.assert_allclose(every, [[34.048475, 5.093107, 4.434706]], rtol=1e-3)
+
+
+def test_state_model_needs_two_connected_states():
+    """Test that a path with no two connected states raises an error."""
+    with pytest.raises(AnalysisError, match='connected'):
+        _markov('state-model', [2, 2, 2])
+    with pytest.raises(AnalysisError, match='connected'):
+        _markov('state-model', [0, 1], reversible=False)
+
+
+def test_metastable_sets_of_every_number_of_sets():
+    """Test one set, one set per state, and too many sets, as recorded from the previous library."""
+    path = _chain(DOUBLE_WELL, 20_000, np.random.default_rng(1))
+    whole = _markov('state-model', path, n_metastable=1).metastable_sets_
+    assert [found.tolist() for found in whole] == [[0, 1, 2, 3, 4, 5]]
+    apart = _markov('state-model', path, n_metastable=6).metastable_sets_
+    assert [found.tolist() for found in apart] == [[0], [1], [2], [3], [4], [5]]
+    with pytest.raises(AnalysisError, match='sets'):
+        _markov('state-model', path, n_metastable=7)
+
+
+def test_metastable_sets_need_a_reversible_model():
+    """Test that metastable sets of a model without detailed balance raise an error."""
+    with pytest.raises(AnalysisError, match='reversible'):
+        MarkovAnalysis('state-model', n_metastable=2, reversible=False).check()
 
 
 def test_stationary_distribution_ehrenfest_urn_and_ring_walk():

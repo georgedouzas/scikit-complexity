@@ -32,6 +32,7 @@ jobs:
         python-version: |
             3.12
             3.13
+            3.14
 
     - name: Set up PDM
       uses: pdm-project/setup-pdm@v4
@@ -67,6 +68,10 @@ jobs:
           python-version: '3.12'
         - os: macos-latest
           python-version: '3.13'
+        - os: ubuntu-latest
+          python-version: '3.14'
+        - os: macos-latest
+          python-version: '3.14'
 
     runs-on: ${{ matrix.os }}
 

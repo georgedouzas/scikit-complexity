@@ -151,6 +151,7 @@ def test_rerun_observer_leaves_out_a_coupling_tensor(monkeypatch, tmp_path):
 
 def test_rerun_observer_spawns_viewer_next_to_interpreter(monkeypatch, tmp_path):
     """Test that spawning uses the viewer installed with the running interpreter."""
+    monkeypatch.setenv('DISPLAY', ':0')
     viewer = tmp_path / 'rerun'
     viewer.touch()
     monkeypatch.setattr(sys, 'executable', str(tmp_path / 'python'))
@@ -164,11 +165,52 @@ def test_rerun_observer_spawns_viewer_next_to_interpreter(monkeypatch, tmp_path)
 
 def test_rerun_observer_spawns_viewer_from_path(monkeypatch, tmp_path):
     """Test that spawning falls back to the viewer on `PATH`."""
+    monkeypatch.setenv('DISPLAY', ':0')
     monkeypatch.setattr(sys, 'executable', str(tmp_path / 'python'))
     calls = []
     monkeypatch.setattr(rr, 'spawn', lambda **kwargs: calls.append(kwargs))
     _run(System(elements=[PopulationElement('a')]), RerunObserver('test', spawn=True), until=0.0)
     assert calls[0]['executable_path'] is None
+
+
+def test_rerun_observer_warns_when_a_viewer_cannot_be_reached(monkeypatch):
+    """Test that a run streaming to a viewer waits for a limited time, then warns and keeps its results."""
+    timeouts = []
+
+    def flush(_, *, timeout_sec):
+        timeouts.append(timeout_sec)
+        error_msg = 'unable to connect'
+        raise RuntimeError(error_msg)
+
+    monkeypatch.setenv('DISPLAY', ':0')
+    monkeypatch.setattr(rr, 'spawn', lambda **_: None)
+    monkeypatch.setattr(rr.RecordingStream, 'flush', flush)
+    with pytest.warns(UserWarning, match='unable to connect'):
+        simulation = _run(System(elements=[PopulationElement('a')]), RerunObserver('test', spawn=True), until=0.0)
+    assert timeouts == [pytest.approx(30.0)]
+    assert simulation.trajectory_.values('a.n').size > 0
+
+
+def test_rerun_observer_spawns_no_viewer_without_a_display(monkeypatch):
+    """Test that a Linux machine without a display warns and runs without a viewer."""
+    monkeypatch.setattr(sys, 'platform', 'linux')
+    for name in ('DISPLAY', 'WAYLAND_DISPLAY', 'WAYLAND_SOCKET'):
+        monkeypatch.delenv(name, raising=False)
+    calls = []
+    monkeypatch.setattr(rr, 'spawn', lambda **kwargs: calls.append(kwargs))
+    with pytest.warns(UserWarning, match='needs a display'):
+        simulation = _run(System(elements=[PopulationElement('a')]), RerunObserver('test', spawn=True), until=0.0)
+    assert calls == []
+    assert simulation.trajectory_.values('a.n').size > 0
+
+
+def test_rerun_observer_waits_for_a_file_without_limit(monkeypatch, tmp_path):
+    """Test that a run saving to a file only waits for the whole recording."""
+    calls = []
+    monkeypatch.setattr(rr.RecordingStream, 'flush', lambda _, **kwargs: calls.append(kwargs))
+    observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
+    _run(System(elements=[PopulationElement('a')]), observer, until=0.0)
+    assert calls == [{}]
 
 
 def _gas(visual):

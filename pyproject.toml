@@ -8,7 +8,7 @@ description = "A Python package to create and simulate complex systems."
 authors = [{name = "Georgios Douzas", email = "gdouzas@icloud.com"}]
 license = "MIT"
 readme = "README.md"
-requires-python = ">=3.12, <3.14"
+requires-python = ">=3.12, <3.15"
 keywords = []
 dynamic = ["version"]
 classifiers = [
@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Documentation",
     "Topic :: Software Development",
     "Topic :: Utilities",
@@ -40,7 +41,7 @@ dependencies = [
     "mesa>=3.5.0",
     "networkx>=3.3",
     "igraph>=1.0.0",
-    "xgi>=0.10.2",
+    "xgi>=1.0.0,<2",
     "scikit-learn>=1.5.1",
     "SALib>=1.5",
     "pandas>=2.2.2",
@@ -54,7 +55,7 @@ dependencies = [
     "tidynamics>=1.1.2",
     "mrestimator>=0.2.0",
     "kramersmoyal>=0.4.1",
-    "deeptime>=0.4.5",
+    "pydtmc>=10.1.0",
     "dit>=2.3",
     "qutip<6,>=5.3",
     "matching>=1.4.3",
@@ -244,7 +245,6 @@ DEP002 = [
     "powerlaw",
     "mrestimator",
     "kramersmoyal",
-    "deeptime",
     "dit",
     "igraph",
     "pysindy",

@@ -86,3 +86,43 @@ jobs:
 
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
+
+  docs-release:
+
+    needs: ci
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up PDM
+      uses: pdm-project/setup-pdm@v4
+      with:
+        python-version: '3.13'
+        cache: true
+        cache-dependency-path: pyproject.toml
+
+    - name: Install software rendering
+      run: sudo apt-get update && sudo apt-get install -y mesa-vulkan-drivers libvulkan1 xvfb
+
+    - name: Install dependencies
+      run: pdm install -dG maintenance -dG docs -dG gallery
+
+    - name: Deploy the documentation
+      env:
+        PYTHONPATH: docs
+        WGPU_BACKEND: vulkan
+        SKCOMPLEX_GALLERY_MAX_SECONDS: '600'
+        PYTHONWARNINGS: "ignore:warning_filter doesn't do anything:DeprecationWarning"
+      run: |
+        git config user.name 'github-actions[bot]'
+        git config user.email 'github-actions[bot]@users.noreply.github.com'
+        pdm run python -m gallery_tools run
+        pdm run properdocs gh-deploy --strict --force

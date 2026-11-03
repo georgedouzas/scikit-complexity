@@ -7,7 +7,7 @@ from collections.abc import Sequence
 
 import numpy as np
 import numpy.typing as npt
-from deeptime.markov.tools import analysis as msm_analysis
+from pydtmc import MarkovChain
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
@@ -215,6 +215,26 @@ class PassageAnalysis(BaseAnalysis):
         returns = np.flatnonzero((signs == 0) | crossing)
         self.return_times_ = np.diff(self.times_[returns])
 
+    def _get_indices(self, states: Sequence[float] | None) -> list[int]:
+        """Return a set of states as the indices of the rows of the matrix."""
+        return [int(state) for state in self._get_states(states)]
+
+    def _run_committor(self) -> None:
+        """Compute the forward committor from the origin to the target states."""
+        chain = MarkovChain(self.matrix_)
+        origin, target = self._get_indices(self.origin), self._get_indices(self.target)
+        self.committor_ = np.asarray(chain.committor_probabilities('forward', origin, target), dtype=float)
+
+    def _run_mean_first_passage(self) -> None:
+        """Compute the mean first-passage time to the target states, from the origin in its stationary weights."""
+        times = MarkovChain(self.matrix_).first_passage_times_to('mean', self._get_indices(self.target))
+        if times is None:
+            error_msg = f'{type(self).__name__} needs a transition matrix with one stationary law, not a reducible one.'
+            raise AnalysisError(error_msg)
+        origin = self._get_indices(self.origin)
+        weights = MarkovAnalysis._stationary_distribution(self.matrix_)[origin]
+        self.mean_first_passage_time_ = float(weights @ times[origin] / weights.sum() * self.lag * self.dt)
+
     def _run(self, inputs: object = None) -> None:
         """Compute the passage of the kind."""
         if self.kind == 'first-passage':
@@ -224,12 +244,9 @@ class PassageAnalysis(BaseAnalysis):
         elif self.kind == 'return-times':
             self._run_returns()
         elif self.kind == 'committor':
-            origin, target = self._get_states(self.origin), self._get_states(self.target)
-            self.committor_ = np.asarray(msm_analysis.committor(self.matrix_, origin, target))
+            self._run_committor()
         else:
-            origin, target = self._get_states(self.origin), self._get_states(self.target)
-            time = msm_analysis.mfpt(self.matrix_, target, origin=origin, tau=self.lag)
-            self.mean_first_passage_time_ = float(time * self.dt)
+            self._run_mean_first_passage()
 
     @staticmethod
     def _rows(paths: npt.ArrayLike) -> Array:

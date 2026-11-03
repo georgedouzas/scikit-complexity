@@ -23,16 +23,7 @@ nav:
     - Compatibility: overview/compatibility.md
     - Changelog: overview/changelog.md
     - License: overview/license.md
-  - Models:
-    - Coverage: models/coverage.md
-    - Physics: models/physics.md
-    - Chemistry: models/chemistry.md
-    - Biology: models/biology.md
-    - Economics: models/economics.md
-    - Social: models/social.md
-    - Engineering: models/engineering.md
-    - Mathematics: models/mathematics.md
-    - Computer science: models/computer_science.md
+  - Models: models/
   - API: api/
   - Examples:
     - Physics: generated/gallery/physics

@@ -7,10 +7,9 @@ from collections.abc import Sequence
 
 import numpy as np
 import numpy.typing as npt
-from deeptime.markov import TransitionCountEstimator
-from deeptime.markov.msm import MarkovStateModel as DeeptimeModel
-from deeptime.markov.msm import MaximumLikelihoodMSM
+from pydtmc import MarkovChain
 from scipy import linalg
+from scipy.sparse import csgraph
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
@@ -19,8 +18,11 @@ from ._base import BaseAnalysis
 from .types import Source
 
 MATRIX_DIMENSIONS = 2
+MIN_CONNECTED_STATES = 2
+MAX_ITERATIONS = 1_000_000
 
 TOLERANCE = 1e-10
+FIT_TOLERANCE = 1e-8
 KINDS = ('transition-matrix', 'stationary', 'spectral-gap', 'state-model', 'timescales')
 MATRICES = ('transition', 'rate')
 SETTINGS = {
@@ -41,8 +43,8 @@ class MarkovAnalysis(BaseAnalysis):
     - `'transition-matrix'`: the transitions after `lag` steps counted along the paths and normalized by row.
     - `'stationary'`: the stationary law `pi` of the matrix, `pi P = pi` or `pi Q = 0` for rates.
     - `'spectral-gap'`: the gap `1 - |lambda_2|`, or `-Re lambda_2` for rates, and the relaxation time of every mode.
-    - `'state-model'`: the maximum-likelihood Markov state model of the largest connected set, estimated with
-      deeptime, with its metastable sets found by PCCA+.
+    - `'state-model'`: the maximum-likelihood Markov state model of the largest connected set, with its metastable
+      sets found by PCCA+.
     - `'timescales'`: the slowest implied timescales of Markov state models at every lag of `lags`, which do not
       depend on the lag for a Markovian discretization.
 
@@ -164,6 +166,9 @@ class MarkovAnalysis(BaseAnalysis):
         if self.dt <= 0:
             error_msg = f'{type(self).__name__} has dt={self.dt!r}. Use a positive time step.'
             raise AnalysisError(error_msg)
+        if self.n_metastable is not None and not self.reversible:
+            error_msg = f'{type(self).__name__} finds metastable sets of reversible models only. Use reversible=True.'
+            raise AnalysisError(error_msg)
 
     def _get_data_kind(self) -> DataKind:
         """Return the path kind."""
@@ -188,21 +193,12 @@ class MarkovAnalysis(BaseAnalysis):
 
     def _run_state_model(self) -> None:
         """Estimate the Markov state model and its metastable sets."""
-        model = self._fit(self._get_states(), self.lag, reversible=self.reversible)
-        symbols = np.asarray(model.count_model.state_symbols, dtype=np.int64)
-        self.states_ = symbols
-        self.transition_matrix_ = np.asarray(model.transition_matrix, dtype=float)
-        self.stationary_ = np.asarray(model.stationary_distribution, dtype=float)
-        self.timescales_ = np.asarray(model.timescales(), dtype=float) * self.dt
+        self.states_, self.transition_matrix_ = self._fit(self.path_, self.lag, reversible=self.reversible)
+        self.stationary_ = self._stationary_distribution(self.transition_matrix_)
+        self.timescales_ = self._implied_timescales(self.transition_matrix_, self.lag) * self.dt
         self.metastable_sets_ = []
         if self.n_metastable is not None:
-            self.metastable_sets_ = [
-                symbols[np.asarray(found, dtype=np.int64)] for found in model.pcca(self.n_metastable).sets
-            ]
-
-    def _get_states(self) -> npt.NDArray[np.int64]:
-        """Return one path as a row, or several paths as rows, as deeptime reads them."""
-        return self.path_[0] if self.path_.shape[0] == 1 else self.path_
+            self.metastable_sets_ = self._metastable_sets(self.transition_matrix_, self.states_, self.n_metastable)
 
     def _run(self, inputs: object = None) -> None:
         """Compute the quantity of the kind."""
@@ -219,10 +215,12 @@ class MarkovAnalysis(BaseAnalysis):
         elif self.kind == 'state-model':
             self._run_state_model()
         else:
-            states = self._get_states()
             self.timescales_ = np.asarray(
                 [
-                    self._fit(states, lag, reversible=self.reversible).timescales(self.n_timescales) * self.dt
+                    self._implied_timescales(self._fit(self.path_, lag, reversible=self.reversible)[1], lag)[
+                        : self.n_timescales
+                    ]
+                    * self.dt
                     for lag in self.lags
                 ],
                 dtype=float,
@@ -295,9 +293,50 @@ class MarkovAnalysis(BaseAnalysis):
         return np.sort(-dt / np.log(moduli))[::-1]
 
     @staticmethod
-    def _fit(states: npt.ArrayLike, lag: int, *, reversible: bool) -> DeeptimeModel:
-        """Return the maximum-likelihood model of the largest connected set of states at a lag."""
-        paths = np.asarray(states, dtype=np.int32)
-        trajectories = list(paths) if paths.ndim > 1 else paths
-        counts = TransitionCountEstimator(lagtime=lag, count_mode='sliding').fit(trajectories).fetch_model()
-        return MaximumLikelihoodMSM(reversible=reversible).fit(counts.submodel_largest()).fetch_model()
+    def _reversible_matrix(counts: Array) -> Array:
+        """Return the reversible maximum-likelihood transition matrix of counts, by a fixed-point iteration on flows."""
+        symmetric = counts + counts.T
+        totals = counts.sum(axis=1)
+        flows = symmetric / symmetric.sum()
+        for _ in range(MAX_ITERATIONS):
+            ratios = totals / flows.sum(axis=1)
+            updated = symmetric / (ratios[:, np.newaxis] + ratios)
+            updated /= updated.sum()
+            change = np.abs(updated.sum(axis=1) - flows.sum(axis=1)).max()
+            flows = updated
+            if change < FIT_TOLERANCE:
+                return flows / flows.sum(axis=1, keepdims=True)
+        error_msg = f'The reversible fit did not converge in {MAX_ITERATIONS} iterations. Use more data.'
+        raise AnalysisError(error_msg)
+
+    @staticmethod
+    def _fit(states: npt.ArrayLike, lag: int, *, reversible: bool) -> tuple[npt.NDArray[np.int64], Array]:
+        """Return the largest connected set of states and its maximum-likelihood transition matrix at a lag."""
+        counts = MarkovAnalysis._transition_counts(states, lag=lag).astype(float)
+        labels = csgraph.connected_components(counts, connection='strong')[1]
+        connected = np.flatnonzero(labels == np.bincount(labels).argmax())
+        if connected.size < MIN_CONNECTED_STATES:
+            error_msg = f'A Markov state model needs {MIN_CONNECTED_STATES} connected states, and the paths have fewer.'
+            raise AnalysisError(error_msg)
+        kept = counts[np.ix_(connected, connected)]
+        if reversible:
+            return connected, MarkovAnalysis._reversible_matrix(kept)
+        return connected, kept / kept.sum(axis=1, keepdims=True)
+
+    @staticmethod
+    def _implied_timescales(matrix: Array, lag: int) -> Array:
+        """Return the implied timescales in steps of every mode but the stationary one, slowest first."""
+        return np.asarray(MarkovChain(matrix).implied_timescales, dtype=float)[1:] * lag
+
+    @staticmethod
+    def _metastable_sets(matrix: Array, states: npt.NDArray[np.int64], n_sets: int) -> list[npt.NDArray[np.int64]]:
+        """Return the states of every metastable set of a reversible transition matrix."""
+        if not 1 <= n_sets <= states.size:
+            error_msg = f'A Markov state model of {states.size} states has 1 to {states.size} sets, not {n_sets}.'
+            raise AnalysisError(error_msg)
+        if n_sets == 1:
+            return [states]
+        if n_sets == states.size:
+            return list(states.reshape(-1, 1))
+        chain = MarkovChain(matrix, [str(state) for state in states.tolist()])
+        return [np.asarray(found.split(','), dtype=np.int64) for found in chain.metastable_aggregation(n_sets).states]

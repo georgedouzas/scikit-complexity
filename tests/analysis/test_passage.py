@@ -77,6 +77,46 @@ def test_hitting_probabilities_fixation_of_a_mutant():
     assert absorbed + fixed == pytest.approx(1, abs=0.01)
 
 
+def test_committor_and_mean_first_passage_time_keep_their_reference_values():
+    """Test a chain of four states, with sets, a lag, and a time step, against the recorded values."""
+    chain = np.asarray(
+        [[0.90, 0.09, 0.01, 0.0], [0.08, 0.90, 0.02, 0.0], [0.0, 0.02, 0.90, 0.08], [0.01, 0.0, 0.09, 0.90]],
+    )
+    one = _passage('committor', chain, origin=[0], target=[3]).committor_
+    np.testing.assert_allclose(one, [0.0, 0.166667, 0.833333, 1.0], rtol=1e-3, atol=1e-9)
+    two = _passage('committor', chain, origin=[0, 1], target=[3]).committor_
+    np.testing.assert_allclose(two, [0.0, 0.0, 0.8, 1.0], rtol=1e-3, atol=1e-9)
+    time = _passage('mean-first-passage', chain, origin=[0], target=[3]).mean_first_passage_time_
+    assert time == pytest.approx(96.428571, rel=1e-3)
+    both = _passage('mean-first-passage', chain, origin=[0, 1], target=[2, 3], lag=2, dt=0.5)
+    assert both.mean_first_passage_time_ == pytest.approx(65.959821, rel=1e-3)
+    overlap = _passage('mean-first-passage', chain, origin=[0, 3], target=[3]).mean_first_passage_time_
+    assert overlap == pytest.approx(49.876847, rel=1e-3)
+
+
+def test_committor_and_mean_first_passage_time_of_periodic_chains():
+    """Test a ring of four states, which never settles, and a chain of two states that swap."""
+    ring = np.roll(np.eye(4), 1, axis=1)
+    np.testing.assert_allclose(_passage('committor', ring, origin=[0], target=[2]).committor_, [0, 1, 1, 0], atol=1e-9)
+    assert _passage('mean-first-passage', ring, origin=[0], target=[2]).mean_first_passage_time_ == pytest.approx(2.0)
+    swap = [[0.0, 1.0], [1.0, 0.0]]
+    assert _passage('mean-first-passage', swap, origin=[0], target=[1]).mean_first_passage_time_ == pytest.approx(1.0)
+
+
+def test_committor_of_an_absorbing_walk():
+    """Test the committor of a walk absorbed at both ends, which is linear in the state."""
+    walk = [[1.0, 0.0, 0.0, 0.0], [0.5, 0.0, 0.5, 0.0], [0.0, 0.5, 0.0, 0.5], [0.0, 0.0, 0.0, 1.0]]
+    committor = _passage('committor', walk, origin=[0], target=[3]).committor_
+    np.testing.assert_allclose(committor, [0.0, 1 / 3, 2 / 3, 1.0], atol=1e-9)
+
+
+def test_mean_first_passage_time_of_a_reducible_chain_raises_an_error():
+    """Test that a chain with no single stationary law raises an error rather than give a time."""
+    walk = [[1.0, 0.0, 0.0, 0.0], [0.5, 0.0, 0.5, 0.0], [0.0, 0.5, 0.0, 0.5], [0.0, 0.0, 0.0, 1.0]]
+    with pytest.raises(AnalysisError, match='reducible'):
+        _passage('mean-first-passage', walk, origin=[0], target=[3])
+
+
 def test_committor_and_mean_first_passage_time_of_a_walk():
     """Test the committor of a lazy walk on a path of 5 states and its mean first-passage time."""
     walk = np.zeros((5, 5))
