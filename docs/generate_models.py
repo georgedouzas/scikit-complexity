@@ -20,7 +20,6 @@ from skcomplex.models import catalog, create, describe
 DOCS = Path(str(files('gallery_tools'))).parent
 INVENTORY = DOCS / 'overview' / 'inventory.toml'
 GALLERY = build_from_environment(DOCS)
-SELECTED_MODELS = {example.model for example in GALLERY.selected()}
 EQUATION_FORMS = {
     'ordinary differential equations',
     'fractional differential equations',
@@ -291,7 +290,7 @@ def model_section(name: str, examples: dict[str, Example]) -> str:
 
 def field_page(field: str) -> str:
     """Return the page of a field: the pattern of every registered model of the field."""
-    entries = [entry for entry in catalog(field=field) if GALLERY.run_all or entry.name in SELECTED_MODELS]
+    entries = catalog(field=field)
     examples = _examples()
     lines = [
         f'# {_title(field)}',

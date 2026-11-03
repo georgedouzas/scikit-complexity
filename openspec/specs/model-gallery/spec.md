@@ -149,8 +149,9 @@ examples whose key changed. Screenshots SHALL NOT be committed to the repository
 
 ### Requirement: The gallery is part of the documentation
 The documentation build SHALL show every example with its code, its caption, and its screenshot in a gallery grouped by
-field and subfield. Each field page SHALL show each model's screenshot above its pattern, and the coverage page SHALL
-link every implemented model to its example. A default build SHALL run a sample of three fast models per field, and a
+field and subfield. Each field page SHALL show the pattern of every registered model of the field, whichever examples
+the build runs, with the screenshot of each model that has one above its pattern, and the coverage page SHALL link
+every implemented model to its example. A default build SHALL run a sample of three fast models per field, and a
 build of every example, `SKCOMPLEX_GALLERY=all`, SHALL run them all. A strict build of every example SHALL fail when an
 implemented model has no screenshot. The page of an example SHALL show the description and the references of its model from the catalog.
 
