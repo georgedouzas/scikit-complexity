@@ -576,6 +576,7 @@ def test_compile_system_time_grows_linearly_with_interactions():
     assert _compile_time(800) <= 2.5 * _compile_time(400)
 
 
+@pytest.mark.benchmark
 def test_compile_group_time_does_not_grow_with_size():
     """Test that compiling 100000 members takes no longer than 10 members within a factor of 2."""
 

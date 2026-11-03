@@ -563,6 +563,7 @@ def test_backends_agree():
     np.testing.assert_allclose(numba_rates, numpy_rates, rtol=1e-12, atol=1e-12)
 
 
+@pytest.mark.benchmark
 def test_linear_cost():
     """Test that one Numba drift evaluation grows linearly with the size of a mean-field group."""
     durations = []

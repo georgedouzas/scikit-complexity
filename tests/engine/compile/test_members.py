@@ -273,6 +273,7 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
     assert (np.abs(first - second) <= 4 * np.hypot(first_error, second_error) + 1e-12).all()
 
 
+@pytest.mark.benchmark
 def test_jump_at_member_offset_compiles_many_sites_fast():
     """Test that a zero-range process of 1000 sites compiles one group law and runs until 5 within 10 seconds."""
     start = time.perf_counter()
