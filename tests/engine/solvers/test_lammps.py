@@ -1,5 +1,6 @@
 """Test the `LammpsSolver` class."""
 
+import os
 import time
 from typing import Annotated
 
@@ -126,6 +127,12 @@ def _lennard_jones_gas(n=100, interactions=(), space=None):
 def _run(system, solver, until, dt=0.05):
     """Return the trajectory of a run."""
     return Simulation(system, solver=solver, dt=dt).check().prepare().run(until=until).trajectory_
+
+
+def test_lammps_starts_mpi_without_infiniband_by_default():
+    """Test that the solver keeps MPI off the InfiniBand devices, which kill it on some machines."""
+    assert os.environ['UCX_TLS']
+    assert os.environ['FI_PROVIDER']
 
 
 def test_lammps_loads():
