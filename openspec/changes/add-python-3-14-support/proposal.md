@@ -18,8 +18,9 @@ it has published no release since April 2025, which falls short of the project's
 - Move to `xgi` 1.0. A fresh install today gets 1.0.0, under which `hypergraph_kuramoto` raises a `TypeError`, on the
   published 0.2.0 too, while the lock file hides it by holding 0.10.2. `xgi` 0.10.2 cannot copy a hypergraph on 3.14.
 - Run the fast tests on 3.14 in CI on both platforms, in addition to 3.12 on Linux and 3.13 on macOS.
-- Stop `RerunObserver` from hanging forever when its viewer cannot be reached, as on a machine without a display: it waits
-  30 seconds, warns, and keeps the results. The doctest group, which never ran before this change, found it in the README.
+- Stop `RerunObserver` from hanging forever on a Linux machine without a display, where the viewer exits at once: it warns
+  and runs without a viewer. A viewer that cannot be reached otherwise gets 30 seconds, then a warning. The doctest group,
+  which never ran before this change, found the hang in the README.
 - Keep the documentation build on Python 3.13, because the latest `mkdocs-gallery` reads `ast.Str`, which 3.14 removed.
 
 ## Capabilities
@@ -34,7 +35,8 @@ it has published no release since April 2025, which falls short of the project's
 - `model-catalog`: listing models must not load the new Markov library, in place of `deeptime`.
 - `analysis-adapters`: the default-install requirement no longer names `deeptime`.
 - `dynamical-invariants`: the Lorenz embedding scenario accepts a delay up to 0.25 rather than 0.20.
-- `rerun-visualization`: a run streaming to a viewer that cannot be reached warns instead of hanging.
+- `rerun-visualization`: a run on a machine without a display, or streaming to a viewer that cannot be reached, warns
+  instead of hanging.
 
 ## Impact
 

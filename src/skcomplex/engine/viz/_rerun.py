@@ -4,6 +4,7 @@
 # License: MIT
 
 import math
+import os
 import re
 import sys
 import warnings
@@ -228,7 +229,10 @@ class RerunObserver(BaseObserver):
             self.recording_.save(self.save_path, default_blueprint=self.blueprint_)
             if self.blueprint_ is not None:
                 self.blueprint_.save(self.application_id, Path(self.save_path).with_suffix('.rbl'))
-        if self.spawn:
+        if self.spawn and self._display_is_missing():
+            warning_msg = 'The Rerun viewer needs a display, and this machine has none, so no viewer opens.'
+            warnings.warn(warning_msg, UserWarning, stacklevel=2)
+        elif self.spawn:
             rr.spawn(
                 executable_path=self._viewer_executable(),
                 recording=self.recording_,
@@ -242,6 +246,12 @@ class RerunObserver(BaseObserver):
             for group in agents:
                 self.recording_.log(group.path, rr.GraphEdges(edges, graph_type='undirected'), static=True)
         self.logged_frames_ = 0
+
+    @staticmethod
+    def _display_is_missing() -> bool:
+        """Return whether this is a Linux machine without a display, where the viewer exits and Rerun waits for it."""
+        names = ('DISPLAY', 'WAYLAND_DISPLAY', 'WAYLAND_SOCKET')
+        return sys.platform == 'linux' and not any(os.environ.get(name) for name in names)
 
     def _visual_of(self, element: CompiledElementSpec | CompiledAgentsSpec) -> BaseVisual:
         """Return the visual the spec of an element names, built with the options of the spec."""
