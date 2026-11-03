@@ -35,6 +35,7 @@ SCRAPER = RerunScraper(BUILD.backend, BUILD.gallery / '_cache', BUILD.settings)
 conf = {
     'image_scrapers': (SCRAPER, 'matplotlib'),
     'filename_pattern': BUILD.filename_pattern(),
+    'ignore_pattern': BUILD.ignore_pattern(),
     'reset_modules': ('matplotlib', quiet_show, SCRAPER.begin),
     'thumbnail_size': (400, 280),
     'show_memory': False,

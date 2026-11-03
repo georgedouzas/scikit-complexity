@@ -72,7 +72,7 @@ def main() -> int:
     run.add_argument('names', nargs='*', help='the models to run, all selected ones by default')
     run.add_argument('--backend', choices=BACKENDS, default=DEFAULT_BACKEND, help='the capture backend')
     run.add_argument('--jobs', type=int, default=max(1, (os.cpu_count() or 2) // 2), help='the number of processes')
-    run.add_argument('--all', action='store_true', help='run the scaffolded examples too')
+    run.add_argument('--all', action='store_true', help='run every example, not only the sample')
     run.set_defaults(handler=_run)
     arguments = parser.parse_args()
     return int(arguments.handler(arguments))

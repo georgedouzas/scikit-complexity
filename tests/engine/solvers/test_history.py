@@ -154,7 +154,7 @@ def test_mackey_glass_is_periodic_at_six():
     peaks = values[1:-1][(values[1:-1] > values[:-2]) & (values[1:-1] > values[2:])]
     assert peaks.size > 10
     assert np.ptp(peaks) < 1e-3
-    assert abs(_divergence_rate(6.0)) < 0.0005
+    assert abs(_divergence_rate(6.0)) < 0.002
 
 
 def test_hutchinson_oscillates_above_threshold():

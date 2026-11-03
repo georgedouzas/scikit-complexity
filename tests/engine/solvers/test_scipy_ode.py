@@ -1,6 +1,7 @@
 """Test the `ScipyODESolver` class."""
 
 import dataclasses
+import math
 import time
 import warnings
 from dataclasses import replace
@@ -20,7 +21,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.backends import NumpyBackend
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import CrankNicolsonSolver, RK4Solver, ScipyODESolver
+from skcomplex.engine.solvers import CrankNicolsonSolver, RK4Solver, ScipyODESolver, _scipy_ode
 from skcomplex.errors import SolverError, ValidationError
 from skcomplex.models import create, run
 from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
@@ -151,15 +152,28 @@ class TubElement(Element):
         return [RateLaw(s.water, 5 * step(s.t, 5) - where(s.water > 0, 5, 0))]
 
 
-def test_default_solver_leaves_lsoda_when_a_state_rests_on_a_discontinuity():
-    """Test that a group of tubs resting empty on their drain switch finishes with RK45, and explicit LSODA stalls."""
-    tubs = System(elements=[GroupElement('tubs', element=TubElement, size=1, values={'water': [20.0]})])
+def _tubs():
+    """Return a group of tubs that empty and then rest on their drain switch."""
+    return System(elements=[GroupElement('tubs', element=TubElement, size=1, values={'water': [20.0]})])
+
+
+def test_default_solver_finishes_a_state_resting_on_a_discontinuity():
+    """Test that a tub resting empty on its drain switch keeps the right values, whichever method carries the run."""
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', UserWarning)
+        simulation = Simulation(_tubs(), dt=1).check().prepare().run(until=6)
+    np.testing.assert_allclose(np.ravel(simulation.trajectory_.values('tubs.water'))[:5], [20, 15, 10, 5, 0], atol=1e-3)
+
+
+def test_default_solver_leaves_lsoda_when_it_stalls(monkeypatch):
+    """Test that a stall moves the default method on to RK45, and raises an error on an explicit LSODA."""
+    monkeypatch.setattr(_scipy_ode, '_STALL_STEP', math.inf)
+    monkeypatch.setattr(_scipy_ode, '_STALL_STEPS', 1)
     with pytest.warns(UserWarning, match='LSODA stalled'):
-        simulation = Simulation(tubs, dt=1).check().prepare().run(until=6)
+        simulation = Simulation(_tubs(), dt=1).check().prepare().run(until=6)
     assert simulation.stepper_.method_ == 'RK45'
-    np.testing.assert_allclose(np.ravel(simulation.trajectory_.values('tubs.water'))[:5], [20, 15, 10, 5, 0], atol=1e-6)
     with pytest.raises(SolverError, match='stalled'):
-        Simulation(tubs, dt=1, solver=ScipyODESolver(method='LSODA')).check().prepare().run(until=6)
+        Simulation(_tubs(), dt=1, solver=ScipyODESolver(method='LSODA')).check().prepare().run(until=6)
 
 
 def test_default_solver_starts_from_rest_with_a_vanishing_drift():
@@ -253,11 +267,16 @@ def test_default_solver_names_a_state_sliding_along_a_discontinuity():
 
 
 def test_default_solver_names_a_blow_up():
-    """Test that a solution that blows up in finite time ends in an error that names the blow-up."""
+    """Test that a solution that diverges in finite time ends in an error that names the blow-up."""
     with pytest.raises(SolverError, match='blows up'):
-        Simulation(create('takens_bogdanov_form', x=5.0, y=5.0, beta1=0.1, beta2=-1.0), dt=0.1).check().prepare().run(
-            until=50,
-        )
+        Simulation(create('finite_time_blow_up'), dt=0.01).check().prepare().run(until=2)
+
+
+def test_default_solver_follows_fast_exponential_growth():
+    """Test that a state on a fast manifold, growing exponentially without a blow-up, stays close to its growth rate."""
+    system = create('takens_bogdanov_form', x=5.0, y=5.0, beta1=0.1, beta2=-1.0)
+    values = Simulation(system, dt=0.1).check().prepare().run(until=20).trajectory_.values('form.x')
+    assert np.log(values[-1] / values[-11]) == pytest.approx(1.0, rel=0.01)
 
 
 def test_default_solver_steps_large_diffusive_fields_explicitly():

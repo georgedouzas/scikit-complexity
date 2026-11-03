@@ -3,10 +3,14 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import ctypes
 import functools
 import math
+import os
+import sys
 from collections import defaultdict
 from collections.abc import Callable, Mapping
+from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 
@@ -34,10 +38,18 @@ from ._external import ExternalSolver
 from ._lammps_fix_spec import FixCommand, LammpsFixSpec
 
 _LAMMPS_ARGUMENTS = ['-screen', 'none', '-log', 'none', '-nocite']
+_MPI_LIBRARY = Path(sys.prefix, 'lib', 'libmpi.so.12')
 _DIMENSIONS = ('x', 'y', 'z')
 MAX_SEED = 900_000_000
 _SUPPORTED_DIMENSIONS = (2, 3)
 POSITION_ORDER = 2
+
+# The `lammps` wheel on Linux links to this library, which the `mpich` wheel installs outside the path of the loader.
+if _MPI_LIBRARY.exists():
+    ctypes.CDLL(str(_MPI_LIBRARY), mode=ctypes.RTLD_GLOBAL)
+# The solver runs one process, and on some machines MPI is killed when it starts on their InfiniBand devices.
+os.environ.setdefault('UCX_TLS', 'tcp,self,sm')
+os.environ.setdefault('FI_PROVIDER', 'tcp')
 
 
 class LammpsSolver(ExternalSolver):

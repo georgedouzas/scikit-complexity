@@ -181,7 +181,8 @@ def test_live_rate_draws_a_poisson_number_of_births():
     """Test that births at a rate follow a Poisson number of that mean, each with the offspring count."""
     parents = GroupElement('parents', element=ReserveElement, size=400, variable=True, capacity=4000)
     births = LifeCycleInteraction('births', target='parents', rate=1.5, offspring=2)
-    trajectory = Simulation(System(elements=[parents], interactions=[births])).check().prepare().run(until=1)
+    system = System(elements=[parents], interactions=[births])
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1)
     assert len(trajectory.trajectory_.agents('parents', 1).values['reserve']) / 400 - 1 == pytest.approx(3.0, rel=0.1)
 
 

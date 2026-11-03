@@ -421,6 +421,9 @@ class SymbolicAnalysis(BaseAnalysis):
             substitution[item] = unknown_function
             for degree in range(1, order):
                 companion = by_entry[(f'{entry}_d{degree}', column)]
+                if companion not in problem.equation_symbols:
+                    error_msg = f'{entry} has its derivatives computed numerically, so it has no symbolic equations.'
+                    raise AnalysisError(error_msg)
                 substitution[problem.equation_symbols[companion]] = diff(unknown_function, problem.time, degree)
                 indices.append(components[companion][2])
             for companion_name, (kind, base, steps) in problem.companions.items():

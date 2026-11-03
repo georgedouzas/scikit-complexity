@@ -4,6 +4,7 @@
 # License: MIT
 
 import numpy as np
+import numpy.typing as npt
 
 from ...errors import SimulationError, ValidationError
 from ..problems import BaseProblemSpec, FrameSpec
@@ -54,6 +55,13 @@ class RecorderObserver(BaseObserver):
         if frame is not None:
             self.frames_.append(frame)
 
+    def _get_parameters(self, frames: list[FrameSpec]) -> npt.NDArray[np.float64]:
+        """Return the parameters of the frames, a read-only view of one row when every frame shares the same array."""
+        shape = (len(frames), self.problem_.parameters.size)
+        if frames and all(frame.parameters is frames[0].parameters for frame in frames):
+            return np.broadcast_to(np.asarray(frames[0].parameters, dtype=float), shape)
+        return np.asarray([frame.parameters for frame in frames], dtype=float).reshape(shape)
+
     @property
     def trajectory_(self) -> Trajectory:
         """Trajectory of the frames received so far."""
@@ -67,7 +75,7 @@ class RecorderObserver(BaseObserver):
             problem,
             np.asarray([frame.time for frame in frames], dtype=float),
             np.asarray([frame.state for frame in frames], dtype=float).reshape(n_frames, problem.states.size),
-            np.asarray([frame.parameters for frame in frames], dtype=float).reshape(n_frames, problem.parameters.size),
+            self._get_parameters(frames),
             agents=[frame.agents for frame in frames],
             reporters=[frame.reporters for frame in frames],
             observables=[frame.observables for frame in frames],

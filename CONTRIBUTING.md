@@ -59,11 +59,13 @@ thumbnail.
 
 - The examples are scripts in the format of `mkdocs-gallery` under `docs/examples/<field>/<subfield>/plot_<model>.py`,
   one per registered model, named after the model.
+- CI runs `nox -s quick_tests`, a small subset of the fast tests, in a few minutes. Run `nox -s tests` for the
+  whole suite before a release.
 - The gallery tooling is the `gallery_tools` package in `docs`. It needs the `gallery` dependency group, which holds
   Pillow and Playwright: `pdm install -dG docs -dG gallery`.
 - `nox -s gallery` runs the examples, captures their screenshots, and builds the documentation with them. It takes
-  `--backend native` (the default) or `--backend web`, `--jobs` for parallel captures, and `--curated` to run only the
-  curated examples.
+  `--backend native` (the default) or `--backend web`, `--jobs` for parallel captures, and `--sample` to run only three
+  fast models per field, which is what `nox -s docs` and CI build.
 
 ### How the examples are captured
 
@@ -72,7 +74,7 @@ Run the tooling with `docs` on the path, `PYTHONPATH=docs python -m gallery_tool
 - `scaffold` writes a scaffold for every model without an example, from the model's catalog entry.
 - `coverage` reports the models without an example and the examples without a model, and `--strict` fails on either.
 - `run <model> ...` runs the named examples, or all selected ones, and captures their screenshots into the cache.
-  Scaffolds run only with `--all`.
+  The default selection is the sample of three fast models per field, and `--all` selects every example.
 
 The run of every example, the whole script including its analysis, must stay within the budget: at most 300 frames on
 the recording's timeline, a recording of at most 20 MB, and at most 60 s. An example over budget fails.

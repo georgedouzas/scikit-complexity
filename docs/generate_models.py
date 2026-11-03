@@ -9,16 +9,18 @@ from pathlib import Path
 from typing import Any
 
 import mkdocs_gen_files
-from gallery_tools import Example, build_from_environment, find_examples
+from gallery_tools import Example, build_from_environment
 from inventory_checks import InventoryError, inventory_problems
 
 from skcomplex.analysis import SymbolicAnalysis
 from skcomplex.core.system import System
+from skcomplex.errors import AnalysisError
 from skcomplex.models import catalog, create, describe
 
 DOCS = Path(str(files('gallery_tools'))).parent
 INVENTORY = DOCS / 'overview' / 'inventory.toml'
 GALLERY = build_from_environment(DOCS)
+SELECTED_MODELS = {example.model for example in GALLERY.selected()}
 EQUATION_FORMS = {
     'ordinary differential equations',
     'fractional differential equations',
@@ -64,8 +66,8 @@ def _status(entry: dict[str, Any]) -> str:
 
 
 def _examples() -> dict[str, Example]:
-    """Return the gallery example of every model that has one."""
-    return {example.model: example for example in find_examples(GALLERY.examples)}
+    """Return the gallery example of every model the build selects."""
+    return {example.model: example for example in GALLERY.selected()}
 
 
 def _page_of(example: Example) -> str:
@@ -251,7 +253,10 @@ def _equations(name: str) -> str | None:
     """Return the equations of a model as the symbolic layer shows them, or `None` for forms without equations."""
     if describe(name).formalism not in EQUATION_FORMS:
         return None
-    equations = SymbolicAnalysis().check().prepare(create(name)).run().equations_
+    try:
+        equations = SymbolicAnalysis().check().prepare(create(name)).run().equations_
+    except AnalysisError:
+        return None
     return '\n'.join(f'{target}: {equation}' for target, equation in equations.items())
 
 
@@ -286,7 +291,7 @@ def model_section(name: str, examples: dict[str, Example]) -> str:
 
 def field_page(field: str) -> str:
     """Return the page of a field: the pattern of every registered model of the field."""
-    entries = catalog(field=field)
+    entries = [entry for entry in catalog(field=field) if GALLERY.run_all or entry.name in SELECTED_MODELS]
     examples = _examples()
     lines = [
         f'# {_title(field)}',

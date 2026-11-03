@@ -377,6 +377,8 @@ class WebCapturer(Capturer):
             device_scale_factor=1,
             color_scheme='dark',
         )
+        # The viewer asks the internet for a newer version and draws the answer over the views.
+        self._page.route(lambda url: not url.startswith('http://127.0.0.1'), lambda route: route.abort())
         return self
 
     def __exit__(

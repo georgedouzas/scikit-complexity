@@ -38,7 +38,6 @@ nav:
     - Physics: generated/gallery/physics
     - Chemistry: generated/gallery/chemistry
     - Biology: generated/gallery/biology
-    - Earth: generated/gallery/earth
     - Economics: generated/gallery/economics
     - Social: generated/gallery/social
     - Engineering: generated/gallery/engineering
@@ -98,7 +97,6 @@ plugins:
         - docs/generated/gallery/physics
         - docs/generated/gallery/chemistry
         - docs/generated/gallery/biology
-        - docs/generated/gallery/earth
         - docs/generated/gallery/economics
         - docs/generated/gallery/social
         - docs/generated/gallery/engineering

@@ -13,6 +13,29 @@ os.environ.update({'PDM_IGNORE_SAVED_PYTHON': '1'})
 
 PYTHON_VERSIONS: list[str] = ['3.12', '3.13']
 FILES: list[str] = ['src', 'tests', 'docs', 'noxfile.py']
+QUICK_TESTS: list[str] = [
+    'tests/core/elements',
+    'tests/core/spaces',
+    'tests/engine/backends',
+    'tests/engine/compile',
+    'tests/engine/problems',
+    'tests/engine/runtime',
+    'tests/engine/solvers/test_lammps.py',
+    'tests/engine/solvers/test_scipy_ode.py',
+    'tests/engine/viz',
+    'tests/experiments',
+    'tests/specs',
+    'tests/test_base.py',
+    'tests/test_errors.py',
+    'tests/test_sources.py',
+    'tests/test_specs.py',
+    'tests/test_types.py',
+]
+TEST_GROUPS: list[list[str]] = [
+    ['tests/models'],
+    ['tests', '--ignore=tests/models'],
+    ['src/skcomplex', 'README.md', 'docs/overview/user_guide.md'],
+]
 CHANGELOG_ARGS: list[str] = [
     '--convention',
     'angular',
@@ -101,15 +124,15 @@ def gallery(session: nox.Session) -> None:
     parser = argparse.ArgumentParser(prog='nox -s gallery --')
     parser.add_argument('--backend', choices=['native', 'web'], default='native')
     parser.add_argument('--jobs', type=int, default=max(1, (os.cpu_count() or 2) // 2))
-    parser.add_argument('--curated', action='store_true', help='run the curated examples only')
+    parser.add_argument('--sample', action='store_true', help='run three fast models per field only')
     arguments = parser.parse_args(session.posargs)
     session.run('pdm', 'install', '-dG', 'docs', '-dG', 'gallery', external=True)
     if arguments.backend == 'web':
         session.run('pdm', 'run', 'python', '-m', 'playwright', 'install', 'chromium', external=True)
-    selection = [] if arguments.curated else ['--all']
+    selection = [] if arguments.sample else ['--all']
     env = {
         'PYTHONPATH': 'docs',
-        'SKCOMPLEX_GALLERY': '' if arguments.curated else 'all',
+        'SKCOMPLEX_GALLERY': '' if arguments.sample else 'all',
         'SKCOMPLEX_GALLERY_BACKEND': arguments.backend,
     }
     run = ['pdm', 'run', 'python', '-m', 'gallery_tools', 'run', '--backend', arguments.backend]
@@ -184,6 +207,17 @@ def checks(session: nox.Session, file: str) -> None:
 
 
 @nox.session(python=PYTHON_VERSIONS)
+def quick_tests(session: nox.Session) -> None:
+    """Run a small subset of the fast tests, which CI runs on every push in a few minutes.
+
+    Arguments:
+        session: The nox session.
+    """
+    session.run('pdm', 'install', '-dG', 'tests', external=True)
+    session.run('pytest', '-n', 'auto', *QUICK_TESTS)
+
+
+@nox.session(python=PYTHON_VERSIONS)
 def tests(session: nox.Session) -> None:
     """Run tests and coverage.
 
@@ -192,11 +226,13 @@ def tests(session: nox.Session) -> None:
     """
     session.run('pdm', 'install', '-dG', 'tests', external=True)
     env = {'COVERAGE_FILE': f'.coverage.{session.python}'}
-    options = ['-n', 'auto', '--slow', '--cov=src', '--cov=tests']
+    options = ['-n', 'auto', '--slow', '--cov=src', '--cov=tests', '--cov-append']
     if session.posargs:
         session.run('pytest', *options, '-k', *session.posargs, env=env)
     else:
-        session.run('pytest', *options, env=env)
+        # Each group runs in its own workers, since the compiled code of a worker stays in its memory until it exits.
+        for group in TEST_GROUPS:
+            session.run('pytest', *options, *group, env=env)
     session.run('coverage', 'combine')
     session.run('coverage', 'report')
     session.run('coverage', 'html')

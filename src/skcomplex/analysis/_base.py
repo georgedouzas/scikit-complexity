@@ -197,8 +197,9 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
     def _get_series_states(problem: BaseProblemSpec) -> list[str]:
         """Return the states that count as series: the scalars of single elements and of the members of groups.
 
-        A scalar state of a group is one series per member, unless the group is read as particles or the state as a
-        jump path. A state of a lattice is read as a field instead.
+        A scalar state of a group is one series per member, unless the group is read as particles, the state as a jump
+        path, or the group is variable, whose rows hold no fixed member. A state of a lattice is read as a field
+        instead.
 
         Args:
             problem:
@@ -213,7 +214,8 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         particles = {
             name for element in problem.elements if element.path in particle_groups for name in element.states.values()
         }
-        apart = particles.union(BaseAnalysis._get_path_names(problem))
+        variable = problem.topology.variable_names if problem.topology is not None else frozenset()
+        apart = particles.union(BaseAnalysis._get_path_names(problem), variable)
         return [
             entry.name
             for entry in problem.states.entries
@@ -407,7 +409,8 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         A trajectory gives its states, parameters, reporters, or observables, and a vector or group variable gives one
         column per component, labelled `name[i]`. Without names, a trajectory gives its scalar observables and
         reporters, or else the scalar states of its elements and of its groups, one column per member, leaving out the
-        states of lattices, of particle groups, and of groups of jump paths.
+        states of lattices, of particle groups, of variable groups, and of groups of jump paths. A variable group read
+        by name has NaN in the rows that hold no member at a frame.
 
         Args:
             source:

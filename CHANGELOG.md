@@ -6,12 +6,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 <!-- insertion marker -->
-## [0.2.0](https://github.com/georgedouzas/scikit-complexity/releases/tag/0.2.0) - 2026-11-02
+## [0.2.0](https://github.com/georgedouzas/scikit-complexity/releases/tag/0.2.0) - 2026-11-03
 
 <small>[Compare with 0.1.0](https://github.com/georgedouzas/scikit-complexity/compare/0.1.0...0.2.0)</small>
 
 ### Features
 
+- Build a sample of the gallery by default and fix its folders ([8ab2211](https://github.com/georgedouzas/scikit-complexity/commit/8ab221161bd871c35889af68515b71fc6e7e2608) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Give the nematic gel the turbulent parameters of Giomi et al. 2012 ([90b8093](https://github.com/georgedouzas/scikit-complexity/commit/90b8093ae97037c6ae1c751d91544ae374c0c5a4) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Add mandelbrot_least_effort and the package of language models ([a9c0674](https://github.com/georgedouzas/scikit-complexity/commit/a9c06749546ca6486854abc8de0fa624fa0c4780) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Add gravity_urban_scaling ([afac84a](https://github.com/georgedouzas/scikit-complexity/commit/afac84a0757f9a4739794387a80afa7ef16d727e) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -230,6 +231,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Bug Fixes
 
+- Keep MPI off InfiniBand devices in the LAMMPS solver ([420e0f8](https://github.com/georgedouzas/scikit-complexity/commit/420e0f884bb0f2ca3ea871407c0a2a4edb6830f7) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Load the MPI library of the mpich wheel for LAMMPS on Linux ([61edf43](https://github.com/georgedouzas/scikit-complexity/commit/61edf438180d05b26e9917a261260765681b8fc0) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Keep one copy of the parameters across frames while they stay the same ([4176f12](https://github.com/georgedouzas/scikit-complexity/commit/4176f1254253072daec5b2b0d16a198e9831a83a) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Keep the Rerun update notice out of web captures ([74f718e](https://github.com/georgedouzas/scikit-complexity/commit/74f718e2fd83536b000c1173e40afccb6f085973) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Leave the states of variable groups out of the default series ([afa7227](https://github.com/georgedouzas/scikit-complexity/commit/afa7227b41534ea4d2bc5de69a446da4bb778278) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Align velocities along a line by their sign ([a0f47eb](https://github.com/georgedouzas/scikit-complexity/commit/a0f47eb7d357f0cc6380082f9873429e1459bfcf) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Read group states as series and phases by their role ([8c83a72](https://github.com/georgedouzas/scikit-complexity/commit/8c83a7201d93dde37b456b93c5bfb3347583930e) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Apply the turbulent defaults of active_gels to the nematic order only ([d2187a6](https://github.com/georgedouzas/scikit-complexity/commit/d2187a668e278430ca540965e6597cf0060da91c) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -347,6 +353,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Docs
 
+- Show the catalog entry on example pages and sample three models per field ([bab8500](https://github.com/georgedouzas/scikit-complexity/commit/bab8500369160c1711dd40460e09674c19644239) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Hide the gallery subsections without examples ([6c7c60f](https://github.com/georgedouzas/scikit-complexity/commit/6c7c60f2253108ba2278a797685fe08eec09e523) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Archive neutralize-core-names and link the README images absolutely ([c9a6dff](https://github.com/georgedouzas/scikit-complexity/commit/c9a6dff24ba40d6f3db287fe78b17c1eada219d4) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Plan the analysis data, the particle results, and the remaining names ([4c45313](https://github.com/georgedouzas/scikit-complexity/commit/4c45313b5db332c21de2e1bd6a2eef09d9c2dfcb) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Name operator dynamics in the user guide and the constitution ([61fbb63](https://github.com/georgedouzas/scikit-complexity/commit/61fbb635334b0f01005070bf77a1734e08ea0caa) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -764,6 +772,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Style
 
+- Wrap two docstring lines of the analysis base to the line limit ([fbec3b0](https://github.com/georgedouzas/scikit-complexity/commit/fbec3b0af9502ad7e65aa81619e1a8f5c4d48e9b) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Give the gallery time limit variable a string default ([bd78f68](https://github.com/georgedouzas/scikit-complexity/commit/bd78f6835692c5858bf536a6afc83ba1125fa284) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Word a test docstring so the formatter leaves it alone ([6cd7887](https://github.com/georgedouzas/scikit-complexity/commit/6cd7887a544908f8bcb2c1e38d0900878943dce7) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Wrap the docstring of SamplingInteraction at the line limit ([25b2c6d](https://github.com/georgedouzas/scikit-complexity/commit/25b2c6dfed739192e2f853906faa023df1ad0c51) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Wrap a long assertion in the field lowering tests ([3f04343](https://github.com/georgedouzas/scikit-complexity/commit/3f04343be5c336e0c8218f3708e0138611da21aa) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -1044,6 +1054,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Tests
 
+- Force the LSODA stall within a short run ([bf11329](https://github.com/georgedouzas/scikit-complexity/commit/bf113298d831ad14f7cdd2e4f5c2601772fc064c) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Stop relying on how LSODA fails on one platform ([77f9468](https://github.com/georgedouzas/scikit-complexity/commit/77f9468d1e06bcbfcca6f0aa26f5d725420c5790) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Widen the Mackey-Glass periodic bound to the solver noise of Linux ([bebe227](https://github.com/georgedouzas/scikit-complexity/commit/bebe227a7801b1e1da2f0a0bba634dbb3f87de08) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Seed the Poisson births test of LifeCycleInteraction ([4846b85](https://github.com/georgedouzas/scikit-complexity/commit/4846b85f64ff6f68941b3fc72303d48c44982fff) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Skip static systems in the test of reductions read from a continuous system ([70de316](https://github.com/georgedouzas/scikit-complexity/commit/70de31692d5d0d1a186fa38b0e1afac54851a3ce) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Check that a tensor relaxes to its one fixed matrix between edges ([24cc1ee](https://github.com/georgedouzas/scikit-complexity/commit/24cc1ee22a802a50bf01ac9fcace45ff2a02d28c) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Check the declared orders of every solver ([523bc43](https://github.com/georgedouzas/scikit-complexity/commit/523bc4362f9a9ff9f0d6717bf4340c6baca0c09c) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -1116,6 +1130,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Chore
 
+- Release 0.2.0 ([5694623](https://github.com/georgedouzas/scikit-complexity/commit/56946232f1a02bb93a6527b2ec772e66e4f02796) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Run black after docformatter and audit the runtime dependencies ([aa6771d](https://github.com/georgedouzas/scikit-complexity/commit/aa6771d234df573c8d92e6ac583e7c56ff6df467) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Add JAX, Optax, and Diffrax as runtime dependencies ([272b689](https://github.com/georgedouzas/scikit-complexity/commit/272b68963ccd1d4c44dd310bcb11efc1d2caeaa6) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Tick the checks and full-suite gate of the general model rewrites ([bcfd712](https://github.com/georgedouzas/scikit-complexity/commit/bcfd71290499889cf3d70c6e55d9dfdd46f894c4) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
