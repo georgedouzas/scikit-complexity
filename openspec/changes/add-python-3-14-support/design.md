@@ -126,6 +126,13 @@ tests what users install. `requires-python` stays `>=3.12, <3.15`, since an inst
 The full suite is too heavy for the 16 GB development laptop, which ran out of memory on it earlier. A temporary branch,
 not merged, runs `nox -s tests-3.14` on a Linux runner once, and any failure there returns to this design.
 
+### Widen the Lorenz delay band to 0.25
+
+The first full suite on Linux failed the Lorenz embedding with a delay of 0.21 against a limit of 0.20, on Python 3.13 as
+well as 3.14. The trajectory is chaotic, so the sample depends on the platform, and 16 starting points that differ by up
+to about 1 on one machine gave 18, 19, and 21 steps, with 3 of the 16 above the limit. The band of 0.10 to 0.20 was tighter
+than the method resolves, so it becomes 0.10 to 0.25. This loosens a check, and it rests on that measured spread.
+
 ## Risks / Trade-offs
 
 - [`pydtmc` disagrees on a larger chain or a scenario not compared yet] → The reference values and the `stochastic-analysis`

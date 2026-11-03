@@ -36,9 +36,9 @@ def _henon(size: int) -> np.ndarray:
 
 
 def test_embed_lorenz():
-    """Test that 20,000 samples of the Lorenz x every 0.01 give a delay between 0.10 and 0.20 and dimension 3."""
+    """Test that 20,000 samples of the Lorenz x every 0.01 give a delay between 0.10 and 0.25 and dimension 3."""
     embedding = _embedding('delay', _lorenz_states(28.0, 0.01, 200.0)[:20_000, 0], max_delay=60)
-    assert 0.10 <= embedding.delay_ * 0.01 <= 0.20
+    assert 0.10 <= embedding.delay_ * 0.01 <= 0.25
     assert embedding.dimension_ == 3
     assert embedding.points_.shape[1] == 3
     assert embedding.mutual_information_.size == 61

@@ -31,6 +31,7 @@ it has published no release since April 2025, which falls short of the project's
 
 - `model-catalog`: listing models must not load the new Markov library, in place of `deeptime`.
 - `analysis-adapters`: the default-install requirement no longer names `deeptime`.
+- `dynamical-invariants`: the Lorenz embedding scenario accepts a delay up to 0.25 rather than 0.20.
 
 ## Impact
 
