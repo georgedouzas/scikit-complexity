@@ -5,7 +5,7 @@
 groups = ["default", "changelog", "checks", "docs", "formatting", "gallery", "maintenance", "release", "tests"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:162948653c751a86de9c897dbf16c21774c3fc66472be1e73590e1ba2b57f56e"
+content_hash = "sha256:feb779929c5e214019b3b1fa5ab8ec3c17233262be07f7b261f2954e8376016f"
 
 [[metadata.targets]]
 requires_python = ">=3.12,<3.14"
@@ -821,30 +821,6 @@ files = [
     {file = "debugpy-1.8.22-cp313-cp313-win_amd64.whl", hash = "sha256:f49b1d6cecf326b63c06d7f517e4a6642777f758c58cb799e7bc5a6dd74721c2"},
     {file = "debugpy-1.8.22-py2.py3-none-any.whl", hash = "sha256:a9e9d3550e15ca479c59333e90845029190531f0cacfedab3b815a57bd913947"},
     {file = "debugpy-1.8.22.tar.gz", hash = "sha256:e489c7268e1c7b41e13b438d9c533d2a7af73fb59bf8cd30fead8286c1c39c4e"},
-]
-
-[[package]]
-name = "deeptime"
-version = "0.4.5"
-requires_python = ">=3.8"
-summary = "Python library for analysis of time series data including dimensionality reduction, clustering, and Markov model estimation."
-groups = ["default"]
-dependencies = [
-    "numpy",
-    "scikit-learn>=1.5.0",
-    "scipy>=1.9.0",
-    "threadpoolctl>=3.1.0",
-]
-files = [
-    {file = "deeptime-0.4.5-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:ff05e51b0763392f3b64b854545a6e41cf9a445fb642d3e690fcafa261cdb3f5"},
-    {file = "deeptime-0.4.5-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:69a09c60f9d0e12c035b7be4742fab1988d8e589064492f555c1b9c0b2f1c941"},
-    {file = "deeptime-0.4.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ec9aeb7c2624b63d86f0a011a229ef0d9c643696ae84c78fe19f68c8cfc1bdea"},
-    {file = "deeptime-0.4.5-cp312-cp312-win_amd64.whl", hash = "sha256:7888d7a8f2f69ea1b0a723ad55652b224d64495a76431e57efab08abc610d1ae"},
-    {file = "deeptime-0.4.5-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:d9532eb850416907fe13ed63cf895133879be6afe1c9534bec002f0d60554274"},
-    {file = "deeptime-0.4.5-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:cd54f676377f6f6de42b830ed459b4ad49fc3e87822225a1c626ddef62861758"},
-    {file = "deeptime-0.4.5-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7fa7a6960cb656dd61b0fd788bc86ae98600cfa3566ef13d55236e1904ee0cab"},
-    {file = "deeptime-0.4.5-cp313-cp313-win_amd64.whl", hash = "sha256:714145dcdb1cc5bdcaa11901482370f75364b32e0ea106d7990e7025ba3a0558"},
-    {file = "deeptime-0.4.5.tar.gz", hash = "sha256:e290101e8a63f2338091866af671821e4d972b9d4fabf3fee4a14777f9aef414"},
 ]
 
 [[package]]
@@ -3705,6 +3681,23 @@ dependencies = [
 files = [
     {file = "pydoclint-0.11.1-py3-none-any.whl", hash = "sha256:d3e44a09deb631d0910982b70c614d1c54d0809d2116d58114abe9d24f7c6cf6"},
     {file = "pydoclint-0.11.1.tar.gz", hash = "sha256:eab39580102312241ec71ef9fc4d7994b225e65ad71205c511557c4b928ed13e"},
+]
+
+[[package]]
+name = "pydtmc"
+version = "10.1.0"
+requires_python = ">=3.12"
+summary = "Python library for analyzing, simulating, and visualizing discrete-time Markov chains and hidden Markov models."
+groups = ["default"]
+dependencies = [
+    "matplotlib>=3.10",
+    "networkx",
+    "numpy",
+    "scipy",
+]
+files = [
+    {file = "pydtmc-10.1.0-py3-none-any.whl", hash = "sha256:47d3a38c5dca1d7ddff4f59369459b4e67e07fafb1a7dabe56d37475eb036efb"},
+    {file = "pydtmc-10.1.0.tar.gz", hash = "sha256:44e84e53064b1f57cc0d739727f8fcb7d4ea394f4f8976093e22e80f089fa8e4"},
 ]
 
 [[package]]

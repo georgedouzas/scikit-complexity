@@ -265,7 +265,7 @@ to fill in as the project takes shape.
   estimator contract. The analysis layer adds `antropy` for regularity entropies and Lempel-Ziv complexity, `ordpy`
   for ordinal patterns, `nolds` for fluctuation analyses and Rosenstein's exponent, `powerlaw` for power-law fits,
   `ennemi` for nearest-neighbour transfer entropy, `tidynamics` for displacements, `mrestimator` for branching
-  ratios, `kramersmoyal` for Kramers-Moyal coefficients, `deeptime` for Markov state models, `dit` for discrete
+  ratios, `kramersmoyal` for Kramers-Moyal coefficients, `pydtmc` for Markov state models, `dit` for discrete
   multivariate information and partial information decomposition, `igraph` for network motif counts, `pydmd` for
   dynamic mode decomposition, `pysindy` for sparse identification of nonlinear dynamics, and `reservoirpy` for
   reservoir computing. Rerun is a core dependency,

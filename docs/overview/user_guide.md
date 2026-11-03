@@ -6527,7 +6527,7 @@ print(type(reservoir.system_.time).__name__, reservoir.forecast_.shape)
 time of a transition matrix, by its `kind`, and `EventAnalysis('laminar-durations')` measures laminar phases.
 `MarkovAnalysis` estimates transition matrices from paths, reads transition and rate matrices with `matrix`, and gives
 their stationary laws, spectral gaps, and relaxation times, and Markov state models and implied timescales with
-`deeptime`. `DistributionAnalysis('dispersion-index')`, `ScalingAnalysis('variance-mean')`, and
+`pydtmc`. `DistributionAnalysis('dispersion-index')`, `ScalingAnalysis('variance-mean')`, and
 `EventAnalysis('counts')` describe fluctuations, and `KramersMoyalAnalysis` estimates the drift and diffusion of a
 series with `kramersmoyal`.
 `IrreversibilityAnalysis` measures entropy production from rates, jump paths, Langevin paths, or transition counts,
