@@ -149,10 +149,13 @@ def _modules():
 
 
 def _hand_written(cls):
-    """Return the magic methods a class defines itself in source code, leaving out those dataclasses generate."""
+    """Return the magic methods a class defines itself in source code, leaving out those Python generates.
+
+    Dataclasses generate methods, and from Python 3.14 the annotations of a class compile to `__annotate_func__`.
+    """
     names = []
     for name, value in vars(cls).items():
-        if not (name.startswith('__') and name.endswith('__')) or not callable(value):
+        if not (name.startswith('__') and name.endswith('__')) or not callable(value) or name == '__annotate_func__':
             continue
         code = getattr(value, '__code__', None)
         if code is not None and code.co_filename.startswith(SOURCE):
