@@ -111,6 +111,13 @@ get a named `DOCS_PYTHON = '3.13'`. The other `PYTHON_VERSIONS[-1]` sessions mov
 already sets 3.13. The `docs-release` job in `release.yml` sets no Python, so it gets `python-version: '3.13'` too, or a
 wider `requires-python` could move it onto 3.14.
 
+### Exclude Python 3.14.1 from the lock target only
+
+`networkx` 3.7 and 3.6.1 exclude Python 3.14.1, so a lock target of `>=3.12,<3.15` downgrades the lock to `networkx` 3.6,
+which a fresh install would not get. The lock target is `>=3.12,!=3.14.1,<3.15`, which keeps every locked version and
+tests what users install. `requires-python` stays `>=3.12, <3.15`, since an install on 3.14.1 can still take `networkx`
+3.6.
+
 ### Run the full suite once on a CI runner
 
 The full suite is too heavy for the 16 GB development laptop, which ran out of memory on it earlier. A temporary branch,

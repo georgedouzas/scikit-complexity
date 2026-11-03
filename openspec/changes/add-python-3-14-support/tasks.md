@@ -14,9 +14,9 @@
 
 ## 3. Declare Python 3.14
 
-- [ ] 3.1 Set `requires-python = ">=3.12, <3.15"` and add the 3.14 classifier in `pyproject.toml`; verify `pdm lock --update-reuse` succeeds and `pdm.lock` reads `requires_python = ">=3.12,<3.15"`.
-- [ ] 3.2 Add `'3.14'` to `PYTHON_VERSIONS` and a `DOCS_PYTHON = '3.13'` for the `docs` and `gallery` sessions in `noxfile.py`; verify `pdm run nox -l` lists `quick_tests-3.14` and `tests-3.14`, and lists `docs` and `gallery` on 3.13.
-- [ ] 3.3 Update the supported versions in `README.md`, including the C compiler `memory-allocator` needs on 3.14, and the language line of the Project Profile in `openspec/constitution.md`; verify `grep -n "3\.14" README.md openspec/constitution.md` shows both, and no text still says `<3.14` or "3.12 and 3.13".
+- [x] 3.1 Set `requires-python = ">=3.12, <3.15"` and add the 3.14 classifier in `pyproject.toml`; verify `pdm lock --python ">=3.12,!=3.14.1,<3.15" --update-reuse` succeeds, `pdm.lock` reads that target, and no locked version changes. The lock target excludes 3.14.1 because `networkx` 3.7 does.
+- [x] 3.2 Add `'3.14'` to `PYTHON_VERSIONS` and a `DOCS_PYTHON = '3.13'` for the `docs` and `gallery` sessions in `noxfile.py`; verify `pdm run nox -l` lists `quick_tests-3.14` and `tests-3.14`, and lists `docs` and `gallery` on 3.13.
+- [x] 3.3 Update the supported versions in `README.md`, including the C compiler `memory-allocator` needs on 3.14, and the language line of the Project Profile in `openspec/constitution.md`; verify `grep -n "3\.14" README.md openspec/constitution.md` shows both, and no text still says `<3.14` or "3.12 and 3.13".
 
 ## 4. Verify in CI
 

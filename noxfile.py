@@ -11,7 +11,9 @@ import nox
 os.environ.update({'PDM_IGNORE_SAVED_PYTHON': '1'})
 
 
-PYTHON_VERSIONS: list[str] = ['3.12', '3.13']
+PYTHON_VERSIONS: list[str] = ['3.12', '3.13', '3.14']
+# mkdocs-gallery reads `ast.Str`, which Python 3.14 removed.
+DOCS_PYTHON: str = '3.13'
 FILES: list[str] = ['src', 'tests', 'docs', 'noxfile.py']
 QUICK_TESTS: list[str] = [
     'tests/core/elements',
@@ -100,7 +102,7 @@ def clean(session: nox.Session) -> None:
             file.unlink()
 
 
-@nox.session(python=PYTHON_VERSIONS[-1])
+@nox.session(python=DOCS_PYTHON)
 def docs(session: nox.Session) -> None:
     """Build or serve the documentation.
 
@@ -114,7 +116,7 @@ def docs(session: nox.Session) -> None:
     session.run('properdocs', arg, env=env)
 
 
-@nox.session(python=PYTHON_VERSIONS[-1])
+@nox.session(python=DOCS_PYTHON)
 def gallery(session: nox.Session) -> None:
     """Run the gallery examples, capture their screenshots into the cache, and build the documentation with them.
 

@@ -244,7 +244,7 @@ to fill in as the project takes shape.
   into a dataclass or given generated attributes. Every law derives from `BaseLaw` and declares its kind, its time
   class, and its traits as class variables. The only magic methods beyond `__init__` are the arithmetic of the
   local operators.
-- Language: Python >=3.12, <3.14.
+- Language: Python >=3.12, <3.15.
 - Platforms: Linux and macOS 13 or later on Apple silicon. Windows is not supported because passagemath publishes no
   Windows wheels, and Windows users run the package in WSL. macOS on Intel is not supported because `jaxlib` publishes
   no wheels for it.

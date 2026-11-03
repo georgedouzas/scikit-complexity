@@ -89,8 +89,8 @@ interactions change it through laws, and systems nest and compose. Learn it once
 
 ## Installation
 
-`scikit-complexity` supports Python 3.12 and 3.13 on Linux and on macOS 13 or later with Apple silicon, and is available on
-PyPI:
+`scikit-complexity` supports Python 3.12, 3.13, and 3.14 on Linux and on macOS 13 or later with Apple silicon, and is
+available on PyPI. On Python 3.14 the install builds `memory-allocator` from source, so it needs a C compiler:
 
 ```bash
 pip install scikit-complexity
