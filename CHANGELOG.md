@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 <!-- insertion marker -->
+## [0.3.0](https://github.com/georgedouzas/scikit-complexity/releases/tag/0.3.0) - 2026-11-03
+
+<small>[Compare with 0.2.0](https://github.com/georgedouzas/scikit-complexity/compare/0.2.0...0.3.0)</small>
+
+### Features
+
+- Support Python 3.14 ([82fb47e](https://github.com/georgedouzas/scikit-complexity/commit/82fb47e39d1f694af5a9e4eceb541fe6926d362d) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Replace deeptime with pydtmc and cap xgi below 1.0 ([42b4515](https://github.com/georgedouzas/scikit-complexity/commit/42b45158a61bc7d1775b3f3b6a9bfbf4bfe2089a) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Bug Fixes
+
+- Spawn no Rerun viewer on a Linux machine without a display ([3995301](https://github.com/georgedouzas/scikit-complexity/commit/39953015fb1b681764eefc0b3570c26636aede31) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Stop a run hanging on a Rerun viewer that cannot be reached ([844c906](https://github.com/georgedouzas/scikit-complexity/commit/844c906bd57a72856754afaabe72e252ccac9a03) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Run the doctest group of the test session ([48bb54a](https://github.com/georgedouzas/scikit-complexity/commit/48bb54a17d119e96e74d8f56aeccac3e54f62682) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Move to xgi 1.0, which copies hypergraphs on Python 3.14 ([c7e42f6](https://github.com/georgedouzas/scikit-complexity/commit/c7e42f64640e5ca424ec3095ad632191fe8c92de) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Docs
+
+- Record the result of the full test run on Python 3.14 ([9a4d0ea](https://github.com/georgedouzas/scikit-complexity/commit/9a4d0ea6e8ff438dd468841f774bac358a28a1f4) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Give every model its own page and remove the coverage page ([38680c8](https://github.com/georgedouzas/scikit-complexity/commit/38680c888ca73aff71e05518c7bfb7389bc242dd) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Show every registered model on the field pages ([eb7200e](https://github.com/georgedouzas/scikit-complexity/commit/eb7200e2247a56a75530fe0e98e5de6b3d2bea1e) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Tests
+
+- Widen the Lorenz delay band to what the method resolves ([0173774](https://github.com/georgedouzas/scikit-complexity/commit/01737743b1fd950e128f9b3d44fb625f54494f4b) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Leave out the annotations function of Python 3.14 from magic methods ([0d8a370](https://github.com/georgedouzas/scikit-complexity/commit/0d8a3706436188a156abd8bc0bbe5b748d9f82b4) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Mark the wall-clock tests as benchmarks ([d359eb8](https://github.com/georgedouzas/scikit-complexity/commit/d359eb8768f88c472a6e9f194ab43b20ec36dca0) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
 ## [0.2.0](https://github.com/georgedouzas/scikit-complexity/releases/tag/0.2.0) - 2026-11-03
 
 <small>[Compare with 0.1.0](https://github.com/georgedouzas/scikit-complexity/compare/0.1.0...0.2.0)</small>
@@ -1130,7 +1158,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Chore
 
-- Release 0.2.0 ([5694623](https://github.com/georgedouzas/scikit-complexity/commit/56946232f1a02bb93a6527b2ec772e66e4f02796) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Release 0.2.0 ([3ff34a7](https://github.com/georgedouzas/scikit-complexity/commit/3ff34a70c9b644991957886690350d2c9a811d9f) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Run black after docformatter and audit the runtime dependencies ([aa6771d](https://github.com/georgedouzas/scikit-complexity/commit/aa6771d234df573c8d92e6ac583e7c56ff6df467) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Add JAX, Optax, and Diffrax as runtime dependencies ([272b689](https://github.com/georgedouzas/scikit-complexity/commit/272b68963ccd1d4c44dd310bcb11efc1d2caeaa6) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Tick the checks and full-suite gate of the general model rewrites ([bcfd712](https://github.com/georgedouzas/scikit-complexity/commit/bcfd71290499889cf3d70c6e55d9dfdd46f894c4) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
