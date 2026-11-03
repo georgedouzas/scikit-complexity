@@ -5,7 +5,7 @@
 groups = ["default", "changelog", "checks", "docs", "formatting", "gallery", "maintenance", "release", "tests"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:310751cc816e3ebaf8fe951af319a4578b5f9e8a0c7779efcd168375313c2c38"
+content_hash = "sha256:ede3e1eca767294b24f17de4c47bc66020f9bd9821a57a95344a5010cab2b0ff"
 
 [[metadata.targets]]
 requires_python = ">=3.12,!=3.14.1,<3.15"
@@ -6013,8 +6013,8 @@ files = [
 
 [[package]]
 name = "xgi"
-version = "0.10.2"
-requires_python = ">=3.10"
+version = "1.0.0"
+requires_python = "<3.15,>=3.11"
 summary = "XGI is a Python package for higher-order networks."
 groups = ["default"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
@@ -6028,8 +6028,8 @@ dependencies = [
     "xopen>=2.0",
 ]
 files = [
-    {file = "xgi-0.10.2-py3-none-any.whl", hash = "sha256:b73934cfcd0f3ea867498236d3dca43a358c89a197cdac903ebda590e0e17422"},
-    {file = "xgi-0.10.2.tar.gz", hash = "sha256:27c0ec4339f413d216567cdd59db9f7531e1c709215fb8d86a503648dac818ac"},
+    {file = "xgi-1.0.0-py3-none-any.whl", hash = "sha256:cab3df2da47d8b0237737d5eb472c8e65b8b009a77f3c5b2f5831dd0b837f365"},
+    {file = "xgi-1.0.0.tar.gz", hash = "sha256:202b5d1db88988941c0bddc7189445c80429b5d4fba9d2dc8c0380f6ebde6f97"},
 ]
 
 [[package]]

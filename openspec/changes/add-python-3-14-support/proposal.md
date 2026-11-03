@@ -15,8 +15,8 @@ it has published no release since April 2025, which falls short of the project's
   and meaning, and their results keep the values `deeptime` gives within numerical tolerance.
 - Add the one method `pydtmc` lacks, the reversible maximum-likelihood fit, as a private method of `MarkovAnalysis`.
 - Keep feature parity: no model or analysis is disabled by Python version.
-- Cap `xgi` below 1.0. A fresh install today gets 1.0.0, under which `hypergraph_kuramoto` raises a `TypeError`, on the
-  published 0.2.0 too, while the lock file hides it by holding 0.10.2.
+- Move to `xgi` 1.0. A fresh install today gets 1.0.0, under which `hypergraph_kuramoto` raises a `TypeError`, on the
+  published 0.2.0 too, while the lock file hides it by holding 0.10.2. `xgi` 0.10.2 cannot copy a hypergraph on 3.14.
 - Run the fast tests on 3.14 in CI on both platforms, in addition to 3.12 on Linux and 3.13 on macOS.
 - Keep the documentation build on Python 3.13, because the latest `mkdocs-gallery` reads `ast.Str`, which 3.14 removed.
 
@@ -41,4 +41,4 @@ it has published no release since April 2025, which falls short of the project's
   matrix, installed Python versions), and `release.yml` (the Python of the documentation job). Two more test jobs per CI
   run.
 - Documentation: `README.md`, `docs/overview/user_guide.md`, and the Project Profile in `openspec/constitution.md`.
-- Release: the next release follows this change, and ships the Models tab and the `xgi` cap with it.
+- Release: the next release follows this change, and ships the Models tab and the `xgi` fix with it.

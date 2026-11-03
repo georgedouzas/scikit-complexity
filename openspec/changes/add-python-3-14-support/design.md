@@ -50,8 +50,8 @@ on the double-well and Schlögl scenarios of `stochastic-analysis`.
 - Free-threaded builds (`cp314t`), which the package does not declare or test even though some dependencies publish them.
 - Running the documentation build on 3.14.
 - Replacing the other stale dependencies, which `replace-stale-dependencies` covers.
-- Pinning every dependency or adding a CI job that tests a fresh resolve on every run. This change caps `xgi` and checks
-  a fresh install once.
+- Pinning every dependency or adding a CI job that tests a fresh resolve on every run. This change checks a fresh install
+  once.
 
 ## Decisions
 
@@ -94,10 +94,13 @@ up as a failure rather than a silent change.
 Both build today, and `pltable` needs no compiler. `memory-allocator` needs a C compiler on 3.14 until `passagemath`
 allows 0.2, which the README states. CI on both platforms confirms the build, because Linux is unmeasured.
 
-### Cap `xgi` below 1.0
+### Move to `xgi` 1.0
 
-`xgi>=0.10.2,<1` restores the version the lock file and CI already use. Adapting the hypergraph code to 1.0 is a separate
-piece of work with its own review of the API changes, and the cap fixes the install at once.
+The first plan capped `xgi` below 1.0, and the full suite on 3.14 ruled that out: Python 3.14 removed copying of
+`itertools.count`, so `Hypergraph.copy` and `deepcopy` of `xgi` 0.10.2 raise a `TypeError`, and cloning a model with a
+hypergraph fails. `xgi` 1.0.0 copies on 3.14, and commits to semantic versioning, so the range is `xgi>=1.0.0,<2`. Its one
+breaking change for this package is that `edges.members()` returns a dict by default, so the three call sites pass
+`dtype=list`.
 
 ### Test every version, and the newest on both platforms
 

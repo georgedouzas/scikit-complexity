@@ -135,7 +135,7 @@ class NetworkSpace(BaseSpace):
         if not isinstance(self.hyperedges, xgi.Hypergraph):
             return [tuple(hyperedge) for hyperedge in self.hyperedges]
         order = {node: number for number, node in enumerate(self.graph.nodes)}
-        members = self.hyperedges.edges.members()
+        members = self.hyperedges.edges.members(dtype=list)
         return [
             tuple(sorted(hyperedge, key=lambda node: order.get(node, len(order))))
             for hyperedge in members

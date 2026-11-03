@@ -2,7 +2,7 @@
 
 ## 1. Fix the fresh install
 
-- [x] 1.1 Cap `xgi>=0.10.2,<1` in `pyproject.toml` and relock; verify `pdm lock --check` passes and `xgi` stays 0.10.2 in `pdm.lock`.
+- [x] 1.1 Require `xgi>=1.0.0,<2` in `pyproject.toml`, read its view methods with `dtype=list`, and relock; verify `pdm lock --check` passes, `xgi` is 1.0.0 in `pdm.lock`, and the hypergraph tests pass on 3.14.
 
 ## 2. Replace `deeptime` with `pydtmc`
 
@@ -20,17 +20,17 @@
 
 ## 4. Verify in CI
 
-- [ ] 4.1 Set the test matrix in `.github/workflows/ci.yml` to Linux 3.12, macOS 3.13, Linux 3.14, and macOS 3.14, add 3.14 to the installed versions of the checks job, and set `python-version: '3.13'` on the `docs-release` job in `release.yml`; verify a CI run on `development` passes every job and the gallery job still reports 3.13.
+- [x] 4.1 Set the test matrix in `.github/workflows/ci.yml` to Linux 3.12, macOS 3.13, Linux 3.14, and macOS 3.14, add 3.14 to the installed versions of the checks job, and set `python-version: '3.13'` on the `docs-release` job in `release.yml`; verify a CI run on `development` passes every job and the gallery job still reports 3.13.
 - [ ] 4.2 Run `nox -s tests-3.14` once on a Linux runner from a temporary, unmerged branch; verify all three test groups pass, record the result in `design.md`, and delete the branch.
-- [ ] 4.3 Compare `MarkovAnalysis`, `PassageAnalysis`, and `EmergenceAnalysis` on one fixed trajectory between 3.13 and 3.14; verify the results agree within numerical tolerance.
+- [x] 4.3 Compare `MarkovAnalysis`, `PassageAnalysis`, and `EmergenceAnalysis` on one fixed trajectory between 3.13 and 3.14; verify the results agree within numerical tolerance.
 
 ## 5. Verify a fresh install
 
-- [ ] 5.1 Build the wheel and inspect its metadata; verify `Requires-Python` is `<3.15,>=3.12`, the 3.14 classifier is present, and no dependency names a direct URL.
-- [ ] 5.2 Install that wheel without the lock file into new 3.14 environments on Linux and macOS, on a CI runner for Linux; verify the package imports, `hypergraph_kuramoto` simulates, and the fast tests pass.
-- [ ] 5.3 Run `pip install` of that wheel with Python 3.15; verify the installer refuses it.
+- [x] 5.1 Build the wheel and inspect its metadata; verify `Requires-Python` is `<3.15,>=3.12`, the 3.14 classifier is present, and no dependency names a direct URL.
+- [x] 5.2 Install that wheel without the lock file into new 3.14 environments on Linux and macOS, on a CI runner for Linux; verify the package imports, `hypergraph_kuramoto` simulates, and the fast tests pass.
+- [x] 5.3 Run `pip install` of that wheel with Python 3.15; verify the installer refuses it.
 
 ## Workflow follow-up
 
 - After this change is implemented, make a new release, as the user asked: release branch, PR to `main`, and tag. The user approved merging that release's PR with `--admin` after its CI passes.
-- That release is the first real run of the `docs-release` job, and it also ships the Models tab and the `xgi` cap.
+- That release is the first real run of the `docs-release` job, and it also ships the Models tab and the `xgi` fix.

@@ -144,7 +144,7 @@ def hypergraph_kuramoto(
     """
     hypergraph = _simplices(n_oscillators, links, triangles, seed)
     space = NetworkSpace(nx.complete_graph(n_oscillators), hyperedges=hypergraph)
-    sizes = [len(members) for members in hypergraph.edges.members()]
+    sizes = [len(members) for members in hypergraph.edges.members(dtype=list)]
     mean_links = max(PAIR * sizes.count(PAIR) / n_oscillators, 1.0)
     mean_triangles = max(3 * sizes.count(3) / n_oscillators, 1.0)
     rng = np.random.default_rng(seed + 1)
