@@ -63,13 +63,13 @@
     
       <link rel="stylesheet" href="../../css/mkdocstrings.css">
     
+      <link rel="stylesheet" href="../../sg_gallery.css">
+    
       <link rel="stylesheet" href="../../sg_gallery-rendered-html.css">
     
       <link rel="stylesheet" href="../../sg_gallery-dataframe.css">
     
       <link rel="stylesheet" href="../../sg_gallery-binder.css">
-    
-      <link rel="stylesheet" href="../../sg_gallery.css">
     
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -37067,7 +37067,7 @@ by <code>validation</code>, and <code>forecast_</code>, the variables over <code
 time of a transition matrix, by its <code>kind</code>, and <code>EventAnalysis('laminar-durations')</code> measures laminar phases.
 <code>MarkovAnalysis</code> estimates transition matrices from paths, reads transition and rate matrices with <code>matrix</code>, and gives
 their stationary laws, spectral gaps, and relaxation times, and Markov state models and implied timescales with
-<code>deeptime</code>. <code>DistributionAnalysis('dispersion-index')</code>, <code>ScalingAnalysis('variance-mean')</code>, and
+<code>pydtmc</code>. <code>DistributionAnalysis('dispersion-index')</code>, <code>ScalingAnalysis('variance-mean')</code>, and
 <code>EventAnalysis('counts')</code> describe fluctuations, and <code>KramersMoyalAnalysis</code> estimates the drift and diffusion of a
 series with <code>kramersmoyal</code>.
 <code>IrreversibilityAnalysis</code> measures entropy production from rates, jump paths, Langevin paths, or transition counts,

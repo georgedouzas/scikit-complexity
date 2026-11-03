@@ -63,13 +63,13 @@
     
       <link rel="stylesheet" href="../../../../css/mkdocstrings.css">
     
+      <link rel="stylesheet" href="../../../../sg_gallery.css">
+    
       <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-dataframe.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
-    
-      <link rel="stylesheet" href="../../../../sg_gallery.css">
     
     <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -29170,7 +29170,7 @@
         <span class="k">return</span> <span class="n">laws</span>
 </code></pre></div>
 <h2 id="equations">Equations</h2>
-<div class="highlight"><pre><span></span><code>organism.G: diff(G_organism(t), t) == -k_i_organism*G_organism(t)*I_organism(t) - k0_organism*G_organism(t) + k_n_organism*N_organism(t) + meal_organism*where(both(t &gt;= 2.0, t &lt; 4.0), 1.0, 0) - exercise_organism*where(both(t &gt;= 12.0, t &lt; 14.0), 1.0, 0) + R_organism
+<div class="highlight"><pre><span></span><code>organism.G: diff(G_organism(t), t) == -k_i_organism*G_organism(t)*I_organism(t) - k0_organism*G_organism(t) + k_n_organism*N_organism(t) - exercise_organism*where(both(t &gt;= 12.0, t &lt; 14.0), 1.0, 0) + meal_organism*where(both(t &gt;= 2.0, t &lt; 4.0), 1.0, 0) + R_organism
 organism.I: diff(I_organism(t), t) == -d_i_organism*I_organism(t) + s_i_organism*G_organism(t)^n_organism/(K_organism^n_organism + G_organism(t)^n_organism)
 organism.N: diff(N_organism(t), t) == -s_n_organism*(G_organism(t)^n_organism/(K_organism^n_organism + G_organism(t)^n_organism) - 1) - d_n_organism*N_organism(t)
 </code></pre></div>

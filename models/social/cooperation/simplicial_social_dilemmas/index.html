@@ -63,13 +63,13 @@
     
       <link rel="stylesheet" href="../../../../css/mkdocstrings.css">
     
+      <link rel="stylesheet" href="../../../../sg_gallery.css">
+    
       <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-dataframe.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
-    
-      <link rel="stylesheet" href="../../../../sg_gallery.css">
     
     <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -28855,7 +28855,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_update_agents</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">schedule</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_choice</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_set_choice</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="equations">Equations</h2>
-<div class="highlight"><pre><span></span><code>players.strategy[i]: strategy_players(t + 1) == strategy_players(t) + where(where((_neighbours_2 + _neighbours_3 + where(_neighbours_2 + _neighbours_3 == 0, 1, 0))*categorical_strategy_players__target_imitation_imitation &gt;= -_neighbours_4*probability_imitation - _neighbours_5*probability_imitation + _neighbours_2 + _neighbours_3 + where(_neighbours_2 + _neighbours_3 == 0, 1, 0), 1, 0) + where((_neighbours_2 + _neighbours_3 + where(_neighbours_2 + _neighbours_3 == 0, 1, 0))*categorical_strategy_players__target_imitation_imitation &gt;= -_neighbours_4*probability_imitation + _neighbours_2 + _neighbours_3 + where(_neighbours_2 + _neighbours_3 == 0, 1, 0), 1, 0) == 1, -strategy_players(t), 0) + where(where((_neighbours_2 + _neighbours_3 + where(_neighbours_2 + _neighbours_3 == 0, 1, 0))*categorical_strategy_players__target_imitation_imitation &gt;= -_neighbours_4*probability_imitation - _neighbours_5*probability_imitation + _neighbours_2 + _neighbours_3 + where(_neighbours_2 + _neighbours_3 == 0, 1, 0), 1, 0) + where((_neighbours_2 + _neighbours_3 + where(_neighbours_2 + _neighbours_3 == 0, 1, 0))*categorical_strategy_players__target_imitation_imitation &gt;= -_neighbours_4*probability_imitation + _neighbours_2 + _neighbours_3 + where(_neighbours_2 + _neighbours_3 == 0, 1, 0), 1, 0) == 2, -strategy_players(t) + 1.0, 0)
+<div class="highlight"><pre><span></span><code>players.strategy[i]: strategy_players(t + 1) == strategy_players(t) + where(where((_neighbours_2 + _neighbours_3 + where(_neighbours_2 + _neighbours_3 == 0, 1, 0))*categorical_strategy_players__target_imitation_imitation &gt;= -_neighbours_4*probability_imitation + _neighbours_2 + _neighbours_3 + where(_neighbours_2 + _neighbours_3 == 0, 1, 0), 1, 0) + where((_neighbours_2 + _neighbours_3 + where(_neighbours_2 + _neighbours_3 == 0, 1, 0))*categorical_strategy_players__target_imitation_imitation &gt;= -_neighbours_4*probability_imitation - _neighbours_5*probability_imitation + _neighbours_2 + _neighbours_3 + where(_neighbours_2 + _neighbours_3 == 0, 1, 0), 1, 0) == 1, -strategy_players(t), 0) + where(where((_neighbours_2 + _neighbours_3 + where(_neighbours_2 + _neighbours_3 == 0, 1, 0))*categorical_strategy_players__target_imitation_imitation &gt;= -_neighbours_4*probability_imitation + _neighbours_2 + _neighbours_3 + where(_neighbours_2 + _neighbours_3 == 0, 1, 0), 1, 0) + where((_neighbours_2 + _neighbours_3 + where(_neighbours_2 + _neighbours_3 == 0, 1, 0))*categorical_strategy_players__target_imitation_imitation &gt;= -_neighbours_4*probability_imitation - _neighbours_5*probability_imitation + _neighbours_2 + _neighbours_3 + where(_neighbours_2 + _neighbours_3 == 0, 1, 0), 1, 0) == 2, -strategy_players(t) + 1.0, 0)
 players.payoff[i]: payoff_players(t + 1) == 1/2*(_neighbours_0 + _neighbours_1)/triangles_players
 </code></pre></div>
 

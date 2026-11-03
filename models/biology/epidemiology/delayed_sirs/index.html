@@ -63,13 +63,13 @@
     
       <link rel="stylesheet" href="../../../../css/mkdocstrings.css">
     
+      <link rel="stylesheet" href="../../../../sg_gallery.css">
+    
       <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-dataframe.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
-    
-      <link rel="stylesheet" href="../../../../sg_gallery.css">
     
     <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -28587,8 +28587,8 @@
         <span class="k">return</span> <span class="p">[</span><span class="n">UpdateLaw</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">next_value</span><span class="p">,</span> <span class="n">increment</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">'increment'</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_order</span><span class="p">())]</span>
 </code></pre></div>
 <h2 id="equations">Equations</h2>
-<div class="highlight"><pre><span></span><code>first.x: x_first(t + 1) == -(e_second*x_second(t) + x_first(t))*a_first*(where(recovery_first &gt;= 7, x_first(t - 7), 0) + where(recovery_first &gt;= 4, x_first(t - 4), 0) + where(recovery_first &gt;= 5, x_first(t - 5), 0) + where(recovery_first &gt;= 1, x_first(t - 1), 0) + where(recovery_first &gt;= 3, x_first(t - 3), 0) + where(recovery_first &gt;= 6, x_first(t - 6), 0) + where(recovery_first &gt;= 9, x_first(t - 9), 0) + where(recovery_first &gt;= 10, x_first(t - 10), 0) + where(recovery_first &gt;= 11, x_first(t - 11), 0) + where(recovery_first &gt;= 12, x_first(t - 12), 0) + where(recovery_first &gt;= 8, x_first(t - 8), 0) + where(recovery_first &gt;= 2, x_first(t - 2), 0) + x_first(t) - 1)
-second.x: x_second(t + 1) == -(e_first*x_first(t) + x_second(t))*a_second*(where(recovery_second &gt;= 12, x_second(t - 12), 0) + where(recovery_second &gt;= 10, x_second(t - 10), 0) + where(recovery_second &gt;= 9, x_second(t - 9), 0) + where(recovery_second &gt;= 11, x_second(t - 11), 0) + where(recovery_second &gt;= 1, x_second(t - 1), 0) + where(recovery_second &gt;= 8, x_second(t - 8), 0) + where(recovery_second &gt;= 3, x_second(t - 3), 0) + where(recovery_second &gt;= 2, x_second(t - 2), 0) + where(recovery_second &gt;= 7, x_second(t - 7), 0) + where(recovery_second &gt;= 6, x_second(t - 6), 0) + where(recovery_second &gt;= 4, x_second(t - 4), 0) + where(recovery_second &gt;= 5, x_second(t - 5), 0) + x_second(t) - 1)
+<div class="highlight"><pre><span></span><code>first.x: x_first(t + 1) == -(e_second*x_second(t) + x_first(t))*a_first*(where(recovery_first &gt;= 6, x_first(t - 6), 0) + where(recovery_first &gt;= 5, x_first(t - 5), 0) + where(recovery_first &gt;= 4, x_first(t - 4), 0) + where(recovery_first &gt;= 2, x_first(t - 2), 0) + where(recovery_first &gt;= 7, x_first(t - 7), 0) + where(recovery_first &gt;= 1, x_first(t - 1), 0) + where(recovery_first &gt;= 10, x_first(t - 10), 0) + where(recovery_first &gt;= 11, x_first(t - 11), 0) + where(recovery_first &gt;= 9, x_first(t - 9), 0) + where(recovery_first &gt;= 8, x_first(t - 8), 0) + where(recovery_first &gt;= 12, x_first(t - 12), 0) + where(recovery_first &gt;= 3, x_first(t - 3), 0) + x_first(t) - 1)
+second.x: x_second(t + 1) == -(e_first*x_first(t) + x_second(t))*a_second*(where(recovery_second &gt;= 7, x_second(t - 7), 0) + where(recovery_second &gt;= 4, x_second(t - 4), 0) + where(recovery_second &gt;= 5, x_second(t - 5), 0) + where(recovery_second &gt;= 1, x_second(t - 1), 0) + where(recovery_second &gt;= 6, x_second(t - 6), 0) + where(recovery_second &gt;= 2, x_second(t - 2), 0) + where(recovery_second &gt;= 9, x_second(t - 9), 0) + where(recovery_second &gt;= 11, x_second(t - 11), 0) + where(recovery_second &gt;= 10, x_second(t - 10), 0) + where(recovery_second &gt;= 12, x_second(t - 12), 0) + where(recovery_second &gt;= 8, x_second(t - 8), 0) + where(recovery_second &gt;= 3, x_second(t - 3), 0) + x_second(t) - 1)
 </code></pre></div>
 
 

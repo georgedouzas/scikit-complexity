@@ -63,13 +63,13 @@
     
       <link rel="stylesheet" href="../../css/mkdocstrings.css">
     
+      <link rel="stylesheet" href="../../sg_gallery.css">
+    
       <link rel="stylesheet" href="../../sg_gallery-rendered-html.css">
     
       <link rel="stylesheet" href="../../sg_gallery-dataframe.css">
     
       <link rel="stylesheet" href="../../sg_gallery-binder.css">
-    
-      <link rel="stylesheet" href="../../sg_gallery.css">
     
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -39412,8 +39412,8 @@ nonnegative.</p>
 <li><code>'transition-matrix'</code>: the transitions after <code>lag</code> steps counted along the paths and normalized by row.</li>
 <li><code>'stationary'</code>: the stationary law <code>pi</code> of the matrix, <code>pi P = pi</code> or <code>pi Q = 0</code> for rates.</li>
 <li><code>'spectral-gap'</code>: the gap <code>1 - |lambda_2|</code>, or <code>-Re lambda_2</code> for rates, and the relaxation time of every mode.</li>
-<li><code>'state-model'</code>: the maximum-likelihood Markov state model of the largest connected set, estimated with
-  deeptime, with its metastable sets found by PCCA+.</li>
+<li><code>'state-model'</code>: the maximum-likelihood Markov state model of the largest connected set, with its metastable
+  sets found by PCCA+.</li>
 <li><code>'timescales'</code>: the slowest implied timescales of Markov state models at every lag of <code>lags</code>, which do not
   depend on the lag for a Markovian discretization.</li>
 </ul>
@@ -39733,9 +39733,7 @@ of <code>'timescales'</code>.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>src/skcomplex/analysis/_markov.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">127</span>
-<span class="normal">128</span>
-<span class="normal">129</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">129</span>
 <span class="normal">130</span>
 <span class="normal">131</span>
 <span class="normal">132</span>
@@ -39756,7 +39754,9 @@ of <code>'timescales'</code>.</p>
 <span class="normal">147</span>
 <span class="normal">148</span>
 <span class="normal">149</span>
-<span class="normal">150</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'transition-matrix'</span><span class="p">,</span>
     <span class="n">variables</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>

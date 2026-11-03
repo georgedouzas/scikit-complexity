@@ -63,13 +63,13 @@
     
       <link rel="stylesheet" href="../../../../css/mkdocstrings.css">
     
+      <link rel="stylesheet" href="../../../../sg_gallery.css">
+    
       <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-dataframe.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
-    
-      <link rel="stylesheet" href="../../../../sg_gallery.css">
     
     <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -28426,8 +28426,8 @@
         <span class="k">return</span> <span class="n">vector</span><span class="p">(</span><span class="n">SR</span><span class="p">,</span> <span class="p">[</span><span class="n">new_x</span><span class="p">,</span> <span class="n">new_y</span><span class="p">])</span>
 </code></pre></div>
 <h2 id="equations">Equations</h2>
-<div class="highlight"><pre><span></span><code>points.p[i, 0]: p_points_0(t + 1) == where(where(3.0*categorical_map_game &gt;= 1.0, 1, 0) + where(3.0*categorical_map_game &gt;= 2.0, 1, 0) == 0, 0.5*p_points_0(t), where(where(3.0*categorical_map_game &gt;= 1.0, 1, 0) + where(3.0*categorical_map_game &gt;= 2.0, 1, 0) == 1, 0.5*p_points_0(t) + 0.5, 0.5*p_points_0(t) + 0.25))
-points.p[i, 1]: p_points_1(t + 1) == where(where(3.0*categorical_map_game &gt;= 1.0, 1, 0) + where(3.0*categorical_map_game &gt;= 2.0, 1, 0) == 0, 0.5*p_points_1(t), where(where(3.0*categorical_map_game &gt;= 1.0, 1, 0) + where(3.0*categorical_map_game &gt;= 2.0, 1, 0) == 1, 0.5*p_points_1(t), 0.5*p_points_1(t) + 0.5))
+<div class="highlight"><pre><span></span><code>points.p[i, 0]: p_points_0(t + 1) == where(where(3.0*categorical_map_game &gt;= 2.0, 1, 0) + where(3.0*categorical_map_game &gt;= 1.0, 1, 0) == 0, 0.5*p_points_0(t), where(where(3.0*categorical_map_game &gt;= 2.0, 1, 0) + where(3.0*categorical_map_game &gt;= 1.0, 1, 0) == 1, 0.5*p_points_0(t) + 0.5, 0.5*p_points_0(t) + 0.25))
+points.p[i, 1]: p_points_1(t + 1) == where(where(3.0*categorical_map_game &gt;= 2.0, 1, 0) + where(3.0*categorical_map_game &gt;= 1.0, 1, 0) == 0, 0.5*p_points_1(t), where(where(3.0*categorical_map_game &gt;= 2.0, 1, 0) + where(3.0*categorical_map_game &gt;= 1.0, 1, 0) == 1, 0.5*p_points_1(t), 0.5*p_points_1(t) + 0.5))
 </code></pre></div>
 
 

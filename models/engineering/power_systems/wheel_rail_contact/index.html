@@ -63,13 +63,13 @@
     
       <link rel="stylesheet" href="../../../../css/mkdocstrings.css">
     
+      <link rel="stylesheet" href="../../../../sg_gallery.css">
+    
       <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-dataframe.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
-    
-      <link rel="stylesheet" href="../../../../sg_gallery.css">
     
     <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -28496,7 +28496,7 @@
         <span class="k">return</span> <span class="n">laws</span>
 </code></pre></div>
 <h2 id="equations">Equations</h2>
-<div class="highlight"><pre><span></span><code>rail.z: diff(z_rail(t), t, t) == -kr_rail*(z_rail(t) - zs_rail(t))/Mr_rail - br_rail*(diff(z_rail(t), t) - diff(zs_rail(t), t))/Mr_rail + (where(both(t &gt;= spacing_rail, mod(-spacing_rail + t, T_rail) &lt; width_rail), F_rail, 0) + where(both(t &gt;= 0.0, mod(t, T_rail) &lt; width_rail), F_rail, 0))/Mr_rail
+<div class="highlight"><pre><span></span><code>rail.z: diff(z_rail(t), t, t) == -kr_rail*(z_rail(t) - zs_rail(t))/Mr_rail - br_rail*(diff(z_rail(t), t) - diff(zs_rail(t), t))/Mr_rail + (where(both(t &gt;= 0.0, mod(t, T_rail) &lt; width_rail), F_rail, 0) + where(both(t &gt;= spacing_rail, mod(-spacing_rail + t, T_rail) &lt; width_rail), F_rail, 0))/Mr_rail
 rail.zs: diff(zs_rail(t), t, t) == kr_rail*(z_rail(t) - zs_rail(t))/Ms_rail + br_rail*(diff(z_rail(t), t) - diff(zs_rail(t), t))/Ms_rail - ((beta_rail*zs_rail(t)^3 + alpha_rail*zs_rail(t)^2)*k2_rail + ks_rail*zs_rail(t) + bs_rail*diff(zs_rail(t), t))/Ms_rail
 </code></pre></div>
 

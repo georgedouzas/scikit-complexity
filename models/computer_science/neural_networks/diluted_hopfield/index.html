@@ -63,13 +63,13 @@
     
       <link rel="stylesheet" href="../../../../css/mkdocstrings.css">
     
+      <link rel="stylesheet" href="../../../../sg_gallery.css">
+    
       <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-dataframe.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
-    
-      <link rel="stylesheet" href="../../../../sg_gallery.css">
     
     <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -28672,7 +28672,7 @@
         <span class="k">return</span> <span class="p">[</span><span class="n">UpdateLaw</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">revised</span><span class="p">)]</span>
 </code></pre></div>
 <h2 id="equations">Equations</h2>
-<div class="highlight"><pre><span></span><code>neurons.spin[i]: spin_neurons(t + 1) == where(uniform_spin_neurons_activity_glauber &lt; activity_glauber, where(where(categorical_spin_neurons_option_glauber*(e^(1.0*_reduced_0*beta_neurons*intensity_glauber) + e^(-1.0*_reduced_0*beta_neurons*intensity_glauber)) &gt;= e^(-1.0*_reduced_0*beta_neurons*intensity_glauber), 1, 0) == 1, 1.0, 0) + where(where(categorical_spin_neurons_option_glauber*(e^(1.0*_reduced_0*beta_neurons*intensity_glauber) + e^(-1.0*_reduced_0*beta_neurons*intensity_glauber)) &gt;= e^(-1.0*_reduced_0*beta_neurons*intensity_glauber), 1, 0) == 0, -1.0, 0), spin_neurons(t))
+<div class="highlight"><pre><span></span><code>neurons.spin[i]: spin_neurons(t + 1) == where(uniform_spin_neurons_activity_glauber &lt; activity_glauber, where(where(categorical_spin_neurons_option_glauber*(e^(1.0*_reduced_0*beta_neurons*intensity_glauber) + e^(-1.0*_reduced_0*beta_neurons*intensity_glauber)) &gt;= e^(-1.0*_reduced_0*beta_neurons*intensity_glauber), 1, 0) == 0, -1.0, 0) + where(where(categorical_spin_neurons_option_glauber*(e^(1.0*_reduced_0*beta_neurons*intensity_glauber) + e^(-1.0*_reduced_0*beta_neurons*intensity_glauber)) &gt;= e^(-1.0*_reduced_0*beta_neurons*intensity_glauber), 1, 0) == 1, 1.0, 0), spin_neurons(t))
 </code></pre></div>
 
 

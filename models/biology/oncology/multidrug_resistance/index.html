@@ -63,13 +63,13 @@
     
       <link rel="stylesheet" href="../../../../css/mkdocstrings.css">
     
+      <link rel="stylesheet" href="../../../../sg_gallery.css">
+    
       <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-dataframe.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
-    
-      <link rel="stylesheet" href="../../../../sg_gallery.css">
     
     <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -29347,8 +29347,8 @@
 </code></pre></div>
 <h2 id="equations">Equations</h2>
 <div class="highlight"><pre><span></span><code>tumour.S: diff(S_tumour(t), t) == -m1_tumour*r_tumour*S_tumour(t) - m2_tumour*r_tumour*S_tumour(t) - m3_tumour*r_tumour*S_tumour(t) - a1_tumour*S_tumour(t)*where(-Uth_tumour + U1_tumour(t) &lt; 0, 0, -Uth_tumour + U1_tumour(t)) - a3_tumour*S_tumour(t)*where(-Uth_tumour + U3_tumour(t) &lt; 0, 0, -Uth_tumour + U3_tumour(t)) - a2_tumour*S_tumour(t)*where(-Uth_tumour + U2_tumour(t) &lt; 0, 0, -Uth_tumour + U2_tumour(t)) + r_tumour*S_tumour(t)
-tumour.R1: diff(R1_tumour(t), t) == -m2_tumour*r_tumour*R1_tumour(t) - m3_tumour*r_tumour*R1_tumour(t) + m1_tumour*r_tumour*S_tumour(t) - a2_tumour*R1_tumour(t)*where(-Uth_tumour + U2_tumour(t) &lt; 0, 0, -Uth_tumour + U2_tumour(t)) - a3_tumour*R1_tumour(t)*where(-Uth_tumour + U3_tumour(t) &lt; 0, 0, -Uth_tumour + U3_tumour(t)) + r_tumour*R1_tumour(t)
-tumour.R2: diff(R2_tumour(t), t) == -m1_tumour*r_tumour*R2_tumour(t) - m3_tumour*r_tumour*R2_tumour(t) + m2_tumour*r_tumour*S_tumour(t) - a3_tumour*R2_tumour(t)*where(-Uth_tumour + U3_tumour(t) &lt; 0, 0, -Uth_tumour + U3_tumour(t)) - a1_tumour*R2_tumour(t)*where(-Uth_tumour + U1_tumour(t) &lt; 0, 0, -Uth_tumour + U1_tumour(t)) + r_tumour*R2_tumour(t)
+tumour.R1: diff(R1_tumour(t), t) == -m2_tumour*r_tumour*R1_tumour(t) - m3_tumour*r_tumour*R1_tumour(t) + m1_tumour*r_tumour*S_tumour(t) - a3_tumour*R1_tumour(t)*where(-Uth_tumour + U3_tumour(t) &lt; 0, 0, -Uth_tumour + U3_tumour(t)) - a2_tumour*R1_tumour(t)*where(-Uth_tumour + U2_tumour(t) &lt; 0, 0, -Uth_tumour + U2_tumour(t)) + r_tumour*R1_tumour(t)
+tumour.R2: diff(R2_tumour(t), t) == -m1_tumour*r_tumour*R2_tumour(t) - m3_tumour*r_tumour*R2_tumour(t) + m2_tumour*r_tumour*S_tumour(t) - a1_tumour*R2_tumour(t)*where(-Uth_tumour + U1_tumour(t) &lt; 0, 0, -Uth_tumour + U1_tumour(t)) - a3_tumour*R2_tumour(t)*where(-Uth_tumour + U3_tumour(t) &lt; 0, 0, -Uth_tumour + U3_tumour(t)) + r_tumour*R2_tumour(t)
 tumour.R3: diff(R3_tumour(t), t) == -m1_tumour*r_tumour*R3_tumour(t) - m2_tumour*r_tumour*R3_tumour(t) + m3_tumour*r_tumour*S_tumour(t) - a2_tumour*R3_tumour(t)*where(-Uth_tumour + U2_tumour(t) &lt; 0, 0, -Uth_tumour + U2_tumour(t)) - a1_tumour*R3_tumour(t)*where(-Uth_tumour + U1_tumour(t) &lt; 0, 0, -Uth_tumour + U1_tumour(t)) + r_tumour*R3_tumour(t)
 tumour.R12: diff(R12_tumour(t), t) == -m3_tumour*r_tumour*R12_tumour(t) + m2_tumour*r_tumour*R1_tumour(t) + m1_tumour*r_tumour*R2_tumour(t) - a3_tumour*R12_tumour(t)*where(-Uth_tumour + U3_tumour(t) &lt; 0, 0, -Uth_tumour + U3_tumour(t)) + r_tumour*R12_tumour(t)
 tumour.R13: diff(R13_tumour(t), t) == -m2_tumour*r_tumour*R13_tumour(t) + m3_tumour*r_tumour*R1_tumour(t) + m1_tumour*r_tumour*R3_tumour(t) - a2_tumour*R13_tumour(t)*where(-Uth_tumour + U2_tumour(t) &lt; 0, 0, -Uth_tumour + U2_tumour(t)) + r_tumour*R13_tumour(t)

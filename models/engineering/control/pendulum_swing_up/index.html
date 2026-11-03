@@ -63,13 +63,13 @@
     
       <link rel="stylesheet" href="../../../../css/mkdocstrings.css">
     
+      <link rel="stylesheet" href="../../../../sg_gallery.css">
+    
       <link rel="stylesheet" href="../../../../sg_gallery-rendered-html.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-dataframe.css">
     
       <link rel="stylesheet" href="../../../../sg_gallery-binder.css">
-    
-      <link rel="stylesheet" href="../../../../sg_gallery.css">
     
     <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -28354,7 +28354,7 @@
 </code></pre></div>
 <h2 id="equations">Equations</h2>
 <div class="highlight"><pre><span></span><code>pendulum.theta: diff(theta_pendulum(t), t, t) == mu_pendulum*cos(theta_pendulum(t))*where(omega_pendulum^2*cos(theta_pendulum(t)) + omega_pendulum^2 - 1/2*diff(theta_pendulum(t), t)^2 &gt; 0, 1, where(omega_pendulum^2*cos(theta_pendulum(t)) + omega_pendulum^2 - 1/2*diff(theta_pendulum(t), t)^2 &lt; 0, -1, 0))*where(cos(theta_pendulum(t))*diff(theta_pendulum(t), t) &gt; 0, 1, where(cos(theta_pendulum(t))*diff(theta_pendulum(t), t) &lt; 0, -1, 0)) - omega_pendulum^2*sin(theta_pendulum(t))
-pendulum.f: diff(f_pendulum(t), t, t) == -mu_pendulum*where(omega_pendulum^2*cos(theta_pendulum(t)) + omega_pendulum^2 - 1/2*diff(theta_pendulum(t), t)^2 &gt; 0, 1, where(omega_pendulum^2*cos(theta_pendulum(t)) + omega_pendulum^2 - 1/2*diff(theta_pendulum(t), t)^2 &lt; 0, -1, 0))*where(cos(theta_pendulum(t))*diff(theta_pendulum(t), t) &gt; 0, 1, where(cos(theta_pendulum(t))*diff(theta_pendulum(t), t) &lt; 0, -1, 0))
+pendulum.f: diff(f_pendulum(t), t, t) == -mu_pendulum*where(cos(theta_pendulum(t))*diff(theta_pendulum(t), t) &gt; 0, 1, where(cos(theta_pendulum(t))*diff(theta_pendulum(t), t) &lt; 0, -1, 0))*where(omega_pendulum^2*cos(theta_pendulum(t)) + omega_pendulum^2 - 1/2*diff(theta_pendulum(t), t)^2 &gt; 0, 1, where(omega_pendulum^2*cos(theta_pendulum(t)) + omega_pendulum^2 - 1/2*diff(theta_pendulum(t), t)^2 &lt; 0, -1, 0))
 </code></pre></div>
 
 
