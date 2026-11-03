@@ -133,6 +133,19 @@ well as 3.14. The trajectory is chaotic, so the sample depends on the platform, 
 to about 1 on one machine gave 18, 19, and 21 steps, with 3 of the 16 above the limit. The band of 0.10 to 0.20 was tighter
 than the method resolves, so it becomes 0.10 to 0.25. This loosens a check, and it rests on that measured spread.
 
+### The result of the full test run on Python 3.14
+
+The three groups of `nox -s tests-3.14` ran separately on Linux runners, because the doctest group hung, and not all at
+one commit. The models group passed at `c7e42f64`. The rest had one failure at `0d8a3706`, 3365 passed, which was the
+Lorenz band above and passes since. The doctest group passed at `39953015`, 1926 passed in about a minute.
+
+The doctest group had never run. It hung in the README, on a viewer spawned without a display, which exits at once while
+Rerun waits for it, also when it cleans up a recording. A time limit on the flush cannot reach that cleanup, so the observer
+spawns no viewer on a Linux machine without a display, and warns. The time limit stays for a viewer out of reach.
+
+Two Cayley tests failed once in the rest group on 3.14 with `GAPError: Could not open output of external Knuth-Bendix
+program`, and did not fail in the later run or alone. The cause is not established.
+
 ## Risks / Trade-offs
 
 - [`pydtmc` disagrees on a larger chain or a scenario not compared yet] → The reference values and the `stochastic-analysis`
