@@ -171,6 +171,32 @@ def test_rerun_observer_spawns_viewer_from_path(monkeypatch, tmp_path):
     assert calls[0]['executable_path'] is None
 
 
+def test_rerun_observer_warns_when_a_viewer_cannot_be_reached(monkeypatch):
+    """Test that a run streaming to a viewer waits for a limited time, then warns and keeps its results."""
+    timeouts = []
+
+    def flush(_, *, timeout_sec):
+        timeouts.append(timeout_sec)
+        error_msg = 'unable to connect'
+        raise RuntimeError(error_msg)
+
+    monkeypatch.setattr(rr, 'spawn', lambda **_: None)
+    monkeypatch.setattr(rr.RecordingStream, 'flush', flush)
+    with pytest.warns(UserWarning, match='unable to connect'):
+        simulation = _run(System(elements=[PopulationElement('a')]), RerunObserver('test', spawn=True), until=0.0)
+    assert timeouts == [pytest.approx(30.0)]
+    assert simulation.trajectory_.values('a.n').size > 0
+
+
+def test_rerun_observer_waits_for_a_file_without_limit(monkeypatch, tmp_path):
+    """Test that a run saving to a file only waits for the whole recording."""
+    calls = []
+    monkeypatch.setattr(rr.RecordingStream, 'flush', lambda _, **kwargs: calls.append(kwargs))
+    observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
+    _run(System(elements=[PopulationElement('a')]), observer, until=0.0)
+    assert calls == [{}]
+
+
 def _gas(visual):
     """Return a compiled gas of two particles drawn with a visual spec."""
     gas = GroupElement('gas', element=MassPointElement, size=2, visual=visual)

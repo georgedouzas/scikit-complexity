@@ -18,6 +18,8 @@ it has published no release since April 2025, which falls short of the project's
 - Move to `xgi` 1.0. A fresh install today gets 1.0.0, under which `hypergraph_kuramoto` raises a `TypeError`, on the
   published 0.2.0 too, while the lock file hides it by holding 0.10.2. `xgi` 0.10.2 cannot copy a hypergraph on 3.14.
 - Run the fast tests on 3.14 in CI on both platforms, in addition to 3.12 on Linux and 3.13 on macOS.
+- Stop `RerunObserver` from hanging forever when its viewer cannot be reached, as on a machine without a display: it waits
+  30 seconds, warns, and keeps the results. The doctest group, which never ran before this change, found it in the README.
 - Keep the documentation build on Python 3.13, because the latest `mkdocs-gallery` reads `ast.Str`, which 3.14 removed.
 
 ## Capabilities
@@ -32,10 +34,12 @@ it has published no release since April 2025, which falls short of the project's
 - `model-catalog`: listing models must not load the new Markov library, in place of `deeptime`.
 - `analysis-adapters`: the default-install requirement no longer names `deeptime`.
 - `dynamical-invariants`: the Lorenz embedding scenario accepts a delay up to 0.25 rather than 0.20.
+- `rerun-visualization`: a run streaming to a viewer that cannot be reached warns instead of hanging.
 
 ## Impact
 
-- Source: `src/skcomplex/analysis/_markov.py` and `_passage.py`, with their tests and reference values.
+- Source: `src/skcomplex/analysis/_markov.py` and `_passage.py`, with their tests and reference values, and
+  `src/skcomplex/engine/viz/_rerun.py`.
 - Packaging: `pyproject.toml` (`requires-python`, classifiers, `deeptime` out, `pydtmc` in, `xgi`, the deptry list) and a
   relocked `pdm.lock`, in which the versions of other dependencies may move to reach 3.14 wheels.
 - Tooling: `noxfile.py` (`PYTHON_VERSIONS`, the Python of the documentation sessions), `.github/workflows/ci.yml` (test

@@ -6,6 +6,7 @@
 import math
 import re
 import sys
+import warnings
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Literal
@@ -37,6 +38,7 @@ from ._scalars import ScalarsVisual
 from ._sites import SiteVisual
 
 _RENEWAL_MEMBERS = 20
+_VIEWER_FLUSH_SECONDS = 30.0
 _EXTRA = 'extra'
 _UNSAFE = re.compile(r'[^A-Za-z0-9_/.-]')
 _MAX_SERIES_PER_VIEW = 6
@@ -389,8 +391,15 @@ class RerunObserver(BaseObserver):
         self.logged_frames_ += 1
 
     def _release(self) -> None:
-        """Flush the recording."""
-        self.recording_.flush()
+        """Flush the recording, and warn after a while rather than wait forever for a viewer that cannot be reached."""
+        if not (self.spawn or self.connect):
+            self.recording_.flush()
+            return
+        try:
+            self.recording_.flush(timeout_sec=_VIEWER_FLUSH_SECONDS)
+        except RuntimeError as error:
+            warning_msg = f'The Rerun viewer did not receive the whole recording: {error}'
+            warnings.warn(warning_msg, UserWarning, stacklevel=2)
 
     def _log_extra(self, path: str, archetype: rr.AsComponents, *, static: bool = False) -> None:
         """Log an archetype of a subclass's own under `extra/<path>`, apart from the paths of the system's entities.
