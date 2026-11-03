@@ -34,8 +34,8 @@ QUICK_TESTS: list[str] = [
     'tests/test_types.py',
 ]
 TEST_GROUPS: list[list[str]] = [
-    ['tests/models'],
-    ['tests', '--ignore=tests/models'],
+    ['--slow', 'tests/models'],
+    ['--slow', 'tests', '--ignore=tests/models'],
     ['src/skcomplex', 'README.md', 'docs/overview/user_guide.md'],
 ]
 CHANGELOG_ARGS: list[str] = [
@@ -228,9 +228,9 @@ def tests(session: nox.Session) -> None:
     """
     session.run('pdm', 'install', '-dG', 'tests', external=True)
     env = {'COVERAGE_FILE': f'.coverage.{session.python}'}
-    options = ['-n', 'auto', '--slow', '--cov=src', '--cov=tests', '--cov-append']
+    options = ['-n', 'auto', '--cov=src', '--cov=tests', '--cov-append']
     if session.posargs:
-        session.run('pytest', *options, '-k', *session.posargs, env=env)
+        session.run('pytest', *options, '--slow', '-k', *session.posargs, env=env)
     else:
         # Each group runs in its own workers, since the compiled code of a worker stays in its memory until it exits.
         for group in TEST_GROUPS:

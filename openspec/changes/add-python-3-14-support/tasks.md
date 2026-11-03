@@ -20,14 +20,14 @@
 
 ## 4. Verify in CI
 
-- [x] 4.1 Set the test matrix in `.github/workflows/ci.yml` to Linux 3.12, macOS 3.13, Linux 3.14, and macOS 3.14, add 3.14 to the installed versions of the checks job, and set `python-version: '3.13'` on the `docs-release` job in `release.yml`; verify a CI run on `development` passes every job and the gallery job still reports 3.13.
+- [ ] 4.1 Set the test matrix in `.github/workflows/ci.yml` to Linux 3.12, macOS 3.13, Linux 3.14, and macOS 3.14, add 3.14 to the installed versions of the checks job, and set `python-version: '3.13'` on the `docs-release` job in `release.yml`; verify a CI run on `development` passes every job and the gallery job still reports 3.13.
 - [ ] 4.2 Run `nox -s tests-3.14` once on a Linux runner from a temporary, unmerged branch; verify all three test groups pass, record the result in `design.md`, and delete the branch.
 - [x] 4.3 Compare `MarkovAnalysis`, `PassageAnalysis`, and `EmergenceAnalysis` on one fixed trajectory between 3.13 and 3.14; verify the results agree within numerical tolerance.
 
 ## 5. Verify a fresh install
 
 - [x] 5.1 Build the wheel and inspect its metadata; verify `Requires-Python` is `<3.15,>=3.12`, the 3.14 classifier is present, and no dependency names a direct URL.
-- [x] 5.2 Install that wheel without the lock file into new 3.14 environments on Linux and macOS, on a CI runner for Linux; verify the package imports, `hypergraph_kuramoto` simulates, and the fast tests pass.
+- [ ] 5.2 Install that wheel without the lock file into new 3.14 environments on Linux and macOS, on a CI runner for Linux; verify the package imports, `hypergraph_kuramoto` simulates, and the fast tests pass.
 - [x] 5.3 Run `pip install` of that wheel with Python 3.15; verify the installer refuses it.
 
 ## Workflow follow-up
