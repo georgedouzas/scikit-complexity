@@ -1,7 +1,7 @@
 """Active matter: self-propelled particles, flocking, polar fluids, chemotaxis, Active Model B+, and their orders."""
 
 from ._active_particle import ActiveParticleElement
-from ._active_passive import active_passive_flocking
+from ._active_passive import FlockingAgentElement, active_passive_flocking
 from ._alignment import PolarAlignmentInteraction, aligning_active_brownian_particles
 from ._angular_alignment import AngularAlignmentInteraction
 from ._angular_diffusion import AngularDiffusionInteraction
@@ -57,6 +57,7 @@ __all__: list[str] = [
     'DepotParticleElement',
     'FlockerElement',
     'FlockerView',
+    'FlockingAgentElement',
     'HeadingAlignmentInteraction',
     'LandauDeGennesEnergyInteraction',
     'MotileCellElement',

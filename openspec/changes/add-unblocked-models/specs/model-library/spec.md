@@ -17,8 +17,14 @@ curated gallery example and an inventory entry tagged with the system it builds.
 - **THEN** the polarization of the velocities rises above 0.9
 
 #### Scenario: Active agents gather
-- **WHEN** `active_passive_flocking` runs with a minority of active agents and flocking off
-- **THEN** the mean distance between active agents falls below the mean distance between passive agents
+- **WHEN** `active_passive_flocking` runs with the settings of Charbonneau (2017, figure 10.7), 45 active agents among
+  342 at the compactness 0.672 from uniform random positions, with flocking on, for 50 time units
+- **THEN** the mean distance between active agents over the last 10 time units falls below the mean distance between
+  passive agents by at least 0.015, and the snapshot shows flocks of active agents among still passive agents
+
+#### Scenario: Active agents stay mixed without flocking
+- **WHEN** `active_passive_flocking` runs with the same settings and flocking off
+- **THEN** the two mean distances over the last 10 time units stay within 0.01 of each other
 
 #### Scenario: Surrogate predictive control
 - **WHEN** `koopman_model_predictive_control` steers each of its plants to a reference with its fitted surrogate
