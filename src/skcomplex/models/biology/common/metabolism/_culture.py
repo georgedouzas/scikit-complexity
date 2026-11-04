@@ -275,6 +275,10 @@ class CommunityInteraction(Interaction):
         growth:
             The name of the reaction of growth of every member.
 
+        common_rate:
+            Whether every member grows at one specific rate, the balanced growth of community FBA (Raman 2021, Section
+            11.1.3.2), rather than each at its own, as in joint FBA.
+
     Examples:
         >>> from skcomplex.models.biology.common.metabolism import CommunityInteraction
         >>> CommunityInteraction('joint', members=['a', 'b'], medium='medium', abundances=(0.5, 0.5)).abundances
@@ -290,6 +294,7 @@ class CommunityInteraction(Interaction):
         abundances: Sequence[float] = (),
         exchanges: Mapping[str, float] | None = None,
         growth: str = 'Biomass_Ecoli_core',
+        common_rate: bool = False,
     ) -> None:
         super().__init__(label)
         self.members = members
@@ -297,6 +302,7 @@ class CommunityInteraction(Interaction):
         self.abundances = abundances
         self.exchanges = exchanges
         self.growth = growth
+        self.common_rate = common_rate
 
     def _weighted(self, namespace: SimpleNamespace, reaction: str) -> Expression:
         """Return the sum over the members of the flux of a reaction weighted by the abundance."""
@@ -326,6 +332,8 @@ class CommunityInteraction(Interaction):
             relations += [state == self._weighted(namespace, reaction), state >= float(floor)]
         name = MetabolicNetworkElement.flux_name(self.growth)
         growth = [getattr(member, name) for member in namespace.members]
+        if self.common_rate:
+            relations += [item == growth[0] for item in growth[1:]]
         objective = LinearObjectiveSpec(self._weighted(namespace, self.growth))
         return [LinearProgramLaw([*variables, *growth], relations, [objective])]
 
@@ -363,6 +371,57 @@ def community_medium_type(exchanges: Sequence[str]) -> type[CommunityMediumEleme
     vars(initialize)['__signature__'] = inspect.Signature([*first, *declared])
     members = {'__init__': initialize, '__doc__': 'Medium with the states of the net exchanges of a community.'}
     return type('SharedMediumElement', (CommunityMediumElement,), members)
+
+
+class ObjectiveFloorInteraction(Interaction):
+    """Lower bound of the objective of a metabolic network as a whole, `c' v >= f` (Raman 2021, Eq. 8.11d).
+
+    Args:
+        label:
+            The label of the interaction.
+
+        cell:
+            The path of the metabolic network.
+
+        weights:
+            The coefficient of every reaction in the objective.
+
+        floor:
+            The value the objective keeps.
+
+    Examples:
+        >>> from skcomplex.models.biology.common.metabolism import ObjectiveFloorInteraction
+        >>> ObjectiveFloorInteraction('kept', weights={'grow': 1.0}, floor=0.5).floor
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        cell: Annotated[str, RoleSpec()] = 'cell',
+        weights: Mapping[str, float] | None = None,
+        floor: float = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.cell = cell
+        self.weights = weights
+        self.floor = floor
+
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
+        """Return the bound of the objective.
+
+        Args:
+            namespace:
+                The namespace of the roles.
+
+        Returns:
+            laws:
+                The linear program law of the bound.
+        """
+        fluxes = [getattr(namespace.cell, MetabolicNetworkElement.flux_name(name)) for name in self.weights or {}]
+        terms = [float(weight) * flux for weight, flux in zip((self.weights or {}).values(), fluxes, strict=True)]
+        return [LinearProgramLaw(fluxes, [sum(terms[1:], terms[0]) >= float(self.floor)])]
 
 
 class SwitchInteraction(Interaction):

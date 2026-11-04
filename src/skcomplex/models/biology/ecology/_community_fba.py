@@ -26,13 +26,16 @@ def community_fba(
     *,
     abundances: Sequence[float] = (0.5, 0.5),
     exchanges: Mapping[str, float] | None = None,
+    common_rate: bool = False,
 ) -> System:
     """Return two members of the E. coli core model that share a medium, which needs the extra `metabolism`.
 
     The programs of the members merge through a medium whose law holds the growth weighted by the abundances (Raman
     2021, Section 11.1.3). By default one member lacks isocitrate dehydrogenase and takes up 2-oxoglutarate, and the
     other lacks ammonium transport and takes up glutamate, each from what the other secretes, so neither grows alone,
-    and together both grow. `CommunityAnalysis` gives SteadyCom and the cooperative trade-off of the same members.
+    and together both grow. `CommunityAnalysis` gives SteadyCom and the cooperative trade-off of the same members. The
+    pair is an illustration found on the E. coli core model: the consortium of Raman (Section 11.1.3.6) has four mutants
+    that need amino acids, whose synthesis the core model does not hold.
 
     Args:
         knockouts:
@@ -44,6 +47,10 @@ def community_fba(
         exchanges:
             The lower bound of the net exchange of the community, by reaction, or `None` for no net uptake of the
             cross-fed metabolites.
+
+        common_rate:
+            Whether the members grow at one specific rate, as in community FBA, rather than each at its own, as in joint
+            FBA.
 
     Returns:
         system:
@@ -82,6 +89,7 @@ def community_fba(
                 abundances=tuple(abundances),
                 exchanges=shared,
                 growth=GROWTH,
+                common_rate=common_rate,
             ),
         ],
         time=StaticTime(),

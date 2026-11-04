@@ -39,3 +39,12 @@ def test_identical_members_grow_at_the_rate_of_one():
     analysis = analysis.check().prepare(community_fba(knockouts=('', ''), exchanges=exchanges)).run()
     assert analysis.growth_ == pytest.approx(0.8739, abs=1e-4)
     assert sum(analysis.abundances_.values()) == pytest.approx(1.0)
+
+
+def test_community_fba_grows_the_members_at_one_rate():
+    """Test that balanced growth gives both members one rate, no faster than joint FBA."""
+    joint, _ = _growth()
+    community, members = _growth(common_rate=True)
+    assert members[0] == pytest.approx(members[1])
+    assert community == pytest.approx(members[0])
+    assert 0 < community <= joint + 1e-9

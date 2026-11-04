@@ -42,7 +42,9 @@ def dynamic_multispecies_fba(
     """Return two E. coli core strains that differ in maximal glucose uptake on one medium, which needs the extra.
 
     Each strain has its own program, uptake kinetics, and biomass, and they read one glucose pool (Raman 2021, Section
-    11.1.3.4). The strain with the larger uptake grows faster, so its share rises until the glucose runs out.
+    11.1.3.4). The strain with the larger uptake grows faster, so its share rises until the glucose runs out. The two
+    strains and their uptakes of 10 and 8 are an illustration of the framework, whose example in the source is the
+    competition between Rhodoferax and Geobacter (Zhuang et al. 2011).
 
     Args:
         fast_vmax:
