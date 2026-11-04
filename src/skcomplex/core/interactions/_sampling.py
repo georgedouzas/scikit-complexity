@@ -232,44 +232,44 @@ class SamplingInteraction(Interaction):
         score: RowScoreSpec,
         keywords: Mapping[str, object],
         intensity: float,
-        random: np.random.Generator,
+        rng: np.random.Generator,
     ) -> Array:
         """Return a row with the value of one random site drawn among all values by the weights of their scores."""
         candidates = np.asarray(self.values, dtype=float)
         proposal = row.copy()
-        site = random.integers(row.size)
+        site = rng.integers(row.size)
         scores = np.empty(candidates.size)
         for position, value in enumerate(candidates):
             proposal[site] = value
             scores[position] = float(score.function(proposal, **keywords))
         excess = scores - scores.min()
         weights = np.exp(-np.where(excess == 0.0, 0.0, excess * np.where(excess == 0.0, 1.0, intensity)))
-        proposal[site] = random.choice(candidates, p=weights / weights.sum())
+        proposal[site] = rng.choice(candidates, p=weights / weights.sum())
         return proposal
 
-    def _propose_row(self, row: Array, random: np.random.Generator) -> Array:
+    def _propose_row(self, row: Array, rng: np.random.Generator) -> Array:
         """Return a row after one move: a function of the row, or a named move at one random site."""
         if callable(self.move):
-            return np.asarray(self.move(row.copy(), random), dtype=float)
+            return np.asarray(self.move(row.copy(), rng), dtype=float)
         proposal = row.copy()
-        site = random.integers(row.size)
+        site = rng.integers(row.size)
         if self.move == 'flip':
             proposal[site] = -row[site]
         elif self.move == 'random-value':
-            proposal[site] = random.choice(np.asarray(self.values, dtype=float))
+            proposal[site] = rng.choice(np.asarray(self.values, dtype=float))
         elif self.move == 'gaussian':
-            proposal[site] = row[site] + random.normal(0.0, self.width)
+            proposal[site] = row[site] + rng.normal(0.0, self.width)
         else:
-            proposal[site] = row[site] + random.uniform(-self.width, self.width)
+            proposal[site] = row[site] + rng.uniform(-self.width, self.width)
         return proposal
 
-    def _accept_change(self, change: float, intensity: float, random: np.random.Generator) -> bool:
+    def _accept_change(self, change: float, intensity: float, rng: np.random.Generator) -> bool:
         """Return whether a change of the score is accepted by the rule at the intensity."""
         exponent = 0.0 if change == 0.0 else change * intensity
         if self.rule == 'metropolis':
-            return exponent <= 0.0 or bool(random.random() < np.exp(-exponent))
+            return exponent <= 0.0 or bool(rng.random() < np.exp(-exponent))
         with np.errstate(over='ignore'):
-            return bool(random.random() < 1.0 / (1.0 + np.exp(exponent)))
+            return bool(rng.random() < 1.0 / (1.0 + np.exp(exponent)))
 
     def _accept_rows(self, values: Array, *, random: np.random.Generator, time: float, **parameters: object) -> Array:
         """Return a state after the proposed moves of every row, each accepted from the change of the row's score."""

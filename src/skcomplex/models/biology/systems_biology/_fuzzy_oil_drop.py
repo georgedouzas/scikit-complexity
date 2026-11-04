@@ -131,10 +131,10 @@ def _read_chain(entry: str) -> tuple[StructureSpec, BackboneGeometry]:
     return structure, BackboneGeometry(structure).check().prepare()
 
 
-def _rotate_dihedral(width: float, row: Array, random: np.random.Generator) -> Array:
+def _rotate_dihedral(width: float, row: Array, rng: np.random.Generator) -> Array:
     """Return a row of angles with one random angle rotated by up to a width and wrapped to `[-180, 180)`."""
-    site = random.integers(row.size)
-    row[site] = (row[site] + random.uniform(-width, width) + 180.0) % 360.0 - 180.0
+    site = rng.integers(row.size)
+    row[site] = (row[site] + rng.uniform(-width, width) + 180.0) % 360.0 - 180.0
     return row
 
 

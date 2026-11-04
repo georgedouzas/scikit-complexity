@@ -125,6 +125,19 @@ def test_laws_read_an_observable_of_time():
     assert rates[problem.states.entry('probe.y').start] == pytest.approx(recorded['model/energy'], rel=1e-12)
 
 
+def test_function_observable_reads_the_names_of_its_own_system():
+    """Test that a function observable of a nested system reads its values by their names within that system."""
+    model = create('lattice_gauge_fields', size=4)
+    observables = describe('lattice_gauge_fields').observables_of(model)
+    alone = compile_system(model, backend=NumpyBackend(), observables=observables)
+    expected = ObservableEvaluator(alone).prepare().evaluate(0.0, alone.initial_state, alone.initial_parameters)
+    model.label = 'model'
+    nested = [dataclasses.replace(item, label=f'model/{item.label}') for item in observables]
+    problem = compile_system(System(systems=[model]), backend=NumpyBackend(), observables=nested)
+    recorded = ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
+    assert recorded['model/mean_plaquette'] == pytest.approx(expected['mean_plaquette'])
+
+
 class WealthyElement(Element):
     """Agent that keeps its wealth."""
 

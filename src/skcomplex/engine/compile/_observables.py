@@ -253,7 +253,7 @@ class ObservableEvaluator:
                 error_msg = f'Two observables have the path {path}. Give observables of one system distinct labels.'
                 raise ValidationError(error_msg)
             if observable.function is not None:
-                self.getters_[path] = self._function_getter(path, observable.function)
+                self.getters_[path] = self._function_getter(scope, path, observable.function)
                 continue
             if observable.group is None and observable.expression is None:
                 error_msg = (
@@ -294,10 +294,11 @@ class ObservableEvaluator:
 
     def _function_getter(
         self,
+        scope: str,
         path: str,
         function: Callable[[float, Mapping[str, object]], object],
     ) -> ObservableFunction:
-        """Return a getter that calls a function of time and the values of the states and parameters by name."""
+        """Return a getter that calls a function of time and the values of its system's states and parameters."""
         problem = self.problem
         if not isinstance(problem, ProblemSpec) or problem.agents:
             error_msg = (
@@ -306,10 +307,13 @@ class ObservableEvaluator:
             )
             raise ValidationError(error_msg)
         states, parameters = problem.states, problem.parameters
+        prefix = f'{scope}/' if scope else ''
 
         def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             del done
-            value = np.asarray(function(t, {**states.values(x), **parameters.values(p)}))
+            values = {**states.values(x), **parameters.values(p)}
+            local = {name.removeprefix(prefix): item for name, item in values.items() if name.startswith(prefix)}
+            value = np.asarray(function(t, local))
             return float(value) if value.ndim == 0 else value
 
         return get
