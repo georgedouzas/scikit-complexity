@@ -1,4 +1,4 @@
-"""Measure scaling: fluctuation exponents of series, fractal dimensions, variance-mean laws, and power laws."""
+"""Measure scaling: fluctuation exponents, fractal dimensions, variance-mean laws, power laws, and allometry."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,6 +9,7 @@ import nolds
 import numpy as np
 import numpy.typing as npt
 from scipy.spatial import cKDTree
+from scipy.stats import bootstrap, linregress
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
@@ -18,7 +19,15 @@ from .types import Source
 
 MIN_LINE_POINTS = 2
 
-KINDS = ('detrended-fluctuation', 'rescaled-range', 'box-counting', 'correlation-dimension', 'variance-mean', 'power')
+KINDS = (
+    'detrended-fluctuation',
+    'rescaled-range',
+    'box-counting',
+    'correlation-dimension',
+    'variance-mean',
+    'power',
+    'allometric',
+)
 AGAINST = ('mean', 'size')
 SETTINGS = {
     'detrended-fluctuation': {'scales', 'order'},
@@ -27,6 +36,7 @@ SETTINGS = {
     'correlation-dimension': {'scales', 'fit_sums', 'random_state'},
     'variance-mean': {'scales', 'against'},
     'power': {'parameters', 'critical', 'above'},
+    'allometric': {'confidence', 'resamples', 'random_state'},
 }
 """Settings every kind reads, besides `kind` and `variables`."""
 
@@ -35,6 +45,7 @@ RADII = 30
 PAIR_SAMPLE = 200_000
 MIN_POINTS = 2
 FRAME_DIMENSIONS = 3
+PAIR_COLUMNS = 2
 
 
 class ScalingAnalysis(BaseAnalysis):
@@ -59,6 +70,9 @@ class ScalingAnalysis(BaseAnalysis):
     - `'power'`: the exponent `b` of the power law `y ~ |p - p_c|^b` of every series against the distance of the
       control `parameters` to the `critical` value, fitted on the side above or below it where `y` is positive, such as
       the exponent `beta` of an order parameter.
+    - `'allometric'`: the slope of the logarithm of every sample of a quantity against the logarithm of its size, the
+      exponent `b` of `y ~ N^b` across a set of runs, with a bootstrap confidence interval over the pairs. It reads a
+      mapping from size to samples, or two columns of sizes and samples.
 
     Args:
         kind:
@@ -79,7 +93,7 @@ class ScalingAnalysis(BaseAnalysis):
             The smallest and largest correlation sums of the scaling region the slope is fitted in.
 
         random_state:
-            The seed of the sample of pairs that sets the default radii.
+            The seed of the sample of pairs that sets the default radii, or of the bootstrap.
 
         against:
             What the variance-mean law is fitted against, `'mean'` or `'size'`.
@@ -94,9 +108,16 @@ class ScalingAnalysis(BaseAnalysis):
             Whether the fit uses the values above the critical value, as for couplings, rather than below it, as for
             temperatures.
 
+        confidence:
+            The confidence level of the interval of `'allometric'`.
+
+        resamples:
+            The number of bootstrap resamples of `'allometric'`.
+
     Attributes:
         values_:
-            The series, one per column, the field or its frames, or the points, and an empty array for samples by size.
+            The series, one per column, the field or its frames, or the points, an empty array for samples by size,
+            and the pairs of sizes and samples of `'allometric'`, one per row.
 
         samples_:
             The samples by size, or `None` for a source of series, points, or a field.
@@ -127,7 +148,15 @@ class ScalingAnalysis(BaseAnalysis):
 
         exponent_:
             The exponent of every series for the fluctuation kinds and `'power'`, the slope of the variance-mean law,
-            and the dimension for the other kinds.
+            the exponent of the allometric law, and the dimension for the other kinds.
+
+        interval_:
+            The lower and upper ends of the confidence interval of the allometric exponent.
+
+    Raises:
+        AnalysisError:
+            The kind or a setting does not fit, raised by `check`, or `'allometric'` reads a sample or a size that is
+            not positive, or fewer than two sizes, raised by `prepare`.
 
     Examples:
         >>> import numpy as np
@@ -146,9 +175,17 @@ class ScalingAnalysis(BaseAnalysis):
         >>> power = ScalingAnalysis('power', parameters=[0.9, 0.99], critical=1.0)
         >>> power.check().prepare([0.1**0.5, 0.01**0.5]).run().exponent_.round(6).tolist()
         [0.5]
+        >>> rng = np.random.default_rng(0)
+        >>> samples = {size: size**1.15 * rng.lognormal(0.0, 0.1, 5) for size in (100, 200, 400, 800, 1600)}
+        >>> allometric = ScalingAnalysis('allometric', resamples=200).check().prepare(samples).run()
+        >>> round(allometric.exponent_, 1)
+        1.2
+        >>> bool(allometric.interval_[0] < 1.15 < allometric.interval_[1])
+        True
     """
 
     exponent_: float | Array
+    values_: Array
 
     def __init__(
         self,
@@ -163,6 +200,8 @@ class ScalingAnalysis(BaseAnalysis):
         parameters: Sequence[float] | None = None,
         critical: float | None = None,
         above: bool = False,
+        confidence: float = 0.95,
+        resamples: int = 1000,
     ) -> None:
         self.kind = kind
         self.variables = variables
@@ -174,6 +213,8 @@ class ScalingAnalysis(BaseAnalysis):
         self.parameters = parameters
         self.critical = critical
         self.above = above
+        self.confidence = confidence
+        self.resamples = resamples
 
     def _check(self) -> None:
         """Validate the kind, the order, the settings the kind needs, and that the kind reads every changed setting."""
@@ -189,6 +230,12 @@ class ScalingAnalysis(BaseAnalysis):
                 '`parameters` and `critical`.'
             )
             raise AnalysisError(error_msg)
+        if not 0 < self.confidence < 1:
+            error_msg = f'{type(self).__name__} has confidence={self.confidence!r}. Use a level between 0 and 1.'
+            raise AnalysisError(error_msg)
+        if self.resamples < 1:
+            error_msg = f'{type(self).__name__} has resamples={self.resamples!r}. Use 1 or more.'
+            raise AnalysisError(error_msg)
 
     def _get_data_kind(self) -> DataKind:
         """Return the field kind for box counting and variance-mean, the ensemble kind for power, and series else."""
@@ -199,10 +246,14 @@ class ScalingAnalysis(BaseAnalysis):
     def _prepare(self, source: Source | Mapping[float, npt.ArrayLike]) -> None:
         """Read the series or the points as columns, the last frame or every frame of a field, or samples by size."""
         self.samples_: dict[float, Array] | None = None
+        if self.kind == 'allometric':
+            self.values_ = self._read_pairs(source)
+            self.labels_ = ['size', 'samples']
+            return
         if self.kind == 'variance-mean':
             if isinstance(source, Mapping):
                 self.samples_ = {float(size): np.asarray(samples, dtype=np.float64) for size, samples in source.items()}
-                self.values_: Array = np.zeros(0)
+                self.values_ = np.zeros(0)
                 self.labels_ = [f'{size:g}' for size in self.samples_]
                 return
             name = self.variables[0] if self.variables else None
@@ -222,7 +273,9 @@ class ScalingAnalysis(BaseAnalysis):
 
     def _run(self, inputs: object = None) -> None:
         """Compute the exponents of the series, or the dimension of the cells or points."""
-        if self.kind == 'box-counting':
+        if self.kind == 'allometric':
+            self._run_allometric()
+        elif self.kind == 'box-counting':
             self.scales_, self.counts_, self.exponent_ = self._box_counting(self.values_, self.scales)
         elif self.kind == 'variance-mean':
             if self.samples_ is not None:
@@ -245,6 +298,54 @@ class ScalingAnalysis(BaseAnalysis):
             self.scales_ = curves[0][0]
             self.fluctuations_ = np.asarray([fluctuations for _, fluctuations, _ in curves])
             self.exponent_ = np.asarray([exponent for _, _, exponent in curves])
+
+    @staticmethod
+    def _read_pairs(source: object) -> Array:
+        """Return the pairs of sizes and samples of a mapping from size to samples or of two columns."""
+        if isinstance(source, Mapping):
+            rows = [
+                (float(size), float(sample))
+                for size, samples in source.items()
+                for sample in np.ravel(np.asarray(samples, dtype=np.float64))
+            ]
+            pairs = np.asarray(rows, dtype=np.float64).reshape(-1, PAIR_COLUMNS)
+        else:
+            pairs = np.asarray(source, dtype=np.float64)
+        if pairs.ndim != PAIR_COLUMNS or pairs.shape[1] != PAIR_COLUMNS:
+            error_msg = 'An allometric fit reads a mapping from size to samples, or two columns of sizes and samples.'
+            raise AnalysisError(error_msg)
+        if np.any(pairs <= 0):
+            error_msg = (
+                'An allometric fit takes logarithms, so its sizes and samples must be positive. Drop the others.'
+            )
+            raise AnalysisError(error_msg)
+        if np.unique(pairs[:, 0]).size < MIN_LINE_POINTS:
+            error_msg = f'An allometric fit needs at least {MIN_LINE_POINTS} sizes. Give more sizes.'
+            raise AnalysisError(error_msg)
+        return pairs
+
+    @staticmethod
+    def _slope(x: Array, y: Array, axis: int = -1) -> Array:
+        """Return the slope of the regression of `y` on `x` along an axis."""
+        x_centered = x - x.mean(axis=axis, keepdims=True)
+        y_centered = y - y.mean(axis=axis, keepdims=True)
+        return np.sum(x_centered * y_centered, axis=axis) / np.sum(x_centered**2, axis=axis)
+
+    def _run_allometric(self) -> None:
+        """Fit the exponent of the samples against the sizes, with a bootstrap confidence interval over the pairs."""
+        x, y = np.log(self.values_).T
+        self.scales_ = np.unique(self.values_[:, 0])
+        self.exponent_ = float(linregress(x, y).slope)
+        result = bootstrap(
+            (x, y),
+            self._slope,
+            paired=True,
+            vectorized=True,
+            n_resamples=self.resamples,
+            confidence_level=self.confidence,
+            rng=self.random_state,
+        )
+        self.interval_ = (float(result.confidence_interval.low), float(result.confidence_interval.high))
 
     @staticmethod
     def _fluctuation(

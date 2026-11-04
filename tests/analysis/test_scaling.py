@@ -179,3 +179,69 @@ def test_unknown_kind_and_ignored_setting():
         ScalingAnalysis('variance-mean', against='variance').check()
     with pytest.raises(AnalysisError, match='critical value'):
         ScalingAnalysis('power', parameters=[1.0, 2.0]).check()
+
+
+def _allometric_samples(seed: int, sigma: float = 0.3) -> dict[float, np.ndarray]:
+    """Return a quantity generated as `N^1.15` times lognormal noise across 50 sizes."""
+    rng = np.random.default_rng(seed)
+    return {float(size): size**1.15 * rng.lognormal(0.0, sigma, 4) for size in np.geomspace(100, 1e5, 50)}
+
+
+def test_run_allometric_interval_contains_a_known_exponent():
+    """Test that the 95% confidence interval of a quantity generated as `N^1.15` contains 1.15."""
+    analysis = _scaling('allometric', _allometric_samples(0))
+    assert analysis.exponent_ == pytest.approx(1.15, abs=0.05)
+    assert analysis.interval_[0] < 1.15 < analysis.interval_[1]
+    assert analysis.scales_.size == 50
+
+
+def test_run_allometric_interval_covers_the_exponent_at_about_its_level():
+    """Test that the 95% interval contains the exponent in about 95 of 100 data sets, and a 50% one in about half."""
+    wide = [_scaling('allometric', _allometric_samples(seed), resamples=300).interval_ for seed in range(100)]
+    narrow = [
+        _scaling('allometric', _allometric_samples(seed), resamples=300, confidence=0.5).interval_
+        for seed in range(100)
+    ]
+    assert sum(low < 1.15 < high for low, high in wide) >= 88
+    assert 30 <= sum(low < 1.15 < high for low, high in narrow) <= 70
+
+
+def test_run_allometric_reads_two_columns():
+    """Test that two columns of sizes and samples give the exponent of the mapping."""
+    pairs = np.array([(size, sample) for size, samples in _allometric_samples(1).items() for sample in samples])
+    from_columns = _scaling('allometric', pairs)
+    assert from_columns.exponent_ == pytest.approx(_scaling('allometric', _allometric_samples(1)).exponent_)
+
+
+def test_run_allometric_is_reproducible_with_its_seed():
+    """Test that one seed gives one interval."""
+    samples = _allometric_samples(2)
+    first, second = (_scaling('allometric', samples, resamples=100, random_state=3).interval_ for _ in range(2))
+    assert first == second
+
+
+@pytest.mark.parametrize(
+    ('source', 'message'),
+    [
+        ({1.0: [1.0], 2.0: [0.0]}, 'must be positive'),
+        ({1.0: [1.0, 2.0]}, 'at least 2 sizes'),
+        (np.ones(3), 'two columns'),
+    ],
+)
+def test_prepare_allometric_rejects_bad_samples(source: object, message: str):
+    """Test that samples that are not positive, a single size, and other shapes raise an error."""
+    with pytest.raises(AnalysisError, match=message):
+        ScalingAnalysis('allometric').check().prepare(source)
+
+
+@pytest.mark.parametrize('settings', [{'confidence': 1.5}, {'resamples': 0}])
+def test_check_allometric_rejects_bad_settings(settings: dict[str, float]):
+    """Test that a confidence level outside the unit interval and no resamples raise an error."""
+    with pytest.raises(AnalysisError, match=next(iter(settings))):
+        ScalingAnalysis('allometric', **settings).check()
+
+
+def test_check_other_kinds_reject_the_allometric_settings():
+    """Test that a kind other than allometric does not read a confidence level."""
+    with pytest.raises(AnalysisError, match='does not read confidence'):
+        ScalingAnalysis('rescaled-range', confidence=0.9).check()

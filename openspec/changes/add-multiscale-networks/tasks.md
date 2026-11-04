@@ -8,9 +8,9 @@
 
 ## 2. Analyses
 
-- [ ] 2.1 Add `RenormalizationAnalysis` with the kinds `'laplacian'` and `'geometric'` to `skcomplex.analysis`, with a
+- [x] 2.1 Add `RenormalizationAnalysis` with the kinds `'laplacian'` and `'geometric'` to `skcomplex.analysis`, with a
   doctest, and verify the self-similar network and Laplacian blocks scenarios
-- [ ] 2.2 Add the kind `'allometric'` with `confidence`, `resamples`, and `interval_` to `ScalingAnalysis`, and verify
+- [x] 2.2 Add the kind `'allometric'` with `confidence`, `resamples`, and `interval_` to `ScalingAnalysis`, and verify
   the known exponent scenario
 
 ## 3. Library
