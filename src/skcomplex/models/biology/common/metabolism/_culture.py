@@ -3,19 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from .....core.elements import Element
+from .....core.elements import DeclaredElement, Element
 from .....core.interactions import Interaction
 from .....core.laws import BaseLaw, LinearProgramLaw, RateLaw, UpdateLaw
 from .....core.laws.utils import either, where
-from .....specs import LinearObjectiveSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from .....specs import DeclaredVariableSpec, LinearObjectiveSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ._metabolic_network import MetabolicNetworkElement
 
 POSITIVE = RealSet.open(0, oo)
@@ -219,11 +218,10 @@ class ExchangeInteraction(Interaction):
         ]
 
 
-class CommunityMediumElement(Element):
+class CommunityMediumElement(DeclaredElement):
     """Medium that a community shares, with one algebraic state per shared exchange.
 
-    A subclass that `community_medium_type` builds declares the state `u_<reaction>` of the net exchange of every
-    reaction.
+    The element declares the state `u_<reaction>` of the net exchange of every reaction.
 
     Args:
         label:
@@ -232,11 +230,36 @@ class CommunityMediumElement(Element):
         visual:
             How the element is drawn, or `None` for `default_visual_`.
 
+        exchanges:
+            The names of the reactions.
+
+        variables:
+            The declared states that replace the states of the net exchanges, by name, or `None` for none.
+
     Examples:
         >>> from skcomplex.models.biology.common.metabolism import CommunityMediumElement
         >>> CommunityMediumElement.state_name('EX_glc__D_e')
         'u_EX_glc__D_e'
     """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        exchanges: Sequence[str] = (),
+        variables: Mapping[str, DeclaredVariableSpec] | None = None,
+    ) -> None:
+        super().__init__(label, visual=visual, variables=variables)
+        self.exchanges = exchanges
+
+    def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
+        """Return the state of the net exchange of every reaction, with the variables that replace them."""
+        flux = StateSpec(algebraic=True)
+        return {
+            **{self.state_name(reaction): DeclaredVariableSpec(0.0, flux) for reaction in self.exchanges},
+            **(self.variables or {}),
+        }
 
     @staticmethod
     def state_name(reaction: str) -> str:
@@ -338,39 +361,28 @@ class CommunityInteraction(Interaction):
         return [LinearProgramLaw([*variables, *growth], relations, [objective])]
 
 
-def community_medium_type(exchanges: Sequence[str]) -> type[CommunityMediumElement]:
-    """Return a subclass of `CommunityMediumElement` that declares the state of the net exchange of some reactions.
+def community_medium_type(exchanges: Sequence[str]) -> Callable[..., CommunityMediumElement]:
+    """Return a function that creates a `CommunityMediumElement` with the state of the net exchange of some reactions.
 
     Args:
         exchanges:
             The names of the reactions.
 
     Returns:
-        element_type:
-            The subclass.
+        create_medium:
+            The function, which takes the label, the visual, and the initial values of the states by name.
 
     Examples:
         >>> from skcomplex.models.biology.common.metabolism import community_medium_type
-        >>> community_medium_type(['EX_a'])('medium').u_EX_a
+        >>> community_medium_type(['EX_a'])('medium').get_value('u_EX_a')
         0.0
     """
-    names = [CommunityMediumElement.state_name(item) for item in exchanges]
-    flux = Annotated[float, StateSpec(algebraic=True)]
 
-    def initialize(self: CommunityMediumElement, label: str, visual: VisualSpec | None = None, **given: float) -> None:
-        CommunityMediumElement.__init__(self, label, visual=visual)
-        for name in names:
-            setattr(self, name, given.get(name, 0.0))
+    def create_medium(label: str, visual: VisualSpec | None = None, **values: float) -> CommunityMediumElement:
+        medium = CommunityMediumElement(label, visual, exchanges=tuple(exchanges))
+        return medium.set_params(**values)
 
-    first = [
-        inspect.Parameter('self', inspect.Parameter.POSITIONAL_OR_KEYWORD),
-        inspect.Parameter('label', inspect.Parameter.POSITIONAL_OR_KEYWORD),
-        inspect.Parameter('visual', inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None),
-    ]
-    declared = [inspect.Parameter(name, inspect.Parameter.KEYWORD_ONLY, default=0.0, annotation=flux) for name in names]
-    vars(initialize)['__signature__'] = inspect.Signature([*first, *declared])
-    members = {'__init__': initialize, '__doc__': 'Medium with the states of the net exchanges of a community.'}
-    return type('SharedMediumElement', (CommunityMediumElement,), members)
+    return create_medium
 
 
 class ObjectiveFloorInteraction(Interaction):
