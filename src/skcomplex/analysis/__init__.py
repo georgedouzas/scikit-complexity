@@ -15,6 +15,7 @@ from ._discovery import DiscoveryAnalysis
 from ._displacement import DisplacementAnalysis
 from ._distribution import DistributionAnalysis
 from ._domains import DomainAnalysis
+from ._elementary_modes import ElementaryModeAnalysis
 from ._embedding import EmbeddingAnalysis
 from ._emergence import EmergenceAnalysis
 from ._entropy import EntropyAnalysis
@@ -65,6 +66,7 @@ __all__: list[str] = [
     'DisplacementAnalysis',
     'DistributionAnalysis',
     'DomainAnalysis',
+    'ElementaryModeAnalysis',
     'EmbeddingAnalysis',
     'EmergenceAnalysis',
     'EntropyAnalysis',

@@ -9,6 +9,7 @@ from ._cells import CellVisual
 from ._expectation import ExpectationVisual
 from ._histograms import HistogramVisual
 from ._images import ImageVisual
+from ._linear_programs import LinearProgramVisual
 from ._matrices import MatrixVisual
 from ._meshes import MeshVisual
 from ._points import PointsVisual
@@ -27,6 +28,7 @@ __all__: list[str] = [
     'ExpectationVisual',
     'HistogramVisual',
     'ImageVisual',
+    'LinearProgramVisual',
     'MatrixVisual',
     'MeshVisual',
     'PhaseRingVisual',
