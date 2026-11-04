@@ -5,7 +5,7 @@ import pytest
 from scipy import sparse
 
 from skcomplex.engine.problems import (
-    COLUMN_UPPER,
+    LinearProgramBound,
     LinearProgramKernel,
     LinearProgramSideSpec,
     LinearProgramSpec,
@@ -63,7 +63,7 @@ def test_prepare_evaluates_the_bounds_at_a_state_without_solving():
     entry = EntrySpec('flows.limit', 0, (), None, None)
     reference = ReferenceSpec(entry, False, 0)
     program = _program(
-        sides=(LinearProgramSideSpec(COLUMN_UPPER, 0, 0),),
+        sides=(LinearProgramSideSpec(LinearProgramBound.COLUMN_UPPER, 0, 0),),
         function=lambda t, limit: [limit],
         arguments=(reference,),
     )

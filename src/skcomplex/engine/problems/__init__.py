@@ -14,10 +14,7 @@ from ._kinetic_problem_spec import KineticProblemSpec
 from ._learning_problem_spec import LearningProblemSpec
 from ._linear_program_kernel import LinearProgramKernel
 from ._linear_program_spec import (
-    COLUMN_LOWER,
-    COLUMN_UPPER,
-    ROW_LOWER,
-    ROW_UPPER,
+    LinearProgramBound,
     LinearProgramDualSpec,
     LinearProgramEntrySpec,
     LinearProgramSideSpec,
@@ -40,10 +37,6 @@ from ._transfer_network_spec import TransferNetworkSpec
 from ._transfer_state_spec import TransferStateSpec
 
 __all__: list[str] = [
-    'COLUMN_LOWER',
-    'COLUMN_UPPER',
-    'ROW_LOWER',
-    'ROW_UPPER',
     'BaseKernel',
     'BasePrinter',
     'BaseProblemSpec',
@@ -58,6 +51,7 @@ __all__: list[str] = [
     'KernelSpec',
     'KineticProblemSpec',
     'LearningProblemSpec',
+    'LinearProgramBound',
     'LinearProgramDualSpec',
     'LinearProgramEntrySpec',
     'LinearProgramKernel',

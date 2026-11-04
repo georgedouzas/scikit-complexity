@@ -249,7 +249,7 @@ def test_core_names_carry_no_field_term():
 
 
 def test_no_package_exports_a_molecular_name():
-    """Test that the core, the engine, and the analysis export no name of RNA, proteins, genotypes, or hydrophobicity."""
+    """Test that the core, the engine, and the analysis export no name of RNA, proteins, or hydrophobicity."""
     terms = ('rna', 'protein', 'genotype', 'hydrophobicity', 'residue', 'nucleotide')
     found = [
         f'{module.__name__}.{name}'

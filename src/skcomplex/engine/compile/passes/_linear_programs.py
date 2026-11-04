@@ -19,12 +19,9 @@ from ....specs._base_spec import BaseSpec
 from ....types import Array, Indices
 from ..._utils import symbol, symbols_of
 from ...problems import (
-    COLUMN_LOWER,
-    COLUMN_UPPER,
-    ROW_LOWER,
-    ROW_UPPER,
     ExpressionPrinter,
     KernelSpec,
+    LinearProgramBound,
     LinearProgramDualSpec,
     LinearProgramEntrySpec,
     LinearProgramKernel,
@@ -374,14 +371,14 @@ class _Lowering:
     def _set_bound(self, column: int, sense: object, coefficient: float, side: Expression) -> tuple[int, ...]:
         """Add a relation in one variable with a number as its coefficient to the bounds, and return their kinds."""
         kinds: dict[object, tuple[int, ...]] = {
-            operator.eq: (COLUMN_LOWER, COLUMN_UPPER),
-            operator.le: (COLUMN_UPPER,) if coefficient > 0 else (COLUMN_LOWER,),
-            operator.ge: (COLUMN_LOWER,) if coefficient > 0 else (COLUMN_UPPER,),
+            operator.eq: (LinearProgramBound.COLUMN_LOWER, LinearProgramBound.COLUMN_UPPER),
+            operator.le: (LinearProgramBound.COLUMN_UPPER,) if coefficient > 0 else (LinearProgramBound.COLUMN_LOWER,),
+            operator.ge: (LinearProgramBound.COLUMN_LOWER,) if coefficient > 0 else (LinearProgramBound.COLUMN_UPPER,),
         }
         for kind in kinds[sense]:
             if side.is_numeric():
                 value = float(side) / coefficient
-                if kind == COLUMN_LOWER:
+                if kind == LinearProgramBound.COLUMN_LOWER:
                     self._lower[column] = max(self._lower[column], value)
                 else:
                     self._upper[column] = min(self._upper[column], value)
@@ -394,15 +391,15 @@ class _Lowering:
         row = len(self._row_lower)
         self._constraints.append(text)
         kinds: dict[object, tuple[int, ...]] = {
-            operator.eq: (ROW_LOWER, ROW_UPPER),
-            operator.le: (ROW_UPPER,),
-            operator.ge: (ROW_LOWER,),
+            operator.eq: (LinearProgramBound.ROW_LOWER, LinearProgramBound.ROW_UPPER),
+            operator.le: (LinearProgramBound.ROW_UPPER,),
+            operator.ge: (LinearProgramBound.ROW_LOWER,),
         }
         self._row_lower.append(-np.inf)
         self._row_upper.append(np.inf)
         for kind in kinds[sense]:
             if side.is_numeric():
-                (self._row_lower if kind == ROW_LOWER else self._row_upper)[row] = float(side)
+                (self._row_lower if kind == LinearProgramBound.ROW_LOWER else self._row_upper)[row] = float(side)
             else:
                 self._sides.append(LinearProgramSideSpec(kind, row, self._value(side)))
         for column, coefficient in coefficients.items():

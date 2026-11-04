@@ -13,13 +13,13 @@ from ...errors import InfeasibleError, SolverError
 from ...specs import RunStateSpec
 from ...types import Array, Indices
 from ._base import BaseKernel
-from ._linear_program_spec import COLUMN_LOWER, COLUMN_UPPER, ROW_LOWER, LinearProgramDualSpec, LinearProgramSpec
+from ._linear_program_spec import LinearProgramBound, LinearProgramDualSpec, LinearProgramSpec
 
 INFINITY = highspy.kHighsInf
 OBJECTIVE_TOLERANCE = 5e-10
 SOLVER_TOLERANCE = 1e-9
 ACTIVE_THRESHOLD = 0.0
-COLUMN_KINDS = (COLUMN_LOWER, COLUMN_UPPER)
+COLUMN_KINDS = (LinearProgramBound.COLUMN_LOWER, LinearProgramBound.COLUMN_UPPER)
 INFEASIBLE_STATUSES = (highspy.HighsModelStatus.kInfeasible, highspy.HighsModelStatus.kUnboundedOrInfeasible)
 
 
@@ -132,11 +132,11 @@ class LinearProgramKernel(BaseKernel):
         row_lower, row_upper = np.tile(program.row_lower, (rows, 1)), np.tile(program.row_upper, (rows, 1))
         for side in program.sides:
             value = values[side.value] / side.scale
-            if side.kind == COLUMN_LOWER:
+            if side.kind == LinearProgramBound.COLUMN_LOWER:
                 lower[:, side.position] = np.maximum(lower[:, side.position], value)
-            elif side.kind == COLUMN_UPPER:
+            elif side.kind == LinearProgramBound.COLUMN_UPPER:
                 upper[:, side.position] = np.minimum(upper[:, side.position], value)
-            elif side.kind == ROW_LOWER:
+            elif side.kind == LinearProgramBound.ROW_LOWER:
                 row_lower[:, side.position] = value
             else:
                 row_upper[:, side.position] = value
@@ -308,7 +308,11 @@ class LinearProgramKernel(BaseKernel):
             return sign * float(solution.row_dual[item.row])
         value = float(solution.col_value[item.column])
         sides = [
-            self.lower_[member, item.column] if kind == COLUMN_LOWER else self.upper_[member, item.column]
+            (
+                self.lower_[member, item.column]
+                if kind == LinearProgramBound.COLUMN_LOWER
+                else self.upper_[member, item.column]
+            )
             for kind in item.kinds
         ]
         if not any(abs(value - side) <= SOLVER_TOLERANCE * max(1.0, abs(value)) for side in sides):
