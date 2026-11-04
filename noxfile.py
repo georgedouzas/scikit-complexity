@@ -110,7 +110,7 @@ def docs(session: nox.Session) -> None:
         session: The nox session.
     """
     arg = check_cli(session, ['serve', 'build'], default='serve')
-    session.run('pdm', 'install', '-dG', 'docs', external=True)
+    session.run('pdm', 'install', '-G', 'metabolism', '-dG', 'docs', external=True)
     # mkdocs-gallery imports MkDocs' deprecated `warning_filter` when the plugin loads, before any hook can filter it.
     env = {'PYTHONWARNINGS': "ignore:warning_filter doesn't do anything:DeprecationWarning", 'PYTHONPATH': 'docs'}
     session.run('properdocs', arg, env=env)
@@ -128,7 +128,7 @@ def gallery(session: nox.Session) -> None:
     parser.add_argument('--jobs', type=int, default=max(1, (os.cpu_count() or 2) // 2))
     parser.add_argument('--sample', action='store_true', help='run three fast models per field only')
     arguments = parser.parse_args(session.posargs)
-    session.run('pdm', 'install', '-dG', 'docs', '-dG', 'gallery', external=True)
+    session.run('pdm', 'install', '-G', 'metabolism', '-dG', 'docs', '-dG', 'gallery', external=True)
     if arguments.backend == 'web':
         session.run('pdm', 'run', 'python', '-m', 'playwright', 'install', 'chromium', external=True)
     selection = [] if arguments.sample else ['--all']
@@ -215,7 +215,7 @@ def quick_tests(session: nox.Session) -> None:
     Arguments:
         session: The nox session.
     """
-    session.run('pdm', 'install', '-dG', 'tests', external=True)
+    session.run('pdm', 'install', '-G', 'metabolism', '-dG', 'tests', external=True)
     session.run('pytest', '-n', 'auto', *QUICK_TESTS)
 
 
@@ -226,7 +226,7 @@ def tests(session: nox.Session) -> None:
     Arguments:
         session: The nox session.
     """
-    session.run('pdm', 'install', '-dG', 'tests', external=True)
+    session.run('pdm', 'install', '-G', 'metabolism', '-dG', 'tests', external=True)
     env = {'COVERAGE_FILE': f'.coverage.{session.python}'}
     options = ['-n', 'auto', '--cov=src', '--cov=tests', '--cov-append']
     if session.posargs:
