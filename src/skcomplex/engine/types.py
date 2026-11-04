@@ -7,7 +7,7 @@ The neighbour search on a grid of cells passes tuples, since its Numba kernels t
 # License: MIT
 
 from collections.abc import Callable, Mapping, Sequence
-from enum import StrEnum
+from enum import IntEnum, StrEnum
 from types import SimpleNamespace
 
 import jax
@@ -75,6 +75,15 @@ type Number = RingElement | int | float | complex
 # solvers backed by libraries
 type MesaSpace = OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network | MesaContinuousSpace
 type SpectralBlock = tuple[IntTuple, list[Indices], ComplexArray]
+
+
+class LinearProgramBound(IntEnum):
+    """The bound of a column or a row of a linear program that a compiled value gives."""
+
+    COLUMN_LOWER = 0
+    COLUMN_UPPER = 1
+    ROW_LOWER = 2
+    ROW_UPPER = 3
 
 
 class ReadKind(StrEnum):

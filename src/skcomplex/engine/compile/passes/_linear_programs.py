@@ -21,7 +21,6 @@ from ..._utils import symbol, symbols_of
 from ...problems import (
     ExpressionPrinter,
     KernelSpec,
-    LinearProgramBound,
     LinearProgramDualSpec,
     LinearProgramEntrySpec,
     LinearProgramKernel,
@@ -30,6 +29,7 @@ from ...problems import (
     ProblemSpec,
     ReferenceSpec,
 )
+from ...types import LinearProgramBound
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 from ._census import CensusPass

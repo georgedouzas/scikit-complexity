@@ -14,7 +14,6 @@ from ._kinetic_problem_spec import KineticProblemSpec
 from ._learning_problem_spec import LearningProblemSpec
 from ._linear_program_kernel import LinearProgramKernel
 from ._linear_program_spec import (
-    LinearProgramBound,
     LinearProgramDualSpec,
     LinearProgramEntrySpec,
     LinearProgramSideSpec,
@@ -51,7 +50,6 @@ __all__: list[str] = [
     'KernelSpec',
     'KineticProblemSpec',
     'LearningProblemSpec',
-    'LinearProgramBound',
     'LinearProgramDualSpec',
     'LinearProgramEntrySpec',
     'LinearProgramKernel',

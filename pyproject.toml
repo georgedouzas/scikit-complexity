@@ -251,6 +251,9 @@ ViennaRNA = "RNA"
 # group space that needs it, by name. The optional extras are imported by name on first use, in the models that need
 # them.
 DEP002 = [
+    "cobra",
+    "straindesign",
+    "micom",
     "biopython",
     "ViennaRNA",
     "mdtraj",

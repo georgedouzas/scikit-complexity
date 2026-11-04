@@ -5,12 +5,12 @@ import pytest
 from scipy import sparse
 
 from skcomplex.engine.problems import (
-    LinearProgramBound,
     LinearProgramKernel,
     LinearProgramSideSpec,
     LinearProgramSpec,
     ReferenceSpec,
 )
+from skcomplex.engine.types import LinearProgramBound
 from skcomplex.errors import SolverError
 from skcomplex.specs import EntrySpec, RunStateSpec
 

@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import enum
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -14,15 +13,6 @@ from scipy import sparse
 from ...specs._base_spec import BaseSpec
 from ...types import Array, Indices
 from ._reference_spec import ReferenceSpec
-
-
-class LinearProgramBound(enum.IntEnum):
-    """The bound of a column or a row of a linear program that a compiled value gives."""
-
-    COLUMN_LOWER = 0
-    COLUMN_UPPER = 1
-    ROW_LOWER = 2
-    ROW_UPPER = 3
 
 
 @dataclass(frozen=True)
