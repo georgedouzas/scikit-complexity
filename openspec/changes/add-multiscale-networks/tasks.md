@@ -15,14 +15,14 @@
 
 ## 3. Library
 
-- [ ] 3.1 Add `popularity_similarity_network` to `mathematics/networks`, and verify the hyperbolic degrees scenario
-- [ ] 3.2 Add `urban_scaling_interactions` to `social/organizations`, and verify the superlinear interactions scenario
+- [x] 3.1 Add `popularity_similarity_network` to `mathematics/networks`, and verify the hyperbolic degrees scenario
+- [x] 3.2 Add `urban_scaling_interactions` to `social/organizations`, and verify the superlinear interactions scenario
   over a `GridDesign` sweep
 - [ ] 3.3 Add a curated gallery example per model with a review row, set both inventory entries to implemented with the
   tags of the systems they build, and verify the inventory check passes
 
 ## 4. Documentation and gate
 
-- [ ] 4.1 Document growth by distance, renormalization, and allometric scaling in the user guide, and verify the
+- [x] 4.1 Document growth by distance, renormalization, and allometric scaling in the user guide, and verify the
   documentation test passes
 - [ ] 4.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass

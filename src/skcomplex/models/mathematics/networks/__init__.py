@@ -5,7 +5,7 @@ from ._ensemble_node import EnsembleNodeElement
 from ._ensembles import network_attack, random_graph_ensembles
 from ._failing import FailingElement
 from ._giant_component import GiantComponentInteraction
-from ._growth import barabasi_albert, holme_kim, vertex_copying
+from ._growth import barabasi_albert, holme_kim, popularity_similarity_network, vertex_copying
 from ._hypergraphs import growing_simplicial_complex, hypergraph_random_walk
 from ._link import LinkElement
 from ._network_measures import NetworkMeasuresElement
@@ -16,6 +16,7 @@ from ._node_rank import NodeRankElement
 from ._processes import network_diffusion, network_random_walk, pagerank
 from ._regulated_link import RegulatedLinkElement
 from ._regulated_node import RegulatedNodeElement
+from ._similarity_vertex import SimilarityVertexElement
 from ._simplex import SimplexElement
 from ._simplex_ageing import SimplexAgeingInteraction
 from ._size_biased_move import SizeBiasedMoveInteraction
@@ -39,6 +40,7 @@ __all__: list[str] = [
     'NodeRankElement',
     'RegulatedLinkElement',
     'RegulatedNodeElement',
+    'SimilarityVertexElement',
     'SimplexAgeingInteraction',
     'SimplexElement',
     'SizeBiasedMoveInteraction',
@@ -55,6 +57,7 @@ __all__: list[str] = [
     'network_random_walk',
     'network_structure_analysis',
     'pagerank',
+    'popularity_similarity_network',
     'random_graph_ensembles',
     'triadic_percolation',
     'vertex_copying',

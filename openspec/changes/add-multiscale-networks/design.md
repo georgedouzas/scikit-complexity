@@ -28,6 +28,54 @@ its `'variance-mean'` kind.
   a tolerance from the spread over seeds, and design.md records the source, the measured value, and why they differ.
   Decided on 2026-11-01.
 
+### Implementation notes and measured values
+
+Recorded on 2026-11-04 when the change was applied.
+
+- **Urban exponent.** Ribeiro and Netto (2024) state that socioeconomic exponents are distributed around 1.15. The
+  model at `internal=0.002` over the sizes 100 to 800, with three city seeds and three experiment seeds, measures
+  1.16, 1.11, and 1.13. The 95% interval contains 1.15 for two of the three and ends at 1.148 for the other. It
+  measures from 0.98 to 1.03 without internal links, and 1.26 at `internal=0.005`. The scenario stays "above 1", which
+  every run at `internal=0.002` meets, with intervals that start above 1.06.
+- **Hyperbolic degrees.** The scenario asked for a fit within 0.2 of 2.5. With `edges=2` and `temperature=0.2` at 2000
+  nodes, `NetworkAnalysis('degrees')` measures from 2.67 to 2.72 over seven seeds, mean 2.70, which straddles the
+  limit of 2.7. Plain shifted preferential attachment, `Pi(k) ~ k + m (gamma - 2)` on the links received, which
+  Papadopoulos et al. (2012) show has the same degree distribution, fits a mean of 2.60 with a spread from 2.39 to
+  2.78 over eight seeds, so the fit at this size reads above the exponent of the law. The scenario uses the measured
+  value, 2.70 within 0.06, three times the spread over seeds.
+- **Exponents away from 2.5.** The gap to the reference grows as the exponent nears 2. At the exponent 2.2 the model
+  fits 2.78 with a largest degree near 360, and the reference fits 2.19 with a largest degree from 318 to 556. At the
+  exponent 3 the model fits 2.89 and the reference 2.68. The cause was not found, so the fitted exponent of the model
+  at 2000 nodes follows the exponent setting only weakly.
+- **Self-similar network.** The exponent stays within 0.18 of the original at three scales for the three seeds tested.
+  The fit at one scale varies by about 0.1 over seeds, so the limit of 0.2 holds for these seeds and is not a margin.
+- **Peak of the specific heat.** The two blocks of the Laplacian scenario have two peaks, as the review states for
+  block models. The taller peak, at the time 0.2, merges nothing, and the merge happens at the second, at the time 27.
+  The kind takes the smallest peak at which at least one pair of nodes joins, and a network with no such peak stays as
+  it is.
+- **Supernode angle.** A geometric supernode takes the mean angle of its nodes. The review weighs it by the hidden
+  degrees, which an analysis of a graph does not have. The mean keeps the order of the blocks, which the next scale
+  reads.
+- **Meetings.** A `MapInteraction` in the agent form cannot share a system with `TopologyInteraction`, since no form
+  takes `RuleLaw` next to `UpdateLaw` (`laws-mixed`), and a partition cannot help because both target the residents.
+  The meetings are a symbolic map with the draw `binom(degree, meeting)`, which has the same distribution as one
+  meeting per neighbour with the given probability. The map replaces the count every step, so `total_meetings` counts
+  the meetings of one step. A cumulative count would grow with the time a city took to grow.
+- **Mesa.** `MesaSolver` does not run `UpdateLaw` or `TopologyRequestSpec`, so no Mesa path reads the new node. A test
+  records the rejection.
+- **Targeted additions.** Only `'add-node'` without a target reads the drawn values in its condition and probability.
+  An addition with a target keeps reading the node it runs for as `namespace.source`, which its documented contract
+  and `'replace-node'` rely on. Its weight reads the new node.
+- **Rates and reductions.** A rate cannot read the new node, since no node exists before the jump, and a run raises an
+  error. A reduction cannot read it, and compilation raises an error.
+- **Weights of edges.** `'add-edge'` and `'rewire'` read the adding node and the kept end as `node.source`, because
+  the internal links of `urban_scaling_interactions` need the distance from the adding node.
+- **Stopping.** The growth and the internal links of `urban_scaling_interactions` stop at `population`, since a
+  `GridDesign` sweep runs every size to one `until`, and a variable group raises an error beyond its capacity.
+- **Zero weights.** The existing draw falls back to uniform weights where fewer candidates have a positive weight than
+  the edges to draw. It stays, since existing models rely on it, so the attachment scenario holds where a candidate
+  lies within the distance.
+
 ### Attachment weights that read the new node
 
 In the action `'add-node'`, the namespace that `toward` receives holds the candidate node, as it does today, and the
