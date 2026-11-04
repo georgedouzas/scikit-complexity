@@ -63,7 +63,7 @@ class GoodSiteElement(Element):
 
 
 class ExchangeLinkElement(Element):
-    """Link of a lattice with an exchange-rate potential `A` and its rate of change `-E`.
+    """Link of a lattice with an exchange-rate potential `A` and its rate of change `E`.
 
     Args:
         label:
@@ -76,7 +76,7 @@ class ExchangeLinkElement(Element):
             The initial exchange-rate potential.
 
         E:
-            The initial electric field, minus the rate of change of the potential.
+            The initial value of `F_0i` of Schwichtenberg (2020 Eq. 2.22), the rate of change of the potential.
 
     Attributes:
         default_visual_:
@@ -102,11 +102,14 @@ class ExchangeLinkElement(Element):
 
 
 class TraderCurrentInteraction(NeighborInteraction):
-    """Trader current `J = -D (rho_t - rho_s + q A (rho_s + rho_t) / 2)` along the links, down the covariant gradient.
+    """Trader current `J = -D (rho_t - rho_s - q A (rho_s + rho_t) / 2)` along the links, down the covariant gradient.
 
-    The current moves the good from the source of a link to its target, and it is the source of the electric field of
-    the link, `E' = -J`, so the Gauss law holds as the good moves. With this sign of `q` the current gives the potential
-    a mass, `A'' = ... - D q rho A`, for a positive density and charge, so the fields stay bounded.
+    The covariant derivative is `D_mu = d_mu - A_mu` of Schwichtenberg (2020 Eq. 2.55), with the charge `q` of its
+    Eq. 4.24, and the current is minus the diffusion constant times this derivative of the good, as in Eq. 2.56. The
+    current moves the good from the source of a link to its target (footnote 18 of §2.1), and it is the source of the
+    field of the link with the sign of the Ampere-Maxwell law of Eq. 2.39, `E' = ... - J`, so the Gauss law holds as the
+    good moves. These signs give the potential a mass, `A'' = ... - D q rho A`, for a positive density and charge, so
+    the fields stay bounded.
 
     Args:
         label:
@@ -158,18 +161,18 @@ class TraderCurrentInteraction(NeighborInteraction):
         """
         source, target, edge = namespace.source, namespace.target, namespace.edge
         middle = (source.rho + target.rho) / 2
-        current = -namespace.D * (target.rho - source.rho + namespace.q * edge.A * middle)
+        current = -namespace.D * (target.rho - source.rho - namespace.q * edge.A * middle)
         return [RateLaw(source.rho, -current), RateLaw(target.rho, current), RateLaw(edge.E, -current)]
 
 
 def _potential_rate(namespace: SimpleNamespace) -> Expression:
-    """Return the rate of the potential, minus the electric field."""
-    return -namespace.target.E
+    """Return the rate of the potential, the field `F_0i` of the link."""
+    return namespace.target.E
 
 
 def _field_rate(namespace: SimpleNamespace) -> Expression:
-    """Return the rate of the electric field without the current, the codifferential of the magnetic field."""
-    return codifferential(exterior_derivative(namespace.target.A))
+    """Return the rate of the field without the current, minus the codifferential of the exterior derivative."""
+    return -codifferential(exterior_derivative(namespace.target.A))
 
 
 def _total_good(t: float, values: Mapping[str, object]) -> float:
@@ -225,9 +228,15 @@ def gauge_arbitrage_market(
 ) -> System:
     """Return exchange-rate potentials on links as lattice Maxwell fields, sourced by traders who move a good on sites.
 
-    The potentials follow `A_t = -E` and `E_t = codifferential(dA) - J`, and the good follows `rho_t =
-    -codifferential(J)` with the current `J` along its covariant gradient. A uniform background of the mean density
-    keeps the periodic lattice neutral, so `codifferential(E)` equals the excess of the good over its mean.
+    The potentials follow `A_t = E` and `E_t = -codifferential(dA) - J`, and the good follows `rho_t =
+    -codifferential(J)` with the current `J = -D (d rho - q A rho)` along its covariant gradient, after Schwichtenberg
+    (2020 §2.1 and §2.2.1). Here `E` is `F_0i` of the book, so `codifferential(E)` equals the excess of the good over
+    its mean, as in its Gauss law, Eq. 2.37, with a uniform background of the mean density that keeps the periodic
+    lattice neutral. The model departs from the book in two places. The book writes Eq. 2.39 with no metric, which gives
+    `A_tt = +codifferential(dA) - J`, where every mode with a curl grows, so the model takes the sign of a wave. And
+    Eq. 2.56 applies the covariant derivative twice, which does not conserve the good, so the model applies it once
+    inside the divergence of the current. The book gives no values of `D` and `q` and sets `mu_0` by no number, so `D`,
+    `q`, and `mu_0 = 1` are choices of this model.
 
     Args:
         size:

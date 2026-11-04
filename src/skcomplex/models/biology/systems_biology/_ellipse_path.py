@@ -20,11 +20,13 @@ PAIR_DIMENSIONS = 2
 class EllipsePath(BaseConfig[None, Array]):
     """Ellipse path on the Ramachandran map, with the projection of dihedral angles by the shortest periodic distance.
 
-    The path is `phi = A cos(t) - B sin(t)`, `psi = -A cos(t) - B sin(t)`, in the form of Eq. A.2 of Brylinski et al.
-    (2005, J. Biomed. Biotechnol. 2005:65), which has `t = 0` in the lower right of the map and grows clockwise. The
-    paper names `A` and `B` the long and the short diagonal without values. The defaults, 83° and 58°, are a least
-    squares fit to the path drawn in its Figure 4(e), so they are readings of a figure and not published numbers, and
-    they have not been compared with Brylinski et al. (2004, Bioinformatics 20:199).
+    The path is `phi = A cos(t) - B sin(t)`, `psi = -A cos(t) - B sin(t)`, a centred ellipse whose long diagonal runs
+    from the upper left to the lower right of the map, with `t = 0` in the lower right and `t` growing clockwise.
+    Konieczny et al. (2023 §3.7.1, Fig. 3.43d and e) draw this path and print no equation or number for it. The
+    defaults, 83° and 58°, are readings of a figure and not published numbers: a fit to panel e of that figure gives
+    84.5° and 56.3° with the centre at the origin, which agrees within the 2.7° of one of its pixels. The origin
+    and the direction of `t` are a convention of this class, since the book states neither. The equation and the
+    parameters of Brylinski et al. (2004, Bioinformatics 20:199) have not been read.
 
     Args:
         long_diagonal:

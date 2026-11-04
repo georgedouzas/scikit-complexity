@@ -77,7 +77,7 @@ def _topological_observables(system: System) -> list[ObservableSpec]:
 @register_model(
     field='physics/synchronization',
     tags=('synchronization', 'oscillators', 'phase', 'simplicial complex', 'cell complex', 'explosive'),
-    references=('Millan, Torres, and Bianconi 2020',),
+    references=('Majhi, Perc, and Ghosh 2022', 'Ghorbanchian et al. 2021'),
     defaults={'until': 40.0, 'dt': 0.2},
     observables=_topological_observables,
 )
@@ -93,8 +93,11 @@ def topological_kuramoto(
 
     Node phases follow `theta' = omega + K R_links codifferential(sin(d theta))`. Link phases follow `phi' = omega + K
     R_nodes d(sin(codifferential(phi))) - K codifferential(sin(d phi))`. With the signs of `codifferential`, these are
-    the equations of Millán, Torres, and Bianconi for the boundary matrices. Here `R_nodes` is the order parameter of
-    the node phases and `R_links` that of the projection of the link phases on the nodes.
+    the Nodes-Links model of Ghorbanchian et al. (2021), Eq. 6 of the review of Majhi, Perc, and Ghosh (2022,
+    arXiv 2203.06601 §III), which is the source at hand. Here `R_nodes` is the order parameter of the node phases and
+    `R_links` that of the projection of the link phases on the nodes. The review takes frequencies of mean `Omega` and
+    standard deviation `1 / tau`, with `Omega = 2` and `tau = 1` for its Fig. 2, on complexes of 500 nodes. The mean 0,
+    the size, and the random graph are choices of this model.
 
     Args:
         n_nodes:

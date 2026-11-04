@@ -211,7 +211,7 @@ def test_projection_lies_on_the_path_and_is_the_closest_point():
 
 
 def test_ellipse_starts_at_the_lower_right_and_turns_clockwise():
-    """Test that the path starts in the lower right of the map and reaches the lower left next."""
+    """Test the orientation of Fig. 3.43 of the book and the convention of this class for the origin of the path."""
     points = EllipsePath().check().prepare().read_points(np.array([0.0, np.pi / 2]))
     assert points[0, 0] > 0 > points[0, 1]
     assert points[1, 0] < 0

@@ -55,9 +55,12 @@ class FuzzyOilDropAnalysis(BaseAnalysis):
     of the chain (Eq. 1.1). The observed distribution `O` is Levitt's sum over the pairs of residues within a cutoff
     (Eq. 1.2). The uniform distribution `R` gives every residue the same value. Then
     `RD = D_KL(O|T) / (D_KL(O|T) + D_KL(O|R))` in bits (Eqs. 1.3 to 1.6), and `K` minimises `D_KL(O|M)` for the profile
-    `M = [T + K (T_max - T)]_n` (Eq. 1.9), by SciPy's bounded scalar minimiser over `[0, 5]`. The equations follow
-    Konieczny et al. (2023 §1.3.1). Each sigma is a third of the largest absolute coordinate along its principal axis,
-    which the book leaves unstated.
+    `M = [T + K [T_max - T]_n]_n` (Eq. 1.9), where `[...]_n` normalises to a sum of one, by SciPy's bounded scalar
+    minimiser. The equations follow Konieczny et al. (2023 §1.3.1). Each sigma is a third of the largest absolute
+    coordinate along its axis, since the book has the Gaussian reach near zero at `3 sigma` (p. 33 and Fig. 1.41). The
+    book names no scale, no orientation of the axes, and no upper bound of `K`, for which it reports values above 3
+    (p. 41), so the Kyte-Doolittle scale, the principal axes, and the bound 5 are choices of this class, as is leaving a
+    residue out of its own sum in Eq. 1.2.
 
     Args:
         structure:
@@ -194,10 +197,11 @@ class FuzzyOilDropAnalysis(BaseAnalysis):
 
     def _read_environment_factor(self, observed: Array, theoretical: Array) -> float:
         """Return the factor `K` of the profile closest to the observed distribution."""
+        complement = (theoretical.max() - theoretical) / (theoretical.max() - theoretical).sum()
 
         def divergence(factor: float) -> float:
             """Return the divergence of the observed distribution from the profile of a factor."""
-            profile = theoretical + factor * (theoretical.max() - theoretical)
+            profile = theoretical + factor * complement
             return self._read_divergence(observed, profile / profile.sum())
 
         return float(minimize_scalar(divergence, bounds=(0.0, LARGEST_FACTOR), method='bounded').x)

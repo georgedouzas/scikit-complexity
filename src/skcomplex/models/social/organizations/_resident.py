@@ -18,8 +18,8 @@ from ._resident_view import ResidentView
 class ResidentElement(Element):
     """Resident of the Kauai population model, who lives, works, and spends time at points of a map.
 
-    A resident starts at its home, a point of its census region. It holds a sentiment between -1 and 1, and one weight
-    per topic of the events that move the sentiment.
+    A resident starts at its home, a point of its census region. It holds a sentiment between -1 and 1, one weight per
+    topic of the events that move the sentiment, and the demographic scalars of Carmichael et al. (2019 ch. 3 §4.2).
 
     Args:
         label:
@@ -49,11 +49,29 @@ class ResidentElement(Element):
         visits:
             The number of steps the resident stood in its favourite place.
 
-        influence:
-            The share of the difference from the mean sentiment of the residents around that one step closes.
+        race:
+            The index of the race.
 
-        radius:
-            The distance within which a resident hears others.
+        gender:
+            The index of the gender.
+
+        occupation:
+            The index of the occupation.
+
+        age:
+            The age in years.
+
+        convergence:
+            The immutable convergence parameter `CR` of the interactions between agents.
+
+        event_rate:
+            The convergence rate `mu` of the response to an event.
+
+        cell_size:
+            The side of the grid cells of the space within which residents meet.
+
+        partners:
+            The largest number of residents drawn from the grid cell as possible partners.
 
     Examples:
         >>> from skcomplex.core.elements import GroupElement
@@ -74,8 +92,14 @@ class ResidentElement(Element):
         work: Annotated[float, StateSpec()] = 0.0,
         favourite: Annotated[float, StateSpec()] = 0.0,
         visits: Annotated[float, StateSpec()] = 0.0,
-        influence: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.1,
-        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2000.0,
+        race: Annotated[float, StateSpec()] = 0.0,
+        gender: Annotated[float, StateSpec()] = 0.0,
+        occupation: Annotated[float, StateSpec()] = 0.0,
+        age: Annotated[float, StateSpec()] = 0.0,
+        convergence: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        event_rate: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.05,
+        cell_size: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
+        partners: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.sentiment = sentiment
@@ -85,8 +109,14 @@ class ResidentElement(Element):
         self.work = work
         self.favourite = favourite
         self.visits = visits
-        self.influence = influence
-        self.radius = radius
+        self.race = race
+        self.gender = gender
+        self.occupation = occupation
+        self.age = age
+        self.convergence = convergence
+        self.event_rate = event_rate
+        self.cell_size = cell_size
+        self.partners = partners
 
     @classmethod
     def _get_view(cls) -> type[ResidentView]:

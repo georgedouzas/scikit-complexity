@@ -197,7 +197,8 @@ def fuzzy_oil_drop(
     residue, to one model per unit of time. With `dynamics='folding'`, the chain starts extended, with all `phi = -120°`
     and `psi = 130°`, and each unit of time proposes moves of its dihedral angles, accepted by the row score `RD` plus
     one for every pair of effective atoms closer than 3 Å and at least two residues apart. The observables `RD` and `K`
-    follow Konieczny et al. (2023 §1.3.1) through `FuzzyOilDropAnalysis`.
+    follow Konieczny et al. (2023 §1.3.1) through `FuzzyOilDropAnalysis`. The book gives no folding dynamics, so the
+    extended start, the clash rule, the rotation width of 60°, and the temperature are choices of this model.
 
     Args:
         entry:

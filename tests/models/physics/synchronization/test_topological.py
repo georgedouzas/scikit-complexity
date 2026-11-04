@@ -24,7 +24,7 @@ def test_link_synchronization_grows_with_coupling():
 
 
 def test_rates_follow_the_incidence_of_the_complex():
-    """Test the rates of the phases at zero order of the other layer against the boundary matrices of the paper."""
+    """Test the rates of the phases against the boundary matrices of Eq. 6 of the review."""
     system = topological_kuramoto(8, density=0.8, coupling=1.5)
     problem = compile_system(system)
     state = problem.initial_state

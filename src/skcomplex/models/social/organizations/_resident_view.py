@@ -17,5 +17,11 @@ class ResidentView(AgentView):
     work: float
     favourite: float
     visits: float
-    influence: float
-    radius: float
+    race: float
+    gender: float
+    occupation: float
+    age: float
+    convergence: float
+    event_rate: float
+    cell_size: float
+    partners: float

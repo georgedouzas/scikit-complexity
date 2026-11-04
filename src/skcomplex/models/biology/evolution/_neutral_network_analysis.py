@@ -30,7 +30,8 @@ class NeutralNetworkAnalysis(BaseAnalysis):
     neighbours of the same phenotype, and its evolvability the number of different other phenotypes among its
     neighbours. The robustness of a phenotype is the mean robustness of its genotypes, and its evolvability the number
     of different other phenotypes among the neighbours of all its genotypes. The definitions follow Wagner (2008), as
-    Raman (2021, §13.3) states them.
+    Raman (2021, §13.3) states them, except that Raman counts the different phenotypes of a neighbourhood without
+    saying whether the phenotype of the genotype itself counts, and this class leaves it out.
 
     Args:
         phenotype_of:
