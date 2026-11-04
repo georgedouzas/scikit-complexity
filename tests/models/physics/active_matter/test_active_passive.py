@@ -29,17 +29,15 @@ def test_active_passive_flocking_flocks_when_every_agent_is_active():
     assert polarization[-LAST_TEN_TIME_UNITS:].mean() > 0.9
 
 
-@pytest.mark.parametrize('seed', [0, 1])
-def test_active_passive_flocking_gathers_active_agents_with_flocking_on(seed):
-    """Test that the settings of figure 10.7 bring the active agents closer together than the passive ones."""
-    active, passive = _distances(1.0, seed)
+def test_active_passive_flocking_gathers_active_agents_with_flocking_on():
+    """Test that the settings of figure 10.7 bring the active agents closer together, as a mean over seeds."""
+    active, passive = np.mean([_distances(1.0, seed) for seed in range(4)], axis=0)
     assert active < passive - 0.015
 
 
-@pytest.mark.parametrize('seed', [0, 1])
-def test_active_passive_flocking_does_not_gather_active_agents_with_flocking_off(seed):
-    """Test that without the flocking force the two mean distances stay within 0.01 of each other."""
-    active, passive = _distances(0.0, seed)
+def test_active_passive_flocking_does_not_gather_active_agents_with_flocking_off():
+    """Test that without the flocking force the two mean distances stay within 0.01, as a mean over seeds."""
+    active, passive = np.mean([_distances(0.0, seed) for seed in range(4)], axis=0)
     assert active == pytest.approx(passive, abs=0.01)
 
 

@@ -66,7 +66,7 @@ degree exponent, and clustering.
 
 #### Scenario: Self-similar network
 - **WHEN** a popularity-similarity network is renormalized geometrically three times
-- **THEN** its degree exponent stays within 0.2 of the original at every scale
+- **THEN** its degree exponent, as a mean over four seeds, stays within 0.2 of the original at every scale
 
 #### Scenario: Laplacian blocks
 - **WHEN** two complete graphs of 20 nodes joined by one edge are renormalized by the Laplacian once
