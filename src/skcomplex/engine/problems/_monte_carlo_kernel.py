@@ -130,7 +130,7 @@ class MonteCarloKernel(BaseKernel):
         return values + rng.uniform(-self.move.width, self.move.width, size=values.size)
 
     def _intensity_of(self, keywords: Mapping[str, object]) -> Array:
-        """Return the intensity at some sites, infinite where it divides by zero, after checking that it is positive."""
+        """Return the intensity at some sites, infinite where it divides by zero, after checking it is positive."""
         arguments = [np.asarray(value, dtype=float) for value in keywords.values()]
         with np.errstate(divide='ignore'):
             value = ExpressionPrinter._values_of(self.intensity(self.time_, *arguments))[0]

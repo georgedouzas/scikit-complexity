@@ -20,7 +20,6 @@ from ..spaces import BaseNeighborhood, VonNeumannNeighborhood
 from ._interaction import Interaction
 
 MOVES = ('flip', 'random-value', 'rotate', 'gaussian', 'cluster')
-ROW_RULES = ('metropolis', 'glauber')
 
 
 def _is_positive(value: float) -> bool:
@@ -51,10 +50,11 @@ class SamplingInteraction(Interaction):
 
     An objective that is a `RowScoreSpec` scores whole rows of a state on a `LatticeSpace` instead, along the last axis.
     Every unit of time proposes its `proposals` moves per row, each accepted from the change of the score of the row,
-    and a run records the score of every row as `<label>.score`. A named move changes one random site of the row, a function
-    move receives the row, and the schedule and the neighbourhood do not apply. An infinite intensity accepts a move
-    that keeps the objective with probability 1 under the Metropolis rule and 1/2 under the Glauber rule, and it never
-    accepts a move that raises the objective.
+    and a run records the score of every row as `<label>.score`. A named move changes one random site of the row, a
+    function move receives the row, the heat-bath rule draws the value of one random site among `values` by the weights
+    `exp(-intensity * score)`, and the schedule and the neighbourhood do not apply. An infinite intensity accepts
+    a move that keeps the objective with probability 1 under the Metropolis rule and 1/2 under the Glauber rule, and it
+    never accepts a move that raises the objective.
 
     Args:
         label:
@@ -99,7 +99,7 @@ class SamplingInteraction(Interaction):
     Raises:
         ValidationError:
             The move, the rule, or the schedule is unknown, the objective is not callable, or a row score takes a
-            cluster move or the heat-bath rule.
+            cluster move, or the heat-bath rule without a random-value move and its values.
 
     Examples:
         >>> from skcomplex.core.elements import Element, LatticeElement
@@ -191,36 +191,61 @@ class SamplingInteraction(Interaction):
         return self._get_parameter_symbol('intensity', namespace)
 
     def _check_row_score(self, score: RowScoreSpec) -> None:
-        """Raise an error for a row score that cannot run, or that takes a cluster move or the heat-bath rule."""
+        """Raise an error for a row score that cannot run, a cluster move, or a heat-bath rule without values."""
         score.check()
-        if self.move == 'cluster' or self.rule not in ROW_RULES:
+        if self.move == 'cluster':
+            error_msg = f'The row score of sampling {self.label!r} accepts single moves of a row, not cluster moves.'
+            raise ValidationError(error_msg)
+        if self.rule == 'heat-bath' and (self.move != 'random-value' or not len(self.values)):
             error_msg = (
-                f'The row score of sampling {self.label!r} accepts single moves of a row, so it takes no cluster move, '
-                f'and its rule is one of {", ".join(ROW_RULES)}, not {self.rule!r}.'
+                f'The row score of sampling {self.label!r} draws by heat bath among values. Give the move '
+                "'random-value' and its `values`."
             )
             raise ValidationError(error_msg)
 
-    def _get_row_keywords(self, function: Callable[..., float], parameters: Mapping[str, object]) -> dict[str, object]:
-        """Return the parameters that a row score names, none for a function whose signature cannot be read."""
+    def _get_row_keywords(self, score: RowScoreSpec, index: int, parameters: Mapping[str, object]) -> dict[str, object]:
+        """Return the parameters that a row score names, those of one value per site read at the row."""
         try:
-            names = inspect.signature(function).parameters
+            names = inspect.signature(score.function).parameters
         except (TypeError, ValueError):
             return {}
-        return {name: value for name, value in parameters.items() if name in names}
-
-    def _score_row(self, row: Array, index: int, score: RowScoreSpec, parameters: Mapping[str, object]) -> float:
-        """Return the score of a row, with the parameters of one value per site read at the row."""
-        keywords = {
+        return {
             name: value[index] if isinstance(value, np.ndarray) and value.ndim > 1 else value
-            for name, value in self._get_row_keywords(score.function, parameters).items()
+            for name, value in parameters.items()
+            if name in names
         }
-        return float(score.function(row, **keywords))
 
     def _score_rows(self, values: Array, **parameters: object) -> npt.NDArray[np.float64]:
         """Return the score of every row of a state."""
         score = getattr(self, self._get_parameter('objective'))
         rows = values.reshape(-1, values.shape[-1])
-        return np.array([self._score_row(row, index, score, parameters) for index, row in enumerate(rows)])
+        return np.array(
+            [
+                float(score.function(row, **self._get_row_keywords(score, index, parameters)))
+                for index, row in enumerate(rows)
+            ],
+        )
+
+    def _draw_row_value(
+        self,
+        row: Array,
+        score: RowScoreSpec,
+        keywords: Mapping[str, object],
+        intensity: float,
+        random: np.random.Generator,
+    ) -> Array:
+        """Return a row with the value of one random site drawn among all values by the weights of their scores."""
+        candidates = np.asarray(self.values, dtype=float)
+        proposal = row.copy()
+        site = random.integers(row.size)
+        scores = np.empty(candidates.size)
+        for position, value in enumerate(candidates):
+            proposal[site] = value
+            scores[position] = float(score.function(proposal, **keywords))
+        excess = scores - scores.min()
+        weights = np.exp(-np.where(excess == 0.0, 0.0, excess * np.where(excess == 0.0, 1.0, intensity)))
+        proposal[site] = random.choice(candidates, p=weights / weights.sum())
+        return proposal
 
     def _propose_row(self, row: Array, random: np.random.Generator) -> Array:
         """Return a row after one move: a function of the row, or a named move at one random site."""
@@ -254,10 +279,15 @@ class SamplingInteraction(Interaction):
             intensity /= float(SR(self.cooling(time)))
         rows = values.reshape(-1, values.shape[-1]).copy()
         for index in range(len(rows)):
-            current = self._score_row(rows[index], index, score, parameters)
+            keywords = self._get_row_keywords(score, index, parameters)
+            if self.rule == 'heat-bath':
+                for _ in range(score.proposals):
+                    rows[index] = self._draw_row_value(rows[index], score, keywords, intensity, random)
+                continue
+            current = float(score.function(rows[index], **keywords))
             for _ in range(score.proposals):
                 proposal = self._propose_row(rows[index], random)
-                proposed = self._score_row(proposal, index, score, parameters)
+                proposed = float(score.function(proposal, **keywords))
                 if self._accept_change(proposed - current, intensity, random):
                     rows[index], current = proposal, proposed
         return rows.reshape(values.shape)

@@ -232,10 +232,26 @@ def test_row_score_rejects_too_few_proposals():
 
 
 @pytest.mark.parametrize(('settings'), [{'rule': 'heat-bath'}, {'move': 'cluster'}])
-def test_row_score_rejects_the_heat_bath_and_clusters(settings):
-    """Test that a row score takes no heat-bath rule and no cluster move."""
+def test_row_score_rejects_a_heat_bath_without_values_and_clusters(settings):
+    """Test that a row score takes no heat-bath rule without its values, and no cluster move."""
     with pytest.raises(ValidationError, match='row score'):
         _bits(**settings).interactions[0].check()
+
+
+def test_row_score_heat_bath_matches_the_boltzmann_mean():
+    """Test that the heat-bath rule on a row samples the mean number of ones at intensity 1."""
+    system = _bits(intensity=1.0, rule='heat-bath', move='random-value', values=(0.0, 1.0))
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=20000).trajectory_
+    assert trajectory.values('walk.score')[2000:].mean() == pytest.approx(20 / (1 + np.e), rel=0.03)
+
+
+def test_row_score_heat_bath_at_infinite_intensity_never_raises_the_score():
+    """Test that the heat-bath rule on a row at infinite intensity keeps only values of the lowest score."""
+    system = _bits(rule='heat-bath', move='random-value', values=(0.0, 1.0))
+    trajectory = Simulation(system, random_state=0).check().prepare().run(until=300).trajectory_
+    scores = trajectory.values('walk.score')[:, 0]
+    assert np.all(np.diff(scores) <= 0)
+    assert scores[-1] == 0
 
 
 def test_row_score_reports_a_target_off_a_lattice():
