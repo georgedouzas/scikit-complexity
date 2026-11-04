@@ -22,6 +22,10 @@ class InternalCoordinatesProtocol(Protocol):
         Args:
             name:
                 The name of the angle.
+
+        Returns:
+            angle:
+                The angle in degrees, or `None`.
         """
 
     def set_angle(self, name: str, value: float) -> None:
