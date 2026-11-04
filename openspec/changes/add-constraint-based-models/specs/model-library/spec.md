@@ -14,9 +14,9 @@ bound SHALL run as an `Experiment` over a `GridDesign`.
   `v7 = 100`, `b1 = 600`, and `b2 = 1000`, as Raman Eq. 8.12 gives
 
 #### Scenario: E. coli core aerobic and anaerobic growth
-- **WHEN** `flux_balance` runs on the E. coli core model over a sweep of the oxygen uptake bound from 0 to 20
+- **WHEN** `flux_balance` runs on the E. coli core model over a sweep of the oxygen uptake bound from 0 to 25
 - **THEN** growth is 0.2117 h⁻¹ within 1e-4 at no oxygen, rises with oxygen, and reaches 0.8739 h⁻¹ within 1e-4 once
-  oxygen no longer limits
+  oxygen no longer limits, above an uptake of about 21.8
 
 ### Requirement: Metabolic perturbations model
 The library SHALL provide `metabolic_perturbations`, which applies gene and reaction knock-outs, MoMA, ROOM, OptKnock,

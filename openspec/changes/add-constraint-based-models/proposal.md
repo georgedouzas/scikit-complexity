@@ -37,7 +37,7 @@ one model package that uses it.
 ## What Changes
 
 - Add `LinearProgramLaw` in `core.laws`: it sets algebraic states, its variables, to an optimal solution of a linear
-  program whose constraints are Sage relations linear in the variables and whose objectives, `ObjectiveSpec`s of
+  program whose constraints are Sage relations linear in the variables and whose objectives, `LinearObjectiveSpec`s of
   `skcomplex.specs`, are solved in order. The programs of laws that share variables merge, so an interaction adds
   constraints, such as an uptake bound, to the program of an element.
 - Lower the programs in `skcomplex.engine`: a compile pass extracts the constant matrix and compiles the right sides and
@@ -75,7 +75,7 @@ one model package that uses it.
 
 ## Impact
 
-- `skcomplex.core.laws`: `LinearProgramLaw`. `skcomplex.specs`: `ObjectiveSpec`. `skcomplex.errors`:
+- `skcomplex.core.laws`: `LinearProgramLaw`. `skcomplex.specs`: `LinearObjectiveSpec`. `skcomplex.errors`:
   `InfeasibleError` and `MissingExtraError`.
 - `skcomplex.engine`: the linear program pass and kernel, the issues, and `LinearProgramVisual`.
 - `skcomplex.analysis`: `ElementaryModeAnalysis`.
