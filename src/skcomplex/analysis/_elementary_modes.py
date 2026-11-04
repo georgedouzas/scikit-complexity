@@ -50,8 +50,10 @@ class ElementaryModeAnalysis(BaseAnalysis):
     - `'modes'`: the steady-state vectors of minimal support in which every irreversible variable runs in its declared
       direction. Every reversible column splits in two, the extreme rays of the split cone come from the Parma
       Polyhedra Library, the two-cycles of split pairs drop, and the rest maps back (Gagneur and Klamt 2004).
-    - `'pathways'`: the generators of the cone with every reversible internal column split and each exchange kept in
-      its direction (Schilling et al. 2000). The generators that run in both directions leave `modes_` for `lines_`.
+    - `'pathways'`: the generators of the cone with every reversible internal column split and each exchange kept as one
+      column, of either sign when it is reversible (Schilling et al. 2000), and without any generator that is a
+      non-negative combination of the others (Raman 2021, Section 9.8). The generators that run in both directions leave
+      `modes_` for `lines_`.
 
     Args:
         kind:
@@ -72,6 +74,10 @@ class ElementaryModeAnalysis(BaseAnalysis):
 
         irreversible:
             The indices of the irreversible columns of a matrix, or `None` for every column.
+
+        sort:
+            The name of a variable to order the rows by, largest first, such as the growth flux of modes normalised to
+            the uptake, which orders them by yield, or `None` for a fixed order.
 
     Attributes:
         modes_:
@@ -109,6 +115,7 @@ class ElementaryModeAnalysis(BaseAnalysis):
         timeout: float = 60.0,
         labels: Sequence[str] | None = None,
         irreversible: Sequence[int] | None = None,
+        sort: str | None = None,
     ) -> None:
         self.kind = kind
         self.normalize = normalize
@@ -116,6 +123,7 @@ class ElementaryModeAnalysis(BaseAnalysis):
         self.timeout = timeout
         self.labels = labels
         self.irreversible = irreversible
+        self.sort = sort
 
     def _get_data_kind(self) -> DataKind:
         """Return the kind of data the analysis reads, the program of a system."""
@@ -235,6 +243,11 @@ class ElementaryModeAnalysis(BaseAnalysis):
             rows.append(items)
         return rows
 
+    def _is_free(self, column: int) -> bool:
+        """Check whether a column stays one column of either sign, a reversible exchange of the pathways."""
+        cone = self._cone
+        return self.kind == 'pathways' and column in cone.exchanges and column not in cone.irreversible
+
     def _split_columns(self) -> list[tuple[int, int]]:
         """Return every column of the split cone: the column it comes from and its sign."""
         cone = self._cone
@@ -252,21 +265,43 @@ class ElementaryModeAnalysis(BaseAnalysis):
             [QQ(0), *(QQ(row[column]) * sign for column, sign in columns)] for row in self._fractions if any(row)
         ]
         size = len(columns)
-        inequalities = [[QQ(0), *(QQ(int(position == other)) for other in range(size))] for position in range(size)]
+        inequalities = [
+            [QQ(0), *(QQ(int(position == other)) for other in range(size))]
+            for position, (column, _) in enumerate(columns)
+            if not self._is_free(column)
+        ]
         try:
             alarm(self.timeout)
             cone = Polyhedron(eqns=equations, ieqs=inequalities, backend='ppl')
-            rays = [
-                [Fraction(int(item.numerator()), int(item.denominator())) for item in ray] for ray in cone.rays_list()
-            ]
+            lines = [[-item for item in line] for line in cone.lines_list()]
+            generators = [*cone.rays_list(), *cone.lines_list(), *lines]
+            rays = [[Fraction(int(item.numerator()), int(item.denominator())) for item in ray] for ray in generators]
             cancel_alarm()
         except AlarmInterrupt as error:
-            error_msg = (
-                f'The enumeration over {len(self._cone.labels)} variables did not finish within {self.timeout} s. '
-                'Close exchanges, or enumerate a subnetwork.'
-            )
-            raise EnumerationLimitError(error_msg) from error
+            raise self._limit_error() from error
         return rays
+
+    def _limit_error(self) -> EnumerationLimitError:
+        """Return the error of an enumeration that did not finish within the time limit."""
+        error_msg = (
+            f'The enumeration over {len(self._cone.labels)} variables did not finish within {self.timeout} s. '
+            'Close exchanges, or enumerate a subnetwork.'
+        )
+        return EnumerationLimitError(error_msg)
+
+    def _independent(self, rows: np.ndarray) -> np.ndarray:
+        """Return the rows that no non-negative combination of the other rows gives, under the time limit."""
+        kept = [tuple(row) for row in rows]
+        try:
+            alarm(self.timeout)
+            for row in list(kept):
+                others = [[QQ(item) for item in other] for other in kept if other != row]
+                if others and Polyhedron(rays=others, backend='ppl').contains([QQ(item) for item in row]):
+                    kept.remove(row)
+            cancel_alarm()
+        except AlarmInterrupt as error:
+            raise self._limit_error() from error
+        return np.asarray(kept, dtype=object).reshape(-1, rows.shape[1])
 
     def _mapped_rays(self, columns: Sequence[tuple[int, int]]) -> list[list[Fraction]]:
         """Return the generators mapped back to the columns of the cone, without the two-cycles of split pairs."""
@@ -299,6 +334,9 @@ class ElementaryModeAnalysis(BaseAnalysis):
         """Return the distinct generators as a matrix of fractions, in a fixed order."""
         size = len(self._cone.labels)
         kept = sorted({tuple(self._scaled(vector)) for vector in vectors}, reverse=True)
+        if self.sort is not None and self.sort in self._cone.labels:
+            position = self._cone.labels.index(self.sort)
+            kept.sort(key=lambda row: row[position], reverse=True)
         return np.asarray(kept, dtype=object).reshape(-1, size)
 
     def _run(self, inputs: object = None) -> None:
@@ -313,6 +351,8 @@ class ElementaryModeAnalysis(BaseAnalysis):
                 The enumeration does not finish within the time limit.
         """
         rays = self._unique(self._mapped_rays(self._split_columns()))
+        if self.kind == 'pathways':
+            rays = self._independent(rays)
         kept = {tuple(row) for row in rays}
         opposite = [tuple(-item for item in row) in kept for row in rays]
         size = len(self._cone.labels)

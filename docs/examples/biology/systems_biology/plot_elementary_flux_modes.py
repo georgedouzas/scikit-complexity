@@ -31,7 +31,7 @@ trajectory = Simulation(system, observers=[observer]).check().prepare().run(unti
 # Normalised to the uptake `b1`, both modes should have the growth yield 1/12. The FBA optimum should be their
 # non-negative combination, with no residual, so its growth of 50 is the bound 1000 on `v6` over the ratio 20.
 
-analysis = ElementaryModeAnalysis(normalize='cell.v_b1').check().prepare(system).run()
+analysis = ElementaryModeAnalysis(normalize='cell.v_b1', sort='cell.v_vbio').check().prepare(system).run()
 modes = np.asarray(analysis.modes_, dtype=float)
 names = [label.rpartition('v_')[2] for label in analysis.labels_]
 optimum = np.array([float(trajectory.values(f'cell.v_{name}')[0]) for name in names])

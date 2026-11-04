@@ -184,3 +184,36 @@ def test_run_stops_at_the_time_limit():
         matrix[head, column] += 1
     with pytest.raises(EnumerationLimitError, match=f'{len(arcs)} variables.*0.5 s'):
         ElementaryModeAnalysis(timeout=0.5).check().prepare(matrix).run()
+
+
+def test_run_finds_the_modes_and_pathways_of_figure_9_2_of_raman():
+    """Test the 7 modes and 4 pathways of Raman's Figure 9.2, with its yields of G on C."""
+    names = ('v1', 'v2', 'v3r', 'v4r', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11')
+    rows = {
+        'A': {'v1': 1, 'v2': -1},
+        'B': {'v2': 1, 'v3r': -1, 'v5': -1},
+        'C': {'v3r': 1, 'v4r': -1, 'v9': -1},
+        'D': {'v5': 1, 'v6': -1, 'v8': -1},
+        'E': {'v6': 1, 'v7': -1},
+        'F': {'v9': 1, 'v10': -1},
+        'G': {'v7': 2, 'v8': 2, 'v9': 1, 'v11': -1},
+    }
+    matrix = np.array([[float(row.get(name, 0)) for name in names] for row in rows.values()])
+    irreversible = [position for position, name in enumerate(names) if not name.endswith('r')]
+    settings = {'labels': names, 'irreversible': irreversible}
+    modes = ElementaryModeAnalysis('modes', **settings).check().prepare(matrix).run().modes_
+    pathways = ElementaryModeAnalysis('pathways', **settings).check().prepare(matrix).run().modes_
+    assert modes.shape[0] == 7
+    assert pathways.shape[0] == 4
+    assert {tuple(row) for row in pathways} <= {tuple(row) for row in modes}
+    uptake, product = names.index('v4r'), names.index('v11')
+    yields = sorted({row[product] / -row[uptake] for row in pathways if row[uptake] < 0})
+    assert yields == [Fraction(1), Fraction(2)]
+
+
+def test_run_orders_the_rows_by_a_variable():
+    """Test that the rows follow a variable, largest first."""
+    matrix = np.array([[1.0, -1.0, -2.0, 0.0, 0.0], [0.0, 1.0, 0.0, -1.0, 0.0], [0.0, 0.0, 1.0, 0.0, -1.0]])
+    analysis = ElementaryModeAnalysis(normalize='v0', sort='v4').check().prepare(matrix).run()
+    assert analysis.modes_[:, 4].tolist() == sorted(analysis.modes_[:, 4].tolist(), reverse=True)
+    assert analysis.modes_[0, 4] == Fraction(1, 2)

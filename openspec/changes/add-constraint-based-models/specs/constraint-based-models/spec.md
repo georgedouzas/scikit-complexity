@@ -138,8 +138,9 @@ and fix.
 ### Requirement: Elementary modes and extreme pathways are enumerated
 `ElementaryModeAnalysis` SHALL enumerate exactly, for the kind `'modes'`, the steady-state vectors of a program with
 minimal support in which every irreversible variable runs in its declared direction, and, for the kind `'pathways'`,
-the generators of the cone with every reversible internal variable split and each exchange kept in its direction. It
-SHALL take the directions from the bounds at the initial values, and SHALL stop after a time limit with
+the generators of the cone with every reversible internal variable split and each exchange kept as one variable, of
+either sign when it is reversible, none of which is a non-negative combination of the others (Raman 2021, Section 9.8).
+It SHALL take the directions from the bounds at the initial values, and SHALL stop after a time limit with
 `EnumerationLimitError`.
 
 #### Scenario: Toy network modes
@@ -168,6 +169,10 @@ SHALL take the directions from the bounds at the initial values, and SHALL stop 
 - **WHEN** the extreme pathways and elementary modes of the toy network are computed
 - **THEN** every pathway is a mode, every mode is a non-negative combination of pathways, and both sets hold the same 2
   vectors
+
+#### Scenario: Figure 9.2 of Raman
+- **WHEN** the elementary modes and extreme pathways of the network of Figure 9.2 of Raman (2021) are enumerated
+- **THEN** there are 7 modes and 4 pathways, every pathway is a mode, and the pathways from `C` to `G` yield 1 and 2
 
 #### Scenario: Genome-scale network
 - **WHEN** the elementary modes of the E. coli core model are enumerated with a limit of 5 s

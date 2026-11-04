@@ -43,14 +43,18 @@ def comets(
     glucose_diffusion: float = 1.0,
     threshold: float = 1e-3,
     vmax: float = 10.0,
-    km: float = 0.015,
+    km: float = 0.01,
 ) -> System:
     """Return an expanding colony of the E. coli core model on a lattice, which needs the extra `metabolism`.
 
     Every site holds a copy of the program, which solves only where the biomass lies above a threshold, with the uptake
     bounded by the glucose of the site (Raman 2021, Section 11.1.3.4). Biomass and glucose diffuse between the sites, so
     a colony started at the centre spreads at a nearly constant speed. The program solves at every evaluation of the
-    drift, by the direct approach with fixed steps.
+    drift, by the direct approach with fixed steps, where COMETS alternates growth and diffusion.
+
+    The uptake `vmax` and `km` are those of Harcombe et al. (2014). The diffusion coefficients, the inoculum, the
+    glucose, and the threshold are illustrative values in lattice units. They are not those of Harcombe et al., whose
+    coefficients of 5e-6 and 3e-10 cm^2/s on boxes of 0.02 cm are about 45 and 0.0027 boxes^2/h.
 
     Args:
         shape:

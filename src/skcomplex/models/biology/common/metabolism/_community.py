@@ -29,8 +29,7 @@ from ._cobra_io import load_extra, to_cobra
 from ._metabolic_network import MetabolicNetworkElement
 
 COMMUNITY_KINDS = ('steadycom', 'tradeoff')
-BISECTION_STEPS = 40
-RATE_LIMIT = 10.0
+RATE_TOLERANCE = 1e-7
 FULL_ABUNDANCE = 1.0 - 1e-7
 ELEMENT_LABEL = 'community'
 
@@ -231,13 +230,26 @@ class CommunityAnalysis(BaseNetworkAnalysis):
         }
         return found if sum(found.values()) >= FULL_ABUNDANCE else None
 
+    def _largest_rate(self) -> float:
+        """Return a rate no member can reach, from the upper bounds of the reactions of its growth."""
+        rates = []
+        for member in self._members:
+            weights = member.objective or member.default_objective
+            rates.append(
+                sum(
+                    abs(float(weight)) * float(getattr(member, f'upper_{member._identifier(name)}'))
+                    for name, weight in weights.items()
+                ),
+            )
+        return max(rates)
+
     def _run_steadycom(self) -> None:
         """Set the largest common growth rate and the abundances, by a bisection on the rate."""
         problem = self._community_problem()
         kernel = problem.programs[0]
-        low, high = 0.0, RATE_LIMIT
+        low, high = 0.0, self._largest_rate()
         best = self._abundances_at(problem, kernel, low) or {member.label: 0.0 for member in self._members}
-        for _ in range(BISECTION_STEPS):
+        while high - low > RATE_TOLERANCE * max(1.0, high):
             middle = 0.5 * (low + high)
             found = self._abundances_at(problem, kernel, middle)
             if found is None:

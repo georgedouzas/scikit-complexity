@@ -62,7 +62,10 @@ def test_cobra_deletions_find_the_essential_genes():
     assert growth['b1779'] < 1e-6
 
 
-@pytest.mark.parametrize(('kind', 'linear'), [('moma', True), ('moma', False), ('room', True)])
+@pytest.mark.parametrize(
+    ('kind', 'linear'),
+    [('moma', True), ('moma', False), ('room', True), pytest.param('room', False, marks=pytest.mark.slow)],
+)
 def test_cobra_adjustment_grows_below_the_optimum_of_the_knock_out(kind, linear):
     """Test that MoMA and ROOM after `pgi` give positive growth below the FBA of the knock-out."""
     knocked = _core_system(g_b4025=0.0)
@@ -152,3 +155,19 @@ def test_strain_design_computes_every_kind(kind, settings):
     assert all(isinstance(design, set) for design in analysis.designs_)
     names = set(_core_system().elements[0].reactions)
     assert all(design <= names for design in analysis.designs_)
+
+
+def test_flux_variability_keeps_an_objective_of_several_reactions():
+    """Test that an objective of two reactions is kept as a whole, as Raman Eq. 8.11d gives."""
+    reactions = {
+        'in': ReactionSpec({'A': 1.0}, upper=4.0),
+        'one': ReactionSpec({'A': -1.0}),
+        'two': ReactionSpec({'A': -1.0}),
+    }
+    element_type = metabolic_network_type('TwoGoalsElement', reactions, {'one': 1.0, 'two': 1.0})
+    system = System(elements=[element_type('net')], time=StaticTime())
+    analysis = FluxVariabilityAnalysis().check().prepare(system).run()
+    assert analysis.optimum_ == pytest.approx(4.0)
+    assert analysis.ranges_.loc['in'].tolist() == pytest.approx([4.0, 4.0])
+    assert analysis.ranges_.loc['one'].tolist() == pytest.approx([0.0, 4.0])
+    assert analysis.ranges_.loc['two'].tolist() == pytest.approx([0.0, 4.0])

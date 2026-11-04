@@ -20,6 +20,7 @@ from .....specs import RunStateSpec
 from .....types import Array, DataKind
 from ...._extras import import_extra
 from ._cobra_io import load_extra, to_cobra
+from ._culture import ObjectiveFloorInteraction
 from ._metabolic_network import MetabolicNetworkElement
 
 COBRA_KINDS = ('variability', 'parsimonious', 'deletions', 'moma', 'room', 'synthetic-lethals')
@@ -76,12 +77,18 @@ class BaseNetworkAnalysis(BaseAnalysis):
         self.network_ = chosen[0]
         self.system_ = context
 
-    def _compiled_network(self, *, parsimonious: bool = False) -> None:
-        """Compile the network alone under static time, and keep its program, its state, and its parameters."""
+    def _compiled_network(self, *, parsimonious: bool = False, floor: float | None = None) -> None:
+        """Compile the network under static time, with its objective kept above a floor if one is given."""
         element = type(self.network_)(
             **{**self.network_.get_params(deep=False), 'parsimonious': parsimonious, 'infeasible': 'raise'},
         )
-        problem = compile_system(System(elements=[element], time=StaticTime()))
+        weights = self.network_.default_objective if self.network_.objective is None else self.network_.objective
+        kept = (
+            []
+            if floor is None
+            else [ObjectiveFloorInteraction('kept', cell=element.label, weights=weights, floor=floor)]
+        )
+        problem = compile_system(System(elements=[element], interactions=kept, time=StaticTime()))
         if not isinstance(problem, ProblemSpec):
             error_msg = f'The network compiles to a {type(problem).__name__}, not a linear program.'
             raise AnalysisError(error_msg)
@@ -145,8 +152,8 @@ class BaseNetworkAnalysis(BaseAnalysis):
 class FluxVariabilityAnalysis(BaseNetworkAnalysis):
     """Range of every flux at an optimum, from the solve of the core, which runs without the extra.
 
-    Every flux is maximised and minimised with the objective kept at a fraction of its optimum. A network of a genome's
-    size is faster with `CobraAnalysis(kind='variability')`.
+    Every flux is maximised and minimised with the objective kept at a fraction of its optimum, `c' v >= f` (Raman 2021,
+    Eq. 8.11d). A network of a genome's size is faster with `CobraAnalysis(kind='variability')`.
 
     Args:
         fraction:
@@ -193,17 +200,12 @@ class FluxVariabilityAnalysis(BaseNetworkAnalysis):
                 Not read.
         """
         self._compiled_network()
-        weights = self.network_.default_objective if self.network_.objective is None else self.network_.objective
-        reactions = list(self.network_.reactions)
         self.optimum_, _ = self._solved()
-        kept = {}
-        for name, weight in weights.items():
-            upper = getattr(self.network_, f'upper_{self.network_._identifier(name)}')
-            kept[name] = (self.fraction * self.optimum_ / float(weight), upper)
+        self._compiled_network(floor=self.fraction * self.optimum_)
         rows = {}
-        for reaction in reactions:
-            low = self._solved({reaction: 1.0}, kept, sense=1.0)[0]
-            high = self._solved({reaction: 1.0}, kept, sense=-1.0)[0]
+        for reaction in self.network_.reactions:
+            low = self._solved({reaction: 1.0}, sense=1.0)[0]
+            high = self._solved({reaction: 1.0}, sense=-1.0)[0]
             rows[reaction] = (low, high)
         self.ranges_ = pd.DataFrame.from_dict(rows, orient='index', columns=['minimum', 'maximum'])
 
@@ -316,7 +318,8 @@ class CobraAnalysis(BaseNetworkAnalysis):
             The genes to knock out for `'moma'` and `'room'`.
 
         linear:
-            Whether to solve MoMA and ROOM in their linear forms, rather than the quadratic and mixed-integer forms.
+            Whether to solve MoMA and ROOM in their linear forms, rather than the quadratic form of MoMA and the
+            mixed-integer form of ROOM, with `delta = 0.03` and `epsilon = 0.001` (Raman 2021, Eqs. 9.1 and 9.5).
 
         network:
             The label of the network, or `None` for the first network of the system.
@@ -366,7 +369,7 @@ class CobraAnalysis(BaseNetworkAnalysis):
         target: str = 'gene',
         order: int = 1,
         knockouts: Sequence[str] = (),
-        linear: bool = True,
+        linear: bool = False,
         network: str | None = None,
     ) -> None:
         super().__init__(network=network)

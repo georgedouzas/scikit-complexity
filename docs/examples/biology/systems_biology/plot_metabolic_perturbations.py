@@ -44,7 +44,8 @@ plt.show()
 # %%
 # Adjustment after the knock-out of pgi
 # -------------------------------------
-# FBA should give the new optimum, and MoMA and ROOM, which stay close to the wild type, positive growth below it.
+# FBA should give the new optimum, and MoMA, a quadratic program, and ROOM, a mixed-integer one, which both stay close
+# to the wild type, should give positive growth below it.
 
 optimum = float(knocked_out.values(GROWTH)[0])
 moma = CobraAnalysis('moma', knockouts=('b4025',)).check().prepare(wild_type).run().growth_
@@ -52,6 +53,6 @@ room = CobraAnalysis('room', knockouts=('b4025',)).check().prepare(wild_type).ru
 fig, ax = plt.subplots(figsize=(9, 4))
 ax.bar(['FBA', 'MoMA', 'ROOM'], [optimum, moma, room])
 ax.set_ylabel('growth (1/h)')
-ax.set_title(f'After pgi: FBA {optimum:.4f}, MoMA {moma:.4f}, and linear ROOM {room:.4f} 1/h')
+ax.set_title(f'After pgi: FBA {optimum:.4f}, MoMA {moma:.4f}, and ROOM {room:.4f} 1/h')
 fig.tight_layout()
 plt.show()

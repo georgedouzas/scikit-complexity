@@ -6,7 +6,9 @@ from skcomplex.core.spaces import StaticTime
 from skcomplex.core.system import System
 from skcomplex.models.biology.common.metabolism import (
     CommunityAnalysis,
+    ReactionSpec,
     load_network,
+    metabolic_network_type,
 )
 
 AEROBIC = 0.8739215
@@ -18,6 +20,17 @@ def test_community_steadycom_of_identical_members():
     system = System(elements=[first, second], time=StaticTime())
     analysis = CommunityAnalysis(medium={'EX_glc__D_e': -20.0}).check().prepare(system).run()
     assert analysis.growth_ == pytest.approx(AEROBIC, abs=1e-4)
+    assert sum(analysis.abundances_.values()) == pytest.approx(1.0)
+
+
+@pytest.mark.parametrize('rate', [7.0, 50.0])
+def test_community_steadycom_finds_the_rate_at_any_scale(rate):
+    """Test a rate that failed at the boundary of the bisection, and one that a limit of 10 would clip."""
+    reactions = {'EX_a': ReactionSpec({'a': 1.0}, upper=rate), 'grow': ReactionSpec({'a': -1.0})}
+    element_type = metabolic_network_type('ScaledMemberElement', reactions, {'grow': 1.0})
+    system = System(elements=[element_type('one'), element_type('two')], time=StaticTime())
+    analysis = CommunityAnalysis().check().prepare(system).run()
+    assert analysis.growth_ == pytest.approx(rate, rel=1e-6)
     assert sum(analysis.abundances_.values()) == pytest.approx(1.0)
 
 

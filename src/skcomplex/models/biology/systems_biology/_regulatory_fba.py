@@ -111,6 +111,10 @@ def regulatory_fba(
     laws. So the culture leaves acetate alone while glucose lasts, stops at depletion, and grows again on acetate after
     the lag of the chain.
 
+    The alternation is that of Raman, but the rules are an illustration and not those of Covert et al. (2001): the genes
+    of acetate kinase, the threshold, and the chain of nodes come from no source, and the diauxie of Raman is on glucose
+    and lactose, which the E. coli core model cannot take up.
+
     Args:
         biomass:
             The initial biomass in gDW per L.

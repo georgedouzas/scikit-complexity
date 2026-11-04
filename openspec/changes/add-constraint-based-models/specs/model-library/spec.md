@@ -71,7 +71,8 @@ with biomass above a threshold are solved, through the activity of the linear pr
 
 ### Requirement: Community FBA model
 The library SHALL provide `community_fba`, which models a microbial community by joint FBA as merged programs,
-community FBA with abundances, SteadyCom, and, with the extra, the cooperative trade-off (Raman Eq. 11.3).
+community FBA with abundances at one specific growth rate (Raman §11.1.3.2), SteadyCom (Raman Eq. 11.3), and, with the
+extra, the cooperative trade-off of MICOM (Diener et al. 2020).
 
 #### Scenario: Cross-feeding mutants
 - **WHEN** two E. coli core members with complementary knock-outs that each make the other's missing metabolite are
