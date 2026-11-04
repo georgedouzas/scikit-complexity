@@ -2,7 +2,7 @@
 
 ## 1. Dependency and fixtures
 
-- [ ] 1.1 Add `pysd>=3.14.3,<4` to `[project] dependencies`, list which of its dependencies are new to the install,
+- [x] 1.1 Add `pysd>=3.14.3,<4` to `[project] dependencies`, list which of its dependencies are new to the install,
   and verify `deptry` and `pip-audit` pass
 - [ ] 1.2 Add Vensim and XMILE fixtures under `tests/fixtures/system_dynamics`: teacup, SIR in both formats, a goal
   seeking stock without flow variables, a population with births and deaths, a `DELAY3` of a step, a population

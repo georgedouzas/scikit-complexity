@@ -272,9 +272,11 @@ to fill in as the project takes shape.
   ratios, `pydtmc` for Markov state models, `dit` for discrete
   multivariate information and partial information decomposition, `igraph` for network motif counts, `pydmd` for
   dynamic mode decomposition, `pysindy` for sparse identification of nonlinear dynamics, `reservoirpy` for
-  reservoir computing, and `passagemath-polyhedra` for exact enumeration of the generators of a cone. Rerun is a core dependency,
+  reservoir computing, and `passagemath-polyhedra` for exact enumeration of the generators of a cone. `pysd` reads Vensim and
+  XMILE files for the translators of the engine. Rerun is a core dependency,
   and spawning a local viewer happens only on request, so it is not a real-world side effect.
-- Exceptions to the 24-month limit on runtime dependencies: none.
+- Exceptions to the 24-month limit on runtime dependencies: none. `pysd` 3.14.3, of 2025-03-23, is its last release and
+  passes the limit until 2027-03-23, so its next review is due by 2027-03-23.
 - Model gallery: the `gallery` dependency group holds `pillow` 11.0 or later for encoding the screenshots and
   `playwright` 1.50 or later for the web capture backend in headless Chromium, next to `mkdocs-gallery` in the `docs`
   group. The gallery tooling lives in `docs/gallery_tools`, and `nox -s gallery` runs the examples, captures their
@@ -295,7 +297,7 @@ to fill in as the project takes shape.
 - Layout: library. The importable package under `src/skcomplex` is distributed to others and holds five packages.
   `skcomplex.core` holds what a system is, in the order `base`, `spaces`, `laws`, `elements` and `interactions`,
   `system`, and `specs`, and nothing about how it runs. `skcomplex.engine` holds what runs a system, in the order
-  `types`, `problems`, `backends`, `compile`, `solvers`, `runtime`, and `viz`. `skcomplex.analysis` builds on the
+  `types`, `problems`, `backends`, `compile`, `solvers`, `runtime`, `viz`, and `translators`. `skcomplex.analysis` builds on the
   engine, and `skcomplex.experiments` on the analysis. What every package shares lives in the root modules
   `skcomplex.base` (`BaseConfig`, the root of every configurable class), `skcomplex.types`, `skcomplex.specs`, and
   `skcomplex.errors`, which import no package. Within `core` and within `engine`, a package imports only the packages

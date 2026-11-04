@@ -1,0 +1,93 @@
+{UTF-8}
+Total Population=
+	1000
+	~	Persons
+	~	The population.
+	|
+
+Contact Rate=
+	8
+	~	Contacts/Person/Day
+	~	The contacts of a person.
+	|
+
+Infectivity=
+	0.25
+	~	Dmnl
+	~	The chance that a contact infects.
+	|
+
+Duration=
+	2
+	~	Days
+	~	How long a person stays infectious.
+	|
+
+Prevalence=
+	Infected / Total Population
+	~	Dmnl
+	~	The infected share of the population.
+	|
+
+Infection=
+	Susceptible * Contact Rate * Infectivity * Prevalence
+	~	Persons/Day
+	~	The people who catch the disease.
+	|
+
+Recovery=
+	Infected / Duration
+	~	Persons/Day
+	~	The people who recover.
+	|
+
+Susceptible= INTEG (
+	-Infection,
+		Total Population - 1)
+	~	Persons
+	~	The people who can catch the disease.
+	|
+
+Infected= INTEG (
+	Infection - Recovery,
+		1)
+	~	Persons
+	~	The people who spread the disease.
+	|
+
+Recovered= INTEG (
+	Recovery,
+		0)
+	~	Persons
+	~	The people who are immune.
+	|
+
+********************************************************
+	.Control
+********************************************************~
+		Simulation Control Parameters
+	|
+
+FINAL TIME  = 40
+	~	Days
+	~	The final time for the simulation.
+	|
+
+INITIAL TIME  = 0
+	~	Days
+	~	The initial time for the simulation.
+	|
+
+SAVEPER  =
+        TIME STEP
+	~	Days
+	~	The frequency with which output is stored.
+	|
+
+TIME STEP  = 0.125
+	~	Days
+	~	The time step for the simulation.
+	|
+
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored

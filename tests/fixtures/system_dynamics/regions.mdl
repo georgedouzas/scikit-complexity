@@ -1,0 +1,104 @@
+{UTF-8}
+Region:
+	North, Middle, South
+	~
+	~	The regions.
+	|
+
+Birth Fraction[Region]=
+	0.05, 0.03, 0.02
+	~	1/Year
+	~	The births per person of every region.
+	|
+
+Death Fraction=
+	0.025
+	~	1/Year
+	~	The deaths per person, the same in every region.
+	|
+
+Migration Fraction=
+	0.01
+	~	1/Year
+	~	The share of all people who move to every region each year.
+	|
+
+Initial Population[North]=
+	100 ~~|
+Initial Population[Middle]=
+	200 ~~|
+Initial Population[South]=
+	400
+	~	Persons
+	~	The first population of every region.
+	|
+
+Births[Region]=
+	Population[Region] * Birth Fraction[Region]
+	~	Persons/Year
+	~	The people born.
+	|
+
+Deaths[Region]=
+	Population[Region] * Death Fraction
+	~	Persons/Year
+	~	The people who die.
+	|
+
+Total Population=
+	SUM(Population[Region!])
+	~	Persons
+	~	The people of all regions.
+	|
+
+Northern Pull[Region]=
+	Population[North] * Migration Fraction - Population[Region] * Migration Fraction
+	~	Persons/Year
+	~	The people each region gains from the first region, by the gap to it.
+	|
+
+Bonus[North]=
+	Population[North] * 0.002 ~~|
+Bonus[Middle]=
+	Population[South] * 0.001 ~~|
+Bonus[South]=
+	1
+	~	Persons/Year
+	~	A term defined apart for every region.
+	|
+
+Population[Region]= INTEG (
+	Births[Region] - Deaths[Region] + Northern Pull[Region] * 1 + Total Population * 0.001 + Bonus[Region],
+		Initial Population[Region])
+	~	Persons
+	~	The people of every region.
+	|
+
+********************************************************
+	.Control
+********************************************************~
+		Simulation Control Parameters
+	|
+
+FINAL TIME  = 20
+	~	Years
+	~	The final time for the simulation.
+	|
+
+INITIAL TIME  = 0
+	~	Years
+	~	The initial time for the simulation.
+	|
+
+SAVEPER  = 0.5
+	~	Years
+	~	The frequency with which output is stored.
+	|
+
+TIME STEP  = 0.125
+	~	Years
+	~	The time step for the simulation.
+	|
+
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xmile version="1.0" xmlns="http://docs.oasis-open.org/xmile/ns/XMILE/v1.0">
+	<header>
+		<vendor>scikit-complexity</vendor>
+		<product version="1.0">fixtures</product>
+	</header>
+	<sim_specs method="Euler" time_units="Days">
+		<start>0</start>
+		<stop>40</stop>
+		<dt>0.125</dt>
+	</sim_specs>
+	<model>
+		<variables>
+			<stock name="Susceptible">
+				<outflow>Infection</outflow>
+				<eqn>Total_Population - 1</eqn>
+			</stock>
+			<stock name="Infected">
+				<inflow>Infection</inflow>
+				<outflow>Recovery</outflow>
+				<eqn>1</eqn>
+			</stock>
+			<stock name="Recovered">
+				<inflow>Recovery</inflow>
+				<eqn>0</eqn>
+			</stock>
+			<flow name="Infection">
+				<eqn>Susceptible * Contact_Rate * Infectivity * Prevalence</eqn>
+			</flow>
+			<flow name="Recovery">
+				<eqn>Infected / Duration</eqn>
+			</flow>
+			<aux name="Prevalence">
+				<eqn>Infected / Total_Population</eqn>
+			</aux>
+			<aux name="Total Population">
+				<eqn>1000</eqn>
+			</aux>
+			<aux name="Contact Rate">
+				<eqn>8</eqn>
+			</aux>
+			<aux name="Infectivity">
+				<eqn>0.25</eqn>
+			</aux>
+			<aux name="Duration">
+				<eqn>2</eqn>
+			</aux>
+		</variables>
+	</model>
+</xmile>
