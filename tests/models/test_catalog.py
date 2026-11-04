@@ -1,6 +1,7 @@
 """Test the catalog of the model library: listing, describing, creating, and running models by name."""
 
 import importlib
+import multiprocessing
 from pathlib import Path
 
 import numpy as np
@@ -50,6 +51,25 @@ def test_run_takes_settings_that_depend_on_the_factory_arguments():
     assert entry.settings_of()['until'] == entry.defaults['until']
     assert entry.settings_of(order='polar')['until'] == 200.0
     assert run('active_gels', order='polar', shape=(4, 4), settings={'until': 2.0}).trajectory_.times[-1] == 2.0
+
+
+def test_listing_imports_no_model_module():
+    """Test that importing the catalog and listing it, whole or by field, loads no module of a field."""
+    code = """
+import sys
+from skcomplex.models import catalog
+listed = len(catalog())
+physics = catalog(field='physics/mechanics')
+fields = {'biology', 'chemistry', 'computer_science', 'economics', 'engineering', 'mathematics', 'physics', 'social'}
+loaded = [name for name in sys.modules if name.startswith('skcomplex.models.') and name.split('.')[2] in fields]
+assert listed > 500 and len(physics) > 0 and all(entry.field.startswith('physics/mechanics') for entry in physics)
+assert loaded == [], loaded
+assert not any(name == 'skcomplex.formalisms' or name.startswith('skcomplex.formalisms.') for name in sys.modules)
+"""
+    process = multiprocessing.get_context('spawn').Process(target=exec, args=(code,))
+    process.start()
+    process.join()
+    assert process.exitcode == 0
 
 
 def test_listing_matches_registration():
