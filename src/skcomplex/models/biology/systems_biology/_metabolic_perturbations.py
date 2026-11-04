@@ -45,6 +45,5 @@ def metabolic_perturbations(genes: Sequence[str] = ()) -> System:
         0.863
     """
     element = load_network('textbook', 'cell', needed_by='metabolic_perturbations')
-    for gene in genes:
-        setattr(element, element.gene_name(gene), 0.0)
+    element.set_params(**{element.gene_name(gene): 0.0 for gene in genes})
     return System(elements=[element], time=StaticTime())

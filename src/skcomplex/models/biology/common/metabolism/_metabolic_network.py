@@ -4,31 +4,41 @@
 # License: MIT
 
 import ast
-import inspect
+import functools
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated, ClassVar
+from typing import cast
 
 from sage.all__sagemath_symbolics import SR, Expression
 
-from .....core.elements import Element
+from .....core.elements import DeclaredElement
 from .....core.laws import LinearProgramLaw
 from .....core.laws.utils import both, either
 from .....core.spaces import BaseSpace
 from .....errors import ValidationError
-from .....specs import LinearObjectiveSpec, ParameterSpec, StateSpec, VisualSpec
+from .....specs import DeclaredVariableSpec, LinearObjectiveSpec, ParameterSpec, StateSpec, VisualSpec
 from ._reaction_spec import ReactionSpec
 
 SWITCH_THRESHOLD = 0.5
+NO_REACTIONS: Mapping[str, ReactionSpec] = {}
+NO_OBJECTIVE: Mapping[str, float] = {}
 
 
-class MetabolicNetworkElement(Element):
+@functools.cache
+def _rule_genes(rule: str) -> tuple[str, ...]:
+    """Return the gene names in a rule, read once per rule, since compiling reads the variables of a network often."""
+    if not rule.strip():
+        return ()
+    return tuple(node.id for node in ast.walk(ast.parse(rule, mode='eval')) if isinstance(node, ast.Name))
+
+
+class MetabolicNetworkElement(DeclaredElement):
     """Metabolic network whose fluxes one linear program sets, with a balance per metabolite.
 
-    A subclass, which `metabolic_network_type` builds, declares one algebraic state `v_<reaction>` per reaction, one
-    adaptive switch `g_<gene>` per gene, and the parameters `lower_<reaction>` and `upper_<reaction>` of its bounds. The
-    rule of a reaction gates both bounds, so a reaction whose rule is false carries no flux.
+    The element declares one algebraic state `v_<reaction>` per reaction, one adaptive switch `g_<gene>` per gene, and
+    the parameters `lower_<reaction>` and `upper_<reaction>` of its bounds. The rule of a reaction gates both bounds, so
+    a reaction whose rule is false carries no flux.
 
     Args:
         label:
@@ -38,8 +48,8 @@ class MetabolicNetworkElement(Element):
             How the element is drawn, or `None` for the bars of its program.
 
         objective:
-            The coefficient of every reaction in the objective, or `None` for the objective of the type, or nothing for
-            a network whose objective another law holds.
+            The coefficient of every reaction in the objective, or `None` for `default_objective`, or nothing for a
+            network whose objective another law holds.
 
         parsimonious:
             Whether to minimise the total absolute flux after the objective.
@@ -47,23 +57,25 @@ class MetabolicNetworkElement(Element):
         infeasible:
             The infeasibility policy of the program.
 
-    Attributes:
+        name:
+            The name of the network, or `None` for none.
+
         reactions:
-            The reactions of the type, by name.
+            The reactions by name.
 
         default_objective:
-            The objective of the type.
+            The objective of the network when `objective` is `None`.
+
+        variables:
+            The declared states and parameters that replace the ones of the reactions, by name, or `None` for none.
 
     Examples:
         >>> from skcomplex.models.biology.common.metabolism import ReactionSpec, metabolic_network_type
         >>> reactions = {'uptake': ReactionSpec({'A': 1.0}), 'use': ReactionSpec({'A': -1.0}, upper=4.0)}
-        >>> network = metabolic_network_type('TwoStepsElement', reactions, {'use': 1.0})('cell')
-        >>> network.upper_use
+        >>> network = metabolic_network_type('TwoSteps', reactions, {'use': 1.0})('cell')
+        >>> network.get_value('upper_use')
         4.0
     """
-
-    reactions: ClassVar[Mapping[str, ReactionSpec]] = {}
-    default_objective: ClassVar[Mapping[str, float]] = {}
 
     def __init__(
         self,
@@ -73,11 +85,32 @@ class MetabolicNetworkElement(Element):
         objective: Mapping[str, float] | None = None,
         parsimonious: bool = False,
         infeasible: str = 'raise',
+        name: str | None = None,
+        reactions: Mapping[str, ReactionSpec] = NO_REACTIONS,
+        default_objective: Mapping[str, float] = NO_OBJECTIVE,
+        variables: Mapping[str, DeclaredVariableSpec] | None = None,
     ) -> None:
-        super().__init__(label, visual=visual)
+        super().__init__(label, visual=visual, variables=variables)
         self.objective = objective
         self.parsimonious = parsimonious
         self.infeasible = infeasible
+        self.name = name
+        self.reactions = reactions
+        self.default_objective = default_objective
+
+    def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
+        """Return the states and parameters of the reactions and of their genes, with the variables that replace them."""
+        flux, bound = StateSpec(algebraic=True), ParameterSpec()
+        declared: dict[str, DeclaredVariableSpec] = {}
+        for reaction, spec in self.reactions.items():
+            identifier = self._identifier(reaction)
+            declared[f'v_{identifier}'] = DeclaredVariableSpec(0.0, flux)
+            declared[f'lower_{identifier}'] = DeclaredVariableSpec(float(spec.lower), bound)
+            declared[f'upper_{identifier}'] = DeclaredVariableSpec(float(spec.upper), bound)
+        switch = ParameterSpec(adaptive=True, bounds=(0.0, 1.0))
+        for gene in self.genes_of():
+            declared[self.gene_name(gene)] = DeclaredVariableSpec(1.0, switch)
+        return {**declared, **(self.variables or {})}
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, the bars of the fluxes.
@@ -121,16 +154,28 @@ class MetabolicNetworkElement(Element):
         """
         return f'g_{cls._identifier(gene)}'
 
-    @classmethod
-    def genes_of(cls) -> tuple[str, ...]:
+    def genes_of(self) -> tuple[str, ...]:
         """Return the names of the genes that the rules of the reactions read.
 
         Returns:
             genes:
                 The names, in the order the rules name them.
         """
-        names = [name for reaction in cls.reactions.values() for name in _rule_genes(reaction.rule)]
+        names = [name for reaction in self.reactions.values() for name in _rule_genes(reaction.rule)]
         return tuple(dict.fromkeys(names))
+
+    def get_number(self, name: str) -> float:
+        """Return the value of a state or parameter of the network as a number.
+
+        Args:
+            name:
+                The name of the variable, such as `upper_<reaction>`.
+
+        Returns:
+            number:
+                The value.
+        """
+        return float(cast(float, self.get_value(name)))
 
     def _gate(self, namespace: SimpleNamespace, rule: str) -> Expression | int:
         """Return the condition of a rule on the switches of its genes, or 1 for a reaction without genes."""
@@ -197,23 +242,16 @@ class MetabolicNetworkElement(Element):
         return [LinearProgramLaw(variables, constraints, objectives, infeasible=self.infeasible)]
 
 
-def _rule_genes(rule: str) -> list[str]:
-    """Return the gene names in a rule."""
-    if not rule.strip():
-        return []
-    return [node.id for node in ast.walk(ast.parse(rule, mode='eval')) if isinstance(node, ast.Name)]
-
-
 def metabolic_network_type(
     name: str,
     reactions: Mapping[str, ReactionSpec],
     objective: Mapping[str, float] | None = None,
-) -> type[MetabolicNetworkElement]:
-    """Return a subclass of `MetabolicNetworkElement` that declares the states and parameters of a set of reactions.
+) -> Callable[..., MetabolicNetworkElement]:
+    """Return a function that creates a `MetabolicNetworkElement` of a set of reactions.
 
     Args:
         name:
-            The name of the class.
+            The name of the network.
 
         reactions:
             The reactions by name.
@@ -222,71 +260,26 @@ def metabolic_network_type(
             The coefficient of every reaction in the objective, or `None` for none.
 
     Returns:
-        element_type:
-            The subclass.
+        create_network:
+            The function, which takes the label, the visual, the other arguments of the element, and the values of its
+            states and parameters by name.
 
     Examples:
         >>> from skcomplex.models.biology.common.metabolism import ReactionSpec, metabolic_network_type
-        >>> element_type = metabolic_network_type('OneStepElement', {'r': ReactionSpec({'A': -1.0}, rule='g')})
-        >>> element_type.flux_name('r'), element_type.genes_of()
-        ('v_r', ('g',))
+        >>> create_network = metabolic_network_type('OneStep', {'r': ReactionSpec({'A': -1.0}, rule='g')})
+        >>> network = create_network('cell', g_g=0.0)
+        >>> network.flux_name('r'), network.genes_of(), network.get_value('g_g')
+        ('v_r', ('g',), 0.0)
     """
-    switch = Annotated[float, ParameterSpec(adaptive=True, bounds=(0.0, 1.0))]
-    flux = Annotated[float, StateSpec(algebraic=True)]
-    bound = Annotated[float, ParameterSpec()]
-    values: dict[str, float] = {}
-    annotations: dict[str, object] = {}
-    for reaction, spec in reactions.items():
-        identifier = MetabolicNetworkElement._identifier(reaction)
-        values[f'v_{identifier}'] = 0.0
-        annotations[f'v_{identifier}'] = flux
-        values[f'lower_{identifier}'] = float(spec.lower)
-        annotations[f'lower_{identifier}'] = bound
-        values[f'upper_{identifier}'] = float(spec.upper)
-        annotations[f'upper_{identifier}'] = bound
-    genes = dict.fromkeys(gene for spec in reactions.values() for gene in _rule_genes(spec.rule))
-    for gene in genes:
-        values[MetabolicNetworkElement.gene_name(gene)] = 1.0
-        annotations[MetabolicNetworkElement.gene_name(gene)] = switch
 
-    def initialize(
-        self: MetabolicNetworkElement,
-        label: str,
-        visual: VisualSpec | None = None,
-        *,
-        objective: Mapping[str, float] | None = None,
-        parsimonious: bool = False,
-        infeasible: str = 'raise',
-        **given: float,
-    ) -> None:
-        MetabolicNetworkElement.__init__(
-            self,
+    def create_network(label: str, visual: VisualSpec | None = None, **settings: object) -> MetabolicNetworkElement:
+        network = MetabolicNetworkElement(
             label,
             visual,
-            objective=objective,
-            parsimonious=parsimonious,
-            infeasible=infeasible,
+            name=name,
+            reactions=dict(reactions),
+            default_objective=dict(objective or {}),
         )
-        for variable, value in {**values, **given}.items():
-            setattr(self, variable, value)
+        return network.set_params(**settings)
 
-    settings = [
-        inspect.Parameter('self', inspect.Parameter.POSITIONAL_OR_KEYWORD),
-        inspect.Parameter('label', inspect.Parameter.POSITIONAL_OR_KEYWORD),
-        inspect.Parameter('visual', inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None),
-        inspect.Parameter('objective', inspect.Parameter.KEYWORD_ONLY, default=None),
-        inspect.Parameter('parsimonious', inspect.Parameter.KEYWORD_ONLY, default=False),
-        inspect.Parameter('infeasible', inspect.Parameter.KEYWORD_ONLY, default='raise'),
-    ]
-    declared = [
-        inspect.Parameter(variable, inspect.Parameter.KEYWORD_ONLY, default=values[variable], annotation=annotation)
-        for variable, annotation in annotations.items()
-    ]
-    vars(initialize)['__signature__'] = inspect.Signature([*settings, *declared])
-    members = {
-        '__init__': initialize,
-        'reactions': dict(reactions),
-        'default_objective': dict(objective or {}),
-        '__doc__': f'Metabolic network {name}, with its reactions declared as states and parameters.',
-    }
-    return type(name, (MetabolicNetworkElement,), members)
+    return create_network

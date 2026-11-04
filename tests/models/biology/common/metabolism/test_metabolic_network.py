@@ -17,8 +17,7 @@ from skcomplex.models.biology.systems_biology import flux_balance, metabolic_per
 
 def _core_system(**values):
     """Return the system of the E. coli core model."""
-    network = load_network('textbook', 'cell')
-    return System(elements=[type(network)('cell', **values)], time=StaticTime())
+    return System(elements=[load_network('textbook', 'cell').set_params(**values)], time=StaticTime())
 
 
 def _objective(system):

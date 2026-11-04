@@ -18,9 +18,9 @@ from ..common.metabolism import (
     BiomassElement,
     ExchangeInteraction,
     GrowthInteraction,
+    MetabolicNetworkElement,
     SubstrateElement,
     load_network,
-    metabolic_network_type,
 )
 
 GROWTH = 'Biomass_Ecoli_core'
@@ -96,14 +96,14 @@ def comets(
     """
     source = load_network('textbook', 'cell', needed_by='comets')
     plain = {name: replace(spec, rule='') for name, spec in source.reactions.items()}
-    cell_type = metabolic_network_type('ColonyCellElement', plain, source.default_objective)
     initial = np.zeros(shape)
     initial[shape[0] // 2, shape[1] // 2] = inoculum
     space = LatticeSpace(shape)
-    images = VisualSpec('image', {'states': [cell_type.flux_name(GROWTH)]})
+    images = VisualSpec('image', {'states': [MetabolicNetworkElement.flux_name(GROWTH)]})
+    cells = {'name': 'ColonyCell', 'reactions': plain, 'default_objective': source.default_objective}
     return System(
         elements=[
-            GroupElement('cells', element=cell_type, on='sites', space=space, visual=images),
+            GroupElement('cells', element=MetabolicNetworkElement, values=cells, on='sites', space=space, visual=images),
             FieldElement('biomass', element=BiomassElement, space=space, values={'x': initial}),
             FieldElement(
                 'glucose',
