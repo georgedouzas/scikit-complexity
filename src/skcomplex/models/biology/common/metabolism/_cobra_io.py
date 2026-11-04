@@ -16,7 +16,6 @@ from ._reaction_spec import ReactionSpec
 SOLVER = 'hybrid'
 BUNDLED_MODEL = 'textbook'
 DEFAULT_COMPARTMENT = 'c'
-BIGG_URL = 'https://bigg.ucsd.edu/static/models/'
 
 
 def load_extra(owner: str) -> ModuleType:
@@ -198,13 +197,9 @@ def load_network(
         return from_cobra(cobra.io.read_sbml_model(str(path)), label)
     if str(source) == BUNDLED_MODEL:
         return from_cobra(cobra.io.load_model(BUNDLED_MODEL), label)
-    base = cobra.io.web.load.BiGGModels
-
-    def initialize(self: object) -> None:
-        super(base, self).__init__(url=BIGG_URL)
-
-    repository = type('SecureBiGGModels', (base,), {'__init__': initialize})
-    return from_cobra(cobra.io.load_model(str(source), repositories=[repository()]), label)
+    repository = cobra.io.web.load.BiGGModels()
+    repository._url = repository.url.copy_with(scheme='https')
+    return from_cobra(cobra.io.load_model(str(source), repositories=[repository]), label)
 
 
 def save_network(element: MetabolicNetworkElement, path: str | Path) -> None:
