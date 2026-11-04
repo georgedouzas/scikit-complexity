@@ -67,6 +67,11 @@ dependencies = [
     "diffrax>=0.7.2",
 ]
 
+[project.optional-dependencies]
+structures = ["biopython>=1.88"]
+rna = ["ViennaRNA>=2.7.2"]
+trajectories = ["mdtraj>=1.11.2"]
+
 [project.urls]
 Homepage = "https://georgedouzas.github.io/scikit-complexity"
 Documentation = "https://georgedouzas.github.io/scikit-complexity"
@@ -228,12 +233,18 @@ passagemath-symbolics = "sage"
 SALib = "SALib"
 scikit-fem = "skfem"
 python-sat = "pysat"
+biopython = "Bio"
+ViennaRNA = "RNA"
 
 [tool.deptry.per_rule_ignores]
 # Maxima, cysignals, and the Sage groups that pickle GAP groups are loaded by Sage, and MPI by LAMMPS, so the package never imports them. The analysis
 # libraries are imported on first use through `skcomplex.analysis._lazy.module`, by name, and GAP on the first
-# group space that needs it, by name.
+# group space that needs it, by name. The optional extras are imported by name on first use, in the models that need
+# them.
 DEP002 = [
+    "biopython",
+    "ViennaRNA",
+    "mdtraj",
     "passagemath-maxima",
     "passagemath-gap",
     "passagemath-groups",

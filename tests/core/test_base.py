@@ -248,6 +248,19 @@ def test_core_names_carry_no_field_term():
     assert found == {}, found
 
 
+def test_no_package_exports_a_molecular_name():
+    """Test that the core, the engine, and the analysis export no name of RNA, proteins, genotypes, or hydrophobicity."""
+    terms = ('rna', 'protein', 'genotype', 'hydrophobicity', 'residue', 'nucleotide')
+    found = [
+        f'{module.__name__}.{name}'
+        for module in _modules()
+        if module.__name__.startswith(('skcomplex.core', 'skcomplex.engine', 'skcomplex.analysis'))
+        for name in getattr(module, '__all__', [])
+        if any(term in re.sub(r'[^a-z]', ' ', re.sub(r'([A-Z])', r' \1', name).lower()).split() for term in terms)
+    ]
+    assert found == []
+
+
 def test_no_class_defines_magic_methods():
     """Test that no class of the library defines a magic method but `__init__`."""
     found = {}

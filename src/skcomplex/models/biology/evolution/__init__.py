@@ -17,8 +17,11 @@ from ._master_sequence import MasterSequenceElement
 from ._molecule import MoleculeElement
 from ._moran_step import MoranStepInteraction
 from ._networks import jain_krishna, sole_manrubia
+from ._neutral_network_analysis import NeutralNetworkAnalysis
 from ._prebiotic import eigen_quasispecies, hypercycles
 from ._replicator import ReplicatorInteraction
+from ._rna_folds import fold_sequence, read_base_pair_distance, read_plane_layout
+from ._rna_walks import NucleotideElement, mutate_point, read_sequence, rna_neutral_networks
 from ._strategy import StrategyElement
 from ._substitution import SubstitutionInteraction
 from ._substitutions import origin_fixation_walk
@@ -39,6 +42,8 @@ __all__: list[str] = [
     'MasterSequenceElement',
     'MoleculeElement',
     'MoranStepInteraction',
+    'NeutralNetworkAnalysis',
+    'NucleotideElement',
     'ReplicatorInteraction',
     'SpeciesElement',
     'StrategyElement',
@@ -48,12 +53,18 @@ __all__: list[str] = [
     'adaptive_climbing',
     'bak_sneppen',
     'eigen_quasispecies',
+    'fold_sequence',
     'hypercycles',
     'jain_krishna',
     'moran_process',
+    'mutate_point',
     'nk_landscape',
     'origin_fixation_walk',
+    'read_base_pair_distance',
+    'read_plane_layout',
+    'read_sequence',
     'replicator_dynamics',
+    'rna_neutral_networks',
     'rock_paper_scissors',
     'sole_manrubia',
     'tangled_nature',

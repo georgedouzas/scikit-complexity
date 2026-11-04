@@ -112,6 +112,15 @@ class LatticeProblemPass(BasePass):
         )
 
     @staticmethod
+    def _names_time(function: Callable[..., object]) -> bool:
+        """Return whether a function names the keyword `time` in its signature."""
+        try:
+            parameter = inspect.signature(function).parameters.get('time')
+        except (TypeError, ValueError):
+            return False
+        return parameter is not None and parameter.kind in {parameter.KEYWORD_ONLY, parameter.POSITIONAL_OR_KEYWORD}
+
+    @staticmethod
     def _accepted(function: Callable[..., object], names: Sequence[str]) -> tuple[str, ...]:
         """Return the keyword names a function accepts among some names."""
         try:
@@ -560,6 +569,9 @@ class LatticeProblemPass(BasePass):
                 LatticeProblemPass._lattice_state(context, law._get_targets()[0], 'A drive'),
                 law.function,
                 LatticeProblemPass._keywords(context, law.function),
+                timed=LatticeProblemPass._names_time(law.function),
+                drawing=bool(LatticeProblemPass._accepted(law.function, ['random'])),
+                score=law.score,
             )
             .check()
             .prepare()

@@ -453,3 +453,33 @@ def test_image_visual_rejects_slices_that_leave_other_than_two_axes():
     problem, _ = _first_frame(create('gray_scott', shape=(4, 4)))
     with pytest.raises(ValidationError, match='phase space'):
         ImageVisual(slices={0: 1}, path=problem.elements[0].path).check().prepare(problem)
+
+
+@pytest.mark.parametrize('dimension', [2, 3])
+def test_points_visual_joins_the_points_by_one_strip(dimension):
+    """Test that `strip` logs one line strip through the points in member order, with their mean color."""
+    positions = np.arange(4.0 * dimension).reshape(4, dimension)
+    state = 'x' if dimension == 3 else 'x_d1'
+    group = GroupElement('chain', element=PointElement, size=4, values={state: positions})
+    system = System(elements=[group], space=ContinuousSpace(n_dim=dimension))
+    problem, frame = _first_frame(system)
+    logs = Logs()
+    (
+        PointsVisual(position=state, states=(), trail=0, strip=True, path='chain', recording=logs)
+        .check()
+        .prepare(problem)
+        .run(frame)
+    )
+    strips = logs.of('chain/strip')
+    assert len(strips) == 1
+    assert isinstance(strips[0], rr.LineStrips3D if dimension == 3 else rr.LineStrips2D)
+    assert strips[0].strips.as_arrow_array().to_pylist()[0] is not None
+
+
+def test_points_visual_logs_no_strip_by_default():
+    """Test that points log no strip without the setting."""
+    group = GroupElement('chain', element=PointElement, size=4, values={'x': np.zeros((4, 3))})
+    problem, frame = _first_frame(System(elements=[group], space=ContinuousSpace(n_dim=3)))
+    logs = Logs()
+    PointsVisual(position='x', states=(), trail=0, path='chain', recording=logs).check().prepare(problem).run(frame)
+    assert logs.of('chain/strip') == []

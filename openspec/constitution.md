@@ -278,6 +278,9 @@ to fill in as the project takes shape.
   `playwright` 1.50 or later for the web capture backend in headless Chromium, next to `mkdocs-gallery` in the `docs`
   group. The gallery tooling lives in `docs/gallery_tools`, and `nox -s gallery` runs the examples, captures their
   screenshots, and builds the documentation with them.
+- Optional extras: `structures` holds `biopython` for the structures of the protein models, `rna` holds `ViennaRNA`,
+  whose licence is not OSI approved, for RNA folds, and `trajectories` holds `mdtraj`, under the LGPL, for molecular
+  dynamics trajectories.
 - Dependency placement: a library that `skcomplex.core` or `skcomplex.engine` uses MUST be a runtime dependency,
   whatever its licence, including copyleft licences such as that of `passagemath-symbolics`. An optional extra MUST
   hold only libraries that a model of `skcomplex.models` alone needs, and a model that needs one MUST raise a named

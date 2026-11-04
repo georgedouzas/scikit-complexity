@@ -100,6 +100,10 @@ class AnalysisError(SkcomplexError):
     """An analysis cannot be applied to the system or the data."""
 
 
+class MissingExtraError(SkcomplexError):
+    """A model needs an optional extra that is not installed."""
+
+
 class RegistryError(SkcomplexError):
     """A name is registered twice with different meanings, or a registration is not valid or misses what it needs."""
 
