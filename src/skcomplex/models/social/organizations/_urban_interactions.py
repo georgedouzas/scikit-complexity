@@ -66,11 +66,13 @@ def urban_scaling_interactions(
     Every step a resident joins at a uniform angle and adds `edges` links to residents drawn in proportion to the
     Fermi-Dirac probability of their hyperbolic distance, as in popularity-similarity growth (Papadopoulos et al.
     2012). Every resident also adds an internal link with the probability `internal` per step, toward the same weight,
-    which makes the mean degree grow with the size as in the extended model of Papadopoulos et al. (2015), and every
-    resident meets each neighbour with the probability `meeting` per step. The growth and the internal links stop when
-    the city holds `population` residents, so one run time reaches every size. An `Experiment` sweeps `population`, and
-    `ScalingAnalysis(kind='allometric')` fits the exponent of the meetings, which Ribeiro and Netto (2024) review near
-    1.15 for socioeconomic quantities.
+    so the links per step and the mean degree grow with the size. This rate per resident is the assumption of this
+    model, since Papadopoulos et al. (2015) add a fixed number of internal links per step and keep the mean degree
+    constant.
+    Every resident meets each neighbour with the probability `meeting` per step. The growth and the internal links stop
+    when the city holds `population` residents, so one run time reaches every size. An `Experiment` sweeps `population`,
+    and `ScalingAnalysis(kind='allometric')` fits the exponent of the meetings, which Ribeiro and Netto (2024) review
+    near 1.15 for socioeconomic quantities, and which the rate `internal` sets here.
 
     Args:
         population:

@@ -14,8 +14,8 @@ def _order(trajectory, size, start, stop=None):
     """Return the mean normalized velocity of the cells from the displacements between frames, over frames."""
     moves = np.diff(trajectory.values('cells.x'), axis=0)
     moves -= size * np.round(moves / size)
-    steps = np.diff(trajectory.times)[:, None]
-    return float(np.linalg.norm(moves.mean(axis=1) / steps, axis=-1)[start:stop].mean())
+    directions = moves / np.linalg.norm(moves, axis=-1, keepdims=True)
+    return float(np.linalg.norm(directions.mean(axis=1), axis=-1)[start:stop].mean())
 
 
 def test_szabo_cells_order_collectively():
