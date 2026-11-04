@@ -39,6 +39,7 @@ from ._operator import OperatorAnalysis
 from ._partial_information import PartialInformationAnalysis
 from ._passage import PassageAnalysis
 from ._recurrence import RecurrenceAnalysis
+from ._renormalization import RenormalizationAnalysis
 from ._reservoirs import ReservoirAnalysis
 from ._rolling import RollingAnalysis
 from ._scaling import ScalingAnalysis
@@ -90,6 +91,7 @@ __all__: list[str] = [
     'PartialInformationAnalysis',
     'PassageAnalysis',
     'RecurrenceAnalysis',
+    'RenormalizationAnalysis',
     'ReservoirAnalysis',
     'RollingAnalysis',
     'ScalingAnalysis',

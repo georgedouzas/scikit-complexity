@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import replace
 
 from sage.all__sagemath_symbolics import SR
 
@@ -62,5 +63,8 @@ class TowardsPass(BasePass):
                 space, _ = TopologyFunctionsPass._request_network(spec, declarations)
                 nodes = TowardsPass._node_block(space, declarations)
                 node_spec = SpecsPass._member_spec(nodes, declarations.time)
-                towards.append((node_spec, [UpdateLaw(_WeightSpec(request), SR(request.toward(node_spec.namespace)))]))
+                references = dict(node_spec.references)
+                namespace = SpecsPass._with_source(nodes, node_spec.namespace, references)
+                weight = UpdateLaw(_WeightSpec(request), SR(request.toward(namespace)))
+                towards.append((replace(node_spec, references=references), [weight]))
         return towards

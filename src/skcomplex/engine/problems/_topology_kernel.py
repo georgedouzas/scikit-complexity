@@ -26,14 +26,19 @@ from ._reduction_schedule_spec import ReductionScheduleSpec
 _NO_REDUCTIONS = ReductionScheduleSpec()
 MIN_EDGE_HYPEREDGE = 2
 
+type Fired = tuple[int, int, Mapping[str, object] | None]
+
 
 class TopologyKernel(BaseKernel):
     """Topology requests of a problem, applied between steps to the rows of the variable groups of its networks.
 
     `run(state)` fires the requests of update laws at the state and keeps the state after them in `values_`; the solver
-    of jump laws applies the request of every jump channel that fires. A new node of a request with a hyperedge forms
-    a new member of the variable group on the hyperedges, with the ends of an edge it draws and further nodes drawn by
-    the weights of the request, and joins each of them by an edge. A removed node takes its hyperedges with it.
+    of jump laws applies the request of every jump channel that fires. The weights of a request read the node its new
+    ends join as the source, and a condition that reads the source of an addition draws the new node before it decides,
+    so a node that does not fire is never added and a node that fires keeps those values. A new node of a request with
+    a hyperedge forms a new member of the variable group on the hyperedges, with the ends of an edge it draws and
+    further nodes drawn by the weights of the request, and joins each of them by an edge. A removed node takes its
+    hyperedges with it.
 
     Args:
         networks:
@@ -72,8 +77,8 @@ class TopologyKernel(BaseKernel):
         """Path of the first group on the nodes and the layer of every network layer with a variable edge group."""
         return tuple((network.nodes[0].path, layer) for network in self.networks for layer in network.edges)
 
-    def _decide(self, t: float, x: Array, p: Array, rng: np.random.Generator) -> list[tuple[int, int]]:
-        """Return the requests of update laws that fire at a state, each as its index and the row it fires for.
+    def _decide(self, t: float, x: Array, p: Array, rng: np.random.Generator) -> list[Fired]:
+        """Return the requests of update laws that fire at a state, as an index, a row, and values drawn to decide.
 
         Args:
             t:
@@ -90,7 +95,8 @@ class TopologyKernel(BaseKernel):
 
         Returns:
             fired:
-                The index of every fired request with its row, in the order of the requests and the rows.
+                The index of every fired request with its row, in the order of the requests and the rows, and the
+                values of the new node when the condition read them, or else `None`.
         """
         if not self.requests:
             return []
@@ -99,12 +105,15 @@ class TopologyKernel(BaseKernel):
             error_msg = 'Every update request of a topology kernel carries its condition.'
             raise ValidationError(error_msg)
         q = self.reductions.extend(t, x, p) if any(item.reads_reductions for item in conditions) else p
-        fired = []
+        fired: list[Fired] = []
         for index, condition in enumerate(conditions):
-            _, _, values = condition.run(RunStateSpec(t, x, q)).values_
+            item = self.requests[index]
+            drawn = self._initial_values(item.request, rng) if condition.reads_source else None
+            source = None if drawn is None else self._new_values(item.network.nodes[0], drawn)
+            _, _, values = condition.run(RunStateSpec(t, x, q, source=source)).values_
             chances = np.clip(np.asarray(values[0], dtype=float), 0.0, 1.0)
             rows = np.flatnonzero(rng.random(chances.size) < chances)
-            fired += [(index, int(row)) for row in rows]
+            fired += [(index, int(row), drawn) for row in rows]
         return fired
 
     def _run(self, inputs: RunStateSpec | None) -> None:
@@ -117,11 +126,11 @@ class TopologyKernel(BaseKernel):
         t, x, p, rng = state.t, state.x, state.p, self._generator_of(state)
         self.values_ = self._apply(self._decide(t, x, p, rng), t, x, p, rng)
 
-    def _apply(self, fired: list[tuple[int, int]], t: float, x: Array, p: Array, rng: np.random.Generator) -> Array:
+    def _apply(self, fired: list[Fired], t: float, x: Array, p: Array, rng: np.random.Generator) -> Array:
         """Apply fired requests of update laws to a copy of a state and to the parameters in place."""
         state = x.copy()
-        for index, row in fired:
-            self._execute(self.requests[index], row, t, state, p, rng=rng)
+        for index, row, drawn in fired:
+            self._execute(self.requests[index], row, t, state, p, rng=rng, drawn=drawn)
         return state
 
     def _fire(self, channel: int, row: int, t: float, x: Array, p: Array, *, rng: np.random.Generator) -> Array:
@@ -212,12 +221,14 @@ class TopologyKernel(BaseKernel):
                     return group.present(p)
         return None
 
-    def _weights(self, item: CompiledRequestSpec, t: float, x: Array, p: Array) -> Array:
-        """Return the weight of every node row as a new end of a request."""
-        size = item.network.nodes[0].active.rows
+    def _weights(self, item: CompiledRequestSpec, end: int, t: float, x: Array, p: Array) -> Array:
+        """Return the weight of every node row as a new end of a request whose edges start from a node row."""
+        nodes = item.network.nodes[0]
+        size = nodes.active.rows
         if item.toward is None:
             return np.ones(size)
-        _, _, values = item.toward.run(RunStateSpec(t, x, self.reductions.extend(t, x, p))).values_
+        source = self._row_values(nodes, end, x, p)
+        _, _, values = item.toward.run(RunStateSpec(t, x, self.reductions.extend(t, x, p), source=source)).values_
         weights = np.broadcast_to(np.asarray(values[0], dtype=float), (size,))
         return np.where(np.isfinite(weights) & (weights > 0), weights, 0.0)
 
@@ -256,7 +267,7 @@ class TopologyKernel(BaseKernel):
         """Join a node to new ends drawn by the weights of a request, with the values of an edge request."""
         request, network = item.request, item.network
         allowed = self._allowed(item, end, p)
-        for other in self._draw(self._weights(item, t, x, p), allowed, request.edges, rng):
+        for other in self._draw(self._weights(item, end, t, x, p), allowed, request.edges, rng):
             values = self._initial_values(request, rng) if request.kind == 'add-edge' else {}
             self._add_edge(network, request.layer, (end, other), x, p, values=values)
 
@@ -310,7 +321,7 @@ class TopologyKernel(BaseKernel):
             members = [int(sources[row]), int(targets[row])]
         allowed = network.present(p).copy()
         allowed[[node, *members]] = False
-        members += self._draw(self._weights(item, t, x, p), allowed, size - 1 - len(members), rng)
+        members += self._draw(self._weights(item, node, t, x, p), allowed, size - 1 - len(members), rng)
         if len(members) < size - 1:
             return
         for other in members:
@@ -336,7 +347,7 @@ class TopologyKernel(BaseKernel):
         sources, targets = edges.ends(p)
         kept = int(sources[row] if request.keep == 'source' else targets[row])
         allowed = self._allowed(item, kept, p)
-        chosen = self._draw(self._weights(item, t, x, p), allowed, 1, rng)
+        chosen = self._draw(self._weights(item, kept, t, x, p), allowed, 1, rng)
         if not chosen:
             return
         ends = (kept, chosen[0]) if request.keep == 'source' else (chosen[0], kept)
@@ -352,6 +363,7 @@ class TopologyKernel(BaseKernel):
         p: Array,
         *,
         rng: np.random.Generator,
+        drawn: Mapping[str, object] | None = None,
     ) -> None:
         """Apply one request for one row, skipping a row whose node or edge is no longer present."""
         request, network = item.request, item.network
@@ -361,7 +373,8 @@ class TopologyKernel(BaseKernel):
             return
         kind = request.kind
         if kind == 'add-node':
-            node = self._add_node(network, x, p, self._initial_values(request, rng))
+            values = self._initial_values(request, rng) if drawn is None else drawn
+            node = self._add_node(network, x, p, values)
             if request.hyperedge is None:
                 self._join(item, node, t, x, p, rng=rng)
             else:
@@ -379,6 +392,23 @@ class TopologyKernel(BaseKernel):
     def _initial_values(request: TopologyRequestSpec, rng: np.random.Generator) -> dict[str, object]:
         """Return the values of a new node or edge of a request, drawing those given as functions of the generator."""
         return {name: value(rng) if callable(value) else value for name, value in request.values}
+
+    @staticmethod
+    def _row_values(group: CapacityRowsSpec, row: int, x: Array, p: Array) -> dict[str, Array]:
+        """Return the values of the member in a row of a group by dotted name."""
+        values = {}
+        for entry, is_state in group.variables.values():
+            start = entry.start + row * entry.columns
+            values[entry.name] = (x if is_state else p)[start : start + entry.columns]
+        return values
+
+    @staticmethod
+    def _new_values(group: CapacityRowsSpec, values: Mapping[str, object]) -> dict[str, Array]:
+        """Return the values a new member of a group would take by dotted name, given values or the defaults."""
+        return {
+            entry.name: np.broadcast_to(np.asarray(values.get(name, group.defaults[name]), dtype=float), entry.columns)
+            for name, (entry, _) in group.variables.items()
+        }
 
     @staticmethod
     def _write(group: CapacityRowsSpec, row: int, x: Array, p: Array, values: Mapping[str, object]) -> None:

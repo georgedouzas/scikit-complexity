@@ -27,9 +27,13 @@ class TopologyInteraction(NeighborInteraction):
     network whose groups are variable, as in growing networks. It fires at a `rate`, with a `probability` per step, or
     with probability one, and only where the `condition` holds. The rate, the probability, and the condition are numbers
     or functions of the namespace of an edge, whose ends are `namespace.source` and `namespace.target`, and an action of
-    the nodes reads the node as the source. A new node joins `edges` other nodes, a node adding edges joins `edges`
-    other nodes, and a rewiring keeps the end `keep` of its edge. New ends are drawn with probability proportional to
-    `toward(node)`, a function of the namespace of a candidate node, or uniformly. A new node or edge takes the
+    the nodes reads the node as the source. Without a target, the namespace of `'add-node'` holds the values drawn for
+    the node being added as `namespace.source`, which the condition and a probability read and a rate does not. A new
+    node joins `edges` other nodes, a node adding edges joins `edges` other nodes, and a rewiring keeps the end `keep`
+    of its edge. New ends are drawn with probability proportional to `toward(node)`, a function of the namespace of a
+    candidate node that also holds the node the new edge starts from as `node.source`, or uniformly. That node is the
+    new node of `'add-node'`, the adding node of `'add-edge'`, and the kept end of `'rewire'`. Where fewer candidates
+    have a positive weight than the edges to draw, the new ends are drawn uniformly. A new node or edge takes the
     `values`, each a value or a function of the random number generator that draws it. The groups on the nodes and the
     edges of the network are variable. With `hyperedge`, a new node instead forms a hyperedge of that size with
     `hyperedge - 1` existing nodes and joins each of them by an edge: the first two are the ends of an edge drawn
@@ -57,8 +61,8 @@ class TopologyInteraction(NeighborInteraction):
             A function of the namespace that returns where the change may fire, or `None` everywhere.
 
         toward:
-            A function of the namespace of a candidate node that returns its weight as a new end, or `None` for equal
-            weights.
+            A function of the namespace of a candidate node that returns its weight as a new end, reading the node
+            the new edge starts from as `namespace.source`, or `None` for equal weights.
 
         edges:
             The number of edges a new node or a node adding edges joins.

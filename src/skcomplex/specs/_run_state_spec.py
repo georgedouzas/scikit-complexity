@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 import numpy as np
@@ -28,6 +29,9 @@ class RunStateSpec(BaseSpec):
         rng:
             The random number generator of the run, or `None` for a kernel that draws nothing.
 
+        source:
+            The values of the node a topology request starts from by dotted name, or `None` for a kernel of no request.
+
     Examples:
         >>> import numpy as np
         >>> from skcomplex.specs import RunStateSpec
@@ -39,3 +43,4 @@ class RunStateSpec(BaseSpec):
     x: Array
     p: Array
     rng: np.random.Generator | None = None
+    source: Mapping[str, Array] | None = None

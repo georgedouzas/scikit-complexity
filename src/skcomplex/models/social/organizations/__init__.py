@@ -2,6 +2,7 @@
 
 from ._arms_race import ArmsRaceElement
 from ._burden import BurdenElement
+from ._city_dweller import CityDwellerElement
 from ._city_resident import CityResidentElement
 from ._commute import CommuteInteraction
 from ._contender_view import ContenderView
@@ -35,11 +36,13 @@ from ._trafficking import trafficking
 from ._traps import escalation, shifting_the_burden, success_to_the_successful
 from ._traveller import TravellerElement
 from ._traveller_view import TravellerView
+from ._urban_interactions import urban_scaling_interactions
 from ._urban_scaling import gravity_urban_scaling
 
 __all__: list[str] = [
     'ArmsRaceElement',
     'BurdenElement',
+    'CityDwellerElement',
     'CityResidentElement',
     'CommuteInteraction',
     'ContenderElement',
@@ -80,4 +83,5 @@ __all__: list[str] = [
     'shifting_the_burden',
     'success_to_the_successful',
     'trafficking',
+    'urban_scaling_interactions',
 ]

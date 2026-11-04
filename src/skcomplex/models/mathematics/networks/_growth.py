@@ -1,4 +1,4 @@
-"""Growing networks: preferential attachment, triad formation, and vertex copying."""
+"""Growing networks: preferential attachment, triad formation, vertex copying, and popularity-similarity growth."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -7,15 +7,19 @@ from collections.abc import Sequence
 from types import SimpleNamespace
 
 import networkx as nx
+import numpy as np
+from sage.all__sagemath_symbolics import exp, ln, pi, sin
 
 from ....core.elements import GroupElement
 from ....core.interactions import BaseInteraction, MapInteraction, TopologyInteraction
-from ....core.laws.utils import neighbors, total, where
+from ....core.laws.utils import logistic, neighbors, total, where
 from ....core.spaces import DiscreteTime, NetworkSpace
 from ....core.system import System
+from ....errors import ValidationError
 from ..._catalog import register_model
 from ._copying_vertex import CopyingVertexElement
 from ._link import LinkElement
+from ._similarity_vertex import SimilarityVertexElement
 from ._triad_vertex import TriadVertexElement
 from ._vertex import DEGREE_VISUAL, VertexElement
 
@@ -26,6 +30,12 @@ SMALLEST_DEGREE = 1e-9
 
 
 JOINING_AGE = 0.5
+
+
+SMALLEST_ANGLE = 1e-12
+
+
+MIN_EXPONENT = 2.0
 
 
 def _degree(node: SimpleNamespace) -> object:
@@ -221,3 +231,106 @@ def vertex_copying(n_nodes: int = 304, *, edges: int = 3, randomness: float = 0.
         function=lambda s: 1 / (neighbors(1) + SMALLEST_DEGREE),
     )
     return _grown(nodes, growth, space, edges * n_nodes + seed_nodes**2, [inverse])
+
+
+def _get_similarity_weight(
+    node: SimpleNamespace,
+    arrivals: int,
+    *,
+    edges: int,
+    fading: float,
+    temperature: float,
+) -> object:
+    """Return the Fermi-Dirac probability of the hyperbolic distance between a candidate node and the new node."""
+    now = node.t + arrivals
+    radius = 2 * ln(now)
+    candidate = fading * 2 * ln(now - node.age) + (1 - fading) * radius
+    angle = pi - abs(pi - abs(node.angle - node.source.angle))
+    distance = candidate + radius + 2 * ln(angle / 2 + SMALLEST_ANGLE)
+    spread = 2 * temperature * (1 - exp(-(1 - fading) * radius / 2)) / (sin(temperature * pi) * edges * (1 - fading))
+    return 1 - logistic(distance, radius - 2 * ln(spread), 2 * temperature)
+
+
+@register_model(
+    field='mathematics/networks',
+    tags=('network', 'growth', 'hyperbolic', 'popularity-similarity', 'scale-free', 'clustering'),
+    references=(
+        'Papadopoulos et al. 2012, arXiv 1106.0286',
+        'Gabrielli, Garlaschelli, Patil, and Serrano 2024, arXiv 2412.12988',
+    ),
+    defaults={'until': 297},
+)
+def popularity_similarity_network(
+    n_nodes: int = 300,
+    *,
+    edges: int = 2,
+    exponent: float = 2.5,
+    temperature: float = 0.2,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return popularity-similarity growth, scale-free and clustered, whose nodes attach by hyperbolic distance.
+
+    Every step a node joins at a uniform angle on the circle and the radius `2 ln t`, every other node `s` moves to the
+    radius `b 2 ln s + (1 - b) 2 ln t` with `b = 1 / (exponent - 1)`, and the new node joins `edges` nodes drawn in
+    proportion to the Fermi-Dirac probability of their hyperbolic distance `x = r_s + r_t + 2 ln(theta / 2)`, at the
+    temperature `temperature`. The degrees follow a power law of the given exponent, and the clustering falls as the
+    temperature rises (Papadopoulos et al. 2012).
+
+    Args:
+        n_nodes:
+            The number of nodes the network holds room for.
+
+        edges:
+            The number of edges of every new node, and one less than the nodes of the complete seed network.
+
+        exponent:
+            The exponent of the degree distribution, above 2.
+
+        temperature:
+            The temperature of the network, between 0 and 1.
+
+        random_state:
+            The seed or generator of the angles of the seed network.
+
+    Returns:
+        system:
+            The model, with the groups `nodes` and `links`, the arrival `growth`, and the states `nodes.angle`,
+            `nodes.age`, and `nodes.degree`.
+
+    Raises:
+        ValidationError:
+            The exponent is not above 2, or the temperature is not between 0 and 1.
+
+    Examples:
+        >>> from skcomplex.engine.runtime import Simulation
+        >>> from skcomplex.models.mathematics.networks import popularity_similarity_network
+        >>> system = popularity_similarity_network(13)
+        >>> trajectory = Simulation(system, random_state=0).check().prepare().run(until=10).trajectory_
+        >>> int(trajectory.network(-1).sources.size)
+        23
+    """
+    if exponent <= MIN_EXPONENT:
+        error_msg = f'The degree exponent of the growth is {exponent!r}. Give an exponent above {MIN_EXPONENT}.'
+        raise ValidationError(error_msg)
+    if not 0 < temperature < 1:
+        error_msg = f'The temperature of the growth is {temperature!r}. Give a temperature between 0 and 1.'
+        raise ValidationError(error_msg)
+    seed_nodes = edges + 1
+    fading = 1 / (exponent - 1)
+    angles = np.random.default_rng(random_state).uniform(0.0, 2 * np.pi, seed_nodes)
+    ages = np.arange(seed_nodes - 1, -1, -1, dtype=float)
+    nodes = _nodes(SimilarityVertexElement, n_nodes, age=ages.tolist(), angle=angles.tolist())
+    growth = TopologyInteraction(
+        'growth',
+        action='add-node',
+        edges=edges,
+        values={'angle': lambda rng: rng.uniform(0.0, 2 * np.pi)},
+        toward=lambda node: _get_similarity_weight(
+            node,
+            seed_nodes + 1,
+            edges=edges,
+            fading=fading,
+            temperature=temperature,
+        ),
+    )
+    return _grown(nodes, growth, NetworkSpace(nx.complete_graph(seed_nodes)), edges * n_nodes + seed_nodes**2)
