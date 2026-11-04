@@ -29,4 +29,4 @@
 
 - [x] 6.1 Remove the three from `pyproject.toml` and the deptry list, relock, and update `docs/overview/user_guide.md` and the Project Profile; verify `grep -rnE "tidynamics|kramersmoyal|matching\.games" src tests pyproject.toml docs/overview openspec/constitution.md` finds nothing, `pdm.lock` no longer lists them, and `pdm checks` passes.
 - [x] 6.2 Install the built wheel into a new environment without the lock file; verify the three classes run and the three test files pass.
-- [ ] 6.3 Push to `development`; verify every CI job passes.
+- [x] 6.3 Push to `development`; verify every CI job passes.
