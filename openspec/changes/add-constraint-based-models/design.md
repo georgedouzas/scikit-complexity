@@ -206,9 +206,11 @@ with the indices of its irreversible columns:
 - `'modes'` splits every reversible column, takes the extreme rays of the split cone with
   `Polyhedron(eqns=..., ieqs=..., backend='ppl')`, drops the two-cycles of split pairs, and maps the rest back, which
   gives exactly the elementary modes (Gagneur and Klamt 2004).
-- `'pathways'` splits only the reversible internal columns and keeps each exchange as one column in its declared
-  direction (Schilling et al. 2000). A variable in one equality is an exchange unless `exchanges` names them. The lines
-  of a cone that is not pointed are kept apart.
+- `'pathways'` splits only the reversible internal columns and keeps each exchange as one column, of either sign when
+  it is reversible (Raman 2021, Section 9.8, whose Figure 9.2 needs it). It then drops every generator that is a
+  non-negative combination of the others, the systemic independence of the same section, since a mode such as `EFM6` of
+  that figure is extreme in the split cone and only combines once `v3r` nets out. A variable in one equality is an
+  exchange unless `exchanges` names them. The lines of a cone that is not pointed are kept apart.
 - Coefficients become fractions with denominators of at most 10⁶, and a coefficient the conversion moves by more than
   1e-9 raises a named error naming the variable and the constraint. A nonzero right side raises a named error, since
   modes are defined at steady state.
@@ -282,6 +284,66 @@ plot, within the budget of 300 frames, 20 MB, and 60 s:
 - `carbon_13_mfa`: the TCA example of Antoniewicz et al. (2007) with two parallel tracers, data from known fluxes with
   noise of standard deviation 0.002 at seed 0, and 5 starts, drawn as estimated fluxes with intervals against the true
   ones and as measured against simulated glutamate distributions.
+
+### Source check of the models
+
+Checked on 2026-11-04 against the local Raman (2021), whose printed pages are cited, and by plain fetches of primary
+papers that the `references` folder does not hold. Each finding gives what the source says and what changed.
+
+Sources read through a fetch, as a summary of the page and not in full: Chan et al. (2017), whose equations are images
+and whose algorithm is in a supplement; Harcombe et al. (2014); and Antoniewicz et al. (2007), Tables 5 and 6. Sources
+not read: Covert et al. (2001) gave 404, Antoniewicz et al. (2006) gave 403, Mahadevan et al. (2002) gave only its
+abstract, and Schilling et al. (2000), Varma and Palsson (1994), and Zhuang et al. (2011) were not fetched.
+
+Fixed:
+- Extreme pathways (§9.8, pp. 214-215). Exchanges "can be reversible", and in Figure 9.2 `v4r` runs both ways, so
+  forcing them non-negative was wrong. A reversible exchange is now one free column. Systemic independence (p. 214) also
+  needed its own filter, since the free column alone gave 6 pathways, and the figure's network now gives 7 modes and 4
+  pathways, with yields of `G` on `C` of 1 and 2 (p. 216).
+- Flux variability (Eq. 8.11d, p. 187). The objective is kept as a whole, `c' v >= f`. It was kept reaction by reaction,
+  which made an objective of several reactions infeasible. `ObjectiveFloorInteraction` adds the row.
+- MoMA and ROOM (Eqs. 9.1 and 9.5, pp. 202-204). `CobraAnalysis` now defaults to the quadratic and mixed-integer forms.
+  COBRApy's `delta = 0.03` and `epsilon = 0.001` are Raman's values for flux predictions. After `pgi`, FBA gives 0.8632,
+  MoMA 0.8178, and ROOM 0.8474, where the linear forms gave 0.8426 and 0.7465.
+- Community FBA (§11.1.3.2, pp. 256-257). All organisms grow at one specific rate, which `common_rate=True` now gives,
+  with fixed abundances. The default stays joint FBA (§11.1.3.1).
+- SteadyCom (Eq. 11.3, p. 259). The formulation matched: bounds scaled by abundance, `V_bio = X v_comm`, and total
+  biomass 1. Its bisection did not: a cap of 10 had no source and clipped faster communities, and 40 steps probed so
+  close to the feasibility boundary that HiGHS failed. The cap now comes from the bounds, and the bisection stops at a
+  relative `1e-7`.
+- `comets` uptake. Harcombe et al. give `Km = 0.01` mM and `Vmax = 10` mmol/g/h, so `km` moved from 0.015 to 0.01.
+- `elementary_flux_modes` order. The spec's order by growth yield is the new `sort` setting of the analysis.
+- Citation of the trade-off. Eq. 11.3 is SteadyCom, and the trade-off is MICOM (Diener et al. 2020), not in Raman.
+
+Confirmed, with no change:
+- `flux_balance` (§8.3, §8.6, §8.7, §8.8.5). The toy network matches Eqs. 8.5, its bounds match p. 186, and the results
+  match Eqs. 8.9 and 8.12. The parsimonious total is 3950, the l1 form of Eq. 8.15.
+- Oxygen sweep. Raman has no figure of growth against oxygen in chapters 8 to 11. Exercise 8.4c sweeps glucose at oxygen
+  16. The solve gives 0.8326 at oxygen 20 and 0.8739 only from 21.8, the pFBA uptake 21.799, so the change from 0-20 to
+  0-25 is right, and 0.8739 at 20 was wrong.
+- Objective series. The objective is the specific growth rate (p. 183 and p. 211), so "holds the growth rate" is right
+  and "grows with biomass" was wrong. It runs 0.8725, not 0.8739, since uptake at 10 mM is `10 S / (Km + S) = 9.985`.
+- `dynamic_fba` (§9.6). Eqs. 9.8 and 9.9 and the bound `S / (X dt)` are implemented. Raman gives no numbers, so the
+  biomass 0.01, the glucose 10, `Vmax` 10, and `Km` 0.015 are not from Raman, and `Km` was not verified in Mahadevan et
+  al. Holding the bound over an interval overshoots: glucose ends at -3.8e-4 mM.
+- `carbon_13_mfa` (§9.7). The atom map and the distribution match Antoniewicz et al. (2007), Tables 5 and 6. The
+  threshold 3.84 of the profile intervals and the chi-square range are from memory of Antoniewicz et al. (2006), which
+  could not be read. Raman asks only for a goodness-of-fit test and intervals.
+- The `references` of the nine models. All appear in Raman's lists, and Gagneur and Klamt (2004), Antoniewicz et al.
+  (2006), and Diener et al. (2020), which do not, resolve on Europe PMC.
+
+Differences left open, for a decision:
+- `regulatory_fba`. Raman gives the form of the rules (Eq. 9.7) and the loop (p. 207), but no rules for this culture.
+  Its diauxie is glucose then lactose (§9.4, p. 206), and the core model has no lactose exchange (`EX_lac__D_e` is
+  D-lactate). The genes, the threshold 0.1, and the delay of 10 nodes are stated as illustrative in the docstring.
+- `comets`. Raman diffuses metabolites only and alternates the steps (p. 258), while Harcombe et al. also diffuse biomass
+  (3e-9 cm^2/s, or 3e-10 for E. coli colonies), with steps of 0.1 h, 3e-7 g at the centre of a 50 by 50 lattice, and no
+  threshold of activity. Those coefficients on boxes of 0.02 cm are about 45 and 0.0027 boxes^2/h, against 1 and 0.2
+  here. An explicit step at 45 must be below about 0.008 h, and the front moves about 0.1 box/h, so the source's values
+  break the gallery budget without a change to the alternating scheme.
+- `community_fba`. Raman's consortium (p. 260) has four mutants needing amino acids, which the core model cannot make.
+  ΔICDHyr and ΔNH4t has no source.
+- `dynamic_multispecies_fba`. Raman's example is Rhodoferax and Geobacter (p. 258). The uptakes 10 and 8 have no source.
 
 ## Risks / Trade-offs
 
