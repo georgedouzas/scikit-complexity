@@ -74,10 +74,10 @@ def community_fba(
         member.objective = {}
         for reaction in shared:
             if shared[reaction] >= 0:
-                setattr(member, f'lower_{member._identifier(reaction)}', OPEN_UPTAKE)
+                member.set_params(**{f'lower_{member._identifier(reaction)}': OPEN_UPTAKE})
         if knockout:
-            setattr(member, f'lower_{member._identifier(knockout)}', 0.0)
-            setattr(member, f'upper_{member._identifier(knockout)}', 0.0)
+            identifier = member._identifier(knockout)
+            member.set_params(**{f'lower_{identifier}': 0.0, f'upper_{identifier}': 0.0})
         members.append(member)
     return System(
         elements=[*members, community_medium_type(list(shared))('medium')],

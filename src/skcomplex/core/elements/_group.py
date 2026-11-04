@@ -10,10 +10,11 @@ import numpy as np
 from sage.all__sagemath_symbolics import ZZ
 
 from ...errors import SpaceError, ValidationError
-from ...specs import RoleSpec, VisualSpec
+from ...specs import RoleSpec, Spec, VisualSpec
 from ..base import BasePart
 from ..spaces import BaseSpace
 from ._base import BaseElement
+from ._declared import DeclaredElement
 
 PARTS = ('sites', 'edges', 'hyperedges')
 
@@ -137,6 +138,32 @@ class GroupElement(BaseElement):
             raise SpaceError(error_msg)
         return place.check().prepare()._count_parts(self.on or 'sites', self.layer)
 
+    def _get_member(self) -> BaseElement:
+        """Return a member of the group, with the values the group gives."""
+        return self.element(self.label).set_params(**(self.values or {}))
+
+    def _get_member_specs(self) -> dict[str, Spec]:
+        """Return the specs of a member, read from a member only when it declares variables from data."""
+        if issubclass(self.element, DeclaredElement):
+            return self._get_member()._get_part_specs()
+        return self.element._get_specs()
+
+    def get_declaring_part(self) -> type[BaseElement] | BaseElement:
+        """Return what declares the variables of a member: its class, or a member when it declares them from data.
+
+        Returns:
+            part:
+                The element class, or a member with the values of the group.
+
+        Examples:
+            >>> from skcomplex.core.elements import DeclaredElement, GroupElement
+            >>> from skcomplex.specs import DeclaredVariableSpec, StateSpec
+            >>> values = {'variables': {'x': DeclaredVariableSpec(1.0, StateSpec())}}
+            >>> GroupElement('cells', element=DeclaredElement, size=2, values=values).get_declaring_part().get_value('x')
+            1.0
+        """
+        return self._get_member() if issubclass(self.element, DeclaredElement) else self.element
+
     def _get_member_location(self, index: int, size: int) -> object:
         """Return the initial location of one of `size` members, from per-member locations or one shared location."""
         location = self.location
@@ -149,7 +176,7 @@ class GroupElement(BaseElement):
 
     def _check_value_rows(self) -> None:
         """Raise an error for a per-member value of a state or a parameter without one row per member."""
-        specs = self.element._get_specs()
+        specs = self._get_member_specs()
         for name, value in self.values_.items():
             spec = specs.get(name)
             if spec is None or isinstance(spec, RoleSpec):
@@ -206,7 +233,7 @@ class GroupElement(BaseElement):
         self._check_on()
         self._check_element()
         self._check_size()
-        self.element(self.label).set_params(**(self.values or {}))
+        self._get_member()
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, the visual of the group when it sets none, `size_`, and `values_`.
@@ -227,7 +254,7 @@ class GroupElement(BaseElement):
                 A per-member value does not have one row per member.
         """
         super()._prepare(context)
-        member = self.element(self.label).set_params(**(self.values or {}))
+        member = self._get_member()
         if member.visual is not None:
             self.default_visual_ = member.visual
         self.size_ = self._size_of(context)
@@ -245,4 +272,4 @@ class GroupElement(BaseElement):
             laws:
                 The laws of a member.
         """
-        return self.element(self.label).set_params(**(self.values or {}))._get_laws(namespace)
+        return self._get_member()._get_laws(namespace)

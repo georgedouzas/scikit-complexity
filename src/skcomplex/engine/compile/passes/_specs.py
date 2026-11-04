@@ -254,7 +254,7 @@ class SpecsPass(BasePass):
                 'An element set lists single elements of one type, and a role binds to a group by its path.'
             )
             raise RoleError(error_msg)
-        types = list(dict.fromkeys(block.node.component_type.__name__ for block in blocks))
+        types = list(dict.fromkeys(type(block.node.component).__name__ for block in blocks))
         if len(types) > 1:
             error_msg = (
                 f'Interaction {node.path} binds the role {role!r} to elements of the types {" and ".join(types)}. An '

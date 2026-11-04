@@ -98,7 +98,8 @@ def test_next_generation_reservoir_keeps_lags_of_every_variable():
     values = _lorenz_samples()[:400]
     system = next_generation_reservoir(values, delay=3)
     element = system.elements[0]
-    assert (element.x, element.x_lag1, element.x_lag2) == pytest.approx(tuple(values[[-1, -2, -3], 0]))
+    assert element.get_value('x') == pytest.approx(values[-1, 0])
+    assert element.variables['x'].spec.initial == pytest.approx(tuple(values[[-2, -3], 0]))
     assert [interaction.state for interaction in system.interactions] == VARIABLES
     assert all(interaction.mode == 'increment' for interaction in system.interactions)
     trajectory = Simulation(system).check().prepare().run(until=2).trajectory_
@@ -126,4 +127,14 @@ def test_next_generation_reservoir_clones():
     """Test that a clone keeps the values of the variables and of their lags."""
     values = np.sin(0.1 * np.arange(200.0))[:, None]
     element = clone(next_generation_reservoir(values, variables=['v'])).elements[0]
-    assert (element.v, element.v_lag1) == pytest.approx((values[-1, 0], values[-2, 0]))
+    assert element.get_value('v') == pytest.approx(values[-1, 0])
+    assert element.variables['v'].spec.initial == pytest.approx((values[-2, 0],))
+
+
+def test_next_generation_reservoir_keeps_its_reference_values():
+    """Test a forecast against the values recorded before the element moved to declared states."""
+    values = np.sin(0.1 * np.arange(200.0))[:, None]
+    system = next_generation_reservoir(values, variables=['v'])
+    trajectory = Simulation(system, dt=1).check().prepare().run(until=20).trajectory_
+    last = [float(np.ravel(trajectory.values(path))[-1]) for path in ('reservoir.v', 'reservoir.v_lag1')]
+    assert last == pytest.approx([0.09103560049023797, 0.18999621778271003], rel=1e-9)

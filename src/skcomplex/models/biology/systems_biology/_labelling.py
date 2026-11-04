@@ -236,7 +236,7 @@ class LabellingAnalysis(BaseAnalysis):
     def _bounds_of(self, reaction: str) -> tuple[float, float]:
         """Return the bounds of a reaction, from the parameters of the network."""
         identifier = self.network_._identifier(reaction)
-        return getattr(self.network_, f'lower_{identifier}'), getattr(self.network_, f'upper_{identifier}')
+        return self.network_.get_number(f'lower_{identifier}'), self.network_.get_number(f'upper_{identifier}')
 
     def _reversible(self, reaction: str) -> bool:
         """Check whether a reaction may run backward."""
@@ -461,7 +461,12 @@ class LabellingAnalysis(BaseAnalysis):
                 name: float(value)
                 for name, value in zip(self._reactions, rng.normal(size=len(self._reactions)), strict=True)
             }
-            element = type(self.network_)(self.network_.label, objective=weights).set_params(**identifiers)
+            element = type(self.network_)(
+                self.network_.label,
+                objective=weights,
+                reactions=self.network_.reactions,
+                default_objective=self.network_.default_objective,
+            ).set_params(**identifiers)
             problem = compile_system(System(elements=[element], time=StaticTime()))
             if not isinstance(problem, ProblemSpec):
                 error_msg = f'The network compiles to a {type(problem).__name__}, not a linear program.'

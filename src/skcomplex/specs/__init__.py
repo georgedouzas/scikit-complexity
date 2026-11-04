@@ -20,6 +20,7 @@ from ._continuous_matching_spec import ContinuousMatchingSpec
 from ._control_solution_spec import ControlSolutionSpec
 from ._covariance_adaptation_spec import CovarianceAdaptationSpec
 from ._dataset_spec import DatasetSpec
+from ._declared_variable_spec import DeclaredVariableSpec
 from ._dialect_spec import DialectSpec
 from ._differential_evolution_spec import DifferentialEvolutionSpec
 from ._direction_spec import DirectionSpec
@@ -126,6 +127,7 @@ __all__ = [
     'ControlSolutionSpec',
     'CovarianceAdaptationSpec',
     'DatasetSpec',
+    'DeclaredVariableSpec',
     'DialectSpec',
     'DifferentialEvolutionSpec',
     'DirectionSpec',
