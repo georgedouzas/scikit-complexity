@@ -40,7 +40,7 @@ def load_extra(owner: str) -> ModuleType:
         'cobra'
     """
     if sys.platform == 'linux':
-        # Once GAP has run, loading libSBML the usual way binds it to a library of GAP, and its parser crashes the process.
+        # Once GAP has run, loading libSBML the usual way binds it to a library of GAP, and its parser crashes.
         flags = sys.getdlopenflags()
         sys.setdlopenflags(flags | os.RTLD_DEEPBIND)
         try:
