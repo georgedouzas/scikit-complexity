@@ -125,6 +125,43 @@ class SwitchedBirthInteraction(BirthInteraction):
 print(clone(SwitchedBirthInteraction('birth', target='deer', stochastic=True)))
 ```
 
+### States and parameters from data
+
+An element whose variables depend on data, such as a fitted surrogate or a metabolic network, cannot name them in its
+signature. `DeclaredElement` takes them in one argument instead.
+
+- `variables` maps every name to a `DeclaredVariableSpec`, which holds the initial value and a `StateSpec` or a
+  `ParameterSpec`. The compiler treats a declared variable as it treats an annotated argument.
+- A law reads a declared variable from its namespace, and `get_value` reads its value from the element.
+- `set_params` takes the name of a declared variable and changes its value, and `clone` copies the variables.
+- A group or a field takes the element class and gives `variables` in its `values`, next to the values per member.
+- A subclass that derives its variables from other arguments overrides `_declare_variables`.
+
+```python continuation
+from skcomplex.core.elements import DeclaredElement
+from skcomplex.core.spaces import ContinuousTime
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import DeclaredVariableSpec
+
+
+class DecayElement(DeclaredElement):
+    def _get_laws(self, s):
+        return [RateLaw(getattr(s, name), -s.k * getattr(s, name)) for name in ('a', 'b')]
+
+
+declared = {
+    'a': DeclaredVariableSpec(1.0, StateSpec()),
+    'b': DeclaredVariableSpec(2.0, StateSpec()),
+    'k': DeclaredVariableSpec(0.5, ParameterSpec()),
+}
+decay = DecayElement('decay', variables=declared)
+faster = clone(decay).set_params(k=1.0)
+print(decay.get_value('k'), faster.get_value('k'))
+system = System(elements=[decay], time=ContinuousTime())
+print(Simulation(system, dt=0.1).check().prepare().run(until=1.0).trajectory_.values('decay.b')[-1])
+```
+
 ### Laws
 
 Every law class derives from `BaseLaw`. A law takes the states it changes and the expressions it reads as arguments of
@@ -724,8 +761,9 @@ modes grows combinatorially, so the enumeration stops after `timeout` seconds wi
 
 The family `skcomplex.models.biology.common.metabolism` holds what metabolic models share:
 
-- `metabolic_network_type` builds a `MetabolicNetworkElement` from `ReactionSpec`s, with one algebraic state per
-  reaction, one adaptive switch per gene, and one lower and one upper bound parameter per reaction.
+- `MetabolicNetworkElement` takes `ReactionSpec`s as data and declares one algebraic state per reaction, one adaptive
+  switch per gene, and one lower and one upper bound parameter per reaction. `metabolic_network_type` returns a function
+  that creates one for a set of reactions. A group takes the element class and gives the reactions in its `values`.
 - `FluxVariabilityAnalysis`, `ProductionScanAnalysis`, and the kind `'steadycom'` of `CommunityAnalysis` run on the
   solve of the core, in the default install.
 - `load_network`, `save_network`, `from_cobra`, `to_cobra`, `CobraAnalysis`, `StrainDesignAnalysis`, and the kind
