@@ -212,6 +212,7 @@ class ProblemPass(BasePass):
             jumps=functions.jumps,
             update=functions.update,
             boundary=functions.boundary,
+            algebraic=functions.algebraic,
             draws=functions.draws,
             backend=functions.backend,
             backends=functions.backends,

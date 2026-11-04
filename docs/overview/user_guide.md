@@ -497,6 +497,133 @@ print(list(bob.get_params()), bob.theta_d1)
 `SymbolicAnalysis('solve', use_initial_state=True)` takes the initial values of every derivative and returns a solution
 only when it has a closed form.
 
+## Connected components
+
+Engineering systems are assembled from components that connect through ports. Each component states equations and leaves
+open which variable each equation determines, so one resistor gives a current under a voltage source and a voltage
+under a current source.
+
+### Algebraic states
+
+`StateSpec(algebraic=True)` declares a state that no law integrates and that the equations of the system determine at
+every time.
+
+- An algebraic state has order 1 and no lags.
+- Its initial value is the starting guess of a nonlinear solve.
+- A law other than an `EquationLaw` that targets it raises `AlgebraicStateError`.
+- The trajectory records it at every frame, so observables and visuals read it like any other state.
+- The simulation keeps it at its initial value in `state_`, since the solvers integrate only the other states.
+- A law given as a function that reads values by name sees that initial value. Read it through a symbolic law instead.
+
+### Ports and connections
+
+`ConnectorSpec(name, potential, flow)` names the variables of a port, and the core holds no named connector. An element
+type declares its ports in the class variable `ports`, a mapping from the name of a port to its connector, and takes one
+algebraic state per variable of a port, named `<port>_<variable>`. A flow is positive into the element.
+
+`ConnectionInteraction(label, members=..., ports=...)` is one node. It binds the elements of the node through a variadic
+role, names the port of each in the same order, and returns the equations that make the potentials equal and the flows
+sum to zero. A node with many ports is one connection. A port that no connection names has a zero flow.
+
+```python
+from typing import Annotated, ClassVar
+
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import ConnectionInteraction
+from skcomplex.core.laws import EquationLaw
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import ConnectorSpec, ParameterSpec, StateSpec
+
+CHEMICAL = ConnectorSpec('chemical', potential='mu', flow='n')
+
+
+class ReservoirElement(Element):
+    ports: ClassVar = {'a': CHEMICAL}
+
+    def __init__(
+        self,
+        label,
+        *,
+        a_mu: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        a_n: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        level: Annotated[float, ParameterSpec()] = 0.0,
+    ):
+        super().__init__(label)
+        self.a_mu = a_mu
+        self.a_n = a_n
+        self.level = level
+
+    def _get_laws(self, s):
+        return [EquationLaw(s.a_n, s.a_mu - s.level)]
+
+
+system = System(
+    elements=[ReservoirElement('first', level=1.0), ReservoirElement('second', level=3.0)],
+    interactions=[ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])],
+)
+trajectory = Simulation(system, dt=0.5).check().prepare().run(until=1.0).trajectory_
+assert trajectory.values('first.a_mu')[-1] == 2.0
+assert trajectory.values('second.a_n')[-1] == -1.0
+```
+
+The electrical connector and components live in `skcomplex.models.engineering.common.electrical`, and the thermal
+connector and components in `skcomplex.models.engineering.control`.
+
+```python
+import numpy as np
+
+from skcomplex.core.interactions import ConnectionInteraction
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.models.engineering.common.electrical import CapacitorElement, GroundElement, ResistorElement
+
+circuit = System(
+    elements=[CapacitorElement('tank', u=1.0, C=0.5), ResistorElement('load', R=2.0), GroundElement('ground')],
+    interactions=[
+        ConnectionInteraction('top', members=['tank', 'load'], ports=['p', 'p']),
+        ConnectionInteraction('bottom', members=['tank', 'load', 'ground'], ports=['n', 'n', 'p']),
+    ],
+)
+trajectory = Simulation(circuit, dt=0.1).check().prepare().run(until=1.0).trajectory_
+assert np.isclose(trajectory.values('tank.u')[-1], np.exp(-1.0), rtol=1e-3)
+assert np.allclose(trajectory.values('load.p_i').ravel(), trajectory.values('tank.u').ravel() / 2.0)
+```
+
+A port component drives a mechanism through an `EquationLaw` whose target is a coordinate of an
+`EulerLagrangeInteraction`, which adds to the equation of that coordinate, as `dc_motor` shows.
+
+### The solve
+
+`OrdersPass` solves the equations of a system with algebraic states inside the right side of its differential equations,
+so its solvers run unchanged.
+
+- The unknowns are the highest derivatives and the algebraic states.
+- A maximum bipartite matching pairs the equations with the unknowns, and the strongly connected components of their
+  dependency graph, in topological order, are the blocks.
+- A block linear in its unknowns is solved symbolically up to six unknowns and by a numeric linear solve above.
+- Any other block runs `scipy.optimize.root` with the Jacobian Sage derives at every evaluation, from the values of the
+  last evaluation, on the NumPy backend. When that fails it starts again one unit away, and then raises `SolverError`.
+- The laws that read an algebraic state read its solution. A function argument, an event guard, or a reset that reads
+  an algebraic state of a nonlinear block raises `ValidationError`, because these need a symbolic value.
+
+The solve has no index reduction, so the structural check below reports a system of a higher index.
+
+### Issues of connected systems
+
+`PassCompiler` reports these issues with the other issues of a system, before compilation.
+
+- `port-connector`: the ports of one connection have different connectors, or a connection names a port that no single
+  element declares. Connect declared ports of one connector.
+- `port-connections`: a port appears in more than one connection. List the ports of the node in one connection.
+- `port-states`: an element type declares a port without an algebraic state for one of its variables. Declare
+  `<port>_<variable>` with `StateSpec(algebraic=True)`.
+- `structural-singularity`: the matching leaves equations or unknowns unmatched, as for two capacitors in parallel. The
+  issue names the constrained states. Add a compliant element, such as a resistance, between them.
+- `algebraic-law`: a law other than an `EquationLaw` targets an algebraic state. State its value with an `EquationLaw`.
+
+A connection under discrete time gives the `law-time` issue of every `EquationLaw`.
+
 ## Composing systems
 
 Systems nest. A system holds nested systems in `systems`, and an interaction refers to an element of a nested system by

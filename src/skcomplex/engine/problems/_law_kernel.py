@@ -372,7 +372,7 @@ class LawKernel(BaseKernel):
         if output.arguments is not None and not output.vectorized:
             rows = [
                 np.atleast_1d(np.asarray(function(t, *row, **keywords), dtype=float))
-                for row in zip(*arguments, strict=True)
+                for row in (zip(*arguments, strict=True) if arguments else [()] * size)
             ]
             result = np.asarray(rows, dtype=float).reshape(size, -1) if rows else np.zeros((0, output.components))
             return np.broadcast_to(result, (size, output.components))

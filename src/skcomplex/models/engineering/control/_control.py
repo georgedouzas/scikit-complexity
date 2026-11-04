@@ -7,14 +7,17 @@ from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import Expression
 
+from ....core.interactions import ConnectionInteraction, CrossingInteraction
 from ....core.system import System
 from ....engine.solvers import RK4Solver
 from ....specs import ObservableSpec
 from ..._catalog import register_model
+from ..common.electrical import GroundElement, VoltageSourceElement
 from ._controlled_process import ControlledProcessElement
 from ._room import RoomElement
 from ._satellite import SatelliteElement
 from ._swinging_pendulum import SwingingPendulumElement
+from ._thermal import ConvectionElement, HeatCapacityElement, HeatingResistorElement, ThermalConductorElement
 
 
 def _energy_of_satellite(s: SimpleNamespace) -> Expression:
@@ -264,3 +267,109 @@ def satellite_transfer(
         H_final=H_final,
     )
     return System(elements=[satellite])
+
+
+def _heating_power(s: SimpleNamespace) -> Expression:
+    """Return the heat that the resistor delivers to the room."""
+    heat: Expression = -s.heater.h_Q
+    return heat
+
+
+@register_model(
+    field='engineering/control',
+    tags=('control', 'thermal', 'acausal components', 'hysteresis', 'ode', 'events'),
+    references=('Fritzson 2015',),
+    defaults={'until': 14400.0, 'dt': 10.0},
+    observables=lambda system: [ObservableSpec('power', _heating_power)],
+)
+def heated_room(
+    T: float = 10.0,
+    *,
+    setting: float = 20.0,
+    band: float = 1.0,
+    outside: float = 5.0,
+    V: float = 230.0,
+    R: float = 25.0,
+    C: float = 2e5,
+    wall_capacity: float = 1e6,
+    wall_conductance: float = 100.0,
+    surface_conductance: float = 50.0,
+) -> System:
+    """Return a room assembled from thermal and electrical components, heated under a thermostat with hysteresis.
+
+    A voltage source drives a heating resistor whose heat enters the room, and the room loses heat through a wall of its
+    own heat capacity to the outside air. The thermostat opens the switch of the resistor when the room rises through
+    `setting + band / 2` and closes it when the room falls through `setting - band / 2`.
+
+    Args:
+        T:
+            The initial temperature of the room.
+
+        setting:
+            The temperature the thermostat keeps.
+
+        band:
+            The width of the hysteresis band around the setting.
+
+        outside:
+            The temperature of the outside air, which is also the initial temperature of the wall.
+
+        V:
+            The voltage of the source.
+
+        R:
+            The resistance of the heater.
+
+        C:
+            The heat capacity of the room.
+
+        wall_capacity:
+            The heat capacity of the wall.
+
+        wall_conductance:
+            The thermal conductance between the room and the wall.
+
+        surface_conductance:
+            The convective conductance between the wall and the outside air.
+
+    Returns:
+        system:
+            The model, with the room temperature `room.T` and the switch `heater.on`, in seconds.
+
+    Examples:
+        >>> from skcomplex.models.engineering.control import heated_room
+        >>> heated_room(setting=22.0).interactions[-1].direction
+        -1
+    """
+    upper, lower = setting + band / 2, setting - band / 2
+    return System(
+        elements=[
+            VoltageSourceElement('source', V=V),
+            HeatingResistorElement('heater', R=R),
+            GroundElement('ground'),
+            HeatCapacityElement('room', T=T, C=C),
+            ThermalConductorElement('inner', G=wall_conductance),
+            HeatCapacityElement('wall', T=outside, C=wall_capacity),
+            ConvectionElement('surface', h=surface_conductance, fluid=outside),
+        ],
+        interactions=[
+            ConnectionInteraction('supply', members=['source', 'heater'], ports=['p', 'p']),
+            ConnectionInteraction('neutral', members=['source', 'heater', 'ground'], ports=['n', 'n', 'p']),
+            ConnectionInteraction('air', members=['heater', 'room', 'inner'], ports=['h', 'a', 'a']),
+            ConnectionInteraction('masonry', members=['inner', 'wall', 'surface'], ports=['b', 'a', 'a']),
+            CrossingInteraction(
+                'open_switch',
+                target='heater',
+                guard=lambda s: s.target.h_T - upper,
+                reset={'on': lambda s: 0.0},
+                direction=1,
+            ),
+            CrossingInteraction(
+                'close_switch',
+                target='heater',
+                guard=lambda s: s.target.h_T - lower,
+                reset={'on': lambda s: 1.0},
+                direction=-1,
+            ),
+        ],
+    )

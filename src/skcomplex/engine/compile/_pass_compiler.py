@@ -16,7 +16,12 @@ from sklearn.base import clone
 
 from ...base import BaseConfig
 from ...core.elements import FieldElement, GroupElement
-from ...core.interactions import HyperedgeInteraction, NeighborInteraction, SatisfiabilityInteraction
+from ...core.interactions import (
+    ConnectionInteraction,
+    HyperedgeInteraction,
+    NeighborInteraction,
+    SatisfiabilityInteraction,
+)
 from ...core.laws import BilinearLaw, EncounterLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw
 from ...core.laws.utils import COORDINATE_PREFIX, hyperedges_in, neighborhoods_in, reductions_in
 from ...core.spaces import (
@@ -37,6 +42,7 @@ from ...core.spaces import (
 from ...core.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ...core.system import System
 from ...errors import (
+    AlgebraicStateError,
     ParameterError,
     PhaseSpaceTooLargeError,
     PipelineError,
@@ -56,7 +62,7 @@ from ...specs import (
 )
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...specs._issue_spec import _ERROR
-from ...types import DomainKind, FormKind, NoiseKind, ProcessKey, VariableKind
+from ...types import Array, DomainKind, FormKind, NoiseKind, ProcessKey, VariableKind, VectorFunction
 from .._utils import declarations_of, default_of, symbol
 from ..backends import BaseBackend
 from ..problems import BaseProblemSpec, PartitionSpec, ProblemSpec
@@ -75,6 +81,7 @@ from .passes._lattices import LatticeProblemPass
 from .passes._layout import LayoutPass
 from .passes._noise import NoisePass
 from .passes._operator_compiler import OperatorCompiler
+from .passes._orders import OrdersPass
 from .passes._reduction_lowering import ReductionLowering
 
 _COVARIANCE_TOLERANCE = 1e-12
@@ -218,6 +225,8 @@ class PassCompiler(BaseCompiler):
         if self.compilation_ is None or self.compilation_.census is None:
             return issues
         issues = self._issues_of(self.compilation_)
+        if not any(issue.severity == _ERROR for issue in issues):
+            issues += self._structure_issues(self.compilation_)
         if not any(issue.severity == _ERROR for issue in issues):
             issues += self._plan_issues(self.compilation_)
         return issues
@@ -377,7 +386,23 @@ class PassCompiler(BaseCompiler):
             agents=tuple(agents for item in partitions for agents in item.problem.agents),
             agent_space=next((item.problem.agent_space for item in partitions if item.problem.agents), None),
             partitions=tuple(partitions),
+            algebraic=self._partition_algebraic(partitions),
         )
+
+    @staticmethod
+    def _partition_algebraic(partitions: Sequence[PartitionSpec]) -> VectorFunction | None:
+        """Return the function that sets the algebraic states of every partition, or `None` without them."""
+        functions = [item.problem.algebraic for item in partitions if item.problem.algebraic is not None]
+        if not functions:
+            return None
+
+        def solve(t: float, x: Array, p: Array) -> Array:
+            state = x
+            for function in functions:
+                state = function(t, state, p)
+            return state
+
+        return solve
 
     def _planned_problem(self, compilation: Compilation) -> ProblemSpec:
         """Return the problem of a validated compilation, one problem or one partition per planned subsystem.
@@ -422,8 +447,13 @@ class PassCompiler(BaseCompiler):
         except SkcomplexError as error:
             fix = 'Pass elements, groups, interactions, and systems as children.'
             return None, [self._issue_of(error, system.label, 'structure', fix)]
-        if OperatorCompiler._contains_operator(system):
-            return compilation, [self._compiler_issue(system, 'OperatorCompiler')]
+        issues = (
+            [self._compiler_issue(system, 'OperatorCompiler')]
+            if OperatorCompiler._contains_operator(system)
+            else self._port_issues(Compilation._required(compilation.nodes, 'nodes'))
+        )
+        if issues:
+            return compilation, issues
         held = _held_observables(system, Compilation._required(compilation.nodes, 'nodes'))
         if held:
             tree, paths = _with_held_observables(system, held)
@@ -439,6 +469,122 @@ class PassCompiler(BaseCompiler):
         tree = _with_held_reductions(compilation.system, reductions)
         compilation = self._new_compilation(tree, held=compilation.held)
         return self._run_passes(compilation, until='census'), []
+
+    def _structure_issues(self, compilation: Compilation) -> list[IssueSpec]:
+        """Return the issue of equations that cannot be matched to their unknowns, lowering the laws as needed."""
+        if not self._algebraic_names(compilation):
+            return []
+        try:
+            self._run_passes(compilation, until='lowered')
+            return OrdersPass._structure_issues(compilation)
+        except SkcomplexError as error:
+            fix = 'Correct the component as the message describes.'
+            return [self._issue_of(error, compilation.system.label, 'value', fix)]
+
+    @staticmethod
+    def _algebraic_names(compilation: Compilation) -> set[str]:
+        """Return the dotted names of the algebraic states of the elements and groups of a system."""
+        return {
+            f'{node.path}.{name}'
+            for node in Compilation._required(compilation.nodes, 'nodes')
+            if not node.interaction
+            for name, declaration in declarations_of(node.component_type, VariableKind.STATE).items()
+            if declaration.algebraic
+        }
+
+    @staticmethod
+    def _port_state_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+        """Return the variables of declared ports that have no algebraic state."""
+        issues = []
+        for node in nodes:
+            ports = {} if node.interaction else getattr(node.component_type, 'ports', {})
+            declarations = {} if node.interaction else declarations_of(node.component_type, VariableKind.STATE)
+            for port, connector in ports.items():
+                for variable in (connector.potential, connector.flow):
+                    name = f'{port}_{variable}'
+                    declaration = declarations.get(name)
+                    if declaration is None or not declaration.algebraic:
+                        message = (
+                            f'The port {port} of {node.path} has the connector {connector.name}, but the element '
+                            f'declares no algebraic state {name}.'
+                        )
+                        fix = f'Declare {name} with `StateSpec(algebraic=True)`.'
+                        issues.append(IssueSpec('port-states', node.path, message, fix))
+        return issues
+
+    @staticmethod
+    def _connector_issue(
+        node: NodeSpec,
+        connector_names: Mapping[str, str | None],
+    ) -> IssueSpec | None:
+        """Return the issue of a connection whose ports are not all ports of one connector, or `None`."""
+        missing = [port for port, name in connector_names.items() if name is None]
+        if missing:
+            message = (
+                f'The connection {node.path} names {", ".join(missing)}, which no single element declares as a port.'
+            )
+            fix = 'Connect declared ports of single elements, as listed in the class variable `ports` of their types.'
+            return IssueSpec('port-connector', node.path, message, fix)
+        if len(set(connector_names.values())) <= 1:
+            return None
+        listed = ', '.join(f'{port} of the connector {name}' for port, name in connector_names.items())
+        message = f'The connection {node.path} joins {listed}.'
+        return IssueSpec('port-connector', node.path, message, 'Connect ports of one connector.')
+
+    @staticmethod
+    def _port_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+        """Return the issues of declared ports and of the connections between them.
+
+        Args:
+            nodes:
+                The elements, groups, and interactions of the system tree.
+
+        Returns:
+            issues:
+                The ports without their states, the connections of ports of different connectors, and the ports in more
+                than one connection.
+        """
+        issues = PassCompiler._port_state_issues(nodes)
+        by_path = {node.path: node for node in nodes}
+        connections: defaultdict[str, list[str]] = defaultdict(list)
+        for node in nodes:
+            if not isinstance(node.component, ConnectionInteraction):
+                continue
+            names: dict[str, str | None] = {}
+            for member, port in zip(node.component.members, node.component.ports, strict=True):
+                path = f'{node.scope}{member}'
+                target = by_path.get(path)
+                ports = (
+                    {} if target is None or target.members is not None else getattr(target.component_type, 'ports', {})
+                )
+                names[f'{path}.{port}'] = ports[port].name if port in ports else None
+                connections[f'{path}.{port}'].append(node.path)
+            issue = PassCompiler._connector_issue(node, names)
+            issues += [] if issue is None else [issue]
+        for port, paths in connections.items():
+            if len(paths) > 1:
+                message = f'The port {port} appears in the connections {", ".join(paths)}.'
+                fix = 'List the ports of the node in one connection.'
+                issues.append(IssueSpec('port-connections', paths[0], message, fix))
+        return issues
+
+    @staticmethod
+    def _algebraic_issues(compilation: Compilation) -> list[IssueSpec]:
+        """Return the laws other than equations that target an algebraic state."""
+        algebraic = PassCompiler._algebraic_names(compilation)
+        issues = []
+        for record in Compilation._required(compilation.census, 'census').records:
+            names = [] if isinstance(record.law, EquationLaw) else [item.name for item in record.targets]
+            for name in names:
+                if name in algebraic:
+                    law = type(record.law).__name__
+                    message = (
+                        f'The {law} of {record.path} targets the algebraic state {name}, but the equations of the '
+                        'system determine this state.'
+                    )
+                    fix = f'State the value of {name} with an `EquationLaw`, or declare it as a state of order 1.'
+                    issues.append(IssueSpec('algebraic-law', record.path, message, fix, error=AlgebraicStateError))
+        return issues
 
     def _plan_issues(self, compilation: Compilation) -> list[IssueSpec]:
         """Return the issues of the partitions of a system, lowering its laws as far as their classes decide."""
@@ -459,6 +605,7 @@ class PassCompiler(BaseCompiler):
         issues = PassCompiler._census_issues(compilation)
         issues += PassCompiler._bound_issues(nodes)
         issues += PassCompiler._law_issues(records, FractionalFormPass._declared_times(system))
+        issues += PassCompiler._algebraic_issues(compilation)
         issues += PassCompiler._equation_issues(compilation)
         issues += PassCompiler._satisfiability_issues(nodes)
         issues += PassCompiler._neighborhood_issues(records, nodes)
