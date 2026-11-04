@@ -3,12 +3,15 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Mapping
+
 import numpy as np
 
 from ....core.spaces import StaticTime
 from ....core.system import System
+from ....specs import DeclaredVariableSpec, VisualSpec
 from ..._catalog import register_model
-from ..common.metabolism import MetabolicNetworkElement, ReactionSpec, metabolic_network_type
+from ..common.metabolism import MetabolicNetworkElement, ReactionSpec
 from ._labelling import LabellingAnalysis
 from ._labelling_specs import AtomMapSpec, FragmentSpec, LabelMeasurementSpec, TracerSpec
 
@@ -47,6 +50,7 @@ TCA_TRUE_FLUXES: dict[str, float | tuple[float, float]] = {
 }
 TCA_NET_FLUXES = {'v1': 100.0, 'v2': 100.0, 'v3': 50.0, 'v4': 50.0, 'v5': 50.0, 'v6': 50.0, 'v8': 50.0, 'v9': 50.0}
 TCA_SYMMETRIC = ('Suc', 'Fum')
+TCA_OBJECTIVE: Mapping[str, float] = {}
 GLUTAMATE = FragmentSpec('Glu', (1, 2, 3, 4, 5))
 ASPARTATE = TracerSpec('Asp', {'0000': 1.0})
 PUBLISHED_TRACERS = (TracerSpec('AcCoA', {'00': 0.5, '01': 0.25, '11': 0.25}), ASPARTATE)
@@ -54,10 +58,69 @@ PARALLEL_TRACERS = {
     'one': (TracerSpec('AcCoA', {'00': 0.5, '10': 0.5}), ASPARTATE),
     'two': (TracerSpec('AcCoA', {'00': 0.5, '11': 0.5}), ASPARTATE),
 }
-TcaNetworkElement = metabolic_network_type('TcaNetworkElement', TCA_REACTIONS)
-"""The TCA example of Antoniewicz et al. (2007)."""
 
-TcaNetworkElement.__module__ = __name__
+
+class TcaNetworkElement(MetabolicNetworkElement):
+    """The TCA example of Antoniewicz et al. (2007).
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for the bars of its program.
+
+        objective:
+            The coefficient of every reaction in the objective, or `None` for `default_objective`.
+
+        parsimonious:
+            Whether to minimise the total absolute flux after the objective.
+
+        infeasible:
+            The infeasibility policy of the program.
+
+        name:
+            The name of the network.
+
+        reactions:
+            The reactions by name.
+
+        default_objective:
+            The objective of the network when `objective` is `None`.
+
+        variables:
+            The declared states and parameters that replace the ones of the reactions, by name, or `None` for none.
+
+    Examples:
+        >>> from skcomplex.models.biology.systems_biology import carbon_13_mfa
+        >>> carbon_13_mfa().elements[0].get_value('upper_v1')
+        300.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        objective: Mapping[str, float] | None = None,
+        parsimonious: bool = False,
+        infeasible: str = 'raise',
+        name: str | None = 'TcaNetwork',
+        reactions: Mapping[str, ReactionSpec] = TCA_REACTIONS,
+        default_objective: Mapping[str, float] = TCA_OBJECTIVE,
+        variables: Mapping[str, DeclaredVariableSpec] | None = None,
+    ) -> None:
+        super().__init__(
+            label,
+            visual,
+            objective=objective,
+            parsimonious=parsimonious,
+            infeasible=infeasible,
+            name=name,
+            reactions=reactions,
+            default_objective=default_objective,
+            variables=variables,
+        )
 
 
 @register_model(

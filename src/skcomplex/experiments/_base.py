@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ..base import BaseConfig
-from ..core.elements import Element, GroupElement
+from ..core.elements import DeclaredElement, Element, GroupElement
 from ..core.laws import (
     BoundaryLaw,
     CrossingLaw,
@@ -284,8 +284,16 @@ class BaseExperiment(BaseConfig[None, None], ABC):
         return [
             name
             for name, (variable, _) in declared_variables(element).items()
-            if variable.kind != VariableKind.ROLE and hasattr(element, name)
+            if variable.kind != VariableKind.ROLE and (hasattr(element, name) or name in element._get_declared())
         ]
+
+    @staticmethod
+    def _member_settings(element: Element) -> dict[str, object]:
+        """Return what a member takes from an element: its values, and the arguments that declare its variables."""
+        if isinstance(element, DeclaredElement):
+            settings = element.get_params(deep=False)
+            return {name: value for name, value in settings.items() if name not in {'label', 'visual'}}
+        return {name: getattr(element, name) for name in BaseExperiment._value_names(element)}
 
     @staticmethod
     def _member_values(
@@ -357,7 +365,7 @@ class BaseExperiment(BaseConfig[None, None], ABC):
                 element=type(element),
                 size=size,
                 values={
-                    **{name: getattr(element, name) for name in BaseExperiment._value_names(element)},
+                    **BaseExperiment._member_settings(element),
                     **by_label[element.label],
                 },
                 visual=element.visual,

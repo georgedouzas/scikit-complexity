@@ -17,7 +17,7 @@ from ..core.interactions import BaseInteraction
 from ..core.laws import RateLaw
 from ..core.spaces import LatticeSpace
 from ..core.system import System
-from ..engine._utils import bound_labels, components_of, declarations_of, symbol
+from ..engine._utils import bound_labels, components_of, declarations_of, default_of, symbol
 from ..engine.problems import ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..errors import AnalysisError
@@ -468,12 +468,13 @@ class StabilityAnalysis(BaseAnalysis):
 
         The rates add the laws of the field's element and of the interactions bound to the field.
         """
-        states = list(declarations_of(field.element, VariableKind.STATE))
-        member = field.element(field.label)
-        values = {name: getattr(member, name) for name in states} | dict(field.values or {})
+        part = field.get_declaring_part()
+        member = field.element(field.label) if isinstance(part, type) else part
+        states =list(declarations_of(part, VariableKind.STATE))
+        values = {name: default_of(part, name) for name in states} | dict(field.values or {})
         parameters = {}
-        for name in declarations_of(field.element, VariableKind.PARAMETER):
-            value = values.get(name, getattr(member, name))
+        for name in declarations_of(part, VariableKind.PARAMETER):
+            value = values.get(name, default_of(part, name))
             if np.ndim(value):
                 error_msg = f'The parameter {field.label}.{name} varies over the lattice, so there is no uniform state.'
                 raise AnalysisError(error_msg)

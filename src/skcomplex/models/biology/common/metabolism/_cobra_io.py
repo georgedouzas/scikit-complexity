@@ -81,7 +81,7 @@ def from_cobra(model: object, label: str = 'network', *, needed_by: str = 'from_
         >>> reaction = cobra.Reaction('r', upper_bound=5.0)
         >>> reaction.add_metabolites({cobra.Metabolite('a', compartment='c'): -1.0})
         >>> model.add_reactions([reaction])
-        >>> from_cobra(model, 'cell').upper_r
+        >>> from_cobra(model, 'cell').get_value('upper_r')
         5.0
     """
     cobra = load_extra(needed_by)
@@ -103,8 +103,7 @@ def from_cobra(model: object, label: str = 'network', *, needed_by: str = 'from_
         if reaction.objective_coefficient != 0
     }
     name = ''.join(part.capitalize() for part in str(model.id or 'network').split('_'))
-    element_type = metabolic_network_type(f'{MetabolicNetworkElement._identifier(name)}Element', reactions, objective)
-    return element_type(label)
+    return metabolic_network_type(MetabolicNetworkElement._identifier(name), reactions, objective)(label)
 
 
 def to_cobra(element: MetabolicNetworkElement, *, needed_by: str = 'to_cobra') -> object:
@@ -145,7 +144,7 @@ def to_cobra(element: MetabolicNetworkElement, *, needed_by: str = 'to_cobra') -
     for name, spec in element.reactions.items():
         identifier = element._identifier(name)
         reaction = cobra.Reaction(name)
-        reaction.bounds = (getattr(element, f'lower_{identifier}'), getattr(element, f'upper_{identifier}'))
+        reaction.bounds = (element.get_number(f'lower_{identifier}'), element.get_number(f'upper_{identifier}'))
         reaction.add_metabolites({metabolites[item]: float(value) for item, value in spec.coefficients.items()})
         reaction.gene_reaction_rule = spec.rule
         reactions.append(reaction)
@@ -153,8 +152,8 @@ def to_cobra(element: MetabolicNetworkElement, *, needed_by: str = 'to_cobra') -
     model.solver = SOLVER
     weights = element.default_objective if element.objective is None else element.objective
     model.objective = {model.reactions.get_by_id(name): float(value) for name, value in weights.items()}
-    for gene in type(element).genes_of():
-        if getattr(element, element.gene_name(gene)) < 1:
+    for gene in element.genes_of():
+        if element.get_number(element.gene_name(gene)) < 1:
             model.genes.get_by_id(gene).knock_out()
     return model
 

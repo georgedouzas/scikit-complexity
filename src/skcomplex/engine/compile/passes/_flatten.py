@@ -8,7 +8,7 @@ import re
 
 import numpy as np
 
-from ....core.elements import Element, GroupElement
+from ....core.elements import DeclaredElement, Element, GroupElement
 from ....core.interactions import BaseInteraction
 from ....core.spaces import BaseSpace, LatticeSpace, NetworkSpace
 from ....core.specs import NodeSpec
@@ -292,9 +292,10 @@ class FlattenPass(BasePass):
             sized, active = FlattenPass._with_capacity(FlattenPass._sized(element, space), place)
             if isinstance(sized, GroupElement):
                 path, members = f'{scope}{element.label}', sized.size_
-                node = NodeSpec(path, scope, sized, place, sized.element, members, active=active)
+                node = NodeSpec(path, scope, sized, place, sized.get_declaring_part(), members, active=active)
             else:
-                node = NodeSpec(f'{scope}{element.label}', scope, sized, place, type(sized))
+                declaring = sized if isinstance(sized, DeclaredElement) else type(sized)
+                node = NodeSpec(f'{scope}{element.label}', scope, sized, place, declaring)
             nodes.append(node)
         nodes += [
             NodeSpec(

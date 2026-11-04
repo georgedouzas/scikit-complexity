@@ -177,7 +177,7 @@ class OperatorCompiler(BaseCompiler):
             )
             raise ValidationError(error_msg)
         space.check()
-        domain = declarations_of(type(element), VariableKind.STATE)[state].domain
+        domain = declarations_of(element, VariableKind.STATE)[state].domain
         dimension = domain.dimension() if isinstance(domain, FreeModule_generic) else space.dimension
         if dimension != space.dimension:
             error_msg = (

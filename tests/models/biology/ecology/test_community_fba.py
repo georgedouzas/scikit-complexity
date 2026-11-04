@@ -48,3 +48,9 @@ def test_community_fba_grows_the_members_at_one_rate():
     assert members[0] == pytest.approx(members[1])
     assert community == pytest.approx(members[0])
     assert 0 < community <= joint + 1e-9
+
+
+def test_community_fba_keeps_its_reference_values():
+    """Test the medium of a community against the value recorded before it moved to declared states."""
+    community, _ = _growth(knockouts=('', ''), exchanges={'EX_glc__D_e': -10.0})
+    assert community == pytest.approx(0.8739215069684299, rel=1e-9)

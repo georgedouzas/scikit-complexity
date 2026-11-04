@@ -228,7 +228,7 @@ def test_mode_decomposition_fits_several_series():
     decomposition = _fit(runs, variables=['x'], dt=0.1)
     assert _fit(np.stack(runs), variables=['x'], dt=0.1).eigenvalues_.tolist() == decomposition.eigenvalues_.tolist()
     assert decomposition.eigenvalues_.real.round(8).tolist() == [-0.5]
-    assert decomposition.system_.elements[0].x == 1.0
+    assert decomposition.system_.elements[0].get_value('x') == 1.0
 
 
 def test_mode_decomposition_rejects_series_of_other_variables():

@@ -8,13 +8,13 @@ from __future__ import annotations
 import functools
 import inspect
 from abc import abstractmethod
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
 from typing import Self
 
 from ..base import BaseConfig
 from ..errors import ValidationError
-from ..specs import ParameterSpec, RoleSpec, Spec, StateSpec
+from ..specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, Spec, StateSpec
 
 
 class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
@@ -101,6 +101,14 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
                         specs[name] = item
         return {name: specs[name] for name in inspect.signature(cls).parameters if name in specs}
 
+    def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
+        """Return the variables the part declares from data, by name, none by default."""
+        return {}
+
+    def _get_part_specs(self) -> dict[str, Spec]:
+        """Return the specs of this part: those of its class, then those it declares from data."""
+        return {**self._get_specs(), **{name: item.spec for name, item in self._get_declared().items()}}
+
     @abstractmethod
     def _check(self) -> None:
         """Validate the arguments of the part, raising a named error for one it cannot take."""
@@ -145,6 +153,6 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
                 The label or an argument is invalid, named in the message.
         """
         self._check_label()
-        for spec in self._get_specs().values():
+        for spec in [*self._get_specs().values(), *self._get_declared().values()]:
             spec.check()
         return super().check()

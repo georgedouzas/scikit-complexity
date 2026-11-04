@@ -4,7 +4,6 @@
 # License: MIT
 
 import functools
-import inspect
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated
@@ -14,7 +13,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
 from ....analysis import ReservoirAnalysis
-from ....core.elements import Element
+from ....core.elements import DeclaredElement, Element
 from ....core.interactions import MapInteraction, RateInteraction
 from ....core.laws.utils import lag
 from ....core.spaces import ContinuousTime, DiscreteTime
@@ -22,7 +21,7 @@ from ....core.system import System
 from ....engine.runtime import Simulation
 from ....engine.solvers import ScipyODESolver
 from ....errors import ValidationError
-from ....specs import StateSpec
+from ....specs import DeclaredVariableSpec, StateSpec
 from ....types import Array
 from ..._catalog import register_model
 
@@ -90,35 +89,16 @@ def _lorenz_series(samples: int, step: float, sigma: float = 10.0, rho: float = 
     return values[-samples:]
 
 
-def _element_type(initial: Mapping[str, Sequence[float]]) -> type[Element]:
-    """Return the type of an element of scalar states with lags, from the values of every state and of its lags."""
-    states = []
-    defaults: dict[str, float] = {}
-    for name, values in initial.items():
-        specification = StateSpec(lags=len(values) - 1, initial=tuple(float(value) for value in values[1:]))
-        states.append(
-            inspect.Parameter(
-                name,
-                inspect.Parameter.KEYWORD_ONLY,
-                default=float(values[0]),
-                annotation=Annotated[float, specification],
-            ),
+def _reservoir_element(initial: Mapping[str, Sequence[float]]) -> DeclaredElement:
+    """Return the element of scalar states with lags, from the values of every state and of its lags."""
+    variables = {
+        name: DeclaredVariableSpec(
+            float(values[0]),
+            StateSpec(lags=len(values) - 1, initial=tuple(float(value) for value in values[1:])),
         )
-        defaults[name] = float(values[0])
-        for index, value in enumerate(values[1:], start=1):
-            states.append(
-                inspect.Parameter(f'{name}_lag{index}', inspect.Parameter.KEYWORD_ONLY, default=float(value)),
-            )
-            defaults[f'{name}_lag{index}'] = float(value)
-
-    def initialize(self: Element, label: str, **values: float) -> None:
-        Element.__init__(self, label)
-        for name, value in {**defaults, **values}.items():
-            setattr(self, name, value)
-
-    first = [inspect.Parameter(name, inspect.Parameter.POSITIONAL_OR_KEYWORD) for name in ('self', 'label')]
-    vars(initialize)['__signature__'] = inspect.Signature([*first, *states])
-    return type('LaggedVariablesElement', (Element,), {'__init__': initialize})
+        for name, values in initial.items()
+    }
+    return DeclaredElement('reservoir', variables=variables)
 
 
 def _increment(
@@ -262,7 +242,7 @@ def next_generation_reservoir(
     reservoir = fitted.step_
     memory = fitted.samples_.series[-1][-fitted.delay :][::-1]
     initial = {name: memory[:, index].tolist() for index, name in enumerate(names)}
-    element = _element_type(initial)('reservoir')
+    element = _reservoir_element(initial)
     weights = np.asarray(reservoir.readout.Wout, dtype=float)
     bias = np.ravel(np.asarray(reservoir.readout.bias, dtype=float))
     maps = [

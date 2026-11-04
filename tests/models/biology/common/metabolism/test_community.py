@@ -41,3 +41,12 @@ def test_community_tradeoff_at_full_growth():
     analysis = CommunityAnalysis('tradeoff', fraction=1.0).check().prepare(system).run()
     assert analysis.growth_ == pytest.approx(AEROBIC, abs=1e-5)
     assert set(analysis.members_) == {'first', 'second'}
+
+
+def test_community_steadycom_keeps_its_reference_values():
+    """Test the common rate against the value recorded before the element moved to declared states."""
+    reactions = {'EX_a': ReactionSpec({'a': 1.0}, upper=7.0), 'grow': ReactionSpec({'a': -1.0})}
+    element_type = metabolic_network_type('ReferenceMemberElement', reactions, {'grow': 1.0})
+    system = System(elements=[element_type('one'), element_type('two')], time=StaticTime())
+    analysis = CommunityAnalysis().check().prepare(system).run()
+    assert analysis.growth_ == pytest.approx(6.99999975040555, rel=1e-9)
