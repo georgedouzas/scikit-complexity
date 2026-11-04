@@ -48,4 +48,4 @@
 - [x] 5.1 Document three-dimensional spaces, region layers, and how to reproject census shapefiles before passing their
   polygons in the user guide with runnable examples, add the changelog entry, and verify the documentation build runs
   the examples
-- [ ] 5.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
+- [x] 5.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass

@@ -46,13 +46,13 @@
   the conformance suite
 - [x] 5.4 Add `TransportedCouplingInteraction` and `gauge_network_agents` to
   `skcomplex.models.social.opinion_dynamics`, and verify the frustration scenario and the conformance suite
-- [ ] 5.5 Mark the four entries implemented in `docs/overview/inventory.toml`, add their gallery examples, and verify
+- [x] 5.5 Mark the four entries implemented in `docs/overview/inventory.toml`, add their gallery examples, and verify
   the inventory check and the gallery coverage check pass
 
 ## 6. Documentation and gate
 
 - [x] 6.1 Document cell complexes, the exterior calculus, coface reductions, sampling of links, and
   `CellComplexAnalysis` in the user guide with runnable examples, and verify the documentation test passes
-- [ ] 6.2 Add a changelog entry for the new public names, and verify the changelog session passes
-- [ ] 6.3 Run `nox -s formatting`, `nox -s checks`, `nox -s docs`, and `nox -s tests` in that order, and verify all of
+- [x] 6.2 Add a changelog entry for the new public names, and verify the changelog session passes
+- [x] 6.3 Run `nox -s formatting`, `nox -s checks`, `nox -s docs`, and `nox -s tests` in that order, and verify all of
   them pass

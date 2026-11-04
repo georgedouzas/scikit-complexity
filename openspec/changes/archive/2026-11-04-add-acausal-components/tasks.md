@@ -37,4 +37,4 @@
 
 - [x] 4.1 Document algebraic states, ports, connections, the solve, and the issues in the user guide, and verify the
   documentation test passes
-- [ ] 4.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
+- [x] 4.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass

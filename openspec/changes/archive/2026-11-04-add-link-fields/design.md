@@ -117,9 +117,11 @@ the charge on sites. The compiler lowers the operators to products with `inciden
 gather loops over `cofaces_` on the Numba backend. The Hodge star of a lattice complex is diagonal, the ratio of dual to
 primal cell volumes from the spacings, and on a network complex it is the diagonal of the edge and face weights given by
 `weight` arguments of the edge and hyperedge groups, one by default. The codifferential is `(-1)^k ⋆⁻¹ d ⋆`, so
-`δδ = 0` holds exactly as `dd = 0` does. The Hodge Laplacian is `codifferential(exterior_derivative(x)) +
-exterior_derivative(codifferential(x))`, so no separate name is added, and `gradient`, `divergence`, and `laplacian`
-keep their site meaning.
+`δδ = 0` holds exactly as `dd = 0` does. This sign is the one that makes `E_t = δdA - J` and `δE = ρ` the physical Maxwell
+equations. With it, `δd + dδ` is not the Hodge Laplacian: on links it is `D1ᵀD1 - D0D0ᵀ`, which is not positive
+semidefinite. On a state of degree `k` the positive semidefinite Hodge Laplacian is `(-1)^(k+1) (δd - dδ)`, so on links
+`codifferential(exterior_derivative(x)) - exterior_derivative(codifferential(x))`. No separate name is added, and
+`gradient`, `divergence`, and `laplacian` keep their site meaning.
 
 ### Coface reductions
 
