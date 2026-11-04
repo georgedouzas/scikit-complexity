@@ -86,11 +86,13 @@ class EulerSolver(Solver):
         history = self.history_ = History._open_history(problem, self.history_, t, x)
 
         def take(time: float, state: Array, step: float, ceiling: float) -> tuple[Array, Interpolant]:
+            """Return the state after one step and its straight line over the step."""
             start = min(time, ceiling)
             slope = drift(start, state, History._with_delays(problem, history, start, state, p))
             following = state + step * slope
 
             def interpolant(moment: float) -> Array:
+                """Return the state at a moment of the step."""
                 return state + (moment - time) * slope
 
             return following, interpolant
