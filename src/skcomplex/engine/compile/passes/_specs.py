@@ -149,6 +149,9 @@ class SpecsPass(BasePass):
                 symbols[name] = tensor.matrix_of(SpecsPass._renamed(item, mapping) for item in value)
             else:
                 symbols[name] = vector(SpecsPass._renamed(item, mapping) for item in value)
+        ports = getattr(block.node.component_type, 'ports', None)
+        if ports:
+            symbols['ports'] = ports
         return SimpleNamespace(**symbols)
 
     @staticmethod

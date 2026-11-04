@@ -22,7 +22,7 @@ from ...specs import AgentStateSpec, EntrySpec, ObservableSpec, RunStateSpec, St
 from ...types import Array, FormKind
 from ..backends import BaseBackend
 from ..compile import BaseCompiler, ObservableEvaluator, PassCompiler
-from ..problems import BaseProblemSpec, FrameSpec
+from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec
 from ..solvers import BaseSolver, CoSimulationSolver
 from ..solvers._defaults import DEFAULT_SOLVERS
 from ._as_fast_as_possible import AsFastAsPossibleClock
@@ -287,17 +287,23 @@ class Simulation(BaseConfig[None, float]):
             self._frame_parameters = self.parameters_.copy()
         return self._frame_parameters
 
+    def _get_frame_state(self) -> Array:
+        """Return the state of a frame, the current state with its algebraic states solved at the current time."""
+        algebraic = self.problem_.algebraic if isinstance(self.problem_, ProblemSpec) else None
+        return self.state_ if algebraic is None else algebraic(self.time_, self.state_, self.parameters_)
+
     def _emit(self, step: int) -> None:
         """Hand the current frame, with the events since the previous one, to every observer."""
         external = self.stepper_.snapshot_
         agents, reporters = (external.groups, external.reporters) if isinstance(external, AgentStateSpec) else ({}, {})
         structures = external.structures if isinstance(external, StructureStateSpec) else {}
         reporters = external.reporters if isinstance(external, StructureStateSpec) else reporters
-        observables = self.observables_.evaluate(self.time_, self.state_, self.parameters_, self.stepper_.agents_.get)
+        state = self._get_frame_state()
+        observables = self.observables_.evaluate(self.time_, state, self.parameters_, self.stepper_.agents_.get)
         frame = FrameSpec(
             step,
             self.time_,
-            self.state_.copy(),
+            state.copy(),
             self._get_frame_parameters(),
             self.problem_,
             agents,

@@ -15,7 +15,9 @@ from ._kernel_spec import KernelSpec
 
 @dataclass(frozen=True)
 class _RelationSpec(BaseSpec):
-    """Equation of a component as `expression == 0`, with the placeholders of its highest derivatives.
+    """Equation of a component as `expression == 0`, with its unknowns, the states they stand for by their symbols.
+
+    The unknowns are the placeholders of its highest derivatives and the symbols of its algebraic states.
 
     The key names the state whose equation it is, as its entry and column, so that the relations of one key add, or is
     `None` for a relation of its own. The target is the symbol of that state.

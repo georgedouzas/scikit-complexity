@@ -68,6 +68,9 @@ class _ProblemFunctionsSpec(BaseSpec):
         boundary:
             The boundary laws, or `None`.
 
+        algebraic:
+            The function that sets the algebraic states of a state vector, or `None`.
+
         draws:
             The draws of the update laws, or `None`.
 
@@ -96,6 +99,7 @@ class _ProblemFunctionsSpec(BaseSpec):
     jumps: tuple[_JumpChannelsSpec, ...] = ()
     update: Callable[..., Array] | None = None
     boundary: VectorFunction | None = None
+    algebraic: VectorFunction | None = None
     draws: DrawKernel | None = None
     backend: str = 'numpy'
     backends: Mapping[str, str] = field(default_factory=dict)

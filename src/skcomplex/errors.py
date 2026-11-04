@@ -20,6 +20,10 @@ class ValidationError(SkcomplexError):
     """A system, a value, or a combination of a system with its solver and backend is not valid."""
 
 
+class AlgebraicStateError(ValidationError):
+    """A law integrates a state that the equations of its system determine."""
+
+
 class ConservationError(ValidationError):
     """A conserved quantity changes outside its flows, or an invariant of a run moves beyond its tolerance."""
 

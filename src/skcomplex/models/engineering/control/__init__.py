@@ -1,19 +1,32 @@
 """Control: feedback loops that keep or drive a system towards a goal, and the controllers that close them."""
 
 from ._cart_pendulum import CartPendulumElement
-from ._control import pendulum_swing_up, pid_loop, satellite_transfer, thermostat
+from ._control import heated_room, pendulum_swing_up, pid_loop, satellite_transfer, thermostat
 from ._driven_oscillator import DrivenOscillatorElement
 from ._integrator import IntegratorElement
 from ._pid import PIDInteraction
 from ._regulation import lqr_oscillator, pid_inverted_pendulum
 from ._state_feedback import StateFeedbackInteraction
+from ._thermal import (
+    THERMAL,
+    ConvectionElement,
+    HeatCapacityElement,
+    HeatingResistorElement,
+    ThermalConductorElement,
+)
 
 __all__: list[str] = [
+    'THERMAL',
     'CartPendulumElement',
+    'ConvectionElement',
     'DrivenOscillatorElement',
+    'HeatCapacityElement',
+    'HeatingResistorElement',
     'IntegratorElement',
     'PIDInteraction',
     'StateFeedbackInteraction',
+    'ThermalConductorElement',
+    'heated_room',
     'lqr_oscillator',
     'pendulum_swing_up',
     'pid_inverted_pendulum',
