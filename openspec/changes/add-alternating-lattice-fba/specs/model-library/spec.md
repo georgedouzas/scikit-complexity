@@ -1,5 +1,19 @@
 # Spec Delta
 
+## MODIFIED Requirements
+
+### Requirement: COMETS model
+
+The library SHALL provide `comets`, dynamic FBA on a 2D lattice in which metabolites and biomass diffuse, and only sites
+that hold biomass are solved, through the activity of the linear program law.
+
+#### Scenario: Expanding colony
+
+- **WHEN** `comets` runs from a central inoculum on uniform glucose
+- **THEN** the colony radius grows with a nearly constant speed after a transient. The glucose consumed over the lattice
+  matches the integral of uptake flux times biomass over sites and time within 1%, and sites without biomass have zero
+  fluxes.
+
 ## ADDED Requirements
 
 ### Requirement: COMETS alternates growth and diffusion

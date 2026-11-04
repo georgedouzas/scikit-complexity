@@ -1,4 +1,4 @@
-"""COMETS: dynamic flux balance analysis on a lattice whose biomass and glucose diffuse."""
+"""COMETS: growth by a linear program at every site of a lattice, alternating with diffusion."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,7 +11,7 @@ from ....core.elements import FieldElement, GroupElement
 from ....core.interactions import DiffusionInteraction
 from ....core.spaces import LatticeSpace
 from ....core.system import System
-from ....engine.solvers import RK4Solver
+from ....engine.solvers import IMEXEulerSolver
 from ....specs import VisualSpec
 from ..._catalog import register_model
 from ..common.metabolism import (
@@ -25,61 +25,88 @@ from ..common.metabolism import (
 
 GROWTH = 'Biomass_Ecoli_core'
 GLUCOSE_EXCHANGE = 'EX_glc__D_e'
-STEP = 0.05
+STEP = 0.1
+SECONDS_PER_HOUR = 3600.0
+MMOL_PER_MOL = 1000.0
+GLUCOSE_MOLAR_MASS = 180.16
 
 
 @register_model(
     field='biology/ecology',
     tags=('COMETS', 'dynamic flux balance', 'lattice', 'diffusion', 'linear program', 'metabolism'),
     references=('Raman 2021', 'Harcombe et al. 2014'),
-    defaults={'until': 5.0, 'dt': 0.1, 'solver': RK4Solver(dt=STEP)},
+    defaults={'until': 14.0, 'dt': STEP, 'solver': IMEXEulerSolver(dt=STEP)},
 )
 def comets(
-    shape: tuple[int, int] = (25, 25),
+    shape: tuple[int, int] = (50, 50),
     *,
-    inoculum: float = 0.1,
+    box: float = 0.02,
+    inoculum: float = 3e-7,
     glucose: float = 5.0,
-    biomass_diffusion: float = 0.2,
-    glucose_diffusion: float = 1.0,
-    threshold: float = 1e-3,
+    plate_glucose: float = 0.0088,
+    biomass_diffusion: float = 3e-10,
+    glucose_diffusion: float = 5e-6,
     vmax: float = 10.0,
     km: float = 0.01,
+    interval: float = STEP,
 ) -> System:
     """Return an expanding colony of the E. coli core model on a lattice, which needs the extra `metabolism`.
 
-    Every site holds a copy of the program, which solves only where the biomass lies above a threshold, with the uptake
-    bounded by the glucose of the site (Raman 2021, Section 11.1.3.4). Biomass and glucose diffuse between the sites, so
-    a colony started at the centre spreads at a nearly constant speed. The program solves at every evaluation of the
-    drift, by the direct approach with fixed steps, where COMETS alternates growth and diffusion.
+    Run with `IMEXEulerSolver`, every step is a growth step and then a diffusion step, the two steps that COMETS
+    alternates (Raman 2021, Section 11.1.3.4). The growth step solves the program of every site that holds biomass and
+    applies the update rules of Harcombe et al. (2014). The diffusion step solves one implicit Euler system, where
+    Harcombe et al. use an alternating direction implicit scheme. Biomass and glucose both diffuse, as in Harcombe et
+    al., while the short description of Raman names metabolites only.
 
-    The uptake `vmax` and `km` are those of Harcombe et al. (2014). The diffusion coefficients, the inoculum, the
-    glucose, and the threshold are illustrative values in lattice units. They are not those of Harcombe et al., whose
-    coefficients of 5e-6 and 3e-10 cm^2/s on boxes of 0.02 cm are about 45 and 0.0027 boxes^2/h.
+    The states are gDW per L and mM of the medium under a box. A site whose program has no solution has zero fluxes,
+    which happens when its glucose cannot pay for the maintenance flux of the network.
+
+    Harcombe et al. in what follows is the main text of Harcombe et al. (2014), and the source of each default is named
+    under its argument. The time step of 0.1 h of the registered run is from its In silico experiments. The length of
+    the registered run keeps it within the budget of the gallery and has no source.
+
+    These choices have no source in that text. The periodic edges are those of `LatticeSpace`, since the text does not
+    state the outer boundary. The volume under a box is the amount of glucose under it over the concentration of the
+    medium, since the text defers the volume to its supplement, which was not read. The molar mass of glucose is 180.16
+    g/mol.
+
+    The network is the E. coli core model, where Harcombe et al. use iJO1366. The death rate of 1% per step, the largest
+    colony height of 200 um, and the oxygen of 0.25 mmol/cm^2 of Harcombe et al. are left out, so the biomass of a box
+    has no upper limit and oxygen is limited only by the network.
 
     Args:
         shape:
-            The number of sites along each side.
+            The number of boxes along each side, by default from Harcombe et al., Colony expansion comparisons.
+
+        box:
+            The side of a box in cm, by default from Harcombe et al., Colony expansion comparisons.
 
         inoculum:
-            The initial biomass at the central site.
+            The initial biomass of the central box in g, by default from Harcombe et al., Colony expansion comparisons.
 
         glucose:
-            The initial glucose of every site.
+            The glucose of the medium in g/L, by default from Harcombe et al., In silico experiments.
+
+        plate_glucose:
+            The glucose of the medium per area of the plate in mmol/cm^2, by default from Harcombe et al., In silico
+            experiments.
 
         biomass_diffusion:
-            The diffusion coefficient of the biomass.
+            The diffusion coefficient of the biomass in cm^2/s, by default the value for colonies from Harcombe et al.,
+            Table 1.
 
         glucose_diffusion:
-            The diffusion coefficient of the glucose.
-
-        threshold:
-            The biomass above which a site solves its program.
+            The diffusion coefficient of the glucose in cm^2/s, by default from Harcombe et al., Table 1.
 
         vmax:
-            The largest glucose uptake.
+            The largest glucose uptake in mmol/g/h, by default from Harcombe et al., Table 1.
 
         km:
-            The half-saturation concentration of glucose.
+            The half-saturation concentration of glucose in mM, by default from Harcombe et al., Table 1.
+
+        interval:
+            The time in h over which the glucose of a site must last, by default the time step, the bound of Raman
+            (2021, Section 9.6).
 
     Returns:
         system:
@@ -96,11 +123,18 @@ def comets(
     """
     source = load_network('textbook', 'cell', needed_by='comets')
     plain = {name: replace(spec, rule='') for name, spec in source.reactions.items()}
+    concentration = glucose / GLUCOSE_MOLAR_MASS * MMOL_PER_MOL
+    volume = plate_glucose * box**2 / concentration
     initial = np.zeros(shape)
-    initial[shape[0] // 2, shape[1] // 2] = inoculum
-    space = LatticeSpace(shape)
+    initial[shape[0] // 2, shape[1] // 2] = inoculum / volume
+    space = LatticeSpace(shape, spacing=box)
     images = VisualSpec('image', {'states': [MetabolicNetworkElement.flux_name(GROWTH)]})
-    cells = {'name': 'ColonyCell', 'reactions': plain, 'default_objective': source.default_objective}
+    cells = {
+        'name': 'ColonyCell',
+        'reactions': plain,
+        'default_objective': source.default_objective,
+        'infeasible': 'zero',
+    }
     return System(
         elements=[
             GroupElement(
@@ -116,7 +150,7 @@ def comets(
                 'glucose',
                 element=SubstrateElement,
                 space=space,
-                values={'c': np.full(shape, float(glucose))},
+                values={'c': np.full(shape, concentration)},
             ),
         ],
         interactions=[
@@ -128,11 +162,22 @@ def comets(
                 reaction=GLUCOSE_EXCHANGE,
                 vmax=vmax,
                 km=km,
-                threshold=threshold,
+                interval=interval,
+                threshold=0.0,
             ),
             GrowthInteraction('growth', cell='cells', biomass='biomass', reaction=GROWTH),
-            DiffusionInteraction('biomass_spread', target='biomass', state='x', coefficient=biomass_diffusion),
-            DiffusionInteraction('glucose_spread', target='glucose', state='c', coefficient=glucose_diffusion),
+            DiffusionInteraction(
+                'biomass_spread',
+                target='biomass',
+                state='x',
+                coefficient=biomass_diffusion * SECONDS_PER_HOUR,
+            ),
+            DiffusionInteraction(
+                'glucose_spread',
+                target='glucose',
+                state='c',
+                coefficient=glucose_diffusion * SECONDS_PER_HOUR,
+            ),
         ],
         space=space,
     )
