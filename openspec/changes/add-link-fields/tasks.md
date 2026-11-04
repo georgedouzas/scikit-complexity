@@ -2,14 +2,14 @@
 
 ## 1. Cell complexes
 
-- [ ] 1.1 Add `CellComplexSpace` to `skcomplex.core.spaces` for lattices with every boundary and for networks with
+- [x] 1.1 Add `CellComplexSpace` to `skcomplex.core.spaces` for lattices with every boundary and for networks with
   given, hyperedge, minimum-cycle-basis, and clique faces, with `incidences_` and `cofaces_`, building the incidence of
   the `'cliques'` complex and of simplicial hyperedges with `xgi.linalg.hodge_matrix.boundary_matrix` and keeping the
   lattice and cycle tables in house, and verify the periodic square lattice, fixed edges, faces of a network, clique
   complex, simplicial hyperedges, and invalid face scenarios in `tests/core/spaces/test_cell_complex.py`
-- [ ] 1.2 Add TopoNetX to the `tests` dependency group as a parity oracle, and verify the incidence parity scenario
+- [x] 1.2 Add TopoNetX to the `tests` dependency group as a parity oracle, and verify the incidence parity scenario
   against XGI's `boundary_matrix` and TopoNetX's `incidence_matrix` in `tests/core/spaces/test_cell_complex.py`
-- [ ] 1.3 Verify the potential and field strength scenario for groups on the edges and hyperedges of a cell complex
+- [x] 1.3 Verify the potential and field strength scenario for groups on the edges and hyperedges of a cell complex
 
 ## 2. Exterior calculus and coface reductions
 
