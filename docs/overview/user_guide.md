@@ -1290,8 +1290,8 @@ models ready in fractional dynamics, each with the order as an argument: `fracti
 
 ## Geometry of chains
 
-`ShapeAnalysis(kind, group=None, reference=None)` reads frames by points by dimensions, from an array or a trajectory. The
-kind `'gyration'` gives the radius of gyration per frame, `'end-to-end'` the distance between the first and the last
+`ShapeAnalysis(kind, group=None, reference=None)` reads frames by points by dimensions, from an array or a trajectory.
+The kind `'gyration'` gives the radius of gyration per frame, `'end-to-end'` the distance between the first and the last
 point, and `'rmsd'` the root mean square deviation from `reference` after optimal superposition.
 
 ```python
@@ -2488,11 +2488,12 @@ assert np.all(np.diff(scores, axis=0) <= 0)
 
 ### Drives that read the step
 
-`DriveLaw` passes the time of the step to a function that names `time`, and the random generator to a function that names
-`random`. A function can then set a lattice state to one member of an ensemble per step, as the model `fuzzy_oil_drop`
+`DriveLaw` passes the time of the step to a function that names `time`, and the random generator to a function that
+names `random`. A function can then set a lattice state to one member of an ensemble per step, as the model `fuzzy_oil_drop`
 does, and hold the last member after the end.
 
 ```python
+import numpy as np
 from sage.all__sagemath_symbolics import var
 
 from skcomplex.core.laws import DriveLaw
@@ -3285,7 +3286,8 @@ self-contained, so no model package imports another. A test of the package layou
 ### Optional extras
 
 Most models run on the default install. A few take a library from an optional extra, and raise `MissingExtraError` with
-the name of the model, the extra, and the install command when the extra is missing. They stay in the catalog without it.
+the name of the model, the extra, and the install command when the extra is missing. They stay in the catalog without
+it.
 
 | Extra | Library | Models | Install notes |
 | --- | --- | --- | --- |
