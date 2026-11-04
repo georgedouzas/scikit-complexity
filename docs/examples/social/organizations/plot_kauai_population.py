@@ -2,8 +2,11 @@
 # Kauai population
 
 One agent stands for each resident of the census regions of a map, here a small synthetic island. Residents commute
-between their home, a facility of work, and a favourite place, and their sentiment moves towards that of the residents
-near them. The real census and the rule follow Zanbaka et al. only in manner.
+between their home, a facility of work, and a favourite place. Their sentiment follows the rules of Zanbaka et al. in
+Carmichael et al. (2019 ch. 3 §4.3): it responds to events on the topics a resident weighs, and each resident chooses a
+partner from its grid cell of 1 km, whose sentiment and its own converge at rates set by how strong each opinion is. The
+census, the topics, and the demographics here are synthetic, and the security interactions and the adverse agents of
+the chapter are left out.
 """
 
 # %%
