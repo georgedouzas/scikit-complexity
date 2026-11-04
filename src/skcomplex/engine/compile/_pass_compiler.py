@@ -22,7 +22,7 @@ from ...core.interactions import (
     NeighborInteraction,
     SatisfiabilityInteraction,
 )
-from ...core.laws import BilinearLaw, EncounterLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, SampleLaw
+from ...core.laws import BilinearLaw, EncounterLaw, EquationLaw, JumpLaw, LinearProgramLaw, NoiseLaw, RateLaw, SampleLaw
 from ...core.laws.utils import COORDINATE_PREFIX, cell_operations_in, hyperedges_in, neighborhoods_in, reductions_in
 from ...core.spaces import (
     AdjacencyNeighborhood,
@@ -82,6 +82,7 @@ from .passes._core import _PASSES
 from .passes._fractional_form import FractionalFormPass
 from .passes._lattices import LatticeProblemPass
 from .passes._layout import LayoutPass
+from .passes._linear_programs import LinearProgramsPass
 from .passes._noise import NoisePass
 from .passes._operator_compiler import OperatorCompiler
 from .passes._orders import OrdersPass
@@ -228,6 +229,8 @@ class PassCompiler(BaseCompiler):
         if self.compilation_ is None or self.compilation_.census is None:
             return issues
         issues = self._issues_of(self.compilation_)
+        if not any(issue.severity == _ERROR for issue in issues):
+            issues += self._program_issues(self.compilation_)
         if not any(issue.severity == _ERROR for issue in issues):
             issues += self._structure_issues(self.compilation_)
         if not any(issue.severity == _ERROR for issue in issues):
@@ -390,6 +393,7 @@ class PassCompiler(BaseCompiler):
             agent_space=next((item.problem.agent_space for item in partitions if item.problem.agents), None),
             partitions=tuple(partitions),
             algebraic=self._partition_algebraic(partitions),
+            programs=tuple(kernel for item in partitions for kernel in item.problem.programs),
         )
 
     @staticmethod
@@ -472,6 +476,18 @@ class PassCompiler(BaseCompiler):
         tree = _with_held_reductions(compilation.system, reductions)
         compilation = self._new_compilation(tree, held=compilation.held)
         return self._run_passes(compilation, until='census'), []
+
+    def _program_issues(self, compilation: Compilation) -> list[IssueSpec]:
+        """Return the issues of the linear program laws of a system, collecting the laws as needed."""
+        records = Compilation._required(compilation.census, 'census').records
+        if not any(isinstance(record.law, LinearProgramLaw) for record in records):
+            return []
+        try:
+            self._run_passes(compilation, until='programs')
+        except SkcomplexError as error:
+            fix = 'Correct the component as the message describes.'
+            return [self._issue_of(error, compilation.system.label, 'value', fix)]
+        return LinearProgramsPass._issues_of(compilation, self._algebraic_names(compilation))
 
     def _structure_issues(self, compilation: Compilation) -> list[IssueSpec]:
         """Return the issue of equations that cannot be matched to their unknowns, lowering the laws as needed."""
@@ -577,7 +593,8 @@ class PassCompiler(BaseCompiler):
         algebraic = PassCompiler._algebraic_names(compilation)
         issues = []
         for record in Compilation._required(compilation.census, 'census').records:
-            names = [] if isinstance(record.law, EquationLaw) else [item.name for item in record.targets]
+            determined = isinstance(record.law, EquationLaw | LinearProgramLaw)
+            names = [] if determined else [item.name for item in record.targets]
             for name in names:
                 if name in algebraic:
                     law = type(record.law).__name__

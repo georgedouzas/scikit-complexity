@@ -37,6 +37,7 @@ from ._iterative_matching_spec import IterativeMatchingSpec
 from ._jump_path_spec import JumpPathSpec
 from ._layer_spec import LayerSpec
 from ._layout_spec import LayoutSpec
+from ._linear_objective_spec import LinearObjectiveSpec
 from ._local_operator_spec import LocalOperatorSpec
 from ._lookup_spec import LookupSpec
 from ._lowered_functions_spec import LoweredFunctionsSpec
@@ -141,6 +142,7 @@ __all__ = [
     'JumpPathSpec',
     'LayerSpec',
     'LayoutSpec',
+    'LinearObjectiveSpec',
     'LocalOperatorSpec',
     'LookupSpec',
     'LoweredFunctionsSpec',

@@ -15,7 +15,7 @@ PYTHON_VERSIONS: list[str] = ['3.12', '3.13', '3.14']
 # mkdocs-gallery reads `ast.Str`, which Python 3.14 removed.
 DOCS_PYTHON: str = '3.13'
 FILES: list[str] = ['src', 'tests', 'docs', 'noxfile.py']
-EXTRAS: list[str] = ['-G', 'structures', '-G', 'rna']
+EXTRAS: list[str] = ['-G', 'structures', '-G', 'rna', '-G', 'metabolism']
 QUICK_TESTS: list[str] = [
     'tests/core/elements',
     'tests/core/spaces',

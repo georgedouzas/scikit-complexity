@@ -6,7 +6,16 @@
 
 import numpy as np
 
-from ...core.laws import BoundaryLaw, CrossingLaw, EquationLaw, FluxLaw, NoiseLaw, RateLaw, TransferLaw
+from ...core.laws import (
+    BoundaryLaw,
+    CrossingLaw,
+    EquationLaw,
+    FluxLaw,
+    LinearProgramLaw,
+    NoiseLaw,
+    RateLaw,
+    TransferLaw,
+)
 from ...core.spaces import CayleySpace, ContinuousSpace, ContinuousTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...specs import SupportSpec
 from ...types import Array, NoiseKind, OrderKind
@@ -41,7 +50,7 @@ class HeunSolver(SDESolver):
         return SupportSpec(
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
+            laws={LinearProgramLaw, RateLaw, FluxLaw, EquationLaw, CrossingLaw, BoundaryLaw, TransferLaw, NoiseLaw},
             noise=frozenset(NoiseKind),
             orders=frozenset({OrderKind.INTEGER}),
         )

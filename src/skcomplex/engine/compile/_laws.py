@@ -13,13 +13,14 @@ from ...core.laws import (
     EncounterLaw,
     ExtremalLaw,
     FluxLaw,
+    LinearProgramLaw,
     LocalRuleLaw,
     RuleLaw,
     SampleLaw,
     TransferLaw,
 )
 
-_FORMLESS_LAWS = (BoundaryLaw, CrossingLaw, EncounterLaw, BilinearLaw, FluxLaw)
+_FORMLESS_LAWS = (BoundaryLaw, CrossingLaw, EncounterLaw, BilinearLaw, FluxLaw, LinearProgramLaw)
 """Laws that leave the form of a system as the other laws decide it."""
 
 _KERNEL_FREE_LAWS = (
@@ -32,6 +33,7 @@ _KERNEL_FREE_LAWS = (
     ExtremalLaw,
     SampleLaw,
     FluxLaw,
+    LinearProgramLaw,
 )
 """Laws that their own passes lower, which no numeric kernel is written for."""
 

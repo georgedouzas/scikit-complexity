@@ -261,7 +261,7 @@ to fill in as the project takes shape.
 - Runtime dependencies: `numpy` 2.1 or later, `scipy` for numeric integration, `passagemath-symbolics` as the Sage
   symbolic layer every law is written in and lowered from, `passagemath-maxima` for exact solutions, `cysignals` at a
   version the passagemath wheels need, `numba` for the compiled backend, `jax` for the JAX backend and automatic differentiation, `optax` for the
-  optimizers of the learning solver, `diffrax` for differentiable ODE solves of the learning solver, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
+  optimizers of the learning solver, `diffrax` for differentiable ODE solves of the learning solver, `highspy` for linear programs, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
   for networks, which Mesa 3.5 imports without declaring it, `xgi` for hypergraphs and simplicial complexes, `rerun-sdk` for visualization, `qutip` for operator dynamics, `SALib` for sensitivity
   analysis, `scikit-fem` for finite-element assembly on unstructured meshes, `shapely` 2.2 or later for the geometry of
   rewriting systems and the regions of agent spaces, `python-sat` for incremental satisfiability, `pymoo` for population optimisers, and `scikit-learn` for the
@@ -270,8 +270,8 @@ to fill in as the project takes shape.
   `ennemi` for nearest-neighbour transfer entropy, `mrestimator` for branching
   ratios, `pydtmc` for Markov state models, `dit` for discrete
   multivariate information and partial information decomposition, `igraph` for network motif counts, `pydmd` for
-  dynamic mode decomposition, `pysindy` for sparse identification of nonlinear dynamics, and `reservoirpy` for
-  reservoir computing. Rerun is a core dependency,
+  dynamic mode decomposition, `pysindy` for sparse identification of nonlinear dynamics, `reservoirpy` for
+  reservoir computing, and `passagemath-polyhedra` for exact enumeration of the generators of a cone. Rerun is a core dependency,
   and spawning a local viewer happens only on request, so it is not a real-world side effect.
 - Exceptions to the 24-month limit on runtime dependencies: none.
 - Model gallery: the `gallery` dependency group holds `pillow` 11.0 or later for encoding the screenshots and
@@ -281,11 +281,12 @@ to fill in as the project takes shape.
 - Optional extras: `structures` holds `biopython` for the structures of the protein models, `rna` holds `ViennaRNA`,
   whose licence is not OSI approved, for RNA folds, and `trajectories` holds `mdtraj`, under the LGPL, for molecular
   dynamics trajectories.
-- Dependency placement: a library that `skcomplex.core` or `skcomplex.engine` uses MUST be a runtime dependency,
+- Dependency placement: a library that `skcomplex.core`, `skcomplex.engine`, or `skcomplex.analysis` uses MUST be a runtime dependency,
   whatever its licence, including copyleft licences such as that of `passagemath-symbolics`. An optional extra MUST
   hold only libraries that a model of `skcomplex.models` alone needs, and a model that needs one MUST raise a named
-  error naming the extra.
-- Symbolic layer: Sage is imported only through `sage.all__sagemath_symbolics` and the modules it loads, and the
+  error naming the extra. The extra `metabolism` holds `cobra`, `straindesign`, and `micom`.
+- Symbolic layer: Sage is imported only through `sage.all__sagemath_symbolics`, `sage.all__sagemath_polyhedra`, and the
+  modules they load, and the
   framework prints expressions to NumPy, Numba, and Lepton code itself. SymPy is installed as a dependency of
   passagemath, but importing it is banned by a `ruff` rule, and laws reject SymPy values.
 - LAMMPS: `lammps` is a runtime dependency, with `mpich`, because the LAMMPS wheel links an MPI library it does not

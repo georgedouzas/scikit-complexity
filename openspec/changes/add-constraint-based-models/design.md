@@ -131,7 +131,7 @@ network, since the constitution forbids reimplementing what a mature library pro
 - `constraints` are Sage relations, `==`, `<=`, or `>=`, linear in the variables with constant coefficients. Their
   other terms may read any state, parameter, or the time, such as an uptake bound that falls with a concentration. A
   relation in one variable is a bound of that variable.
-- `objectives` are `ObjectiveSpec(expression, sense='max')` of `skcomplex.specs`, linear in the variables or a sum of
+- `objectives` are `LinearObjectiveSpec(expression, sense='max')` of `skcomplex.specs`, linear in the variables or a sum of
   their absolute values, which the lowering splits into positive and negative parts. They are solved in order, each
   optimum fixed within a relative `1e-9` before the next.
 - `active` is an expression, or `None` for always, where false the solve is skipped and the variables are zero.
@@ -197,7 +197,8 @@ site group draws a chosen variable per site with the existing `ImageVisual`.
 
 ### Elementary modes
 
-`ElementaryModeAnalysis(kind='modes' | 'pathways', normalize=None, exchanges=None, timeout=60.0)` in
+`ElementaryModeAnalysis(kind='modes' | 'pathways', normalize=None, exchanges=None, timeout=60.0, labels=None,
+irreversible=None)` in
 `skcomplex.analysis` takes a system and reads the program of its linear program law at the initial values, or a matrix
 with the indices of its irreversible columns:
 - The directions come from the bounds: a negative lower bound makes a variable reversible, a nonpositive upper bound
@@ -244,8 +245,8 @@ Only `carbon_13_mfa` uses labelling, so it lives in `skcomplex.models.biology.sy
 - `AtomMapSpec(reactants, products)` pairs every occurrence of a metabolite with atom letters, `TracerSpec(metabolite,
   fractions)` gives isotopomer fractions as bit strings, and `FragmentSpec(metabolite, atoms, name)` names a measured
   fragment. They are frozen specs of the package, checked for unbalanced letters and inconsistent atom counts.
-- `LabellingAnalysis(kind='simulation' | 'estimation', atoms, tracers, measurements, fluxes=None, symmetric=(),
-  starts=5, intervals='linear', random_state=None)` takes the system of a metabolic network. It walks the atom maps
+- `LabellingAnalysis(kind='simulation' | 'estimation', atoms, tracers, fragments, measurements, fluxes=None,
+  measured_fluxes=None, symmetric=(), starts=5, intervals='linear', random_state=None)` takes the system of a metabolic network. It walks the atom maps
   backward from the fragments to collect the elementary metabolite units (Antoniewicz et al. 2007), builds per unit size
   the sparse system `A_n(v) X_n = B_n(v) Y_n`, and solves the sizes in order with `scipy.sparse.linalg.splu`.
 - `'simulation'` sets `distributions_` for given fluxes. `'estimation'` parametrises the fluxes by a null space basis of

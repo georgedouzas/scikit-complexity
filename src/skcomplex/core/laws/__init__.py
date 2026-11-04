@@ -19,6 +19,7 @@ from ._fractional_noise import FractionalNoiseLaw
 from ._generator import GeneratorLaw
 from ._gradient_step import GradientStepLaw
 from ._jump import JumpLaw
+from ._linear_program import LinearProgramLaw
 from ._local_rule import LocalRuleLaw
 from ._match import MatchLaw
 from ._noise import NoiseLaw
@@ -46,6 +47,7 @@ __all__: list[str] = [
     'GeneratorLaw',
     'GradientStepLaw',
     'JumpLaw',
+    'LinearProgramLaw',
     'LocalRuleLaw',
     'MatchLaw',
     'NoiseLaw',

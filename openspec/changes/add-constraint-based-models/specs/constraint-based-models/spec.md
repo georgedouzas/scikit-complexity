@@ -9,7 +9,7 @@ lattices, and communities, and enumerate the elementary modes and extreme pathwa
 
 ### Requirement: Linear program laws set algebraic states
 `LinearProgramLaw` SHALL set its variables, algebraic states, to an optimal solution of the linear program whose
-constraints are its Sage relations and whose objectives are its `ObjectiveSpec`s, solved in order with each optimum kept
+constraints are its Sage relations and whose objectives are its `LinearObjectiveSpec`s, solved in order with each optimum kept
 within a relative 1e-9. Relations SHALL be linear in the variables with constant coefficients, and their other terms MAY
 read states, parameters, and the time.
 

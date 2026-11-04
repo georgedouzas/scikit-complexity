@@ -1,0 +1,85 @@
+"""
+# Carbon-13 metabolic flux analysis
+
+Labelled atoms of a tracer spread through a metabolic network along its atom transitions, so the labelling of a product
+carries the fluxes that made it. Fitting the fluxes to measured labelling recovers fluxes that no balance fixes, here
+the split of 2-oxoglutarate in the TCA example of Antoniewicz et al. (2007).
+"""
+
+# %%
+# The model is created by name from the catalog, and the data come from its known fluxes under two parallel tracers
+# with noise of standard deviation 0.002 at seed 0. The network with the estimated fluxes runs once, and the primary
+# view is its graph.
+
+import matplotlib.pyplot as plt
+import numpy as np
+import rerun.blueprint as rrb
+
+from skcomplex.core.spaces import StaticTime
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.viz import RerunObserver
+from skcomplex.models import create
+from skcomplex.models.biology.systems_biology import tca_labelling_analysis
+
+MODEL = 'carbon_13_mfa'
+TRUE = {'v1': 100.0, 'v2': 100.0, 'v3': 50.0, 'v4': 50.0, 'v5': 50.0, 'v6': 50.0, 'v8': 50.0, 'v9': 50.0}
+
+system = create(MODEL)
+analysis = tca_labelling_analysis(noise=0.002, random_state=0).check().prepare(system).run()
+network = system.elements[0]
+fixed = {f'{bound}_{name}': analysis.fluxes_[name] for name in TRUE for bound in ('lower', 'upper')}
+estimated = System(elements=[type(network)(network.label, **fixed)], time=StaticTime())
+blueprint = rrb.Blueprint(rrb.GraphView(origin='tca/graph', name='network'), collapse_panels=True)
+observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+Simulation(estimated, observers=[observer]).check().prepare().run(until=0.0)
+
+# %%
+# Estimated fluxes against the true ones
+# --------------------------------------
+# The fit should recover every net flux, with a 95% interval that holds its true value, and the chi-square test should
+# accept it at the 5% level.
+
+names = list(TRUE)
+values = np.array([analysis.fluxes_[name] for name in names])
+lower = np.array([analysis.intervals_[name][0] for name in names])
+upper = np.array([analysis.intervals_[name][1] for name in names])
+truth = np.array([TRUE[name] for name in names])
+fig, ax = plt.subplots(figsize=(9, 4))
+positions = np.arange(len(names))
+ax.errorbar(
+    positions,
+    values,
+    yerr=[values - lower, upper - values],
+    fmt='o',
+    capsize=4,
+    label='estimate, 95% interval',
+)
+ax.plot(positions, truth, 'x', color='tab:red', label='true flux')
+ax.set_xticks(positions, names)
+ax.set_ylabel('net flux')
+ax.legend()
+verdict = 'accepts' if analysis.accepted_ else 'rejects'
+ax.set_title(f'v3 {analysis.fluxes_["v3"]:.1f} and v4 {analysis.fluxes_["v4"]:.1f}; the test {verdict} the fit')
+fig.tight_layout()
+plt.show()
+
+# %%
+# Measured and simulated glutamate
+# --------------------------------
+# The simulated distributions of glutamate at the estimate should lie on the measured ones in both experiments.
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
+measured = {item.experiment: item.distribution for item in analysis.measurements}
+for ax, (experiment, labels) in zip(axes, analysis.distributions_.items(), strict=True):
+    atoms = np.arange(labels['Glu'].size)
+    ax.bar(atoms - 0.2, measured[experiment], width=0.4, label='measured')
+    ax.bar(atoms + 0.2, labels['Glu'], width=0.4, label='simulated')
+    ax.set_xlabel('labelled atoms')
+    ax.set_title(f'experiment {experiment}')
+axes[0].set_ylabel('fraction of glutamate')
+axes[0].legend()
+gap = max(np.max(np.abs(measured[name] - labels['Glu'])) for name, labels in analysis.distributions_.items())
+fig.suptitle(f'The largest gap between measured and simulated fractions is {gap:.4f}')
+fig.tight_layout()
+plt.show()

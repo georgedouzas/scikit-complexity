@@ -6,7 +6,7 @@
 import numpy as np
 from scipy.optimize import root
 
-from ...core.laws import EquationLaw
+from ...core.laws import EquationLaw, LinearProgramLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace, StaticTime
 from ...errors import SolverError
 from ...specs import RunStateSpec, SupportSpec
@@ -80,7 +80,7 @@ class RootSolver(Solver):
         return SupportSpec(
             time={StaticTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={EquationLaw},
+            laws={LinearProgramLaw, EquationLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

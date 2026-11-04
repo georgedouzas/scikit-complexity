@@ -11,7 +11,8 @@ variable per site.
 
 #### Scenario: Bar chart
 - **WHEN** a dynamic FBA run streams to Rerun
-- **THEN** each frame logs a bar chart of the variables in declared order, and the objective series grows with biomass
+- **THEN** each frame logs a bar chart of the variables in declared order, and the objective series holds the growth
+  rate until the glucose runs out
 
 #### Scenario: Graph
 - **WHEN** the toy network runs with `graph=True` twice with the same seed
