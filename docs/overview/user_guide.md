@@ -6923,7 +6923,10 @@ by `validation`, and `forecast_`, the variables over `horizon` samples after the
 - `ModeDecompositionAnalysis` fits dynamic mode decomposition with PyDMD and sets the continuous eigenvalues
   `ln(mu) / dt` in `eigenvalues_`, the modes, their amplitudes, and a surrogate under continuous time with the matrix
   rate law `dg/dt = L g`. A scikit-learn transformer passed as `dictionary`, such as `PolynomialFeatures(2)`, lifts the
-  variables to observables first, which is extended DMD.
+  variables to observables first, which is extended DMD. With `inputs`, the names of the variables that are control
+  inputs, it fits dynamic mode decomposition with control, `g(t + dt) = A g(t) + B u(t)`, with PyDMD's `DMDc`, sets
+  `operator_` and `input_matrix_`, and its surrogate takes every input as a bounded adaptive parameter, which a
+  `schedule` of `Simulation` drives. `koopman_model_predictive_control` uses these matrices to predict.
 - `SparseIdentificationAnalysis` fits sparse identification of nonlinear dynamics with PySINDy and sets the monomials of
   the variables in `features_`, their coefficients in `coefficients_`, and a surrogate under continuous time with one
   symbolic rate law per variable.
