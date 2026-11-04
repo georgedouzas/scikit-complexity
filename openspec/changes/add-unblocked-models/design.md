@@ -55,7 +55,7 @@ noise. The system runs under continuous time with Euler-Maruyama steps.
 
 Korda and Mezić (2018), as Brunton et al. (2021, §6.1.1 and §6.3) review it, for the Duffing oscillator, the Van der Pol
 oscillator, and a bilinear DC motor, chosen by the variant `plant`:
-- The factory runs the plant with a bounded adaptive control input held at random values over random intervals, and
+- The factory runs the plant with a bounded adaptive control input set to a random binary value every sample, and
   fits `ModeDecompositionAnalysis(dictionary=..., inputs=('plant.u',))` to the runs.
 - The returned system nests the plant under `ContinuousTime` and a controller element under `DiscreteTime` with the
   sample step. The controller's `MapInteraction` sets its state `u` to a `CallSpec` of the plant states. The called
