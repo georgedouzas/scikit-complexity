@@ -35,7 +35,7 @@ class CellVisual(BaseVisual):
         plane:
             The two axes of a lattice complex to draw.
 
-        slice:
+        section:
             The site every other axis of a lattice complex is fixed at.
 
         path:
@@ -58,21 +58,24 @@ class CellVisual(BaseVisual):
         self,
         state: str | None = None,
         plane: tuple[int, int] = (0, 1),
-        slice: int = 0,
+        section: int = 0,
         *,
         path: str | None = None,
         recording: rr.RecordingStream | None = None,
     ) -> None:
         self.state = state
         self.plane = plane
-        self.slice = slice
+        self.section = section
         self.path = path
         self.recording = recording
 
     def _complex_of(self, element: CompiledElementSpec) -> CellComplexSpace:
         """Return the cell complex of a group, raising an error for a group on another space or part."""
         space = getattr(element.element, 'space', None)
-        if not isinstance(space, CellComplexSpace) or getattr(element.element, 'on', None) not in {'edges', 'hyperedges'}:
+        if not isinstance(space, CellComplexSpace) or getattr(element.element, 'on', None) not in {
+            'edges',
+            'hyperedges',
+        }:
             error_msg = f'CellVisual logs a group on the edges or hyperedges of a CellComplexSpace, not {element.path}.'
             raise ValidationError(error_msg)
         lattice = space.space
@@ -87,7 +90,7 @@ class CellVisual(BaseVisual):
         """Return whether every site lies in the selected slice of a lattice."""
         coordinates = np.indices(lattice.shape_).reshape(lattice.n_dim_, -1)
         others = [axis for axis in range(lattice.n_dim_) if axis not in self.plane]
-        return np.all(coordinates[others] == self.slice, axis=0)
+        return np.all(coordinates[others] == self.section, axis=0)
 
     def _site_points(self, lattice: LatticeSpace) -> Array:
         """Return the position of every site in the plane, with the second axis of the plane running horizontally."""
@@ -136,7 +139,7 @@ class CellVisual(BaseVisual):
         links, segments = found if found is not None else self._network_segments(space)
         colors = self._colors_for(values[links], period)
         radius = EDGE_RADIUS * (min(lattice.spacings_) if isinstance(lattice, LatticeSpace) else 0.25)
-        recording.log(path, rr.LineStrips2D(segments, colors=colors, radii=radius))
+        recording.log(path, rr.LineStrips2D(list(segments), colors=colors, radii=radius))
 
     def _log_image(
         self,
@@ -157,7 +160,10 @@ class CellVisual(BaseVisual):
         height, width = lattice.shape_[first], lattice.shape_[second]
         colors = np.zeros((height, width, 3), dtype=np.uint8)
         colors[rows, columns] = self._colors_for(values[selected], period)[..., :3]
-        recording.log(path, rr.Image(bytes=colors.tobytes(), width=width, height=height, color_model='RGB', datatype='U8'))
+        recording.log(
+            path,
+            rr.Image(bytes=colors.tobytes(), width=width, height=height, color_model='RGB', datatype='U8'),
+        )
 
     def _log_polygons(
         self,
@@ -170,9 +176,7 @@ class CellVisual(BaseVisual):
         values, period = faces
         layout = self._layout(space)
         nodes = list(space.graph.nodes)
-        strips = [
-            [layout[str(nodes[node])] for node in (*cycle, cycle[0])] for cycle in space.hyperedges_
-        ]
+        strips = [[layout[str(nodes[node])] for node in (*cycle, cycle[0])] for cycle in space.hyperedges_]
         recording.log(path, rr.LineStrips2D(strips, colors=self._colors_for(values, period), radii=EDGE_RADIUS * 0.25))
 
     def _log_faces(

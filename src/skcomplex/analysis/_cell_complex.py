@@ -65,6 +65,15 @@ class CellComplexAnalysis(BaseAnalysis):
             The sum over the faces of every frame of one minus the cosine of the oriented sum, for the kind
             `'curvature'`.
 
+        complex_:
+            The cell complex the analysis reads.
+
+        values_:
+            The values of the source, with one row per frame.
+
+        period_:
+            The period of the values.
+
     Raises:
         AnalysisError:
             The kind is unknown, the source names no state of a cell complex, or the values do not fit the complex.
@@ -82,6 +91,7 @@ class CellComplexAnalysis(BaseAnalysis):
         True
     """
 
+    complex_: CellComplexSpace
     betti_: tuple[int, ...]
     gradient_: Array
     curl_: Array
@@ -121,13 +131,12 @@ class CellComplexAnalysis(BaseAnalysis):
         return None
 
     def _read_values(self, source: Source) -> Array:
-        """Return the values of a source with one row per frame, setting the complex and the period they read."""
+        """Return the values of a source with one row per frame, setting the period they read."""
         self.period_ = DEFAULT_PERIOD
         if isinstance(source, Trajectory):
             if self.variables is None:
                 error_msg = 'CellComplexAnalysis reads a trajectory by the dotted name of a state. Give `variables`.'
                 raise AnalysisError(error_msg)
-            self.complex_ = self.space if self.space is not None else self._space_of(source)
             period = source.problem.states.entry(self.variables).period
             self.period_ = DEFAULT_PERIOD if period is None else float(period)
             return np.asarray(source.values(self.variables), dtype=float)
@@ -135,12 +144,12 @@ class CellComplexAnalysis(BaseAnalysis):
 
     def _prepare(self, source: Source) -> None:
         """Read the values of the source, and the complex they live on."""
-        self.complex_ = self.space
         self.values_ = np.empty((0, 0)) if source is None else self._read_values(source)
-        if self.complex_ is None:
+        found = self._space_of(source) if self.space is None and isinstance(source, Trajectory) else self.space
+        if found is None:
             error_msg = 'CellComplexAnalysis reads no complex. Give `space`, or the state of a group on a cell complex.'
             raise AnalysisError(error_msg)
-        self.complex_.check().prepare()
+        self.complex_ = found.check().prepare()
         if self.kind != 'betti' and self.values_.shape[-1] != self.complex_.incidences_[0].shape[0]:
             error_msg = (
                 f'CellComplexAnalysis reads {self.values_.shape[-1]} values, but the complex has '
@@ -177,6 +186,6 @@ class CellComplexAnalysis(BaseAnalysis):
         self.share_ = (np.abs(wrapped) > FLAT_TOLERANCE).mean(axis=1)
         self.energy_ = (1.0 - np.cos(angles)).sum(axis=1)
 
-    def _run(self, inputs: object) -> None:
+    def _run(self, inputs: object = None) -> None:
         """Compute the results of the kind of the analysis."""
         {'hodge': self._run_hodge, 'betti': self._run_betti, 'curvature': self._run_curvature}[self.kind]()

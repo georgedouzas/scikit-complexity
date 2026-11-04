@@ -60,7 +60,11 @@ def test_parts_of_a_random_flow_are_orthogonal_and_sum_to_it():
     flows = np.random.default_rng(1).normal(size=(3, 50))
     hodge = CellComplexAnalysis('hodge', space=space).check().prepare(flows).run()
     assert np.allclose(hodge.gradient_ + hodge.curl_ + hodge.harmonic_, flows)
-    for first, second in ((hodge.gradient_, hodge.curl_), (hodge.gradient_, hodge.harmonic_), (hodge.curl_, hodge.harmonic_)):
+    for first, second in (
+        (hodge.gradient_, hodge.curl_),
+        (hodge.gradient_, hodge.harmonic_),
+        (hodge.curl_, hodge.harmonic_),
+    ):
         assert np.abs((first * second).sum(axis=1)).max() < 1e-9
 
 
@@ -95,7 +99,9 @@ def test_curvature_of_a_trajectory_reads_the_group_and_its_period():
     space = _square(4)
     links = GroupElement('links', element=AngleLinkElement, space=space, on='edges')
     rate = RateInteraction('rate', target='links', state='theta', rate=0.5)
-    trajectory = Simulation(System(elements=[links], interactions=[rate]), dt=0.1).check().prepare().run(until=1.0).trajectory_
+    trajectory = (
+        Simulation(System(elements=[links], interactions=[rate]), dt=0.1).check().prepare().run(until=1.0).trajectory_
+    )
     curvature = CellComplexAnalysis('curvature', variables='links.theta').check().prepare(trajectory).run()
     assert curvature.share_.shape == trajectory.times.shape
     assert np.all(curvature.share_ == 0.0)

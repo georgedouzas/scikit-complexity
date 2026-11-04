@@ -30,9 +30,9 @@
 
 ## 4. Analysis and visualization
 
-- [ ] 4.1 Add `CellComplexAnalysis` with the kinds `'hodge'`, `'betti'`, and `'curvature'` to `skcomplex.analysis`, and
+- [x] 4.1 Add `CellComplexAnalysis` with the kinds `'hodge'`, `'betti'`, and `'curvature'` to `skcomplex.analysis`, and
   verify the consistent exchange rates, flow around a torus, and flat and curved connections scenarios
-- [ ] 4.2 Add `CellVisual` to `skcomplex.engine.viz`, and verify the plaquette image scenario with a recorded Rerun
+- [x] 4.2 Add `CellVisual` to `skcomplex.engine.viz`, and verify the plaquette image scenario with a recorded Rerun
   stream
 
 ## 5. Library
