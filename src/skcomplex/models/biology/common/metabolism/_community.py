@@ -3,26 +3,24 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 import tempfile
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import pandas as pd
 from sage.all__sagemath_symbolics import Expression
 
 from .....analysis.types import Source
-from .....core.elements import Element
+from .....core.elements import DeclaredElement
 from .....core.laws import LinearProgramLaw
 from .....core.spaces import StaticTime
 from .....core.system import System
 from .....engine.compile import compile_system
 from .....engine.problems import LinearProgramKernel, ProblemSpec
 from .....errors import AnalysisError
-from .....specs import LinearObjectiveSpec, ParameterSpec, RunStateSpec, StateSpec
+from .....specs import DeclaredVariableSpec, LinearObjectiveSpec, ParameterSpec, RunStateSpec, StateSpec, VisualSpec
 from ...._extras import import_extra
 from ._analyses import BaseNetworkAnalysis
 from ._cobra_io import load_extra, to_cobra
@@ -32,6 +30,25 @@ COMMUNITY_KINDS = ('steadycom', 'tradeoff')
 RATE_TOLERANCE = 1e-7
 FULL_ABUNDANCE = 1.0 - 1e-7
 ELEMENT_LABEL = 'community'
+
+
+class _SteadyComElement(DeclaredElement):
+    """Element whose program sets the abundances and the scaled fluxes of a community."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        variables: Mapping[str, DeclaredVariableSpec] | None = None,
+        law: Callable[[SimpleNamespace], LinearProgramLaw] | None = None,
+    ) -> None:
+        super().__init__(label, visual=visual, variables=variables)
+        self.law = law
+
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[LinearProgramLaw]:
+        """Return the program of the community for a namespace of symbols, or none without a function."""
+        return [] if self.law is None else [self.law(namespace)]
 
 
 class CommunityAnalysis(BaseNetworkAnalysis):
@@ -183,37 +200,16 @@ class CommunityAnalysis(BaseNetworkAnalysis):
 
     def _community_problem(self) -> ProblemSpec:
         """Return the compiled problem of an element whose program sets the abundances and the scaled fluxes."""
-        flux = Annotated[float, StateSpec(algebraic=True)]
         names = [f'x_{position}' for position in range(len(self._members))]
         names += [
             f'v_{position}_{column}'
             for position, member in enumerate(self._members)
             for column in range(len(member.reactions))
         ]
-        declared = [
-            inspect.Parameter(name, inspect.Parameter.KEYWORD_ONLY, default=0.0, annotation=flux) for name in names
-        ]
-        rate = inspect.Parameter(
-            'rate',
-            inspect.Parameter.KEYWORD_ONLY,
-            default=0.0,
-            annotation=Annotated[float, ParameterSpec()],
-        )
-
-        def initialize(self: Element, label: str, **values: float) -> None:
-            Element.__init__(self, label)
-            for name in [*names, 'rate']:
-                setattr(self, name, values.get(name, 0.0))
-
-        first = [inspect.Parameter(name, inspect.Parameter.POSITIONAL_OR_KEYWORD) for name in ('self', 'label')]
-        vars(initialize)['__signature__'] = inspect.Signature([*first, *declared, rate])
-        law = self._community_law
-        element_type = type(
-            'SteadyComElement',
-            (Element,),
-            {'__init__': initialize, '_get_laws': lambda _, namespace: [law(namespace)]},
-        )
-        problem = compile_system(System(elements=[element_type(ELEMENT_LABEL)], time=StaticTime()))
+        variables = {name: DeclaredVariableSpec(0.0, StateSpec(algebraic=True)) for name in names}
+        variables['rate'] = DeclaredVariableSpec(0.0, ParameterSpec())
+        element = _SteadyComElement(ELEMENT_LABEL, variables=variables, law=self._community_law)
+        problem = compile_system(System(elements=[element], time=StaticTime()))
         if not isinstance(problem, ProblemSpec):
             error_msg = f'The community compiles to a {type(problem).__name__}, not a linear program.'
             raise AnalysisError(error_msg)
