@@ -8,8 +8,8 @@
 
 ## 2. Validation
 
-- [ ] 2.1 Report `role-element` from the declarations, in the one pass; verify the wrong kind and declared missing state cases.
-- [ ] 2.2 Catch a missing attribute of a role while building laws and report it as the same issue; verify the missing state scenario with an undeclared interaction, and the other errors are kept scenario.
+- [x] 2.1 Report `role-element` from the declarations, in the one pass; verify the wrong kind and declared missing state cases.
+- [x] 2.2 Catch a missing attribute of a role while building laws and report it as the same issue; verify the missing state scenario with an undeclared interaction, and the other errors are kept scenario.
 - [ ] 2.3 Validate every model of the catalog; verify the prebuilt models stay valid scenario, correcting any declaration that rejects a valid use.
 
 ## 3. Generated pages

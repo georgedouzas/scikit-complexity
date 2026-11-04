@@ -11,7 +11,13 @@ from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
-from skcomplex.core.interactions import HyperedgeInteraction, Interaction, NeighborInteraction
+from skcomplex.core.interactions import (
+    HyperedgeInteraction,
+    Interaction,
+    MovementInteraction,
+    NeighborInteraction,
+    RateInteraction,
+)
 from skcomplex.core.laws import NoiseLaw, RateLaw, RuleLaw, SampleLaw, UpdateLaw
 from skcomplex.core.laws.utils import mean, neighbors
 from skcomplex.core.spaces import CayleySpace, DiscreteTime, LatticeSpace, MemoryNeighborhood, NetworkSpace
@@ -19,7 +25,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.compile import PassCompiler, compile_system
 from skcomplex.engine.solvers import LammpsSolver, MilsteinSolver, PontryaginSolver, RK4Solver
 from skcomplex.engine.solvers._defaults import DEFAULT_SOLVERS
-from skcomplex.errors import ValidationError, ValidationWarning
+from skcomplex.errors import RoleElementError, ValidationError, ValidationWarning
 from skcomplex.specs import (
     IssueSpec,
     MoveSpec,
@@ -624,3 +630,163 @@ def test_validate_shaped_parameter_on_an_element():
     (issue,) = report.errors
     assert (issue.code, issue.path) == ('parameter-shape', 'input.W')
     assert 'group' in issue.fix
+
+
+class ReadingInteraction(Interaction):
+    """Interaction that declares nothing about the states its laws read."""
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(label)
+        self.target = target
+
+    def _get_laws(self, s):
+        """Return a rate that reads the state `n` of the target."""
+        return [RateLaw(s.target.n, -s.target.n)]
+
+
+class ReadingSourcesInteraction(Interaction):
+    """Interaction that reads a state of the elements of a variadic role."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        sources: Annotated[list[str], RoleSpec(variadic=True)],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.sources = sources
+
+    def _get_laws(self, s):
+        """Return a rate of the target that reads the state `missing` of its first source."""
+        return [RateLaw(s.target.x, s.sources[0].missing)]
+
+
+class TankElement(Element):
+    """Element whose only state is `level`."""
+
+    def __init__(self, label: str, level: Annotated[float, StateSpec()] = 1.0) -> None:
+        super().__init__(label)
+        self.level = level
+
+
+def _role_issues(system: System) -> list[IssueSpec]:
+    """Return the `role-element` issues of a system."""
+    return [issue for issue in PassCompiler().check().prepare(system).report_.issues if issue.code == 'role-element']
+
+
+def test_role_element_reports_a_missing_state_a_role_declares():
+    """Test that a declared read of a state the element lacks is reported with its path, role, state, and fix."""
+    system = System(
+        elements=[TankElement('tank')],
+        interactions=[RateInteraction('growth', target='tank', state='n', rate=1.0)],
+    )
+    issues = _role_issues(system)
+    assert len(issues) == 1
+    assert issues[0].path == 'growth'
+    assert "'target'" in issues[0].message
+    assert "'n'" in issues[0].message
+    assert 'level' in issues[0].message
+    assert 'get_requirements()' in issues[0].fix
+
+
+def test_role_element_reports_a_kind_the_role_does_not_accept():
+    """Test that a role that acts on the agents of a group reports a single element."""
+    system = System(
+        elements=[TankElement('tank')],
+        interactions=[MovementInteraction('walk', target='tank')],
+        time=DiscreteTime(),
+    )
+    issues = _role_issues(system)
+    assert len(issues) == 1
+    assert 'accepts group, variable-group' in issues[0].message
+    assert 'tank is of kind element' in issues[0].message
+
+
+def test_role_element_reports_a_missing_state_no_role_declares():
+    """Test that an undeclared read of a missing state gets the same issue, and no `AttributeError` reaches the user."""
+    system = System(elements=[TankElement('tank')], interactions=[ReadingInteraction('read', target='tank')])
+    issues = _role_issues(system)
+    assert len(issues) == 1
+    assert "'target'" in issues[0].message
+    assert "'n'" in issues[0].message
+    assert 'level' in issues[0].message
+    with pytest.raises(RoleElementError, match=r"reads the state 'n'.*\[role-element\]"):
+        compile_system(system)
+
+
+def test_role_element_names_a_variadic_role():
+    """Test that a missing state of an element of a variadic role names this role."""
+
+    class TwoStatesElement(Element):
+        """Element with the state the target of the interaction writes."""
+
+        def __init__(self, label: str, x: Annotated[float, StateSpec()] = 1.0) -> None:
+            super().__init__(label)
+            self.x = x
+
+    system = System(
+        elements=[TwoStatesElement('first'), TankElement('tank')],
+        interactions=[ReadingSourcesInteraction('read', target='first', sources=['tank'])],
+    )
+    issues = _role_issues(system)
+    assert len(issues) == 1
+    assert "'sources'" in issues[0].message
+    assert "'missing'" in issues[0].message
+
+
+def test_role_element_comes_with_the_other_problems():
+    """Test that a role issue is one problem of the report, next to a problem of another component."""
+    system = System(
+        elements=[TankElement('tank')],
+        interactions=[
+            ReadingInteraction('read', target='tank'),
+            RateInteraction('growth', target='tank', state='n', rate=1.0),
+            RateInteraction('unbound', target='nowhere', state='n', rate=1.0),
+        ],
+    )
+    issues = PassCompiler().check().prepare(system).report_.issues
+    assert {issue.path for issue in issues if issue.code == 'role-element'} == {'read', 'growth'}
+    assert any(issue.path == 'unbound' and issue.code == 'role' for issue in issues)
+
+
+def test_role_element_keeps_a_missing_name_of_the_namespace():
+    """Test that reading a name the namespace itself lacks is not reported as a state of a role."""
+
+    class WrongNameInteraction(ReadingInteraction):
+        """Interaction whose laws read a parameter that nothing declares."""
+
+        def _get_laws(self, s):
+            """Return a rate that reads a name of the namespace that does not exist."""
+            return [RateLaw(s.target.level, s.undeclared)]
+
+    system = System(elements=[TankElement('tank')], interactions=[WrongNameInteraction('read', target='tank')])
+    with pytest.raises(AttributeError, match='undeclared'):
+        PassCompiler().check().prepare(system)
+
+
+@pytest.mark.parametrize('error', [ValueError('own error'), AttributeError('own error'), KeyError('own error')])
+def test_role_element_keeps_the_other_errors_of_a_law(error):
+    """Test that an error of a law that is not a missing attribute of a role reaches the user unchanged."""
+
+    class FailingInteraction(ReadingInteraction):
+        """Interaction whose laws raise an error of their own."""
+
+        def _get_laws(self, s):
+            """Raise the error of the test."""
+            raise error
+
+    system = System(elements=[TankElement('tank')], interactions=[FailingInteraction('read', target='tank')])
+    with pytest.raises(type(error), match='own error') as caught:
+        PassCompiler().check().prepare(system)
+    assert caught.value is error
+
+
+def test_role_element_leaves_a_valid_binding_alone():
+    """Test that an element that carries what a role reads reports no role issue."""
+    system = System(
+        elements=[TankElement('tank')],
+        interactions=[RateInteraction('growth', target='tank', state='level', rate=1.0)],
+    )
+    assert _role_issues(system) == []

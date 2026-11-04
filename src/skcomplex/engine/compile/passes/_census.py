@@ -3,8 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
+from types import SimpleNamespace
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
@@ -14,6 +15,7 @@ from sage.symbolic.function import SymbolicFunction
 
 from ....core.base import BasePart
 from ....core.elements import FieldElement, GroupElement
+from ....core.interactions import BaseInteraction
 from ....core.laws import (
     BaseLaw,
     BoundaryLaw,
@@ -35,7 +37,7 @@ from ....core.laws.utils import distribute_operators, hyperedges_in, laplacian, 
 from ....core.spaces import CellComplexSpace, LatticeSpace
 from ....core.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ....core.system import System
-from ....errors import SkcomplexError, TensorShapeError, TensorSymmetryError, ValidationError
+from ....errors import RoleElementError, SkcomplexError, TensorShapeError, TensorSymmetryError, ValidationError
 from ....specs import CallSpec, EntrySpec, TensorSpec
 from ....types import ElementKind, ProcessKey, VariableKind
 from ..._utils import components_of, declarations_of, symbol, symbols_of, vector
@@ -736,6 +738,53 @@ class CensusPass(BasePass):
         return [RateLaw(target, rate, law.order, label=law.label) for target, rate in zip(targets, rates, strict=True)]
 
     @staticmethod
+    def _role_of(namespace: SimpleNamespace, holder: SimpleNamespace) -> str | None:
+        """Return the name in a namespace that holds a namespace or a copy of it, directly or inside, or `None`."""
+        for name, value in vars(namespace).items():
+            for item in value if isinstance(value, tuple) else (value,):
+                if not isinstance(item, SimpleNamespace):
+                    continue
+                if item is holder or vars(item).keys() == vars(holder).keys() or CensusPass._role_of(item, holder):
+                    return name
+        return None
+
+    @staticmethod
+    def _returned_laws(spec: KernelSpec, component: BasePart) -> Sequence[BasePart]:
+        """Return the laws a component returns, raising a read of a state a role does not have as an error of the role.
+
+        Args:
+            spec:
+                The kernel spec of the component.
+
+            component:
+                The object whose `laws` method describes the component.
+
+        Returns:
+            laws:
+                What the component returns.
+
+        Raises:
+            RoleElementError:
+                An interaction reads a name that the element bound to a role does not have.
+        """
+        try:
+            return component.prepare().run(spec.namespace).laws_
+        except AttributeError as error:
+            holder = error.obj
+            if not isinstance(component, BaseInteraction) or not isinstance(holder, SimpleNamespace):
+                raise
+            role = CensusPass._role_of(spec.namespace, holder)
+            if role is None:
+                raise
+            names = [name for name, value in vars(holder).items() if not isinstance(value, SimpleNamespace | tuple)]
+            carried = ', '.join(sorted(names)) or 'nothing'
+            error_msg = (
+                f'The role {role!r} of {spec.owner} reads the state {error.name!r}, but the element bound to it '
+                f'carries {carried}.'
+            )
+            raise RoleElementError(error_msg) from error
+
+    @staticmethod
     def _declared_laws(spec: KernelSpec, component: BasePart) -> list[BaseLaw]:
         """Return the laws a component returns for its namespace, after checking their classes against its binding.
 
@@ -754,7 +803,7 @@ class CensusPass(BasePass):
             ValidationError:
                 `laws` returns something other than declarable laws, or laws its binding does not take.
         """
-        returned = component.prepare().run(spec.namespace).laws_
+        returned = CensusPass._returned_laws(spec, component)
         laws = [law for law in returned if isinstance(law, BaseLaw)]
         if not isinstance(returned, list | tuple) or len(laws) < len(returned):
             error_msg = f'`_get_laws` of {spec.owner} must return a list of laws.'

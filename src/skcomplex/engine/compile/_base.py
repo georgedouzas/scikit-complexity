@@ -17,6 +17,7 @@ from ...core.system import System
 from ...errors import (
     LabelError,
     ParameterError,
+    RoleElementError,
     RoleError,
     SkcomplexError,
     SpaceError,
@@ -34,6 +35,14 @@ from ._compilation import Compilation
 _FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
     LabelError: ('label', 'Give every child of a system a unique label of letters, digits, and underscores.'),
     RoleError: ('role', 'Bind every role to the path of an element, group, or member of the system.'),
+    RoleElementError: (
+        'role-element',
+        (
+            'Bind the role to an element that carries the state, declare the state on the element, or read another '
+            'state. `get_requirements()` of an interaction and `get_states()` of an element show what they need and '
+            'carry.'
+        ),
+    ),
     SpaceError: ('space-missing', 'Give the system a space whose kind the component supports.'),
     ParameterError: ('parameter', 'Give the parameter a value inside its domain.'),
     TensorShapeError: ('law-domain', 'Give the tensor operation a matrix or a vector of the shape it reads.'),

@@ -48,6 +48,10 @@ class RoleError(ValidationError):
     """A role of an interaction refers to an element that does not exist."""
 
 
+class RoleElementError(RoleError):
+    """A role of an interaction is bound to an element of a kind it does not accept, or without a state it reads."""
+
+
 class SpaceError(ValidationError):
     """A part needs a kind of space the system lacks, a vector has no space, or a location does not fit its space."""
 
