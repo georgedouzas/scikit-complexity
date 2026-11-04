@@ -6279,7 +6279,7 @@ print(EventAnalysis().check().prepare([0, 2, 3, 0, 0, 1, 0]).run().sizes_.tolist
 
 **Time series and information.** `CorrelationAnalysis`, `SpectrumAnalysis`, `DisplacementAnalysis`,
 `ScalingAnalysis`, and `RollingAnalysis` describe memory and diffusion. The mean squared displacement of
-`DisplacementAnalysis` comes from `tidynamics` over all lags of unwrapped positions, with its exponent and diffusion
+`DisplacementAnalysis` comes from an FFT over all lags of unwrapped positions, with its exponent and diffusion
 coefficient fitted over a chosen range of lags. The fluctuation analyses come from `nolds`: detrended
 fluctuation of any order, which gives `H + 1` for an integrated series such as a random walk, or the rescaled range.
 `RollingAnalysis` gives the variance, the lag-one autocorrelation, or the skewness in rolling windows with its
@@ -6529,7 +6529,7 @@ time of a transition matrix, by its `kind`, and `EventAnalysis('laminar-duration
 their stationary laws, spectral gaps, and relaxation times, and Markov state models and implied timescales with
 `pydtmc`. `DistributionAnalysis('dispersion-index')`, `ScalingAnalysis('variance-mean')`, and
 `EventAnalysis('counts')` describe fluctuations, and `KramersMoyalAnalysis` estimates the drift and diffusion of a
-series with `kramersmoyal`.
+series with kernels over its increments.
 `IrreversibilityAnalysis` measures entropy production from rates, jump paths, Langevin paths, or transition counts,
 tests detailed balance and the fluctuation theorem, and checks the thermodynamic uncertainty relation: the squared
 relative fluctuation of a current times the entropy produced is at least 2. It also gives the response to a field and

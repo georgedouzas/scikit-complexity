@@ -194,6 +194,9 @@ conventions are the taste it cannot check.
 
 - The project MUST declare its supported language versions, and MUST remain compatible across all of them.
 - A new runtime dependency MUST be justified and declared in the project manifest, and MUST NOT be vendored ad hoc.
+- A runtime dependency MUST have a release on the package index within the last 24 months, or the Project Profile MUST
+  record why it may stay and when the exception is next reviewed. A proposal for a new one MUST state its last release
+  date, and the limit MUST be checked before each release.
 - The build MUST use a `src`-based layout with SCM-derived versioning, and generated version metadata MUST NOT be
   hand-edited.
 - Canonical task-runner sessions for tests, checks, formatting, docs, and release MUST be the entry points the gate
@@ -264,12 +267,13 @@ to fill in as the project takes shape.
   systems, `python-sat` for incremental satisfiability, `pymoo` for population optimisers, and `scikit-learn` for the
   estimator contract. The analysis layer adds `antropy` for regularity entropies and Lempel-Ziv complexity, `ordpy`
   for ordinal patterns, `nolds` for fluctuation analyses and Rosenstein's exponent, `powerlaw` for power-law fits,
-  `ennemi` for nearest-neighbour transfer entropy, `tidynamics` for displacements, `mrestimator` for branching
-  ratios, `kramersmoyal` for Kramers-Moyal coefficients, `pydtmc` for Markov state models, `dit` for discrete
+  `ennemi` for nearest-neighbour transfer entropy, `mrestimator` for branching
+  ratios, `pydtmc` for Markov state models, `dit` for discrete
   multivariate information and partial information decomposition, `igraph` for network motif counts, `pydmd` for
   dynamic mode decomposition, `pysindy` for sparse identification of nonlinear dynamics, and `reservoirpy` for
   reservoir computing. Rerun is a core dependency,
   and spawning a local viewer happens only on request, so it is not a real-world side effect.
+- Exceptions to the 24-month limit on runtime dependencies: none.
 - Model gallery: the `gallery` dependency group holds `pillow` 11.0 or later for encoding the screenshots and
   `playwright` 1.50 or later for the web capture backend in headless Chromium, next to `mkdocs-gallery` in the `docs`
   group. The gallery tooling lives in `docs/gallery_tools`, and `nox -s gallery` runs the examples, captures their

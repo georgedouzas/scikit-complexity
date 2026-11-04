@@ -62,6 +62,14 @@ The requester-proposing algorithm is about 30 lines, and `MatchingInteraction` a
 next to its other rules. `clean=True` drops unacceptable pairs and unranked players, which the new method must also do. The
 requester-optimal stable matching is unique, so equality with the library is a real test and not a coincidence of ties.
 
+### Correct the catalog spec rather than defer the imports
+
+`_catalog.py` imports `Simulation` for `run`, and the engine imports `mesa` and `lammps` when it loads. `skcomplex.specs`
+imports `qutip`. Deferring them would take a lazy import of a required dependency, which the constitution forbids, and
+`run` would lose its return type, since `TYPE_CHECKING` imports are forbidden too. It would save about 0.5 s of a 7 s
+import, as the core still loads Sage. So the scenario drops the named libraries and keeps what it can promise, that no
+model module loads. This loosens a spec, by decision of the user, and a fast catalog is a change of its own if wanted.
+
 ## Risks / Trade-offs
 
 - [The project now owns three algorithms] → Each is short and well specified, and reference values plus the stability

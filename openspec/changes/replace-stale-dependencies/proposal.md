@@ -16,6 +16,9 @@ block the whole package, as `deeptime` blocked Python 3.14, and nothing today st
 - Keep the public results of these three classes, within numerical tolerance for the two analyses, and the same stable
   matching for the interaction.
 - Remove the three libraries from the manifest, the lock file, and the Project Profile.
+- Correct the `model-catalog` spec, which forbids what the package has always done: importing `skcomplex.models` loads
+  `qutip`, `mesa`, and `lammps`, runtime dependencies that the core and the engine import. Listing still imports no model
+  module, and a new test checks that, since no test covered the scenario.
 
 `deeptime` is out of scope, because `add-python-3-14-support` replaces it. `mrestimator` (June 2025), `pydmd` (August 2025),
 `igraph` (October 2025), `nolds` (November 2025), `powerlaw` (January 2026), and `pysindy` (January 2026) are inside the
@@ -29,7 +32,9 @@ limit and stay.
 
 ### Modified Capabilities
 
-None. `agent-analysis`, `stochastic-analysis`, and the matching requirements state results rather than libraries, and their
+- `model-catalog`: listing imports no model module, without promising which runtime dependencies stay unloaded.
+
+`agent-analysis`, `stochastic-analysis`, and the matching requirements state results rather than libraries, and their
 behaviour does not change.
 
 ## Impact
