@@ -206,7 +206,7 @@ class LowerFieldsPass(BasePass):
         for part in parts:
             found = LowerFieldsPass._linear(part, states)
             for coefficient, chain, state in found or []:
-                if any(item in states or references.get(item, None) is None for item in coefficient.variables()):
+                if any(item not in references or references[item].is_state for item in coefficient.variables()):
                     continue
                 source = states[state]
                 place = fields[source.entry.name]
