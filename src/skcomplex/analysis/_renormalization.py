@@ -21,7 +21,7 @@ from .types import Source
 KINDS = ('laplacian', 'geometric')
 SETTINGS = {
     'laplacian': {'steps', 'time'},
-    'geometric': {'steps', 'block', 'angle'},
+    'geometric': {'steps', 'block', 'angle', 'beta'},
 }
 """Settings every kind reads, besides `kind`."""
 
@@ -43,8 +43,9 @@ class RenormalizationAnalysis(BaseAnalysis):
       their diagonal entries, and every connected component of these joins is a supernode. It runs at `time`, or else at
       the smallest local peak of the specific heat `C = -dS / d log(time)`, of the entropy of the operator normalized by
       its trace, at which at least one pair of nodes joins, and a network with no such peak stays as it is.
-    - `'geometric'`: every `block` consecutive nodes in the order of their `angle` form a supernode, at the mean angle
-      of its nodes, and the last block holds the nodes left over.
+    - `'geometric'`: every `block` consecutive nodes in the order of their `angle` form a supernode, and the last block
+      holds the nodes left over. The supernode sits at the mean angle of its nodes weighted by `z = k^max(1, beta)`,
+      with the degree `k` of a node, which is proportional to its hidden degree in the geometric model.
 
     A trajectory gives the network of its last frame, with the values of the states and parameters of the group on its
     nodes as node attributes.
@@ -65,6 +66,10 @@ class RenormalizationAnalysis(BaseAnalysis):
         angle:
             The node attribute that holds the angle of `'geometric'`.
 
+        beta:
+            The parameter of the geometric model that the weights of the angles of `'geometric'` read, the inverse of
+            its temperature.
+
     Attributes:
         graphs_:
             The network at every scale, the original first.
@@ -82,7 +87,7 @@ class RenormalizationAnalysis(BaseAnalysis):
     Raises:
         AnalysisError:
             The kind is unknown, the kind does not read a changed setting, `steps` is below 1, `block` is below 2,
-            `time` is not positive, raised by `check`, or a node has no angle, raised by `run`.
+            `time` or `beta` is not positive, raised by `check`, or a node has no angle, raised by `run`.
 
     Examples:
         >>> import networkx as nx
@@ -107,12 +112,14 @@ class RenormalizationAnalysis(BaseAnalysis):
         time: float | None = None,
         block: int = 2,
         angle: str = 'angle',
+        beta: float = 1.0,
     ) -> None:
         self.kind = kind
         self.steps = steps
         self.time = time
         self.block = block
         self.angle = angle
+        self.beta = beta
 
     def _check(self) -> None:
         """Validate the kind, the steps, the time, the block, and that the kind reads every changed setting."""
@@ -126,6 +133,9 @@ class RenormalizationAnalysis(BaseAnalysis):
             raise AnalysisError(error_msg)
         if self.time is not None and self.time <= 0:
             error_msg = f'{type(self).__name__} has time={self.time!r}. Use a positive time, or None.'
+            raise AnalysisError(error_msg)
+        if self.beta <= 0:
+            error_msg = f'{type(self).__name__} has beta={self.beta!r}. Use a positive value.'
             raise AnalysisError(error_msg)
 
     def _get_data_kind(self) -> DataKind:
@@ -169,7 +179,7 @@ class RenormalizationAnalysis(BaseAnalysis):
         return nx.quotient_graph(graph, list(blocks.values()), relabel=True)
 
     def _merge_by_angle(self, graph: nx.Graph) -> nx.Graph:
-        """Return the network of the blocks of consecutive nodes in the order of their angle, at their mean angle."""
+        """Return the network of the blocks of consecutive nodes by angle, at their angles weighted by the degrees."""
         missing = [node for node in graph if self.angle not in graph.nodes[node]]
         if missing:
             error_msg = f'The nodes {missing[:5]} have no attribute {self.angle!r}. Give it, or set `angle`.'
@@ -177,9 +187,16 @@ class RenormalizationAnalysis(BaseAnalysis):
         ordered = sorted(graph, key=lambda node: float(graph.nodes[node][self.angle]))
         blocks = [ordered[start : start + self.block] for start in range(0, len(ordered), self.block)]
         merged = nx.quotient_graph(graph, [set(block) for block in blocks], relabel=True)
-        angles = [float(np.mean([graph.nodes[node][self.angle] for node in block])) for block in blocks]
+        angles = [self._supernode_angle(graph, block) for block in blocks]
         nx.set_node_attributes(merged, dict(enumerate(angles)), self.angle)
         return merged
+
+    def _supernode_angle(self, graph: nx.Graph, block: list[object]) -> float:
+        """Return the angle of a supernode, the plain mean when none of its nodes has an edge."""
+        angles = np.asarray([graph.nodes[node][self.angle] for node in block], dtype=float)
+        degrees = np.asarray([graph.degree(node) for node in block], dtype=float)
+        weights = degrees ** max(1.0, self.beta)
+        return float(np.average(angles, weights=weights if weights.sum() > 0 else None))
 
     def _diffusion_labels(self, graph: nx.Graph, nodes: list[object]) -> npt.NDArray[np.int64]:
         """Return the supernode of every node, at the given time or at the first peak of the heat that merges nodes."""

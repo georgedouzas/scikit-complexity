@@ -7021,7 +7021,7 @@ by `validation`, and `forecast_`, the variables over `horizon` samples after the
   the variables in `features_`, their coefficients in `coefficients_`, and a surrogate under continuous time with one
   symbolic rate law per variable.
 - `ReservoirAnalysis` fits a next-generation reservoir or an echo state network from ReservoirPy with a ridge readout
-  of the increments over one sample. Its surrogate runs under discrete time, one step per sample, holds the memory of
+  of the increments over one sample, on standardized variables unless `standardize` is false. Its surrogate runs under discrete time, one step per sample, holds the memory of
   the reservoir as states, and starts at the last sample, so a run of `system_` is the autonomous forecast.
 
 ```python
@@ -7270,8 +7270,8 @@ print(communities.modularity_.round(2).tolist(), MotifAnalysis().check().prepare
 as attributes, and sets `graphs_`, `degrees_`, `exponents_`, and `clustering_` per scale. The kind `'laplacian'` joins
 two nodes where the diffusion operator `exp(-time L)` has an entry at least the smaller of their diagonal entries, and
 every component of these joins is a supernode. It runs at `time`, or at the smallest peak of the specific heat that
-merges nodes. The kind `'geometric'` merges `block` consecutive nodes by their `angle`. Two supernodes link when any of
-their nodes link.
+merges nodes. The kind `'geometric'` merges `block` consecutive nodes by their `angle`, and a supernode sits at their
+angles weighted by `k^max(1, beta)`, with `k` the degree. Two supernodes link when any of their nodes link.
 
 ```python
 import networkx as nx
