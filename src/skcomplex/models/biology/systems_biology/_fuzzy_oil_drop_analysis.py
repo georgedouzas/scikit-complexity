@@ -56,11 +56,16 @@ class FuzzyOilDropAnalysis(BaseAnalysis):
     (Eq. 1.2). The uniform distribution `R` gives every residue the same value. Then
     `RD = D_KL(O|T) / (D_KL(O|T) + D_KL(O|R))` in bits (Eqs. 1.3 to 1.6), and `K` minimises `D_KL(O|M)` for the profile
     `M = [T + K [T_max - T]_n]_n` (Eq. 1.9), where `[...]_n` normalises to a sum of one, by SciPy's bounded scalar
-    minimiser. The equations follow Konieczny et al. (2023 §1.3.1). Each sigma is a third of the largest absolute
-    coordinate along its axis, since the book has the Gaussian reach near zero at `3 sigma` (p. 33 and Fig. 1.41). The
-    book names no scale, no orientation of the axes, and no upper bound of `K`, for which it reports values above 3
-    (p. 41), so the Kyte-Doolittle scale, the principal axes, and the bound 5 are choices of this class, as is leaving a
-    residue out of its own sum in Eq. 1.2.
+    minimiser. The equations follow Konieczny et al. (2023 §1.3.1), and the curves of Fig. 1.41 give back its `K = 0.5`.
+    Each sigma is a third of the largest absolute coordinate along its axis, one reading of the book's Gaussian that
+    reaches near zero at `3 sigma` (p. 33 and Fig. 1.41), which gives no formula for sigma. The book names no scale, no
+    orientation of the axes, no fit of `K`, and no upper bound of it, for which it reports values above 3 (p. 41), so
+    the Kyte-Doolittle scale, the principal axes, the minimisation, and the bound 5 are choices of this class, as is
+    leaving a residue out of its own sum in Eq. 1.2, where the book speaks of interactions between residues.
+
+    The bundled entries do not reach the `RD < 0.5` and `K` below 0.5 that the book expects of fast-folding and
+    single-chain proteins (p. 40): the mean `RD` and `K` are 0.77 and 2.2 for 1L2Y, 0.70 and 0.98 for 1UBQ, and 0.77 and
+    2.2 for 5PTI. The gap comes from sigma, since a wider Gaussian closes it and no other choice does.
 
     Args:
         structure:

@@ -18,6 +18,47 @@ from skcomplex.models.biology.systems_biology import (
     write_structure,
 )
 
+# The curves T and O of Fig. 1.41 of Konieczny et al. (2023), read in pixels above the axis at 29 even steps across the
+# plot. One pixel is added to each, since the drawn curve T touches the axis, where a divergence has no value.
+FIGURE_THEORETICAL = np.array(
+    [1, 2, 3, 4, 4, 10, 17, 30, 46, 74, 98, 129, 156, 176, 182, 176, 156, 128, 103, 72, 45, 30, 18, 10, 5, 4, 3, 2, 2],
+    dtype=float,
+)
+FIGURE_OBSERVED = np.array(
+    [
+        14,
+        18,
+        24,
+        40,
+        52,
+        63,
+        67,
+        66,
+        64,
+        63,
+        68,
+        78,
+        91,
+        102,
+        113,
+        116,
+        116,
+        106,
+        94,
+        80,
+        65,
+        52,
+        43,
+        28,
+        23,
+        18,
+        14,
+        12,
+        11,
+    ],
+    dtype=float,
+)
+
 
 @pytest.mark.parametrize(
     ('entry', 'models', 'residues', 'atoms'),
@@ -147,6 +188,23 @@ def test_environment_factor_recovers_the_factor_of_a_profile():
     analysis = FuzzyOilDropAnalysis(structure, 'environment-factor', observed=profile / profile.sum())
     factor = analysis.check().prepare(structure.effective_atoms[:1]).run().values_[0]
     assert factor == pytest.approx(0.5, abs=1e-3)
+
+
+def test_curves_of_fig_1_41_give_the_values_the_book_prints_for_them():
+    """Test that the curves of Fig. 1.41 give its `K = 0.5` and, within reading error, the `RD = 0.7` of Fig. 1.40."""
+
+    class FigureAnalysis(FuzzyOilDropAnalysis):
+        def _read_theoretical(self, positions):
+            return FIGURE_THEORETICAL / FIGURE_THEORETICAL.sum()
+
+    count = len(FIGURE_THEORETICAL)
+    numbers = tuple(range(count))
+    structure = StructureSpec(np.zeros((1, count, 3)), ('CA',) * count, ('GLY',) * count, numbers, ('A',) * count)
+    observed = FIGURE_OBSERVED / FIGURE_OBSERVED.sum()
+    factor = FigureAnalysis(structure, 'environment-factor', observed=observed).check().prepare().run().values_[0]
+    assert factor == pytest.approx(0.5, abs=0.02)
+    distance = FigureAnalysis(structure, observed=observed).check().prepare().run().values_[0]
+    assert distance == pytest.approx(0.7, abs=0.1)
 
 
 def test_native_ubiquitin_is_closer_to_the_micelle_than_its_extended_chain():
