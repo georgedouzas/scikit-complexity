@@ -80,6 +80,10 @@ class SolverError(SkcomplexError):
     """A solver does not fit the problem or fails to advance it."""
 
 
+class InfeasibleError(SolverError):
+    """A linear program has no solution, and its law asks to raise an error for that."""
+
+
 class ParameterError(SkcomplexError):
     """A parameter name is not part of the problem."""
 
@@ -98,6 +102,14 @@ class ExperimentError(SkcomplexError):
 
 class AnalysisError(SkcomplexError):
     """An analysis cannot be applied to the system or the data."""
+
+
+class EnumerationLimitError(AnalysisError):
+    """An exact enumeration does not finish within its time limit."""
+
+
+class MissingExtraError(SkcomplexError):
+    """A class needs an optional extra that is not installed."""
 
 
 class RegistryError(SkcomplexError):
