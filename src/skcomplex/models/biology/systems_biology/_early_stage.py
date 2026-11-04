@@ -81,7 +81,8 @@ def read_cell_probabilities(cells: int = CELLS) -> Array:
     """Return the probability of every cell of the ellipse path per amino acid, from the native bundled structures.
 
     The projected native angles of the bundled entries are counted per amino acid and cell, with one added to every
-    count.
+    count. The bundled entries and the added one are choices of this function, since Konieczny et al. (2023 §3.7.1)
+    print entropies of such probabilities (Table 3.3) and not the probabilities or how they are estimated.
 
     Args:
         cells:
@@ -160,7 +161,8 @@ def early_stage_folding_intermediate(
 
     Each residue takes a cell of `EllipsePath`, the limited conformational space of the early stage after Konieczny et
     al. (2023 §3.7.1), with the local energy `-log p(cell | amino acid)` of the probabilities of
-    `read_cell_probabilities`.
+    `read_cell_probabilities`. The heat bath and the 72 cells of equal `t` are choices of this model: the 72 of the book
+    counts 5° steps of one angle of the whole map (p. 147).
     Each unit of time makes as many draws as the chain has residues, each drawing the cell of one random residue from
     `p(cell | amino acid)` raised to one over the temperature, renormalised, so at temperature 1 the cells follow the
     probabilities. The local energies enter through a row score, their sum over the chain, since the change of the score

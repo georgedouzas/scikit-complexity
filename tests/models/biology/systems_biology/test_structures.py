@@ -139,10 +139,11 @@ def test_distributions_are_normalised():
 
 
 def test_environment_factor_recovers_the_factor_of_a_profile():
-    """Test that an observed distribution built with a factor gives this factor back."""
+    """Test that a distribution built by Eq. 1.9, with its complement normalised first, gives its factor back."""
     structure = read_structure('1L2Y')
     theoretical = FuzzyOilDropAnalysis(structure).check().prepare().run().theoretical_[0]
-    profile = theoretical + 0.5 * (theoretical.max() - theoretical)
+    complement = (theoretical.max() - theoretical) / (theoretical.max() - theoretical).sum()
+    profile = theoretical + 0.5 * complement
     analysis = FuzzyOilDropAnalysis(structure, 'environment-factor', observed=profile / profile.sum())
     factor = analysis.check().prepare(structure.effective_atoms[:1]).run().values_[0]
     assert factor == pytest.approx(0.5, abs=1e-3)

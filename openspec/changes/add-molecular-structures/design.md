@@ -133,11 +133,12 @@ and the RNA pieces live in `skcomplex.models.biology.evolution`:
   `'genotype-evolvability'`, `'phenotype-robustness'`, and `'phenotype-evolvability'`, after Wagner's definitions as
   Raman (2021 §13.3) states them, over any function from a sequence to a phenotype key.
 
-The fuzzy oil drop takes each `σ` as a third of the largest absolute coordinate along its principal axis, which the
-book leaves unstated, and the Kyte-Doolittle scale of Biopython rescaled to `[0, 1]` by default. `K` minimises
+The fuzzy oil drop takes each `σ` as a third of the largest absolute coordinate along its principal axis, after the
+three-sigma rule of the book, and the Kyte-Doolittle scale of Biopython rescaled to `[0, 1]` by default. `K` minimises
 `D_KL(O|M)` over `[0, 5]` with SciPy's bounded scalar minimiser. The early-stage model samples the cells of the path,
 72 by default, with the heat-bath rule and the local energy `-T log p(cell | amino acid)`, whose probabilities come from
-the projected native angles of the bundled structures with add-one smoothing.
+the projected native angles of the bundled structures with add-one smoothing. The section Source check says which of
+these come from a source.
 
 ### Library models
 
@@ -153,6 +154,62 @@ Both protein models read the bundled structures through Biopython, so they raise
 `structures`, and their catalog entries stay listed without it.
 
 All three stay within the gallery budget of 300 frames and 60 s.
+
+## Source check
+
+The models were checked on 2026-11-04 against the PDFs of the project. Brylinski et al. 2004 and 2005, Levitt 1976,
+Lorenz et al. 2011, and Wagner 2008 are not among them, and neither book holds their text. The web gave no copy either:
+the open copy of Brylinski et al. 2005 and other papers of the group on PubMed Central answered with a reCAPTCHA, and
+the fetch of a third-party copy of Jurkowski et al. 2004 was blocked, so neither was pursued further.
+
+### Ellipse path
+
+- Konieczny et al. (2023 §3.7.1, pp. 149 to 150) prints no equation, value, sign, or direction of the ellipse. It draws
+  the path in Fig. 3.43d and e, and it does not cite Brylinski et al. Eq. 3.1 is the fit `ln(R) = 3.4e-4 V^2 - 2.009e-2
+  V + 0.848` of the curvature radius against the V-angle, not the ellipse, so the proposal cites it loosely.
+- A least squares fit to the pixels of Fig. 3.43e, in the form of `EllipsePath`, gives `A = 84.5°`, `B = 56.3°`, a
+  centre within 1° of the origin, and the diagonals along the axes within 1°. One pixel of the figure is 2.7°. The
+  defaults `A = 83°` and `B = 58°` agree with it, and the long diagonal from the upper left to the lower right agrees
+  with the signs of `EllipsePath`. So the defaults stay, as readings of a figure.
+- The origin and the direction of `t` have no source at hand, and the statement that the form is Eq. A.2 of Brylinski et
+  al. (2005) could not be checked, so the docstring no longer makes it.
+- Task 4.3 stays open, since it asks for the parameters of Brylinski et al. 2004, which nobody has read.
+
+### Fuzzy oil drop
+
+- Eq. 1.2 (p. 38), read from the rendered page, is `1 - (7 (r/c)^2 - 9 (r/c)^4 + 5 (r/c)^6 - (r/c)^8) / 2`, with `c = 9
+  Å`. The code holds these coefficients, Eq. 1.1, and Eqs. 1.3 to 1.6.
+- Eq. 1.9 (p. 40) is `M_i = [3DG_i + K (T_max - T_i)_n]_n`, with the complement normalised before `K` multiplies it. The
+  code left that inner normalisation out, and it now holds it. The peak of the curve of `K = 0.5` in Fig. 1.41 is about
+  0.68 of the peak of `T`, which matches the 0.67 of the printed equation and not the 0.59 of the code before. `K` of
+  the first models changes from 0.31 to 2.68 for 1L2Y, from 0.27 to 0.98 for 1UBQ, and from 0.61 to 2.19 for 5PTI.
+- `σ` as a third of the largest coordinate follows the book, which has the Gaussian reach near zero at `3σ` (p. 33) and
+  draws the axis of Fig. 1.41 to `±3σ`. The book does not say that `σ` is fitted this way in words.
+- These have no source: the principal axes as the axes of Eq. 1.1, the Kyte-Doolittle scale, for which the book names no
+  scale, leaving a residue out of its own sum, and the upper bound 5 of `K`, for which the book only reports values
+  above 3 for membrane proteins (p. 41).
+- 72 cells and add-one smoothing have no source. The 72 of the book counts the 5° steps of one angle of the whole map
+  (p. 147). Column F of Table 3.3 reaches 6.63 bits for glycine at 5°, above the 6.17 bits that 72 cells can hold, so
+  the cells of the book are not 72 equal cells of `t`. The book does not state their number, so the default stays.
+- Not reproduced: the book expects fast-folding proteins near `K = 0` with `RD < 0.5` (pp. 39 to 40). The Trp-cage 1L2Y
+  has a mean `RD` of 0.77 and `K` of 2.2 here, and keeping a residue in its own sum does not close the gap (0.84 and
+  3.9). The cause is unknown, and the open choices above or the scale are candidates.
+
+### Folding
+
+The book has no folding simulation, and neither "clash" nor a rotation width appears in it. The clash rule of under 3 Å,
+at least 2 residues apart, and +1 per clash, the width of 60°, the extended start of `phi = -120°` and `psi = 130°`, the
+temperature 0, and one proposal per unit of time are choices of this change, and the docstring says so.
+
+### RNA neutral networks
+
+- Raman (2021 §13.2 to §13.3, pp. 298 to 304) gives RNA of length 30, the `3L` neighbours, the four definitions of
+  Wagner, and the correlations, and the code agrees with them with one question: the text counts "the number of
+  different phenotypes found in the 1-neighbourhood", without saying whether the phenotype of the genotype itself
+  counts. The spec scenario of the toy map asks for 1, which leaves it out, so the code stays and the docstring says so.
+- Raman cites Wagner, Proc. R. Soc. B 275:91 (2008), as reference 17, which is the `Wagner 2008` of the model. It does
+  not cite Lorenz et al. 2011 or ViennaRNA, and it cites Schuster et al. 1994 and Ancel and Fontana 2000 for RNA.
+  Konieczny et al. name Levitt with the placeholder `[lit]` and no year, so `Levitt 1976` has no local support.
 
 ## Risks / Trade-offs
 
