@@ -11,8 +11,8 @@ SHALL give the name, field path, description, and tags that the model's registra
 
 #### Scenario: Catalog without imports
 - **WHEN** a user imports `skcomplex.models` and calls `catalog()` in a fresh interpreter
-- **THEN** every registered model is listed, and no module of `skcomplex.models.<field>`, no module of
-  `skcomplex.formalisms`, and none of `qutip`, `mesa`, `lammps`, and `deeptime` is loaded
+- **THEN** every registered model is listed, and no module of `skcomplex.models.<field>` and no module of
+  `skcomplex.formalisms` is loaded
 
 #### Scenario: Filter by field
 - **WHEN** a user calls `catalog(field='physics/mechanics')` in a fresh interpreter

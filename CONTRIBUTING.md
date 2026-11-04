@@ -37,6 +37,25 @@ the project for more details. You can run any of the following commands and subc
 
 ### Release
 
+Before a release, name the runtime dependencies without a release in the last 24 months. Replace each one, or record an
+exception in the Project Profile of `openspec/constitution.md`:
+
+```bash
+python - <<'EOF'
+import json, re, tomllib, urllib.request
+from datetime import UTC, datetime, timedelta
+
+limit = datetime.now(UTC) - timedelta(days=730)
+for requirement in tomllib.load(open('pyproject.toml', 'rb'))['project']['dependencies']:
+    name = re.match(r'[\w.-]+', requirement).group()
+    with urllib.request.urlopen(f'https://pypi.org/pypi/{name}/json') as response:
+        releases = json.load(response)['releases'].values()
+    last = max(datetime.fromisoformat(file['upload_time_iso_8601']) for files in releases for file in files)
+    if last < limit:
+        print(name, last.date())
+EOF
+```
+
 - `pdm release`: Release a new Python package with an updated version.
 
 ## Development

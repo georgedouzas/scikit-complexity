@@ -6,13 +6,11 @@
 import heapq
 import itertools
 import math
-import warnings
 from collections.abc import Callable, MutableMapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 import numpy as np
-from matching.games import HospitalResident
 
 from ...errors import ValidationError
 from ...specs import (
@@ -512,6 +510,32 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
                 provider_ranks[provider.agent.id] = [identity for _, identity in suitors]
         return provider_ranks
 
+    @staticmethod
+    def _defer_acceptance(
+        requester_ranks: dict[int, list[int]],
+        provider_ranks: dict[int, list[int]],
+        capacities: dict[int, int],
+    ) -> dict[int, list[int]]:
+        """Return the requesters of every provider, the preferred first, in the requester-optimal stable matching.
+
+        Every free requester proposes to its next provider, which holds its preferred proposals up to its capacity and
+        rejects the rest. The result does not depend on the order of the proposals.
+        """
+        held: dict[int, list[int]] = {provider: [] for provider in provider_ranks}
+        proposals = {requester: iter(ranked) for requester, ranked in requester_ranks.items()}
+        free = list(requester_ranks)
+        while free:
+            requester = free.pop()
+            provider = next(proposals[requester], None)
+            if provider is None:
+                continue
+            held[provider].append(requester)
+            if len(held[provider]) > capacities[provider]:
+                rejected = max(held[provider], key=provider_ranks[provider].index)
+                held[provider].remove(rejected)
+                free.append(rejected)
+        return {provider: sorted(held[provider], key=ranked.index) for provider, ranked in provider_ranks.items()}
+
     def _match_stable(
         self,
         rule: StableMatchingSpec,
@@ -525,15 +549,11 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
             return []
         provider_ranks = self._rank_requesters(rule, requester_ranks, providers, by_id)
         capacities = {provider_id: int(by_id[provider_id].quantity) for provider_id in provider_ranks}
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
-            game = HospitalResident.create_from_dictionaries(requester_ranks, provider_ranks, capacities, clean=True)
-            solution = game.solve(optimal='resident')
         trades: list[MatchSpec] = []
-        for hospital, residents in solution.items():
-            provider = by_id[hospital.name]
-            for resident in residents:
-                requester = by_id[resident.name]
+        for provider_id, requester_ids in self._defer_acceptance(requester_ranks, provider_ranks, capacities).items():
+            provider = by_id[provider_id]
+            for requester_id in requester_ids:
+                requester = by_id[requester_id]
                 value = self._get_value(requester, provider, rule.clearing)
                 quantity = min(1.0, MatchingInteraction._get_affordable(requester, value), provider.quantity)
                 if quantity > 0:

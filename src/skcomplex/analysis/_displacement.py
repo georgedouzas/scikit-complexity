@@ -7,7 +7,7 @@ from collections.abc import Sequence
 
 import numpy as np
 import numpy.typing as npt
-import tidynamics
+from scipy import fft
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
@@ -23,8 +23,8 @@ FIT_POINTS = 20
 class DisplacementAnalysis(BaseAnalysis):
     """Mean squared displacement of particles over all lags, its scaling exponent, and the diffusion coefficient.
 
-    The displacement of every particle is computed for all lags at once with the FFT of `tidynamics`, so positions
-    must be unwrapped across periodic boundaries, as a trajectory gives them.
+    The displacement of every particle is computed for all lags at once with an FFT, so positions must be unwrapped
+    across periodic boundaries, as a trajectory gives them.
 
     Args:
         group:
@@ -105,7 +105,7 @@ class DisplacementAnalysis(BaseAnalysis):
     def _run(self, inputs: object = None) -> None:
         """Compute the mean squared displacement and fit its exponent and the diffusion coefficient."""
         array = self.positions_
-        msd = np.mean([tidynamics.msd(array[:, particle]) for particle in range(array.shape[1])], axis=0)[1:]
+        msd = np.mean([self._get_msd(array[:, particle]) for particle in range(array.shape[1])], axis=0)
         all_lags = np.arange(1, array.shape[0], dtype=np.float64) * self.dt
         chosen = self._fit_lags(all_lags, self.fit_range)
         self.exponent_ = float(np.polyfit(np.log(all_lags[chosen]), np.log(msd[chosen]), 1)[0])
@@ -116,6 +116,21 @@ class DisplacementAnalysis(BaseAnalysis):
             return
         steps = np.asarray(self.lags, dtype=int)
         self.lags_, self.msd_ = steps * self.dt, msd[steps - 1]
+
+    @staticmethod
+    def _get_msd(positions: Array) -> Array:
+        """Return the mean squared displacement of one particle at every lag from 1, by fast correlation.
+
+        The displacement `<(r[t + m] - r[t])²>` splits into the mean of `r[t]² + r[t + m]²`, from cumulative sums, and
+        twice the autocorrelation at lag `m`, from an FFT of the positions padded against circular wrapping.
+        """
+        frames = positions.shape[0]
+        size = fft.next_fast_len(2 * frames, real=True)
+        spectrum = fft.rfft(positions, n=size, axis=0)
+        correlation = fft.irfft(np.abs(spectrum) ** 2, n=size, axis=0)[1:frames].sum(axis=1)
+        squares = np.sum(positions**2, axis=1)
+        endpoints = 2 * squares.sum() - np.cumsum(squares)[:-1] - np.cumsum(squares[::-1])[:-1]
+        return (endpoints - 2 * correlation) / (frames - np.arange(1, frames))
 
     @staticmethod
     def _particle_axes(positions: npt.ArrayLike) -> Array:
