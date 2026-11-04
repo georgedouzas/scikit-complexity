@@ -27,11 +27,19 @@ class LatticeStateSpec(BaseSpec):
 
         space:
             The lattice of the group, or the network whose nodes are its sites.
+
+        part:
+            The part of the space with one member each, `'sites'`, `'edges'`, or `'hyperedges'`.
+
+        rows:
+            The number of members on a part other than the sites, or `None` for one member per site.
     """
 
     name: str
     start: int
     space: BaseSpace
+    part: str = 'sites'
+    rows: int | None = None
 
     @functools.cached_property
     def shape(self) -> tuple[int, ...]:
@@ -41,7 +49,7 @@ class LatticeStateSpec(BaseSpec):
     @functools.cached_property
     def size(self) -> int:
         """Number of sites of the group."""
-        return int(np.prod(self.shape))
+        return int(np.prod(self.shape)) if self.rows is None else self.rows
 
     @functools.cached_property
     def sites(self) -> slice:

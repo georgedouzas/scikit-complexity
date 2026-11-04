@@ -13,18 +13,18 @@
 
 ## 2. Exterior calculus and coface reductions
 
-- [ ] 2.1 Add `exterior_derivative`, `codifferential`, and `hodge_star` in a module `_cells` of
+- [x] 2.1 Add `exterior_derivative`, `codifferential`, and `hodge_star` in a module `_cells` of
   `skcomplex.core.laws.utils`, with their lowering to incidence products on NumPy and gather loops on Numba, and verify
   the curl of a gradient and divergence of a curl scenarios on both backends
-- [ ] 2.2 Add `CofaceNeighborhood` to `skcomplex.core.spaces` and its lowering in coface reductions, and verify the
+- [x] 2.2 Add `CofaceNeighborhood` to `skcomplex.core.spaces` and its lowering in coface reductions, and verify the
   abelian plaquette scenario
-- [ ] 2.3 Add the issue `law-degree` to `PassCompiler` and the `law-space` issue of a coface reduction outside a cell
+- [x] 2.3 Add the issue `law-degree` to `PassCompiler` and the `law-space` issue of a coface reduction outside a cell
   complex, and verify the several link issues at once scenario
-- [ ] 2.4 Verify the Gauss law and lattice dispersion scenarios with rate laws on edge groups
+- [x] 2.4 Verify the Gauss law and lattice dispersion scenarios with rate laws on edge groups
 
 ## 3. Sampling edge groups
 
-- [ ] 3.1 Let `SamplingInteraction` target edge groups of a cell complex, with the colored schedule over the graph of
+- [x] 3.1 Let `SamplingInteraction` target edge groups of a cell complex, with the colored schedule over the graph of
   links that share a face, and verify the two-dimensional U(1), reproducible sampling, and colored schedule on an odd
   lattice scenarios
 

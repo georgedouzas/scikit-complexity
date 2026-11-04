@@ -22,13 +22,15 @@ from ...core.interactions import (
     NeighborInteraction,
     SatisfiabilityInteraction,
 )
-from ...core.laws import BilinearLaw, EncounterLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw
-from ...core.laws.utils import COORDINATE_PREFIX, hyperedges_in, neighborhoods_in, reductions_in
+from ...core.laws import BilinearLaw, EncounterLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, SampleLaw
+from ...core.laws.utils import COORDINATE_PREFIX, cell_operations_in, hyperedges_in, neighborhoods_in, reductions_in
 from ...core.spaces import (
     AdjacencyNeighborhood,
     BaseNeighborhood,
     BaseSpace,
     CayleySpace,
+    CellComplexSpace,
+    CofaceNeighborhood,
     ConeNeighborhood,
     ContinuousSpace,
     ContinuousTime,
@@ -73,6 +75,7 @@ from ._compilation import Compilation
 from ._field_lowering import FieldLowering
 from ._learning_compiler import _LearningCompiler
 from ._observables import _check_held_reads, _held_observables, _with_held_observables, _with_held_reductions
+from .passes._cells import DEGREES
 from .passes._compile_encounters import CompileEncountersPass
 from .passes._conserved_noise import ConservedNoisePass
 from .passes._core import _PASSES
@@ -610,6 +613,7 @@ class PassCompiler(BaseCompiler):
         issues += PassCompiler._satisfiability_issues(nodes)
         issues += PassCompiler._neighborhood_issues(records, nodes)
         issues += PassCompiler._around_issues(records)
+        issues += PassCompiler._degree_issues(records)
         issues += PassCompiler._nonlocal_issues(records, nodes)
         issues += PassCompiler._coordinate_issues(records, nodes)
         issues += PassCompiler._space_issues(system, nodes)
@@ -1048,6 +1052,106 @@ class PassCompiler(BaseCompiler):
             stack += neighborhoods_in(reduction.argument)
             stack += neighborhoods_in(reduction.weight) if reduction.weight is not None else []
         return found
+
+    @staticmethod
+    def _degree_problem(name: str, degree: int, top: int) -> tuple[str, str] | None:
+        """Return the message and the fix of an exterior operation on a state of a degree it does not act on."""
+        if name == 'codifferential' and degree == 0:
+            return (
+                'takes the codifferential of a site state, which has no degree below it',
+                'Apply `exterior_derivative` to a site state, or `codifferential` to a state on edges or hyperedges.',
+            )
+        if name == 'exterior_derivative' and degree >= top:
+            return (
+                f'takes the exterior derivative of a state of degree {degree}, the highest degree of its complex',
+                'Apply `codifferential` to a state of the highest degree, or `exterior_derivative` to a lower one.',
+            )
+        return None
+
+    @staticmethod
+    def _degree_of(value: object, degrees: Mapping[str, int], top: int) -> tuple[set[int], tuple[str, str] | None]:
+        """Return the degrees of the values an expression adds up, and the first exterior operation it misapplies."""
+        expression = SR(value)
+        reached: set[int] = set()
+        for reduction in neighborhoods_in(expression):
+            problem = PassCompiler._degree_of(reduction.argument, degrees, top)[1]
+            if problem is not None:
+                return reached, problem
+            expression = expression.subs({reduction.call: 0})
+        for call in cell_operations_in(expression):
+            inner, problem = PassCompiler._degree_of(call.operands()[0], degrees, top)
+            if problem is not None:
+                return reached, problem
+            name = call.operator().name()
+            for degree in inner:
+                problem = PassCompiler._degree_problem(name, degree, top)
+                if problem is not None:
+                    return reached, problem
+                reached.add(degree + {'exterior_derivative': 1, 'codifferential': -1}.get(name, 0))
+            expression = expression.subs({call: 0})
+        reached.update(degrees[str(item)] for item in expression.variables() if str(item) in degrees)
+        return reached, None
+
+    @staticmethod
+    def _sample_issue(record: CensusRecordSpec, name: str) -> IssueSpec | None:
+        """Return the issue of a sampling of a hyperedge group, or of a coface reduction outside a cell complex."""
+        law = record.law
+        assert isinstance(law, SampleLaw)
+        if record.degrees.get(str(law.move.target)) == DEGREES['hyperedges']:
+            message = f'The {name} samples a state on hyperedges, but a sampling changes a state on sites or edges.'
+            fix = 'Sample a group on the sites or edges, and read the hyperedges through `exterior_derivative`.'
+            return IssueSpec('law-degree', record.path, message, fix)
+        cofaces = [
+            item for item in neighborhoods_in(law.objective.expression) if isinstance(item.over, CofaceNeighborhood)
+        ]
+        if cofaces and not isinstance(record.space, CellComplexSpace):
+            lives = type(record.space).__name__ if record.space is not None else 'no space'
+            message = f'The {name} reduces over cofaces, which needs a CellComplexSpace, but it lives on {lives}.'
+            fix = 'Give the group a `CellComplexSpace`.'
+            return IssueSpec('law-space', record.path, message, fix)
+        return None
+
+    @staticmethod
+    def _degree_issues(records: list[CensusRecordSpec]) -> list[IssueSpec]:
+        """Return the exterior operations and samplings on a state of the wrong degree, or outside a cell complex."""
+        issues = []
+        for record in records:
+            name = f'{type(record.law).__name__} of {record.path}'
+            include = ('rate',) if isinstance(record.law, JumpLaw) else ('value',)
+            values = record.law._get_values(include=include)
+            if isinstance(record.law, SampleLaw):
+                sampled = PassCompiler._sample_issue(record, name)
+                if sampled is not None:
+                    issues.append(sampled)
+                    continue
+                values = [record.law.objective.expression]
+            values = [value for value in values if isinstance(value, Expression)]
+            if not record.degrees and not any(cell_operations_in(value) for value in values):
+                continue
+            if not isinstance(record.space, CellComplexSpace):
+                lives = type(record.space).__name__ if record.space is not None else 'no space'
+                message = f'The {name} applies the exterior calculus, which needs a CellComplexSpace, not {lives}.'
+                issues.append(IssueSpec('law-space', record.path, message, 'Give the group a `CellComplexSpace`.'))
+                continue
+            top = len(record.space.incidences_)
+            own = {
+                record.degrees.get(str(target))
+                for target in record.law._get_targets()
+                if isinstance(target, Expression)
+            }
+            for value in values:
+                reached, problem = PassCompiler._degree_of(value, record.degrees, top)
+                if problem is not None:
+                    issues.append(IssueSpec('law-degree', record.path, f'The {name} {problem[0]}.', problem[1]))
+                    break
+                if not isinstance(record.law, SampleLaw) and reached - own:
+                    message = (
+                        f'The {name} changes a state of degree {own.pop()} with a value of degree {sorted(reached)}.'
+                    )
+                    fix = 'Apply `exterior_derivative` or `codifferential` until the value has the degree of the state.'
+                    issues.append(IssueSpec('law-degree', record.path, message, fix))
+                    break
+        return issues
 
     @staticmethod
     def _around_issues(records: list[CensusRecordSpec]) -> list[IssueSpec]:

@@ -11,6 +11,7 @@ from dataclasses import replace
 import networkx as nx
 import numba
 import numpy as np
+import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.laws import BaseLaw, CascadeLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, SampleLaw
@@ -19,6 +20,8 @@ from ....core.spaces import (
     AdjacencyNeighborhood,
     BaseSpace,
     CayleySpace,
+    CellComplexSpace,
+    CofaceNeighborhood,
     LatticeNeighborhood,
     LatticeSpace,
     MemoryNeighborhood,
@@ -49,10 +52,19 @@ from ...types import ReadKind
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
 from .._laws import LATTICE_LAWS
+from ._cells import DEGREES
 
 _COLORING_STRATEGY = 'largest_first'
 
 type LatticeStep = RuleKernel | DriveKernel | CascadeKernel | MonteCarloKernel | ExtremalKernel
+type LoweredObjective = tuple[
+    Indices,
+    tuple[Indices, ...],
+    list[Expression],
+    list[Expression],
+    Expression,
+    tuple[scipy.sparse.csr_array, Array] | None,
+]
 
 
 class LatticeProblemPass(BasePass):
@@ -128,7 +140,9 @@ class LatticeProblemPass(BasePass):
                 and isinstance(space, LatticeSpace | NetworkSpace | CayleySpace)
                 and not entry.member_shape
             ):
-                states[item] = LatticeStateSpec(entry.name, entry.start, space)
+                part = (getattr(block.node.component, 'on', None) if block is not None else None) or 'sites'
+                rows = None if part == 'sites' else entry.rows
+                states[item] = LatticeStateSpec(entry.name, entry.start, space, part, rows)
             if not entry.member_shape:
                 arguments[item] = (variable, reference.is_state, entry.start, entry.size)
             if reference.source is ReadKind.OTHER:
@@ -234,18 +248,30 @@ class LatticeProblemPass(BasePass):
         return space
 
     @staticmethod
+    def _coloring(size: int, rows: Indices, columns: Indices) -> tuple[Indices, ...]:
+        """Return the classes of a proper coloring of the graph of some members that joins the given pairs."""
+        graph = nx.Graph()
+        graph.add_nodes_from(range(size))
+        graph.add_edges_from(zip(rows.tolist(), columns.tolist(), strict=True))
+        colors = nx.greedy_color(graph, strategy=_COLORING_STRATEGY)
+        found = np.asarray([colors[site] for site in range(size)], dtype=np.intp)
+        return tuple(np.flatnonzero(found == color) for color in range(int(found.max(initial=-1)) + 1))
+
+    @staticmethod
     def _color_classes(table: Indices) -> tuple[Indices, ...]:
         """Return the classes of a proper coloring of the graph that joins every site to the sites of its table row."""
         size = table.shape[0]
         rows = np.repeat(np.arange(size), table.shape[1])
         columns = table.ravel()
         real = (columns != size) & (columns != rows)
-        graph = nx.Graph()
-        graph.add_nodes_from(range(size))
-        graph.add_edges_from(zip(rows[real].tolist(), columns[real].tolist(), strict=True))
-        colors = nx.greedy_color(graph, strategy=_COLORING_STRATEGY)
-        found = np.asarray([colors[site] for site in range(size)], dtype=np.intp)
-        return tuple(np.flatnonzero(found == color) for color in range(int(found.max(initial=-1)) + 1))
+        return LatticeProblemPass._coloring(size, rows[real], columns[real])
+
+    @staticmethod
+    def _coface_classes(boundary: scipy.sparse.csr_array) -> tuple[Indices, ...]:
+        """Return the classes of a proper coloring of the graph that joins the cells that share a coface."""
+        shared = (abs(boundary).T @ abs(boundary)).tocoo()
+        real = shared.row != shared.col
+        return LatticeProblemPass._coloring(boundary.shape[1], shared.row[real], shared.col[real])
 
     @staticmethod
     @functools.cache
@@ -446,6 +472,72 @@ class LatticeProblemPass(BasePass):
                 SR(0),
             )
         return SR(expression).subs(replacements) if replacements else SR(expression)
+
+    @staticmethod
+    def _lower_coface_sums(
+        expression: Expression,
+        target: Expression,
+        columns: tuple[Sequence[Expression], Sequence[Expression], Sequence[Expression]],
+        owner: str,
+    ) -> Expression:
+        """Return an expression with every coface sum written over the rests, the signs, and the masks of the cofaces.
+
+        Inside a coface, the exterior derivative of the moved state is its sign times the state plus the rest of the
+        oriented sum around the coface.
+
+        Args:
+            expression:
+                The local objective.
+
+            target:
+                The moved state.
+
+            columns:
+                The symbols of the rest, the sign, and the mask of every coface.
+
+            owner:
+                The name of the laws for an error.
+
+        Returns:
+            lowered:
+                The local objective without reductions.
+
+        Raises:
+            ValidationError:
+                A reduction is not a sum over the cofaces, or the exterior derivative reads another expression.
+        """
+        replacements = {}
+        for reduction in neighborhoods_in(expression):
+            if reduction.kind != 'sum' or not isinstance(reduction.over, CofaceNeighborhood):
+                error_msg = f'{owner} reduce {reduction.call}, but a local objective on cofaces only sums over them.'
+                raise ValidationError(error_msg)
+            inner = SR(reduction.argument) if reduction.weight is None else SR(reduction.weight) * reduction.argument
+            calls = LatticeProblemPass._calls(inner, 'exterior_derivative')
+            for call in calls:
+                if call.operands()[0] != target:
+                    error_msg = f'{owner} read {call}, but inside a coface only the moved state {target} has a sum.'
+                    raise ValidationError(error_msg)
+            replacements[reduction.call] = sum(
+                (
+                    mask * inner.subs(dict.fromkeys(calls, sign * target + rest))
+                    for rest, sign, mask in zip(*columns, strict=True)
+                ),
+                SR(0),
+            )
+        return SR(expression).subs(replacements) if replacements else SR(expression)
+
+    @staticmethod
+    def _coface_tables(
+        target: LatticeStateSpec,
+        owner: str,
+    ) -> tuple[Indices, Array, scipy.sparse.csr_array]:
+        """Return the cofaces of the moved cells, their signs, and the incidence of the cells and the cofaces."""
+        space = target.space
+        degree = DEGREES[target.part]
+        if not isinstance(space, CellComplexSpace) or degree >= len(space.incidences_):
+            error_msg = f'{owner} sum over cofaces, which needs a state on the sites or edges of a CellComplexSpace.'
+            raise ValidationError(error_msg)
+        return space.cofaces_[degree], space.orientations_[degree], space.incidences_[degree]
 
     @staticmethod
     def _compile_drive(law: DriveLaw, context: LatticeContextSpec) -> DriveKernel:
@@ -666,6 +758,58 @@ class LatticeProblemPass(BasePass):
         return (mixed / 2).expand()
 
     @staticmethod
+    def _lower_neighbors(
+        objective: ObjectiveSpec,
+        move: MoveSpec,
+        sampler: SamplerSpec,
+        context: LatticeContextSpec,
+        target: LatticeStateSpec,
+    ) -> LoweredObjective:
+        """Return the table, the classes, the symbols, and the expression of a local objective over neighbours."""
+        owner = f'The Monte Carlo laws of {context.owner}'
+        over = objective.over
+        if not isinstance(over, LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood):
+            error_msg = (
+                f'{owner} sum over a {type(over).__name__}. Sum over a lattice, adjacency, or memory neighbourhood.'
+            )
+            raise ValidationError(error_msg)
+        table = LatticeProblemPass._index_table(target.space, over, owner)
+        classes = LatticeProblemPass._schedule_classes(sampler.schedule, target.space, over, table, owner)
+        neighbours = [symbol(f'_neighbor_{index}') for index in range(table.shape[1])]
+        masks = [symbol(f'_mask_{index}') for index in range(table.shape[1])]
+        expression = LatticeProblemPass._lower_neighbor_sums(
+            SR(objective.expression),
+            move.target,
+            objective=objective,
+            context=context,
+            neighbors=neighbours,
+            masks=masks,
+        )
+        return table, classes, neighbours, masks, expression, None
+
+    @staticmethod
+    def _lower_cofaces(
+        objective: ObjectiveSpec,
+        move: MoveSpec,
+        sampler: SamplerSpec,
+        context: LatticeContextSpec,
+        target: LatticeStateSpec,
+    ) -> LoweredObjective:
+        """Return the table, the classes, the symbols, the expression, and the incidence of an objective on cofaces."""
+        owner = f'The Monte Carlo laws of {context.owner}'
+        table, signs, boundary = LatticeProblemPass._coface_tables(target, owner)
+        if sampler.schedule == 'checkerboard':
+            error_msg = f"{owner} sum over cofaces, which need the 'colored' or 'random-sequential' schedule."
+            raise ValidationError(error_msg)
+        classes = LatticeProblemPass._coface_classes(boundary) if sampler.schedule == 'colored' else ()
+        rests = [symbol(f'_neighbor_{index}') for index in range(table.shape[1])]
+        orientations = [symbol(f'_sign_{index}') for index in range(table.shape[1])]
+        masks = [symbol(f'_mask_{index}') for index in range(table.shape[1])]
+        columns = (rests, orientations, masks)
+        expression = LatticeProblemPass._lower_coface_sums(SR(objective.expression), move.target, columns, owner)
+        return table, classes, [*rests, *orientations], masks, expression, (boundary, signs)
+
+    @staticmethod
     def _compile_monte_carlo(
         objective: ObjectiveSpec,
         move: MoveSpec,
@@ -699,25 +843,14 @@ class LatticeProblemPass(BasePass):
                 'from.'
             )
             raise ValidationError(error_msg)
-        space = target.space
-        over = objective.over
-        if not isinstance(over, LatticeNeighborhood | AdjacencyNeighborhood | MemoryNeighborhood):
-            error_msg = (
-                f'{owner} sum over a {type(over).__name__}. Sum over a lattice, adjacency, or memory neighbourhood.'
-            )
-            raise ValidationError(error_msg)
-        table = LatticeProblemPass._index_table(space, over, owner)
-        classes = LatticeProblemPass._schedule_classes(sampler.schedule, space, over, table, owner)
-        neighbours = [symbol(f'_neighbor_{index}') for index in range(table.shape[1])]
-        masks = [symbol(f'_mask_{index}') for index in range(table.shape[1])]
-        expression = LatticeProblemPass._lower_neighbor_sums(
-            SR(objective.expression),
-            move.target,
-            objective=objective,
-            context=context,
-            neighbors=neighbours,
-            masks=masks,
+        cofaces = isinstance(objective.over, CofaceNeighborhood) or any(
+            isinstance(item.over, CofaceNeighborhood) for item in neighborhoods_in(objective.expression)
         )
+        if cofaces and move.kind == 'cluster':
+            error_msg = f'{owner} make cluster moves on a sum over cofaces. Use a rotate or a random-value move.'
+            raise ValidationError(error_msg)
+        lower = LatticeProblemPass._lower_cofaces if cofaces else LatticeProblemPass._lower_neighbors
+        table, classes, neighbours, masks, expression, faces = lower(objective, move, sampler, context, target)
         masked = any(item in masks for item in expression.variables())
         replacements = {}
         for call in LatticeProblemPass._calls(expression, 'neighbor'):
@@ -784,6 +917,8 @@ class LatticeProblemPass(BasePass):
                 classes=classes,
                 masked=masked,
                 bond=bond_change if callable(bond_change) else None,
+                boundary=faces[0] if faces is not None else None,
+                signs=faces[1] if faces is not None else None,
             )
             .check()
             .prepare()

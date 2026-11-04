@@ -6,6 +6,7 @@
 from collections.abc import Callable, Mapping
 
 import numpy as np
+import scipy.sparse
 
 from ...core.specs import LatticeStateSpec
 from ...errors import SolverError
@@ -52,6 +53,12 @@ class MonteCarloKernel(BaseKernel):
         bond:
             For cluster moves, the half change `bond(value, neighbour, **arguments)` of the objective of a site with one
             neighbour when the value of the site flips and then the value of the neighbour flips, or `None`.
+
+        boundary:
+            For a local objective over cofaces, the incidence of the cells of the state and their cofaces, or `None`.
+
+        signs:
+            For a local objective over cofaces, the sign of every coface of every cell, which `table` then lists.
     """
 
     values_: None
@@ -70,6 +77,8 @@ class MonteCarloKernel(BaseKernel):
         classes: tuple[Indices, ...] = (),
         masked: bool = False,
         bond: Callable[..., object] | None = None,
+        boundary: scipy.sparse.csr_array | None = None,
+        signs: Array | None = None,
     ) -> None:
         self.owner = owner
         self.target = target
@@ -82,6 +91,8 @@ class MonteCarloKernel(BaseKernel):
         self.classes = classes
         self.masked = masked
         self.bond = bond
+        self.boundary = boundary
+        self.signs = signs
 
     def _objective_change(
         self,
@@ -93,8 +104,14 @@ class MonteCarloKernel(BaseKernel):
     ) -> Array:
         """Return the objective change of moving some sites to proposed values."""
         rows = self.table[sites]
-        neighbours = np.append(x[self.target.sites], self.target.space.fill)[rows]
-        masks = (rows != self.target.size).astype(float).T if self.masked else ()
+        if self.boundary is None or self.signs is None:
+            neighbours = np.append(x[self.target.sites], self.target.space.fill)[rows]
+            masks = (rows != self.target.size).astype(float).T if self.masked else ()
+        else:
+            signs = self.signs[sites]
+            around = np.append(self.boundary @ x[self.target.sites], 0.0)[rows] - signs * values[:, None]
+            neighbours = np.hstack([around, signs])
+            masks = (rows != self.boundary.shape[0]).astype(float).T
         change = ExpressionPrinter._values_of(
             self.delta(0.0, values, *neighbours.T, proposal, *masks, *keywords.values()),
         )[0]
