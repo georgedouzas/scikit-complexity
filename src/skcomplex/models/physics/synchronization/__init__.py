@@ -28,6 +28,7 @@ from ._pulses import mirollo_strogatz, winfree
 from ._rossler_oscillator import RosslerOscillatorElement
 from ._swarmalator import SwarmalatorElement
 from ._swarmalators import SwarmalatorCouplingInteraction, swarmalators
+from ._topological import topological_kuramoto
 from ._winfree_mean_field import WinfreeMeanFieldInteraction
 
 __all__: list[str] = [
@@ -60,5 +61,6 @@ __all__: list[str] = [
     'oscillator_death',
     'ott_antonsen',
     'swarmalators',
+    'topological_kuramoto',
     'winfree',
 ]

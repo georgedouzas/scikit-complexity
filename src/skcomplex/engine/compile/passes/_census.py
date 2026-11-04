@@ -150,7 +150,12 @@ class CensusPass(BasePass):
 
     @staticmethod
     def _cell_degrees(spec: KernelSpec, declarations: DeclarationsSpec) -> dict[str, int]:
-        """Return the degree of the cells of every symbol of a spec that reads a group on a cell complex."""
+        """Return the degree of the cells of every symbol of a spec that reads a group on a cell complex by member.
+
+        A law that runs once per edge reads both ends and the edge, so it holds no degree of its own.
+        """
+        if spec.pairs is not None:
+            return {}
         degrees = {}
         for item, reference in spec.references.items():
             block = declarations.blocks.get(reference.entry.name.rpartition('.')[0])

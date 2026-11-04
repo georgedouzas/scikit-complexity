@@ -37,21 +37,21 @@
 
 ## 5. Library
 
-- [ ] 5.1 Add `WilsonSamplingInteraction`, `GaugeAnalysis`, and `lattice_gauge_fields` to
+- [x] 5.1 Add `WilsonSamplingInteraction`, `GaugeAnalysis`, and `lattice_gauge_fields` to
   `skcomplex.models.physics.waves`, and verify the plaquette against the exact result, gauge-invariant run, Maxwell
   dynamics, invariance of loops, and integer charge scenarios and the conformance suite
-- [ ] 5.2 Add `topological_kuramoto` to `skcomplex.models.physics.synchronization`, and verify the link synchronization
+- [x] 5.2 Add `topological_kuramoto` to `skcomplex.models.physics.synchronization`, and verify the link synchronization
   scenario and the conformance suite
-- [ ] 5.3 Add `gauge_arbitrage_market` to `skcomplex.models.economics.finance`, and verify the conservation scenario and
+- [x] 5.3 Add `gauge_arbitrage_market` to `skcomplex.models.economics.finance`, and verify the conservation scenario and
   the conformance suite
-- [ ] 5.4 Add `TransportedCouplingInteraction` and `gauge_network_agents` to
+- [x] 5.4 Add `TransportedCouplingInteraction` and `gauge_network_agents` to
   `skcomplex.models.social.opinion_dynamics`, and verify the frustration scenario and the conformance suite
 - [ ] 5.5 Mark the four entries implemented in `docs/overview/inventory.toml`, add their gallery examples, and verify
   the inventory check and the gallery coverage check pass
 
 ## 6. Documentation and gate
 
-- [ ] 6.1 Document cell complexes, the exterior calculus, coface reductions, sampling of links, and
+- [x] 6.1 Document cell complexes, the exterior calculus, coface reductions, sampling of links, and
   `CellComplexAnalysis` in the user guide with runnable examples, and verify the documentation test passes
 - [ ] 6.2 Add a changelog entry for the new public names, and verify the changelog session passes
 - [ ] 6.3 Run `nox -s formatting`, `nox -s checks`, `nox -s docs`, and `nox -s tests` in that order, and verify all of

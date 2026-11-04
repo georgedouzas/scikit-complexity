@@ -453,6 +453,10 @@ class CellComplexSpace(NetworkSpace):
     def _prepare(self, context: None = None) -> None:
         """Set the graph, the hyperedges, and the incidence of the cells, and then the attributes of the network.
 
+        Args:
+            context:
+                Nothing, since a cell complex derives all it holds from its arguments.
+
         Raises:
             SpaceError:
                 A face uses a pair of nodes that the graph does not join, or the network has a loop.
