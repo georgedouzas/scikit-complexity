@@ -33,15 +33,15 @@
 
 ## 4. Models
 
-- [ ] 4.1 Add three-dimensional boids to `biology/collective_behaviour` as a registered factory built on an agent-form
+- [x] 4.1 Add three-dimensional boids to `biology/collective_behaviour` as a registered factory built on an agent-form
   `MapInteraction` and a `MovementInteraction` under the `'member'` schedule, and verify the boids align in three
   dimensions scenario
-- [ ] 4.2 Create `social/organizations` with the Kauai sentiment model, built on `MovementInteraction` and agent-form
+- [x] 4.2 Create `social/organizations` with the Kauai sentiment model, built on `MovementInteraction` and agent-form
   interactions, and the synthetic island GeoJSON layers, and verify the population follows the census layer and
   positive event raises sentiment scenarios
-- [ ] 4.3 Mark `boids_3d` and `kauai_population` as implemented in `docs/overview/inventory.toml`, rename the primitive
+- [x] 4.3 Mark `boids_3d` and `kauai_population` as implemented in `docs/overview/inventory.toml`, rename the primitive
   `geographic-spaces` to `region-layers` with its description, retag both models, and verify the inventory check against the catalog passes
-- [ ] 4.4 Run the model conformance and layout tests, and verify both new models pass and import only public names
+- [x] 4.4 Run the model conformance and layout tests, and verify both new models pass and import only public names
 
 ## 5. Documentation and gate
 

@@ -14,8 +14,11 @@ from ..._catalog import register_model
 from ._boid import BoidElement
 from ._flight import FlightInteraction
 from ._flocking import FlockingInteraction
+from ._heading import HeadingInteraction
 from ._morse_potential import MorsePotentialInteraction
 from ._self_propulsion import SelfPropulsionInteraction
+from ._spatial_boid import SpatialBoidElement
+from ._spatial_flight import SpatialFlightInteraction
 
 
 @register_model(
@@ -93,6 +96,84 @@ def boids(
         elements=[flock],
         interactions=interactions,
         space=ContinuousSpace(extent=(size, size), boundary='periodic'),
+    )
+
+
+@register_model(
+    field='biology/collective_behaviour',
+    tags=('agents', 'flocking', 'self-organization', 'continuous space', 'three dimensions'),
+    references=('Reynolds 1987', 'Downey 2018'),
+    defaults={'until': 100, 'dt': 1},
+)
+def boids_3d(
+    n_boids: int = 50,
+    *,
+    size: float = 20.0,
+    radius: float = 6.0,
+    cohesion: float = 0.01,
+    separation: float = 0.1,
+    alignment: float = 0.1,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return boids in three dimensions, birds that flock by local rules in a periodic cube.
+
+    The boids start at random positions with random headings. Every step a boid steers by the boids within `radius` and
+    then flies along its velocity, so with alignment alone the flock turns to one heading and keeps its spread in depth.
+
+    Args:
+        n_boids:
+            The number of boids.
+
+        size:
+            The side of the periodic cube.
+
+        radius:
+            The distance within which a boid sees others.
+
+        cohesion:
+            The weight of cohesion.
+
+        separation:
+            The weight of separation.
+
+        alignment:
+            The weight of alignment.
+
+        random_state:
+            The seed or generator of the initial positions and headings.
+
+    Returns:
+        system:
+            The model, with the group `flock` and the vector state `velocity` of its boids.
+
+    Examples:
+        >>> from skcomplex.models.biology.collective_behaviour import boids_3d
+        >>> boids_3d(10).space.extent
+        (20.0, 20.0, 20.0)
+    """
+    rng = np.random.default_rng(random_state)
+    headings = rng.normal(size=(n_boids, 3))
+    flock = GroupElement(
+        'flock',
+        element=SpatialBoidElement,
+        size=n_boids,
+        values={
+            'velocity': headings / np.linalg.norm(headings, axis=1, keepdims=True),
+            'radius': radius,
+            'cohesion': cohesion,
+            'separation': separation,
+            'alignment': alignment,
+        },
+        location=[tuple(point) for point in rng.uniform(0.0, size, (n_boids, 3))],
+    )
+    interactions = [
+        HeadingInteraction('heading', target='flock'),
+        SpatialFlightInteraction('flight', target='flock'),
+    ]
+    return System(
+        elements=[flock],
+        interactions=interactions,
+        space=ContinuousSpace(extent=(size, size, size), boundary='periodic'),
     )
 
 
