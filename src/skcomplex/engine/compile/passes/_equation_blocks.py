@@ -305,10 +305,11 @@ class EquationBlocksLowering(BaseLowering[Laws]):
             def slopes(values: Array) -> Array:
                 return np.asarray(jacobian(t, *known, *values), dtype=float).reshape(size, size)
 
-            result = root(residuals, last[0], jac=slopes, tol=_ROOT_TOLERANCE)
-            if np.max(np.abs(result.fun)) > _RESIDUAL_TOLERANCE:
-                result = root(residuals, last[0] + 1.0, jac=slopes, tol=_ROOT_TOLERANCE)
-            if np.max(np.abs(result.fun)) > _RESIDUAL_TOLERANCE:
+            with np.errstate(all='ignore'):
+                result = root(residuals, last[0], jac=slopes, tol=_ROOT_TOLERANCE)
+                if not np.all(np.abs(result.fun) <= _RESIDUAL_TOLERANCE):
+                    result = root(residuals, last[0] + 1.0, jac=slopes, tol=_ROOT_TOLERANCE)
+            if not np.all(np.abs(result.fun) <= _RESIDUAL_TOLERANCE):
                 states = ', '.join(map(str, block.unknowns))
                 error_msg = (
                     f'The nonlinear equations of {states} have no solution near the last values at time {t}: '

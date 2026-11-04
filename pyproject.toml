@@ -344,6 +344,7 @@ modules = [
     "skcomplex.models.economics.resources",
     "skcomplex.models.engineering.circuits",
     "skcomplex.models.engineering.control",
+    "skcomplex.models.engineering.mechatronics",
     "skcomplex.models.engineering.power_systems",
     "skcomplex.models.engineering.processes",
     "skcomplex.models.engineering.robotics",

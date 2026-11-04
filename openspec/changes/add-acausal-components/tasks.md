@@ -28,13 +28,13 @@
 - [x] 3.2 Add the thermal connector, heat capacity, conductor, convection, and heating resistor to
   `engineering/control`, and `heated_room` with its thermostat on `CrossingInteraction`, and verify the heated room
   scenario
-- [ ] 3.3 Add the `engineering/mechatronics` package with `dc_motor` and `quarter_car`, list it among the independent
+- [x] 3.3 Add the `engineering/mechatronics` package with `dc_motor` and `quarter_car`, list it among the independent
   subfield packages in `pyproject.toml`, and verify the motor and quarter-car scenarios
-- [ ] 3.4 Set the inventory entries `heated_room`, `dc_motor`, and `quarter_car` to implemented with the tags of the
+- [x] 3.4 Set the inventory entries `heated_room`, `dc_motor`, and `quarter_car` to implemented with the tags of the
   systems they build, and verify the inventory check and the field-term test pass
 
 ## 4. Documentation and gate
 
-- [ ] 4.1 Document algebraic states, ports, connections, the solve, and the issues in the user guide, and verify the
+- [x] 4.1 Document algebraic states, ports, connections, the solve, and the issues in the user guide, and verify the
   documentation test passes
 - [ ] 4.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass
