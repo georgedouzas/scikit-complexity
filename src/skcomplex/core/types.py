@@ -15,6 +15,7 @@ from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
 from sage.rings.polynomial.laurent_polynomial import LaurentPolynomial
 from sage.structure.element import Matrix
+from shapely import Polygon
 
 from ..specs import (
     BatchMatchingSpec,
@@ -154,8 +155,11 @@ class AgentViewProtocol(Protocol):
     def neighbors(self, radius: float | None = None, layer: str | None = None) -> Sequence[AgentViewProtocol]:
         """Return the other agents in the neighbouring cells or nodes, within a radius, or around it in a layer."""
 
+    def regions_here(self, layer: str) -> list[int]:
+        """Return the indices of the regions of a layer of the continuous space that contain the agent."""
+
     def move_to(self, location: object) -> None:
-        """Move the agent to a cell, a node, or a position."""
+        """Move the agent to a cell, a node, or a position, or to a uniform point inside a polygon."""
 
     def remove(self) -> None:
         """Remove the agent from the model."""
@@ -195,6 +199,12 @@ class ModelViewProtocol(Protocol):
 
     def groups(self, name: str) -> list[str]:
         """Return the paths of the groups a role of the owner binds, or of a group by path."""
+
+    def regions(self, layer: str) -> int:
+        """Return the number of regions of a layer of the continuous space."""
+
+    def region(self, layer: str, index: int) -> Polygon:
+        """Return the polygon of a region of a layer of the continuous space."""
 
     def parameter(self, name: str) -> float:
         """Return the current value of a parameter of the owner."""

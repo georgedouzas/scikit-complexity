@@ -53,8 +53,9 @@ class GroupElement(BaseElement):
             that are not tied to parts of the space. With a part and no size, the size is the number of parts.
 
         location:
-            The initial places of agents in the space: cell coordinates, a network node, or a position, one per member
-            or one shared by every member, or `None` for random places. Only the agent stepper reads it.
+            The initial places of agents in the space: cell coordinates, a network node, a position, or a polygon that
+            holds the member at a uniform point inside it, one per member or one shared by every member, or `None` for
+            random places. Only the agent stepper reads it.
 
         layer:
             The layer of the network whose edges a group on edges lives on, or `None` for the graph of the network.
@@ -135,6 +136,12 @@ class GroupElement(BaseElement):
             error_msg = f'Group {self.label!r} lives on {self.on} but has neither a size nor a space.'
             raise SpaceError(error_msg)
         return place.check().prepare()._count_parts(self.on or 'sites', self.layer)
+
+    def _get_member_location(self, index: int, size: int) -> object:
+        """Return the initial location of one of `size` members, from per-member locations or one shared location."""
+        location = self.location
+        array = np.asarray(location, dtype=object if isinstance(location, list | tuple) else None)
+        return array[index] if array.ndim >= 1 and array.shape[0] == size else location
 
     def _flatten_values(self) -> dict[str, object]:
         """Return the values with one row per member, which a group takes as given."""

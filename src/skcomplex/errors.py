@@ -45,7 +45,7 @@ class RoleError(ValidationError):
 
 
 class SpaceError(ValidationError):
-    """A part needs a kind of space the system does not have, or a vector variable has no space for its dimension."""
+    """A part needs a kind of space the system lacks, a vector has no space, or a location does not fit its space."""
 
 
 class SpaceTooLargeError(SpaceError):

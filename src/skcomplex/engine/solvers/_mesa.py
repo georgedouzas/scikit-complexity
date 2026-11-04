@@ -13,9 +13,11 @@ import mesa
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
+import shapely
 from mesa.discrete_space import CellAgent, Network, OrthogonalMooreGrid, OrthogonalVonNeumannGrid
 from mesa.experimental.continuous_space import ContinuousSpace as MesaContinuousSpace
 from mesa.experimental.continuous_space import ContinuousSpaceAgent
+from shapely import Point, Polygon, STRtree
 
 from ...core.elements import BaseElement, GroupElement
 from ...core.laws import BaseLaw, BoundaryLaw, MatchLaw, RuleLaw, TransferLaw
@@ -33,6 +35,8 @@ from ._external import ExternalSolver
 
 MAX_SEED = 2**31 - 1
 _HISTORY_LENGTH = 10_000
+CONTINUOUS_SIDES = (2, 3)
+MIN_CONTINUOUS_ROOM = 2
 
 
 class _AgentModel(mesa.Model):
@@ -149,7 +153,7 @@ class ModelView:
         """Extent of the agent space per axis, cells of a grid or lengths of a continuous space, `None` otherwise."""
         space = self._stepper.space_
         if isinstance(space, MesaContinuousSpace):
-            return (float(space.width), float(space.height))
+            return tuple(float(side) for side in space.size)
         if isinstance(space, OrthogonalMooreGrid | OrthogonalVonNeumannGrid):
             return tuple(int(item) for item in space.dimensions)
         return None
@@ -279,6 +283,47 @@ class ModelView:
                 counts[key] = counts.get(key, 0) + 1
         return counts
 
+    def regions(self, layer: str) -> int:
+        """Return the number of regions of a layer of the continuous space.
+
+        Args:
+            layer:
+                The name of the layer.
+
+        Returns:
+            count:
+                The number of regions of the layer.
+
+        Raises:
+            SimulationError:
+                The space has no such layer.
+        """
+        return len(self._stepper._index_of(layer).geometries)
+
+    def region(self, layer: str, index: int) -> Polygon:
+        """Return the polygon of a region of a layer of the continuous space, which a rule can pass to `move_to`.
+
+        Args:
+            layer:
+                The name of the layer.
+
+            index:
+                The index of the region in its layer.
+
+        Returns:
+            polygon:
+                The polygon of the region.
+
+        Raises:
+            SimulationError:
+                The space has no such layer, or the layer has no region of that index.
+        """
+        polygons = self._stepper._index_of(layer).geometries
+        if not 0 <= index < len(polygons):
+            error_msg = f'The layer {layer!r} has {len(polygons)} regions, and a rule asks for the region {index}.'
+            raise SimulationError(error_msg)
+        return polygons[index]
+
     def _field_name(self, name: str) -> str:
         """Return the path of a field state named by its path, or as `<role>.<state>` of a role of the owner."""
         role, _, state = name.rpartition('.')
@@ -371,7 +416,8 @@ class ModelView:
                 A role of the owner that binds the group, or the path of the group.
 
             location:
-                The cell coordinates, network node, or position, or `None` for a random place.
+                The cell coordinates, network node, or position, a polygon for a uniform point inside it, or `None` for
+                a random place.
 
             **values:
                 The initial values of states, with the element type's defaults for the others.
@@ -661,17 +707,40 @@ class AgentView:
             if agent is not self._agent and (path is None or stepper._spec_of(agent).path == path)
         ]
 
+    def regions_here(self, layer: str) -> list[int]:
+        """Return the indices of the regions of a layer that contain the agent, on their boundaries too.
+
+        Args:
+            layer:
+                The name of the layer.
+
+        Returns:
+            indices:
+                The indices of the regions, in increasing order.
+
+        Raises:
+            SimulationError:
+                The space has no such layer.
+        """
+        hits = self._stepper._index_of(layer).query(Point(self.location), predicate='intersects')
+        return sorted(int(index) for index in hits)
+
     def move_to(self, location: object) -> None:
-        """Move the agent to a cell, a node, or a position.
+        """Move the agent to a cell, a node, or a position, or to a uniform point inside a polygon.
 
         Args:
             location:
-                The cell coordinates, network node, or position.
+                The cell coordinates, network node, or position, or a polygon in a continuous space.
+
+        Raises:
+            SpaceError:
+                The location does not fit the space.
         """
-        if isinstance(self._stepper.problem_.agent_space, ContinuousSpace):
-            self._agent.position = np.asarray(location, dtype=float)
+        space = self._stepper.problem_.agent_space
+        if isinstance(space, ContinuousSpace):
+            self._agent.position = self._stepper._position_of(location, space)
             return
-        self._agent.cell = self._stepper._cells()[MesaSolver._cell_key(location)]
+        self._agent.cell = self._stepper._cell_at(location)
 
     def remove(self) -> None:
         """Remove the agent from the model, after checking that it holds none of a conserved quantity.
@@ -800,7 +869,7 @@ class MesaSolver(ExternalSolver):
     after the agents. Rules add and remove members of variable groups only. The class variable `supports` declares
     what the backend runs, which validation checks systems against: discrete time, no space or a lattice, network, or
     continuous space, rule, boundary, transfer, and matching laws, and elements and fixed and variable
-    groups with any domain but Hilbert spaces.
+    groups with any domain but Hilbert spaces. It runs a continuous space as a box of two or three sides.
 
     Attributes:
         model_:
@@ -863,9 +932,15 @@ class MesaSolver(ExternalSolver):
         return 'Mesa'
 
     def _unsupported(self, problem: ProblemSpec) -> list[str]:
-        """Return nothing, since Mesa runs every agent-based problem."""
-        del problem
-        return []
+        """Return a continuous space that is not a box of two or three sides, the only problem Mesa does not run."""
+        space = problem.agent_space
+        if not isinstance(space, ContinuousSpace) or len(space.extent_) in CONTINUOUS_SIDES:
+            return []
+        description = (
+            f'the continuous space {space.label!r} with the extent {space.extent_} and {space.n_dim_} dimensions, '
+            'since the solver runs continuous spaces of two or three dimensions with an extent'
+        )
+        return [description]
 
     def _build(self, problem: ProblemSpec) -> None:
         """Build the Mesa model of an agent-based problem.
@@ -889,6 +964,7 @@ class MesaSolver(ExternalSolver):
         self.visit_ = (0, 0)
         self.observed_: dict[str, deque[object]] = {}
         self._compositions: dict[tuple[str, str], dict[Hashable, int]] = {}
+        self._triangulations: dict[Polygon, tuple[Array, Array]] = {}
         self._live: Array | None = None
         self._state: Array = problem.initial_state
         self._evaluator: ObservableEvaluator | None = None
@@ -982,16 +1058,122 @@ class MesaSolver(ExternalSolver):
         """Place a new agent at a location, or at a random place that respects the space's capacity."""
         space = self.problem_.agent_space
         if isinstance(space, ContinuousSpace):
-            point = location if location is not None else self.model_.rng.uniform([0, 0], space.extent_[:2])
-            agent.position = np.asarray(point, dtype=float)
+            sides = len(space.extent_)
+            point = location if location is not None else self.model_.rng.uniform(np.zeros(sides), space.extent_)
+            agent.position = self._position_of(point, space)
         elif space is not None:
             cells = self._cells()
             if location is not None:
-                agent.cell = cells[self._cell_key(location)]
+                agent.cell = self._cell_at(location)
             elif space.capacity is not None:
                 agent.cell = cells.select_random_empty_cell()
             else:
                 agent.cell = cells.all_cells.select_random_cell()
+
+    def _triangles_of(self, polygon: Polygon) -> tuple[Array, Array]:
+        """Return the corners of the constrained Delaunay triangles of a polygon and their areas, computed once.
+
+        Args:
+            polygon:
+                The polygon.
+
+        Returns:
+            triangles:
+                The corners of every triangle, of the shape `(n, 3, 2)`, and the areas of the triangles.
+
+        Raises:
+            SpaceError:
+                The polygon is empty or invalid, so it has no triangles to draw a point from.
+        """
+        known = self._triangulations.get(polygon)
+        if known is not None:
+            return known
+        if polygon.is_empty or not polygon.is_valid:
+            error_msg = f'An agent is placed in an invalid polygon: {shapely.is_valid_reason(polygon)}. Repair it.'
+            raise SpaceError(error_msg)
+        triangles = shapely.get_parts(shapely.constrained_delaunay_triangles(polygon))
+        corners = shapely.get_coordinates(triangles).reshape(-1, 4, 2)[:, :3]
+        self._triangulations[polygon] = corners, shapely.area(triangles)
+        return self._triangulations[polygon]
+
+    def _draw_point(self, polygon: Polygon) -> Array:
+        """Return a uniform point of a polygon: a triangle by its area, then a uniform point of the triangle."""
+        corners, areas = self._triangles_of(polygon)
+        rng = self.model_.rng
+        first, second, third = corners[int(rng.choice(len(areas), p=areas / areas.sum()))]
+        along, across = rng.random(2)
+        if along + across > 1.0:
+            along, across = 1.0 - along, 1.0 - across
+        return first + along * (second - first) + across * (third - first)
+
+    def _position_of(self, location: object, space: ContinuousSpace) -> Array:
+        """Return the position a location of a continuous space names, a point drawn inside a polygon.
+
+        Args:
+            location:
+                The coordinates of a position, or a polygon.
+
+            space:
+                The continuous space.
+
+        Returns:
+            position:
+                The coordinates, one per dimension of the space.
+
+        Raises:
+            SpaceError:
+                The location does not have one coordinate per dimension of the space.
+        """
+        position = self._draw_point(location) if isinstance(location, Polygon) else np.asarray(location, dtype=float)
+        if position.shape != (space.n_dim_,):
+            error_msg = (
+                f'The location {location!r} has {position.size} coordinates, and the space has {space.n_dim_} '
+                f'dimensions. Give {space.n_dim_} coordinates, or a polygon in a space of two dimensions.'
+            )
+            raise SpaceError(error_msg)
+        return position
+
+    def _cell_at(self, location: object) -> object:
+        """Return the Mesa cell of the coordinates of a cell or a network node.
+
+        Args:
+            location:
+                The cell coordinates or the network node.
+
+        Returns:
+            cell:
+                The Mesa cell.
+
+        Raises:
+            SpaceError:
+                The location is a polygon, which only a continuous space holds.
+        """
+        if isinstance(location, Polygon):
+            error_msg = 'A polygon is a location of a continuous space. Give the coordinates of a cell or a node.'
+            raise SpaceError(error_msg)
+        return self._cells()[self._cell_key(location)]
+
+    def _index_of(self, layer: str) -> STRtree:
+        """Return the index of the regions of a layer of the continuous space.
+
+        Args:
+            layer:
+                The name of the layer.
+
+        Returns:
+            index:
+                The index, which holds the polygons of the layer in their order.
+
+        Raises:
+            SimulationError:
+                The space has no such layer.
+        """
+        space = self.problem_.agent_space
+        layers = space.regions_ if isinstance(space, ContinuousSpace) else {}
+        if layer not in layers:
+            error_msg = f'The space has no region layer {layer!r}. Its layers are: {", ".join(layers) or "none"}.'
+            raise SimulationError(error_msg)
+        return layers[layer]
 
     def _cells(self) -> OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network:
         """Return the Mesa grid or network the agents live on.
@@ -1043,7 +1225,7 @@ class MesaSolver(ExternalSolver):
                 The path of the group.
 
             location:
-                The location, or `None` for a random place.
+                The location, a polygon for a uniform point inside it, or `None` for a random place.
 
             values:
                 The initial values of states, with the element type's defaults for the others.
@@ -1079,10 +1261,10 @@ class MesaSolver(ExternalSolver):
         """Create the initial agents of a group with their per-agent or shared initial values."""
         space = self.problem_.agent_space
         network_nodes = list(space.graph.nodes) if isinstance(space, NetworkSpace) else []
-        given = spec.element.location if isinstance(spec.element, GroupElement) else None
+        group = spec.element if isinstance(spec.element, GroupElement) and spec.element.location is not None else None
         for index in range(spec.size):
             values = {name: self._member_of(spec, name, value, index) for name, value in spec.values.items()}
-            location = self._member_location(given, index, spec.size)
+            location = None if group is None else self._cell_key(group._get_member_location(index, spec.size))
             if location is None and spec.size <= len(network_nodes):
                 location = network_nodes[index]
             self._create_agent(spec.path, location, values)
@@ -1423,8 +1605,9 @@ class MesaSolver(ExternalSolver):
         if isinstance(space, NetworkSpace):
             return Network(space.graph, capacity=space.capacity, random=model.random, layout=None)
         if isinstance(space, ContinuousSpace):
-            bounds = [[0.0, space.extent_[0]], [0.0, space.extent_[1]]]
-            return MesaContinuousSpace(bounds, torus=space.periodic_, random=model.random, n_agents=max(n_agents, 1))
+            bounds = [[0.0, side] for side in space.extent_]
+            room = max(n_agents, MIN_CONTINUOUS_ROOM)
+            return MesaContinuousSpace(bounds, torus=space.periodic_, random=model.random, n_agents=room)
         return None
 
     @staticmethod
@@ -1494,16 +1677,6 @@ class MesaSolver(ExternalSolver):
         locations = [MesaSolver._location_of(agent) for agent in agents]
         has_locations = any(location is not None for location in locations)
         return AgentSnapshotSpec(ids, values, np.asarray(locations) if has_locations else None, spec.roles)
-
-    @staticmethod
-    def _member_location(location: object, index: int, size: int) -> object:
-        """Return the initial location of one agent from per-agent locations or one shared location."""
-        if location is None:
-            return None
-        array = np.asarray(location, dtype=object if isinstance(location, list | tuple) else None)
-        if array.ndim >= 1 and array.shape[0] == size:
-            return MesaSolver._cell_key(np.asarray(array[index]))
-        return MesaSolver._cell_key(location)
 
     @staticmethod
     def _shared_default(element_type: type, name: str) -> object:
