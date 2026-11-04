@@ -3,15 +3,18 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import replace
 from types import SimpleNamespace
+from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
 
 from ...errors import SpaceError, ValidationError
-from ...specs import ParameterSpec, PartnerSpec, StateSpec
+from ...specs import InteractionRequirementSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec
 from ..base import BasePart
+from ..laws import BaseLaw
 from ..spaces import BaseSpace, ContinuousSpace
 from ..types import AgentViewProtocol, ModelViewProtocol
 
@@ -31,6 +34,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
     roles otherwise returns its own names, in the agent forms and, through `_get_member`, in the symbolic forms.
     It reads its parameters by the name `_get_parameter` returns for them, and a parameter the class does not declare
     reads the plain attribute, so a subclass renames a parameter or fixes its value by setting the attribute.
+
+    A role states what it needs in its `RoleSpec`, and the class lists the laws it may return in `law_classes`, which
+    `get_requirements` reads.
 
     Args:
         label:
@@ -58,6 +64,7 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         {'label': 'growth', 'r': 0.5, 'target': 'rabbits'}
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = ()
     laws_: Sequence[BasePart]
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
@@ -339,6 +346,34 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
         if isinstance(partners, PartnerSpec) and partners.candidates in GRID_CANDIDATES:
             self._check_grid('candidates', partners.candidates, space, 'a radius, `PartnerSpec(candidates=<radius>)`')
 
+    @classmethod
+    def _get_law_classes(cls) -> tuple[type[BaseLaw], ...]:
+        """Return the law classes the class lists, none when a subclass writes its own laws below the list."""
+        for klass in cls.__mro__:
+            if 'law_classes' in vars(klass):
+                return klass.law_classes
+            if '_get_laws' in vars(klass):
+                return ()
+        return ()
+
+    @staticmethod
+    def _get_accepted(kinds: Sequence[tuple[type, ...]]) -> tuple[type, ...]:
+        """Return the classes that some law accepts, none when a law accepts any class."""
+        if not all(kinds):
+            return ()
+        return tuple(dict.fromkeys(kind for classes in kinds for kind in classes))
+
+    def _get_state_names(self, names: Sequence[str]) -> tuple[str, ...]:
+        """Return the states that declared names mean: the names an argument holds, or else the names themselves."""
+        found: list[str] = []
+        for name in names:
+            value = getattr(self, name, name)
+            if isinstance(value, str):
+                found.append(value)
+            elif isinstance(value, Mapping | list | tuple):
+                found += [item for item in value if isinstance(item, str)]
+        return tuple(dict.fromkeys(found))
+
     def _check_space(self, space: BaseSpace | None) -> None:
         """Raise an error for a variant the space of the system cannot run, none by default.
 
@@ -359,3 +394,30 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
                 A variant needs a kind of space the system does not have.
         """
         self._check_space(context)
+
+    def get_requirements(self) -> InteractionRequirementSpec:
+        """Return what the interaction needs: the element kinds and states of its roles, and its laws' time and space.
+
+        Returns:
+            requirements:
+                The roles by name, with the states each reads for the values of this interaction, the law classes
+                the class lists, and the classes of time and of space these laws run in.
+
+        Examples:
+            >>> from skcomplex.core.interactions import RateInteraction
+            >>> interaction = RateInteraction('growth', target='rabbits', state='n', rate=lambda s: s.target.n)
+            >>> interaction.get_requirements().roles['target'].states
+            ('n',)
+        """
+        laws = self._get_law_classes()
+        needs = [law.get_requirements() for law in laws]
+        return InteractionRequirementSpec(
+            time=self._get_accepted([need.time for need in needs]),
+            space=self._get_accepted([need.space for need in needs]),
+            roles={
+                name: replace(spec, states=self._get_state_names(spec.states))
+                for name, spec in self._get_specs().items()
+                if isinstance(spec, RoleSpec)
+            },
+            laws=laws,
+        )

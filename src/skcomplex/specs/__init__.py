@@ -33,6 +33,7 @@ from ._fractional_rows_spec import FractionalRowsSpec
 from ._fractional_state_spec import FractionalStateSpec
 from ._hilbert_spec import HilbertSpec
 from ._hyperedge_reduction_spec import HyperedgeReductionSpec
+from ._interaction_requirement_spec import InteractionRequirementSpec
 from ._issue_spec import IssueSpec
 from ._iterative_matching_spec import IterativeMatchingSpec
 from ._jump_path_spec import JumpPathSpec
@@ -139,6 +140,7 @@ __all__ = [
     'FractionalStateSpec',
     'HilbertSpec',
     'HyperedgeReductionSpec',
+    'InteractionRequirementSpec',
     'IssueSpec',
     'IterativeMatchingSpec',
     'JumpPathSpec',

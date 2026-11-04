@@ -5,15 +5,16 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
 from ...specs import DatasetSpec, ObservableSpec, ParameterSpec, RoleSpec
+from ...types import ElementKind
 from ..base import BasePart
-from ..laws import GradientStepLaw
+from ..laws import BaseLaw, GradientStepLaw
 from ._interaction import Interaction
 
 OPTIMIZERS = ('sgd', 'momentum', 'rmsprop', 'adam')
@@ -89,11 +90,13 @@ class TrainingInteraction(Interaction):
         'adam'
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (GradientStepLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        model: Annotated[str, RoleSpec()],
+        model: Annotated[str, RoleSpec(elements=(ElementKind.ANY,))],
         trained: Sequence[str],
         loss: ObservableSpec,
         data: DatasetSpec,

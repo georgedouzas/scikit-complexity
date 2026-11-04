@@ -6,16 +6,16 @@
 import math
 from collections.abc import Callable, Mapping
 from types import SimpleNamespace
-from typing import Annotated, SupportsFloat
+from typing import Annotated, ClassVar, SupportsFloat
 
 from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
 from ...specs import ParameterSpec, RoleSpec
-from ...types import Stoichiometry
+from ...types import ElementKind, Stoichiometry
 from ..base import BasePart
-from ..laws import NoiseLaw, RateLaw, RuleLaw
+from ..laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
 from ..laws.utils import where
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._base import SCHEDULES
@@ -177,16 +177,21 @@ class ReactionInteraction(JumpInteraction):
         [2.43, 2.43]
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, NoiseLaw, JumpLaw, RuleLaw, UpdateLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str | None, RoleSpec()] = None,
-        reactants: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
-        products: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
+        target: Annotated[
+            str | None,
+            RoleSpec(elements=(ElementKind.ANY,), states=('reactants', 'products', 'modifiers')),
+        ] = None,
+        reactants: Annotated[Stoichiometry | None, RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = None,
+        products: Annotated[Stoichiometry | None, RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = None,
         k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         propensity: Callable[..., object] | None = None,
-        modifiers: Annotated[Stoichiometry | None, RoleSpec(variadic=True)] = None,
+        modifiers: Annotated[Stoichiometry | None, RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = None,
         mode: str = 'rate',
         form: str = 'symbolic',
         phase: str | None = None,

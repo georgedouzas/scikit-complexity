@@ -5,10 +5,11 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
+from typing import ClassVar
 
 from ...errors import ValidationError
 from ..base import BasePart
-from ..laws import RuleLaw
+from ..laws import BaseLaw, RuleLaw
 from ..types import ModelViewProtocol
 from ._interaction import Interaction
 
@@ -37,6 +38,8 @@ class FeedbackInteraction[ModelT: ModelViewProtocol](Interaction):
         >>> FeedbackInteraction('controller', rule=lambda model: None).check().phase is None
         True
     """
+
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
 
     def __init__(
         self,

@@ -7,15 +7,16 @@ import math
 import re
 from collections.abc import Callable, Collection, Sequence
 from types import SimpleNamespace
-from typing import Annotated, SupportsFloat
+from typing import Annotated, ClassVar, SupportsFloat
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp, log
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
+from ...types import ElementKind
 from ..base import BasePart
-from ..laws import EmissionLaw, JumpLaw, RuleLaw, TransitionLaw, UpdateLaw
+from ..laws import BaseLaw, EmissionLaw, JumpLaw, RuleLaw, TransitionLaw, UpdateLaw
 from ..laws.utils import both, neighbors, residence, uniform, where
 from ..spaces import BaseNeighborhood
 from ..types import AgentViewProtocol, ModelViewProtocol
@@ -141,11 +142,13 @@ class TransitionInteraction(Interaction):
         -1
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, UpdateLaw, RuleLaw, TransitionLaw, EmissionLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state', 'observed'))],
         state: str = 'state',
         source: SourceValues = 0.0,
         destination: float = 1.0,

@@ -6,7 +6,7 @@
 from collections.abc import Sequence
 from types import SimpleNamespace
 
-from ...specs import VisualSpec
+from ...specs import StateSpec, VisualSpec
 from ..base import BasePart
 from ..spaces import BaseSpace
 
@@ -82,3 +82,23 @@ class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
                 The space the element inherits from its system, which an element does not read.
         """
         self.default_visual_ = VisualSpec()
+
+    def get_states(self) -> dict[str, StateSpec]:
+        """Return the states the element carries with their specs, those of its class and those it declares from data.
+
+        Returns:
+            states:
+                A mapping from the name of every state to its spec.
+
+        Examples:
+            >>> from typing import Annotated
+            >>> from skcomplex.core.elements import Element
+            >>> from skcomplex.specs import StateSpec
+            >>> class TankElement(Element):
+            ...     def __init__(self, label, level: Annotated[float, StateSpec()] = 1.0):
+            ...         super().__init__(label)
+            ...         self.level = level
+            >>> list(TankElement('tank').get_states())
+            ['level']
+        """
+        return {name: spec for name, spec in self._get_part_specs().items() if isinstance(spec, StateSpec)}

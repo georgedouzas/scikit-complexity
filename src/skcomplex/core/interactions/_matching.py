@@ -25,8 +25,9 @@ from ...specs import (
     RoleSpec,
     StableMatchingSpec,
 )
+from ...types import ElementKind
 from ..base import BasePart
-from ..laws import MatchLaw, RuleLaw
+from ..laws import BaseLaw, MatchLaw, RuleLaw
 from ..laws.utils import transfer
 from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, MatchingRule, ModelViewProtocol, Pairing
@@ -121,12 +122,14 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('value', 'volume', 'unmatched')
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (MatchLaw, RuleLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        requesters: Annotated[str, RoleSpec()],
-        providers: Annotated[str, RoleSpec()],
+        requesters: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP))],
+        providers: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP))],
         rule: MatchingRule | Pairing = RandomSearchSpec(),
         limit: str | tuple[str, str] = 'limit',
         quantity: str | tuple[str, str] = 'quantity',

@@ -5,10 +5,12 @@
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
+from ...types import ElementKind
+from ..laws import BaseLaw, FractionalNoiseLaw, NoiseLaw, RateLaw
 from ._rate import RateInteraction
 
 
@@ -56,11 +58,13 @@ class RelaxationInteraction(RateInteraction):
         10.0
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, NoiseLaw, FractionalNoiseLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
         state: str = 'x',
         goal: Callable[[SimpleNamespace], object] | float = 0.0,
         time: Callable[[SimpleNamespace], object] | float = 1.0,

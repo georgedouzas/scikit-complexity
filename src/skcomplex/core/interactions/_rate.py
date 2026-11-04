@@ -6,15 +6,16 @@
 import operator
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import SR, vector
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
 from ...specs import RoleSpec, WienerProcessSpec
+from ...types import ElementKind
 from ..base import BasePart
-from ..laws import FractionalNoiseLaw, NoiseLaw, RateLaw
+from ..laws import BaseLaw, FractionalNoiseLaw, NoiseLaw, RateLaw
 from ._interaction import Interaction
 
 CONVENTIONS = ('ito', 'stratonovich', 'anti-ito')
@@ -91,14 +92,16 @@ class RateInteraction(Interaction):
         2.943
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, NoiseLaw, FractionalNoiseLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state', 'divisor'))],
         state: str = 'x',
         rate: Callable[[SimpleNamespace], object] | float = 0.0,
-        sources: Annotated[Sequence[str], RoleSpec(variadic=True)] = (),
+        sources: Annotated[Sequence[str], RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = (),
         noise: Callable[[SimpleNamespace], object] | float | None = None,
         divisor: str | Callable[[SimpleNamespace], object] | None = None,
         process: Annotated[WienerProcessSpec | None, RoleSpec(noise=True)] = None,

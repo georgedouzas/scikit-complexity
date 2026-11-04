@@ -5,14 +5,15 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
+from ...types import ElementKind
 from ..base import BasePart
-from ..laws import FluxLaw, RateLaw
+from ..laws import BaseLaw, FluxLaw, RateLaw
 from ..laws.utils import divergence
 from ._interaction import Interaction
 
@@ -87,17 +88,19 @@ class ConservationInteraction(Interaction):
         50.0
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (FluxLaw, RateLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
         state: str = 'u',
         flux: Callable[[SimpleNamespace], object] | None = None,
         source: Callable[[SimpleNamespace], object] | None = None,
         limiter: str | None = 'minmod',
         riemann: str | None = 'rusanov',
-        sources: Annotated[Sequence[str], RoleSpec(variadic=True)] = (),
+        sources: Annotated[Sequence[str], RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = (),
     ) -> None:
         super().__init__(label)
         self.target = target

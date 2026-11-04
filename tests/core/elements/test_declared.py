@@ -17,6 +17,7 @@ from skcomplex.errors import ValidationError
 from skcomplex.experiments import BaseExperiment
 from skcomplex.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 
+
 class _AnnotatedDecayElement(Element):
     """Decaying element with annotated variables."""
 
@@ -63,7 +64,9 @@ def _simulate(system, until=1.0):
 def test_declared_element_gives_the_trajectory_of_annotated_states():
     """Test that states and a parameter given as data run as the same annotated ones do, within 1e-12."""
     annotated = _simulate(System(elements=[_AnnotatedDecayElement('cell')], time=ContinuousTime()))
-    declared = _simulate(System(elements=[_DeclaredDecayElement('cell', variables=_variables())], time=ContinuousTime()))
+    declared = _simulate(
+        System(elements=[_DeclaredDecayElement('cell', variables=_variables())], time=ContinuousTime()),
+    )
     for path in ('cell.x', 'cell.y'):
         np.testing.assert_allclose(declared.values(path), annotated.values(path), rtol=1e-12, atol=1e-12)
 
@@ -91,7 +94,7 @@ def test_declared_element_reads_a_changed_value():
     element = DeclaredElement('cell', variables=_variables())
     assert declared_variables(element)['x'][1] == 1.0
     assert declared_variables(element.set_params(x=5.0))['x'][1] == 5.0
-    assert declared_variables(element.set_params(variables={}))  == {}
+    assert declared_variables(element.set_params(variables={})) == {}
 
 
 def test_declared_element_declares_the_companions_of_a_state():
@@ -164,3 +167,9 @@ def test_declared_element_rejects_an_unknown_name_to_set():
     """Test that setting a name that is neither an argument nor a declared variable raises the error of `set_params`."""
     with pytest.raises(ValueError, match='nothing'):
         DeclaredElement('cell', variables=_variables()).set_params(nothing=1.0)
+
+
+def test_get_states_returns_the_states_declared_from_data():
+    """Test that a declared element returns the states an instance declares, and no parameter."""
+    variables = {'x': DeclaredVariableSpec(1.0, StateSpec()), 'r': DeclaredVariableSpec(0.5, ParameterSpec())}
+    assert list(DeclaredElement('cell', variables=variables).get_states()) == ['x']

@@ -5,13 +5,14 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, ClassVar, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ...errors import SimulationError, ValidationError
 from ...specs import PartnerSpec, RoleSpec
+from ...types import ElementKind
 from ..laws import BaseLaw, MatchLaw, RuleLaw, Sink, Source, TransferLaw
 from ..laws.utils import shift_member, where
 from ..spaces import BaseSpace
@@ -201,19 +202,21 @@ class TransferInteraction(Interaction):
         4.0
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (MatchLaw, RuleLaw, TransferLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        source: Annotated[str, RoleSpec()],
-        target: Annotated[str, RoleSpec()],
+        source: Annotated[str, RoleSpec(elements=(ElementKind.ANY,))],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,))],
         state: str | Source,
         into: str | Sink | None = None,
         amount: Amount,
         flow: str = '',
         pairing: str | Pairing = 'members',
         legs: Sequence[Leg] = (),
-        fallback: Annotated[str | None, RoleSpec()] = None,
+        fallback: Annotated[str | None, RoleSpec(elements=(ElementKind.ANY,))] = None,
         guard: Callable[..., object] | None = None,
         rate: Amount | None = None,
         reverse_rate: Amount | None = None,

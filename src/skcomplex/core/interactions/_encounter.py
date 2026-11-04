@@ -5,13 +5,14 @@
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
+from ...types import ElementKind
 from ..laws import BaseLaw, BilinearLaw, EncounterLaw, RateLaw
 from ..laws.utils import collision
 from ._interaction import Interaction
@@ -92,12 +93,14 @@ class EncounterInteraction(Interaction):
         True
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (BilinearLaw, EncounterLaw, RateLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        candidate: Annotated[str, RoleSpec()],
-        field: Annotated[str | None, RoleSpec(optional=True)] = None,
+        candidate: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
+        field: Annotated[str | None, RoleSpec(optional=True, elements=(ElementKind.ANY,), states=('state',))] = None,
         rate: Callable[[SimpleNamespace], object] | None = None,
         kernel: Callable[[SimpleNamespace], object] | None = None,
         outcome: str = 'conservative',

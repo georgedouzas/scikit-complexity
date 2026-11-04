@@ -5,14 +5,15 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import SR
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
+from ...types import ElementKind
 from ..base import BasePart
-from ..laws import EquationLaw
+from ..laws import BaseLaw, EquationLaw
 from ._interaction import Interaction
 
 
@@ -74,11 +75,13 @@ class ConnectionInteraction(Interaction):
         2.0
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (EquationLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        members: Annotated[Sequence[str], RoleSpec(variadic=True)],
+        members: Annotated[Sequence[str], RoleSpec(variadic=True, elements=(ElementKind.ANY,))],
         ports: Sequence[str],
     ) -> None:
         super().__init__(label)

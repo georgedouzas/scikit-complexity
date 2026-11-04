@@ -3,8 +3,8 @@
 ## 1. Declarations
 
 - [ ] 1.1 Add `elements` and `states` to `RoleSpec`, with doctests, defaulting to any element and no states; verify `tests/test_specs.py` and that every existing model still compiles through `tests/models/test_catalog.py`.
-- [ ] 1.2 Add `get_requirements()` to `BaseInteraction` and `get_states()` to `BaseElement`, settled against how `add-declared-state-elements` holds the states; verify the reading requirements scenario.
-- [ ] 1.3 Declare the roles of the 42 interactions of `skcomplex.core.interactions`; verify the every core interaction declares scenario.
+- [x] 1.2 Add `get_requirements()` to `BaseInteraction` and `get_states()` to `BaseElement`, settled against how `add-declared-state-elements` holds the states; verify the reading requirements scenario.
+- [x] 1.3 Declare the roles of the 42 interactions of `skcomplex.core.interactions`; verify the every core interaction declares scenario.
 
 ## 2. Validation
 

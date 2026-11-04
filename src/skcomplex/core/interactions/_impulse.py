@@ -5,12 +5,13 @@
 
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression, pi, sin
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
+from ...types import ElementKind
 from ..laws import BaseLaw, CrossingLaw
 from ..laws.utils import where
 from ._interaction import Interaction
@@ -60,11 +61,13 @@ class ImpulseInteraction(Interaction):
         0.0
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (CrossingLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('reset',))],
         reset: Mapping[str, Callable[[SimpleNamespace], object]],
         times: Sequence[float] = (),
         period: float | None = None,

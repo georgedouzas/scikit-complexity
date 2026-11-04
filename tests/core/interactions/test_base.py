@@ -7,6 +7,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 
+from skcomplex.core import interactions
 from skcomplex.core.elements import GroupElement, LatticeElement
 from skcomplex.core.interactions import (
     BaseInteraction,
@@ -15,15 +16,20 @@ from skcomplex.core.interactions import (
     CouplingInteraction,
     CrossingInteraction,
     EvolutionInteraction,
+    GradientInteraction,
     GroupingInteraction,
+    HyperedgeInteraction,
     ImitationInteraction,
     ImpulseInteraction,
+    Interaction,
     JumpInteraction,
     LifeCycleInteraction,
     LocalRuleInteraction,
     MapInteraction,
     MatchingInteraction,
     MovementInteraction,
+    NeighborInteraction,
+    PairInteraction,
     RateInteraction,
     ReactionInteraction,
     ReinforcementInteraction,
@@ -34,12 +40,14 @@ from skcomplex.core.interactions import (
     TransferInteraction,
     TransitionInteraction,
 )
+from skcomplex.core.laws import RateLaw
 from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import ContinuousSpace, ContinuousTime, DiscreteTime, LatticeSpace, VonNeumannNeighborhood
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import SpaceError, ValidationError
 from skcomplex.specs import BaseSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, TopologyRequestSpec
+from skcomplex.types import ElementKind
 
 from ...conftest import NodeElement
 
@@ -516,3 +524,67 @@ def test_check_refuses_a_spec_of_groups_in_the_symbolic_form():
     )
     with pytest.raises(ValidationError, match='compiles the named groups'):
         grouping.check()
+
+
+def _interaction_classes() -> list[type[BaseInteraction]]:
+    """Return the public interaction classes of the core."""
+    named = [getattr(interactions, name) for name in interactions.__all__]
+    return [item for item in named if isinstance(item, type) and issubclass(item, BaseInteraction)]
+
+
+def test_get_requirements_names_the_state_of_an_argument():
+    """Test that the requirements name the role, its element kinds, the state its argument holds, and the laws."""
+    rate = RateInteraction('growth', target='rabbits', state='n', rate=1.0)
+    needs = rate.get_requirements()
+    assert needs.roles['target'].states == ('n',)
+    assert needs.roles['target'].accepts(ElementKind.ELEMENT)
+    assert needs.roles['process'].noise
+    assert RateLaw in needs.laws
+    assert needs.time == (ContinuousTime,)
+
+
+def test_get_requirements_reads_names_from_sequences_and_mappings():
+    """Test that an argument that holds several names, in a sequence or as the keys of a mapping, gives them all."""
+    gradient = GradientInteraction('flow', target='a', states=('x', 'y'), potential=lambda s: 0.0)
+    assert gradient.get_requirements().roles['target'].states == ('x', 'y')
+    reaction = ReactionInteraction('r', target='a', reactants={'S': 1, ('b', 'n'): 1}, products={'P': 1})
+    assert reaction.get_requirements().roles['target'].states == ('S', 'P')
+
+
+def test_get_requirements_leaves_unknown_the_laws_a_subclass_writes():
+    """Test that a subclass that writes its own laws lists none, since only running it shows them."""
+
+    class OwnLawsInteraction(RateInteraction):
+        """Interaction that returns its own laws."""
+
+        def _get_laws(self, namespace):
+            """Return no law."""
+            return []
+
+    needs = OwnLawsInteraction('own', target='a').get_requirements()
+    assert needs.laws == ()
+    assert needs.time == ()
+
+
+def test_get_requirements_accepts_any_space_when_a_law_does():
+    """Test that laws that include one running in any space state no space, and laws that all need one state them."""
+    assert RateInteraction('rate', target='a').get_requirements().space == ()
+    sampling = SamplingInteraction('sample', target='a', state='s', objective=lambda s: 0.0)
+    assert LatticeSpace in sampling.get_requirements().space
+
+
+def test_every_core_interaction_declares_its_roles():
+    """Test that every role of every interaction of the core names the kinds of element it accepts."""
+    found = _interaction_classes()
+    assert len(found) == 41
+    for kind in found:
+        for name, spec in kind._get_specs().items():
+            if isinstance(spec, RoleSpec) and not spec.noise:
+                assert spec.elements, f'{kind.__name__}.{name}'
+
+
+def test_every_core_interaction_with_laws_lists_them():
+    """Test that every interaction of the core lists its laws, apart from the bases a subclass writes laws for."""
+    bases = {BaseInteraction, Interaction, NeighborInteraction, PairInteraction, HyperedgeInteraction}
+    for kind in set(_interaction_classes()) - bases:
+        assert kind.law_classes, kind.__name__
