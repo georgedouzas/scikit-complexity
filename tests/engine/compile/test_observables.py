@@ -47,7 +47,7 @@ def _observed(name):
         group = nodes.get(f'{scope}/{observable.group}' if scope else observable.group)
         agents = group is not None and group.is_agent
         unread = observable.group is not None and (group is None or agents or not isinstance(observable.reduce, str))
-        if scope in blocked or observable.element is not None or unread:
+        if scope in blocked or observable.element is not None or observable.function is not None or unread:
             blocked.add(scope)
             continue
         found.append(observable.label)
@@ -100,10 +100,29 @@ def test_reductions_agree_with_observables(name):
     reading = next((item.problem for item in problem.partitions if 'probe_0' in item.owners), problem)
     x, p = problem.initial_state, problem.initial_parameters
     rates = reading.drift(0.0, x, p)
-    recorded = ObservableEvaluator(problem).prepare().evaluate(0.0, x, p, agents_of=lambda group: [])
+    frame = x if problem.algebraic is None else problem.algebraic(0.0, x, p)
+    recorded = ObservableEvaluator(problem).prepare().evaluate(0.0, frame, p, agents_of=lambda group: [])
     for index, path in enumerate(paths):
         value = rates[problem.states.entry(f'probe_{index}.y').start]
         assert value == pytest.approx(abs(recorded[f'model/{path}']), rel=1e-12, abs=1e-12)
+
+
+def test_laws_read_an_observable_of_time():
+    """Test that a law reads an observable written with the time of the system, as the evaluator records it."""
+    model = create('quarter_car')
+    model.label = 'model'
+    observables = [
+        dataclasses.replace(item, label=f'model/{item.label}') for item in describe('quarter_car').observables_of(model)
+    ]
+    reader = ReadInteraction('read', probe='probe', source='model/energy')
+    system = System(elements=[ObservedValueElement('probe')], systems=[model], interactions=[reader])
+    problem = compile_system(system, backend=NumpyBackend(), observables=observables)
+    reading = next((item.problem for item in problem.partitions if 'probe' in item.owners), problem)
+    x, p = problem.initial_state, problem.initial_parameters
+    rates = reading.drift(1.0, x, p)
+    recorded = ObservableEvaluator(problem).prepare().evaluate(1.0, x, p, agents_of=lambda group: [])
+    assert recorded['model/energy'] > 0
+    assert rates[problem.states.entry('probe.y').start] == pytest.approx(recorded['model/energy'], rel=1e-12)
 
 
 class WealthyElement(Element):

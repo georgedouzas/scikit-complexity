@@ -31,6 +31,7 @@ def test_agent_views_have_an_id_a_location_and_a_life():
         'neighbor_cells',
         'neighbors',
         'agents_here',
+        'regions_here',
         'displacement_to',
         'distance_to',
         'move_to',
