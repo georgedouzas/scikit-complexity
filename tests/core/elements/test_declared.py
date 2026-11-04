@@ -86,6 +86,14 @@ def test_declared_element_keeps_the_specs_of_annotated_arguments():
     assert list(declared_variables(DeclaredElement('cell', variables=_variables()))) == ['x', 'y', 'k']
 
 
+def test_declared_element_reads_a_changed_value():
+    """Test that the declarations of an element follow a change of a value after they were read."""
+    element = DeclaredElement('cell', variables=_variables())
+    assert declared_variables(element)['x'][1] == 1.0
+    assert declared_variables(element.set_params(x=5.0))['x'][1] == 5.0
+    assert declared_variables(element.set_params(variables={}))  == {}
+
+
 def test_declared_element_declares_the_companions_of_a_state():
     """Test that lags and derivatives of a declared state have the defaults of an annotated one."""
     specs = {

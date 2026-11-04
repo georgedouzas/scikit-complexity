@@ -19,7 +19,8 @@ class DeclaredElement(Element):
     The compiler treats a declared variable as it treats an annotated argument of the constructor: the spec gives the
     declaration and the value gives the default. A law reads a declared variable from its namespace, and `get_value`
     reads its value from the element. A subclass that derives its variables from other arguments overrides
-    `_get_declared`, and `variables` then holds the variables that replace the derived ones.
+    `_declare_variables`, and `variables` then holds the variables that replace the derived ones. The mappings the
+    constructor takes are read as immutable, so `set_params` changes a variable.
 
     Args:
         label:
@@ -58,9 +59,19 @@ class DeclaredElement(Element):
         super().__init__(label, visual=visual)
         self.variables = variables
 
-    def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the variables the element declares from data, by name."""
+    def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
+        """Return the variables the element declares from its arguments, by name."""
         return self.variables or {}
+
+    def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
+        """Return the declared variables, read once per set of arguments, since compiling reads them often."""
+        arguments = list(self.get_params(deep=False).values())
+        known = getattr(self, '_declared', None)
+        if known is not None and all(new is old for new, old in zip(arguments, known[0], strict=True)):
+            return known[1]
+        declared = self._declare_variables()
+        self._declared = (arguments, declared)
+        return declared
 
     def _check(self) -> None:
         """Raise an error for a name that a law cannot read or that an argument of the constructor takes.

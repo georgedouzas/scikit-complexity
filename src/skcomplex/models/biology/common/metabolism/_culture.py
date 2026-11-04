@@ -253,7 +253,7 @@ class CommunityMediumElement(DeclaredElement):
         super().__init__(label, visual=visual, variables=variables)
         self.exchanges = exchanges
 
-    def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
+    def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
         """Return the state of the net exchange of every reaction, with the variables that replace them."""
         flux = StateSpec(algebraic=True)
         return {
