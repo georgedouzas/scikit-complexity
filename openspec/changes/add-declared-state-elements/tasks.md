@@ -2,8 +2,8 @@
 
 ## 1. Primitive
 
-- [ ] 1.1 Find every caller of `_get_specs` and every reader of the signature of an element, and settle the reader of instance specs as the design says; verify the annotated elements give the same specs, by running `tests/core` and `tests/engine/compile`.
-- [ ] 1.2 Add the declaration from data to `skcomplex.core.elements`, with doctests; verify the same results and cloning scenarios.
+- [x] 1.1 Find every caller of `_get_specs` and every reader of the signature of an element, and settle the reader of instance specs as the design says; verify the annotated elements give the same specs, by running `tests/core` and `tests/engine/compile`.
+- [x] 1.2 Add the declaration from data to `skcomplex.core.elements`, with doctests; verify the same results and cloning scenarios.
 
 ## 2. Move the five places
 

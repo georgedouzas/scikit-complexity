@@ -13,14 +13,14 @@ from ...errors import SkcomplexError
 from ...specs import RoleSpec
 
 
-def _probe_namespace(component_type: type[BaseElement | BaseInteraction]) -> SimpleNamespace:
-    """Return the namespace of free symbols of the declared names of a type, which probing its laws reads.
+def _probe_namespace(part: BaseElement | BaseInteraction) -> SimpleNamespace:
+    """Return the namespace of free symbols of the declared names of a part, which probing its laws reads.
 
-    An element type gives its states and its parameters, with `other`, the neighbour of a member, holding the same
+    An element gives its states and its parameters, with `other`, the neighbour of a member, holding the same
     names. An interaction gives its parameters and an empty namespace per role, or an empty tuple for a variadic role,
     since the names of the bound elements are not known before compiling. Both give the time `t`.
     """
-    specs = component_type._get_specs()
+    specs = part._get_part_specs()
     names = {name: var(name) for name, spec in specs.items() if not isinstance(spec, RoleSpec)}
     roles = {
         name: () if spec.variadic else SimpleNamespace() for name, spec in specs.items() if isinstance(spec, RoleSpec)
@@ -61,18 +61,10 @@ def probe_laws(component: object) -> list[object] | None:
         >>> [type(law).__name__ for law in probe_laws(DecayElement('decay'))]
         ['RateLaw']
     """
-    if isinstance(component, GroupElement):
-        component_type: type[BaseElement | BaseInteraction] = component.element
-    elif isinstance(component, BaseElement | BaseInteraction):
-        component_type = type(component)
-    else:
+    if not isinstance(component, BaseElement | BaseInteraction):
         return None
     try:
-        member = (
-            component.element(component.label).set_params(**(component.values or {}))
-            if isinstance(component, GroupElement)
-            else component
-        )
-        return list(member.check().prepare().run(_probe_namespace(component_type)).laws_)
+        member = component._get_member() if isinstance(component, GroupElement) else component
+        return list(member.check().prepare().run(_probe_namespace(member)).laws_)
     except (AttributeError, IndexError, KeyError, TypeError, ValueError, ArithmeticError, RuntimeError, SkcomplexError):
         return None

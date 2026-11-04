@@ -495,11 +495,11 @@ class LayoutPass(BasePass):
         if not isinstance(component, GroupElement):
             return getattr(component, variable) if hasattr(component, variable) else default_of(component, variable)
         values = component.values_
-        default = default_of(component.element, variable)
+        default = default_of(node.component_type, variable)
         if variable not in values:
             return default
         value = values[variable]
-        declaration = declarations_of(component.element, VariableKind.STATE).get(variable)
+        declaration = declarations_of(node.component_type, VariableKind.STATE).get(variable)
         if declaration is not None and (declaration.domain is None or declaration.domain is object):
             return value
         shape = np.shape(np.asarray(value))
@@ -520,7 +520,7 @@ class LayoutPass(BasePass):
         if role not in roles or not roles[role].variadic:
             error_msg = (
                 f'{node.path}.{variable} is declared per entry of {role!r}, which is not a variadic role of '
-                f'{node.component_type.__name__}. Declare the role with `role(variadic=True)`.'
+                f'{type(node.component).__name__}. Declare the role with `role(variadic=True)`.'
             )
             raise ValidationError(error_msg)
         entries = len(getattr(node.component, role))

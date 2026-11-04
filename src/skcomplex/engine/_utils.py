@@ -193,7 +193,8 @@ def _companions(name: str, variable: VariableSpec, default: object) -> dict[str,
 def declared_variables(part: object) -> dict[str, tuple[VariableSpec, object]]:
     """Return the declaration and the default of every state, parameter, and role of a part, with companion states.
 
-    A companion state follows the state it belongs to.
+    A companion state follows the state it belongs to. An instance adds the variables it declares from data, whose
+    default is their value.
 
     Args:
         part:
@@ -223,7 +224,14 @@ def declared_variables(part: object) -> dict[str, tuple[VariableSpec, object]]:
     if not issubclass(cls, BasePart):
         error_msg = f'{cls.__name__} is not a part, so it declares no variables.'
         raise TypeError(error_msg)
-    return dict(_class_variables(cls))
+    variables = dict(_class_variables(cls))
+    if isinstance(part, BasePart):
+        for name, declared in part._get_declared().items():
+            variable = _variable_of(declared.spec)
+            variables[name] = (variable, declared.value)
+            if variable.kind == VariableKind.STATE:
+                variables.update(_companions(name, variable, declared.value))
+    return variables
 
 
 @functools.cache

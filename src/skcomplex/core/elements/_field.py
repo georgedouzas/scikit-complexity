@@ -116,7 +116,7 @@ class FieldElement(LatticeElement):
 
     def _tensor_of(self, state: str) -> TensorSpec | None:
         """Return the independent components of a tensor state of the element, or `None` for any other state."""
-        spec = self.element._get_specs().get(state)
+        spec = self._get_member_specs().get(state)
         if not isinstance(spec, StateSpec) or spec.tensor is None:
             return None
         return TensorSpec(spec.tensor, int(cast(BaseSpace, self.space).check().prepare().n_dim_)).check()
