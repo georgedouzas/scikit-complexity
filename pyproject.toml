@@ -119,6 +119,7 @@ tests = [
     "pytest-xdist>=3.6.1",
     "quantecon>=0.10",
     "pytest-markdown-docs>=0.9.2",
+    "toponetx>=0.4.0",
 ]
 changelog = [
     "git-changelog>=2.5.2",

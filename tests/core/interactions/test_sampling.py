@@ -5,15 +5,24 @@ from typing import Annotated
 
 import numpy as np
 import pytest
+from sage.all__sagemath_symbolics import cos, pi
+from scipy.special import iv
 
-from skcomplex.core.elements import Element, LatticeElement
+from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import SamplingInteraction
-from skcomplex.core.laws.utils import neighbors
-from skcomplex.core.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
+from skcomplex.core.laws.utils import exterior_derivative, neighbors
+from skcomplex.core.spaces import (
+    CellComplexSpace,
+    CofaceNeighborhood,
+    DiscreteTime,
+    LatticeSpace,
+    VonNeumannNeighborhood,
+)
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 SIDE = 16
 
@@ -30,6 +39,35 @@ class SiteElement(Element):
     ) -> None:
         super().__init__(label, visual=visual)
         self.s = s
+
+
+class AngleLinkElement(Element):
+    """Link with an angle `theta` and a coupling `beta`."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
+        beta: Annotated[float, ParameterSpec()] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.beta = beta
+
+
+def _wilson(namespace):
+    """Return the local energy of a link with the plaquettes that contain it."""
+    theta = namespace.target.theta
+    return -namespace.target.beta * neighbors(cos(exterior_derivative(theta)), over=CofaceNeighborhood())
+
+
+def _link_system(shape, sampling, values):
+    """Return a system of a group on the edges of the complex of a lattice, sampled by an interaction."""
+    space = CellComplexSpace(LatticeSpace(shape)).check().prepare()
+    links = GroupElement('links', element=AngleLinkElement, space=space, on='edges', values=values)
+    return space, System(elements=[links], interactions=[sampling], time=DiscreteTime())
 
 
 def _ising(namespace):
@@ -206,3 +244,112 @@ def test_check_cooling_not_callable() -> None:
     """Test that a cooling that is no function is refused."""
     with pytest.raises(ValidationError, match='cooling'):
         SamplingInteraction('a', target='g', state='x', objective=_quadratic_energy, cooling=0.5).check()
+
+
+def test_two_dimensional_u1_reproduces_the_exact_plaquette():
+    """Test that 4000 sweeps after 1000 of transient on a 32 by 32 lattice give `I_1(2) / I_0(2)` within 0.01."""
+    sampling = SamplingInteraction(
+        'wilson',
+        target='links',
+        state='theta',
+        objective=_wilson,
+        move='rotate',
+        width=1.5,
+        schedule='colored',
+    )
+    initial = np.random.default_rng(0).uniform(-np.pi, np.pi, 2048)
+    space, system = _link_system((32, 32), sampling, {'theta': initial})
+    trajectory = Simulation(system, random_state=3).check().prepare().run(until=5000).trajectory_
+    states = trajectory.values('links.theta')
+    plaquettes = np.cos(space.incidences_[1] @ states.T).mean(axis=0)
+    assert abs(plaquettes[1001:].mean() - iv(1, 2) / iv(0, 2)) < 0.01
+
+
+def test_z3_heat_bath_is_reproducible_with_a_seed():
+    """Test that a Z_3 link model sampled by heat bath gives identical link values at every frame for one seed."""
+    values = [0.0, 2 * np.pi / 3, 4 * np.pi / 3]
+    sampling = SamplingInteraction(
+        'wilson',
+        target='links',
+        state='theta',
+        objective=_wilson,
+        move='random-value',
+        values=values,
+        rule='heat-bath',
+        schedule='colored',
+    )
+    initial = np.random.default_rng(1).choice(values, 72)
+    first = Simulation(_link_system((6, 6), sampling, {'theta': initial})[1], random_state=5)
+    second = Simulation(_link_system((6, 6), sampling, {'theta': initial})[1], random_state=5)
+    other = Simulation(_link_system((6, 6), sampling, {'theta': initial})[1], random_state=6)
+    frames = [item.check().prepare().run(until=20).trajectory_.values('links.theta') for item in (first, second, other)]
+    assert np.array_equal(frames[0], frames[1])
+    assert not np.array_equal(frames[0], frames[2])
+    assert set(np.round(np.mod(frames[0][-1], 2 * np.pi), 6)) <= set(np.round(values, 6))
+
+
+def test_colored_schedule_on_an_odd_lattice_updates_links_that_share_no_face():
+    """Test that no two links of a class of the complex of a lattice with 15 sites along one axis share a plaquette."""
+    sampling = SamplingInteraction(
+        'wilson',
+        target='links',
+        state='theta',
+        objective=_wilson,
+        move='rotate',
+        schedule='colored',
+    )
+    space, system = _link_system((15, 8), sampling, {})
+    classes = compile_system(system).lattice[0].classes
+    assert sorted(np.concatenate(classes).tolist()) == list(range(240))
+    faces = abs(space.incidences_[1]).tocsr()
+    for links in classes:
+        assert faces[:, links].sum(axis=1).max() == 1
+
+
+def test_sampling_of_links_rejects_a_cluster_move():
+    """Test that cluster moves take no objective over cofaces."""
+    sampling = SamplingInteraction(
+        'wilson',
+        target='links',
+        state='theta',
+        objective=_wilson,
+        move='cluster',
+        schedule='colored',
+    )
+    _, system = _link_system((4, 4), sampling, {})
+    with pytest.raises(ValidationError, match='cluster moves'):
+        compile_system(system)
+
+
+def test_sampling_of_links_reads_only_the_moved_state_around_a_face():
+    """Test that an objective over cofaces reads the oriented sum of the moved state alone."""
+    sampling = SamplingInteraction(
+        'wilson',
+        target='links',
+        state='theta',
+        objective=lambda n: neighbors(cos(exterior_derivative(2 * n.target.theta)), over=CofaceNeighborhood()),
+        move='rotate',
+        schedule='colored',
+    )
+    _, system = _link_system((4, 4), sampling, {})
+    with pytest.raises(ValidationError, match='only the moved state'):
+        compile_system(system)
+
+
+def test_sampling_of_links_only_sums_over_cofaces():
+    """Test that another reduction than a sum over the cofaces raises an error naming it."""
+    sampling = SamplingInteraction(
+        'wilson',
+        target='links',
+        state='theta',
+        objective=lambda n: neighbors(
+            cos(exterior_derivative(n.target.theta)),
+            over=CofaceNeighborhood(),
+            reduce='mean',
+        ),
+        move='rotate',
+        schedule='colored',
+    )
+    _, system = _link_system((4, 4), sampling, {})
+    with pytest.raises(ValidationError, match='only sums'):
+        compile_system(system)

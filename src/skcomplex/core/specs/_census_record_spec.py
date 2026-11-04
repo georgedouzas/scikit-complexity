@@ -5,7 +5,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 
 from ...specs._base_spec import BaseSpec
 from ...specs._entry_spec import EntrySpec
@@ -56,6 +57,10 @@ class CensusRecordSpec(BaseSpec):
 
         handles:
             The handles of Wiener processes that the law uses outside the process of a noise law.
+
+        degrees:
+            The degree of the cells of every symbol the law reads of a group on a cell complex, by the name of the
+            symbol.
     """
 
     path: str
@@ -70,3 +75,4 @@ class CensusRecordSpec(BaseSpec):
     reads: tuple[frozenset[tuple[str, int]], ...] = ()
     members: int = 1
     handles: tuple[str, ...] = ()
+    degrees: Mapping[str, int] = field(default_factory=dict, compare=False)

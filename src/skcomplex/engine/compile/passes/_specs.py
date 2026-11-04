@@ -20,7 +20,16 @@ from ....core.interactions import (
     NeighborInteraction,
     PairInteraction,
 )
-from ....core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace, PhaseSpace
+from ....core.spaces import (
+    BaseSpace,
+    CayleySpace,
+    CellComplexSpace,
+    ContinuousSpace,
+    LatticeSpace,
+    MeshSpace,
+    NetworkSpace,
+    PhaseSpace,
+)
 from ....core.specs import NodeSpec
 from ....errors import LabelError, RoleError, ValidationError
 from ....specs import EntrySpec, NeighborReadSpec, WienerProcessSpec
@@ -342,8 +351,10 @@ class SpecsPass(BasePass):
 
         A field on a position lattice is read by the target on a phase space with that position, broadcast along its
         class axes. A field on a phase space is read member by member by a target on a position lattice, whose laws read
-        its moments.
+        its moments. A group on a cell complex is read member by member by the exterior calculus of the target.
         """
+        if index is None and block.node.members is not None and isinstance(block.node.space, CellComplexSpace):
+            return SpecsPass._namespace(block, ReadKind.MEMBER)
         place = block.node.component
         targets = [item.node.component for item in bound.values() if isinstance(item.node.component, FieldElement)]
         if index is not None or not isinstance(place, FieldElement) or not targets:

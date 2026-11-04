@@ -7,6 +7,8 @@ from ._adjacency import AdjacencyNeighborhood
 from ._base import BaseNeighborhood, BaseSpace, BaseTime
 from ._box import BoxNeighborhood
 from ._cayley import CayleySpace
+from ._cell_complex import CellComplexSpace
+from ._coface import CofaceNeighborhood
 from ._cone import ConeNeighborhood
 from ._continuous import ContinuousSpace
 from ._continuous_time import ContinuousTime
@@ -32,6 +34,8 @@ __all__: list[str] = [
     'BaseTime',
     'BoxNeighborhood',
     'CayleySpace',
+    'CellComplexSpace',
+    'CofaceNeighborhood',
     'ConeNeighborhood',
     'ContinuousSpace',
     'ContinuousTime',

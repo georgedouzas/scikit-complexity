@@ -32,7 +32,7 @@ from ....core.laws import (
     UpdateLaw,
 )
 from ....core.laws.utils import distribute_operators, hyperedges_in, laplacian, neighborhoods_in, reductions_in, shifted
-from ....core.spaces import LatticeSpace
+from ....core.spaces import CellComplexSpace, LatticeSpace
 from ....core.specs import CensusRecordSpec, CensusSpec, NodeSpec
 from ....core.system import System
 from ....errors import SkcomplexError, TensorShapeError, TensorSymmetryError, ValidationError
@@ -50,6 +50,7 @@ from .._field_lowering import FieldLowering
 from .._observables import ObservableEvaluator
 from .._observer import Observer
 from .._renewal_law import RenewalLaw
+from ._cells import DEGREES
 from ._hyperedges import HYPEREDGE_LAWS, HyperedgeTables
 from ._layout import LayoutPass
 from ._noise import NoisePass
@@ -148,6 +149,22 @@ class CensusPass(BasePass):
         return (reference.entry,) if reference is not None and reference.is_state else ()
 
     @staticmethod
+    def _cell_degrees(spec: KernelSpec, declarations: DeclarationsSpec) -> dict[str, int]:
+        """Return the degree of the cells of every symbol of a spec that reads a group on a cell complex by member.
+
+        A law that runs once per edge reads both ends and the edge, so it holds no degree of its own.
+        """
+        if spec.pairs is not None:
+            return {}
+        degrees = {}
+        for item, reference in spec.references.items():
+            block = declarations.blocks.get(reference.entry.name.rpartition('.')[0])
+            part = getattr(block.node.component, 'on', None) if block is not None else None
+            if block is not None and isinstance(block.node.space, CellComplexSpace) and part in DEGREES:
+                degrees[str(item)] = DEGREES[part]
+        return degrees
+
+    @staticmethod
     def _records_of(
         block: BlockSpec,
         elements: dict[str, BlockSpec],
@@ -180,6 +197,7 @@ class CensusPass(BasePass):
                         SpecsPass._group_space(elements.get(owner, block)),
                         members=spec.rows,
                         handles=CensusPass._handle_uses(law, declarations.handles),
+                        degrees=CensusPass._cell_degrees(spec, declarations),
                         processes=processes,
                         driven=driven,
                         reads=reads,

@@ -3,6 +3,7 @@
 from ._alignment import AlignmentAnalysis
 from ._automata import AutomatonAnalysis
 from ._base import BaseAnalysis
+from ._cell_complex import CellComplexAnalysis
 from ._clusters import ClusterAnalysis
 from ._coarse_grain import CoarseGrainAnalysis
 from ._collapse import CollapseAnalysis
@@ -53,6 +54,7 @@ __all__: list[str] = [
     'AlignmentAnalysis',
     'AutomatonAnalysis',
     'BaseAnalysis',
+    'CellComplexAnalysis',
     'ClusterAnalysis',
     'CoarseGrainAnalysis',
     'CollapseAnalysis',

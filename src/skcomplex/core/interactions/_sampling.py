@@ -33,14 +33,16 @@ class SamplingInteraction(Interaction):
     members number as many as the members, each cluster grown from a random member through the bonds to neighbours
     with probability `1 - exp(min(0, -intensity * (f(-s, n) - f(s, n))))`, where `f(s, n)` is the term of the local
     objective of a member of value `s` with a neighbour of value `n`. It takes an objective of such pair terms that the
-    flip of both values keeps, and ignores the rule and the schedule.
+    flip of both values keeps, and ignores the rule and the schedule. A group on the edges of a cell complex takes a
+    local objective that sums over `CofaceNeighborhood`, inside which `exterior_derivative` of the state is the oriented
+    sum around the one face, and its `'colored'` schedule updates together only links that share no face.
 
     Args:
         label:
             The label of the interaction, unique among the parts of its system.
 
         target:
-            The path of the group on the sites of a lattice or the nodes of a network.
+            The path of the group on the sites of a lattice, the nodes of a network, or the edges of a cell complex.
 
         state:
             The name of the state the moves change.
@@ -98,6 +100,22 @@ class SamplingInteraction(Interaction):
         >>> states = Simulation(system, random_state=0).check().prepare().run(until=20).trajectory_.states
         >>> bool(abs(states[-1].mean()) > 0.9)
         True
+        >>> from sage.all__sagemath_symbolics import cos
+        >>> from skcomplex.core.elements import GroupElement
+        >>> from skcomplex.core.laws.utils import exterior_derivative
+        >>> from skcomplex.core.spaces import CellComplexSpace, CofaceNeighborhood
+        >>> class LinkElement(Element):
+        ...     def __init__(self, label, theta: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
+        ...         self.theta = theta
+        >>> wilson = lambda n: -neighbors(cos(exterior_derivative(n.target.theta)), over=CofaceNeighborhood())
+        >>> gauge = SamplingInteraction(
+        ...     'wilson', target='links', state='theta', objective=wilson, move='rotate', schedule='colored'
+        ... )
+        >>> links = GroupElement('links', element=LinkElement, space=CellComplexSpace(LatticeSpace((4, 4))), on='edges')
+        >>> system = System(elements=[links], interactions=[gauge], time=DiscreteTime())
+        >>> Simulation(system, random_state=0).check().prepare().run(until=2).trajectory_.states.shape
+        (3, 32)
     """
 
     def __init__(

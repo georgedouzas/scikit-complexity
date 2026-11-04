@@ -16,6 +16,8 @@ from ...core.spaces import (
     BaseNeighborhood,
     BaseSpace,
     CayleySpace,
+    CellComplexSpace,
+    CofaceNeighborhood,
     ConeNeighborhood,
     ContinuousSpace,
     LatticeNeighborhood,
@@ -39,6 +41,7 @@ _SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
     (AdjacencyNeighborhood, (NetworkSpace,)),
     ((LatticeNeighborhood, MemoryNeighborhood), (LatticeSpace, CayleySpace)),
     ((RadiusNeighborhood, NearestNeighborhood, ConeNeighborhood), (ContinuousSpace,)),
+    (CofaceNeighborhood, (CellComplexSpace,)),
 )
 """Spaces every kind of neighbourhood is read on."""
 
@@ -79,6 +82,9 @@ class NeighborhoodKernel(BaseKernel):
 
         time:
             The time symbol.
+
+        coefficients:
+            The factor of every pair of the search, such as the oriented entries of an incidence, or `None` for 1.
     """
 
     values_: None
@@ -95,6 +101,7 @@ class NeighborhoodKernel(BaseKernel):
         search: NeighborSearch,
         reads: dict[Expression, PairReadSpec],
         time: Expression,
+        coefficients: Array | None = None,
     ) -> None:
         self.symbol = symbol
         self.kind = kind
@@ -105,6 +112,7 @@ class NeighborhoodKernel(BaseKernel):
         self.search = search
         self.reads = reads
         self.time = time
+        self.coefficients = coefficients
 
     @functools.cached_property
     def _symbols(self) -> list[Expression]:
@@ -173,6 +181,8 @@ class NeighborhoodKernel(BaseKernel):
             active = argument != 0
             q[self.entry.indices] = self._components_of(self.kind, readers[active], others[active], size)
             return
+        if self.coefficients is not None:
+            weight = weight * self.coefficients
         q[self.entry.indices] = self._reduce_pairs(self.kind, readers, weight, argument, counts)
 
     @staticmethod
