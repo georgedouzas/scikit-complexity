@@ -232,8 +232,6 @@ ignore-vulns = ["PYSEC-2022-42969"]
 [tool.deptry]
 # The gallery tooling lives in `docs` and is imported by its tests with `docs` on the path.
 known_first_party = ["gallery_tools"]
-# The metabolism family imports the libraries of the optional extra on first use.
-optional_dependencies_dev_groups = []
 
 [tool.deptry.package_module_name_map]
 passagemath-polyhedra = "sage"
@@ -333,6 +331,7 @@ allow_indirect_imports = true
 ignore_imports = [
     "skcomplex.models.** -> skcomplex.core.*",
     "skcomplex.models.** -> skcomplex.core.laws.utils",
+    "skcomplex.models.** -> skcomplex.analysis.types",
     "skcomplex.models.** -> skcomplex.engine.*",
 ]
 

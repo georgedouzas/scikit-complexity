@@ -108,6 +108,7 @@ class LinearProgramKernel(BaseKernel):
         self._side_rows = sorted({item.position for item in program.sides if item.kind not in COLUMN_KINDS})
         self.solves_ = 0
         self._models: dict[int, highspy.Highs] = {}
+        self._bounds: dict[int, tuple[Array, Array]] = {}
         self._key: tuple[float, bytes] | None = None
         self._last: Array | None = None
         self._first_solution: highspy.HighsSolution | None = None
@@ -198,7 +199,12 @@ class LinearProgramKernel(BaseKernel):
         """Change only the bounds of a model, and open the rows that fix objectives."""
         program = self.program
         columns = len(program.names)
-        model.changeColsBounds(columns, np.arange(columns), self.lower_[member], self.upper_[member])
+        lower, upper = self.lower_[member], self.upper_[member]
+        last = self._bounds.get(member)
+        changed = np.arange(columns) if last is None else np.flatnonzero((last[0] != lower) | (last[1] != upper))
+        if changed.size:
+            model.changeColsBounds(changed.size, changed, lower[changed], upper[changed])
+        self._bounds[member] = (lower, upper)
         for row in self._side_rows:
             model.changeRowBounds(row, self.row_lower_[member, row], self.row_upper_[member, row])
         start = len(program.row_lower) + len(program.parts)
@@ -244,6 +250,21 @@ class LinearProgramKernel(BaseKernel):
         )
         raise InfeasibleError(error_msg)
 
+    @staticmethod
+    def _solved_status(model: highspy.Highs) -> highspy.HighsModelStatus:
+        """Run a model, and when a warm start ends without an answer, run it from no basis, then also with presolve."""
+        model.run()
+        status = model.getModelStatus()
+        for presolve in ('off', 'on'):
+            if status == highspy.HighsModelStatus.kOptimal or status in INFEASIBLE_STATUSES:
+                break
+            model.clearSolver()
+            model.setOptionValue('presolve', presolve)
+            model.run()
+            status = model.getModelStatus()
+        model.setOptionValue('presolve', 'off')
+        return status
+
     def _objective_values(self, model: highspy.Highs, costs: Array) -> list[float] | None:
         """Solve the objectives in order, each kept near its optimum, and return their values, or `None` for none."""
         program = self.program
@@ -253,8 +274,7 @@ class LinearProgramKernel(BaseKernel):
         start = len(program.row_lower) + len(program.parts)
         for index in range(max(1, costs.shape[0])):
             model.changeColsCost(columns, positions, costs[index] if costs.size else np.zeros(columns))
-            model.run()
-            status = model.getModelStatus()
+            status = self._solved_status(model)
             if status in INFEASIBLE_STATUSES:
                 return None
             if status != highspy.HighsModelStatus.kOptimal:

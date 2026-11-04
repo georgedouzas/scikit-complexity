@@ -61,8 +61,9 @@ class CoSimulationSolver(Solver):
     split adds an error of the order of `sync_dt`. A discrete partition that holds a linear program takes one step per
     synchronisation interval, whatever its length, so the program solves at every synchronisation point. A law of one
     partition that reads a reduction of the agents of another, such as `count(s.farmers)`, reads the value the
-    scheduler computes at every synchronisation point and holds until the next. Gauss-Seidel advances the partitions in system order, each reading the values the partitions
-    before it already advanced. Jacobi advances every partition from the same values.
+    scheduler computes at every synchronisation point and holds until the next. Gauss-Seidel advances the partitions in
+    system order, each reading the values the partitions before it already advanced. Jacobi advances every partition
+    from the same values.
 
     Args:
         solvers:

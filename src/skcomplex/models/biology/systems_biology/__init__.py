@@ -8,6 +8,8 @@ from ._cascades import GProteinElement, hormone_cascade_amplifier
 from ._clocks import PerClockElement, circadian_clock
 from ._generalized_mass_action import GeneralizedMassActionInteraction
 from ._genes import GeneElement, negative_autoregulation, repressilator, toggle_switch
+from ._labelling import LabellingAnalysis
+from ._labelling_specs import AtomMapSpec, FragmentSpec, LabelMeasurementSpec, TracerSpec
 from ._min_proteins import MinSkeletonElement, min_protein_skeleton
 from ._networks import biochemical_systems_theory, goodwin_oscillator, phosphorylation_oscillator
 from ._phosphorylation_loop import PhosphorylationLoopElement
@@ -20,11 +22,15 @@ from ._species import SpeciesElement
 from ._threshold_function import ThresholdFunctionInteraction
 
 __all__: list[str] = [
+    'AtomMapSpec',
     'BooleanFunctionInteraction',
     'BooleanNodeElement',
+    'FragmentSpec',
     'GProteinElement',
     'GeneElement',
     'GeneralizedMassActionInteraction',
+    'LabelMeasurementSpec',
+    'LabellingAnalysis',
     'MinSkeletonElement',
     'PerClockElement',
     'PhosphorylationLoopElement',
@@ -34,6 +40,7 @@ __all__: list[str] = [
     'SSystemInteraction',
     'SpeciesElement',
     'ThresholdFunctionInteraction',
+    'TracerSpec',
     'biochemical_systems_theory',
     'boolean_repressilator',
     'circadian_clock',
