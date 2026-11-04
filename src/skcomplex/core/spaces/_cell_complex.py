@@ -71,6 +71,12 @@ class CellComplexSpace(NetworkSpace):
             The diagonal of the Hodge star of every degree, the ratio of dual to primal cell volumes on a lattice and 1
             on a network.
 
+        link_axes_:
+            The axis of every link of a lattice, empty on a network.
+
+        face_planes_:
+            The two axes of the plane of every plaquette of a lattice, empty on a network.
+
     Raises:
         SpaceError:
             A face uses a pair of nodes that the graph does not join, the network has a loop, or the lattice is not
@@ -215,6 +221,23 @@ class CellComplexSpace(NetworkSpace):
         if self.dimension >= CUBE_DIMENSION and place.n_dim_ >= CUBE_DIMENSION:
             self.incidences_ = (*self.incidences_, self._lattice_cubes(place, plaquettes))
         self.stars_ = self._lattice_stars(place, links, plaquettes)
+        self.link_axes_ = self._link_axes(links)
+        self.face_planes_ = self._face_planes(place, plaquettes)
+
+    def _link_axes(self, links: Indices) -> Indices:
+        """Return the axis of every link, from the table of the link of every axis and site."""
+        axes, sites = np.nonzero(links >= 0)
+        found = np.empty(axes.size, dtype=np.intp)
+        found[links[axes, sites]] = axes
+        return found
+
+    def _face_planes(self, place: LatticeSpace, plaquettes: Indices) -> Indices:
+        """Return the two axes of every plaquette, from the table of the plaquette of every plane and site."""
+        planes = np.asarray(list(itertools.combinations(range(place.n_dim_), 2)), dtype=np.intp).reshape(-1, 2)
+        numbers, sites = np.nonzero(plaquettes >= 0)
+        found = np.empty((numbers.size, 2), dtype=np.intp)
+        found[plaquettes[numbers, sites]] = planes[numbers]
+        return found
 
     def _lattice_stars(self, place: LatticeSpace, links: Indices, plaquettes: Indices) -> tuple[Array, ...]:
         """Return the ratio of dual to primal cell volumes of the sites, the links, and the plaquettes of a lattice."""
@@ -382,6 +405,8 @@ class CellComplexSpace(NetworkSpace):
         else:
             self.incidences_ = (self._edge_incidence(sources, targets), self._cycle_incidence(faces, sources, targets))
         self.stars_ = (np.ones(self.incidences_[0].shape[1]), np.ones(sources.size), np.ones(len(faces)))
+        self.link_axes_ = np.empty(0, dtype=np.intp)
+        self.face_planes_ = np.empty((0, 2), dtype=np.intp)
 
     def _coface_tables(self, matrix: scipy.sparse.csr_array) -> tuple[npt.NDArray[np.intp], Array]:
         """Return the cofaces of every cell of an incidence, padded with their number, and their signs."""

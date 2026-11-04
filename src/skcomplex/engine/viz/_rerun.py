@@ -28,6 +28,7 @@ from ._axes import AxisVisual
 from ._base import BaseVisual
 from ._bodies import BodiesVisual
 from ._cayley import CayleyVisual
+from ._cells import CellVisual
 from ._expectation import ExpectationVisual
 from ._histograms import HistogramVisual
 from ._images import ImageVisual
@@ -55,6 +56,7 @@ _VISUALS: dict[str, type[BaseVisual]] = {
     'axes': AxisVisual,
     'bodies': BodiesVisual,
     'cayley': CayleyVisual,
+    'cell': CellVisual,
     'expectations': ExpectationVisual,
     'histograms': HistogramVisual,
     'image': ImageVisual,
