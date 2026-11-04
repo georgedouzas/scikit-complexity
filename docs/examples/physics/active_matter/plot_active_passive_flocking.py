@@ -57,8 +57,8 @@ simulation = (
 # With every agent active in a box of packing fraction 0.3, the polarization `|<v>| / <|v|>` should rise above 0.9 under
 # alignment and stay near 0 without it. The right panel shows the mean distance between the active agents and between
 # the passive agents of the primary run. They stay within 0.3 of each other, so this view shows no segregation of the
-# groups. Silverberg et al. report segregation from random positions, but 300 agents with alignment 1 or 5 still had both
-# mean distances near 12.1 after 3000 time units, far beyond the budget of this example.
+# groups. Silverberg et al. report segregation from random positions, but 300 agents with alignment 1 or 5 still had
+# both mean distances near 12.1 after 3000 time units, far beyond the budget of this example.
 
 SETTINGS = {'until': 60.0, 'dt': 1.0, 'random_state': 1}
 fig, (order, distance) = plt.subplots(1, 2, figsize=(10, 4))
