@@ -7,10 +7,10 @@ bounded least-squares problem at every sample. The primary view shows the forced
 """
 
 # %%
-# The factory fits `ModeDecompositionAnalysis(dictionary=PolynomialFeatures(3), inputs=['input.u'])` to 20 runs of 200
-# samples each. The system then nests the controller under discrete time and the plant under continuous time, and
-# `CoSimulationSolver` holds the input between samples. One time unit of a run is one sample, 0.1 time units of the
-# Duffing oscillator.
+# The factory fits `ModeDecompositionAnalysis(dictionary=PolynomialFeatures(3), inputs=['input.u'])` to 100 runs of
+# 1000 samples each under a random binary input, as the review of Brunton et al. does. The system then nests the
+# controller under discrete time and the plant under continuous time, and `CoSimulationSolver` holds the input between
+# samples. One time unit of a run is one sample, 0.1 time units of the Duffing oscillator.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -60,7 +60,8 @@ observer.recording_.flush()
 def tracked(plant, *, controlled):
     """Return the times, the output, the reference, and the mean squared error of a run of a plant."""
     until = 300.0 if plant == 'motor' else 150.0
-    found = run(MODEL, plant=plant, controlled=controlled, settings={'until': until}).trajectory_
+    found = run(MODEL, plant=plant, controlled=controlled, n_runs=20, duration=200, settings={'until': until})
+    found = found.trajectory_
     output, reference = found.values('plant/state.y'), found.values('reference')
     return found.times, output, reference, np.mean((output - reference) ** 2)
 

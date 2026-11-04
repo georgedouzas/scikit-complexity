@@ -2,14 +2,15 @@
 # Next-generation reservoir computer
 
 A next-generation reservoir computer has no random weights and no hidden units. Each variable keeps its last value,
-and a ridge readout of the variables, their lags, and the products of those gives the next increment. Fitted to 20 time
+and a ridge readout of the variables, their lags, and the products of those gives the next increment. Fitted to 10 time
 units of the Lorenz flow, the readout then runs alone and follows the butterfly of the attractor.
 """
 
 # %%
-# The factory fits `ReservoirAnalysis(kind='next_generation', delay=2, order=2)` to 800 samples of the Lorenz flow, one
-# every 0.025, and writes its readout as one symbolic map per variable. One step of the system stands for one sample.
-# The primary view shows the three variables of the forecast.
+# The factory fits `ReservoirAnalysis(kind='next_generation', delay=2, order=2)` to 400 samples of the Lorenz flow, one
+# every 0.025, with the ridge 2.5e-6 on features that are not standardized, as Gauthier et al. (2021) do. It writes the
+# readout as one symbolic map per variable. One step of the system stands for one sample. The primary view shows the
+# three variables of the forecast.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -68,12 +69,12 @@ def lorenz_samples(samples):
         elements=[LorenzFlowElement('flow')],
         interactions=[RateInteraction(name, target='flow', state=name, rate=rate) for name, rate in rates.items()],
     )
-    solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
+    solver = ScipyODESolver(method='RK23', rtol=1e-3, atol=1e-6)
     run = Simulation(flow, solver=solver, dt=STEP).check().prepare().run(until=5.0 + STEP * (samples - 1)).trajectory_
     return np.column_stack([run.values(f'flow.{name}') for name in VARIABLES])[-samples:]
 
 
-TRAINED = 800
+TRAINED = 402
 HORIZON = 800
 values = lorenz_samples(TRAINED + HORIZON + 1)
 trained = create(MODEL, series=values[: TRAINED + 1])

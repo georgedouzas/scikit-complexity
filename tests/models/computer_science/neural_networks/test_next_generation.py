@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+from scipy.integrate import solve_ivp
 from sklearn.base import clone
 
 from skcomplex.analysis import ReservoirAnalysis
@@ -16,33 +17,21 @@ LYAPUNOV_TIME = 1 / 0.9056
 VARIABLES = ['x', 'y', 'z']
 
 
-def _lorenz_samples(samples=3000, step=STEP):
-    """Return samples of the Lorenz flow on its attractor from a fine fourth-order Runge-Kutta integration."""
-    substeps = 10
-    state = np.array([1.0, 1.0, 1.0])
+def _lorenz_samples(samples=3000, step=STEP, method='RK23', tolerances=(1e-3, 1e-6)):
+    """Return samples of the Lorenz flow on its attractor, by the integrator of Gauthier et al. by default."""
 
-    def rate(values):
+    def rate(_, values):
         """Return the Lorenz rates."""
-        return np.array(
-            [
-                10.0 * (values[1] - values[0]),
-                values[0] * (28.0 - values[2]) - values[1],
-                values[0] * values[1] - 8.0 / 3.0 * values[2],
-            ],
-        )
+        return [
+            10.0 * (values[1] - values[0]),
+            values[0] * (28.0 - values[2]) - values[1],
+            values[0] * values[1] - 8.0 / 3.0 * values[2],
+        ]
 
-    rows = []
-    fine = step / substeps
-    for index in range(samples + 400):
-        for _ in range(substeps):
-            k1 = rate(state)
-            k2 = rate(state + fine / 2 * k1)
-            k3 = rate(state + fine / 2 * k2)
-            k4 = rate(state + fine * k3)
-            state = state + fine / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
-        if index >= 400:
-            rows.append(state.copy())
-    return np.asarray(rows)
+    times = step * np.arange(samples + 400)
+    rtol, atol = tolerances
+    found = solve_ivp(rate, (0.0, times[-1]), [1.0, 1.0, 1.0], t_eval=times, method=method, rtol=rtol, atol=atol)
+    return found.y.T[400:]
 
 
 def _forecast(system, steps, names=VARIABLES):
@@ -54,7 +43,7 @@ def _forecast(system, steps, names=VARIABLES):
 def test_next_generation_reservoir_forecasts_lorenz():
     """Test that the forecast stays within 10% of the attractor size for at least one Lyapunov time."""
     values = _lorenz_samples()
-    trained = 1600
+    trained = 402
     horizon = round(LYAPUNOV_TIME / STEP)
     system = next_generation_reservoir(values[: trained + 1], step=STEP)
     errors = np.linalg.norm(_forecast(system, horizon) - values[trained + 1 : trained + horizon + 1], axis=1)
@@ -63,9 +52,18 @@ def test_next_generation_reservoir_forecasts_lorenz():
 
 def test_next_generation_reservoir_agrees_with_analysis():
     """Test that the forecast of the system agrees with the forecast of the same analysis within 1e-6."""
-    values = _lorenz_samples()[:1201]
+    values = _lorenz_samples()[:403]
     horizon = round(LYAPUNOV_TIME / STEP)
-    analysis = ReservoirAnalysis(VARIABLES, delay=2, order=2, ridge=1e-4, validation=0.0, horizon=horizon, dt=STEP)
+    analysis = ReservoirAnalysis(
+        VARIABLES,
+        delay=2,
+        order=2,
+        ridge=2.5e-6,
+        standardize=False,
+        validation=0.0,
+        horizon=horizon,
+        dt=STEP,
+    )
     analysis.check().prepare(values).run()
     forecast = _forecast(next_generation_reservoir(analysis=analysis), horizon)
     assert np.abs(forecast - analysis.forecast_).max() < 1e-6 * np.ptp(values, axis=0).max()
@@ -79,6 +77,20 @@ def test_next_generation_reservoir_agrees_with_analysis_for_longer_delays():
     analysis.check().prepare(values).run()
     forecast = _forecast(next_generation_reservoir(analysis=analysis), 20, ['u', 'w'])
     assert np.abs(forecast - analysis.forecast_).max() < 1e-6
+
+
+def test_next_generation_reservoir_needs_standardized_features_for_an_accurate_series():
+    """Test that an accurate series diverges under the small ridge on raw features and forecasts when standardized."""
+    values = _lorenz_samples(method='DOP853', tolerances=(1e-10, 1e-10))
+    trained = 402
+    horizon = round(LYAPUNOV_TIME / STEP)
+    truth = values[trained + 1 : trained + horizon + 1]
+    limit = 0.1 * np.ptp(values, axis=0).max()
+    standardized = next_generation_reservoir(values[: trained + 1], standardize=True)
+    assert np.linalg.norm(_forecast(standardized, horizon) - truth, axis=1).max() < limit
+    raw = ReservoirAnalysis(VARIABLES, ridge=2.5e-6, standardize=False, validation=0.0, horizon=horizon, dt=STEP)
+    forecast = raw.check().prepare(values[: trained + 1]).run().forecast_
+    assert not np.linalg.norm(forecast - truth, axis=1).max() < limit
 
 
 def test_next_generation_reservoir_keeps_lags_of_every_variable():

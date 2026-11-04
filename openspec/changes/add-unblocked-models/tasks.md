@@ -9,7 +9,7 @@
 
 - [x] 2.1 Add `szabo_cells` to `physics/active_matter` on `RateInteraction` and `neighbors` over a radius, and verify
   the collective order scenario
-- [ ] 2.2 Add `active_passive_flocking` to `physics/active_matter` on `PointElement`, `PairCouplingInteraction`, and
+- [x] 2.2 Add `active_passive_flocking` to `physics/active_matter` on `PointElement`, `PairCouplingInteraction`, and
   `RateInteraction`, and verify the flock and the gathering of active agents scenarios
 - [x] 2.3 Add `koopman_model_predictive_control` to `engineering/control` with the three plants, the fit, and the
   co-simulated controller, and verify the surrogate predictive control scenario for each plant
@@ -19,6 +19,6 @@
 
 ## 3. Gallery and gate
 
-- [ ] 3.1 Add a curated gallery example per model with a review row, set the four inventory entries to implemented with
+- [x] 3.1 Add a curated gallery example per model with a review row, set the four inventory entries to implemented with
   the tags of the systems they build, and verify the inventory check passes
 - [ ] 3.2 Run formatting, checks, the docs build, and tests through nox, and verify all of them pass

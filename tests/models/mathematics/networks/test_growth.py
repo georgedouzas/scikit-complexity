@@ -74,7 +74,7 @@ def test_popularity_similarity_network_degrees_are_heavy_tailed_and_clustered(se
 def test_popularity_similarity_network_renormalizes_geometrically_with_its_exponent(seed: int):
     """Test that the degree exponent stays within 0.2 of the original at three geometric scales."""
     trajectory = _similarity_trajectory(2000, seed, exponent=2.5)
-    exponents = RenormalizationAnalysis('geometric', steps=3).check().prepare(trajectory).run().exponents_
+    exponents = RenormalizationAnalysis('geometric', steps=3, beta=5.0).check().prepare(trajectory).run().exponents_
     assert np.abs(exponents[1:] - exponents[0]).max() <= 0.2
 
 

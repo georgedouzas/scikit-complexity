@@ -35,7 +35,9 @@ simulation = (
 # -------------------------------
 # An `Experiment` sweeps the size of the city at three rates of internal links, and `ScalingAnalysis(kind='allometric')`
 # fits the exponent of the meetings with a confidence interval. Without internal links the exponent stays near 1, and
-# it rises with the rate of the internal links.
+# it rises with the rate of the internal links. This rate per resident is the assumption of this model, and it sets the
+# exponent. Papadopoulos et al. (2015) add a fixed number of internal links per step, which keeps the mean degree
+# constant.
 
 sizes = [100, 200, 400, 800]
 seeds = [0, 1, 2]

@@ -26,8 +26,9 @@ from ....specs import StateSpec
 from ....types import Array
 from ..._catalog import register_model
 
-LORENZ_START = (1.0, 1.0, 1.0)
+LORENZ_START = (-8.0, 8.0, 27.0)
 LORENZ_TRANSIENT = 5.0
+LORENZ_RTOL, LORENZ_ATOL = 1e-3, 1e-6
 LORENZ_VARIABLES = ('x', 'y', 'z')
 REQUIRED_KIND = 'next_generation'
 
@@ -80,7 +81,7 @@ def _lorenz_series(samples: int, step: float, sigma: float = 10.0, rho: float = 
         interactions=[RateInteraction(name, target='flow', state=name, rate=rate) for name, rate in rates.items()],
         time=ContinuousTime(),
     )
-    solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
+    solver = ScipyODESolver(method='RK23', rtol=LORENZ_RTOL, atol=LORENZ_ATOL)
     simulation = Simulation(system, solver=solver, dt=step).check().prepare()
     trajectory = simulation.run(until=LORENZ_TRANSIENT + step * (samples - 1)).trajectory_
     values: Array = np.column_stack(
@@ -132,7 +133,7 @@ def _increment(
     scale: Array,
     spread: float,
 ) -> Expression:
-    """Return the increment of a variable, the ridge readout of the monomials of the standardized lagged variables."""
+    """Return the increment of a variable, the ridge readout of the monomials of the rescaled lagged variables."""
     linear = [
         (lag(getattr(s.target, name), steps) - mean[index]) / scale[index]
         for steps in range(delay)
@@ -151,6 +152,7 @@ def _fit_reservoir(
     delay: int,
     order: int,
     ridge: float,
+    standardize: bool,
     samples: int,
     step: float,
 ) -> ReservoirAnalysis:
@@ -162,6 +164,7 @@ def _fit_reservoir(
         delay=delay,
         order=order,
         ridge=ridge,
+        standardize=standardize,
         validation=0.0,
         dt=step,
     )
@@ -181,16 +184,21 @@ def next_generation_reservoir(
     variables: Sequence[str] = LORENZ_VARIABLES,
     delay: int = 2,
     order: int = 2,
-    ridge: float = 1e-4,
-    samples: int = 800,
+    ridge: float = 2.5e-6,
+    standardize: bool = False,
+    samples: int = 403,
     step: float = 0.025,
 ) -> System:
     """Return a next-generation reservoir computer whose variables follow the ridge readout of their monomials.
 
     Every variable keeps `delay - 1` lags, and one map in the increment mode adds to it the readout of the constant, the
-    standardized variables with their lags, and the monomials of degree `order` of those. The readout comes from a
-    fitted `ReservoirAnalysis(kind='next_generation')`, and the variables start at the end of its last series, so a run
-    is the autonomous forecast from there. One step of the system stands for one sample of the series.
+    variables with their lags, and the monomials of degree `order` of those. The readout comes from a fitted
+    `ReservoirAnalysis(kind='next_generation')`, and the variables start at the end of its last series, so a run is the
+    autonomous forecast from there. One step of the system stands for one sample of the series. The defaults are those
+    of Gauthier et al. (2021) for the Lorenz flow: 400 training samples after a warmup of 2, one sample every 0.025 from
+    an explicit Runge-Kutta 3(2) integrator, and the ridge 2.5e-6 on features that are not standardized. A ridge this
+    small on these features diverges within one Lyapunov time when a series comes from a much more accurate integrator,
+    and such a series needs `standardize=True`.
 
     Args:
         series:
@@ -211,6 +219,9 @@ def next_generation_reservoir(
 
         ridge:
             The strength of the ridge penalty.
+
+        standardize:
+            Whether the features read the standardized variables.
 
         samples:
             The number of samples of the Lorenz flow.
@@ -240,6 +251,7 @@ def next_generation_reservoir(
         delay=delay,
         order=order,
         ridge=ridge,
+        standardize=standardize,
         samples=samples,
         step=step,
     )

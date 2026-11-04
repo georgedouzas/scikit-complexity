@@ -55,9 +55,8 @@ Recorded on 2026-11-04 when the change was applied.
   block models. The taller peak, at the time 0.2, merges nothing, and the merge happens at the second, at the time 27.
   The kind takes the smallest peak at which at least one pair of nodes joins, and a network with no such peak stays as
   it is.
-- **Supernode angle.** A geometric supernode takes the mean angle of its nodes. The review weighs it by the hidden
-  degrees, which an analysis of a graph does not have. The mean keeps the order of the blocks, which the next scale
-  reads.
+- **Supernode angle.** A geometric supernode takes the mean of the angles of its nodes weighted by `z = k^max(1, beta)`
+  with the degree `k`, as the findings below record.
 - **Meetings.** A `MapInteraction` in the agent form cannot share a system with `TopologyInteraction`, since no form
   takes `RuleLaw` next to `UpdateLaw` (`laws-mixed`), and a partition cannot help because both target the residents.
   The meetings are a symbolic map with the draw `binom(degree, meeting)`, which has the same distribution as one
@@ -95,10 +94,10 @@ temperature `T`, with the radial coordinates `r = 2 ln(t - age)` faded by the po
 `1 - logistic(x, R, 2 T)` with the core utility `logistic`.
 
 `urban_scaling_interactions` grows each city the same way and adds internal links between existing residents with
-`TopologyInteraction(action='add-edge')` toward the same weight, as the extended model of Papadopoulos et al. (2015)
-does, so the mean degree grows with the size. Its residents meet each neighbour with a probability per step through a
-`MapInteraction` in the agent form that counts the meetings. The two packages belong to different fields, so each writes
-the one-line distance of the published model.
+`TopologyInteraction(action='add-edge')` toward the same weight, at a rate per resident, so the mean degree grows with
+the size. This rule is the model's own, and the findings below compare it with the source. Its residents meet each
+neighbour with a probability per step through a `MapInteraction` that counts the meetings. The two packages belong to
+different fields, so each writes the one-line distance of the published model.
 
 ### Renormalization
 
@@ -107,7 +106,8 @@ the network of the last frame of a trajectory, with the node states as node attr
 - `'laplacian'` follows Villegas et al. (2023): the diffusion operator `exp(-time L)` at the time where the specific
   heat peaks, or at `time`, merges every pair of nodes whose entry is at least the smaller of their diagonal entries.
 - `'geometric'` follows García-Pérez et al. (2018): blocks of `block` consecutive nodes in the order of their angle
-  merge, and two supernodes link when any of their nodes link.
+  merge, two supernodes link when any of their nodes link, and a supernode sits at the angle of equation 5 of the review
+  with the degrees for the hidden degrees.
 
 Both merge with `networkx.quotient_graph` and set `graphs_`, the network at every scale, and `degrees_`, `exponents_`,
 and `clustering_` per scale, with the exponents fitted as `NetworkAnalysis(kind='degrees')` fits them. The diffusion
@@ -120,6 +120,61 @@ on PyPI implements either renormalization, so the merge rules are written in hou
 `GridDesign` sweep over size, or two columns. It regresses the logarithm of every sample on the logarithm of its size
 with `scipy.stats.linregress`, sets `exponent_`, and sets `interval_` from `scipy.stats.bootstrap` over the pairs, with
 the new settings `confidence` and `resamples` and the existing `random_state`.
+
+## Findings against the sources
+
+Recorded on 2026-11-04 after reading the sources. The sources marked fetched are absent from `references/` and were read
+from arXiv.
+
+### popularity_similarity_network
+
+Papadopoulos et al. (2012, arXiv 1106.0286, fetched), and their summary in Papadopoulos et al. (2015, arXiv 1205.4384,
+fetched), section II, equations 1 and 2.
+
+- **Correct.** The radius `2 ln t`, the fading `r_s(t) = beta r_s + (1 - beta) r_t` with `beta = 1 / (gamma - 1)`, the
+  distance, the Fermi-Dirac probability, the cutoff `R_t` with `I_t = (1 - t^-(1 - beta)) / (1 - beta)`, and the complete
+  seed of `m + 1` nodes agree. The birth index of a candidate, `now - age`, is exact, because the engine applies topology
+  after the maps of the step. Drawing `m` nodes in proportion to `p` is the same law as the published rejection.
+- **Exponent.** The scenario stays at the measured 2.70, within the decision above. A NumPy implementation of the
+  published rule, fitted the same way, gives 2.71 to 2.73 at 2000 nodes, 2.69 to 2.76 at 8000, and 2.58 to 2.69 at 32000,
+  so the fit reads high at these sizes. The largest degree grows from about 185 to 425 to 1060, which is `N^0.63`, near
+  the `N^(1 / (gamma - 1)) = N^0.67` of the source's exponent 2.5.
+
+### urban_scaling_interactions: an open judgement
+
+Papadopoulos et al. (2015, arXiv 1205.4384, fetched), section II step 4, and Ribeiro and Netto (2024,
+`papers/2404.02642`), sections 3 and 4.
+
+- **The internal-link rule does not come from the source.** Step 4 reads: at every time, select a random disconnected
+  pair of existing nodes, connect it with the probability `p(x_kl)` at the current `R_t`, and repeat until `L` internal
+  links exist. `L` is fixed, so the mean degree is `2 (m + L)` and stays constant, and it does not grow with the size. The
+  model adds links per resident at a rate per step, to a partner drawn in proportion to `p`, so the links per step grow
+  with the population. The earlier text said the extended model makes the mean degree grow. It does not.
+- **Consequence.** The published rule gives a constant mean degree and so an exponent of the meetings near 1, which
+  would fail the scenario. The exponent above 1 comes entirely from the model's own rate per resident. The value 1.14 at
+  `internal = 0.002` is a tuned rate, and a mean degree `a + b N` has no constant exponent. This needs a decision by the
+  maintainer, so the code keeps its behaviour and its text now says what it does.
+- **The review.** Sections 3 and 4 say exponents of socioeconomic quantities lie near 1.15, that interactions grow
+  superlinearly, and that `Y ~ N^2 n_c` with the contact density `n_c = <k> / N` (equation 3). These agree with the model's
+  meetings `N <k> p`. The review has no hyperbolic growth. The inventory citation of section 4 covers the meaning of the
+  observable and not the network rule.
+
+### RenormalizationAnalysis
+
+The review (`papers/2412.12988`), sections 3 and 4, equations 5 and 10, García-Pérez et al. (2018, arXiv 1706.00394,
+fetched), equation 3, and Villegas et al. (2023, arXiv 2203.07230, fetched).
+
+- **Supernode angle, wrong.** Equation 5 of the review weighs the angles by `z = kappa^max(1, beta)`. García-Pérez et al.
+  write another form with `(theta kappa)^beta`, and they state that hidden degrees stay proportional to observed degrees,
+  so an analysis of a graph can use the degrees. The earlier note that it cannot was wrong. The kind
+  now uses `z = k^max(1, beta)` with a new setting `beta`, 1 by default. A popularity-similarity network of temperature
+  `T` has `beta = 1 / T`. The review's form was chosen because it is the newer of the two. The exponent stays within 0.2
+  of the original at three scales with `beta = 5`, the three seeds tested.
+- **Peak of the specific heat, correct.** Villegas et al. take "the C peak at short-times", so the smallest peak. The review
+  describes the two peaks of a block model and gives no other choice. The step past a peak that merges nothing is ours,
+  needed by the rule `rho_ij >= min(rho_ii, rho_jj)`, which agrees with the review and with Villegas et al.
+- **Merging, correct.** Two supernodes link when any of their nodes link (review, equation 2, and the binary decimation of
+  section 4). Blocks of consecutive nodes with no connection test agree with García-Pérez et al.
 
 ## Risks / Trade-offs
 

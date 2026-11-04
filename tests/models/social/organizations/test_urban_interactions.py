@@ -32,7 +32,7 @@ def _fit(internal: float) -> ScalingAnalysis:
 
 
 def test_urban_scaling_interactions_meetings_are_superlinear_with_internal_links():
-    """Test that the exponent of the meetings is above 1, and near the 1.15 of the review, with internal links."""
+    """Test that the exponent of the meetings is above 1 at the rate of internal links that this model assumes."""
     fit = _fit(0.002)
     assert fit.interval_[0] > 1.0
     assert fit.exponent_ == pytest.approx(1.14, abs=0.05)

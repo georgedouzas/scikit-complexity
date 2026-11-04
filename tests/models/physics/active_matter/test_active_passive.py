@@ -1,5 +1,7 @@
 """Test the `_active_passive` module of `skcomplex.models.physics.active_matter`."""
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
@@ -8,65 +10,123 @@ from skcomplex.errors import ValidationError
 from skcomplex.models import run
 from skcomplex.models.physics.active_matter import active_passive_flocking
 
+LAST_TEN_TIME_UNITS = 20
+
+
+def _distances(alpha, seed):
+    """Return the mean distances within the active and the passive agents at the end of a run of figure 10.7."""
+    settings = {'until': 50.0, 'dt': 0.5, 'random_state': seed}
+    found = run('active_passive_flocking', alpha=alpha, random_state=seed, settings=settings).trajectory_
+    return tuple(found.values(name)[-LAST_TEN_TIME_UNITS:].mean() for name in ('active_distance', 'passive_distance'))
+
 
 def test_active_passive_flocking_flocks_when_every_agent_is_active():
     """Test that the polarization of the velocities rises above 0.9 with every agent active and flocking on."""
-    settings = {'until': 100.0, 'dt': 1.0, 'random_state': 1}
-    polarization = run(
-        'active_passive_flocking',
-        active_share=1.0,
-        packing_fraction=0.3,
-        alpha=1.0,
-        noise=0.1,
-        settings=settings,
-    ).trajectory_.values('polarization')
+    settings = {'until': 30.0, 'dt': 0.5, 'random_state': 1}
+    found = run('active_passive_flocking', n_agents=114, n_active=114, settings=settings).trajectory_
+    polarization = found.values('polarization')
     assert polarization[0] < 0.3
-    assert polarization[-20:].mean() > 0.9
+    assert polarization[-LAST_TEN_TIME_UNITS:].mean() > 0.9
+
+
+@pytest.mark.parametrize('seed', [0, 1])
+def test_active_passive_flocking_gathers_active_agents_with_flocking_on(seed):
+    """Test that the settings of figure 10.7 bring the active agents closer together than the passive ones."""
+    active, passive = _distances(1.0, seed)
+    assert active < passive - 0.015
+
+
+@pytest.mark.parametrize('seed', [0, 1])
+def test_active_passive_flocking_does_not_gather_active_agents_with_flocking_off(seed):
+    """Test that without the flocking force the two mean distances stay within 0.01 of each other."""
+    active, passive = _distances(0.0, seed)
+    assert active == pytest.approx(passive, abs=0.01)
+
+
+def test_active_passive_flocking_keeps_passive_agents_near_rest():
+    """Test that passive agents move far slower than active ones, as the polar diagrams of figure 10.7 show."""
+    settings = {'until': 20.0, 'dt': 0.5, 'random_state': 0}
+    velocities = run('active_passive_flocking', n_agents=114, settings=settings).trajectory_.values('agents.x_d1')[-1]
+    speeds = np.linalg.norm(velocities, axis=-1)
+    assert speeds[:45].mean() > 3 * speeds[45:].mean()
 
 
 def test_active_passive_flocking_slows_passive_agents():
     """Test that passive agents without contact lose their speed at the rate of the propulsion."""
-    system = active_passive_flocking(4, active_share=0.25, alpha=0.0, noise=0.0, packing_fraction=0.001)
-    trajectory = Simulation(system, dt=1.0, random_state=0).check().prepare().run(until=10.0).trajectory_
-    speeds = np.linalg.norm(trajectory.values('passive.x_d1'), axis=-1)
-    assert np.all(speeds[-1] == pytest.approx(speeds[0] * np.exp(-0.05 * 10.0), rel=0.01))
+    system = active_passive_flocking(4, n_active=1, alpha=0.0, eta=0.0, size=100.0, initial_speed=0.1)
+    trajectory = Simulation(system, dt=0.05, random_state=0).check().prepare().run(until=0.2).trajectory_
+    speeds = np.linalg.norm(trajectory.values('agents.x_d1')[:, 1:], axis=-1)
+    assert speeds[-1] == pytest.approx(speeds[0] * np.exp(-10.0 * 0.2), rel=0.02)
 
 
 def test_active_passive_flocking_brings_active_agents_to_their_speed():
-    """Test that an active agent without contact, noise, or flocking relaxes to its preferred speed."""
-    system = active_passive_flocking(3, active_share=1.0, alpha=0.0, noise=0.0, packing_fraction=0.001, mu=1.0)
-    trajectory = Simulation(system, dt=1.0, random_state=0).check().prepare().run(until=20.0).trajectory_
-    assert np.linalg.norm(trajectory.values('active.x_d1')[-1], axis=-1) == pytest.approx(1.0, rel=1e-3)
+    """Test that an active agent without contact, noise, or flocking relaxes to its target speed."""
+    system = active_passive_flocking(3, n_active=3, alpha=0.0, eta=0.0, size=100.0)
+    trajectory = Simulation(system, dt=0.1, random_state=0).check().prepare().run(until=2.0).trajectory_
+    assert np.linalg.norm(trajectory.values('agents.x_d1')[-1], axis=-1) == pytest.approx(0.02, rel=1e-3)
 
 
-def test_active_passive_flocking_repels_overlapping_agents():
-    """Test that two overlapping passive agents separate under the Hertzian force."""
-    system = active_passive_flocking(3, active_share=1 / 3, alpha=0.0, noise=0.0, packing_fraction=0.01)
-    positions = np.array([[5.0, 5.0], [6.0, 5.0]])
-    trajectory = (
-        Simulation(
-            system,
-            dt=0.1,
-            initial_state={'passive.x': positions, 'passive.x_d1': np.zeros((2, 2))},
-        )
-        .check()
-        .prepare()
-        .run(until=0.1)
-        .trajectory_
+def test_active_passive_flocking_flocks_from_the_velocities_of_both_kinds_without_itself():
+    """Test that an active agent follows the velocity of a passive neighbour, and feels nothing with no neighbour."""
+    system = active_passive_flocking(2, n_active=1, v0=0.0, mu=0.0, eta=0.0, epsilon=0.0, size=1.0)
+    start = {'agents.x': np.array([[0.5, 0.5], [0.55, 0.5]]), 'agents.x_d1': np.array([[0.0, 0.0], [0.0, 1.0]])}
+    near = Simulation(system, dt=0.01, initial_state=start).check().prepare().run(until=0.01).trajectory_
+    assert near.values('agents.x_d1')[-1][0].tolist() == pytest.approx([0.0, 0.01], abs=1e-6)
+    alone = {'agents.x': np.array([[0.1, 0.1], [0.6, 0.6]]), 'agents.x_d1': np.array([[1.0, 0.0], [0.0, 1.0]])}
+    apart = Simulation(system, dt=0.01, initial_state=alone).check().prepare().run(until=0.01).trajectory_
+    assert apart.values('agents.x_d1')[-1][0].tolist() == pytest.approx([1.0, 0.0], abs=1e-6)
+
+
+def test_active_passive_flocking_repels_with_the_force_of_the_book():
+    """Test that the repulsion has the size `epsilon (1 - r / (2 r_0))^(3/2)` and pushes overlapping agents apart."""
+    system = active_passive_flocking(2, n_active=1, alpha=0.0, eta=0.0, mu=0.0)
+    gap = 0.025
+    start = {'agents.x': np.array([[0.5, 0.5], [0.5 + gap, 0.5]]), 'agents.x_d1': np.zeros((2, 2))}
+    final = Simulation(system, dt=1e-4, initial_state=start).check().prepare().run(until=1e-4).trajectory_
+    force = 25.0 * (1 - gap / 0.05) ** 1.5
+    assert final.values('agents.x_d1')[-1][1, 0] == pytest.approx(1e-4 * force, rel=1e-3)
+    assert final.values('agents.x_d1')[-1][0, 0] == pytest.approx(-1e-4 * force, rel=1e-3)
+
+
+def test_active_passive_flocking_marks_the_active_agents_first():
+    """Test that the group holds the given number of active agents first, the rest passive."""
+    system = active_passive_flocking(10, n_active=4)
+    assert system.elements[0].values['active'].tolist() == [1.0] * 4 + [0.0] * 6
+
+
+def test_active_passive_flocking_takes_the_noise_per_step_of_the_book():
+    """Test that the noise on a free agent has the variance per step of a uniform force of half-width `eta`."""
+    system = active_passive_flocking(
+        200,
+        n_active=200,
+        alpha=0.0,
+        v0=0.0,
+        mu=0.0,
+        epsilon=0.0,
+        eta=1.0,
+        initial_speed=0.0,
     )
-    final = trajectory.values('passive.x')[-1]
-    assert final[1, 0] - final[0, 0] > 1.0
+    trajectory = Simulation(system, dt=1.0, random_state=0).check().prepare().run(until=1.0).trajectory_
+    variance = trajectory.values('agents.x_d1')[-1].var()
+    assert variance == pytest.approx(100 * 0.01**2 / 3, rel=0.2)
 
 
 def test_active_passive_flocking_measures_distance_in_the_periodic_box():
     """Test that the observables record distances within half of the diagonal of the box."""
-    trajectory = run('active_passive_flocking', n_agents=40, settings={'until': 2.0}).trajectory_
-    size = active_passive_flocking(40).space.extent[0]
-    assert np.all(trajectory.values('active_distance') < size / np.sqrt(2))
+    trajectory = run('active_passive_flocking', n_agents=40, n_active=20, settings={'until': 2.0}).trajectory_
+    assert np.all(trajectory.values('active_distance') < 1.0 / np.sqrt(2))
     assert np.all(trajectory.values('passive_distance') > 0.0)
 
 
-def test_active_passive_flocking_rejects_no_active_agent():
-    """Test that a share that leaves no active agent raises an error naming it."""
-    with pytest.raises(ValidationError, match='no active agent'):
-        active_passive_flocking(10, active_share=0.0)
+def test_active_passive_flocking_rejects_a_wrong_number_of_active_agents():
+    """Test that a number of active agents outside the range raises an error naming it."""
+    with pytest.raises(ValidationError, match='0 active agents'):
+        active_passive_flocking(10, n_active=0)
+    with pytest.raises(ValidationError, match='11 active agents'):
+        active_passive_flocking(10, n_active=11)
+
+
+def test_active_passive_flocking_reads_only_active_noise():
+    """Test that the amplitude of the random force of a passive agent is 0."""
+    noise = active_passive_flocking(4, n_active=2).interactions[1].noise
+    assert noise(SimpleNamespace(target=SimpleNamespace(active=0.0))) == 0.0

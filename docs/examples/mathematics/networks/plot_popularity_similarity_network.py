@@ -67,7 +67,7 @@ plt.show()
 # degree distribution keeps its slope at every scale, and the clustering stays high.
 
 run = Simulation(create(MODEL, n_nodes=2000), dt=1997.0, random_state=0).check().prepare().run(until=1997)
-scales = RenormalizationAnalysis('geometric', steps=3).check().prepare(run.trajectory_).run()
+scales = RenormalizationAnalysis('geometric', steps=3, beta=5.0).check().prepare(run.trajectory_).run()
 fig, axis = plt.subplots(figsize=(6, 4))
 for level, degrees in enumerate(scales.degrees_):
     values = np.sort(degrees)[::-1]

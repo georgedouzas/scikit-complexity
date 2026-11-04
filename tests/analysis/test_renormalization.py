@@ -81,6 +81,19 @@ def test_run_geometric_merges_blocks_of_consecutive_angles():
     assert angles == pytest.approx([0.5 + 2 * index for index in range(8)])
 
 
+def test_run_geometric_weighs_the_angle_of_a_supernode_by_the_degrees():
+    """Test that a supernode sits at the angles weighted by `k^max(1, beta)`, the plain mean without edges."""
+    graph = nx.star_graph(3)
+    graph.add_node(4)
+    graph.add_node(5)
+    nx.set_node_attributes(graph, {0: 0.0, 1: 1.0, 2: 2.0, 3: 3.0, 4: 4.0, 5: 5.0}, 'angle')
+    for beta, first in ((1.0, 1 / 4), (2.0, 1 / 10)):
+        merged = RenormalizationAnalysis('geometric', steps=1, beta=beta).check().prepare(graph).run().graphs_[1]
+        assert merged.nodes[0]['angle'] == pytest.approx(first)
+        assert merged.nodes[1]['angle'] == pytest.approx(2.5)
+        assert merged.nodes[2]['angle'] == pytest.approx(4.5)
+
+
 def test_run_geometric_keeps_the_nodes_left_over_in_the_last_block():
     """Test that the last supernode holds the nodes left over."""
     analysis = RenormalizationAnalysis('geometric', steps=1, block=3).check().prepare(_ring(7)).run()
@@ -130,6 +143,8 @@ def test_prepare_reads_the_last_frame_of_a_trajectory_with_its_node_states():
         ('laplacian', {'steps': 0}, 'steps'),
         ('geometric', {'block': 1}, 'block'),
         ('laplacian', {'time': -1.0}, 'time'),
+        ('geometric', {'beta': 0.0}, 'beta'),
+        ('laplacian', {'beta': 2.0}, 'does not read beta'),
         ('laplacian', {'block': 3}, 'does not read block'),
         ('geometric', {'time': 1.0}, 'does not read time'),
     ],

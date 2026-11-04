@@ -84,3 +84,11 @@ def test_reservoir_analysis_rejects_series_shorter_than_warmup():
     """Test that series with no sample after the warmup raise an error."""
     with pytest.raises(AnalysisError, match='warmup'):
         _fit(_sine_values(), warmup=600)
+
+
+def test_next_generation_reads_the_variables_as_they_are_without_standardizing():
+    """Test that the setting leaves the mean at 0 and the scale at 1, and the forecast still follows a sine wave."""
+    analysis = ReservoirAnalysis(['u', 'v'], standardize=False, horizon=10).check().prepare(_sine_values()).run()
+    assert analysis.step_.mean.tolist() == [0.0, 0.0]
+    assert analysis.step_.scale.tolist() == [1.0, 1.0]
+    assert analysis.forecast_[-1, 0] == pytest.approx(np.sin(0.1 * 609), abs=0.01)
