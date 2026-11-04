@@ -68,6 +68,7 @@ from ._reduction_spec import ReductionSpec
 from ._renewal_record_spec import RenewalRecordSpec
 from ._requirement_spec import RequirementSpec
 from ._role_spec import RoleSpec, Spec
+from ._row_score_spec import RowScoreSpec
 from ._run_state_spec import RunStateSpec
 from ._sampled_draw_spec import SampledDrawSpec
 from ._sampler_spec import MONTE_CARLO_SCHEDULES, SAMPLERS, SamplerSpec
@@ -171,6 +172,7 @@ __all__ = [
     'RenewalRecordSpec',
     'RequirementSpec',
     'RoleSpec',
+    'RowScoreSpec',
     'RunStateSpec',
     'SampledDrawSpec',
     'SamplerSpec',

@@ -35,7 +35,7 @@ class ThermalSamplingInteraction(SamplingInteraction):
             `'flip'`, `'random-value'`, `'rotate'`, `'gaussian'`, `'cluster'`, or a function that proposes values.
 
         temperature:
-            The temperature.
+            The temperature, where 0 accepts only moves that do not raise the energy.
 
         rule:
             The acceptance, `'metropolis'`, `'glauber'`, or `'heat-bath'`, which draws among all values of a discrete
@@ -72,7 +72,7 @@ class ThermalSamplingInteraction(SamplingInteraction):
         state: str,
         energy: Callable[[SimpleNamespace], object],
         move: str | Callable[..., object] = 'flip',
-        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        temperature: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
         rule: str = 'metropolis',
         schedule: str = 'checkerboard',
         neighborhood: BaseNeighborhood | None = None,
@@ -101,5 +101,6 @@ class ThermalSamplingInteraction(SamplingInteraction):
         return 'energy' if name == 'objective' else name
 
     def _get_intensity(self, namespace: SimpleNamespace) -> object:
-        """Return one over the temperature."""
-        return 1 / SR(self._get_parameter_symbol('temperature', namespace))
+        """Return one over the temperature, infinite at a temperature of zero that a row score reads as a value."""
+        temperature = SR(self._get_parameter_symbol('temperature', namespace))
+        return float('inf') if temperature.is_zero() else 1 / temperature

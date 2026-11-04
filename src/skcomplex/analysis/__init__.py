@@ -43,6 +43,7 @@ from ._reservoirs import ReservoirAnalysis
 from ._rolling import RollingAnalysis
 from ._scaling import ScalingAnalysis
 from ._sections import SectionAnalysis
+from ._shape import ShapeAnalysis
 from ._signatures import SignatureAnalysis
 from ._sparse_identification import SparseIdentificationAnalysis
 from ._spectrum import SpectrumAnalysis
@@ -94,6 +95,7 @@ __all__: list[str] = [
     'RollingAnalysis',
     'ScalingAnalysis',
     'SectionAnalysis',
+    'ShapeAnalysis',
     'SignatureAnalysis',
     'SparseIdentificationAnalysis',
     'SpectrumAnalysis',

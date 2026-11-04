@@ -31,7 +31,9 @@ class PointsVisual(BaseVisual):
     extent and the count include every element drawn by a points visual of the same position state, so single
     particles that share a space, such as the masses of a chain, take one radius from the whole drawing. A group of
     at most ten points in two or three dimensions also logs the trail of its recent positions as line strips under
-    `<path>/trail`, a quarter as wide as that share, whatever the radius.
+    `<path>/trail`, a quarter as wide as that share, whatever the radius. With `strip`, the points in two or three
+    dimensions are also joined in member order by one line strip under `<path>/strip`, with the mean color of the
+    points.
 
     Args:
         position:
@@ -51,6 +53,9 @@ class PointsVisual(BaseVisual):
 
         trail:
             The number of recent positions the trail of each point holds, or 0 for no trail.
+
+        strip:
+            Whether to join the points in member order by one line strip.
 
         path:
             The entity path of the element or agent group to draw, which also names it in the problem.
@@ -83,6 +88,7 @@ class PointsVisual(BaseVisual):
         states: Sequence[str] | None = None,
         *,
         trail: int = _TRAIL_LENGTH,
+        strip: bool = False,
         path: str | None = None,
         recording: rr.RecordingStream | None = None,
     ) -> None:
@@ -92,6 +98,7 @@ class PointsVisual(BaseVisual):
         self.color_range = color_range
         self.states = states
         self.trail = trail
+        self.strip = strip
         self.path = path
         self.recording = recording
 
@@ -159,8 +166,31 @@ class PointsVisual(BaseVisual):
         else:
             recording.log(f'{path}/trail', rr.LineStrips2D(strips, radii=radius, colors=colors))
 
+    def _log_strip(
+        self,
+        recording: rr.RecordingStream,
+        path: str,
+        points: npt.NDArray[np.float64],
+        colors: npt.NDArray[np.uint8] | None,
+    ) -> None:
+        """Log one line strip through the points in member order, with the mean color of the points."""
+        if not self.strip:
+            return
+        color = None if colors is None else colors.mean(axis=0).astype(np.uint8)
+        radius = self._extent_radius(points) * _TRAIL_WIDTH
+        kind = rr.LineStrips3D if points.shape[1] == _MAX_POINT_DIMENSIONS else rr.LineStrips2D
+        recording.log(f'{path}/strip', kind([points], radii=radius, colors=color))
+
+    def _read_points(self, element: CompiledElementSpec, frame: FrameSpec) -> npt.NDArray[np.float64]:
+        """Return the positions at a frame, one row per point."""
+        return np.atleast_2d(np.asarray(frame.value(element.states[self.position]), dtype=float))
+
+    def _get_dimension(self, element: CompiledElementSpec, problem: BaseProblemSpec) -> tuple[int, ...]:
+        """Return the number of coordinates of a point."""
+        return problem.states.locate(element.states[self.position])[0].shape[-1:] or (1,)
+
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
-        """Log the position under `<path>`, the trail under `<path>/trail`, and the other states under `<path>/<state>`.
+        """Log the position under `<path>`, the strip and the trail below it, and other states under `<path>/<state>`.
 
         Args:
             recording:
@@ -172,16 +202,18 @@ class PointsVisual(BaseVisual):
             frame:
                 The frame.
         """
-        points = np.atleast_2d(np.asarray(frame.value(element.states[self.position]), dtype=float))
+        points = self._read_points(element, frame)
         colors = self._point_colors(element, frame, len(points))
         radius = self._radius(self._crowd(frame, points)) if points.shape[1] > 1 else 0.0
         if points.shape[1] == _MAX_POINT_DIMENSIONS:
             recording.log(element.path, rr.Points3D(points, radii=radius, colors=colors))
             self._log_trail(recording, element.path, points, colors)
+            self._log_strip(recording, element.path, points, colors)
         elif points.shape[1] == _MAX_POINT_DIMENSIONS - 1:
             shown = points * _UPWARD
             recording.log(element.path, rr.Points2D(shown, radii=radius, colors=colors))
             self._log_trail(recording, element.path, shown, colors)
+            self._log_strip(recording, element.path, shown, colors)
         else:
             recording.log(f'{element.path}/{self.position}', rr.Scalars(points.ravel()))
         others = (
@@ -220,7 +252,7 @@ class PointsVisual(BaseVisual):
         """
         if not isinstance(element, CompiledElementSpec):
             return []
-        dimension = problem.states.locate(element.states[self.position])[0].shape[-1:] or (1,)
+        dimension = self._get_dimension(element, problem)
         path = element.path
         views: list[rrb.View] = []
         if dimension[0] == _MAX_POINT_DIMENSIONS:

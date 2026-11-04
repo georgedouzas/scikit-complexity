@@ -29,6 +29,7 @@ from ..problems import (
     ReductionScheduleSpec,
     ReferenceSpec,
 )
+from ..problems._drive_kernel import DriveKernel
 from ..problems._law_kernel import LawKernel
 from ..problems._operator_kernel import OperatorKernel
 from ..problems._operator_lowering import OperatorLowering
@@ -266,13 +267,30 @@ class ObservableEvaluator:
                 self.getters_[path] = self._observed_getter(observed[path], observable)
             else:
                 self.getters_[path] = self._reduction_getter(scope, path, observable)
+        self._add_law_records()
+        return self
+
+    def _add_law_records(self) -> None:
+        """Add the getters of what laws record: the renewals, the flows and objectives, and the scores of drives."""
         problems = (self.problem, *self.problem.partition_problems)
         for renewal in (renewal for problem in problems for renewal in problem.renewals):
             self.getters_[f'{renewal.label}.renewals'] = self._renewal_counter(renewal.counts)
         transfer_network = self.problem.transfer_network
         for recorded in transfer_network.recorded if transfer_network is not None else ():
             self.getters_[recorded.path] = self._recorded_getter(recorded)
-        return self
+        for problem in problems:
+            for step in problem.lattice if isinstance(problem, ProblemSpec) else ():
+                if isinstance(step, DriveKernel) and step.score is not None:
+                    self.getters_[f'{step.owner}.score'] = self._score_getter(step)
+
+    def _score_getter(self, drive: DriveKernel) -> ObservableFunction:
+        """Return the getter of the scores of the rows of a lattice state."""
+
+        def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
+            del t, done
+            return drive.read_score(x, p)
+
+        return get
 
     def _function_getter(
         self,
