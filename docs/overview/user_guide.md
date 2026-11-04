@@ -4468,6 +4468,55 @@ degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
 print(snapshot.nodes.size, snapshot.sources.size, int(degrees.max()) > 10)
 ```
 
+New nodes can attach by their distance to the others. The weight `toward` reads the node a new edge starts from as
+`node.source`, beside the candidate: the new node of `'add-node'`, with the values it drew, the adding node of
+`'add-edge'`, and the kept end of `'rewire'`. Without a target, the condition and a probability of `'add-node'` read the
+drawn values of the node being added as `s.source`, so a node that does not fire is never added. A rate does not read
+them, since no node exists before the jump, and neither does a reduction. With a target, the condition keeps reading the
+node it runs for. Where fewer candidates have a positive weight than the edges to draw, the new ends are drawn uniformly.
+
+```python
+import networkx as nx
+import numpy as np
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import TopologyInteraction
+from skcomplex.core.laws.utils import where
+from skcomplex.core.spaces import DiscreteTime, NetworkSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import StateSpec
+from typing import Annotated
+
+
+class PlacedElement(Element):
+    def __init__(self, label, visual=None, *, angle: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label, visual=visual)
+        self.angle = angle
+
+
+angles = np.linspace(0.0, 6.0, 80).tolist()
+nodes = GroupElement('nodes', element=PlacedElement, on='sites', variable=True, capacity=130, values={'angle': angles})
+links = GroupElement('links', element=Element, on='edges', variable=True, capacity=130)
+growth = TopologyInteraction(
+    'growth',
+    action='add-node',
+    values={'angle': lambda rng: rng.uniform(0.0, 6.0)},
+    toward=lambda node: where(abs(node.angle - node.source.angle) <= 0.1, 1, 0),
+)
+space = NetworkSpace(nx.empty_graph(80))
+system = System(elements=[nodes, links], interactions=[growth], space=space, time=DiscreteTime())
+trajectory = Simulation(system, random_state=0).check().prepare().run(until=50).trajectory_
+network = trajectory.network(-1)
+placed = trajectory.values('nodes.angle')[-1]
+print(network.sources.size, bool((abs(placed[network.sources] - placed[network.targets]) <= 0.1).all()))
+```
+
+The library models `popularity_similarity_network` and `urban_scaling_interactions` grow by the hyperbolic distance. The
+second adds internal links at a fixed rate per resident, and the exponent of its meetings rises with that rate: near 1
+without internal links, and near the 1.15 that Ribeiro and Netto (2024) review at the rate 0.002 over sizes from 100 to
+800.
+
 A network grows by hyperedges with `TopologyInteraction(action='add-node', hyperedge=k)`, or
 `TopologyRequestSpec('add-node', hyperedge=k)`: every new node forms a hyperedge of `k` members with `k - 1` existing
 nodes and joins each of them by an edge. The first two are the ends of an edge drawn uniformly, the others are drawn
@@ -7122,4 +7171,38 @@ from skcomplex.analysis import MotifAnalysis, NetworkAnalysis
 club = nx.karate_club_graph()
 communities = NetworkAnalysis('communities', random_state=0).check().prepare(club).run()
 print(communities.modularity_.round(2).tolist(), MotifAnalysis().check().prepare(club).run().counts_[0]['triangle'])
+```
+
+`RenormalizationAnalysis` coarse-grains a graph, or the network of the last frame of a trajectory with its node states
+as attributes, and sets `graphs_`, `degrees_`, `exponents_`, and `clustering_` per scale. The kind `'laplacian'` joins
+two nodes where the diffusion operator `exp(-time L)` has an entry at least the smaller of their diagonal entries, and
+every component of these joins is a supernode. It runs at `time`, or at the smallest peak of the specific heat that
+merges nodes. The kind `'geometric'` merges `block` consecutive nodes by their `angle`. Two supernodes link when any of
+their nodes link.
+
+```python
+import networkx as nx
+
+from skcomplex.analysis import RenormalizationAnalysis
+
+blocks = nx.disjoint_union(nx.complete_graph(20), nx.complete_graph(20))
+blocks.add_edge(0, 20)
+scale = RenormalizationAnalysis(steps=1).check().prepare(blocks).run().graphs_[1]
+print(scale.number_of_nodes(), scale.number_of_edges())
+```
+
+`ScalingAnalysis('allometric')` fits the exponent of a quantity against system size across runs, from a mapping from
+size to samples, such as the results of a `GridDesign` sweep, or two columns. It regresses the logarithms of the pairs
+and sets `exponent_`, with the bootstrap confidence interval `interval_` of the level `confidence` over `resamples`
+resamples.
+
+```python
+import numpy as np
+
+from skcomplex.analysis import ScalingAnalysis
+
+rng = np.random.default_rng(0)
+samples = {size: size**1.15 * rng.lognormal(0.0, 0.3, 4) for size in np.geomspace(100, 1e5, 50)}
+fit = ScalingAnalysis('allometric').check().prepare(samples).run()
+print(round(fit.exponent_, 1), bool(fit.interval_[0] < 1.15 < fit.interval_[1]))
 ```
