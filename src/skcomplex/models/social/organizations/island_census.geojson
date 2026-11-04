@@ -1,0 +1,120 @@
+{
+ "type": "FeatureCollection",
+ "name": "synthetic island census in metres",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "west",
+    "population": 100
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       3000,
+       3000
+      ],
+      [
+       8000,
+       2000
+      ],
+      [
+       8000,
+       12000
+      ],
+      [
+       3500,
+       11000
+      ],
+      [
+       2000,
+       7000
+      ],
+      [
+       3000,
+       3000
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "centre",
+    "population": 50
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       8000,
+       2000
+      ],
+      [
+       13000,
+       2000
+      ],
+      [
+       13000,
+       12500
+      ],
+      [
+       8000,
+       12000
+      ],
+      [
+       8000,
+       2000
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "east",
+    "population": 0
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       13000,
+       2000
+      ],
+      [
+       15000,
+       2000
+      ],
+      [
+       18500,
+       4500
+      ],
+      [
+       19000,
+       9000
+      ],
+      [
+       15500,
+       12000
+      ],
+      [
+       13000,
+       12500
+      ],
+      [
+       13000,
+       2000
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

@@ -11,6 +11,7 @@ from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
+from shapely import Polygon
 from sklearn.base import clone
 
 from ...base import BaseConfig
@@ -93,6 +94,7 @@ _REPLACEMENTS = {
     DomainKind.HILBERT: 'a generator or dissipator law',
 }
 _PARTITIONS = ('plan', 'subsystems')
+POLYGON_COORDINATES = 2
 _PLANNING = frozenset({'nodes', 'census', 'plan'})
 _FIELDS = (
     'system',
@@ -464,6 +466,7 @@ class PassCompiler(BaseCompiler):
         issues += PassCompiler._nonlocal_issues(records, nodes)
         issues += PassCompiler._coordinate_issues(records, nodes)
         issues += PassCompiler._space_issues(system, nodes)
+        issues += PassCompiler._location_issues(nodes)
         issues += LatticeProblemPass._schedule_issues(compilation)
         issues += ConservedNoisePass._conserved_issues(compilation)
         issues += FractionalFormPass._order_issues(compilation)
@@ -791,6 +794,33 @@ class PassCompiler(BaseCompiler):
                 fix = f'Give the {type(space).__name__} a shape, a boundary, and a geometry that it supports.'
                 holder = path.rpartition('/')[0] or system.label
                 issues.append(IssueSpec('space-invalid', holder, str(error), fix, error=SpaceError))
+        return issues
+
+    @staticmethod
+    def _location_issue(path: str, group: GroupElement, size: int, sides: int) -> IssueSpec | None:
+        """Return the first initial location of a group whose number of coordinates differs from its space's."""
+        for index in range(size):
+            location = group._get_member_location(index, size)
+            length = POLYGON_COORDINATES if isinstance(location, Polygon) else np.asarray(location, dtype=object).size
+            if length != sides:
+                message = (
+                    f'The initial location of member {index} of {path} has {length} coordinates, and its continuous '
+                    f'space has {sides} dimensions.'
+                )
+                return IssueSpec('location-dimension', path, message, f'Give {sides} coordinates.', error=SpaceError)
+        return None
+
+    @staticmethod
+    def _location_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+        """Return the groups whose initial locations do not have one coordinate per dimension of their space."""
+        issues = []
+        for node in nodes:
+            group, space = node.component, node.space
+            if not isinstance(group, GroupElement) or group.location is None or not isinstance(space, ContinuousSpace):
+                continue
+            sides = len(tuple(space.extent)) or space.n_dim
+            issue = PassCompiler._location_issue(node.path, group, node.members or 1, sides) if sides else None
+            issues += [issue] if issue is not None else []
         return issues
 
     @staticmethod

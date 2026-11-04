@@ -1,0 +1,105 @@
+{
+ "type": "FeatureCollection",
+ "name": "synthetic island places in metres",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "beach"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       4000,
+       4000
+      ],
+      [
+       6000,
+       4000
+      ],
+      [
+       6000,
+       6000
+      ],
+      [
+       4000,
+       6000
+      ],
+      [
+       4000,
+       4000
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "park"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       9000,
+       6000
+      ],
+      [
+       11000,
+       5500
+      ],
+      [
+       11500,
+       8000
+      ],
+      [
+       9500,
+       8500
+      ],
+      [
+       9000,
+       6000
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "market"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       14000,
+       8000
+      ],
+      [
+       16000,
+       8000
+      ],
+      [
+       16000,
+       10000
+      ],
+      [
+       14000,
+       10000
+      ],
+      [
+       14000,
+       8000
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

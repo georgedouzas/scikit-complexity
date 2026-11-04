@@ -263,8 +263,8 @@ to fill in as the project takes shape.
   version the passagemath wheels need, `numba` for the compiled backend, `jax` for the JAX backend and automatic differentiation, `optax` for the
   optimizers of the learning solver, `diffrax` for differentiable ODE solves of the learning solver, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
   for networks, which Mesa 3.5 imports without declaring it, `xgi` for hypergraphs and simplicial complexes, `rerun-sdk` for visualization, `qutip` for operator dynamics, `SALib` for sensitivity
-  analysis, `scikit-fem` for finite-element assembly on unstructured meshes, `shapely` for the geometry of rewriting
-  systems, `python-sat` for incremental satisfiability, `pymoo` for population optimisers, and `scikit-learn` for the
+  analysis, `scikit-fem` for finite-element assembly on unstructured meshes, `shapely` 2.2 or later for the geometry of
+  rewriting systems and the regions of agent spaces, `python-sat` for incremental satisfiability, `pymoo` for population optimisers, and `scikit-learn` for the
   estimator contract. The analysis layer adds `antropy` for regularity entropies and Lempel-Ziv complexity, `ordpy`
   for ordinal patterns, `nolds` for fluctuation analyses and Rosenstein's exponent, `powerlaw` for power-law fits,
   `ennemi` for nearest-neighbour transfer entropy, `mrestimator` for branching

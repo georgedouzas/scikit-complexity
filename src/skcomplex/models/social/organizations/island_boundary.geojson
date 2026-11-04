@@ -1,0 +1,59 @@
+{
+ "type": "FeatureCollection",
+ "name": "synthetic island boundary in metres",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "island"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       2000,
+       2000
+      ],
+      [
+       8000,
+       500
+      ],
+      [
+       15000,
+       1000
+      ],
+      [
+       19000,
+       4000
+      ],
+      [
+       20000,
+       9000
+      ],
+      [
+       16000,
+       13000
+      ],
+      [
+       9000,
+       14000
+      ],
+      [
+       3000,
+       12000
+      ],
+      [
+       500,
+       7000
+      ],
+      [
+       2000,
+       2000
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

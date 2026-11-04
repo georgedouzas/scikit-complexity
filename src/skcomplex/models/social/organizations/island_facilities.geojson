@@ -1,0 +1,72 @@
+{
+ "type": "FeatureCollection",
+ "name": "synthetic island facilities in metres",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "harbour"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       7000,
+       3000
+      ],
+      [
+       9000,
+       3000
+      ],
+      [
+       9000,
+       5000
+      ],
+      [
+       7000,
+       5000
+      ],
+      [
+       7000,
+       3000
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "hotel"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       11000,
+       9000
+      ],
+      [
+       13000,
+       9000
+      ],
+      [
+       13000,
+       11000
+      ],
+      [
+       11000,
+       11000
+      ],
+      [
+       11000,
+       9000
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

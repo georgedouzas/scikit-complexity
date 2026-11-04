@@ -2,10 +2,14 @@
 
 import numpy as np
 import pytest
+import rerun as rr
+from shapely import Polygon
 
-from skcomplex.core.elements import GroupElement, LatticeElement, PointElement
+from skcomplex.core.elements import Element, GroupElement, LatticeElement, PointElement
+from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.system import System
+from skcomplex.engine.compile import compile_system
 from skcomplex.engine.problems import FrameSpec
 from skcomplex.engine.runtime import BaseObserver, Simulation
 from skcomplex.engine.viz import AgentsVisual, ImageVisual, PointsVisual, ScalarsVisual
@@ -13,6 +17,17 @@ from skcomplex.errors import ValidationError
 from skcomplex.models import create
 from skcomplex.models.physics.statistical_mechanics import XYSpinElement
 from skcomplex.specs import AgentSnapshotSpec
+
+
+class RestingElement(Element):
+    """Test helper agent whose rule does nothing."""
+
+    def _get_laws(self, namespace):
+        """Test helper laws."""
+        return [RuleLaw(self.rest)]
+
+    def rest(self, agent, model):
+        """Test helper rule."""
 
 
 class Logs:
@@ -334,6 +349,51 @@ def test_agents_visual_draws_continuous_spaces_with_vertical_axis_up(log_agents)
     view = AgentsVisual(path=problem.agents[0].path).check().prepare(problem).views_[0]
     bounds = view.properties['VisualBounds2D']
     assert bounds is not None
+
+
+def test_agents_visual_draws_boids_in_three_dimensions(log_agents):
+    """Test that agents in a three-dimensional space are logged as one `Points3D` batch per frame at their positions."""
+    space = ContinuousSpace(extent=(10.0, 20.0, 30.0)).check().prepare()
+    locations = [np.array([[3.0, 4.0, 5.0], [6.0, 7.0, 8.0]]), np.array([[3.5, 4.5, 5.5], [6.5, 7.5, 8.5]])]
+    snapshots = [AgentSnapshotSpec(np.arange(2), {'rank': np.zeros(2)}, points) for points in locations]
+    logs = Logs()
+    log_agents(AgentsVisual(), logs, 'birds', snapshots, space)
+    batches = logs.of('birds')
+    assert [type(batch).__name__ for batch in batches] == ['Points3D', 'Points3D']
+    assert batches[1].positions.as_arrow_array().to_pylist() == locations[1].tolist()
+    recording = rr.RecordingStream('three_dimensions')
+    stream = recording.memory_recording()
+    log_agents(AgentsVisual(), recording, 'birds', snapshots, space)
+    assert len(stream.drain_as_bytes()) > 0
+
+
+def test_agents_visual_has_a_three_dimensional_view():
+    """Test that the view of agents in a three-dimensional space is a 3D spatial view with their path as origin."""
+    flock = GroupElement('flock', element=RestingElement, size=2)
+    problem = compile_system(System(elements=[flock], space=ContinuousSpace(extent=(5.0, 5.0, 5.0))))
+    view = AgentsVisual(path='flock').check().prepare(problem).views_[0]
+    assert type(view).__name__ == 'Spatial3DView'
+
+
+def test_agents_visual_draws_regions_once_under_the_agents(log_agents):
+    """Test that a boundary layer is logged once as static strips, and the agents per frame as `Points2D`."""
+    hole = [(2.5, 0.5), (3.5, 0.5), (3.5, 1.5)]
+    island = Polygon([(0.0, 0.0), (4.0, 0.0), (4.0, 4.0)], holes=[hole])
+    space = ContinuousSpace(extent=(5.0, 5.0), regions={'boundary': [island]}).check().prepare()
+    snapshots = [AgentSnapshotSpec(np.arange(1), {'rank': np.zeros(1)}, np.array([[3.0, 1.0]]))] * 3
+    logs = Logs()
+    log_agents(AgentsVisual(), logs, 'people', snapshots, space)
+    assert logs.static == ['people/regions/boundary']
+    strips = logs.of('people/regions/boundary')
+    assert [type(item).__name__ for item in strips] == ['LineStrips2D']
+    assert strips[0].strips.as_arrow_array().to_pylist()[0][1] == [4.0, 0.0]
+    assert strips[0].strips.as_arrow_array().to_pylist()[0][2] == [4.0, -4.0]
+    assert len(strips[0].strips.as_arrow_array().to_pylist()) == 2
+    assert [type(item).__name__ for item in logs.of('people')] == ['Points2D'] * 3
+    recording = rr.RecordingStream('island')
+    stream = recording.memory_recording()
+    log_agents(AgentsVisual(), recording, 'people', snapshots, space)
+    assert len(stream.drain_as_bytes()) > 0
 
 
 def test_colors_start_bright_enough_to_see_on_black():

@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+from shapely import Point, Polygon, box
 from sklearn.base import clone
 
 from skcomplex.core.elements import PointElement
@@ -9,7 +10,7 @@ from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver, ScipyODESolver
-from skcomplex.errors import ValidationError
+from skcomplex.errors import SpaceError, ValidationError
 
 
 @pytest.mark.parametrize(
@@ -54,6 +55,45 @@ def test_continuous_space_clones_from_its_arguments():
     assert space.extent_ == (2.0, 3.0)
     assert space.boundary == 'reflecting'
     assert np.array_equal(space.positions_, np.zeros((0, 2)))
+
+
+def test_continuous_space_indexes_its_regions():
+    """Test that the derived index of a layer of three regions answers which of them contains a point."""
+    regions = [box(0.0, 0.0, 1.0, 1.0), box(2.0, 0.0, 3.0, 1.0), box(0.0, 2.0, 1.0, 3.0)]
+    space = ContinuousSpace(extent=(4.0, 4.0), regions={'census': regions}).check().prepare()
+    assert space.regions['census'] is regions
+    assert space.regions_['census'].query(Point(2.5, 0.5), predicate='intersects').tolist() == [1]
+    assert space.regions_['census'].query(Point(3.5, 3.5), predicate='intersects').tolist() == []
+    assert ContinuousSpace(extent=(4.0, 4.0)).check().prepare().regions_ == {}
+
+
+def test_continuous_space_clones_with_its_regions():
+    """Test that a clone of a space keeps its layers and indexes them."""
+    space = clone(ContinuousSpace(extent=(4.0, 4.0), regions={'parks': [box(0.0, 0.0, 1.0, 1.0)]}))
+    assert list(space.check().prepare().regions_) == ['parks']
+
+
+@pytest.mark.parametrize(
+    ('region', 'message'),
+    [
+        (Polygon([(0, 0), (1, 1), (1, 0), (0, 1)]), "region 1 of the layer 'places' is not a valid polygon"),
+        (Polygon(), "region 1 of the layer 'places' is not a valid polygon"),
+        (Point(0.0, 0.0), "region 1 of the layer 'places' is <POINT"),
+        (Polygon([(0, 0, 1), (1, 0, 1), (1, 1, 1)]), "region 1 of the layer 'places' is <POLYGON Z"),
+    ],
+)
+def test_continuous_space_rejects_invalid_regions(region, message):
+    """Test that preparing a space with an invalid region raises an error that names the layer and the region."""
+    space = ContinuousSpace(extent=(4.0, 4.0), regions={'places': [box(0.0, 0.0, 1.0, 1.0), region]}).check()
+    with pytest.raises(SpaceError, match=message):
+        space.prepare()
+
+
+def test_continuous_space_keeps_regions_in_two_dimensions():
+    """Test that a space with regions and three sides raises an error that names the layer and the dimension."""
+    space = ContinuousSpace(extent=(4.0, 4.0, 4.0), regions={'places': [box(0.0, 0.0, 1.0, 1.0)]}).check()
+    with pytest.raises(SpaceError, match=r'places.*3 dimensions'):
+        space.prepare()
 
 
 def test_reflecting_box_reverses_crossing_particle():

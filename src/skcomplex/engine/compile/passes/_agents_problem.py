@@ -32,6 +32,7 @@ _AGENT_VIEW_NAMES = frozenset(
         'neighbors',
         'agents_here',
         'move_to',
+        'regions_here',
         'remove',
         'create',
         'displacement_to',
