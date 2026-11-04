@@ -12,7 +12,7 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, matrix, solve
 from scipy import optimize
 
-from ..core.elements import FieldElement
+from ..core.elements import BaseElement, FieldElement
 from ..core.interactions import BaseInteraction
 from ..core.laws import RateLaw
 from ..core.spaces import LatticeSpace
@@ -463,19 +463,19 @@ class StabilityAnalysis(BaseAnalysis):
     def _linearised_rates(
         field: FieldElement,
         interactions: Sequence[BaseInteraction],
-    ) -> tuple[dict[str, Expression], dict[str, Expression], dict[str, npt.ArrayLike]]:
+    ) -> tuple[dict[str, Expression], dict[str, Expression], dict[str, object]]:
         """Return the rate of each state with its Laplacians as eigenvalues, the state symbols, and the field values.
 
         The rates add the laws of the field's element and of the interactions bound to the field.
         """
         part = field.get_declaring_part()
-        member = field.element(field.label) if isinstance(part, type) else part
-        states =list(declarations_of(part, VariableKind.STATE))
+        member = field._get_member() if isinstance(part, BaseElement) else field.element(field.label)
+        states = list(declarations_of(part, VariableKind.STATE))
         values = {name: default_of(part, name) for name in states} | dict(field.values or {})
         parameters = {}
         for name in declarations_of(part, VariableKind.PARAMETER):
-            value = values.get(name, default_of(part, name))
-            if np.ndim(value):
+            value = np.asarray(values.get(name, default_of(part, name)))
+            if value.ndim:
                 error_msg = f'The parameter {field.label}.{name} varies over the lattice, so there is no uniform state.'
                 raise AnalysisError(error_msg)
             parameters[name] = float(value)
@@ -529,7 +529,7 @@ class StabilityAnalysis(BaseAnalysis):
         rates, names, values = StabilityAnalysis._linearised_rates(field, interactions)
         order = list(rates)
         variables = [names[name] for name in order]
-        given: dict[str, npt.ArrayLike] = {**values, **(at or {})}
+        given: dict[str, object] = {**values, **(at or {})}
         start = [float(np.mean(np.asarray(given.get(name, 0.0), dtype=np.float64))) for name in order]
         uniform = start if at is not None else StabilityAnalysis._uniform_point(rates, variables)(start)
         substitution = dict(zip(variables, uniform, strict=True))
