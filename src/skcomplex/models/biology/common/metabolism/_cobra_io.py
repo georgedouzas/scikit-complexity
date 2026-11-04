@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import os
+import sys
 from pathlib import Path
 from types import ModuleType
 
@@ -37,6 +39,14 @@ def load_extra(owner: str) -> ModuleType:
         >>> load_extra('example').__name__
         'cobra'
     """
+    if sys.platform == 'linux':
+        # Once GAP has run, loading libSBML the usual way binds it to a library of GAP, and its parser crashes the process.
+        flags = sys.getdlopenflags()
+        sys.setdlopenflags(flags | os.RTLD_DEEPBIND)
+        try:
+            import_extra('libsbml', owner, 'metabolism')
+        finally:
+            sys.setdlopenflags(flags)
     return import_extra('cobra', owner, 'metabolism')
 
 

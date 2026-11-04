@@ -108,3 +108,18 @@ def test_default_install_stays_importable():
     process.start()
     process.join()
     assert process.exitcode == 0
+
+
+def test_network_loads_after_gap_has_run():
+    """Test that reading a network in a process that has already run GAP does not crash it."""
+    code = (
+        'from skcomplex.core.spaces import CayleySpace\n'
+        'from skcomplex.models.biology.common.metabolism import load_network\n'
+        'from skcomplex.models.computer_science.automata import free_group\n'
+        'CayleySpace(free_group(2), ball=2).check().prepare()\n'
+        "assert load_network('textbook') is not None\n"
+    )
+    process = multiprocessing.get_context('spawn').Process(target=exec, args=(code,))
+    process.start()
+    process.join()
+    assert process.exitcode == 0
