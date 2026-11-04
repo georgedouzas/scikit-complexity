@@ -1288,6 +1288,21 @@ The order belongs to the element type, so a sweep over orders builds one system 
 models ready in fractional dynamics, each with the order as an argument: `fractional_relaxation`,
 `fractional_oscillator`, `fractional_van_der_pol`, and `fractional_lorenz`.
 
+## Geometry of chains
+
+`ShapeAnalysis(kind, group=None, reference=None)` reads frames by points by dimensions, from an array or a trajectory. The
+kind `'gyration'` gives the radius of gyration per frame, `'end-to-end'` the distance between the first and the last
+point, and `'rmsd'` the root mean square deviation from `reference` after optimal superposition.
+
+```python
+import numpy as np
+
+from skcomplex.analysis import ShapeAnalysis
+
+chain = np.array([[[0.0, 0.0, 0.0], [3.0, 4.0, 0.0]]])
+assert ShapeAnalysis('end-to-end').check().prepare(chain).run().values_.tolist() == [5.0]
+```
+
 ## Observables
 
 An `ObservableSpec` is a frozen record of a label and an expression or a group reduction, which a run computes at every
@@ -2425,6 +2440,68 @@ system = System(elements=[spins], interactions=[ising], time=DiscreteTime())
 print(abs(Simulation(system, random_state=0).check().prepare().run(until=20).trajectory_.states[-1].mean()) > 0.9)
 ```
 
+### Row scores and zero temperature
+
+`SamplingInteraction` also takes a `RowScoreSpec(function, proposals=1)` as its objective, a function of the values of
+one row of a state on a `LatticeSpace`, its last axis, and of the parameters that the function names. Every unit of time
+proposes `proposals` moves per row through the move, each accepted from the change of the score of the row, and the rows
+take separate draws. A named move changes one random site of a row, and a function move receives the row. A trajectory
+records the score of every row as `<label>.score`.
+
+The intensity may be infinite, which is the zero temperature of the thin subclass in physics. The Metropolis rule then
+accepts a move only when the objective does not grow, for local objectives and row scores alike.
+
+```python
+from typing import Annotated
+
+import numpy as np
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+
+from skcomplex.core.elements import Element, LatticeElement
+from skcomplex.core.interactions import SamplingInteraction
+from skcomplex.core.spaces import DiscreteTime, LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import RowScoreSpec, StateSpec
+
+
+class BitElement(Element):
+    def __init__(self, label, s: Annotated[int, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1):
+        super().__init__(label)
+        self.s = s
+
+
+def flip_one(row, random):
+    site = random.integers(row.size)
+    row[site] = 1 - row[site]
+    return row
+
+
+walk = SamplingInteraction(
+    'walk', target='bits', state='s', objective=RowScoreSpec(np.sum), move=flip_one, intensity=float('inf')
+)
+bits = LatticeElement('bits', element=BitElement, space=LatticeSpace((3, 20)))
+system = System(elements=[bits], interactions=[walk], time=DiscreteTime())
+scores = Simulation(system, random_state=0).check().prepare().run(until=50).trajectory_.values('walk.score')
+assert np.all(np.diff(scores, axis=0) <= 0)
+```
+
+### Drives that read the step
+
+`DriveLaw` passes the time of the step to a function that names `time`, and the random generator to a function that names
+`random`. A function can then set a lattice state to one member of an ensemble per step, as the model `fuzzy_oil_drop`
+does, and hold the last member after the end.
+
+```python
+from sage.all__sagemath_symbolics import var
+
+from skcomplex.core.laws import DriveLaw
+
+ensemble = np.zeros((38, 20, 3))
+replay = DriveLaw(var('x'), lambda values, *, time: ensemble[min(int(time), 37)])
+assert replay.check().prepare().targets_ == (var('x'),)
+```
+
 ### Agent and symbolic forms
 
 A class whose operation agent models also use takes `form='symbolic'` or `form='agent'`. The symbolic form lowers to
@@ -3204,6 +3281,17 @@ print(trajectory.agents('queues', 1).values['orders'].tolist())
 A model lives where the science that poses it lives, and tags carry its reach into other fields. The core never
 imports the models, every model is built only from the public names of the core, and every subfield package is
 self-contained, so no model package imports another. A test of the package layout enforces these rules.
+
+### Optional extras
+
+Most models run on the default install. A few take a library from an optional extra, and raise `MissingExtraError` with
+the name of the model, the extra, and the install command when the extra is missing. They stay in the catalog without it.
+
+| Extra | Library | Models | Install notes |
+| --- | --- | --- | --- |
+| `structures` | Biopython | `fuzzy_oil_drop`, `early_stage_folding_intermediate` | Biopython 1.88 publishes no wheel for macOS on Intel, so the extra builds it from source there with a C compiler. |
+| `rna` | ViennaRNA | `rna_neutral_networks` | The licence of ViennaRNA allows research and commercial use, forbids redistribution for a fee, and is not OSI approved, so the default install never brings it. |
+| `trajectories` | MDTraj | none, `read_trajectory` of the systems biology models | MDTraj is under the LGPL. |
 
 ### The model catalog
 
