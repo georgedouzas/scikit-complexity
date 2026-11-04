@@ -45,8 +45,10 @@ Recorded on 2026-11-04 when the change was applied.
   value, 2.70 within 0.06, three times the spread over seeds.
 - **Exponents away from 2.5.** The gap to the reference grows as the exponent nears 2. At the exponent 2.2 the model
   fits 2.78 with a largest degree near 360, and the reference fits 2.19 with a largest degree from 318 to 556. At the
-  exponent 3 the model fits 2.89 and the reference 2.68. The cause was not found, so the fitted exponent of the model
-  at 2000 nodes follows the exponent setting only weakly.
+  exponent 3 the model fits 2.89 and the reference 2.68. An independent NumPy implementation of Papadopoulos et al. (2012), with two edges, temperature 0.2,
+  and 2000 nodes, fits the same values through `NetworkAnalysis('degrees')` over three seeds: 2.78 to 2.79 at the exponent
+  2.2, 2.71 to 2.73 at 2.5, and 2.88 to 2.96 at 3, with the same largest degrees. The model does not differ from the
+  published rule. The fit at this size follows the exponent weakly, so the largest degrees are the better guide.
 - **Self-similar network.** The exponent stays within 0.18 of the original at three scales for the three seeds tested.
   The fit at one scale varies by about 0.1 over seeds, so the limit of 0.2 holds for these seeds and is not a margin.
 - **Peak of the specific heat.** The two blocks of the Laplacian scenario have two peaks, as the review states for
