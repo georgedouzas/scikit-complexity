@@ -99,7 +99,7 @@ class MetabolicNetworkElement(DeclaredElement):
         self.default_objective = default_objective
 
     def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the states and parameters of the reactions and of their genes, with the variables that replace them."""
+        """Return the states and parameters of the reactions and genes, with the variables that replace them."""
         flux, bound = StateSpec(algebraic=True), ParameterSpec()
         declared: dict[str, DeclaredVariableSpec] = {}
         for reaction, spec in self.reactions.items():
