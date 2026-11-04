@@ -7,17 +7,19 @@ from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 
 import numpy as np
-import numpy.typing as npt
 from sklearn.base import TransformerMixin, clone
 
 from ..core.laws import BaseLaw, RateLaw
 from ..core.spaces import ContinuousTime
 from ..engine._utils import vector
+from ..errors import AnalysisError
 from ..specs import SamplesSpec
 from ..types import Array, ComplexArray, DataKind
 from ._base import BaseAnalysis
 from ._sparse_identification import SparseIdentificationAnalysis
 from .types import Runs
+
+SMALL_EXPONENT = 1e-12
 
 
 class ModeDecompositionAnalysis(BaseAnalysis):
@@ -27,11 +29,18 @@ class ModeDecompositionAnalysis(BaseAnalysis):
     of every run. With a dictionary, `g` holds the observables the dictionary computes from the variables, which is
     extended DMD, and the dictionary should keep the variables among its observables. The fitted system follows the
     rate law `dg/dt = L g` with `L = Phi diag(ln(mu) / dt) Phi^+` under continuous time and starts at the first sample
-    of the first run. The forecast sums the modes from the last sample of the last run.
+    of the first run. The forecast iterates the map from the last sample of the last run.
+
+    With inputs, the decomposition is dynamic mode decomposition with control, `g(t + dt) = A g(t) + B u(t)`, where `g`
+    holds the variables that are not inputs or their observables. The fitted system follows `dg/dt = L g + M u`, where
+    `M` gives the same one-sample map under an input held over the sample. Every input is a bounded adaptive parameter
+    of the surrogate element, bounded by its range in the samples, and the forecast holds the inputs at their last
+    values.
 
     Args:
         variables:
-            The variables of trajectories, or `None` for every scalar state or observable.
+            The variables of trajectories, or `None` for every scalar state or observable. The inputs join them when
+            they are not listed.
 
         rank:
             The rank of the truncated singular value decomposition: a number of modes, 0 for the optimal hard
@@ -40,6 +49,9 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         dictionary:
             A scikit-learn transformer that computes the observables, such as `PolynomialFeatures(2)`, or `None` for
             the variables themselves.
+
+        inputs:
+            The names of the variables that are control inputs, or `None` for none.
 
         validation:
             The share of the samples of every run held out at its end to measure the validation error.
@@ -58,7 +70,7 @@ class ModeDecompositionAnalysis(BaseAnalysis):
             The series of every run, the names of the variables, and the step, set by `prepare`.
 
         system_:
-            The system of one surrogate element under continuous time, whose states follow `dg/dt = L g`.
+            The system of one surrogate element under continuous time, whose states follow `dg/dt = L g + M u`.
 
         labels_:
             The variables, or the observables of the dictionary, in the order of the states.
@@ -90,6 +102,18 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         generator_:
             The matrix `L` of the rate law, one row and one column per state.
 
+        input_generator_:
+            The matrix `M` of the rate law, one row per state and one column per input.
+
+        operator_:
+            The matrix `A` of the one-sample map, one row and one column per state.
+
+        input_matrix_:
+            The matrix `B` of the one-sample map, one row per state and one column per input.
+
+        inputs_:
+            The names of the adaptive parameters of the surrogate element that hold the inputs.
+
         forecast_:
             The states at the `horizon` samples after the last one, one row per sample.
 
@@ -103,6 +127,14 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         [-1.0, 1.0]
         >>> bool(np.allclose(analysis.forecast_[:, 0], np.cos(times[-1] + 0.1 * np.arange(1, 6))))
         True
+        >>> u = np.random.default_rng(0).uniform(-1.0, 1.0, 100)
+        >>> x = np.zeros(100)
+        >>> for k in range(99):
+        ...     x[k + 1] = 0.9 * x[k] + 0.5 * u[k]
+        >>> analysis = ModeDecompositionAnalysis(['x', 'u'], inputs=['u'], validation=0.0).check()
+        >>> analysis = analysis.prepare(np.column_stack([x, u])).run()
+        >>> analysis.operator_.round(6).tolist(), analysis.input_matrix_.round(6).tolist()
+        ([[0.9]], [[0.5]])
     """
 
     def __init__(
@@ -111,6 +143,7 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         *,
         rank: float | None = None,
         dictionary: TransformerMixin | None = None,
+        inputs: Sequence[str] | None = None,
         validation: float = 0.2,
         horizon: int = 0,
         dt: float = 1.0,
@@ -119,6 +152,7 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         self.variables = variables
         self.rank = rank
         self.dictionary = dictionary
+        self.inputs = inputs
         self.validation = validation
         self.horizon = horizon
         self.dt = dt
@@ -134,44 +168,162 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         return DataKind.SERIES
 
     def _prepare(self, source: Runs) -> None:
-        """Read the uniformly sampled series of every run."""
-        self.samples_ = self._read_samples(source, self.variables, self.dt)
+        """Read the uniformly sampled series of every run, with the inputs among the variables."""
+        added = [name for name in self.inputs or () if name not in (self.variables or ())]
+        variables = None if self.variables is None else [*self.variables, *added]
+        self.samples_ = self._read_samples(source, variables, self.dt)
+
+    def _split_inputs(self, samples: SamplesSpec) -> tuple[SamplesSpec, list[str], list[Array]]:
+        """Return the samples without the inputs, the labels of the inputs, and their series.
+
+        Args:
+            samples:
+                The series of every run with the inputs among the variables.
+
+        Returns:
+            parts:
+                The samples of the other variables, the labels of the inputs, and one array per run, with one column per
+                input.
+
+        Raises:
+            AnalysisError:
+                An input is not a variable of the series.
+        """
+        inputs = list(self.inputs or ())
+        missing = sorted(set(inputs) - set(samples.labels))
+        if missing:
+            error_msg = f'The inputs {missing} are not variables of the series, which are {samples.labels}.'
+            raise AnalysisError(error_msg)
+        others = [index for index, label in enumerate(samples.labels) if label not in inputs]
+        columns = [samples.labels.index(name) for name in inputs]
+        labels = [samples.labels[index] for index in others]
+        return (
+            SamplesSpec([values[:, others] for values in samples.series], labels, samples.dt),
+            inputs,
+            [values[:, columns] for values in samples.series],
+        )
+
+    def _fit_operators(
+        self,
+        before: Array,
+        after: Array,
+        controls: Array,
+    ) -> tuple[Array, Array, ComplexArray, ComplexArray]:
+        """Return the matrices `A` and `B` of the one-sample map, the modes, and the eigenvalues, fitted with PyDMD.
+
+        Args:
+            before:
+                The states before every pair of samples, one column per pair.
+
+            after:
+                The states after every pair of samples, one column per pair.
+
+            controls:
+                The inputs of every pair of samples, one column per pair and one row per input.
+
+        Returns:
+            operators:
+                The matrices `A` and `B`, the modes, and the eigenvalues of `A`.
+        """
+        rank = -1 if self.rank is None else self.rank
+        pydmd = self._import('pydmd')
+        if not len(controls):
+            fitted = pydmd.DMD(svd_rank=rank, exact=True).fit(before, after)
+            modes = np.asarray(fitted.modes, dtype=complex)
+            eigenvalues = np.asarray(fitted.eigs, dtype=complex)
+            operator = np.real(modes @ np.diag(eigenvalues) @ np.linalg.pinv(modes))
+            return operator, np.zeros((len(before), 0)), modes, eigenvalues
+        rank_with_inputs = rank + len(controls) if rank >= 1 else rank
+        fitted = pydmd.DMDc(svd_rank=rank, svd_rank_omega=rank_with_inputs, lag=before.shape[1])
+        fitted.fit(np.hstack([before, after]), controls)
+        basis = np.asarray(fitted.basis)
+        operator = np.real(basis @ np.asarray(fitted.operator.as_numpy_array) @ basis.conj().T)
+        modes = np.asarray(fitted.modes, dtype=complex)
+        return operator, np.real(np.asarray(fitted.B)), modes, np.asarray(fitted.eigs, dtype=complex)
 
     def _run(self, inputs: object = None) -> None:
         """Fit the decomposition and set the surrogate system, its errors, its modes, and the forecast."""
-        samples = self.samples_
+        samples, input_labels, controls = self._split_inputs(self.samples_)
         lifted, labels, states = self._lift(samples, self.dictionary)
         training, held = SparseIdentificationAnalysis._split_samples(lifted, self.validation)
+        driven, driven_held = SparseIdentificationAnalysis._split_samples(controls, self.validation)
         before = np.concatenate([values[:-1] for values in training]).T
         after = np.concatenate([values[1:] for values in training]).T
-        rank = -1 if self.rank is None else self.rank
-        decomposition = self._import('pydmd').DMD(svd_rank=rank, exact=True).fit(before, after)
-        modes = np.asarray(decomposition.modes, dtype=complex)
-        eigenvalues: ComplexArray = np.asarray(
-            np.log(np.asarray(decomposition.eigs, dtype=complex)) / samples.dt,
-            dtype=complex,
-        )
+        applied = np.concatenate([values[:-1] for values in driven]).T
+        operator, input_matrix, modes, multipliers = self._fit_operators(before, after, applied)
+        eigenvalues: ComplexArray = np.asarray(np.log(multipliers) / samples.dt, dtype=complex)
         generator = np.real(modes @ np.diag(eigenvalues) @ np.linalg.pinv(modes))
+        input_generator = self._input_generator(modes, multipliers, eigenvalues, input_matrix, samples.dt)
+        names = self._input_names(input_labels, states)
         self.system_ = SparseIdentificationAnalysis._surrogate_system(
             'LinearSurrogate',
             self.label,
             dict(zip(states, map(float, lifted[0][0]), strict=True)),
-            self._linear_laws(states, generator),
+            self._linear_laws(states, generator, names, input_generator),
             ContinuousTime(),
+            inputs=self._input_declarations(names, controls),
         )
         self.labels_ = labels
         self.states_ = states
+        self.inputs_ = names
         self.last_state_ = np.asarray(lifted[-1][-1], dtype=float)
         self.dt_ = samples.dt
-        predict = decomposition.predict
-        self.training_error_ = SparseIdentificationAnalysis._relative_error(*self._increments(predict, training))
-        self.validation_error_ = SparseIdentificationAnalysis._relative_error(*self._increments(predict, held))
+        self.training_error_ = SparseIdentificationAnalysis._relative_error(
+            *self._increments(operator, input_matrix, training, driven),
+        )
+        self.validation_error_ = SparseIdentificationAnalysis._relative_error(
+            *self._increments(operator, input_matrix, held, driven_held),
+        )
         self.eigenvalues_ = eigenvalues
         self.modes_ = modes
         self.amplitudes_ = np.linalg.lstsq(modes, self.last_state_.astype(complex), rcond=None)[0]
         self.generator_ = generator
-        growth = np.exp(np.outer(self.dt_ * np.arange(1, self.horizon + 1), self.eigenvalues_))
-        self.forecast_ = np.real((growth * self.amplitudes_) @ self.modes_.T).reshape(self.horizon, len(states))
+        self.input_generator_ = input_generator
+        self.operator_ = operator
+        self.input_matrix_ = input_matrix
+        self.forecast_ = self._forecast(operator, input_matrix, controls[-1][-1])
+
+    def _forecast(self, operator: Array, input_matrix: Array, last_input: Array) -> Array:
+        """Return the states at the samples of the horizon, with the inputs held at their last values."""
+        current = self.last_state_
+        rows = []
+        for _ in range(self.horizon):
+            current = operator @ current + input_matrix @ last_input
+            rows.append(current)
+        return np.asarray(rows, dtype=float).reshape(self.horizon, len(current))
+
+    @staticmethod
+    def _input_generator(
+        modes: ComplexArray,
+        multipliers: ComplexArray,
+        eigenvalues: ComplexArray,
+        input_matrix: Array,
+        dt: float,
+    ) -> Array:
+        """Return the matrix `M` of the rate law whose flow over a sample under a held input gives the matrix `B`."""
+        slow = np.abs(eigenvalues) * dt < SMALL_EXPONENT
+        safe = np.where(slow, 1.0, eigenvalues)
+        weights = np.where(slow, dt, (multipliers - 1.0) / safe)
+        integral = np.real(modes @ np.diag(weights) @ np.linalg.pinv(modes))
+        return np.linalg.lstsq(integral, input_matrix, rcond=None)[0]
+
+    @staticmethod
+    def _input_names(labels: Sequence[str], states: Sequence[str]) -> list[str]:
+        """Return the parameter names of the inputs, which differ from the names of the states."""
+        names = SparseIdentificationAnalysis._state_names(labels)
+        return [f'{name}_input' if name in states else name for name in names]
+
+    @staticmethod
+    def _input_declarations(
+        names: Sequence[str],
+        controls: Sequence[Array],
+    ) -> dict[str, tuple[float, tuple[float, float]]]:
+        """Return the first value and the range in the samples of every input, by name."""
+        joined = np.concatenate(controls)
+        return {
+            name: (float(controls[0][0, index]), (float(joined[:, index].min()), float(joined[:, index].max())))
+            for index, name in enumerate(names)
+        }
 
     @staticmethod
     def _lift(samples: SamplesSpec, dictionary: TransformerMixin | None) -> tuple[list[Array], list[str], list[str]]:
@@ -189,21 +341,34 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         )
 
     @staticmethod
-    def _increments(predict: Callable[[Array], npt.ArrayLike], parts: list[Array]) -> tuple[list[Array], list[Array]]:
-        """Return the increments over one sample that a decomposition predicts and those of the series."""
-        predicted = [np.real(np.asarray(predict(values[:-1].T))).T - values[:-1] for values in parts]
+    def _increments(
+        operator: Array,
+        input_matrix: Array,
+        parts: list[Array],
+        controls: list[Array],
+    ) -> tuple[list[Array], list[Array]]:
+        """Return the increments over one sample that the one-sample map predicts and those of the series."""
+        predicted = [
+            values[:-1] @ (operator - np.eye(len(operator))).T + driven[:-1] @ input_matrix.T
+            for values, driven in zip(parts, controls, strict=True)
+        ]
         return predicted, [np.diff(values, axis=0) for values in parts]
 
     @staticmethod
-    def _linear_laws(names: Sequence[str], generator: Array) -> Callable[[SimpleNamespace], list[BaseLaw]]:
-        """Return the function that gives the rate law `dg/dt = L g` of the states named."""
+    def _linear_laws(
+        names: Sequence[str],
+        generator: Array,
+        inputs: Sequence[str],
+        input_generator: Array,
+    ) -> Callable[[SimpleNamespace], list[BaseLaw]]:
+        """Return the function that gives the rate law `dg/dt = L g + M u` of the states named."""
+        matrix = np.hstack([generator, input_generator])
 
         def laws(s: SimpleNamespace) -> list[BaseLaw]:
             """Return the matrix rate law."""
             symbols = SparseIdentificationAnalysis._symbols_of(s, names)
-            rows = [
-                sum(float(value) * item for value, item in zip(row, symbols, strict=True) if value) for row in generator
-            ]
+            read = [*symbols, *SparseIdentificationAnalysis._symbols_of(s, inputs)]
+            rows = [sum(float(value) * item for value, item in zip(row, read, strict=True) if value) for row in matrix]
             return [RateLaw(vector(symbols), vector(rows))]
 
         return laws

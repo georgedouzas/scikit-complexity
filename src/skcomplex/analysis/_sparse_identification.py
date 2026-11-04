@@ -21,7 +21,7 @@ from ..core.spaces import BaseTime, ContinuousTime
 from ..core.system import System
 from ..engine.runtime import Simulation
 from ..errors import AnalysisError
-from ..specs import StateSpec
+from ..specs import ParameterSpec, StateSpec
 from ..types import Array, DataKind
 from ._base import BaseAnalysis
 from .types import Runs
@@ -337,8 +337,10 @@ class SparseIdentificationAnalysis(BaseAnalysis):
         initial: Mapping[str, float],
         laws: Callable[[SimpleNamespace], list[BaseLaw]],
         time: BaseTime,
+        *,
+        inputs: Mapping[str, tuple[float, tuple[float, float]]] | None = None,
     ) -> System:
-        """Return a system of one surrogate element with the given states, laws, and time.
+        """Return a system of one surrogate element with the given states, laws, time, and control inputs.
 
         Args:
             kind:
@@ -356,10 +358,14 @@ class SparseIdentificationAnalysis(BaseAnalysis):
             time:
                 The time of the system.
 
+            inputs:
+                The initial value and the bounds of every control input, an adaptive parameter, by name, or `None`.
+
         Returns:
             system:
                 The system.
         """
+        given = inputs or {}
         states = [
             inspect.Parameter(
                 name,
@@ -369,14 +375,24 @@ class SparseIdentificationAnalysis(BaseAnalysis):
             )
             for name, value in initial.items()
         ]
+        controls = [
+            inspect.Parameter(
+                name,
+                inspect.Parameter.KEYWORD_ONLY,
+                default=value,
+                annotation=Annotated[float, ParameterSpec(adaptive=True, bounds=bounds)],
+            )
+            for name, (value, bounds) in given.items()
+        ]
+        defaults = {**initial, **{name: value for name, (value, _) in given.items()}}
 
         def initialize(self: Element, label: str, **values: float) -> None:
             Element.__init__(self, label)
-            for name, value in {**initial, **values}.items():
+            for name, value in {**defaults, **values}.items():
                 setattr(self, name, value)
 
         first = [inspect.Parameter(name, inspect.Parameter.POSITIONAL_OR_KEYWORD) for name in ('self', 'label')]
-        vars(initialize)['__signature__'] = inspect.Signature([*first, *states])
+        vars(initialize)['__signature__'] = inspect.Signature([*first, *states, *controls])
         element_type = type(kind, (Element,), {'__init__': initialize, '_get_laws': lambda self, s: laws(s)})
         return System(elements=[element_type(label)], time=time)
 

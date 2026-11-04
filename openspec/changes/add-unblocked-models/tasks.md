@@ -2,7 +2,7 @@
 
 ## 1. Mode decomposition with control
 
-- [ ] 1.1 Add `inputs`, `operator_`, and `input_matrix_` to `ModeDecompositionAnalysis` on PyDMD's `DMDc`, with the
+- [x] 1.1 Add `inputs`, `operator_`, and `input_matrix_` to `ModeDecompositionAnalysis` on PyDMD's `DMDc`, with the
   inputs as bounded adaptive parameters of the fitted system, and verify the linear system with input scenario
 
 ## 2. Models
