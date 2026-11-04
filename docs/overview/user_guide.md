@@ -1682,6 +1682,88 @@ traders = Simulation(market, observables=[balance], invariants={'net_worth': 1e-
 print(float(traders.agents('traders', 3).values['cash'].sum()))
 ```
 
+### Translating models
+
+`SystemDynamicsTranslator(path)` turns a Vensim (`.mdl`) or XMILE (`.xmile`, `.xml`, `.stmx`) file into the source of a
+model module. PySD reads the file, and the translator writes `source_` from PySD's abstract model and `settings_` from
+the control section of the file. You save the source and import it like any model. The module defines one element class
+whose states are the stocks and whose parameters are the constants, the functions `create_system()` and
+`observables(system)`, and the constants `START`, `UNTIL`, `DT`, and `SAVE_EVERY`. Time in the module runs from zero, and
+`Time` in the file becomes `t + START`.
+
+```python
+import importlib
+import sys
+import tempfile
+from pathlib import Path
+
+from skcomplex.analysis import LoopAnalysis
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import EulerSolver
+from skcomplex.engine.translators import SystemDynamicsTranslator
+
+text = """
+Population = INTEG(Births - Deaths, 100) ~ People ~ |
+Births = Population * Birth Fraction ~ People/Year ~ |
+Deaths = Population / Lifetime ~ People/Year ~ |
+Birth Fraction = 0.03 ~ 1/Year ~ |
+Lifetime = 70 ~ Years ~ |
+Doubling Share = Population / 200 ~ Dmnl ~ |
+INITIAL TIME = 0 ~ Years ~ |
+FINAL TIME = 100 ~ Years ~ |
+TIME STEP = 0.25 ~ Years ~ |
+SAVEPER = 1 ~ Years ~ |
+"""
+folder = Path(tempfile.mkdtemp())
+(folder / 'people.mdl').write_text(text)
+translator = SystemDynamicsTranslator(folder / 'people.mdl').check().prepare().run()
+(folder / 'translated_people.py').write_text(translator.source_)
+sys.path.insert(0, str(folder))
+module = importlib.import_module('translated_people')
+print(translator.settings_.until, module.DT)
+
+system = module.create_system()
+simulation = Simulation(system, dt=module.SAVE_EVERY, observables=module.observables(system))
+trajectory = simulation.check().prepare().run(until=module.UNTIL).trajectory_
+print(trajectory.values('people.births')[0], trajectory.values('people.doubling_share')[0])
+print(LoopAnalysis().check().prepare(system).run().polarities_)
+```
+
+The parts of the file become these:
+
+- A flow variable that leaves one stock and enters another is a `TransferInteraction` between the two states, and a flow
+  variable of one stock a `TransferInteraction` with `Source()` or `Sink()`. The trajectory reports each flow as
+  `<element>.<flow>`.
+- The rest of the net rate of a stock is a `RelaxationInteraction` when it has the form `(goal - stock) / time` or
+  `(goal - stock) * rate`, and a `RateInteraction` otherwise.
+- An auxiliary is a private function `_name(s, t)` that the laws call, and an `ObservableSpec` under its snake-case name.
+- A lookup is a `lookup` table, and the built-in functions are `where`, `step`, `ramp`, `pulse`, `pulse_train`, `delay1`,
+  `delay3`, `smooth`, `distributed_delay`, `delayed`, `minimum`, `maximum`, `clip`, and the draws `uniform` and `normal`.
+- A model whose stocks are all subscripted over one range is a `GroupElement` with one member per subscript, `SUM` over
+  the range is `total`, and a read of one subscript is a `total` over that member.
+
+The default solver finds the exact solution. Vensim and Stella integrate with Euler steps by default, so a run with
+`solver=EulerSolver(dt=module.DT)` and `dt=module.DT` reproduces their run step by step, and a run with the default
+solver differs from it by the Euler error of the file's time step.
+
+```python continuation
+stepped = Simulation(system, solver=EulerSolver(dt=module.DT), dt=module.DT)
+final = stepped.check().prepare().run(until=module.UNTIL).trajectory_.values('people.population')[-1]
+print(round(float(final), 3))
+```
+
+One `ValidationError` lists every construct that does not translate, with its variable. These are `GAME`, `ALLOCATE`, the
+vector functions, `TREND`, `FORECAST`, `SAMPLE IF TRUE`, data read from spreadsheets, macros, variables subscripted over
+more than one range, models that mix subscripted and unsubscripted stocks, delays and smoothings whose initial value
+differs from their input, and `DELAY FIXED` of anything other than a stock. The library sets these limits on what a
+translated module does:
+
+- The core takes random draws only in update and renewal laws, so a module with a random function translates but raises
+  `IncompatibleLawsError` when its system checks.
+- A run cannot record an auxiliary that reads `DELAY FIXED`, or a delay that no law reads, so `observables` leaves it out.
+- A trajectory records the flow of one member from the values of that member, so in a group a flow variable that reads
+  `SUM` or one named subscript stays in the rate of its stock, without a flow, and its value stays an observable.
+
 The library models built on flows are `bathtub`, `rice_milling`, `solid_waste`, `food_relief`, and `irrigation` in
 engineering processes, `car_dealer`, `commodity_cycle`, and `beer_game` in markets, `bass_diffusion` in innovation,
 `stock_flow_consistent_economy` in macroeconomics, and `success_to_the_successful`, `shifting_the_burden`, and
