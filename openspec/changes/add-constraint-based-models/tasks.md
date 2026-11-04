@@ -67,7 +67,7 @@
 - [x] 6.2 Add `dynamic_multispecies_fba`, `comets`, and `community_fba` to `biology/ecology`, and verify their scenarios
 - [x] 6.3 Add the law tag `linear-program` to the inventory vocabulary, set the nine inventory entries to implemented
   with the tags of the systems they build, and verify the inventory registered and models that need the extra scenarios
-- [x] 6.4 Add the nine gallery examples, install the extra in the `tests`, `docs`, and `gallery` sessions, and verify
+- [ ] 6.4 Add the nine gallery examples, install the extra in the `tests`, `docs`, and `gallery` sessions, and verify
   the dynamic FBA example, carbon-13 flux analysis example, and coverage scenarios within the budget
 
 ## 7. Documentation and gate
