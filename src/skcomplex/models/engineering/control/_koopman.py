@@ -31,14 +31,17 @@ DUFFING_A, DUFFING_B, DUFFING_D = 1.0, -1.0, -0.3
 DUFFING_FORCE, DUFFING_FREQUENCY = 0.5, 1.2
 VAN_DER_POL_MU = 2.0
 MOTOR_LA, MOTOR_RA, MOTOR_KM, MOTOR_J, MOTOR_B, MOTOR_TAU, MOTOR_UA = 0.314, 12.345, 0.253, 0.00441, 0.00732, 1.47, 60.0
-LONGEST_HOLD = 20
 
 
 def _duffing_rates(s: SimpleNamespace, *, limit: float, step: float) -> tuple[Expression, Expression]:
-    """Return the rates per sample of the forced Duffing oscillator, `x'' = a x + b x^3 + d x' + f cos(w t) + u`."""
+    """Return the rates per sample of the forced Duffing oscillator of the review of Brunton et al., figure 6.6.
+
+    The second derivative is `x'' = a x + b x^3 + d x' + f cos(w t) + (3 + cos(x)) u`.
+    """
     plant, control = s.target, limit * s.sources[0].u
     force = DUFFING_FORCE * cos(DUFFING_FREQUENCY * step * s.t)
-    acceleration = DUFFING_A * plant.x + DUFFING_B * plant.x**3 + DUFFING_D * plant.y + force + control
+    gain = 3 + cos(plant.x)
+    acceleration = DUFFING_A * plant.x + DUFFING_B * plant.x**3 + DUFFING_D * plant.y + force + gain * control
     return step * plant.y, step * acceleration
 
 
@@ -273,7 +276,7 @@ def _rate_at(
 
 
 def _run_training(case: _PlantCase, duration: int, rng: np.random.Generator) -> Trajectory:
-    """Return a run of the plant under an input held at random values over random intervals, from a random state."""
+    """Return a run of the plant under a random binary input drawn every sample, from a random state."""
     system = System(
         elements=[
             PlantStateElement('plant', x=rng.uniform(case.low, case.high), y=rng.uniform(case.low, case.high)),
@@ -282,8 +285,7 @@ def _run_training(case: _PlantCase, duration: int, rng: np.random.Generator) -> 
         interactions=_plant_interactions(case, 'plant', 'input'),
         time=ContinuousTime(),
     )
-    holds = rng.integers(1, LONGEST_HOLD + 1, duration + 1)
-    values = np.repeat(rng.uniform(-1.0, 1.0, duration + 1), holds)[: duration + 1]
+    values = rng.choice((-1.0, 1.0), duration + 1)
     return (
         Simulation(system, dt=1.0, schedule={'input.u': functools.partial(_held_value, values=values)})
         .check()
@@ -332,20 +334,22 @@ def koopman_model_predictive_control(
     dictionary: TransformerMixin | None = None,
     x: float = 0.5,
     y: float = 0.0,
-    n_runs: int = 20,
-    duration: int = 200,
+    n_runs: int = 100,
+    duration: int = 1000,
     random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return a plant that a discrete-time controller steers with model predictive control on a fitted surrogate.
 
-    The factory runs the plant under a bounded input held at random values over random intervals, and fits
+    The factory runs the plant under a random binary input at the limits of its range, drawn every sample, and fits
     `ModeDecompositionAnalysis` with the input to the runs. The controller lifts the states with the dictionary,
     condenses the quadratic tracking cost over the horizon with the matrices of the surrogate, solves the bounded least
     squares problem with `scipy.optimize.lsq_linear`, and sets the input to the first value of the solution. The
-    plant reads the input through a role, and `CoSimulationSolver` holds it between samples. The plants are the forced
-    Duffing oscillator, the Van der Pol oscillator, and the bilinear DC motor, whose second variable tracks the
-    reference the review of Brunton et al. gives for each one. One time unit of the system is one sample of the
-    controller.
+    plant reads the input through a role, and `CoSimulationSolver` holds it between samples. The plants are those of
+    figure 6.6 of the review of Brunton et al.: the forced Duffing oscillator
+    `x'' = a x + b x^3 + d x' + f cos(w t) + (3 + cos(x)) u`, the Van der Pol oscillator
+    `x'' = -x - mu (x^2 - 1) x' + u`, and the bilinear DC motor, whose second variable is the output that tracks the
+    reference. The motor reads four times the input, as Korda and Mezić scale it. One time unit of the system is one
+    sample of the controller.
 
     Args:
         plant:

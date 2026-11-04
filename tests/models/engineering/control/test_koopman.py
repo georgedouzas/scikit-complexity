@@ -1,5 +1,7 @@
 """Test the `_koopman` module of `skcomplex.models.engineering.control`."""
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 from sklearn.preprocessing import PolynomialFeatures
@@ -21,14 +23,30 @@ def _tracking_error(trajectory):
 @pytest.mark.parametrize(('plant', 'until'), [('duffing', 100.0), ('van_der_pol', 100.0), ('motor', 300.0)])
 def test_koopman_model_predictive_control_tracks_reference(plant, until):
     """Test that the controlled output tracks the reference with a smaller error than the uncontrolled plant."""
-    controlled = run('koopman_model_predictive_control', plant=plant, settings={'until': until}).trajectory_
+    controlled = run(
+        'koopman_model_predictive_control',
+        plant=plant,
+        n_runs=20,
+        duration=200,
+        settings={'until': until},
+    ).trajectory_
     free = run('koopman_model_predictive_control', plant=plant, controlled=False, settings={'until': until})
     assert _tracking_error(controlled) < _tracking_error(free.trajectory_)
 
 
+def test_koopman_model_predictive_control_duffing_reads_the_input_through_its_gain():
+    """Test that the input of the forced Duffing oscillator enters through `(3 + cos(x)) u`, as the review writes it."""
+    plant_rate = koopman_model_predictive_control(controlled=False).interactions[2].rate
+    x, y, control = 0.7, -0.2, 0.5
+    s = SimpleNamespace(target=SimpleNamespace(x=x, y=y), sources=[SimpleNamespace(u=control)], t=0.0)
+    expected = x - x**3 - 0.3 * y + 0.5 + (3 + np.cos(x)) * 0.5 * control
+    assert float(plant_rate(s)) == pytest.approx(0.1 * expected)
+
+
 def test_koopman_model_predictive_control_keeps_input_in_bounds():
     """Test that the controller sets the input inside its bounds and that it changes over the run."""
-    inputs = run('koopman_model_predictive_control', settings={'until': 60.0}).trajectory_.values('controller/input.u')
+    found = run('koopman_model_predictive_control', n_runs=20, duration=200, settings={'until': 60.0})
+    inputs = found.trajectory_.values('controller/input.u')
     assert np.all(np.abs(inputs) <= 1.0)
     assert np.ptp(inputs) > 0.5
 
