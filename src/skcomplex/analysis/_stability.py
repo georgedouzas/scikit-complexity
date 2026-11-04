@@ -469,7 +469,8 @@ class StabilityAnalysis(BaseAnalysis):
         The rates add the laws of the field's element and of the interactions bound to the field.
         """
         part = field.get_declaring_part()
-        states = list(declarations_of(part, VariableKind.STATE))
+        member = field.element(field.label) if isinstance(part, type) else part
+        states =list(declarations_of(part, VariableKind.STATE))
         values = {name: default_of(part, name) for name in states} | dict(field.values or {})
         parameters = {}
         for name in declarations_of(part, VariableKind.PARAMETER):
