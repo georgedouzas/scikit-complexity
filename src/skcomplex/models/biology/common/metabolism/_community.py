@@ -21,10 +21,11 @@ from .....core.spaces import StaticTime
 from .....core.system import System
 from .....engine.compile import compile_system
 from .....engine.problems import LinearProgramKernel, ProblemSpec
-from .....errors import AnalysisError, MissingExtraError
+from .....errors import AnalysisError
 from .....specs import LinearObjectiveSpec, ParameterSpec, RunStateSpec, StateSpec
+from ...._extras import import_extra
 from ._analyses import BaseNetworkAnalysis
-from ._cobra_io import INSTALL_COMMAND, load_extra, to_cobra
+from ._cobra_io import load_extra, to_cobra
 from ._metabolic_network import MetabolicNetworkElement
 
 COMMUNITY_KINDS = ('steadycom', 'tradeoff')
@@ -249,11 +250,7 @@ class CommunityAnalysis(BaseNetworkAnalysis):
     def _run_tradeoff(self) -> None:
         """Set the community growth rate and the growth of every member of the cooperative trade-off."""
         cobra = load_extra(type(self).__name__)
-        try:
-            import micom
-        except ImportError as error:
-            error_msg = f'{type(self).__name__} needs the extra `metabolism`. Install it with `{INSTALL_COMMAND}`.'
-            raise MissingExtraError(error_msg) from error
+        micom = import_extra('micom', type(self).__name__, 'metabolism')
         members = self._members
         shares = self.abundances or [1.0 / len(members)] * len(members)
         with tempfile.TemporaryDirectory() as folder:

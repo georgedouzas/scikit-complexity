@@ -15,10 +15,11 @@ from .....core.spaces import StaticTime
 from .....core.system import System
 from .....engine.compile import compile_system
 from .....engine.problems import LinearProgramKernel, ProblemSpec
-from .....errors import AnalysisError, MissingExtraError
+from .....errors import AnalysisError
 from .....specs import RunStateSpec
 from .....types import Array, DataKind
-from ._cobra_io import INSTALL_COMMAND, load_extra, to_cobra
+from ...._extras import import_extra
+from ._cobra_io import load_extra, to_cobra
 from ._metabolic_network import MetabolicNetworkElement
 
 COBRA_KINDS = ('variability', 'parsimonious', 'deletions', 'moma', 'room', 'synthetic-lethals')
@@ -578,11 +579,7 @@ class StrainDesignAnalysis(BaseNetworkAnalysis):
             MissingExtraError:
                 StrainDesign is not installed.
         """
-        try:
-            import straindesign
-        except ImportError as error:
-            error_msg = f'{type(self).__name__} needs the extra `metabolism`. Install it with `{INSTALL_COMMAND}`.'
-            raise MissingExtraError(error_msg) from error
+        straindesign = import_extra('straindesign', type(self).__name__, 'metabolism')
         weights = self.network_.default_objective if self.network_.objective is None else self.network_.objective
         growth = self.growth or next(iter(weights))
         kind = getattr(straindesign.names, DESIGN_NAMES[self.kind])

@@ -6,13 +6,13 @@
 from pathlib import Path
 from types import ModuleType
 
-from .....errors import MissingExtraError, ValidationError
+from .....errors import ValidationError
+from ...._extras import import_extra
 from ._metabolic_network import MetabolicNetworkElement, metabolic_network_type
 from ._reaction_spec import ReactionSpec
 
 SOLVER = 'hybrid'
 BUNDLED_MODEL = 'textbook'
-INSTALL_COMMAND = "pip install 'scikit-complexity[metabolism]'"
 DEFAULT_COMPARTMENT = 'c'
 BIGG_URL = 'https://bigg.ucsd.edu/static/models/'
 
@@ -37,12 +37,7 @@ def load_extra(owner: str) -> ModuleType:
         >>> load_extra('example').__name__
         'cobra'
     """
-    try:
-        import cobra
-    except ImportError as error:
-        error_msg = f'{owner} needs the extra `metabolism`. Install it with `{INSTALL_COMMAND}`.'
-        raise MissingExtraError(error_msg) from error
-    return cobra
+    return import_extra('cobra', owner, 'metabolism')
 
 
 def from_cobra(model: object, label: str = 'network', *, needed_by: str = 'from_cobra') -> MetabolicNetworkElement:

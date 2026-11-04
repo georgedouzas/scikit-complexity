@@ -75,8 +75,6 @@ metabolism = [
     "straindesign>=1.19.1",
     "micom>=0.39.1",
 ]
-
-[project.optional-dependencies]
 structures = ["biopython>=1.88"]
 rna = ["ViennaRNA>=2.7.2"]
 trajectories = ["mdtraj>=1.11.2"]
@@ -196,8 +194,6 @@ extend-immutable-calls = ["skcomplex.specs.VisualSpec", "skcomplex.specs.Hilbert
 "src/skcomplex/engine/runtime/_simulations.py" = ["BLE001"]
 # Model element constructors only store their many arguments, which trips the statement count.
 "src/skcomplex/models/**" = ["PLR0915"]
-# The metabolism family imports the optional extra on first use, and raises a named error when it is missing.
-"src/skcomplex/models/biology/common/metabolism/**" = ["PLC0415"]
 # The gallery tools run the installed Rerun viewer in a subprocess and import Playwright only for the web backend.
 "docs/gallery_tools/**" = ["S404", "S603", "PLC0415"]
 
