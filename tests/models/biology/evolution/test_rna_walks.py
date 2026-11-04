@@ -147,12 +147,12 @@ def test_toy_map_has_one_component_per_phenotype():
         assert nx.number_connected_components(graph) == 1
 
 
-def test_toy_map_has_robustness_three_and_evolvability_one():
+def test_toy_map_has_robustness_three_and_evolvability_two():
     """Test the robustness and evolvability of the genotypes and phenotypes of the first letter."""
     assert set(_toy('genotype-robustness').values_.tolist()) == {3.0}
-    assert set(_toy('genotype-evolvability').values_.tolist()) == {1.0}
+    assert set(_toy('genotype-evolvability').values_.tolist()) == {2.0}
     assert _toy('phenotype-robustness').values_ == {'0': 3.0, '1': 3.0}
-    assert _toy('phenotype-evolvability').values_ == {'0': 1.0, '1': 1.0}
+    assert _toy('phenotype-evolvability').values_ == {'0': 2.0, '1': 2.0}
 
 
 def test_neutral_network_analysis_joins_letters_of_an_array():

@@ -37,7 +37,8 @@
   against evolvability, and model that needs the extra scenarios and the conformance suite
 - [x] 4.2 Add `fuzzy_oil_drop` with the replay and folding dynamics, and verify the ensemble of the Trp-cage and folding
   scenarios, the protein model that needs the extra scenario, and the conformance suite
-- [ ] 4.3 Transcribe the ellipse parameters of Brylinski et al. 2004 with their reference, add
+- [x] 4.3 Read the ellipse parameters from Fig. 3.43e of Konieczny et al. 2023, stating them as a figure reading because
+  Brylinski et al. 2004 is not in `references/`, add
   `early_stage_folding_intermediate`, and verify the projection, sampled cells, and protein model that needs the extra
   scenarios and the conformance suite
 - [x] 4.4 Mark the three entries implemented in `docs/overview/inventory.toml`, add their gallery examples, install the

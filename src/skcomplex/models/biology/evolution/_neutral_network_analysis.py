@@ -27,11 +27,10 @@ class NeutralNetworkAnalysis(BaseAnalysis):
     """Neutral networks of a map from sequences to phenotypes, with robustness and evolvability as Wagner defines them.
 
     The neighbours of a genotype are the sequences one point mutation away. Its robustness is the number of its
-    neighbours of the same phenotype, and its evolvability the number of different other phenotypes among its
-    neighbours. The robustness of a phenotype is the mean robustness of its genotypes, and its evolvability the number
-    of different other phenotypes among the neighbours of all its genotypes. The definitions follow Wagner (2008), as
-    Raman (2021, §13.3) states them, except that Raman counts the different phenotypes of a neighbourhood without
-    saying whether the phenotype of the genotype itself counts, and this class leaves it out.
+    neighbours of the same phenotype, and its evolvability the number of different phenotypes among its neighbours. The
+    robustness of a phenotype is the mean robustness of its genotypes, and its evolvability the number of different
+    phenotypes among the neighbours of all its genotypes. The definitions follow Wagner (2008), as Raman (2021, §13.3)
+    states them, so the phenotype of a genotype itself counts when a neighbour has it.
 
     Args:
         phenotype_of:
@@ -125,9 +124,9 @@ class NeutralNetworkAnalysis(BaseAnalysis):
         own = self.phenotype_of(sequence)
         return float(sum(self.phenotype_of(item) == own for item in self._neighbours(sequence)))
 
-    def _other_phenotypes(self, sequence: str) -> set[Hashable]:
-        """Return the phenotypes among the neighbours of a sequence other than its own."""
-        return {self.phenotype_of(item) for item in self._neighbours(sequence)} - {self.phenotype_of(sequence)}
+    def _neighbouring_phenotypes(self, sequence: str) -> set[Hashable]:
+        """Return the different phenotypes among the neighbours of a sequence."""
+        return {self.phenotype_of(item) for item in self._neighbours(sequence)}
 
     def _by_phenotype(self) -> dict[Hashable, list[str]]:
         """Return the different sequences of the source by their phenotype."""
@@ -154,7 +153,7 @@ class NeutralNetworkAnalysis(BaseAnalysis):
         if self.kind == 'genotype-robustness':
             self.values_ = np.vectorize(self._robustness, otypes=[float])(self.genotypes_)
         elif self.kind == 'genotype-evolvability':
-            self.values_ = np.vectorize(lambda item: float(len(self._other_phenotypes(item))), otypes=[float])(
+            self.values_ = np.vectorize(lambda item: float(len(self._neighbouring_phenotypes(item))), otypes=[float])(
                 self.genotypes_,
             )
         elif self.kind == 'phenotype-robustness':
@@ -164,6 +163,6 @@ class NeutralNetworkAnalysis(BaseAnalysis):
             }
         else:
             self.values_ = {
-                key: float(len(set().union(*(self._other_phenotypes(item) for item in items))))
+                key: float(len(set().union(*(self._neighbouring_phenotypes(item) for item in items))))
                 for key, items in self._by_phenotype().items()
             }

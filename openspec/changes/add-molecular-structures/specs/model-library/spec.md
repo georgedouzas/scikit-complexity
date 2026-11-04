@@ -37,7 +37,7 @@ defines them.
 #### Scenario: Toy map of the first letter
 - **WHEN** the binary sequences of length 4 are mapped to their first letter
 - **THEN** each phenotype's neutral network has 8 sequences in one component, every genotype robustness is 3, and every
-  genotype evolvability is 1
+  genotype evolvability is 2, the phenotypes among the neighbours as Raman (2021, §13.3) counts them
 
 #### Scenario: Robustness against evolvability
 - **WHEN** the genotype robustness and evolvability of the walkers of a neutral run are pooled over walkers and frames

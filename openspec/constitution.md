@@ -97,7 +97,8 @@ conventions are the taste it cannot check.
 - The top level of a package MUST hold subpackages and its `__init__` only. The shared leaves, the type vocabulary,
   the shared constants, and the shared building primitives, MUST live in a `core` subpackage, and every import MUST
   run downward, from `core` to domain packages to surfaces, so no cycle can form.
-- The only lazy import MUST defer an optional dependency, and MUST carry a suppression with a reason.
+- The only lazy import MUST defer an optional dependency, and MUST go through `importlib`, as
+  `skcomplex.models.import_extra` does, so it needs no suppression.
 - Implementation modules, classes, and helpers MUST be private, named `_name`.
 - The package `__init__` MUST re-export the public surface with an explicit `__all__`, MUST carry only its docstring
   and those re-exports, and MUST be the only place a public name leaves a private module. A name MUST be re-exported
