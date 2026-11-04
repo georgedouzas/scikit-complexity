@@ -88,3 +88,4 @@ class ReadKind(StrEnum):
     DERIVED = 'derived'
     REDUCED = 'reduced'
     OTHER = 'other'
+    SOURCE = 'source'

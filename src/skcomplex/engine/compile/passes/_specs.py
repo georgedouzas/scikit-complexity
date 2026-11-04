@@ -19,6 +19,7 @@ from ....core.interactions import (
     HyperedgeInteraction,
     NeighborInteraction,
     PairInteraction,
+    TopologyInteraction,
 )
 from ....core.spaces import (
     BaseSpace,
@@ -420,6 +421,22 @@ class SpecsPass(BasePass):
         other, other_references = SpecsPass._namespace(block, ReadKind.OTHER, alias='__other')
         references.update(other_references)
         return SpecsPass._with_hyperedges(block, SimpleNamespace(**vars(namespace), other=other), references)
+
+    @staticmethod
+    def _with_source(
+        block: BlockSpec,
+        namespace: SimpleNamespace,
+        references: dict[Expression, ReferenceSpec],
+    ) -> SimpleNamespace:
+        """Return a namespace with `source`, the values of the node a topology request starts from.
+
+        A group that declares a variable named `source` keeps it.
+        """
+        if 'source' in vars(namespace):
+            return namespace
+        source, source_references = SpecsPass._namespace(block, ReadKind.SOURCE, alias='__source')
+        references.update(source_references)
+        return SimpleNamespace(**vars(namespace), source=source)
 
     @staticmethod
     def _with_hyperedges(
@@ -1122,6 +1139,22 @@ class SpecsPass(BasePass):
         return KernelSpec(node.path, namespace, references, 0, pairs, roles=paths)
 
     @staticmethod
+    def _growth_specs(specs: list[KernelSpec], declarations: DeclarationsSpec) -> list[KernelSpec]:
+        """Return the specs of an addition of one node per step, whose namespace holds the node being added."""
+        nodes = next(
+            (block for block in declarations.capacity.values() if getattr(block.node.component, 'on', None) == 'sites'),
+            None,
+        )
+        if nodes is None:
+            return specs
+        grown = []
+        for spec in specs:
+            references = dict(spec.references)
+            namespace = SpecsPass._with_source(nodes, spec.namespace, references)
+            grown.append(replace(spec, namespace=namespace, references=references))
+        return grown
+
+    @staticmethod
     def _interaction_specs(
         block: BlockSpec,
         elements: dict[str, BlockSpec],
@@ -1328,4 +1361,6 @@ class SpecsPass(BasePass):
             return gathered(block, elements, time), declarations
         if isinstance(block.node.component, PairInteraction):
             return [SpecsPass._pair_spec(block, elements, time)], declarations
-        return SpecsPass._interaction_specs(block, elements, time, observer), declarations
+        specs = SpecsPass._interaction_specs(block, elements, time, observer)
+        grows = isinstance(component, TopologyInteraction) and component.action == 'add-node' and not bound
+        return (SpecsPass._growth_specs(specs, declarations) if grows else specs), declarations

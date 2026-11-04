@@ -2,7 +2,7 @@
 
 ## 1. Growth by distance
 
-- [ ] 1.1 Pass the drawn values of the node being added to `toward`, the condition, and the probability of
+- [x] 1.1 Pass the drawn values of the node being added to `toward`, the condition, and the probability of
   `TopologyInteraction(action='add-node')` as `namespace.source`, on the NumPy, Numba, and Mesa paths, and verify the
   attachment by distance scenario and that the existing topology tests still pass
 
