@@ -21,6 +21,7 @@ def _fit(labels, dt=0.1):
         (['a.x', 'b.x'], ['a_x', 'b_x']),
         (['cells.n[0]', 'cells.n[1]'], ['n_0', 'n_1']),
         (['lambda', 'label'], ['lambda_', 'label_']),
+        (['variables'], ['variables_']),
         (['0', '1'], ['v_0', 'v_1']),
     ],
 )

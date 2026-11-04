@@ -325,7 +325,6 @@ class ReservoirAnalysis(BaseAnalysis):
         )
         self.last_state_ = np.asarray([*samples.series[-1][-1], *memory], dtype=float)
         self.system_ = SparseIdentificationAnalysis._surrogate_system(
-            'ReservoirSurrogate',
             self.label,
             dict(zip(states, map(float, self.last_state_), strict=True)),
             self._reservoir_laws(states, step),

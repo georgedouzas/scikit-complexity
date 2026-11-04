@@ -262,7 +262,6 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         input_generator = self._input_generator(modes, multipliers, eigenvalues, input_matrix, samples.dt)
         names = self._input_names(input_labels, states)
         self.system_ = SparseIdentificationAnalysis._surrogate_system(
-            'LinearSurrogate',
             self.label,
             dict(zip(states, map(float, lifted[0][0]), strict=True)),
             self._linear_laws(states, generator, names, input_generator),
