@@ -183,17 +183,67 @@ the fetch of a third-party copy of Jurkowski et al. 2004 was blocked, so neither
   code left that inner normalisation out, and it now holds it. The peak of the curve of `K = 0.5` in Fig. 1.41 is about
   0.68 of the peak of `T`, which matches the 0.67 of the printed equation and not the 0.59 of the code before. `K` of
   the first models changes from 0.31 to 2.68 for 1L2Y, from 0.27 to 0.98 for 1UBQ, and from 0.61 to 2.19 for 5PTI.
-- `σ` as a third of the largest coordinate follows the book, which has the Gaussian reach near zero at `3σ` (p. 33) and
-  draws the axis of Fig. 1.41 to `±3σ`. The book does not say that `σ` is fitted this way in words.
+- `σ` as a third of the largest coordinate is one reading of the book, which has the Gaussian reach near zero at `3σ`
+  (p. 33) and draws the axes of Figs. 1.40 and 1.41 to `±3σ`. The book gives no formula for `σ`.
 - These have no source: the principal axes as the axes of Eq. 1.1, the Kyte-Doolittle scale, for which the book names no
-  scale, leaving a residue out of its own sum, and the upper bound 5 of `K`, for which the book only reports values
-  above 3 for membrane proteins (p. 41).
+  scale, `K` as the minimiser of `D_KL(O|M)`, leaving a residue out of its own sum, and the upper bound 5 of `K`, for
+  which the book only reports values above 3 for membrane proteins (p. 41). The sum of Eq. 1.2 prints no `j ≠ i`, while
+  the text speaks of interactions between residues (p. 38), so the book does not settle the self term.
 - 72 cells and add-one smoothing have no source. The 72 of the book counts the 5° steps of one angle of the whole map
   (p. 147). Column F of Table 3.3 reaches 6.63 bits for glycine at 5°, above the 6.17 bits that 72 cells can hold, so
   the cells of the book are not 72 equal cells of `t`. The book does not state their number, so the default stays.
-- Not reproduced: the book expects fast-folding proteins near `K = 0` with `RD < 0.5` (pp. 39 to 40). The Trp-cage 1L2Y
-  has a mean `RD` of 0.77 and `K` of 2.2 here, and keeping a residue in its own sum does not close the gap (0.84 and
-  3.9). The cause is unknown, and the open choices above or the scale are candidates.
+- Not reproduced: the book expects fast-folding proteins near `K = 0` with `RD < 0.5`, and most single-chain proteins at
+  `0 < K < 0.5` (pp. 39 to 40). The mean `RD` and `K` here are 0.77 and 2.2 for 1L2Y, 0.70 and 0.98 for 1UBQ, and 0.77
+  and 2.2 for 5PTI. The models of 1L2Y range over `RD` 0.69 to 0.85 and `K` 1.5 to 3.2. The code is not at fault in any
+  point the book states, the gap comes from `σ`, which it does not state, and `σ` stays as it is, since nothing at hand
+  says what it should be. A new `σ` picked to reach the expected values would be a tuned number.
+- The equations hold against the one worked example of the book. The curves `T` and `O` read from the pixels of Fig.
+  1.41 give `K` of 0.49 to 0.50 by the minimiser of the code, against the printed 0.5, and a least squares fit of the
+  teal curve to Eq. 1.9 gives 0.50 to 0.52. They give `RD` of 0.60 to 0.68 against the 0.700 of Fig. 1.40, a figure that
+  depends on where the tails of `T` end, between 0 and 4 pixels above the axis. So the code reproduces the numbers of
+  the figure, which also supports the minimiser, and the figures are drawings reduced to one dimension, which cannot
+  calibrate `σ` for a protein.
+- The book gives no `RD` or `K` of a named entry. It gives none for the Trp-cage, ubiquitin, or BPTI, and that 1L2Y
+  counts as fast-folding comes from outside the book. Its PDB codes at this section, 6SDZ and 1DVQ (p. 47), carry no
+  values, and Fig. 1.43 only says "K < 0.5" for an unnamed entry of alpha-synuclein. The book says that nearly all
+  domains reach `K = 0` when analysed as standalone units (p. 40), which does not apply, since these three are whole
+  small chains.
+- One choice changed at a time, mean `RD` and `K` of 1L2Y, 1UBQ, and 5PTI, against 0.77 and 2.2, 0.70 and 0.98, and 0.77
+  and 2.2, with `K` searched over `[0, 50]`. No change but the width of the Gaussian brings all three below `RD = 0.5`,
+  or `K` to the range of the book:
+
+  | Choice | 1L2Y | 1UBQ | 5PTI |
+  | --- | --- | --- | --- |
+  | effective atom of the heavy atoms | 0.83, 3.4 | 0.70, 0.98 | 0.80, 3.0 |
+  | Cα in place of the effective atom, against p. 38 | 0.84, 3.5 | 0.71, 0.97 | 0.87, 3.7 |
+  | axes of the file in place of the principal axes | 0.82, 2.6 | 0.75, 1.2 | 0.85, 3.7 |
+  | x axis through the farthest pair, y likewise | 0.76, 2.0 | 0.65, 0.82 | 0.76, 2.1 |
+  | keeping a residue in its own sum | 0.84, 3.9 | 0.66, 0.89 | 0.76, 2.4 |
+  | Kyte-Doolittle shifted by 5 in place of 4.5 | 0.78, 2.2 | 0.73, 1.1 | 0.78, 2.2 |
+  | Kyte-Doolittle clipped at zero | 0.69, 7.4 | 0.39, 0.28 | 0.69, 1.9 |
+  | Hopp-Woods negated, rescaled to `[0, 1]` | 0.72, 1.6 | 0.74, 1.2 | 0.72, 1.5 |
+  | Janin, rescaled to `[0, 1]` | 0.74, 1.9 | 0.83, 1.5 | 0.77, 2.2 |
+  | the same hydrophobicity for every residue | 0.82, 2.4 | 0.92, 2.3 | 0.86, 2.3 |
+  | `σ` times 1.25 | 0.54, 0.81 | 0.51, 0.45 | 0.63, 0.99 |
+  | `σ` times 1.5 | 0.37, 0.27 | 0.41, 0.20 | 0.53, 0.48 |
+  | `σ` times 2 | 0.32, 0.00 | 0.38, 0.00 | 0.46, 0.07 |
+  | `σ` as the standard deviation of the coordinates | 0.32, 0.18 | 0.44, 0.31 | 0.55, 0.60 |
+  | `σ` as a third of the largest coordinate plus the cutoff | 0.34, 0.00 | 0.36, 0.08 | 0.54, 0.49 |
+
+- Other inputs ruled out. A rescale of the scale changes nothing, since `O` is normalised, and the shift of 4.5 is the
+  smallest that keeps every value of the scale at zero or above: the raw scale gives negative `O` at 3 of 20, 26 of 76,
+  and 25 of 58 residues, where Eq. 1.3 has no value. A Powell search over the twenty values of a scale, which is no
+  proof of a bound, stops at `RD` 0.56 fitted to 1L2Y alone, and at a worst `RD` of 0.63 fitted to all three, with a
+  single amino acid above zero. The bound 5 of `K` is not reached with the default scale, and the minimiser agrees with
+  a grid over `[0, 50]` within 0.002. The log base cancels in `RD`.
+- Why `σ` decides. With the farthest atom at `3σ`, `T` holds most of its weight at the centre and almost none on the
+  rim, from 0.016 to 9.7 times the uniform share in the first models, while `O` only spans 0.07 to 2.5, since a residue
+  on the rim still has neighbours within 9 Å. So the residues with `T` under a third of the uniform share, 11 of 20 in
+  1L2Y, 24 of 76 in 1UBQ, and 22 of 58 in 5PTI, carry nearly all of `D_KL(O|T)`: 1.13 of 1.13, 0.50 of 0.53, and 0.71 of
+  0.83 bits.
+- Open. The tool HPHOB of the authors, which the book names (p. 2, `https://hphob.sano.science`), computes these
+  parameters for any structure and was not consulted, since this check stayed with the PDFs. Its output for 1L2Y, 1UBQ,
+  and 5PTI, or a paper of the group that defines `σ`, would settle `σ` and the scale.
 
 ### Folding
 

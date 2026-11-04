@@ -36,7 +36,10 @@ trajectory = simulation.check().prepare().run(until=37).trajectory_
 # Distributions of one model
 # --------------------------
 # The first panel holds the theoretical and the observed distribution of the first model per residue, with the uniform
-# distribution as the line. The second holds `RD` and `K` of every model of the ensemble.
+# distribution as the line. The second holds `RD` and `K` of every model of the ensemble, with means of 0.77 and 2.2.
+# The book expects `RD` below 0.5 and `K` near 0 of a fast-folding protein. It gives no formula for the width of its
+# Gaussian, and this difference comes from the width that the model chooses, so `RD` and `K` here do not compare with
+# its values.
 
 structure = read_structure('1L2Y')
 profile = FuzzyOilDropAnalysis(structure, 'profile').check().prepare().run()
@@ -60,7 +63,8 @@ plt.show()
 # ------------------------------
 # With `dynamics='folding'`, the chain starts extended and each unit of time proposes one rotation of a dihedral angle,
 # which temperature zero accepts when the score does not grow, `RD` plus one for every clash. Lowering `RD` also makes
-# the chain more compact, as the radius of gyration shows.
+# the chain somewhat more compact: the radius of gyration falls from 19.7 Å to 17.4 Å, far from the 7.3 Å of the first
+# NMR model.
 
 folding = create(MODEL, dynamics='folding')
 folded = Simulation(folding, random_state=0).check().prepare().run(until=200).trajectory_
