@@ -111,6 +111,9 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         input_matrix_:
             The matrix `B` of the one-sample map, one row per state and one column per input.
 
+        dictionary_:
+            The fitted dictionary, which lifts new states to the observables, or `None` without a dictionary.
+
         inputs_:
             The names of the adaptive parameters of the surrogate element that hold the inputs.
 
@@ -244,7 +247,10 @@ class ModeDecompositionAnalysis(BaseAnalysis):
     def _run(self, inputs: object = None) -> None:
         """Fit the decomposition and set the surrogate system, its errors, its modes, and the forecast."""
         samples, input_labels, controls = self._split_inputs(self.samples_)
-        lifted, labels, states = self._lift(samples, self.dictionary)
+        self.dictionary_ = (
+            None if self.dictionary is None else clone(self.dictionary).fit(np.concatenate(samples.series))
+        )
+        lifted, labels, states = self._lift(samples, self.dictionary_)
         training, held = SparseIdentificationAnalysis._split_samples(lifted, self.validation)
         driven, driven_held = SparseIdentificationAnalysis._split_samples(controls, self.validation)
         before = np.concatenate([values[:-1] for values in training]).T
@@ -326,12 +332,11 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         }
 
     @staticmethod
-    def _lift(samples: SamplesSpec, dictionary: TransformerMixin | None) -> tuple[list[Array], list[str], list[str]]:
+    def _lift(samples: SamplesSpec, fitted: TransformerMixin | None) -> tuple[list[Array], list[str], list[str]]:
         """Return the series, labels, and state names of the observables: the variables without a dictionary."""
         names = SparseIdentificationAnalysis._state_names(samples.labels)
-        if dictionary is None:
+        if fitted is None:
             return samples.series, samples.labels, names
-        fitted = clone(dictionary).fit(np.concatenate(samples.series))
         lifted = [np.asarray(fitted.transform(values), dtype=float) for values in samples.series]
         labels = [str(name) for name in fitted.get_feature_names_out(samples.labels)]
         return (

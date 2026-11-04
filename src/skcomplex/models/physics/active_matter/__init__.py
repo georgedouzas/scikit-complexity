@@ -5,6 +5,7 @@ from ._alignment import PolarAlignmentInteraction, aligning_active_brownian_part
 from ._angular_alignment import AngularAlignmentInteraction
 from ._angular_diffusion import AngularDiffusionInteraction
 from ._binary_collisions import BinaryCollisionsInteraction
+from ._cells import MotileCellElement, szabo_cells
 from ._chemotaxis import ChemotaxisElement, keller_segel
 from ._cohesive_particle import CohesiveParticleElement
 from ._collective import cucker_smale_flocking, living_crystals, motility_induced_phase_separation, toner_tu
@@ -57,6 +58,7 @@ __all__: list[str] = [
     'FlockerView',
     'HeadingAlignmentInteraction',
     'LandauDeGennesEnergyInteraction',
+    'MotileCellElement',
     'NematicDensitySiteElement',
     'NematicGelSiteElement',
     'NematicParticleElement',
@@ -90,6 +92,7 @@ __all__: list[str] = [
     'motility_induced_phase_separation',
     'nonreciprocal_vicsek',
     'run_and_tumble',
+    'szabo_cells',
     'toner_tu',
     'vicsek',
 ]

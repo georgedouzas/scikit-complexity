@@ -7,6 +7,7 @@ from collections.abc import Callable, Mapping
 from typing import Protocol
 
 import networkx as nx
+import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
@@ -29,6 +30,9 @@ class ReservoirNodeProtocol(Protocol):
     initialized: bool
     store: Array
     state: dict[str, Array]
+    Wout: Array
+    bias: Array
+    _monomial_idx: npt.NDArray[np.int_]
 
     def initialize(self, x: Array) -> None:
         """Initialize the node for inputs of the shape of an example."""

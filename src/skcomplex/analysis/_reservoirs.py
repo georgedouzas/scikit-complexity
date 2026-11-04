@@ -7,6 +7,7 @@ from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 
 import numpy as np
+import numpy.typing as npt
 
 from ..core.laws import BaseLaw, UpdateLaw
 from ..core.spaces import DiscreteTime
@@ -56,6 +57,15 @@ class _ReservoirStep:
         if self.kind == 'next_generation':
             return np.asarray(self.node.store, dtype=float).ravel()
         return np.asarray(self.node.state['out'], dtype=float).ravel()
+
+    def monomials(self) -> npt.NDArray[np.int_]:
+        """Return the monomials of a next-generation reservoir, as the linear features that every one multiplies.
+
+        Returns:
+            monomials:
+                One row per monomial, with the positions of its factors among the linear features.
+        """
+        return np.asarray(self.node._monomial_idx, dtype=int)
 
     def initialize(self, variables: Array) -> None:
         """Initialize the node for inputs of the size of the variables and clear its memory.
@@ -204,7 +214,8 @@ class ReservoirAnalysis(BaseAnalysis):
             The relative error on the held-out samples, NaN when none are held out.
 
         step_:
-            The map from the states to the states one step later, which the update law calls.
+            The map from the states to the states one step later, which the update law calls, holding the fitted
+            reservoir node `node`, the ridge node `readout`, and the standardisation `mean` and `scale`.
 
         forecast_:
             The variables at the `horizon` samples after the last one, one row per sample.
