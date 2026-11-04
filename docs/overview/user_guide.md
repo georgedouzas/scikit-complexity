@@ -2696,6 +2696,99 @@ laws of its own over any roles, `NeighborInteraction` over the edges of a lattic
 the pairs within a cutoff, and `HyperedgeInteraction` over the members of hyperedges. The sections on groups, networks,
 and pair interactions below show them.
 
+### Agents in three dimensions and on region layers
+
+`MesaSolver` runs agents in a `ContinuousSpace` of two or three sides. Placement, `MovementInteraction` steps, radius
+queries, the minimum image of a periodic box, and the locations of a trajectory use every side. `model.dimensions`
+returns every side. The solver rejects a continuous space with any other number of sides or without an extent before
+the first frame, and the compile report holds the issue `location-dimension` for an initial location whose length
+differs from the dimension of its space. `AgentsVisual` draws agents in three dimensions as `Points3D`.
+
+```python
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import MovementInteraction
+from skcomplex.core.spaces import ContinuousSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
+divers = GroupElement('divers', element=Element, size=4)
+swim = MovementInteraction('swim', target='divers', step='gaussian', scale=0.1)
+space = ContinuousSpace(extent=(10.0, 5.0, 2.0), boundary='periodic')
+system = System(elements=[divers], interactions=[swim], space=space)
+trajectory = Simulation(system, random_state=0).check().prepare().run(until=5).trajectory_
+print(trajectory.agents('divers', 5).locations.shape)
+```
+
+`ContinuousSpace(regions=...)` holds layers of regions in a space of two sides: a mapping from the name of a layer to a
+sequence of Shapely polygons in the coordinates of the space. `prepare` keeps one `STRtree` per layer in `regions_` and
+raises `SpaceError`, which names the layer and the region, for a region that is not a valid polygon.
+
+A polygon is a location in `GroupElement(location=...)`, `ModelView.create`, and `AgentView.move_to`. The solver draws
+a uniform point inside it from the generator of the simulation, by choosing a triangle of the constrained Delaunay
+triangulation of the polygon with a probability proportional to its area. `AgentView.regions_here(layer)` returns the
+indices of the regions of a layer that contain the agent, `ModelView.region(layer, index)` the polygon of a region, and
+`ModelView.regions(layer)` the number of regions of a layer. A `MovementInteraction` step that returns the polygon of a
+region moves an agent into it, and `AgentsVisual` draws every layer once as static `LineStrips2D` under the agents.
+
+```python
+from shapely import Point, box
+
+from skcomplex.core.elements import Element, GroupElement
+from skcomplex.core.interactions import MovementInteraction
+from skcomplex.core.spaces import ContinuousSpace
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+
+census = [box(0.0, 0.0, 4.0, 4.0), box(5.0, 0.0, 9.0, 4.0)]
+places = [box(1.0, 6.0, 3.0, 8.0)]
+people = GroupElement('people', element=Element, size=3, location=[census[0], census[0], census[1]])
+outing = MovementInteraction('outing', target='people', step=lambda agent, model: model.region('places', 0))
+space = ContinuousSpace(extent=(10.0, 10.0), regions={'census': census, 'places': places})
+system = System(elements=[people], interactions=[outing], space=space)
+trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+print(all(places[0].contains(Point(point)) for point in trajectory.agents('people', 1).locations))
+```
+
+The polygons of a space are in the coordinates of the space, and the library handles no coordinate reference system.
+Census shapefiles usually come in longitude and latitude, where every distance, such as a radius, is in degrees, so
+reproject them to a metric system first. With GeoPandas, `geopandas.read_file(path).to_crs(epsg=32604).geometry` gives
+the polygons of a shapefile in metres for a Hawaiian island. Shift them so that the coordinates are not negative, since
+a box runs from 0 to its sides. The next example does the same with a plain local projection of one census polygon.
+
+```python
+import math
+
+import numpy as np
+import shapely
+from shapely import Polygon
+from shapely.affinity import translate
+
+EARTH_RADIUS = 6371000.0
+tract = Polygon([(-159.6, 21.9), (-159.4, 21.9), (-159.4, 22.1), (-159.6, 22.1)])
+
+
+def project(points):
+    scale = math.cos(math.radians(22.0))
+    return EARTH_RADIUS * np.radians(points) * np.array([scale, 1.0])
+
+
+projected = shapely.transform(tract, project)
+low_x, low_y, _, _ = projected.bounds
+tract_in_metres = translate(projected, -low_x, -low_y)
+print([round(value, -3) for value in tract_in_metres.bounds])
+```
+
+The model `kauai_population` places one agent per resident of the census regions of the synthetic island of its
+package, and `boids_3d` flies in a periodic cube.
+
+```python
+from skcomplex.models import create
+
+system = create('kauai_population', populations=(10, 5, 0))
+print(system.elements[0].size, list(system.space.regions))
+print(create('boids_3d', n_boids=10).space.extent)
+```
+
 ### Law utilities
 
 Besides `where`, `either`, `both`, and `mod`, `skcomplex.core.laws.utils` gives the functions laws are commonly written
