@@ -19,6 +19,7 @@ from ...core.laws import (
     EncounterLaw,
     EquationLaw,
     FluxLaw,
+    LinearProgramLaw,
     RateLaw,
     TransferLaw,
 )
@@ -168,6 +169,7 @@ class ScipyODESolver(Solver):
             time={ContinuousTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
             laws={
+                LinearProgramLaw,
                 RateLaw,
                 FluxLaw,
                 EquationLaw,

@@ -12,6 +12,17 @@ from ._frame_spec import FrameSpec
 from ._kernel_spec import KernelSpec
 from ._kinetic_problem_spec import KineticProblemSpec
 from ._learning_problem_spec import LearningProblemSpec
+from ._linear_program_kernel import LinearProgramKernel
+from ._linear_program_spec import (
+    COLUMN_LOWER,
+    COLUMN_UPPER,
+    ROW_LOWER,
+    ROW_UPPER,
+    LinearProgramDualSpec,
+    LinearProgramEntrySpec,
+    LinearProgramSideSpec,
+    LinearProgramSpec,
+)
 from ._linear_term_spec import LinearTermSpec
 from ._loop_term_spec import LoopTermSpec
 from ._lowered_kernels_spec import LoweredKernelsSpec
@@ -29,6 +40,10 @@ from ._transfer_network_spec import TransferNetworkSpec
 from ._transfer_state_spec import TransferStateSpec
 
 __all__: list[str] = [
+    'COLUMN_LOWER',
+    'COLUMN_UPPER',
+    'ROW_LOWER',
+    'ROW_UPPER',
     'BaseKernel',
     'BasePrinter',
     'BaseProblemSpec',
@@ -43,6 +58,11 @@ __all__: list[str] = [
     'KernelSpec',
     'KineticProblemSpec',
     'LearningProblemSpec',
+    'LinearProgramDualSpec',
+    'LinearProgramEntrySpec',
+    'LinearProgramKernel',
+    'LinearProgramSideSpec',
+    'LinearProgramSpec',
     'LinearTermSpec',
     'LoopTermSpec',
     'LoweredKernelsSpec',

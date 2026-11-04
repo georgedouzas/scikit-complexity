@@ -179,7 +179,8 @@ class Simulation(BaseConfig[None, float]):
 
     def _check_dt(self, problem: BaseProblemSpec, until: float) -> float:
         """Return the time between frames of a run until a time, after validating it for the problem's form."""
-        forms = {problem.form, *(item.form for item in self._partition_problems(problem))}
+        partitions = [item for item in self._partition_problems(problem) if not getattr(item, 'programs', ())]
+        forms = {problem.form, *(item.form for item in partitions)}
         stepwise = bool(forms & _STEPWISE_FORMS) or self.stepper_._is_stepwise()
         default = 1.0 if stepwise else self._default_dt(until)
         dt = default if self.dt is None else self.dt

@@ -8,12 +8,14 @@ from collections import defaultdict
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
-from ....core.laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.laws import BaseLaw, JumpLaw, LinearProgramLaw, NoiseLaw, RateLaw, UpdateLaw
+from ....core.spaces import DiscreteTime
 from ..._utils import vector
 from ...problems import DeclarationsSpec, KernelSpec
 from .._base import BasePass
 from .._compilation import Compilation, Laws
 from ._census import CensusPass
+from ._fractional_form import FractionalFormPass
 from ._kernels import KernelsPass
 from ._mask_requests import MaskRequestsPass
 
@@ -23,7 +25,7 @@ class OwnersPass(BasePass):
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
-        return ('shifted', 'apart', 'nodes', 'layout')
+        return ('shifted', 'apart', 'programs', 'nodes', 'layout')
 
     def _get_writes(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass writes."""
@@ -38,7 +40,9 @@ class OwnersPass(BasePass):
         compilation.drawn = [(spec, self._masked(spec, laws, declarations)) for spec, laws in owned]
         apart = Compilation._required(compilation.apart, 'apart')
         compilation.drawn_apart = self._owned(apart, compilation.owners, agents)
-        compilation.kinds = self._law_kinds([*compilation.drawn, *compilation.drawn_apart], agents)
+        programs = self._owned(Compilation._required(compilation.programs, 'programs'), compilation.owners, agents)
+        compilation.kinds = self._law_kinds([*compilation.drawn, *compilation.drawn_apart, *programs], agents)
+        self._set_program_steps(compilation.kinds, FractionalFormPass._declared_times(compilation.system))
 
     @staticmethod
     def _kept_update(law: UpdateLaw, mask: Expression) -> UpdateLaw:
@@ -79,6 +83,14 @@ class OwnersPass(BasePass):
             )
             for spec, laws in specs
         ]
+
+    @staticmethod
+    def _set_program_steps(kinds: dict[str, set[type]], times: dict[str, type | None]) -> None:
+        """Count a linear program under discrete time as an update, since each step of a map solves it."""
+        for owner, classes in kinds.items():
+            time = times.get(owner.rpartition('/')[0])
+            if LinearProgramLaw in classes and time is not None and issubclass(time, DiscreteTime):
+                classes.add(UpdateLaw)
 
     @staticmethod
     def _law_kinds(specs: list[tuple[KernelSpec, list[BaseLaw]]], agents: set[str]) -> dict[str, set[type]]:

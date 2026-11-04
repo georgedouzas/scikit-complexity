@@ -16,6 +16,7 @@ from ...core.laws import (
     EquationLaw,
     FluxLaw,
     JumpLaw,
+    LinearProgramLaw,
     RateLaw,
     TransferLaw,
 )
@@ -72,6 +73,7 @@ class RK4Solver(Solver):
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
             laws={
                 JumpLaw,
+                LinearProgramLaw,
                 RateLaw,
                 FluxLaw,
                 EquationLaw,
