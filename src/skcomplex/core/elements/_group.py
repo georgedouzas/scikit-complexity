@@ -159,7 +159,8 @@ class GroupElement(BaseElement):
             >>> from skcomplex.core.elements import DeclaredElement, GroupElement
             >>> from skcomplex.specs import DeclaredVariableSpec, StateSpec
             >>> values = {'variables': {'x': DeclaredVariableSpec(1.0, StateSpec())}}
-            >>> GroupElement('cells', element=DeclaredElement, size=2, values=values).get_declaring_part().get_value('x')
+            >>> group = GroupElement('cells', element=DeclaredElement, size=2, values=values)
+            >>> group.get_declaring_part().get_value('x')
             1.0
         """
         return self._get_member() if issubclass(self.element, DeclaredElement) else self.element

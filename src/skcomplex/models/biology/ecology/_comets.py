@@ -103,7 +103,14 @@ def comets(
     cells = {'name': 'ColonyCell', 'reactions': plain, 'default_objective': source.default_objective}
     return System(
         elements=[
-            GroupElement('cells', element=MetabolicNetworkElement, values=cells, on='sites', space=space, visual=images),
+            GroupElement(
+                'cells',
+                element=MetabolicNetworkElement,
+                values=cells,
+                on='sites',
+                space=space,
+                visual=images,
+            ),
             FieldElement('biomass', element=BiomassElement, space=space, values={'x': initial}),
             FieldElement(
                 'glucose',

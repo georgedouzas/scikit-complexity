@@ -91,6 +91,8 @@ class ToyNetworkElement(MetabolicNetworkElement):
             default_objective=default_objective,
             variables=variables,
         )
+
+
 OXYGEN_EXCHANGE = 'EX_o2_e'
 
 
