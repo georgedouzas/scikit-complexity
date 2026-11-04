@@ -5,6 +5,7 @@ import pytest
 from scipy.integrate import trapezoid
 
 from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create, run
 from skcomplex.specs import RunStateSpec
 
@@ -45,3 +46,14 @@ def test_program_solves_only_the_sites_above_the_threshold():
     kernel = problem.programs[0]
     kernel.run(RunStateSpec(0.0, problem.initial_state, problem.initial_parameters))
     assert kernel.solves_ == 1
+
+
+def test_comets_keeps_its_reference_values():
+    """Test a short run against the values recorded before the group moved to declared states."""
+    system = create('comets', shape=(3, 3))
+    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=0.5).trajectory_
+    biomass, glucose = trajectory.values('biomass.x')[-1], trajectory.values('glucose.c')[-1]
+    exchange = trajectory.values('cells.v_EX_glc__D_e')[-1]
+    assert float(np.sum(biomass)) == pytest.approx(0.15387505138016175, rel=1e-9)
+    assert float(np.sum(glucose)) == pytest.approx(44.38346329747833, rel=1e-9)
+    assert float(np.min(exchange)) == pytest.approx(-9.979761126122956, rel=1e-9)

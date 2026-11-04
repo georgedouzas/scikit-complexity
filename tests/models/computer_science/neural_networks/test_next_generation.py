@@ -127,3 +127,12 @@ def test_next_generation_reservoir_clones():
     values = np.sin(0.1 * np.arange(200.0))[:, None]
     element = clone(next_generation_reservoir(values, variables=['v'])).elements[0]
     assert (element.v, element.v_lag1) == pytest.approx((values[-1, 0], values[-2, 0]))
+
+
+def test_next_generation_reservoir_keeps_its_reference_values():
+    """Test a forecast against the values recorded before the element moved to declared states."""
+    values = np.sin(0.1 * np.arange(200.0))[:, None]
+    system = next_generation_reservoir(values, variables=['v'])
+    trajectory = Simulation(system, dt=1).check().prepare().run(until=20).trajectory_
+    last = [float(np.ravel(trajectory.values(path))[-1]) for path in ('reservoir.v', 'reservoir.v_lag1')]
+    assert last == pytest.approx([0.09103560049023797, 0.18999621778271003], rel=1e-9)
