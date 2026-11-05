@@ -11,6 +11,8 @@ FOLDERS = ('src', 'tests', 'docs')
 DOCUMENTS = ('README.md', 'docs/overview/user_guide.md')
 PYTHON_BLOCK = re.compile(r'^```python[^\n]*\n(.*?)^```$', re.MULTILINE | re.DOTALL)
 MODELS = 'skcomplex.models'
+CATALOG_FUNCTIONS = ('catalog', 'describe', 'create', 'run')
+FIELD_MODULE = re.compile(rf'{re.escape(MODELS)}\.[\w<]')
 GENERATED = Path('docs') / 'generated'
 FORBIDDEN = (
     'TYPE' + '_CHECKING',
@@ -49,32 +51,57 @@ def _python_blocks(path: Path) -> list[tuple[int, str]]:
     return [(text.count('\n', 0, match.start(1)), match.group(1)) for match in PYTHON_BLOCK.finditer(text)]
 
 
-def _imported_modules(code: str) -> list[tuple[int, str]]:
-    """Return the modules a block of code imports, each with its line in the block."""
-    found: list[tuple[int, str]] = []
+def _imported_names(code: str) -> list[tuple[int, str, str]]:
+    """Return what a block of code imports, each as its line in the block, its module, and its name."""
+    found: list[tuple[int, str, str]] = []
     for node in ast.walk(ast.parse(code)):
         if isinstance(node, ast.ImportFrom) and node.module:
-            found.append((node.lineno, node.module))
+            found += [(node.lineno, node.module, alias.name) for alias in node.names]
         elif isinstance(node, ast.Import):
-            found += [(node.lineno, alias.name) for alias in node.names]
+            found += [(node.lineno, alias.name, '') for alias in node.names]
     return found
 
 
+def _is_field_import(module: str, name: str) -> bool:
+    """Return whether an import reaches into the model library, beyond the functions of the catalog."""
+    if module.startswith(f'{MODELS}.'):
+        return True
+    if module == MODELS:
+        return name not in CATALOG_FUNCTIONS
+    return module == 'skcomplex' and name == 'models'
+
+
 def _field_imports(root: Path) -> list[str]:
-    """Return every import from a field module in the Python blocks of the documents, as `file:line: module`."""
+    """Return every import of the Python blocks of the documents beyond the catalog, as `file:line: module name`."""
     return [
-        f'{document}:{start + line}: {module}'
+        f'{document}:{start + line}: {module} {name}'
         for document in DOCUMENTS
         for start, code in _python_blocks(root / document)
-        for line, module in _imported_modules(code)
-        if module.startswith(f'{MODELS}.')
+        for line, module, name in _imported_names(code)
+        if _is_field_import(module, name)
+    ]
+
+
+def _field_mentions(root: Path) -> list[str]:
+    """Return every line of the documents that names a field module, as `file:line: text`."""
+    return [
+        f'{document}:{number}: {line.strip()}'
+        for document in DOCUMENTS
+        for number, line in enumerate((root / document).read_text(encoding='utf-8').splitlines(), start=1)
+        if FIELD_MODULE.search(line)
     ]
 
 
 def test_documents_import_from_no_field_module(request):
-    """Test that the Python blocks of the README and the user guide import nothing from a field module."""
+    """Test that the Python blocks of the README and the user guide import only the catalog functions of the models."""
     found = _field_imports(request.config.rootpath)
-    assert not found, f'{len(found)} imports from field modules:\n' + '\n'.join(found)
+    assert not found, f'{len(found)} imports beyond the catalog functions:\n' + '\n'.join(found)
+
+
+def test_documents_name_no_field_module(request):
+    """Test that no line of the README and the user guide names a field module, in code or in prose."""
+    found = _field_mentions(request.config.rootpath)
+    assert not found, f'{len(found)} lines name a field module:\n' + '\n'.join(found)
 
 
 def test_readme_custom_model_runs_from_the_core_alone(request):

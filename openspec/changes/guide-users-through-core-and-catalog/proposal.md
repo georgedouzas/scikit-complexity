@@ -2,9 +2,9 @@
 
 ## Why
 
-The documentation does not show the two ways to use the library. The user guide has 59 imports from field modules of
-`skcomplex.models`, and the README builds its first model from `PopulationElement` and `PredationInteraction`, so a reader
-learns that a custom model is assembled from another model's parts. The intended split is simpler: a custom model is built
+The documentation does not show the two ways to use the library. When this change was proposed, the user guide had 59
+imports from field modules of `skcomplex.models`, and the README built its first model from `PopulationElement` and
+`PredationInteraction`, so a reader learned that a custom model is assembled from another model's parts. The intended split is simpler: a custom model is built
 from `skcomplex.core`, and a prebuilt model is selected from the catalog.
 
 Nor can a user tell which components fit together. The compatibility page covers laws, solvers, and backends, and nothing
@@ -43,10 +43,10 @@ one to an element without the state it reads raises a bare `AttributeError: ... 
 
 ## Impact
 
-- `skcomplex.specs`: `RoleSpec` gains its requirements. `skcomplex.core`: the 42 interactions and the element kinds declare
+- `skcomplex.specs`: `RoleSpec` gains its requirements. `skcomplex.core`: the 41 interactions and the element kinds declare
   them. `skcomplex.engine.compile`: a new issue, `role-element`.
 - `README.md`, `docs/overview/user_guide.md`, `docs/index.md`, `docs/generate_compatibility.py`, `docs/generate_models.py`,
-  and `properdocs.yml`. 31 of 576 gallery examples import from field modules, and are checked rather than rewritten.
+  and `properdocs.yml`. 26 of 577 gallery examples import from field modules, and are checked rather than rewritten.
 - Models need no change to their behaviour. Their own interactions may declare their requirements, and those that do not
   still get the report, through the fallback in the design.
 - No new package and no new dependency.

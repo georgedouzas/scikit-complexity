@@ -107,9 +107,9 @@ names are all a reader meets.
 
 ## Risks / Trade-offs
 
-- [The guide is 7422 lines, and other changes are editing it] → This change applies after the open changes, and rewrites the
+- [The guide is 7952 lines, and other changes are editing it] → This change applies after the open changes, and rewrites the
   guide section by section, with the guide's blocks tested throughout.
-- [42 interactions need declarations] → Each is one annotation, and a test checks that every core interaction declares its
+- [41 interactions need declarations] → Each is one annotation, and a test checks that every core interaction declares its
   roles. A wrong declaration is caught by running the catalog through validation: no prebuilt model may report the new issue.
 - [`AttributeError` from a genuine bug in a law could read as a missing state] → The fallback reports only a missing attribute
   on a role's namespace, and leaves every other error as it is.
