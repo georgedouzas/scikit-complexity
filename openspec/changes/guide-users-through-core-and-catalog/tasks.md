@@ -20,7 +20,7 @@
 ## 4. README and guide
 
 - [x] 4.1 Add the documentation test that reads the Python blocks of the README and the guide and fails on an import from a field module, expected to fail at this point; verify it names the 62 current imports, 3 in the README and 59 in the guide.
-- [ ] 4.2 Rewrite the usage section of the README around the two paths, with the custom model from the core; verify the first screen and core alone scenarios.
+- [x] 4.2 Rewrite the usage section of the README around the two paths, with the custom model from the core; verify the first screen and core alone scenarios.
 - [ ] 4.3 Rewrite the concepts opening of the guide around the two paths, and add the section on choosing compatible components, using `get_requirements()`, `get_states()`, and the report; verify the asking before building and getting it wrong scenarios.
 - [ ] 4.4 Replace the imports from field modules in the guide, section by section: a small `Element` from the core where a model's part was only a convenience, and `create` by name where a section documents a family; verify the test of 4.1 passes and all guide blocks pass.
 - [ ] 4.5 Review the 31 gallery examples that import from field modules; keep those whose subject is a model's own analysis or parts, and list them in the review; verify the gallery coverage check and the sample build.

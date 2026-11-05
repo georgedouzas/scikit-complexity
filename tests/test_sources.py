@@ -89,7 +89,7 @@ import sys
 loaded = [name for name in sys.modules if name == {MODELS!r} or name.startswith({MODELS + '.'!r})]
 assert loaded == [], loaded
 """
-    process = multiprocessing.get_context('spawn').Process(target=exec, args=(check,))
+    process = multiprocessing.get_context('spawn').Process(target=exec, args=(check, {'__name__': '__main__'}))
     process.start()
     process.join()
     assert process.exitcode == 0
