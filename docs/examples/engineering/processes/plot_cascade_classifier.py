@@ -7,7 +7,7 @@ at the top as the fine product.
 """
 
 # %%
-# The model is created by name from the catalog with ten stages, the upward fraction `k = 0.6`, and a unit feed into
+# The system is created by name from the catalog with ten stages, the upward fraction `k = 0.6`, and a unit feed into
 # the middle stage, and runs for 50 time units. The blueprint shows the accumulated fine and coarse products in one time
 # series view, where the fine product grows faster.
 
@@ -15,11 +15,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'cascade_classifier'
+SYSTEM = 'cascade_classifier'
 
 products = rrb.TimeSeriesView(
     origin='/',
@@ -35,8 +35,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=50)
 
 # %%
@@ -51,7 +51,7 @@ z = 10
 fractions = np.linspace(0.3, 0.7, 9)
 shares = []
 for k in fractions:
-    run = Simulation(create(MODEL, k=float(k)), dt=1.0).prepare().run(until=300).trajectory_
+    run = Simulation(create_system(SYSTEM, k=float(k)), dt=1.0).prepare().run(until=300).trajectory_
     shares.append(run.values('fine.m')[-1] - run.values('fine.m')[-2])
 grid = np.linspace(0.3, 0.7, 200)
 feed = z // 2

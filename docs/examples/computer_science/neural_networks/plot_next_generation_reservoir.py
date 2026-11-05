@@ -17,15 +17,15 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.interactions import RateInteraction
-from skcomplex.core.system import System
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
-from skcomplex.models.computer_science.neural_networks import LorenzFlowElement
+from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.neural_networks import LorenzFlowElement
 
-MODEL = 'next_generation_reservoir'
+SYSTEM = 'next_generation_reservoir'
 STEP = 0.025
 LYAPUNOV_TIME = 1 / 0.9056
 VARIABLES = ['x', 'y', 'z']
@@ -37,8 +37,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-system = create(MODEL)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
+system = create_system(SYSTEM)
 forecast = Simulation(system, dt=1, observers=[observer]).prepare().run(until=200).trajectory_
 for name, color in zip(VARIABLES, ((31, 119, 180), (255, 127, 14), (44, 160, 44)), strict=True):
     observer.recording_.log(f'reservoir/{name}', rr.SeriesLines(colors=[color], names=name), static=True)
@@ -77,7 +77,7 @@ def lorenz_samples(samples):
 TRAINED = 402
 HORIZON = 800
 values = lorenz_samples(TRAINED + HORIZON + 1)
-trained = create(MODEL, series=values[: TRAINED + 1])
+trained = create_system(SYSTEM, series=values[: TRAINED + 1])
 run = Simulation(trained, dt=1).prepare().run(until=HORIZON).trajectory_
 predicted = np.column_stack([run.values(f'reservoir.{name}') for name in VARIABLES])[1:]
 truth = values[TRAINED + 1 :]

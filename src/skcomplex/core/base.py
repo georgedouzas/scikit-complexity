@@ -1,157 +1,144 @@
-"""Define the base of the parts of a system."""
+"""Define the root of every configurable class of the library."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from __future__ import annotations
-
-import functools
-import inspect
-from abc import abstractmethod
-from collections.abc import Mapping, Sequence
-from types import SimpleNamespace
+from abc import ABC, abstractmethod
 from typing import Self
 
-from ..base import BaseConfig
-from ..errors import ValidationError
-from ..specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, Spec, StateSpec
+from sklearn.base import BaseEstimator
+
+from .errors import NotPreparedError
 
 
-class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
-    """Base of every part of a system: its elements, its interactions, the laws they return, and the system itself.
+class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
+    """Root of every configurable class of the library: it stores its settings and speaks two verbs.
 
-    Every part has a label, returns the laws it contributes from `_get_laws`, and implements three hooks that the
-    verbs `prepare` and `run` call:
+    The constructor of a child stores every setting unmodified under its own name, as in scikit-learn, so
+    `get_params`, `set_params`, and `clone` work on every class. The verbs call the abstract hooks `_check`,
+    `_prepare`, and `_run`, which every child implements, itself or through the base of its family, and every verb
+    returns the object, as in scikit-learn:
 
-    - `_check()` validates the arguments of the part, after `check` validates the label.
-    - `_prepare(context)` prepares the part against its context and sets its attributes that end in `_`.
-    - `_run(inputs)` sets what the part contributes: `laws_`, the laws of an element, an interaction, or a system,
-      or `value_`, the value of a law.
-
-    A part is generic in the context of `prepare` and the input of `run`, which every base of parts names: a law
-    is prepared against the path of its owner, an element against the space of its system.
-
-    A part declares which arguments of its constructor are states, parameters, or roles by annotating them with
-    `Annotated` and a `StateSpec`, a `ParameterSpec`, or a `RoleSpec`, and `prepare` validates every declared spec.
+    - `prepare(context)` validates the settings through `_check()`, prepares the object against the one thing it serves
+      through `_prepare(context)`, and sets the attributes that end in `_`.
+    - `run(inputs, final=False)` performs the one action of the prepared object on its one input through
+      `_run(inputs)`, and keeps what the action produces in attributes that end in `_`. A last call with `final=True`
+      also releases what preparing acquired through `_release()`, an optional hook that releases nothing by default.
 
     Examples:
-        >>> from skcomplex.core.base import BasePart
-        >>> class DoublingPart(BasePart):
-        ...     def __init__(self, label, factor=2):
-        ...         super().__init__(label)
+        >>> from skcomplex.core.base import BaseConfig
+        >>> class DoublingConfig(BaseConfig):
+        ...     def __init__(self, factor=2):
         ...         self.factor = factor
         ...
         ...     def _check(self):
         ...         pass
         ...
-        ...     def _prepare(self, context=None):
+        ...     def _prepare(self, context):
         ...         pass
         ...
-        ...     def _get_laws(self, namespace):
-        ...         return []
-        ...
-        ...     def _run(self, value):
-        ...         self.doubled_ = self.factor * value
-        >>> DoublingPart('doubling').prepare().run(3).doubled_
+        ...     def _run(self, inputs):
+        ...         self.doubled_ = self.factor * inputs
+        >>> DoublingConfig().prepare().run(3).doubled_
         6
     """
 
-    def __init__(self, label: str) -> None:
-        """Store the label of the part.
-
-        Args:
-            label:
-                The label of the part, unique among the parts of its system.
-        """
-        self.label = label
-
-    def _check_label(self) -> None:
-        """Raise an error for a label that is not a string.
+    @abstractmethod
+    def _check(self) -> None:
+        """Validate the settings, raising a named error for one the object cannot take.
 
         Raises:
             ValidationError:
-                The label is not a string.
+                A setting is invalid, named in the message.
         """
-        if not isinstance(self.label, str):
-            error_msg = f'The label of {type(self).__name__} must be a string, but it is {self.label!r}.'
-            raise ValidationError(error_msg)
-
-    @classmethod
-    @functools.cache
-    def _get_specs(cls) -> dict[str, Spec]:
-        """Return the spec of every argument of the constructor annotated with one, in the order of the constructor.
-
-        The annotations of the constructors of the bases count too, and a subclass wins, so a subclass that takes an
-        argument of its base again without annotating it keeps the spec of the base. The specs of a class are read
-        once, since compiling a system reads them for every part.
-
-        Returns:
-            specs:
-                A mapping from argument name to its spec.
-        """
-        specs: dict[str, Spec] = {}
-        for klass in reversed(cls.__mro__):
-            init = vars(klass).get('__init__')
-            if init is None:
-                continue
-            for name, argument in inspect.signature(init, eval_str=True).parameters.items():
-                for item in getattr(argument.annotation, '__metadata__', ()):
-                    if isinstance(item, StateSpec | ParameterSpec | RoleSpec):
-                        specs[name] = item
-        return {name: specs[name] for name in inspect.signature(cls).parameters if name in specs}
-
-    def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the variables the part declares from data, by name, none by default."""
-        return {}
-
-    def _get_part_specs(self) -> dict[str, Spec]:
-        """Return the specs of this part: those of its class, then those it declares from data."""
-        return {**self._get_specs(), **{name: item.spec for name, item in self._get_declared().items()}}
-
-    @abstractmethod
-    def _check(self) -> None:
-        """Validate the arguments of the part, raising a named error for one it cannot take."""
 
     @abstractmethod
     def _prepare(self, context: ContextT | None) -> None:
-        """Prepare the part against its context and set its attributes that end in `_`."""
+        """Prepare the object against what it serves and set its attributes that end in `_`.
+
+        Args:
+            context:
+                What the object serves, such as the system of a compiler or the problem of a solver.
+        """
 
     @abstractmethod
-    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
-        """Return the laws the part contributes for a namespace of symbols: a law contributes itself."""
-
-    def _laws_of(self, inputs: object) -> Sequence[BasePart]:
-        """Return the laws of the part for a namespace of symbols.
+    def _run(self, inputs: InputT | None) -> None:
+        """Perform the action of the object on its input and set what it produces as attributes that end in `_`.
 
         Args:
             inputs:
-                The namespace of the symbols the laws can use.
+                The input of the action, such as the state a solver advances or the values a law reads.
+        """
 
-        Returns:
-            laws:
-                The laws of the part.
+    def _release(self) -> None:
+        """Release what preparing acquired, such as a viewer or a process. By default, release nothing."""
+
+    def _is_prepared(self) -> None:
+        """Raise an error for an object that was not prepared.
 
         Raises:
-            ValidationError:
-                The input is not a namespace.
+            NotPreparedError:
+                The object was not prepared with `prepare`.
         """
-        if not isinstance(inputs, SimpleNamespace):
-            error_msg = f'{type(self).__name__} returns its laws for a namespace of symbols, but got {inputs!r}.'
-            raise ValidationError(error_msg)
-        return self._get_laws(inputs)
+        if not getattr(self, '_prepared', False):
+            error_msg = f'{type(self).__name__} must be prepared before it runs. Call `prepare(...)` first.'
+            raise NotPreparedError(error_msg)
 
     def _validated(self) -> Self:
-        """Validate the label and the arguments of the part.
+        """Validate the settings of the object.
 
         Returns:
-            part:
-                The part itself.
+            self:
+                The object.
 
         Raises:
             ValidationError:
-                The label or an argument is invalid, named in the message.
+                A setting is invalid, named in the message.
         """
-        self._check_label()
-        for spec in [*self._get_specs().values(), *self._get_declared().values()]:
-            spec._validated()
-        return super()._validated()
+        self._check()
+        return self
+
+    def prepare(self, context: ContextT | None = None) -> Self:
+        """Validate the object and prepare it against the one thing it serves, setting its attributes that end in `_`.
+
+        Args:
+            context:
+                What the object serves, such as the system of a compiler, the problem of a solver, or the source of an
+                analysis.
+
+        Returns:
+            self:
+                The prepared object.
+
+        Raises:
+            ValidationError:
+                A setting is invalid, named in the message.
+        """
+        self._validated()
+        self._prepare(context)
+        self._prepared = True
+        return self
+
+    def run(self, inputs: InputT | None = None, final: bool = False) -> Self:
+        """Perform the one action of the prepared object on its one input, keeping its results in attributes.
+
+        Args:
+            inputs:
+                The input of the action, such as the state a solver advances or the values a law reads.
+
+            final:
+                Whether this is the last call, after which the object releases what preparing acquired.
+
+        Returns:
+            self:
+                The object, with the results of the action in its attributes that end in `_`.
+
+        Raises:
+            NotPreparedError:
+                The object was not prepared with `prepare`.
+        """
+        self._is_prepared()
+        self._run(inputs)
+        if final:
+            self._release()
+        return self

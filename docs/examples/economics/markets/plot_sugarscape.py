@@ -18,11 +18,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'sugarscape'
+SYSTEM = 'sugarscape'
 
 whole = rrb.TimeRangeBoundary.infinite()
 landscape = rrb.Spatial2DView(
@@ -45,10 +45,10 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, width=50, height=50, n_foragers=400, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
+system = create_system(SYSTEM, width=50, height=50, n_foragers=400, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
 simulation = (
-    Simulation(system, observers=[observer], random_state=0, observables=describe(MODEL).observables_of(system))
+    Simulation(system, observers=[observer], random_state=0, observables=describe(SYSTEM).observables_of(system))
     .prepare()
     .run(until=100)
 )

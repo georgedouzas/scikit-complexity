@@ -1,44 +1,44 @@
 """
 # Fuzzy oil drop
 
-The fuzzy oil drop model of Konieczny et al. (2023 §1.3.1) compares the hydrophobicity that the residues of a protein
+The fuzzy oil drop system of Konieczny et al. (2023 §1.3.1) compares the hydrophobicity that the residues of a protein
 observe with an idealised micelle, a three-dimensional Gaussian over the chain. The relative distance `RD` compares the
 divergence of the observed distribution from the Gaussian and from a uniform distribution, and the factor `K` measures
 how far the environment departs from water.
 """
 
 # %%
-# The model replays the 38 NMR models of the Trp-cage 1L2Y, one per frame. The default blueprint shows the 20 effective
-# atoms of the chain, the mean atom of each residue, joined in sequence order.
+# The system replays the 38 NMR systems of the Trp-cage 1L2Y, one per frame. The default blueprint shows the 20
+# effective atoms of the chain, the mean atom of each residue, joined in sequence order.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import ShapeAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
-from skcomplex.models.biology.systems_biology import BackboneGeometry, FuzzyOilDropAnalysis, read_structure
+from skcomplex.core.analysis import ShapeAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
+from skcomplex.systems.biology.systems_biology import BackboneGeometry, FuzzyOilDropAnalysis, read_structure
 
-MODEL = 'fuzzy_oil_drop'
+SYSTEM = 'fuzzy_oil_drop'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(
     system,
     observers=[observer],
-    observables=describe(MODEL).observables_of(system),
+    observables=describe(SYSTEM).observables_of(system),
     random_state=0,
 )
 trajectory = simulation.prepare().run(until=37).trajectory_
 
 # %%
-# Distributions of one model
+# Distributions of one system
 # --------------------------
-# The first panel holds the theoretical and the observed distribution of the first model per residue, with the uniform
-# distribution as the line. The second holds `RD` and `K` of every model of the ensemble, with means of 0.77 and 2.2.
+# The first panel holds the theoretical and the observed distribution of the first system per residue, with the uniform
+# distribution as the line. The second holds `RD` and `K` of every system of the ensemble, with means of 0.77 and 2.2.
 # The book expects `RD` below 0.5 and `K` near 0 of a fast-folding protein. It gives no formula for the width of its
-# Gaussian, and this difference comes from the width that the model chooses, so `RD` and `K` here do not compare with
+# Gaussian, and this difference comes from the width that the system chooses, so `RD` and `K` here do not compare with
 # its values.
 
 structure = read_structure('1L2Y')
@@ -53,7 +53,7 @@ distributions.set_ylabel('share of hydrophobicity')
 distributions.legend()
 ensemble.plot(trajectory.times, trajectory.values('RD'), label='RD')
 ensemble.plot(trajectory.times, trajectory.values('K'), label='K')
-ensemble.set_xlabel('NMR model')
+ensemble.set_xlabel('NMR system')
 ensemble.legend()
 fig.tight_layout()
 plt.show()
@@ -64,9 +64,9 @@ plt.show()
 # With `dynamics='folding'`, the chain starts extended and each unit of time proposes one rotation of a dihedral angle,
 # which temperature zero accepts when the score does not grow, `RD` plus one for every clash. Lowering `RD` also makes
 # the chain somewhat more compact: the radius of gyration falls from 19.7 Å to 17.4 Å, far from the 7.3 Å of the first
-# NMR model.
+# NMR system.
 
-folding = create(MODEL, dynamics='folding')
+folding = create_system(SYSTEM, dynamics='folding')
 folded = Simulation(folding, random_state=0).prepare().run(until=200).trajectory_
 geometry = BackboneGeometry(structure).prepare()
 angles = folded.lattice('chain.angle').astype(float)[:, 0]

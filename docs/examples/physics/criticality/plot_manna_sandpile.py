@@ -2,29 +2,29 @@
 # Manna sandpile
 
 Grains drop one at a time on random sites, and a site holding two or more grains topples, sending two grains each to
-a randomly chosen neighbour; grains that fall off the open edges are lost. The randomness of the toppling puts the
-Manna model in another universality class than the deterministic Bak-Tang-Wiesenfeld pile, but it organizes itself
+a randomly chosen neighbour. Grains that fall off the open edges are lost. The randomness of the toppling puts the
+Manna system in another universality class than the deterministic Bak-Tang-Wiesenfeld pile, but it organizes itself
 into a critical state in the same way, with avalanches of all sizes. The view shows the heights of a 32 x 32 pile,
 empty (dark) or holding one grain (bright), between avalanches.
 """
 
 # %%
-# The model is created by name from the catalog from random stable heights. One unit of time is one dropped grain
+# The system is created by name from the catalog from random stable heights. One unit of time is one dropped grain
 # followed by the full avalanche it triggers. The observer saves every 30th grain with the default blueprint, whose
 # primary view is the image of the heights.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DistributionAnalysis, EventAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis, EventAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'manna_sandpile'
+SYSTEM = 'manna_sandpile'
 
-system = create(MODEL, shape=(32, 32), random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, shape=(32, 32), random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=30, observers=[observer], random_state=0).prepare().run(until=8970)
 
 # %%

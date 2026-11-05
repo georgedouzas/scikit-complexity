@@ -12,14 +12,14 @@ import rerun as rr
 import rerun.blueprint as rrb
 from rerun.chunk import RrdReader
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
 
 from ._cache import ScreenshotCache, cache_key
 from ._capture import capture_thumbnail, first_view
 from ._checks import caption_series, missing_series
 from ._errors import GalleryError, GalleryWarning
-from ._examples import check_budget, model_sources
+from ._examples import check_budget, system_sources
 from ._settings import Budget, CaptureSettings
 
 
@@ -38,7 +38,7 @@ def finished_observers(variables: Mapping[str, object]) -> list[RerunObserver]:
 
     Examples:
         >>> from gallery_tools import finished_observers
-        >>> from skcomplex.engine.viz import RerunObserver
+        >>> from skcomplex.core.engine.viz import RerunObserver
         >>> finished_observers({'observer': RerunObserver(save_path='run.rrd', blueprint='default')})
         []
     """
@@ -74,7 +74,7 @@ def _warn_missing_series(example: Path, recording: Path, blueprint: rrb.Blueprin
 
 def thumbnail_of(
     example: Path,
-    model: str,
+    system: str,
     observer: RerunObserver,
     cache: ScreenshotCache,
     *,
@@ -92,8 +92,8 @@ def thumbnail_of(
         example:
             The path of the example script.
 
-        model:
-            The name of the model the example runs.
+        system:
+            The name of the system the example runs.
 
         observer:
             The finished observer that saved the example's recording.
@@ -129,7 +129,7 @@ def thumbnail_of(
         error_msg = f'{example.stem} sends no blueprint. Pass `blueprint=\'default\'` or a blueprint to its observer.'
         raise GalleryError(error_msg)
     _warn_missing_series(example, recording, blueprint)
-    key = cache_key(example, model_sources(model), backend, settings)
+    key = cache_key(example, system_sources(system), backend, settings)
     cached = cache.get(key)
     if cached is not None:
         return cached, True
@@ -148,7 +148,7 @@ def thumbnail_of(
             raise GalleryError(error_msg) from error
         metadata = {
             'example': example.name,
-            'model': model,
+            'system': system,
             'backend': backend,
             'frames': frames,
             'bytes': recording.stat().st_size,

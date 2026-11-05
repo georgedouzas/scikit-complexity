@@ -6,21 +6,21 @@ repels near, form a cohesive swarm that organizes itself into a rotating mill or
 """
 
 # %%
-# The model is created by name from the catalog with thirty birds started at random. The observer saves every frame
+# The system is created by name from the catalog with thirty birds started at random. The observer saves every frame
 # with the default blueprint, whose primary view shows the birds in the plane.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import AlignmentAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import AlignmentAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'bird_swarm'
+SYSTEM = 'bird_swarm'
 
-system = create(MODEL, n_birds=30, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_birds=30, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=100)
 
 # %%

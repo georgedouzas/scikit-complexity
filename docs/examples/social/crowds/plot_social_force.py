@@ -1,7 +1,7 @@
 """
 # Social force
 
-Helbing and Molnar's social force model of pedestrians: every walker accelerates towards its desired velocity and is
+Helbing and Molnar's social force system of pedestrians: every walker accelerates towards its desired velocity and is
 pushed away from the walkers around it. Two crowds walking in opposite directions along a corridor start mixed and
 bump into each other, but they soon organise themselves into lanes of walkers moving the same way, which lets both
 crowds walk at almost their desired speed.
@@ -15,16 +15,16 @@ crowds walk at almost their desired speed.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'social_force'
+SYSTEM = 'social_force'
 LENGTH, SPEED, UNTIL = 10.0, 1.34, 60.0
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-system = create(MODEL, n_walkers=40, length=LENGTH, speed=SPEED, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM, n_walkers=40, length=LENGTH, speed=SPEED, random_state=0)
 simulation = (
     Simulation(system, dt=0.2, solver=RK4Solver(dt=0.05), observers=[observer], random_state=0)
     .prepare()
@@ -55,7 +55,7 @@ def lane_order(rightward, leftward, bands=10):
 
 fig, (order, speed) = plt.subplots(1, 2, figsize=(10, 4))
 for index, walkers in enumerate((20, 40, 60)):
-    system = create(MODEL, n_walkers=walkers, length=LENGTH, speed=SPEED, random_state=0)
+    system = create_system(SYSTEM, n_walkers=walkers, length=LENGTH, speed=SPEED, random_state=0)
     trajectory = (
         Simulation(system, dt=0.2, solver=RK4Solver(dt=0.05), random_state=0).prepare().run(until=UNTIL).trajectory_
     )

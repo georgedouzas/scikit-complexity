@@ -8,7 +8,7 @@ ten zones rising from zero and then jumping up and down around the mean.
 """
 
 # %%
-# The model is created by name from the catalog with ten zones, `Na = 100` particles, volume fraction `p = 0.1`, and
+# The system is created by name from the catalog with ten zones, `Na = 100` particles, volume fraction `p = 0.1`, and
 # exchange rate `k = 1`. The observer saves every frame of 0.1 with the default blueprint, whose primary view is the
 # time series of the numbers in the zones.
 
@@ -16,14 +16,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'two_phase_zone_exchange'
+SYSTEM = 'two_phase_zone_exchange'
 
-system = create(MODEL, n_zones=10)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_zones=10)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.1, observers=[observer], random_state=0).prepare().run(until=20)
 
 # %%
@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer], random_state=0).pr
 # `Na p (1 - p) = 9`. Pooled over 2000 zones and the second half of the run, the histogram should match this
 # distribution.
 
-run = Simulation(create(MODEL, n_zones=2000), dt=1.0, random_state=1).prepare().run(until=20)
+run = Simulation(create_system(SYSTEM, n_zones=2000), dt=1.0, random_state=1).prepare().run(until=20)
 numbers = run.trajectory_.values('zones.N')[10:].ravel()
 counts = np.arange(numbers.max() + 2)
 fig, ax = plt.subplots(figsize=(7, 4))

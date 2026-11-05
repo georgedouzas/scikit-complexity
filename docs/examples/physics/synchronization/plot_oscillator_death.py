@@ -14,14 +14,14 @@ can pull together, the coupling kills the oscillations instead of synchronizing 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'oscillator_death'
+SYSTEM = 'oscillator_death'
 
-system = create(MODEL, n_oscillators=50, K=3.0, width=1.5, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_oscillators=50, K=3.0, width=1.5, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 
 
 def coupling_at(time):
@@ -35,7 +35,7 @@ simulation = (
         dt=0.05,
         observers=[observer],
         schedule={'coupling_x.K': coupling_at, 'coupling_y.K': coupling_at},
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(until=14)
@@ -51,9 +51,9 @@ simulation = (
 widths = [0.5, 1.25, 1.5, 2.0]
 fig, ax = plt.subplots(figsize=(6, 4))
 for width in widths:
-    model_system = create(MODEL, n_oscillators=100, K=3.0, width=width)
+    system_system = create_system(SYSTEM, n_oscillators=100, K=3.0, width=width)
     run = (
-        Simulation(model_system, dt=0.1, observables=describe(MODEL).observables_of(model_system))
+        Simulation(system_system, dt=0.1, observables=describe(SYSTEM).observables_of(system_system))
         .prepare()
         .run(until=20)
     )

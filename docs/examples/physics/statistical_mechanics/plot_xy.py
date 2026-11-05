@@ -1,5 +1,5 @@
 """
-# XY model
+# XY system
 
 Planar spins on a square lattice prefer to point like their neighbours. Quenched from random angles to a low
 temperature, they align over large smooth domains, but the alignment winds around isolated points, vortices and
@@ -14,9 +14,9 @@ Kosterlitz-Thouless temperature, near 0.89, free vortices proliferate.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
 
 def wrap_angle(angles):
@@ -24,10 +24,10 @@ def wrap_angle(angles):
     return np.angle(np.exp(1j * np.asarray(angles)))
 
 
-MODEL = 'xy'
+SYSTEM = 'xy'
 
-system = create(MODEL, size=64, temperature=0.3, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, size=64, temperature=0.3, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=200)
 
 # %%
@@ -41,7 +41,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 
 def measure(temperature):
     """Return the vortex density and the energy per spin over the last 100 of 400 sweeps from random angles."""
-    run = Simulation(create(MODEL, size=32, temperature=temperature, random_state=1), random_state=1).prepare()
+    run = Simulation(create_system(SYSTEM, size=32, temperature=temperature, random_state=1), random_state=1).prepare()
     theta = np.asarray(run.run(until=400).trajectory_.lattice('spins.theta'))[-100:]
     right, down = np.roll(theta, -1, axis=-1), np.roll(theta, -1, axis=-2)
     energy = -(np.cos(theta - right) + np.cos(theta - down)).mean()

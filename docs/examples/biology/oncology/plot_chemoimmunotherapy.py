@@ -6,23 +6,23 @@ gone after the third, while the NK cells expand and the circulating lymphocytes 
 """
 
 # %%
-# The model is created by name from the catalog with the mouse of de Pillis et al.: a million tumour cells, few NK and
+# The system is created by name from the catalog with the mouse of de Pillis et al.: a million tumour cells, few NK and
 # CD8 T cells, and circulating lymphocytes at their balance. All three drugs are given for one day every week from day
 # 7. The observer saves every frame with the default blueprint, whose primary view is the time series of the cells and
 # the drugs.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'chemoimmunotherapy'
+SYSTEM = 'chemoimmunotherapy'
 SOLVER = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-6)
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.25, solver=SOLVER, observers=[observer]).prepare().run(until=60)
 
 # %%
@@ -32,9 +32,9 @@ simulation = Simulation(system, dt=0.25, solver=SOLVER, observers=[observer]).pr
 # returns to that level. The combination should drive the tumour below one cell.
 
 arms = {
-    'untreated': create(MODEL, u_til=0.0, u_il2=0.0, u_chemo=0.0),
-    'chemotherapy alone': create(MODEL, u_til=0.0, u_il2=0.0),
-    'immunotherapy alone': create(MODEL, u_chemo=0.0),
+    'untreated': create_system(SYSTEM, u_til=0.0, u_il2=0.0, u_chemo=0.0),
+    'chemotherapy alone': create_system(SYSTEM, u_til=0.0, u_il2=0.0),
+    'immunotherapy alone': create_system(SYSTEM, u_chemo=0.0),
 }
 fig, (tumour, tcells) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():

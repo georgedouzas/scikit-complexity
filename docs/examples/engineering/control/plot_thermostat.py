@@ -6,21 +6,21 @@ settles a little below the setting, at the temperature where the furnace makes u
 """
 
 # %%
-# The model is created by name from the catalog with the room and the outside at 10 °C, the setting 18 °C, the leak
+# The system is created by name from the catalog with the room and the outside at 10 °C, the setting 18 °C, the leak
 # 0.1 per hour, and a daily swing of 5 °C outside, and runs for two days. The default blueprint shows the room
 # temperature in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'thermostat'
+SYSTEM = 'thermostat'
 
-system = create(MODEL, swing=5.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
+system = create_system(SYSTEM, swing=5.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 simulation = Simulation(system, dt=0.25, observers=[observer]).prepare().run(until=48)
 
 # %%
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.25, observers=[observer]).prepare().run(unt
 
 leaks = np.linspace(0.02, 0.5, 13)
 steady = [
-    (Simulation(create(MODEL, leak=leak), dt=0.25).prepare().run(until=72).trajectory_.values('room.T')[-1])
+    (Simulation(create_system(SYSTEM, leak=leak), dt=0.25).prepare().run(until=72).trajectory_.values('room.T')[-1])
     for leak in leaks
 ]
 grid = np.linspace(0.0, 0.5, 100)

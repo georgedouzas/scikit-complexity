@@ -10,7 +10,7 @@ returns become more volatile.
 # %%
 # Five hundred agents start with one unit each and exchange with the mean at the rate `J = 0.5`, while their returns
 # have the volatility `sigma = 1`. The total wealth grows without bound, so the blueprint shows the Gini coefficient of
-# the wealth, an observable added to the model, which rises from zero and settles once the relative wealth is
+# the wealth, an observable added to the system, which rises from zero and settles once the relative wealth is
 # stationary.
 
 import matplotlib.pyplot as plt
@@ -18,13 +18,13 @@ import numpy as np
 import rerun.blueprint as rrb
 from scipy import stats
 
-from skcomplex.analysis import DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
-from skcomplex.specs import ObservableSpec
+from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.systems import create_system, describe
 
-MODEL = 'bouchaud_mezard_wealth'
+SYSTEM = 'bouchaud_mezard_wealth'
 N_AGENTS, J, SIGMA, DT, UNTIL = 500, 0.5, 1.0, 0.01, 30.0
 
 
@@ -33,9 +33,9 @@ def gini(wealth: np.ndarray) -> float:
     return DistributionAnalysis('gini').prepare(wealth).run().gini_
 
 
-system = create(MODEL, n_agents=N_AGENTS, J=J, sigma=SIGMA)
+system = create_system(SYSTEM, n_agents=N_AGENTS, J=J, sigma=SIGMA)
 observables = [
-    *describe(MODEL).observables_of(system),
+    *describe(SYSTEM).observables_of(system),
     ObservableSpec('gini', group='agents', variable='W', reduce=gini),
 ]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -45,7 +45,7 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=20)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=20)
 simulation = (
     Simulation(system, dt=DT, observers=[observer], random_state=0, observables=observables).prepare().run(until=UNTIL)
 )
@@ -56,7 +56,7 @@ simulation = (
 # On the complete graph, the relative wealth `w = W / <W>` has the stationary density
 # `P(w) ~ exp(-(mu - 1) / w) / w^(1 + mu)`, an inverse gamma distribution of shape `mu` and scale `mu - 1`. Bouchaud and
 # Mezard write the noise with variance `2 sigma^2`, which gives `mu = 1 + J / sigma^2`, so with the standard Brownian
-# motion of this model `mu = 1 + 2 J / sigma^2 = 2`. Pooling the relative wealth after a transient of ten time units,
+# motion of this system `mu = 1 + 2 J / sigma^2 = 2`. Pooling the relative wealth after a transient of ten time units,
 # the histogram should follow it, and the complementary cumulative distribution should fall as `w^-mu`.
 
 trajectory = simulation.trajectory_

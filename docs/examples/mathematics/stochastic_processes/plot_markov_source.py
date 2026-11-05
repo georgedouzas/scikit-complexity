@@ -13,12 +13,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import EntropyAnalysis, EpsilonMachineAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import EntropyAnalysis, EpsilonMachineAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'markov_source'
+SYSTEM = 'markov_source'
 TRANSITION = np.array([[0.9, 0.1], [0.4, 0.6]])
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -28,9 +28,11 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, transition=TRANSITION), dt=1, observers=[observer], random_state=0).prepare().run(299)
+    Simulation(create_system(SYSTEM, transition=TRANSITION), dt=1, observers=[observer], random_state=0)
+    .prepare()
+    .run(299)
 )
 
 # %%
@@ -41,7 +43,9 @@ simulation = (
 # run of 100000 symbols should drop from the entropy of single symbols to `h` at `m = 2` and stay there, since one
 # symbol of the past holds all the memory of the source.
 
-symbols = Simulation(create(MODEL, transition=TRANSITION), dt=1, random_state=1).prepare().run(100000).trajectory_
+symbols = (
+    Simulation(create_system(SYSTEM, transition=TRANSITION), dt=1, random_state=1).prepare().run(100000).trajectory_
+)
 blocks = EntropyAnalysis('block', dimension=8).prepare(symbols.values('source.symbol').astype(int)).run()
 entropies = blocks.entropy_[0]
 stationary = np.array([0.8, 0.2])

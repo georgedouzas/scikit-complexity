@@ -6,21 +6,21 @@ slowly as the body eliminates it, while the tissue concentration rises and follo
 """
 
 # %%
-# The model is created by name from the catalog with the rates of doxorubicin and a unit bolus, and runs for 3000
+# The system is created by name from the catalog with the rates of doxorubicin and a unit bolus, and runs for 3000
 # minutes. The observer saves every second frame with the default blueprint, whose primary view is the time series of
 # the central and peripheral concentrations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'two_compartment_pharmacokinetics'
+SYSTEM = 'two_compartment_pharmacokinetics'
 
-system = create(MODEL, c0=1.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM, c0=1.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=10.0, observers=[observer]).prepare().run(until=3000)
 
 # %%

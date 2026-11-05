@@ -18,11 +18,11 @@ import numpy as np
 import rerun.blueprint as rrb
 from scipy.special import expit
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'brock_hommes'
+SYSTEM = 'brock_hommes'
 RATE, STRENGTH, COST, NOISE = 1.1, 1.2, 1.0, 0.01
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -37,9 +37,11 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, n_traders=200, intensity=6.0), observers=[observer], random_state=0).prepare().run(100)
+    Simulation(create_system(SYSTEM, n_traders=200, intensity=6.0), observers=[observer], random_state=0)
+    .prepare()
+    .run(100)
 )
 
 # %%
@@ -72,7 +74,7 @@ critical = np.log(RATE / (STRENGTH - RATE)) / COST
 intensities = np.linspace(0.0, 8.0, 81)
 samples = {intensity: mean_field(intensity)[-300:] for intensity in intensities}
 simulated = {
-    intensity: Simulation(create(MODEL, n_traders=200, intensity=intensity), random_state=0)
+    intensity: Simulation(create_system(SYSTEM, n_traders=200, intensity=intensity), random_state=0)
     .prepare()
     .run(100)
     .trajectory_.values('pricing.deviation')[-50:]

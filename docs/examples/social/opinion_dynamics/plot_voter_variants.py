@@ -18,11 +18,11 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'voter_variants'
+SYSTEM = 'voter_variants'
 STEPS = 100
 
 graph = nx.gnp_random_graph(200, 8 / 199, seed=0)
@@ -33,8 +33,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-system = create(MODEL, graph=graph, contrarians=0.1, share=0.6, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, graph=graph, contrarians=0.1, share=0.6, random_state=0)
 simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=50)
 
 # %%
@@ -48,7 +48,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 
 def magnetization(contrarians, seed, steps=STEPS):
     """Return the magnetization after every step of a run."""
-    system = create(MODEL, graph=graph, contrarians=contrarians, share=0.6, random_state=seed)
+    system = create_system(SYSTEM, graph=graph, contrarians=contrarians, share=0.6, random_state=seed)
     trajectory = Simulation(system, random_state=seed).prepare().run(until=steps).trajectory_
     return np.array([2 * trajectory.agents('voters', frame).values['opinion'].mean() - 1 for frame in range(steps + 1)])
 

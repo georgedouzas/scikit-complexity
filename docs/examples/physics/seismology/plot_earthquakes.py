@@ -7,21 +7,21 @@ a power law, like the Gutenberg-Richter law of real faults.
 """
 
 # %%
-# The model is created by name from the catalog on a 50 by 50 grid with open edges and `alpha = 0.2`, so that every
+# The system is created by name from the catalog on a 50 by 50 grid with open edges and `alpha = 0.2`, so that every
 # slip loses a fifth of its force, and runs for 50,000 earthquakes. The default blueprint shows the forces on the grid.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DistributionAnalysis, FitAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis, FitAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'earthquakes'
+SYSTEM = 'earthquakes'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 simulation = Simulation(system, dt=250, observers=[observer]).prepare().run(until=50000)
 
 # %%

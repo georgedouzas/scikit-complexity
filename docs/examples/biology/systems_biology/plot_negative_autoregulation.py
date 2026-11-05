@@ -7,20 +7,20 @@ less.
 """
 
 # %%
-# The model runs as a jump process of single transcriptions, translations, and decays. The observer saves every frame
+# The system runs as a jump process of single transcriptions, translations, and decays. The observer saves every frame
 # with the default blueprint, whose primary view is the time series of the mRNA and protein counts.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.analysis import DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'negative_autoregulation'
+SYSTEM = 'negative_autoregulation'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).prepare().run(until=200)
 
 # %%
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).pr
 
 fig, ax = plt.subplots(figsize=(8, 4))
 for label, K in [('with feedback', 50.0), ('without feedback', 1e9)]:
-    trajectory = Simulation(create(MODEL, K=K), dt=1.0, random_state=1).prepare().run(until=1000).trajectory_
+    trajectory = Simulation(create_system(SYSTEM, K=K), dt=1.0, random_state=1).prepare().run(until=1000).trajectory_
     protein = trajectory.values('gene.p')[trajectory.times > 100]
     fano = DistributionAnalysis('dispersion-index').prepare(protein).run().index_[0]
     ax.plot(

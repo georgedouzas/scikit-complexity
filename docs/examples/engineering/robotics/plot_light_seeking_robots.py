@@ -8,20 +8,20 @@ drives them out of the light.
 """
 
 # %%
-# The model is created by name from the catalog with 20 robots that start at the centre of a well of radius 2, the light
-# of width 1, and the sensory delay 5, and runs for 100 time units. The robots' positions are vector states, so the
-# blueprint shows their distances along `x` on the range of the well, without a legend.
+# The system is created by name from the catalog with 20 robots that start at the centre of a well of radius 2, the
+# light of width 1, and the sensory delay 5, and runs for 100 time units. The robots' positions are vector states, so
+# the blueprint shows their distances along `x` on the range of the well, without a legend.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'light_seeking_robots'
+SYSTEM = 'light_seeking_robots'
 
 positions = rrb.TimeSeriesView(
     origin='/robots/x',
@@ -38,9 +38,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL)
+system = create_system(SYSTEM)
 solver = EulerMaruyamaSolver(dt=0.01)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer], random_state=0).prepare().run(until=100)
 
 # %%
@@ -54,7 +54,7 @@ delays = [0.0, 1.0, 2.0, 3.0, 5.0, 8.0]
 intensities, distances = [], {}
 for delay in delays:
     run = (
-        Simulation(create(MODEL, n_robots=40, delay=delay), dt=0.5, solver=solver, random_state=1)
+        Simulation(create_system(SYSTEM, n_robots=40, delay=delay), dt=0.5, solver=solver, random_state=1)
         .prepare()
         .run(until=150)
     )

@@ -12,14 +12,14 @@ while it keeps its spread in depth, so the third dimension stays in use.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'boids_3d'
+SYSTEM = 'boids_3d'
 
-system = create(MODEL, n_boids=100, cohesion=0.0, separation=0.0, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
+system = create_system(SYSTEM, n_boids=100, cohesion=0.0, separation=0.0, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=100)
 
 # %%

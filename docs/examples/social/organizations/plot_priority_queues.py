@@ -7,7 +7,7 @@ exponent near 1, as Barabási found for the timing of e-mails and letters.
 """
 
 # %%
-# The model is created by name from the catalog with two tasks, and the highest priority task is executed with
+# The system is created by name from the catalog with two tasks, and the highest priority task is executed with
 # probability 0.999 and a random task otherwise, so that waits are cut off near 1 / (1 - 0.999) = 1000 steps. It runs
 # for 100000 steps, one task executed per step. The default blueprint shows the age of both tasks, sampled every 400
 # steps: one task is executed at every step while the other ages along long ramps until a new task of even lower
@@ -16,21 +16,21 @@ exponent near 1, as Barabási found for the timing of e-mails and letters.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import FitAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import FitAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'priority_queues'
+SYSTEM = 'priority_queues'
 
-system = create(MODEL, greed=0.999, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=400)
+system = create_system(SYSTEM, greed=0.999, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=400)
 simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=100_000)
 
 # %%
 # Distribution of waiting times
 # -----------------------------
-# The execution reports the waiting time of the task it executes at every step as `execution.wait`. Barabási's model
+# The execution reports the waiting time of the task it executes at every step as `execution.wait`. Barabási's system
 # gives a power law of exponent 1 for waits well below the cutoff of 1000 steps, so the fitted exponent of the waits
 # from 2 to 300 steps should lie near 1, and the log-binned distribution should fall by about one decade per decade
 # before it bends down past the cutoff.

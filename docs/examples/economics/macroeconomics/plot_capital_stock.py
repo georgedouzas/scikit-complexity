@@ -14,15 +14,15 @@ depreciation compete, and whichever dominates makes the stock grow or decay expo
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'capital_stock'
+SYSTEM = 'capital_stock'
 OUTPUT, LIFETIME, UNTIL = 1 / 3, 15.0, 50.0
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-system = create(MODEL, capital=100.0, investment_fraction=0.25, output_per_capital=OUTPUT, lifetime=LIFETIME)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, capital=100.0, investment_fraction=0.25, output_per_capital=OUTPUT, lifetime=LIFETIME)
 simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=UNTIL)
 
 # %%
@@ -36,7 +36,13 @@ fig, (paths, rates) = plt.subplots(1, 2, figsize=(10, 4))
 fractions = np.array([0.1, 0.15, 0.2, 0.25, 0.3])
 measured = []
 for index, fraction in enumerate(fractions):
-    system = create(MODEL, capital=100.0, investment_fraction=fraction, output_per_capital=OUTPUT, lifetime=LIFETIME)
+    system = create_system(
+        SYSTEM,
+        capital=100.0,
+        investment_fraction=fraction,
+        output_per_capital=OUTPUT,
+        lifetime=LIFETIME,
+    )
     trajectory = Simulation(system, dt=1.0).prepare().run(until=UNTIL).trajectory_
     rate = fraction * OUTPUT - 1 / LIFETIME
     paths.semilogy(

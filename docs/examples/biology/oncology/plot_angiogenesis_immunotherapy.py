@@ -6,27 +6,27 @@ tumour shrinks to about a third of its initial volume.
 """
 
 # %%
-# The model is created by name from the catalog with the renal cell carcinoma of Teles and Lemos: a tumour of
+# The system is created by name from the catalog with the renal cell carcinoma of Teles and Lemos: a tumour of
 # 5000 mm³ on a vasculature of 625 mm³, under 15 mg per kg of bevacizumab and 20 mg per kg of atezolizumab every
 # 21 days. The observer saves every second frame with the default blueprint, whose primary view is the time series of
 # the tumour, the vasculature, the effector cells, and the drugs.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'angiogenesis_immunotherapy'
+SYSTEM = 'angiogenesis_immunotherapy'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = (
     Simulation(
         system,
         dt=0.5,
         observers=[observer],
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(
@@ -42,14 +42,14 @@ simulation = (
 # and the drug amounts fall between doses.
 
 arms = {
-    'untreated': create(MODEL, dose_an=0.0, dose_im=0.0),
-    'bevacizumab alone': create(MODEL, dose_im=0.0),
-    'atezolizumab alone': create(MODEL, dose_an=0.0),
+    'untreated': create_system(SYSTEM, dose_an=0.0, dose_im=0.0),
+    'bevacizumab alone': create_system(SYSTEM, dose_im=0.0),
+    'atezolizumab alone': create_system(SYSTEM, dose_an=0.0),
 }
 fig, (tumour, toxicity) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
     trajectory = (
-        Simulation(arm, dt=0.5, observables=describe(MODEL).observables_of(arm)).prepare().run(until=150).trajectory_
+        Simulation(arm, dt=0.5, observables=describe(SYSTEM).observables_of(arm)).prepare().run(until=150).trajectory_
     )
     tumour.plot(trajectory.times, trajectory.values('tumour.A'), label=name)
 combined = simulation.trajectory_

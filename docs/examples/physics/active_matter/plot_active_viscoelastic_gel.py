@@ -7,20 +7,20 @@ peaks. The gel has no inertia, so its velocity solves a force balance at every s
 """
 
 # %%
-# The model is created by name from the catalog on a periodic line of length 10 in 128 sites, around the density 1, with
-# `c Ta'(c) = 1` above `gamma D = 0.1`. The catalog entry solves the force balance with `inverse_helmholtz` and streams
-# the velocity as an observable, and the default blueprint shows the history of the density.
+# The system is created by name from the catalog on a periodic line of length 10 in 128 sites, around the density 1,
+# with `c Ta'(c) = 1` above `gamma D = 0.1`. The catalog entry solves the force balance with `inverse_helmholtz` and
+# streams the velocity as an observable, and the default blueprint shows the history of the density.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import run
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation
 
-MODEL = 'active_viscoelastic_gel'
+SYSTEM = 'active_viscoelastic_gel'
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = run(MODEL, settings={'observers': [observer]})
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run()
 
 # %%
 # Concentration and force balance

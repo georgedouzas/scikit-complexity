@@ -16,22 +16,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import brentq
 
-from skcomplex.analysis import DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'kesten_process'
+SYSTEM = 'kesten_process'
 N_FIRMS, LOW, HIGH, STEPS = 3000, 0.48, 1.48, 250
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-model_system = create(MODEL, n_firms=N_FIRMS)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+system_system = create_system(SYSTEM, n_firms=N_FIRMS)
 simulation = (
     Simulation(
-        model_system,
+        system_system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(model_system),
+        observables=describe(SYSTEM).observables_of(system_system),
     )
     .prepare()
     .run(until=STEPS)

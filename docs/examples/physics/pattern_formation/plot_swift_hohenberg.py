@@ -13,14 +13,14 @@ the wavelength `2π`. Patches of rolls with different orientations meet at defec
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DomainAnalysis, SpectrumAnalysis
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import run
+from skcomplex.core.analysis import DomainAnalysis, SpectrumAnalysis
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation
 
-MODEL = 'swift_hohenberg'
+SYSTEM = 'swift_hohenberg'
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = run(MODEL, random_state=0, settings={'observers': [observer], 'random_state': 0})
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = create_simulation(SYSTEM, random_state=0).set_params(observers=[observer]).prepare().run()
 
 # %%
 # Selected wavelength

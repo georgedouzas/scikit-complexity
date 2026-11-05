@@ -14,12 +14,12 @@ an S-shaped curve to the whole crowd.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import KineticSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import KineticSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'evacuation'
+SYSTEM = 'evacuation'
 
 # The crowd's lattice of rooms and speeds is not a floor plan, so the primary view is the evacuated fraction.
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -29,9 +29,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-system = create(MODEL)
-observables = describe(MODEL).observables_of(system)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM)
+observables = describe(SYSTEM).observables_of(system)
 simulation = Simulation(system, observers=[observer], dt=0.2, observables=observables).prepare().run(until=20)
 
 # %%
@@ -44,9 +44,9 @@ simulation = Simulation(system, observers=[observer], dt=0.2, observables=observ
 times = simulation.trajectory_.times
 sampled = Simulation(system, dt=0.2, observables=observables, solver=KineticSolver(n=5000), random_state=0).prepare()
 particles = sampled.run(until=20).trajectory_.values('evacuated')
-crowded_system = create(MODEL, crowding=8.0)
+crowded_system = create_system(SYSTEM, crowding=8.0)
 crowded = (
-    Simulation(crowded_system, dt=0.2, observables=describe(MODEL).observables_of(crowded_system))
+    Simulation(crowded_system, dt=0.2, observables=describe(SYSTEM).observables_of(crowded_system))
     .prepare()
     .run(until=20)
 )

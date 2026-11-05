@@ -7,7 +7,7 @@ orbits never leave.
 """
 
 # %%
-# The model runs from the golden-mean torus at `K = 1.2` and logs the angle and the momentum as time series. Orbits
+# The system runs from the golden-mean torus at `K = 1.2` and logs the angle and the momentum as time series. Orbits
 # from 40 starting points on a line across the plane, iterated for 400 steps each, are logged once as points in the
 # plane of the angle and the momentum modulo 2π, and the blueprint puts this phase portrait first, as the primary view.
 
@@ -16,18 +16,18 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'standard_map'
+SYSTEM = 'standard_map'
 
 
 def orbits(K, starts, until):
     """Return the angle and the unwrapped momentum of the orbits from several starting points."""
     runs = [
         Simulation(
-            create(MODEL, theta=theta, p=p, K=K),
+            create_system(SYSTEM, theta=theta, p=p, K=K),
             dt=1,
         )
         .prepare()
@@ -56,8 +56,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=4)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).prepare().run(until=1000)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=4)
+simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=1000)
 rng = np.random.default_rng(0)
 starts = np.column_stack([np.linspace(0.1, 2 * np.pi - 0.1, 40), np.linspace(0.05, 2 * np.pi - 0.05, 40)])
 theta, p = orbits(1.2, starts, until=400)

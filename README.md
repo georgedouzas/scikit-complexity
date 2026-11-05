@@ -46,12 +46,13 @@
 
 ## Overview
 
-`scikit-complexity` lets you describe a model from any science in a few lines, and takes care of the rest: it works
-out the mathematics, picks a solver, runs the simulation, and streams it live to the [Rerun](https://rerun.io) viewer.
+With `scikit-complexity`, you can describe a system in any field of science with just a few lines of code, and it takes
+care of the rest: it works out the mathematics, picks a solver unless you choose one, runs the simulation, and can
+stream it live to the [Rerun](https://rerun.io) viewer.
 
-Flocks, epidemics, markets, fluids, neural networks and cellular automata are usually written in separate tools with
-separate conventions. Here they share one small vocabulary, in the spirit of scikit-learn: elements carry state,
-interactions change it through laws, and systems nest and compose. Learn it once, and every field opens up.
+Complex systems are usually modelled in separate tools with separate conventions, often one for each field.
+Here they all share one small vocabulary, in the spirit of [scikit-learn](https://scikit-learn.org): elements carry
+state, interactions change it through laws, and systems nest and compose. Learn it once, and every field opens up.
 
 <table>
   <tr>
@@ -68,15 +69,15 @@ interactions change it through laws, and systems nest and compose. Learn it once
   </tr>
 </table>
 
-<p align="center"><em>A few of the 549 ready-to-run models, each with a documented example in the
+<p align="center"><em>A few of the ready-to-run systems, each with a documented example in the
 <a href="https://georgedouzas.github.io/scikit-complexity">gallery</a>.</em></p>
 
 ## Features
 
 - Every kind of dynamics, one interface. Differential equations, stochastic processes, jump processes, discrete maps,
-  cellular automata, agents, networks and hypergraphs, fields and PDEs, quantum systems, and models that learn by gradient
+  cellular automata, agents, networks and hypergraphs, fields and PDEs, quantum systems, and systems that learn by gradient
   descent.
-- The form of your model is inferred. Write the laws; the framework decides whether it is an ODE, an SDE or a jump
+- The form of your system is inferred. Write the laws, and the framework decides whether it is an ODE, an SDE or a jump
   process, and compiles it for NumPy, Numba, or JAX.
 - Symbols when you want them, code when you don't. Laws are Sage symbolic expressions you can inspect and solve exactly,
   or plain Python functions.
@@ -84,8 +85,8 @@ interactions change it through laws, and systems nest and compose. Learn it once
 - Analysis included. Nearly 50 analyses, from Lyapunov exponents and entropy to network motifs, scaling laws and system
   identification, plus experiments for parameter sweeps, sensitivity, calibration and basin stability.
 - Standing on mature libraries. SciPy, NetworkX, Mesa, LAMMPS, QuTiP, JAX and others do the heavy lifting.
-- Extend it, don't fork it. Models are written with the same public classes you use, so each one doubles as an example
-  for your own.
+- Add your own parts without changing the library. Its systems use the same public classes you do, so each one doubles as
+  an example for your own.
 
 ## Installation
 
@@ -109,44 +110,62 @@ pdm install
 
 ## Usage
 
-There are two ways to use the library. Select a prebuilt model from the catalog by its name, or build a custom model
-from the general classes of `skcomplex.core`.
+There are two ways to use the library. Select a prebuilt system from the catalog by its name, or build a custom system
+from the general classes of `skcomplex.core.components`.
 
-### Select a prebuilt model
+### Select a prebuilt system
 
-Every one of the more than 500 prebuilt models has a description, tags, parameters, and references, so you can browse
-the catalog from Python:
+Every prebuilt system has a description, tags, parameters, and references, so you can browse
+the catalog from Python.
+
+First, list the fields. Each system belongs to one:
 
 ```python
-from skcomplex.models import catalog, describe
+from skcomplex.systems import catalog
 
-for model in catalog(field='biology/ecology'):
-    print(model.name, '-', model.description)
+fields = {system.field for system in catalog()}
+```
 
-print([model.name for model in catalog() if 'oscillation' in model.tags])
+Next, list the systems of a field:
+
+```python continuation
+bio_eco_systems = {system.name for system in catalog(field='biology/ecology')}
+```
+
+You can also search every field by tag:
+
+```python continuation
+oscillation_systems = [system.name for system in catalog() if 'oscillation' in system.tags]
+```
+
+Finally, read the details of the system you chose:
+
+```python continuation
+from skcomplex.systems import describe
 
 entry = describe('lotka_volterra')
-print(entry.description, entry.formalism, entry.parameters, entry.references)
+entry.description, entry.formalism, entry.parameters, entry.references
 ```
 
-Run any of them in one line:
+Simulate any of them with its tuned settings in one line:
 
 ```python
-from skcomplex.models import run
+from skcomplex.systems import create_simulation
 
-trajectory = run('sir').trajectory_
-print(trajectory.values('I.n').max().round())
+trajectory = create_simulation('sir').prepare().run().trajectory_
+round(float(trajectory.values('I.n').max()))
 ```
 
-`create` returns the system of a model with the arguments you choose, so you can simulate it with settings of your own:
+`create_system` returns the system of a system with the arguments you choose, so you can simulate it with settings of
+your own:
 
 ```python
-from skcomplex.engine.runtime import Simulation
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.systems import create_system
 
-system = create('lotka_volterra', r=1.5)
+system = create_system('lotka_volterra', r=1.5)
 trajectory = Simulation(system, dt=0.1).prepare().run(until=50).trajectory_
-print(round(float(trajectory.values('prey.n').max())))
+round(float(trajectory.values('prey.n').max()))
 ```
 
 Each run can stream to the Rerun viewer:
@@ -159,24 +178,24 @@ Each run can stream to the Rerun viewer:
   </tr>
 </table>
 
-The [catalog](https://georgedouzas.github.io/scikit-complexity/models/catalog/) lists every model by field and tag, and the page of each model shows the classes
+The [catalog](https://georgedouzas.github.io/scikit-complexity/models/catalog/) lists every system by field and tag, and the page of each system shows the classes
 it is built from.
 
-### Build a custom model
+### Build a custom system
 
-A custom model needs only the core. An element declares its states, and an interaction declares its roles and returns
+A custom system needs only the core. An element declares its states, and an interaction declares its roles and returns
 its laws, where the namespace `s` holds the symbols of its parameters and of the elements bound to its roles. A predator
-and prey model takes one element class, the general `RateInteraction`, and one new interaction:
+and prey system takes one element class, the general `RateInteraction`, and one new interaction:
 
 ```python
 from typing import Annotated
 
-from skcomplex.core.elements import Element
-from skcomplex.core.interactions import Interaction, RateInteraction
-from skcomplex.core.laws import RateLaw
-from skcomplex.core.system import System
-from skcomplex.engine.runtime import Simulation
-from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import Interaction, RateInteraction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
 class PopulationElement(Element):
@@ -215,7 +234,7 @@ system = System(
     ],
 )
 trajectory = Simulation(system, dt=0.05).prepare().run(until=30).trajectory_
-print(round(float(trajectory.values('rabbits.n').max())))
+round(float(trajectory.values('rabbits.n').max()))
 ```
 
 A `RerunObserver` records the run for the Rerun viewer, and `RerunObserver('predators', spawn=True)` opens the viewer
@@ -225,8 +244,8 @@ during the run. A `RealTimeClock` paces the run against wall time:
 import tempfile
 from pathlib import Path
 
-from skcomplex.engine.runtime import RealTimeClock
-from skcomplex.engine.viz import RerunObserver
+from skcomplex.core.engine.runtime import RealTimeClock
+from skcomplex.core.engine.viz import RerunObserver
 
 recording = Path(tempfile.mkdtemp()) / 'predators.rrd'
 simulation = Simulation(
@@ -235,7 +254,7 @@ simulation = Simulation(
     clock=RealTimeClock(speed=20.0),
     observers=[RerunObserver('predators', save_path=recording)],
 ).prepare()
-print(simulation.run(until=30).trajectory_.times[-1])
+float(simulation.run(until=30).trajectory_.times[-1])
 ```
 
 A simulation started with `start` runs in the background, and its parameters can change while it runs:
@@ -252,7 +271,7 @@ Adding a process takes one more interaction, and `SymbolicAnalysis` shows the eq
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.analysis import SymbolicAnalysis
+from skcomplex.core.analysis import SymbolicAnalysis
 
 
 class HarvestInteraction(Interaction):
@@ -278,7 +297,7 @@ harvested = System(
         HarvestInteraction('fishing', target='fish', h=0.1),
     ],
 )
-print(SymbolicAnalysis().prepare(harvested).run().equations_['fish.n'])
+SymbolicAnalysis().prepare(harvested).run().equations_['fish.n']
 ```
 
 ### Find out which components fit
@@ -287,13 +306,13 @@ An interaction states what it needs from each role, and an element states what i
 
 ```python continuation
 hunt = PredationInteraction('hunt', predator='foxes', prey='rabbits')
-print(hunt.get_requirements().roles['prey'].states, list(PopulationElement('rabbits').get_states()))
+hunt.get_requirements().roles['prey'].states, list(PopulationElement('rabbits').get_states())
 ```
 
 When a role is bound to an element without the state it reads, validation names the role, the state, and the fix:
 
 ```python continuation
-from skcomplex.engine.compile import PassCompiler
+from skcomplex.core.engine.compile import PassCompiler
 
 
 class TankElement(Element):
@@ -306,7 +325,7 @@ wrong = System(
     elements=[TankElement('tank'), PopulationElement('foxes')],
     interactions=[PredationInteraction('hunt', predator='foxes', prey='tank')],
 )
-print(PassCompiler().prepare(wrong).report_.issues[0].text)
+PassCompiler().prepare(wrong).report_.issues[0].text
 ```
 
 The [compatibility page](https://georgedouzas.github.io/scikit-complexity/overview/compatibility/) lists every element, interaction, law, solver, and backend, and

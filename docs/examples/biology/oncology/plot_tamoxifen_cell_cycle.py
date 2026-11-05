@@ -6,21 +6,21 @@ A continuous infusion of tamoxifen and its metabolite kills cells in the growth 
 """
 
 # %%
-# The model is created by name from the catalog: a breast tumour of 900 mm³ in the growth phase and 50 mm³ each in
+# The system is created by name from the catalog: a breast tumour of 900 mm³ in the growth phase and 50 mm³ each in
 # synthesis and mitosis receives 300 μg of tamoxifen a day. The run spans 100 days in hours. The observer saves every
 # second frame with the default blueprint, whose primary view is the time series of the phases and the drug masses.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'tamoxifen_cell_cycle'
+SYSTEM = 'tamoxifen_cell_cycle'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = (
     Simulation(system, dt=8.0, solver=ScipyODESolver(method='LSODA'), observers=[observer]).prepare().run(until=2400)
 )
@@ -33,7 +33,7 @@ simulation = (
 
 trajectory = simulation.trajectory_
 untreated = (
-    Simulation(create(MODEL, u=0.0), dt=8.0, solver=ScipyODESolver(method='LSODA'))
+    Simulation(create_system(SYSTEM, u=0.0), dt=8.0, solver=ScipyODESolver(method='LSODA'))
     .prepare()
     .run(until=2400)
     .trajectory_

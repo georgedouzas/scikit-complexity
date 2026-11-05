@@ -7,7 +7,7 @@ catalysts forms by chance it wins the selection, and the autocatalytic set grows
 """
 
 # %%
-# The model is created by name from the catalog with 40 species, links of probability 0.02, and a graph update every
+# The system is created by name from the catalog with 40 species, links of probability 0.02, and a graph update every
 # 10 steps, saved every fifth step in 299 frames. The observer uses the default blueprint, whose primary view is the
 # catalytic network colored by the population of every species.
 
@@ -15,14 +15,14 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'jain_krishna'
+SYSTEM = 'jain_krishna'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=5.0, observers=[observer], random_state=1).prepare().run(until=1490)
 
 # %%

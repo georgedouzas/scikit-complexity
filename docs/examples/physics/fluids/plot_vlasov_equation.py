@@ -8,27 +8,27 @@ of position and velocity. The image shows the density in that plane, with positi
 """
 
 # %%
-# The model is created by name from the catalog in its two-stream set-up, with beams of temperature 0.25 at the
+# The system is created by name from the catalog in its two-stream set-up, with beams of temperature 0.25 at the
 # velocities -1.5 and 1.5, a density wave of relative amplitude 1e-4, a periodic position axis of 64 cells, and a
-# velocity axis of 128. The catalog registers the semi-Lagrangian stepper for this model, which shifts the density along
-# its characteristics. The observer saves every frame of 0.25 up to `t = 50`, with the default blueprint and the image
-# of the density first.
+# velocity axis of 128. The catalog registers the semi-Lagrangian stepper for this system, which shifts the density
+# along its characteristics. The observer saves every frame of 0.25 up to `t = 50`, with the default blueprint and the
+# image of the density first.
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import brentq
 from scipy.special import wofz
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import SemiLagrangianSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import SemiLagrangianSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'vlasov_equation'
+SYSTEM = 'vlasov_equation'
 WAVE_NUMBER = 0.5
 
-system = create(MODEL, positions=64, velocities=128, setup='two-stream', amplitude=1e-4)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='gas/f', interval=1)
+system = create_system(SYSTEM, positions=64, velocities=128, setup='two-stream', amplitude=1e-4)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='gas/f', interval=1)
 solver = SemiLagrangianSolver(0.25)
 simulation = Simulation(system, solver=solver, dt=0.25, observers=[observer]).prepare().run(until=50)
 
@@ -60,7 +60,7 @@ def wave_amplitude(trajectory, positions, velocities):
 growth_rate = brentq(dispersion, 0.01, 1.0)
 times = np.asarray(simulation.trajectory_.times)
 amplitude = wave_amplitude(simulation.trajectory_, 64, 128)
-landau = Simulation(create(MODEL), solver=solver, dt=0.25).prepare().run(until=30).trajectory_
+landau = Simulation(create_system(SYSTEM), solver=solver, dt=0.25).prepare().run(until=30).trajectory_
 landau_times = np.asarray(landau.times)
 landau_amplitude = wave_amplitude(landau, 32, 64)
 

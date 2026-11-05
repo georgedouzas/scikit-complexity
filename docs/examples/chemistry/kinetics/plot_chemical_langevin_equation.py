@@ -7,23 +7,23 @@ fluctuates around one state for a while and then switches to the other, again an
 """
 
 # %%
-# The model is created by name from the catalog with its default rate constants, Gillespie's scaled to a volume five
+# The system is created by name from the catalog with its default rate constants, Gillespie's scaled to a volume five
 # times smaller, and starts at `x = 50`. It is integrated with the Euler-Maruyama scheme for 200 time units. The default
 # blueprint shows `x` in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'chemical_langevin_equation'
+SYSTEM = 'chemical_langevin_equation'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=20)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=20)
 solver = EulerMaruyamaSolver(dt=0.001)
 simulation = Simulation(system, dt=0.05, solver=solver, observers=[observer], random_state=0).prepare().run(until=200)
 

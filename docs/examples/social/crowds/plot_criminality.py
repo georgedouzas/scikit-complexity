@@ -14,11 +14,11 @@ crime persists.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'criminality'
+SYSTEM = 'criminality'
 
 # The distributions have no spatial view that shows the balance, so the views are the two series over the run.
 whole_run = rrb.TimeAxis(
@@ -33,14 +33,14 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-system = create(MODEL)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM)
 simulation = (
     Simulation(
         system,
         observers=[observer],
         dt=0.5,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(
@@ -56,8 +56,12 @@ simulation = (
 # recruitment crime should spread through most of the society.
 
 trajectory = simulation.trajectory_
-unchecked_system = create(MODEL, deterrence=0.0, recruitment=0.0)
-unchecked = Simulation(unchecked_system, dt=0.5, observables=describe(MODEL).observables_of(unchecked_system)).prepare()
+unchecked_system = create_system(SYSTEM, deterrence=0.0, recruitment=0.0)
+unchecked = Simulation(
+    unchecked_system,
+    dt=0.5,
+    observables=describe(SYSTEM).observables_of(unchecked_system),
+).prepare()
 unchecked_criminality = unchecked.run(until=100).trajectory_.values('mean_criminality')
 fig, (phase_axis, time_axis) = plt.subplots(1, 2, figsize=(10, 4))
 phase_axis.plot(trajectory.values('mean_criminality'), trajectory.values('security_forces'))

@@ -8,7 +8,7 @@ shows the fraction of excited elements over time, rising in irregular bursts of 
 """
 
 # %%
-# The model is created by name from the catalog on an Erdős-Rényi graph of 1000 nodes with mean degree 10, at the
+# The system is created by name from the catalog on an Erdős-Rényi graph of 1000 nodes with mean degree 10, at the
 # branching ratio `sigma = 1`, with 5 states per cycle, every element quiescent at the start, and a weak stimulus of
 # rate `r = 0.002` per step, so about two elements per step are excited from outside. The blueprint shows the standard
 # observable `activity`, the fraction of excited elements, over the whole run of 280 steps.
@@ -18,11 +18,11 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'kinouchi_copelli'
+SYSTEM = 'kinouchi_copelli'
 
 graph = nx.gnp_random_graph(1000, 10 / 999, seed=0)
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -32,15 +32,15 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, graph=graph, sigma=1.0, stimulus=0.002, excited=0.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, graph=graph, sigma=1.0, stimulus=0.002, excited=0.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
     Simulation(
         system,
         dt=1,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(280)
@@ -62,7 +62,9 @@ for sigma in sigmas:
     responses[sigma] = []
     for rate in rates:
         run = (
-            Simulation(create(MODEL, graph=graph, sigma=sigma, stimulus=rate), dt=1, random_state=0).prepare().run(600)
+            Simulation(create_system(SYSTEM, graph=graph, sigma=sigma, stimulus=rate), dt=1, random_state=0)
+            .prepare()
+            .run(600)
         )
         responses[sigma].append((run.trajectory_.values('neurons.phase')[100:] == 1).mean())
 

@@ -6,7 +6,7 @@ more likely, so the cloud spreads slower than Brownian motion and every path loo
 """
 
 # %%
-# The model is created by name from the catalog with 500 walkers in the plane and the Hurst index `H = 0.3`, and
+# The system is created by name from the catalog with 500 walkers in the plane and the Hurst index `H = 0.3`, and
 # simulated to time 10. The fractional Euler-Maruyama stepper draws the correlated increments of the whole run on its
 # grid before the first step. The observer saves every frame with the default blueprint, whose primary view shows the
 # walkers.
@@ -14,16 +14,16 @@ more likely, so the cloud spreads slower than Brownian motion and every path loo
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import ScalingAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import FractionalEulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import ScalingAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'fractional_brownian_motion'
+SYSTEM = 'fractional_brownian_motion'
 
-system = create(MODEL, n_walkers=500, H=0.3)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_walkers=500, H=0.3)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = FractionalEulerMaruyamaSolver(dt=0.01)
 simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], random_state=0).prepare().run(until=10)
 

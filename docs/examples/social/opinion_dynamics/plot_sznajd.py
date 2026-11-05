@@ -1,5 +1,5 @@
 """
-# Sznajd model
+# Sznajd system
 
 Sznajd-Weron and Sznajd's "united we stand, divided we fall": a pair of neighbours who agree convinces all their
 other neighbours. Agreeing pairs grow domains fast, and the population ends in consensus. Which opinion wins is
@@ -17,11 +17,11 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'sznajd'
+SYSTEM = 'sznajd'
 STEPS = 30
 
 lattice = nx.convert_node_labels_to_integers(nx.grid_2d_graph(15, 15, periodic=True), label_attribute='pos')
@@ -31,8 +31,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-system = create(MODEL, graph=lattice, share=0.5, random_state=2)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, graph=lattice, share=0.5, random_state=2)
 simulation = Simulation(system, observers=[observer], random_state=2).prepare().run(until=3)
 
 # %%
@@ -40,13 +40,16 @@ simulation = Simulation(system, observers=[observer], random_state=2).prepare().
 # ----------------------------------
 # Every run should reach consensus within a few dozen steps. Over ten runs at each initial share, the probability
 # that the final consensus is opinion 1, the exit probability, should be close to a step function at one half, as
-# Stauffer and co-authors found for the Sznajd model on the square lattice, rather than the straight line of the
-# voter model.
+# Stauffer and co-authors found for the Sznajd system on the square lattice, rather than the straight line of the
+# voter system.
 
 
 def run(share, seed):
     """Return the share of opinion 1 after every step of a run."""
-    trajectory = Simulation(create(MODEL, graph=lattice, share=share, random_state=seed), random_state=seed).prepare()
+    trajectory = Simulation(
+        create_system(SYSTEM, graph=lattice, share=share, random_state=seed),
+        random_state=seed,
+    ).prepare()
     trajectory = trajectory.run(until=STEPS).trajectory_
     return np.array([trajectory.agents('people', frame).values['opinion'].mean() for frame in range(STEPS + 1)])
 
@@ -60,7 +63,7 @@ series.set_ylabel('share of opinion 1')
 series.set_title('Five runs from a balanced start')
 wins = [np.mean([run(share, seed)[-1] > 0.5 for seed in range(10)]) for share in shares]
 exit_probability.plot(shares, wins, 'o-', label='Sznajd, 10 runs each')
-exit_probability.plot([0, 1], [0, 1], 'k:', label='voter model')
+exit_probability.plot([0, 1], [0, 1], 'k:', label='voter system')
 exit_probability.set_xlim(0.25, 0.75)
 exit_probability.set_xlabel('initial share of opinion 1')
 exit_probability.set_ylabel('probability that opinion 1 wins')

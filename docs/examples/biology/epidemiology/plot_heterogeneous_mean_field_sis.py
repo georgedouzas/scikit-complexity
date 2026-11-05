@@ -6,21 +6,21 @@ density of every degree class settles at an endemic level that rises with the de
 """
 
 # %%
-# The model is created by name from the catalog with degrees from 3 to 30 distributed as `k^-2.5` and a spreading
+# The system is created by name from the catalog with degrees from 3 to 30 distributed as `k^-2.5` and a spreading
 # rate above the threshold. The observer saves every frame with the default blueprint, whose primary view is the time
 # series of the densities of the degree classes.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'heterogeneous_mean_field_sis'
+SYSTEM = 'heterogeneous_mean_field_sis'
 
-system = create(MODEL, lam=0.2)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, lam=0.2)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=50)
 
 # %%

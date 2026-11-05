@@ -7,7 +7,7 @@ such as the period-3 window near `r = 3.83`.
 """
 
 # %%
-# The map runs at the chaotic rate `r = 3.7`, and the model logs `x` as a time series. The orbit diagram, the values
+# The map runs at the chaotic rate `r = 3.7`, and the system logs `x` as a time series. The orbit diagram, the values
 # that `x` visits after a transient of 500 steps at 400 values of `r`, is logged once as points, and the blueprint puts
 # it first, as the primary view.
 
@@ -16,13 +16,13 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import LyapunovAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.experiments import OrbitDiagramExperiment
-from skcomplex.models import create, describe
+from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.experiments import OrbitDiagramExperiment
+from skcomplex.systems import create_system, describe
 
-MODEL = 'logistic_map'
+SYSTEM = 'logistic_map'
 
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
@@ -42,12 +42,12 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, r=3.7), dt=1, observers=[observer]).prepare().run(until=200)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = Simulation(create_system(SYSTEM, r=3.7), dt=1, observers=[observer]).prepare().run(until=200)
 rates = np.linspace(2.8, 4.0, 400)
 diagram = (
     OrbitDiagramExperiment(
-        describe(MODEL).factory,
+        describe(SYSTEM).factory,
         'map.r',
         rates,
         'map.x',

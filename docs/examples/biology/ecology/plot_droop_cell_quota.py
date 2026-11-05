@@ -6,21 +6,21 @@ growth rate to exceed the death rate.
 """
 
 # %%
-# The model is created by name from the catalog: algae start at their minimum quota, where they cannot grow, in a
+# The system is created by name from the catalog: algae start at their minimum quota, where they cannot grow, in a
 # medium whose uptake fills the quota to twice the minimum, with a death rate of 0.45 a day. The observer saves every
 # frame with the default blueprint, whose primary view is the time series of the quota and the biomass.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'droop_cell_quota'
+SYSTEM = 'droop_cell_quota'
 
-system = create(MODEL, Q=1.0, d=0.45)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, Q=1.0, d=0.45)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
 
 # %%

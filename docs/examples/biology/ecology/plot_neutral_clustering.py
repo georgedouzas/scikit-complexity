@@ -6,7 +6,7 @@ frame: from a uniform start, dense patches grow next to empty stretches, althoug
 """
 
 # %%
-# The model is created by name from the catalog with 10 organisms per patch, division and death at the rate 1, and
+# The system is created by name from the catalog with 10 organisms per patch, division and death at the rate 1, and
 # hops to each neighbour at the rate 0.5. The observer saves every second frame with the default blueprint, whose
 # primary view is the space-time image of the numbers of organisms, the oldest frame at the top.
 
@@ -14,16 +14,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import solve_ivp
 
-from skcomplex.engine.backends import NumbaBackend
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.backends import NumbaBackend
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'neutral_clustering'
+SYSTEM = 'neutral_clustering'
 SITES, N, ALPHA, BETA = 128, 10.0, 1.0, 0.5
 
-system = create(MODEL, shape=SITES, n=N, alpha=ALPHA, beta=BETA)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM, shape=SITES, n=N, alpha=ALPHA, beta=BETA)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = (
     Simulation(
         system,
@@ -31,7 +31,7 @@ simulation = (
         backend=NumbaBackend(),
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(until=60)
@@ -61,14 +61,14 @@ def expected_variance(times):
 
 
 times = simulation.trajectory_.times
-still = create(MODEL, shape=SITES, n=N, alpha=ALPHA, beta=0.0)
+still = create_system(SYSTEM, shape=SITES, n=N, alpha=ALPHA, beta=0.0)
 isolated = (
     Simulation(
         still,
         dt=0.25,
         backend=NumbaBackend(),
         random_state=0,
-        observables=describe(MODEL).observables_of(still),
+        observables=describe(SYSTEM).observables_of(still),
     )
     .prepare()
     .run(until=60)

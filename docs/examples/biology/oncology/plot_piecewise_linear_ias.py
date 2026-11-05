@@ -6,20 +6,20 @@ without relapse.
 """
 
 # %%
-# The model is created by name from the catalog for patient type 1, whose PSA of 19 ng/mL starts the therapy at once.
+# The system is created by name from the catalog for patient type 1, whose PSA of 19 ng/mL starts the therapy at once.
 # The observer saves every second frame with the default blueprint, whose primary view is the time series of the three
 # cell populations and the therapy.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'piecewise_linear_ias'
+SYSTEM = 'piecewise_linear_ias'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=5.0, observers=[observer]).prepare().run(until=1500)
 
 # %%
@@ -31,7 +31,11 @@ simulation = Simulation(system, dt=5.0, observers=[observer]).prepare().run(unti
 
 fig, axes = plt.subplots(1, 3, figsize=(12, 4), sharey=True)
 for patient, axis in zip((1, 2, 3), axes, strict=True):
-    run = simulation if patient == 1 else Simulation(create(MODEL, patient=patient), dt=5.0).prepare().run(until=1500)
+    run = (
+        simulation
+        if patient == 1
+        else Simulation(create_system(SYSTEM, patient=patient), dt=5.0).prepare().run(until=1500)
+    )
     trajectory = run.trajectory_
     psa = trajectory.values('tumour.AD') + trajectory.values('tumour.AIR') + trajectory.values('tumour.AII')
     axis.plot(trajectory.times, psa)

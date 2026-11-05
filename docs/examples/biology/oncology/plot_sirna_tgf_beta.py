@@ -6,21 +6,21 @@ billion cells within weeks.
 """
 
 # %%
-# The model is created by name from the catalog with the book's parameters, a thousand effector and tumour cells, and
+# The system is created by name from the catalog with the book's parameters, a thousand effector and tumour cells, and
 # no siRNA, and runs for 200 days. The observer saves every frame with the default blueprint, whose primary view is
 # the time series of the cells, the cytokines, and the siRNA.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'sirna_tgf_beta'
+SYSTEM = 'sirna_tgf_beta'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=200)
 
 # %%
@@ -32,10 +32,10 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(unti
 
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 arms = {
-    'no TGF-beta': create(MODEL, rho4=0.0),
+    'no TGF-beta': create_system(SYSTEM, rho4=0.0),
     'TGF-beta, no siRNA': system,
-    'siRNA 1e6 per day': create(MODEL, u=1e6),
-    'siRNA 1e8 per day': create(MODEL, u=1e8),
+    'siRNA 1e6 per day': create_system(SYSTEM, u=1e6),
+    'siRNA 1e8 per day': create_system(SYSTEM, u=1e8),
 }
 fig, (tumour, cytokine) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():

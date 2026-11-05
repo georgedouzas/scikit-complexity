@@ -15,14 +15,14 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import RenormalizationAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import RenormalizationAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'popularity_similarity_network'
+SYSTEM = 'popularity_similarity_network'
 
-system = create(MODEL)
+system = create_system(SYSTEM)
 # The graph view lays out the nodes of a changing network by forces, which these settings keep compact and centred.
 blueprint = rrb.Blueprint(
     rrb.GraphView(
@@ -38,7 +38,7 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).prepare().run(until=297)
 
 # %%
@@ -50,7 +50,7 @@ simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).pr
 temperatures = np.linspace(0.1, 0.9, 5)
 clustering = []
 for temperature in temperatures:
-    run = Simulation(create(MODEL, n_nodes=1000, temperature=temperature), dt=997.0, random_state=1)
+    run = Simulation(create_system(SYSTEM, n_nodes=1000, temperature=temperature), dt=997.0, random_state=1)
     clustering.append(nx.average_clustering(run.prepare().run(until=997).trajectory_.network(-1).graph()))
 fig, axis = plt.subplots(figsize=(6, 4))
 axis.plot(temperatures, clustering, 'o-')
@@ -66,7 +66,7 @@ plt.show()
 # `RenormalizationAnalysis(kind='geometric')` merges pairs of consecutive nodes by angle three times. The tail of the
 # degree distribution keeps its slope at every scale, and the clustering stays high.
 
-run = Simulation(create(MODEL, n_nodes=2000), dt=1997.0, random_state=0).prepare().run(until=1997)
+run = Simulation(create_system(SYSTEM, n_nodes=2000), dt=1997.0, random_state=0).prepare().run(until=1997)
 scales = RenormalizationAnalysis('geometric', steps=3, beta=5.0).prepare(run.trajectory_).run()
 fig, axis = plt.subplots(figsize=(6, 4))
 for level, degrees in enumerate(scales.degrees_):

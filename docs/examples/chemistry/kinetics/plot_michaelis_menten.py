@@ -6,20 +6,20 @@ product at a nearly steady rate until the substrate runs out and the enzyme is r
 """
 
 # %%
-# The model is created by name from the catalog with 100 enzymes and 300 substrate molecules as rate equations. The
+# The system is created by name from the catalog with 100 enzymes and 300 substrate molecules as rate equations. The
 # default blueprint shows the free enzyme `E`, the substrate `S`, the complex `C`, and the product `P` in one time
 # series view.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'michaelis_menten'
+SYSTEM = 'michaelis_menten'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=50)
 
 # %%
@@ -32,7 +32,12 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 trajectory = simulation.trajectory_
 fig, (curves, totals) = plt.subplots(1, 2, figsize=(10, 4))
 for seed in range(5):
-    jumps = Simulation(create(MODEL, stochastic=True), dt=0.5, random_state=seed).prepare().run(until=50).trajectory_
+    jumps = (
+        Simulation(create_system(SYSTEM, stochastic=True), dt=0.5, random_state=seed)
+        .prepare()
+        .run(until=50)
+        .trajectory_
+    )
     for species, color in [('S', 'C0'), ('C', 'C1'), ('P', 'C2')]:
         curves.step(jumps.times, jumps.values(f'{species}.n'), where='post', color=color, alpha=0.3, linewidth=0.8)
 for species, color in [('S', 'C0'), ('C', 'C1'), ('P', 'C2')]:

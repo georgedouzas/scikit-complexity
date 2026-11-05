@@ -6,23 +6,23 @@ live cells grow only to about `3 10^4` in two months, against about `10^11` with
 """
 
 # %%
-# The model is created by name from the catalog with its default schedule, a one-day infusion of 5 mg/kg/day every
+# The system is created by name from the catalog with its default schedule, a one-day infusion of 5 mg/kg/day every
 # week, from the book's initial state of a sparse tumour of radius 13 mm without vessels. The system is stiff, so it
 # runs with LSODA. The observer saves every frame with the default blueprint, whose primary view is the time series of
 # the radius, the cells, the vascular volumes, and the inhibitor.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'vascular_core_periphery'
+SYSTEM = 'vascular_core_periphery'
 
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-8)
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer]).prepare().run(until=60)
 
 # %%
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer]).pre
 # cells should stay orders of magnitude lower and the radius close to its initial 13 mm.
 
 treated = simulation.trajectory_
-untreated = Simulation(create(MODEL, dose=0.0), dt=0.5, solver=solver).prepare().run(until=60).trajectory_
+untreated = Simulation(create_system(SYSTEM, dose=0.0), dt=0.5, solver=solver).prepare().run(until=60).trajectory_
 fig, (cells, vessels) = plt.subplots(1, 2, figsize=(10, 4))
 for trajectory, name in ((untreated, 'untreated'), (treated, 'treated')):
     cells.semilogy(

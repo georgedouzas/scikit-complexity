@@ -6,22 +6,22 @@ grows back toward its capacity.
 """
 
 # %%
-# The model is created by name from the catalog with the book's continuous infusion of `10^-10` g/cm³ per day and runs
+# The system is created by name from the catalog with the book's continuous infusion of `10^-10` g/cm³ per day and runs
 # for 150 days. The observer saves every frame with the default blueprint, whose primary view is the time series of the
 # T cells, the tumour, and the drug.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'anti_pd1_checkpoint'
+SYSTEM = 'anti_pd1_checkpoint'
 
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=1.0, solver=solver, observers=[observer]).prepare().run(until=150)
 
 # %%
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=1.0, solver=solver, observers=[observer]).pre
 
 runs = {
     dose: Simulation(
-        create(MODEL, u_ap=dose),
+        create_system(SYSTEM, u_ap=dose),
         dt=1.0,
         solver=solver,
     )

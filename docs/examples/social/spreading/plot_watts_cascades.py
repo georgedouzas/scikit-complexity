@@ -6,20 +6,20 @@ at once or sets off a global cascade that sweeps almost the whole network, and w
 """
 
 # %%
-# The model is created by name from the catalog with the default random network, the threshold 0.18 for every node,
+# The system is created by name from the catalog with the default random network, the threshold 0.18 for every node,
 # and one random seed, and runs for 30 steps. The default blueprint draws the network, where the adopters are yellow.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'watts_cascades'
+SYSTEM = 'watts_cascades'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=30)
 
 # %%
@@ -35,7 +35,7 @@ for threshold in thresholds:
     finals = []
     for seed in range(30):
         run = (
-            Simulation(create(MODEL, threshold=float(threshold), random_state=seed), dt=1)
+            Simulation(create_system(SYSTEM, threshold=float(threshold), random_state=seed), dt=1)
             .prepare()
             .run(until=30)
             .trajectory_

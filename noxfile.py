@@ -17,26 +17,26 @@ DOCS_PYTHON: str = '3.13'
 FILES: list[str] = ['src', 'tests', 'docs', 'noxfile.py']
 EXTRAS: list[str] = ['-G', 'structures', '-G', 'rna', '-G', 'metabolism']
 QUICK_TESTS: list[str] = [
-    'tests/core/elements',
-    'tests/core/spaces',
-    'tests/engine/backends',
-    'tests/engine/compile',
-    'tests/engine/problems',
-    'tests/engine/runtime',
-    'tests/engine/solvers/test_lammps.py',
-    'tests/engine/solvers/test_scipy_ode.py',
-    'tests/engine/viz',
-    'tests/experiments',
-    'tests/specs',
-    'tests/test_base.py',
-    'tests/test_errors.py',
+    'tests/core/components/elements',
+    'tests/core/components/spaces',
+    'tests/core/engine/backends',
+    'tests/core/engine/compile',
+    'tests/core/engine/problems',
+    'tests/core/engine/runtime',
+    'tests/core/engine/solvers/test_lammps.py',
+    'tests/core/engine/solvers/test_scipy_ode.py',
+    'tests/core/engine/viz',
+    'tests/core/experiments',
+    'tests/core/specs',
+    'tests/core/test_base.py',
+    'tests/core/test_errors.py',
     'tests/test_sources.py',
-    'tests/test_specs.py',
-    'tests/test_types.py',
+    'tests/core/test_specs.py',
+    'tests/core/test_types.py',
 ]
 TEST_GROUPS: list[list[str]] = [
-    ['--slow', 'tests/models'],
-    ['--slow', 'tests', '--ignore=tests/models'],
+    ['--slow', 'tests/systems'],
+    ['--slow', 'tests', '--ignore=tests/systems'],
     ['src/skcomplex', 'README.md', 'docs/overview/user_guide.md'],
 ]
 CHANGELOG_ARGS: list[str] = [
@@ -127,7 +127,7 @@ def gallery(session: nox.Session) -> None:
     parser = argparse.ArgumentParser(prog='nox -s gallery --')
     parser.add_argument('--backend', choices=['native', 'web'], default='native')
     parser.add_argument('--jobs', type=int, default=max(1, (os.cpu_count() or 2) // 2))
-    parser.add_argument('--sample', action='store_true', help='run three fast models per field only')
+    parser.add_argument('--sample', action='store_true', help='run three fast systems per field only')
     arguments = parser.parse_args(session.posargs)
     session.run('pdm', 'install', '-dG', 'docs', '-dG', 'gallery', *EXTRAS, external=True)
     if arguments.backend == 'web':

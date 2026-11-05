@@ -14,16 +14,18 @@ whichever opinion starts in the majority.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DomainAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DomainAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'majority_rule'
+SYSTEM = 'majority_rule'
 STEPS = 20
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL, density=0.5, random_state=0), observers=[observer]).prepare().run(until=STEPS)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = (
+    Simulation(create_system(SYSTEM, density=0.5, random_state=0), observers=[observer]).prepare().run(until=STEPS)
+)
 
 # %%
 # Coarsening, freezing, and amplification
@@ -36,7 +38,7 @@ simulation = Simulation(create(MODEL, density=0.5, random_state=0), observers=[o
 grids = simulation.trajectory_.lattice('voters.opinion')
 densities = np.linspace(0.3, 0.7, 17)
 finals = [
-    Simulation(create(MODEL, density=density, random_state=0))
+    Simulation(create_system(SYSTEM, density=density, random_state=0))
     .prepare()
     .run(until=STEPS)
     .trajectory_.values('voters.opinion')[-1]

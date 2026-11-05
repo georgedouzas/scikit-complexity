@@ -6,22 +6,22 @@ Turing pattern that forms because the inhibitor `v` diffuses forty times faster 
 """
 
 # %%
-# The model is created by name from the catalog on a 64 by 64 grid with `a = 0.1`, `b = 0.9`, `Du = 1`, and `Dv = 40`,
+# The system is created by name from the catalog on a 64 by 64 grid with `a = 0.1`, `b = 0.9`, `Du = 1`, and `Dv = 40`,
 # and integrated with RK4. Naming the `u` field as primary puts its view first, so it becomes the thumbnail.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import SpectrumAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import SpectrumAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'schnakenberg'
+SYSTEM = 'schnakenberg'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='cells/u')
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='cells/u')
 simulation = Simulation(system, dt=2.0, solver=RK4Solver(dt=0.005), observers=[observer]).prepare().run(until=200)
 
 # %%

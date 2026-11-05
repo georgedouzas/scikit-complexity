@@ -6,20 +6,20 @@ feedback makes the concentration oscillate irregularly, a chaotic signal that ne
 """
 
 # %%
-# The model is created by name from the catalog with the delay `tau = 17` and run for 500 days. The observer saves
+# The system is created by name from the catalog with the delay `tau = 17` and run for 500 days. The observer saves
 # every fourth frame with the default blueprint, whose primary view is the time series of the concentration.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.analysis import EmbeddingAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import EmbeddingAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'mackey_glass'
+SYSTEM = 'mackey_glass'
 
-system = create(MODEL, tau=17.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
+system = create_system(SYSTEM, tau=17.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
 simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=500)
 
 # %%
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 
 fig, axes = plt.subplots(1, 2, figsize=(10, 4.5))
 for ax, tau in zip(axes, [6.0, 17.0], strict=True):
-    trajectory = Simulation(create(MODEL, tau=tau), dt=0.5).prepare().run(until=1000).trajectory_
+    trajectory = Simulation(create_system(SYSTEM, tau=tau), dt=0.5).prepare().run(until=1000).trajectory_
     values = trajectory.values('cells.x')[trajectory.times > 200]
     embedding = EmbeddingAnalysis(delay=int(tau / 0.5), dimension=2).prepare(values).run()
     vectors = embedding.points_

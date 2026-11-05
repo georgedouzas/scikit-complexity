@@ -7,7 +7,7 @@ comes. A few visitors between two cities lock their outbreaks, here out of phase
 """
 
 # %%
-# The model is created by name from the catalog with the infection starting in the first city and six steps of
+# The system is created by name from the catalog with the infection starting in the first city and six steps of
 # immunity. The blueprint shows the infected fraction of each city in one time series view over the last 60 steps.
 
 import matplotlib.pyplot as plt
@@ -15,11 +15,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'delayed_sirs'
+SYSTEM = 'delayed_sirs'
 
 last_steps = rrb.TimeRange(
     start=rrb.TimeRangeBoundary.cursor_relative(seconds=-60),
@@ -38,8 +38,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, first=0.01, second=0.0, recovery=6, e=0.005)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, first=0.01, second=0.0, recovery=6, e=0.005)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=200)
 
 # %%

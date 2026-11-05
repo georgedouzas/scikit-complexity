@@ -12,19 +12,19 @@ cell per step on each side, as the coefficients of `(x + 1/x - 2)^t` reduced mod
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import AutomatonAnalysis
-from skcomplex.core.interactions import LocalRuleInteraction
-from skcomplex.core.spaces import BoxNeighborhood
-from skcomplex.core.system import System
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
-from skcomplex.specs import LinearRuleSpec
+from skcomplex.core.analysis import AutomatonAnalysis
+from skcomplex.core.components.interactions import LocalRuleInteraction
+from skcomplex.core.components.spaces import BoxNeighborhood
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.specs import LinearRuleSpec
+from skcomplex.systems import create_system
 
-MODEL = 'linear_ring_automaton'
+SYSTEM = 'linear_ring_automaton'
 
-system = create(MODEL, size=101, modulus=3)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
+system = create_system(SYSTEM, size=101, modulus=3)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 simulation = Simulation(system, observers=[observer]).prepare().run(until=40)
 
 # %%

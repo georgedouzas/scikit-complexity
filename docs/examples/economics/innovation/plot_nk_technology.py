@@ -1,7 +1,7 @@
 """
 # NK technology
 
-McNerney, Farmer, Redner, and Trancik's model of technological improvement: a technology is a set of components
+McNerney, Farmer, Redner, and Trancik's system of technological improvement: a technology is a set of components
 whose costs depend on each other through a design structure matrix. Every unit of production is a chance to redesign
 one component, which also changes the components that depend on it, and a redesign is kept only when it lowers the
 total cost. The cost falls as a power of the cumulative production, Wright's law, and more slowly for designs whose
@@ -16,21 +16,21 @@ components are more interdependent.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'nk_technology'
+SYSTEM = 'nk_technology'
 N_COMPONENTS, STEPS, SEEDS = 20, 3000, 8
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-system = create(MODEL, n_components=N_COMPONENTS, d=2, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_components=N_COMPONENTS, d=2, random_state=0)
 simulation = (
     Simulation(
         system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(until=250)
@@ -50,9 +50,9 @@ for index, d in enumerate((1, 2, 3)):
     costs = np.mean(
         [
             Simulation(
-                create(MODEL, n_components=N_COMPONENTS, d=d, random_state=seed),
+                create_system(SYSTEM, n_components=N_COMPONENTS, d=d, random_state=seed),
                 random_state=seed,
-                observables=describe(MODEL).observables_of(system),
+                observables=describe(SYSTEM).observables_of(system),
             )
             .prepare()
             .run(until=STEPS)

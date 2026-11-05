@@ -7,7 +7,7 @@ drift.
 """
 
 # %%
-# The model is created by name from the catalog with the speciation probability `nu = 0.01` per birth. One unit of
+# The system is created by name from the catalog with the speciation probability `nu = 0.01` per birth. One unit of
 # time holds 200 deaths, each replaced by the offspring of another individual. The observer saves every fourth frame
 # with the default blueprint, whose primary view is the time series of the number of species.
 
@@ -16,21 +16,21 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'neutral_biodiversity'
+SYSTEM = 'neutral_biodiversity'
 SIZE, NU = 200, 0.01
 
-system = create(MODEL, individuals=SIZE, nu=NU, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
+system = create_system(SYSTEM, individuals=SIZE, nu=NU, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
 simulation = (
     Simulation(
         system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(until=1000)

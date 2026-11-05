@@ -12,14 +12,14 @@ nearly charged oscillators over the threshold, they join the group that fired, a
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'mirollo_strogatz'
+SYSTEM = 'mirollo_strogatz'
 
-system = create(MODEL, n_oscillators=5, S=2.0, gamma=1.0, epsilon=0.1, seed=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_oscillators=5, S=2.0, gamma=1.0, epsilon=0.1, seed=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
 
 # %%
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 
 fig, ax = plt.subplots(figsize=(6, 4))
 for seed in range(3):
-    run = Simulation(create(MODEL, n_oscillators=30, epsilon=0.1, seed=seed), dt=0.1).prepare().run(until=60)
+    run = Simulation(create_system(SYSTEM, n_oscillators=30, epsilon=0.1, seed=seed), dt=0.1).prepare().run(until=60)
     charges = np.asarray(run.trajectory_.values('oscillators.x'))
     groups = [len(np.unique(np.round(frame, 6))) for frame in charges]
     ax.step(run.trajectory_.times, groups, where='post', label=f'seed {seed}')

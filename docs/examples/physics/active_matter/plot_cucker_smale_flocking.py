@@ -8,22 +8,22 @@ The view shows 50 birds, which end up crossing the plane together.
 """
 
 # %%
-# The model is created by name from the catalog with coupling `K = 1` and decay exponent `beta = 0.25`. The fourth-order
-# Runge-Kutta stepper takes steps of 0.05 and the observer saves every frame of 0.1 with the default blueprint, whose
-# primary view shows the birds.
+# The system is created by name from the catalog with coupling `K = 1` and decay exponent `beta = 0.25`. The
+# fourth-order Runge-Kutta stepper takes steps of 0.05 and the observer saves every frame of 0.1 with the default
+# blueprint, whose primary view shows the birds.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'cucker_smale_flocking'
+SYSTEM = 'cucker_smale_flocking'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = RK4Solver(dt=0.05)
 simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).prepare().run(until=20)
 
@@ -38,7 +38,7 @@ simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], ran
 fig, ax = plt.subplots(figsize=(7, 4))
 for beta, color in ((0.25, 'tab:blue'), (1.5, 'tab:orange')):
     run = (
-        Simulation(create(MODEL, beta=beta, random_state=1), solver=solver, dt=0.5, random_state=1)
+        Simulation(create_system(SYSTEM, beta=beta, random_state=1), solver=solver, dt=0.5, random_state=1)
         .prepare()
         .run(until=60)
     )

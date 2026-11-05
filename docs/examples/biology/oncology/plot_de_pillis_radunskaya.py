@@ -6,21 +6,21 @@ recover close to their carrying capacity.
 """
 
 # %%
-# The model is created by name from the catalog with a constant infusion of one dose unit a day, from the initial
+# The system is created by name from the catalog with a constant infusion of one dose unit a day, from the initial
 # conditions of de Pillis and Radunskaya: a tumour at a quarter of the capacity, few immune cells, and healthy normal
 # cells. The observer saves every second frame with the default blueprint, whose primary view is the time series of
 # the cells and the drug.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'de_pillis_radunskaya'
+SYSTEM = 'de_pillis_radunskaya'
 
-system = create(MODEL, u=1.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM, u=1.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=150)
 
 # %%
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # normal cells. With the infusion, the tumour should fall below 1% of its initial size and the normal cells should stay
 # above 0.7 of their capacity.
 
-untreated = Simulation(create(MODEL), dt=0.5).prepare().run(until=150).trajectory_
+untreated = Simulation(create_system(SYSTEM), dt=0.5).prepare().run(until=150).trajectory_
 treated = simulation.trajectory_
 fig, (tumour, normal) = plt.subplots(1, 2, figsize=(10, 4))
 tumour.semilogy(untreated.times, untreated.values('patient.A'), label='untreated')

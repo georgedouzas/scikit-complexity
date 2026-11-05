@@ -8,7 +8,7 @@ logarithms of the traders' rates falling towards zero.
 """
 
 # %%
-# The model is created by name with 200 traders in ten groups of 20 on a small world with five long links, and bundles
+# The system is created by name with 200 traders in ten groups of 20 on a small world with five long links, and bundles
 # of up to 100 units of each good. The blueprint shows the observable `dispersion`, the standard deviation of the
 # logarithms of the rates, above the units traded in each step, over the whole run of 60 steps.
 
@@ -16,11 +16,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'wilhite_trade_networks'
+SYSTEM = 'wilhite_trade_networks'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -37,14 +37,14 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, n_agents=200, topology='small_world', n_groups=10, shortcuts=5, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, n_agents=200, topology='small_world', n_groups=10, shortcuts=5, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
     Simulation(
         system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(until=60)
@@ -61,9 +61,11 @@ simulation = (
 
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for topology in ('isolated', 'linked', 'small_world', 'complete'):
-    network = create(MODEL, n_agents=200, topology=topology, n_groups=10, shortcuts=5, random_state=0)
+    network = create_system(SYSTEM, n_agents=200, topology=topology, n_groups=10, shortcuts=5, random_state=0)
     run = (
-        Simulation(network, random_state=0, observables=describe(MODEL).observables_of(network)).prepare().run(until=40)
+        Simulation(network, random_state=0, observables=describe(SYSTEM).observables_of(network))
+        .prepare()
+        .run(until=40)
     )
     trajectory = run.trajectory_
     searches = np.concatenate([[0.0], np.cumsum(trajectory.values('barter.searches')[1:])])

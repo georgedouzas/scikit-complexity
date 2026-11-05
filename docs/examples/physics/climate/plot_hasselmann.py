@@ -6,22 +6,22 @@ noise, with long excursions above and below zero instead of the rapid flicker of
 """
 
 # %%
-# The model is created by name from the catalog with the damping `lam = 0.5` and the noise amplitude `sigma = 0.3`, and
+# The system is created by name from the catalog with the damping `lam = 0.5` and the noise amplitude `sigma = 0.3`, and
 # is integrated with the Euler-Maruyama scheme. The default blueprint shows the anomaly in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import CorrelationAnalysis, DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import CorrelationAnalysis, DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'hasselmann'
+SYSTEM = 'hasselmann'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
 simulation = (
     Simulation(
         system,
@@ -44,7 +44,7 @@ simulation = (
 
 lam, sigma = 0.5, 0.3
 run = (
-    Simulation(create(MODEL), dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), random_state=1)
+    Simulation(create_system(SYSTEM), dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), random_state=1)
     .prepare()
     .run(until=2000)
     .trajectory_

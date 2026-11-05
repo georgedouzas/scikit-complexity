@@ -9,23 +9,23 @@ thin spiral filaments.
 """
 
 # %%
-# The model is created by name from the catalog with viscosity `nu = 0.001` and a random start built from the Fourier
-# modes below 6. The catalog registers the fourth-order exponential time differencing stepper for this spectral model,
+# The system is created by name from the catalog with viscosity `nu = 0.001` and a random start built from the Fourier
+# modes below 6. The catalog registers the fourth-order exponential time differencing stepper for this spectral system,
 # so it is passed explicitly with steps of 0.05. The observer saves every frame of 0.2 with the default blueprint,
 # whose primary view is the image of the vorticity.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ETDRK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ETDRK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'decaying_turbulence'
+SYSTEM = 'decaying_turbulence'
 
-system = create(MODEL, shape=(128, 128), random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, shape=(128, 128), random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, solver=ETDRK4Solver(dt=0.05), dt=0.2, observers=[observer]).prepare().run(until=40)
 
 # %%

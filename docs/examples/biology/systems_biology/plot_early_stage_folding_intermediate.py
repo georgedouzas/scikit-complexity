@@ -13,10 +13,10 @@ secondary structures, and it is the limited conformational space of the early st
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
-from skcomplex.models.biology.systems_biology import (
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import (
     AMINO_ACIDS,
     EllipsePath,
     read_cell_probabilities,
@@ -24,10 +24,10 @@ from skcomplex.models.biology.systems_biology import (
     read_structure,
 )
 
-MODEL = 'early_stage_folding_intermediate'
+SYSTEM = 'early_stage_folding_intermediate'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 trajectory = Simulation(system, observers=[observer], random_state=0).prepare().run(until=299).trajectory_
 
 # %%

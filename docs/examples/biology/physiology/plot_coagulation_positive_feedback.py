@@ -8,7 +8,7 @@ thrombin, the larger clot of fibrin that follows it and dissolves, and the slow 
 """
 
 # %%
-# The model is created by name from the catalog with an injury of rate 1 from time 1 to time 2 and the feedback
+# The system is created by name from the catalog with an injury of rate 1 from time 1 to time 2 and the feedback
 # `ka = 3`, above the bistability threshold 2. The observer saves every second frame of the run of 40 time units with
 # the default blueprint, whose primary view is the time series of thrombin `T`, protein C `C`, fibrin `F`, and plasmin
 # `P`.
@@ -16,14 +16,14 @@ thrombin, the larger clot of fibrin that follows it and dissolves, and the slow 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'coagulation_positive_feedback'
+SYSTEM = 'coagulation_positive_feedback'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=40)
 
 # %%
@@ -37,7 +37,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 injuries = np.linspace(0.05, 2.0, 40)
 peaks, clots = [], []
 for injury in injuries:
-    trajectory = Simulation(create(MODEL, injury=injury), dt=0.1).prepare().run(until=120).trajectory_
+    trajectory = Simulation(create_system(SYSTEM, injury=injury), dt=0.1).prepare().run(until=120).trajectory_
     peaks.append(trajectory.values('blood.T').max())
     clots.append(trajectory.values('blood.F').max())
 fig, (response, clot) = plt.subplots(1, 2, figsize=(10, 4))

@@ -1,3 +1,3 @@
 # Engineering
 
-Examples of the models of `skcomplex.models.engineering`.
+Examples of the systems of `skcomplex.systems.engineering`.

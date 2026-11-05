@@ -13,16 +13,16 @@ neighbours inside the ball, so the random start freezes into clusters of agreein
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.spaces import CayleySpace
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
-from skcomplex.models.computer_science.automata import grigorchuk_group
+from skcomplex.core.components.spaces import CayleySpace
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import grigorchuk_group
 
-MODEL = 'grigorchuk_automaton'
+SYSTEM = 'grigorchuk_automaton'
 
-system = create(MODEL, radius=8, density=0.5, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
+system = create_system(SYSTEM, radius=8, density=0.5, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 simulation = Simulation(system, observers=[observer]).prepare().run(until=20)
 
 # %%

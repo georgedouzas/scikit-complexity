@@ -16,11 +16,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'el_farol'
+SYSTEM = 'el_farol'
 WEEKS, TRANSIENT, CAPACITY = 500, 100, 60
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -34,10 +34,10 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-system = create(MODEL, n_agents=100, capacity=CAPACITY, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
+system = create_system(SYSTEM, n_agents=100, capacity=CAPACITY, random_state=0)
 simulation = (
-    Simulation(system, observers=[observer], random_state=0, observables=describe(MODEL).observables_of(system))
+    Simulation(system, observers=[observer], random_state=0, observables=describe(SYSTEM).observables_of(system))
     .prepare()
     .run(until=WEEKS)
 )

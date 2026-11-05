@@ -13,15 +13,15 @@ the Fermi probability of their payoffs, so the share of 2-simplices changes how 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'simplicial_social_dilemmas'
+SYSTEM = 'simplicial_social_dilemmas'
 ROUNDS = 100
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-system = create(MODEL)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
 simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=ROUNDS)
 
 # %%
@@ -33,7 +33,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 
 def cooperators(simplices):
     """Return the share of cooperators at the end of a run."""
-    run = Simulation(create(MODEL, simplices=simplices), random_state=0).prepare().run(until=ROUNDS)
+    run = Simulation(create_system(SYSTEM, simplices=simplices), random_state=0).prepare().run(until=ROUNDS)
     return np.asarray(run.trajectory_.values('players.strategy'))[-1].mean()
 
 

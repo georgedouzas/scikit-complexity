@@ -9,12 +9,12 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from skcomplex.core.elements import Element, GroupElement
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
-from skcomplex.core.laws.utils import mean, total
-from skcomplex.core.system import System
-from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
+from skcomplex.core.components.laws.utils import mean, total
+from skcomplex.core.components.system import System
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -29,7 +29,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
     The controller of a parallel run rebuilds the warnings its workers send, and Sage imports only in a main thread.
     """
-    importlib.import_module('skcomplex.core.base')
+    importlib.import_module('skcomplex.core.components.base')
     config.addinivalue_line('markers', 'benchmark: a timing benchmark, run with --benchmarks on an idle machine')
     config.addinivalue_line('markers', 'slow: a test that takes more than 10 seconds, run with --slow')
     config.addinivalue_line('markers', 'network: a test that downloads from the network, run with --network')

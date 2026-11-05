@@ -9,16 +9,16 @@ phase winds by a full turn around each of them.
 
 # %%
 # A 64 x 64 periodic square of side 64 starts from small noise with `b = 1` and `c = -1.5`, and the run uses the
-# fourth-order exponential time differencing solver of the model with a step of 0.1. The default blueprint shows the
+# fourth-order exponential time differencing solver of the system with a step of 0.1. The default blueprint shows the
 # real part of the amplitude, whose bands curl around the defects.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ETDRK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ETDRK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
 
 def wrap_angle(angles):
@@ -26,10 +26,10 @@ def wrap_angle(angles):
     return np.angle(np.exp(1j * np.asarray(angles)))
 
 
-MODEL = 'complex_ginzburg_landau'
+SYSTEM = 'complex_ginzburg_landau'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=1.0, solver=ETDRK4Solver(dt=0.1), observers=[observer]).prepare().run(until=150)
 
 # %%

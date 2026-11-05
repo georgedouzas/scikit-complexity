@@ -7,30 +7,30 @@ size, the hubs fastest.
 """
 
 # %%
-# The model is created by name from the catalog on degrees from 3 to 30 with `P(k) ~ k^-2.5`, at a transmission
+# The system is created by name from the catalog on degrees from 3 to 30 with `P(k) ~ k^-2.5`, at a transmission
 # rate per contact of 2.5 times the threshold `<k> / <k^2>` of the unit recovery rate. The observer saves every frame
 # of the outbreak with the default blueprint, whose primary view holds the densities of the 28 degree classes.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'heterogeneous_mean_field_sir'
+SYSTEM = 'heterogeneous_mean_field_sir'
 
 degrees = np.arange(3, 31, dtype=float)
 probabilities = degrees**-2.5 / np.sum(degrees**-2.5)
 first, second = np.sum(degrees * probabilities), np.sum(degrees**2 * probabilities)
-system = create(MODEL, k_max=30, beta=2.5 * first / second)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, k_max=30, beta=2.5 * first / second)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
         dt=0.5,
         observers=[observer],
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(
@@ -49,9 +49,9 @@ simulation = (
 rates = np.linspace(0.2, 3.0, 15) * first / second
 final_sizes = [
     Simulation(
-        create(MODEL, k_max=30, beta=rate, infected=1e-6),
+        create_system(SYSTEM, k_max=30, beta=rate, infected=1e-6),
         dt=1.0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(until=300)

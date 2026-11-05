@@ -15,23 +15,23 @@ on those bits toward 0, while the error on the random bits stays at 0.25, the er
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.backends import NumpyBackend
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
-from skcomplex.specs import ObservableSpec
+from skcomplex.core.engine.backends import NumpyBackend
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.systems import create_system
 
-MODEL = 'elman_network'
+SYSTEM = 'elman_network'
 EPOCHS = 200
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-system = create(MODEL)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
 trajectory = Simulation(system, observers=[observer], random_state=0).prepare().run(until=EPOCHS).trajectory_
 
 # %%
 # Error at each position of the bit triple
 # ----------------------------------------
-# The trained model is the nested network with the weights of a frame set through `set_params`. Run over a fresh
+# The trained system is the nested network with the weights of a frame set through `set_params`. Run over a fresh
 # stream with its inputs given by a schedule, the network before training should miss every bit by about 0.25, and
 # after training it should predict the third bit of every triple almost exactly while the first two stay at 0.25.
 
@@ -43,7 +43,7 @@ def squared_error(member):
 
 def errors_by_position(frame, bits):
     """Return the mean squared error of the predictions at each position of the triple, with the weights of a frame."""
-    net = create(MODEL).systems[0]
+    net = create_system(SYSTEM).systems[0]
     for interaction, name in zip(net.interactions, ('D', 'A', 'W'), strict=True):
         interaction.set_params(**{name: trajectory.values(f'net/{interaction.label}.{name}')[frame]})
     net.elements[1].set_params(values={'b': trajectory.values('net/hidden.b')[frame]})

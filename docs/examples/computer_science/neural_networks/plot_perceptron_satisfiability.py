@@ -7,21 +7,21 @@ solutions run out near the critical load `p / N = 0.83`.
 """
 
 # %%
-# The model reveals one pattern per step, and logs the weights the solver finds until none exist.
+# The system reveals one pattern per step, and logs the weights the solver finds until none exist.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.experiments import Experiment, GridDesign
-from skcomplex.models import create
-from skcomplex.models.computer_science.neural_networks import perceptron_satisfiability
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.neural_networks import perceptron_satisfiability
 
-MODEL = 'perceptron_satisfiability'
+SYSTEM = 'perceptron_satisfiability'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=31)
 
 # %%

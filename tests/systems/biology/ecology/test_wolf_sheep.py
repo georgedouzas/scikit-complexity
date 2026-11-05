@@ -1,0 +1,14 @@
+"""Test the `_wolf_sheep` module of `skcomplex.systems.biology.ecology`."""
+
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.systems.biology.ecology import wolf_sheep
+
+
+def test_wolf_sheep_populations_change():
+    """Test that the wolf and sheep counts change over 100 steps and are reported every frame."""
+    trajectory = Simulation(wolf_sheep(20, 20, random_state=0), random_state=0).prepare().run(until=100).trajectory_
+    for group in ('sheep', 'wolves'):
+        counts = trajectory.values(f'{group}.count')
+        assert len(counts) == 101
+        assert len(set(counts.tolist())) > 1
+    assert set(trajectory.values('grass.count').tolist()) == {400.0}

@@ -7,21 +7,21 @@ of infection and recovery exceeds a threshold set by the activities, not by the 
 """
 
 # %%
-# The model is created by name from the catalog with 500 nodes whose activities follow a power law. The observer
+# The system is created by name from the catalog with 500 nodes whose activities follow a power law. The observer
 # saves every second step with the default blueprint, whose primary view is the network of the current step, with the
 # infected nodes bright.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'activity_driven_epidemics'
+SYSTEM = 'activity_driven_epidemics'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).prepare().run(until=150)
 
 # %%
@@ -32,11 +32,11 @@ simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).pr
 
 trajectory = simulation.trajectory_
 edges = np.mean([trajectory.network(frame).sources.size for frame in range(1, len(trajectory.times))])
-activity = create(MODEL).elements[0].values['a']
+activity = create_system(SYSTEM).elements[0].values['a']
 probabilities = np.linspace(0.05, 0.9, 8)
 prevalence = []
 for lam in probabilities:
-    run = Simulation(create(MODEL, lam=lam), dt=10.0, random_state=1).prepare().run(until=150).trajectory_
+    run = Simulation(create_system(SYSTEM, lam=lam), dt=10.0, random_state=1).prepare().run(until=150).trajectory_
     prevalence.append(np.nanmean(run.values('hosts.i')[-5:]))
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(probabilities / 0.1, prevalence, 'o-')

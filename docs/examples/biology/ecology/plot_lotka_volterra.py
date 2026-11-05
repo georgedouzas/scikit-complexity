@@ -6,27 +6,27 @@ which then collapse until the prey recover, and the cycle repeats with the same 
 """
 
 # %%
-# The model is created by name from the catalog, with initial populations away from the equilibrium of four prey and
+# The system is created by name from the catalog, with initial populations away from the equilibrium of four prey and
 # 2.75 predators, and simulated for five cycles. The observer saves every second frame of the run with the default
 # blueprint, whose primary view is one time series view of both populations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'lotka_volterra'
+SYSTEM = 'lotka_volterra'
 
-system = create(MODEL, prey=10.0, predators=5.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM, prey=10.0, predators=5.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=50)
 
 # %%
 # Phase portrait and the conserved quantity
 # -----------------------------------------
-# The model `dx/dt = r x - a x y`, `dy/dt = b x y - d y` conserves `V = b x - d ln x + a y - r ln y`. The trajectory
+# The system `dx/dt = r x - a x y`, `dy/dt = b x y - d y` conserves `V = b x - d ln x + a y - r ln y`. The trajectory
 # should be one closed orbit around the equilibrium `(d / b, r / a)`, and `V` should stay constant up to the error
 # of the solver.
 

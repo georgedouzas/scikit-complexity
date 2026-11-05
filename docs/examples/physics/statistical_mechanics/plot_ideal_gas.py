@@ -6,7 +6,7 @@ their speeds keep the Maxwell-Boltzmann distribution: slow (purple) and fast (ye
 """
 
 # %%
-# The molecules are drawn as points colored by speed. The blueprint draws them larger than the model's visual does, so
+# The molecules are drawn as points colored by speed. The blueprint draws them larger than the system's visual does, so
 # they read in the gallery thumbnail.
 
 import matplotlib.pyplot as plt
@@ -14,12 +14,12 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'ideal_gas'
+SYSTEM = 'ideal_gas'
 
 box = rrb.Spatial2DView(
     origin='/gas',
@@ -34,8 +34,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, n_molecules=800, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+system = create_system(SYSTEM, n_molecules=800, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(until=2.0)
 
 # %%

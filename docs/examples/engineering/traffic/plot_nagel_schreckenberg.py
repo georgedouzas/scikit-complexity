@@ -7,34 +7,39 @@ and join their back.
 """
 
 # %%
-# The model is created by name from the catalog on a ring of 1000 cells at the density 0.2, with the speed limit 5 and
+# The system is created by name from the catalog on a ring of 1000 cells at the density 0.2, with the speed limit 5 and
 # the braking probability 0.3, and runs for 200 steps. The default blueprint shows the road over time, where the jams
 # appear as dense stripes that lean backwards.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'nagel_schreckenberg'
+SYSTEM = 'nagel_schreckenberg'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=200)
 
 # %%
 # The fundamental diagram
 # -----------------------
 # The flow is the density times the mean speed of the cars. At low densities every car drives near the speed limit less
-# the random braking, so the flow should grow as `(vmax - p) rho`; above a critical density near 0.15 jams take over and
+# the random braking, so the flow should grow as `(vmax - p) rho`. Above a critical density near 0.15 jams take over and
 # the flow should fall as the road fills up.
 
 densities = np.linspace(0.02, 0.8, 27)
 flows = []
 for density in densities:
-    run = Simulation(create(MODEL, density=float(density), random_state=1), dt=1).prepare().run(until=200).trajectory_
+    run = (
+        Simulation(create_system(SYSTEM, density=float(density), random_state=1), dt=1)
+        .prepare()
+        .run(until=200)
+        .trajectory_
+    )
     speeds = run.lattice('road.velocity')[100:]
     flows.append(density * speeds[speeds >= 0].mean())
 fig, ax = plt.subplots(figsize=(6, 4.5))

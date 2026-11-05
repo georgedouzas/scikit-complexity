@@ -7,19 +7,19 @@ of the cubic map `x' = 15 x (x - 1/2)(x - 1) + x`, so the walk is deterministic 
 
 # %%
 # The walkers start with values of `x` spread regularly over the unit interval, as in Bertin's Figure 7.4, and walk for
-# 250 steps. The model logs the positions `y` of all walkers, and the blueprint shows them over the whole run.
+# 250 steps. The system logs the positions `y` of all walkers, and the blueprint shows them over the whole run.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'cubic_chaotic_map'
+SYSTEM = 'cubic_chaotic_map'
 
-system = create(MODEL, n_walkers=200, lam=15.0)
+system = create_system(SYSTEM, n_walkers=200, lam=15.0)
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(origin='/walkers/y', name='positions y', axis_x=rrb.TimeAxis(view_range=whole_run)),
@@ -27,13 +27,13 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
     Simulation(
         system,
         dt=1,
         observers=[observer],
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(

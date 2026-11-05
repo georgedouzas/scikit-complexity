@@ -8,27 +8,27 @@ drifting, its order rising and falling in a slow breathing rhythm.
 
 # %%
 # Each population has 32 oscillators. The first starts nearly synchronized and the second spread over the circle, but
-# for these initial phases it is the second that locks and the first that drifts. The model's blueprint shows the
+# for these initial phases it is the second that locks and the first that drifts. The system's blueprint shows the
 # phases of each population against the index of the oscillator, colored around the cycle of phases, the first
 # population first: a loose cluster of one color with stragglers spread over the circle.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'kuramoto_sakaguchi_chimera'
+SYSTEM = 'kuramoto_sakaguchi_chimera'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = (
     Simulation(
         system,
         dt=1.0,
         observers=[observer],
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(

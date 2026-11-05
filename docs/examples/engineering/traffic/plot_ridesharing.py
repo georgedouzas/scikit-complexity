@@ -17,11 +17,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'ridesharing'
+SYSTEM = 'ridesharing'
 STEPS = 200
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -41,14 +41,14 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, demand=1.2, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, demand=1.2, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
     Simulation(
         system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(until=STEPS)
@@ -66,9 +66,9 @@ simulation = (
 demands = np.array([0.2, 0.4, 0.6, 0.8, 1.0, 1.2])
 waits, utilisations = [], []
 for demand in demands:
-    system = create(MODEL, demand=demand, random_state=0)
+    system = create_system(SYSTEM, demand=demand, random_state=0)
     run = (
-        Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system))
+        Simulation(system, random_state=0, observables=describe(SYSTEM).observables_of(system))
         .prepare()
         .run(until=STEPS)
     )

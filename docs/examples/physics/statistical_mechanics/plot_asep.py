@@ -8,21 +8,21 @@ clusters stream to the right along diagonal tracks, at low density.
 """
 
 # %%
-# The model is created by name from the catalog with forward hops at rate 1 and no backward hops. The observer saves
+# The system is created by name from the catalog with forward hops at rate 1 and no backward hops. The observer saves
 # every frame with the default blueprint, whose primary view is the space-time image of the occupations. The Numba
 # backend runs the hops in a compiled loop.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.backends import NumbaBackend
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.backends import NumbaBackend
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'asep'
+SYSTEM = 'asep'
 
-system = create(MODEL, n_sites=100, alpha=0.3, gamma=0.7)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_sites=100, alpha=0.3, gamma=0.7)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(system, dt=1.0, observers=[observer], random_state=0, backend=NumbaBackend()).prepare().run(until=250)
 )
@@ -40,7 +40,7 @@ fig, (profiles, currents) = plt.subplots(1, 2, figsize=(10, 4))
 for index, (name, (alpha, gamma)) in enumerate(phases.items()):
     run = (
         Simulation(
-            create(MODEL, alpha=alpha, gamma=gamma),
+            create_system(SYSTEM, alpha=alpha, gamma=gamma),
             dt=2.0,
             random_state=0,
             backend=NumbaBackend(),

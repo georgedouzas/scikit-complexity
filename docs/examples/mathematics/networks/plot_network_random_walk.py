@@ -17,11 +17,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'network_random_walk'
+SYSTEM = 'network_random_walk'
 
 graph = nx.karate_club_graph()
 blueprint = rrb.Blueprint(
@@ -30,8 +30,13 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, graph=graph, n_walkers=200), dt=1, observers=[observer], random_state=0).prepare()
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = Simulation(
+    create_system(SYSTEM, graph=graph, n_walkers=200),
+    dt=1,
+    observers=[observer],
+    random_state=0,
+).prepare()
 simulation.run(until=200)
 trajectory = simulation.trajectory_
 layout = nx.spring_layout(graph, seed=1)

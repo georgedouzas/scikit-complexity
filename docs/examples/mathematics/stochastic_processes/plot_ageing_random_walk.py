@@ -7,7 +7,7 @@ up steps growing only as a power of time below 1.
 """
 
 # %%
-# Six walkers start at 0 with `p = 0.5` and `nu = 1` and take 299 steps. The model logs only the number of walkers, so
+# Six walkers start at 0 with `p = 0.5` and `nu = 1` and take 299 steps. The system logs only the number of walkers, so
 # after the run the positions of the six walkers are logged as time series, and the blueprint puts them first, as the
 # primary view.
 
@@ -16,11 +16,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'ageing_random_walk'
+SYSTEM = 'ageing_random_walk'
 
 
 def states(trajectory, name):
@@ -35,8 +35,10 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, n_walkers=6), dt=1, observers=[observer], random_state=0).prepare().run(until=299)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = (
+    Simulation(create_system(SYSTEM, n_walkers=6), dt=1, observers=[observer], random_state=0).prepare().run(until=299)
+)
 positions = states(simulation.trajectory_, 'x')
 for walker in range(6):
     observer.recording_.send_columns(
@@ -55,7 +57,12 @@ observer.recording_.flush()
 
 fig, ax = plt.subplots(figsize=(6.5, 4.5))
 for nu in (0.5, 1.0, 2.0):
-    run = Simulation(create(MODEL, n_walkers=500, nu=nu), dt=1, random_state=1).prepare().run(until=1000).trajectory_
+    run = (
+        Simulation(create_system(SYSTEM, n_walkers=500, nu=nu), dt=1, random_state=1)
+        .prepare()
+        .run(until=1000)
+        .trajectory_
+    )
     ups = states(run, 'ups').mean(axis=1)
     (line,) = ax.loglog(run.times[1:], ups[1:], label=f'nu = {nu}')
     ax.loglog(

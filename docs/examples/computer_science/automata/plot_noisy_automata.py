@@ -13,14 +13,14 @@ new defects as fast as they annihilate, and their density levels off at a value 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'noisy_automata'
+SYSTEM = 'noisy_automata'
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-system = create(MODEL, rule=18, noise=0.01, size=200)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, rule=18, noise=0.01, size=200)
 simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=200)
 
 # %%
@@ -32,7 +32,11 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 
 fig, ax = plt.subplots(figsize=(6, 4.5))
 for noise in (0.0, 0.001, 0.01):
-    run = Simulation(create(MODEL, rule=18, noise=noise, size=2000), dt=1, random_state=0).prepare().run(until=1000)
+    run = (
+        Simulation(create_system(SYSTEM, rule=18, noise=noise, size=2000), dt=1, random_state=0)
+        .prepare()
+        .run(until=1000)
+    )
     alive = run.trajectory_.lattice('cells.alive')
     defects = (alive[:, :-1] * alive[:, 1:]).mean(axis=1)
     ax.loglog(run.trajectory_.times[1:], defects[1:], label=f'noise {noise}')

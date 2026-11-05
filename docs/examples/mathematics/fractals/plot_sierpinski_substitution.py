@@ -14,12 +14,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.compile import RewritingCompiler
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.compile import RewritingCompiler
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'sierpinski_substitution'
+SYSTEM = 'sierpinski_substitution'
 
 blueprint = rrb.Blueprint(
     rrb.Spatial2DView(origin='/sierpinski', name='sierpinski'),
@@ -28,8 +28,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), observers=[observer], compiler=RewritingCompiler()).prepare().run(6)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = Simulation(create_system(SYSTEM), observers=[observer], compiler=RewritingCompiler()).prepare().run(6)
 trajectory = simulation.trajectory_
 
 # %%
@@ -40,7 +40,7 @@ trajectory = simulation.trajectory_
 # touches should fall as `s^-D` with the similarity dimension `D = log 3 / log 2`, about 1.585, and the carpet's with
 # `D = log 8 / log 3`, about 1.893.
 
-carpet = Simulation(create(MODEL, shape='carpet'), compiler=RewritingCompiler()).prepare().run(4).trajectory_
+carpet = Simulation(create_system(SYSTEM, shape='carpet'), compiler=RewritingCompiler()).prepare().run(4).trajectory_
 generations = trajectory.times
 gasket_area = trajectory.values('sierpinski.area') / trajectory.values('sierpinski.area')[0]
 carpet_area = carpet.values('sierpinski.area')

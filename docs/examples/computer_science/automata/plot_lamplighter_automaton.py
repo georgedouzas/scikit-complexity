@@ -11,21 +11,21 @@ of two elements, so a few ones spread into a growing, flickering pattern over th
 
 import matplotlib.pyplot as plt
 
-from skcomplex.analysis import AutomatonAnalysis
-from skcomplex.core.elements import LatticeElement
-from skcomplex.core.interactions import LocalRuleInteraction
-from skcomplex.core.spaces import CayleySpace, MemoryNeighborhood
-from skcomplex.core.system import System
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
-from skcomplex.models.computer_science.automata import BinaryCellElement, lamplighter
-from skcomplex.specs import LinearRuleSpec
+from skcomplex.core.analysis import AutomatonAnalysis
+from skcomplex.core.components.elements import LatticeElement
+from skcomplex.core.components.interactions import LocalRuleInteraction
+from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.specs import LinearRuleSpec
+from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import BinaryCellElement, lamplighter
 
-MODEL = 'lamplighter_automaton'
+SYSTEM = 'lamplighter_automaton'
 
-system = create(MODEL, radius=7, density=0.1, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
+system = create_system(SYSTEM, radius=7, density=0.1, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 simulation = Simulation(system, observers=[observer]).prepare().run(until=20)
 
 # %%

@@ -14,15 +14,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import integrate, stats
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'weakening_ornstein_uhlenbeck'
+SYSTEM = 'weakening_ornstein_uhlenbeck'
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=16)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=16)
 simulation = (
-    Simulation(create(MODEL, n_particles=4), dt=0.05, observers=[observer], random_state=0).prepare().run(until=200)
+    Simulation(create_system(SYSTEM, n_particles=4), dt=0.05, observers=[observer], random_state=0)
+    .prepare()
+    .run(until=200)
 )
 
 # %%
@@ -33,7 +35,9 @@ simulation = (
 # `|x|` near 5, beyond which the run is too short to fill the slowly relaxing tail, far above the Gaussian of an
 # Ornstein-Uhlenbeck process with the same stiffness near the origin, of variance `D / k = 0.25`.
 
-ensemble = Simulation(create(MODEL, n_particles=500), dt=0.05, random_state=1).prepare().run(until=200).trajectory_
+ensemble = (
+    Simulation(create_system(SYSTEM, n_particles=500), dt=0.05, random_state=1).prepare().run(until=200).trajectory_
+)
 positions = np.abs(ensemble.values('particles.x')[2000:].ravel())
 edges = np.geomspace(0.05, 30, 40)
 density, _ = np.histogram(positions, bins=edges, density=True)

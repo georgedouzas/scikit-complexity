@@ -7,20 +7,20 @@ cycles irregular.
 """
 
 # %%
-# The model is created by name from the catalog with 300 prey and 60 predators on a 30 by 30 grid. The observer saves
+# The system is created by name from the catalog with 300 prey and 60 predators on a 30 by 30 grid. The observer saves
 # every step with the default blueprint, whose primary view shows the animals on the grid.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'agent_based_lotka_volterra'
+SYSTEM = 'agent_based_lotka_volterra'
 
-system = create(MODEL, prey=300, predators=60, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, prey=300, predators=60, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=200)
 
 # %%

@@ -13,11 +13,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'projectile'
+SYSTEM = 'projectile'
 
 blueprint = rrb.Blueprint(
     rrb.Spatial2DView(
@@ -29,8 +29,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, speed=10.0, angle=45.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, speed=10.0, angle=45.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(until=1.44)
 
 # %%
@@ -45,7 +45,7 @@ fig, ax = plt.subplots(figsize=(6, 4))
 grid = np.linspace(0, speed**2 / g, 200)
 ax.plot(grid, grid - g * grid**2 / speed**2, color='black', linewidth=3, alpha=0.3, label='parabola')
 for drag in [0.0, 0.3, 1.0]:
-    run = Simulation(create(MODEL, speed=speed, angle=45.0, drag=drag), dt=0.005).prepare().run(until=1.5)
+    run = Simulation(create_system(SYSTEM, speed=speed, angle=45.0, drag=drag), dt=0.005).prepare().run(until=1.5)
     position = np.asarray(run.trajectory_.values('ball.x'))
     above = position[:, 1] >= 0
     ax.plot(position[above, 0], position[above, 1], label=f'drag = {drag}')

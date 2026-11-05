@@ -14,16 +14,16 @@ fish and then the fleet collapse.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'fishery_capital'
+SYSTEM = 'fishery_capital'
 UNTIL = 150.0
 TECHNOLOGY = (0.0, 0.5, 0.8, 0.9, 0.95, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL), dt=1.0, observers=[observer]).prepare().run(until=UNTIL)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(create_system(SYSTEM), dt=1.0, observers=[observer]).prepare().run(until=UNTIL)
 
 # %%
 # Equilibrium or overshoot
@@ -32,7 +32,7 @@ simulation = Simulation(create(MODEL), dt=1.0, observers=[observer]).prepare().r
 # the profit just replaces depreciation. With the yield table of better technology, which halves the catch only when
 # almost no fish are left, the fleet should keep investing as the stock falls and drive both towards zero.
 
-improved = Simulation(create(MODEL, yield_table=TECHNOLOGY), dt=1.0).prepare().run(until=UNTIL).trajectory_
+improved = Simulation(create_system(SYSTEM, yield_table=TECHNOLOGY), dt=1.0).prepare().run(until=UNTIL).trajectory_
 runs = {'catch falls with the stock': simulation.trajectory_, 'better technology': improved}
 fig, (plane, fleet) = plt.subplots(1, 2, figsize=(10, 4))
 for index, (name, trajectory) in enumerate(runs.items()):

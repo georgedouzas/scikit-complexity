@@ -1,0 +1,149 @@
+"""Draw the states of a finite element field as colored meshes."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Sequence
+
+import numpy as np
+import numpy.typing as npt
+import rerun as rr
+import rerun.blueprint as rrb
+
+from ...components.spaces import MeshSpace
+from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
+from ...errors import ValidationError
+from ..problems import BaseProblemSpec, FrameSpec
+from ._base import _MODULUS, _PHASE, BaseVisual
+
+_SURFACE_DIMENSION = 2
+
+
+class MeshVisual(BaseVisual):
+    """Visual that logs every state of a finite element field as a triangle mesh colored by value.
+
+    Triangle meshes are drawn flat with the value as their height, and tetrahedral meshes as points.
+
+    Args:
+        states:
+            The states to log, or `None` for every state.
+
+        low:
+            The value of the darkest color, or `None` for the smallest value of every frame.
+
+        high:
+            The value of the brightest color, or `None` for the largest value of every frame.
+
+        path:
+            The entity path of the element or agent group to draw, which also names it in the problem.
+
+        recording:
+            The Rerun recording to log to, or `None` for the active recording of the thread.
+
+    Examples:
+        >>> from skcomplex.core.engine.viz import MeshVisual
+        >>> MeshVisual(low=0.0)
+        MeshVisual(low=0.0)
+    """
+
+    def __init__(
+        self,
+        states: Sequence[str] | None = None,
+        low: float | None = None,
+        high: float | None = None,
+        *,
+        path: str | None = None,
+        recording: rr.RecordingStream | None = None,
+    ) -> None:
+        self.states = states
+        self.low = low
+        self.high = high
+        self.path = path
+        self.recording = recording
+
+    @staticmethod
+    def _log_mesh(
+        recording: rr.RecordingStream,
+        path: str,
+        mesh: MeshSpace,
+        values: npt.NDArray[np.float64],
+        colors: npt.NDArray[np.uint8],
+    ) -> None:
+        """Log node values as a flat triangle mesh with the values as height, or as points of a tetrahedral mesh."""
+        nodes, cells = mesh.positions_, np.asarray(mesh.cells)
+        if mesh.n_dim_ != _SURFACE_DIMENSION:
+            recording.log(path, rr.Points3D(nodes, colors=colors))
+            return
+        positions = np.column_stack([nodes, values])
+        recording.log(path, rr.Mesh3D(vertex_positions=positions, triangle_indices=cells.T, vertex_colors=colors))
+
+    def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
+        """Log every chosen state of a finite element field under `<path>/<state>`, a complex one as modulus and phase.
+
+        Args:
+            recording:
+                The Rerun recording.
+
+            element:
+                The compiled element, with its path and the dotted names of its variables.
+
+            frame:
+                The frame.
+
+        Raises:
+            ValidationError:
+                The element does not lie on a mesh space.
+        """
+        mesh = getattr(element.element, 'space', None)
+        if not isinstance(mesh, MeshSpace):
+            error_msg = f'The element {element.path} does not lie on a mesh space. Draw it with another visual.'
+            raise ValidationError(error_msg)
+        for state, name in element.states.items():
+            if self.states is not None and state not in self.states:
+                continue
+            values = np.ravel(frame.value(name))
+            path = f'{element.path}/{state}'
+            if not np.iscomplexobj(values):
+                self._log_mesh(recording, path, mesh, values, self._colors(values, self.low, self.high))
+                continue
+            modulus, phase = np.abs(values), np.angle(values)
+            self._log_mesh(recording, f'{path}/{_MODULUS}', mesh, modulus, self._colors(modulus, self.low, self.high))
+            self._log_mesh(recording, f'{path}/{_PHASE}', mesh, phase, BaseVisual._phase_colors(phase))
+
+    def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
+        """Return one 3D spatial view per chosen state, since meshes are drawn with the value as their height.
+
+        Args:
+            element:
+                The compiled finite element field, with its path and the dotted names of its states.
+
+            problem:
+                The compiled problem the field belongs to.
+
+        Returns:
+            views:
+                One 3D spatial view per chosen state, with `<path>/<state>` as origin.
+
+        Examples:
+            >>> from skcomplex.core.engine.compile import compile_system
+            >>> from skcomplex.core.engine.viz import MeshVisual
+            >>> from skcomplex.systems import create_system
+            >>> problem = compile_system(create_system('heat_l_shape', refine=1))
+            >>> views = MeshVisual(path=problem.elements[0].path).prepare(problem).views_
+            >>> [type(view).__name__ for view in views]
+            ['Spatial3DView']
+        """
+        if not isinstance(element, CompiledElementSpec):
+            return []
+        views: list[rrb.View] = []
+        for state, name in element.states.items():
+            if self.states is not None and state not in self.states:
+                continue
+            path = f'{element.path}/{state}'
+            if problem.states.entry(name).is_complex:
+                views += [
+                    rrb.Spatial3DView(origin=f'{path}/{part}', name=f'{state} {part}') for part in (_MODULUS, _PHASE)
+                ]
+            else:
+                views.append(rrb.Spatial3DView(origin=path, name=state))
+        return views

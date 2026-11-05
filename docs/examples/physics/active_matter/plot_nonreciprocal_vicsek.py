@@ -1,5 +1,5 @@
 """
-# Nonreciprocal Vicsek model
+# Nonreciprocal Vicsek system
 
 Two species of movers align with their own kind, and species A aligns with species B while B antialigns with A. Neither
 can settle, so the two flocks chase each other: their mean headings stay a quarter turn apart and turn together, the
@@ -8,7 +8,7 @@ chiral phase of nonreciprocal matter. The points are coloured by species.
 
 # %%
 # Four hundred movers, half of each species, move in a periodic box of side 5 at density 16, with `J_ab = 1`,
-# `J_ba = -1`, and heading noise 0.3. The blueprint draws the movers larger than the model's visual does, so they read
+# `J_ba = -1`, and heading noise 0.3. The blueprint draws the movers larger than the system's visual does, so they read
 # in the gallery thumbnail.
 
 import matplotlib.pyplot as plt
@@ -16,12 +16,12 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.backends import NumbaBackend
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.backends import NumbaBackend
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'nonreciprocal_vicsek'
+SYSTEM = 'nonreciprocal_vicsek'
 
 box = rrb.Spatial2DView(
     origin='/movers',
@@ -36,8 +36,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = (
     Simulation(
         system,
@@ -45,7 +45,7 @@ simulation = (
         backend=NumbaBackend(),
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(
@@ -63,14 +63,14 @@ simulation = (
 
 def headings(coupling):
     """Return the times and the mean headings of both species for a coupling `(J_ab, J_ba)`."""
-    model_system = create(MODEL, J_ab=coupling[0], J_ba=coupling[1])
+    system_system = create_system(SYSTEM, J_ab=coupling[0], J_ba=coupling[1])
     run = (
         Simulation(
-            model_system,
+            system_system,
             dt=1.0,
             backend=NumbaBackend(),
             random_state=0,
-            observables=describe(MODEL).observables_of(model_system),
+            observables=describe(SYSTEM).observables_of(system_system),
         )
         .prepare()
         .run(until=300)

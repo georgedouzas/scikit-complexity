@@ -13,12 +13,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import LoopAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import LoopAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'solid_waste'
+SYSTEM = 'solid_waste'
 
 blueprint = rrb.Blueprint(
     rrb.Vertical(
@@ -29,17 +29,17 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=5)
-simulation = Simulation(create(MODEL), dt=0.1, observers=[observer]).prepare().run(40)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=5)
+simulation = Simulation(create_system(SYSTEM), dt=0.1, observers=[observer]).prepare().run(40)
 
 # %%
 # Filling the landfill
 # --------------------
-# The population growth is the one reinforcing loop of the model, and the collection, the sales of recycled material
+# The population growth is the one reinforcing loop of the system, and the collection, the sales of recycled material
 # and compost, and the capacity adjustment are balancing loops. The growth makes the landfilling rise until the
 # acceptance table closes the landfill, and the residual waste then turns to dumping.
 
-polarities = LoopAnalysis().prepare(create(MODEL)).run().polarities_
+polarities = LoopAnalysis().prepare(create_system(SYSTEM)).run().polarities_
 reinforcing, balancing = polarities.count('reinforcing'), polarities.count('balancing')
 trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)

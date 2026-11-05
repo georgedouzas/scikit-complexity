@@ -12,15 +12,15 @@ so the temperature cycles inside the band.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'heated_room'
+SYSTEM = 'heated_room'
 
-system = create(MODEL)
-observables = describe(MODEL).observables_of(system)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=5)
+system = create_system(SYSTEM)
+observables = describe(SYSTEM).observables_of(system)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
 simulation = Simulation(system, dt=10.0, observers=[observer], observables=observables).prepare().run(until=14400.0)
 
 # %%

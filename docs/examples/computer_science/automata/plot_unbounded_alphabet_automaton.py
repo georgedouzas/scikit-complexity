@@ -7,7 +7,7 @@ can hold the states.
 """
 
 # %%
-# The ring has 101 cells and the rule runs for 50 steps from a single 1. The model's space-time view shows the raw
+# The ring has 101 cells and the rule runs for 50 steps from a single 1. The system's space-time view shows the raw
 # values, in which the last rows outshine all others. After the run the same space-time diagram is logged once more on a
 # logarithmic colour scale, and the blueprint puts it first, as the primary view. Since every value only moves right,
 # the logarithmic view draws the cells the rule reaches, `C(t, k)` for `k <= t`, with row `t` shifted left by half a
@@ -19,11 +19,11 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.special import comb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'unbounded_alphabet_automaton'
+SYSTEM = 'unbounded_alphabet_automaton'
 
 blueprint = rrb.Blueprint(
     rrb.Horizontal(
@@ -35,8 +35,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).prepare().run(until=50)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=50)
 values = simulation.trajectory_.lattice('cells.value')
 logarithm = np.where(values > 0, np.log10(np.maximum(values, 1)) + 1, 0)
 start, steps_run = values.shape[1] // 2, values.shape[0] - 1

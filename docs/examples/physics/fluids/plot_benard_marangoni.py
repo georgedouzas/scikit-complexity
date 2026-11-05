@@ -8,7 +8,7 @@ the layer at the end of the run: bright cells of rising fluid packed in a hexago
 """
 
 # %%
-# The model is created by name from the catalog on a periodic square of side `16π`, eight cell wavelengths, at the
+# The system is created by name from the catalog on a periodic square of side `16π`, eight cell wavelengths, at the
 # distance `r = 0.1` above onset and with the quadratic term `g = 1` of the thermocapillary surface. The field starts
 # from noise of amplitude 0.01. The catalog defaults integrate it with exponential time differencing, and the default
 # blueprint shows the field as an image.
@@ -17,17 +17,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import skew
 
-from skcomplex.analysis import DomainAnalysis, SpectrumAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ETDRK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DomainAnalysis, SpectrumAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ETDRK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'benard_marangoni'
+SYSTEM = 'benard_marangoni'
 LENGTH = 16 * np.pi
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(system, dt=5.0, solver=ETDRK4Solver(dt=0.5), observers=[observer], random_state=0)
     .prepare()
@@ -47,7 +47,9 @@ simulation = (
 
 hexagons = simulation.trajectory_.lattice('layer.u')[-1]
 rolls_run = (
-    Simulation(create(MODEL, g=0.0), dt=5.0, solver=ETDRK4Solver(dt=0.5), random_state=0).prepare().run(until=300)
+    Simulation(create_system(SYSTEM, g=0.0), dt=5.0, solver=ETDRK4Solver(dt=0.5), random_state=0)
+    .prepare()
+    .run(until=300)
 )
 rolls = rolls_run.trajectory_.lattice('layer.u')[-1]
 spacing = LENGTH / hexagons.shape[0]

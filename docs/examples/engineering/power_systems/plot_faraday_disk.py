@@ -7,21 +7,21 @@ value: the battery discharges slowly through the disk.
 """
 
 # %%
-# The model is created by name from the catalog with the field `B = 1.5` and the motor torque `M = 4.8`, starting at
+# The system is created by name from the catalog with the field `B = 1.5` and the motor torque `M = 4.8`, starting at
 # rest, and runs for 50 time units. The default blueprint shows the current, the polarization voltage of the battery,
 # and the angular speed in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'faraday_disk'
+SYSTEM = 'faraday_disk'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=50)
 
 # %%
@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 
 torques = np.linspace(3.0, 9.0, 13)
 speeds = [
-    Simulation(create(MODEL, M=torque), dt=0.1).prepare().run(until=50).trajectory_.values('charger.omega')[-1]
+    Simulation(create_system(SYSTEM, M=torque), dt=0.1).prepare().run(until=50).trajectory_.values('charger.omega')[-1]
     for torque in torques
 ]
 trajectory = simulation.trajectory_

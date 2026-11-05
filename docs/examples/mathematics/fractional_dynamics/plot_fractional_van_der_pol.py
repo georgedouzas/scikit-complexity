@@ -7,7 +7,7 @@ cycle as the order falls, from the amplitude 2 of the ordinary oscillator.
 """
 
 # %%
-# The model logs `x` and `y` as time series. After the run, its orbit from outside the cycle and an orbit from near the
+# The system logs `x` and `y` as time series. After the run, its orbit from outside the cycle and an orbit from near the
 # origin are logged once as lines in the phase plane, and the blueprint puts this view first, as the primary view.
 
 import matplotlib.pyplot as plt
@@ -15,11 +15,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'fractional_van_der_pol'
+SYSTEM = 'fractional_van_der_pol'
 
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
@@ -39,9 +39,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(create(MODEL, x=3.0), dt=0.1, observers=[observer]).prepare().run(until=40)
-inside = Simulation(create(MODEL, x=0.1), dt=0.1).prepare().run(until=40).trajectory_
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
+simulation = Simulation(create_system(SYSTEM, x=3.0), dt=0.1, observers=[observer]).prepare().run(until=40)
+inside = Simulation(create_system(SYSTEM, x=0.1), dt=0.1).prepare().run(until=40).trajectory_
 strips = [
     np.column_stack([25 * run.values('oscillator.x'), -25 * run.values('oscillator.y')])
     for run in (simulation.trajectory_, inside)
@@ -62,7 +62,7 @@ observer.recording_.flush()
 
 def cycle_amplitude(start, order):
     """Return the largest displacement over the last 10 time units of a run of 40."""
-    run = Simulation(create(MODEL, x=start, order=order), dt=0.1).prepare().run(until=40).trajectory_
+    run = Simulation(create_system(SYSTEM, x=start, order=order), dt=0.1).prepare().run(until=40).trajectory_
     return np.max(np.abs(run.values('oscillator.x')[-100:]))
 
 

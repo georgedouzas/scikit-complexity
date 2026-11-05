@@ -9,30 +9,30 @@ warm and cold plumes side by side.
 """
 
 # %%
-# The model is created by name from the catalog at `Ra = 2000` and `Pr = 1` on a 32 x 32 lattice, which holds the
+# The system is created by name from the catalog at `Ra = 2000` and `Pr = 1` on a 32 x 32 lattice, which holds the
 # layer and its mirror image for the free-slip walls. The catalog registers the fourth-order exponential time
-# differencing stepper for this spectral model, so it is passed explicitly with steps of 0.005. The observer saves
+# differencing stepper for this spectral system, so it is passed explicitly with steps of 0.005. The observer saves
 # every frame of 0.05 with the default blueprint, here with the temperature as the primary view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ETDRK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ETDRK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'rayleigh_benard'
+SYSTEM = 'rayleigh_benard'
 
-system = create(MODEL, Ra=2000.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='flow/theta', interval=1)
+system = create_system(SYSTEM, Ra=2000.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='flow/theta', interval=1)
 solver = ETDRK4Solver(dt=0.005)
 simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer]).prepare().run(until=10)
 
 # %%
 # Onset of convection
 # -------------------
-# Below `Ra_c` every perturbation decays and the layer conducts heat at rest; above it the critical mode grows until
+# Below `Ra_c` every perturbation decays and the layer conducts heat at rest. Above it the critical mode grows until
 # the nonlinear terms saturate it, at an amplitude that rises from zero as `sqrt(Ra - Ra_c)` near onset. The largest
 # temperature departure at the end of runs on a 16 x 16 lattice should be negligible below `Ra_c` and finite above
 # it, growing with the Rayleigh number.
@@ -40,7 +40,7 @@ simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer]).pr
 rayleighs = np.array([500.0, 700.0, 900.0, 1300.0, 2000.0])
 amplitudes = []
 for rayleigh in rayleighs:
-    run = Simulation(create(MODEL, Ra=rayleigh, shape=(16, 16)), solver=solver, dt=0.5).prepare().run(until=10)
+    run = Simulation(create_system(SYSTEM, Ra=rayleigh, shape=(16, 16)), solver=solver, dt=0.5).prepare().run(until=10)
     amplitudes.append(np.abs(run.trajectory_.values('flow.theta')[-1]).max())
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(rayleighs, amplitudes, 'o-', label='largest temperature departure at t = 10')

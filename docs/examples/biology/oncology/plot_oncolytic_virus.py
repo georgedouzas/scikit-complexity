@@ -6,21 +6,21 @@ two thirds of the carrying capacity: the virus reduces the tumour but does not e
 """
 
 # %%
-# The model is created by name from the catalog, from a tenth of the capacity of uninfected cells and a trace of
+# The system is created by name from the catalog, from a tenth of the capacity of uninfected cells and a trace of
 # infected cells, and runs for 60 growth times. The observer saves every second frame with the default blueprint,
 # whose primary view is the time series of the two populations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'oncolytic_virus'
+SYSTEM = 'oncolytic_virus'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=60)
 
 # %%

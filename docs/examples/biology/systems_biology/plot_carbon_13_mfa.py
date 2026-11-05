@@ -7,7 +7,7 @@ the split of 2-oxoglutarate in the TCA example of Antoniewicz et al. (2007).
 """
 
 # %%
-# The model is created by name from the catalog, and the data come from its known fluxes under two parallel tracers
+# The system is created by name from the catalog, and the data come from its known fluxes under two parallel tracers
 # with noise of standard deviation 0.002 at seed 0. The network with the estimated fluxes runs once, and the primary
 # view is its graph.
 
@@ -15,23 +15,23 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.spaces import StaticTime
-from skcomplex.core.system import System
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
-from skcomplex.models.biology.systems_biology import tca_labelling_analysis
+from skcomplex.core.components.spaces import StaticTime
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import tca_labelling_analysis
 
-MODEL = 'carbon_13_mfa'
+SYSTEM = 'carbon_13_mfa'
 TRUE = {'v1': 100.0, 'v2': 100.0, 'v3': 50.0, 'v4': 50.0, 'v5': 50.0, 'v6': 50.0, 'v8': 50.0, 'v9': 50.0}
 
-system = create(MODEL)
+system = create_system(SYSTEM)
 analysis = tca_labelling_analysis(noise=0.002, random_state=0).prepare(system).run()
 network = system.elements[0]
 fixed = {f'{bound}_{name}': analysis.fluxes_[name] for name in TRUE for bound in ('lower', 'upper')}
 estimated = System(elements=[type(network)(network.label).set_params(**fixed)], time=StaticTime())
 blueprint = rrb.Blueprint(rrb.GraphView(origin='tca/graph', name='network'), collapse_panels=True)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 Simulation(estimated, observers=[observer]).prepare().run(until=0.0)
 
 # %%

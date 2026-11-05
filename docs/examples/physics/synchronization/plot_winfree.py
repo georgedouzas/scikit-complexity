@@ -13,20 +13,20 @@ coupling, and at strong coupling the response wins over the drive and every osci
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'winfree'
+SYSTEM = 'winfree'
 
-system = create(MODEL, n_oscillators=50, K=0.5, spread=0.1, seed=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='observables', interval=1)
+system = create_system(SYSTEM, n_oscillators=50, K=0.5, spread=0.1, seed=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 simulation = (
     Simulation(
         system,
         dt=0.25,
         observers=[observer],
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(
@@ -44,9 +44,9 @@ simulation = (
 couplings = np.linspace(0.0, 1.5, 31)
 means, spreads = [], []
 for coupling in couplings:
-    model_system = create(MODEL, n_oscillators=50, K=coupling, spread=0.1, seed=0)
+    system_system = create_system(SYSTEM, n_oscillators=50, K=coupling, spread=0.1, seed=0)
     run = (
-        Simulation(model_system, dt=0.25, observables=describe(MODEL).observables_of(model_system))
+        Simulation(system_system, dt=0.25, observables=describe(SYSTEM).observables_of(system_system))
         .prepare()
         .run(until=200)
     )
@@ -60,6 +60,6 @@ ax.plot(couplings, means, 'o-', label='mean frequency')
 ax.plot(couplings, spreads, 's-', label='spread of the frequencies')
 ax.set_xlabel('coupling K')
 ax.set_ylabel('frequency')
-ax.set_title('Winfree model: locking, then oscillator death')
+ax.set_title('Winfree system: locking, then oscillator death')
 ax.legend()
 plt.show()

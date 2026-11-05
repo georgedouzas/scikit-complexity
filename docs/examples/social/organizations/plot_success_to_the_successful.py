@@ -15,11 +15,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import LoopAnalysis
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, run
+from skcomplex.core.analysis import LoopAnalysis
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation, create_system
 
-MODEL = 'success_to_the_successful'
+SYSTEM = 'success_to_the_successful'
 
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(
@@ -34,8 +34,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = run(MODEL, settings={'until': 100, 'dt': 1.0, 'observers': [observer]})
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = create_simulation(SYSTEM).set_params(dt=1.0, observers=[observer]).prepare().run(until=100)
 
 # %%
 # The winner takes all
@@ -44,7 +44,7 @@ simulation = run(MODEL, settings={'until': 100, 'dt': 1.0, 'observers': [observe
 # two balancing loops of depreciation. Starting runs from several splits of the same 100 units shows that the
 # symmetric split is unstable, and whoever starts ahead wins.
 
-polarities = LoopAnalysis().prepare(create(MODEL)).run().polarities_
+polarities = LoopAnalysis().prepare(create_system(SYSTEM)).run().polarities_
 summary = ', '.join(f'{polarities.count(kind)} {kind}' for kind in ('reinforcing', 'balancing'))
 
 trajectory = simulation.trajectory_
@@ -57,7 +57,7 @@ stocks.set_ylabel('resources')
 stocks.set_title('The resources of the competitors')
 stocks.legend()
 for a in (30.0, 45.0, 49.0, 51.0, 55.0, 70.0):
-    scenario = run(MODEL, settings={'until': 100, 'dt': 1.0}, a=a, b=100.0 - a)
+    scenario = create_simulation(SYSTEM, a=a, b=100.0 - a).set_params(dt=1.0).prepare().run(until=100)
     splits.plot(times, scenario.trajectory_.values('contest.success'), label=f'a starts at {a:.0f}')
 splits.set_xlabel('years')
 splits.set_ylabel('share of the first competitor')

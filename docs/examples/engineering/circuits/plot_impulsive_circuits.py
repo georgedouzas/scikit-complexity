@@ -6,7 +6,7 @@ kicks the response repeats exactly from one impulse to the next: a periodic, non
 """
 
 # %%
-# The model is created by name from the catalog with `L = C = 1`, `R = 0.1`, and impulses of strength 1 every
+# The system is created by name from the catalog with `L = C = 1`, `R = 0.1`, and impulses of strength 1 every
 # `T = 2`, and runs for 150 time units, long enough for the weak damping to remove the transient. The blueprint
 # shows only the response `x`, leaving out its rate and the clock of the impulses.
 
@@ -14,11 +14,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'impulsive_circuits'
+SYSTEM = 'impulsive_circuits'
 
 response = rrb.TimeSeriesView(
     origin='/',
@@ -34,8 +34,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=6)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=6)
 simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=150)
 
 # %%

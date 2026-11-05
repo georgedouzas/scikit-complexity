@@ -14,12 +14,12 @@ confidence it reaches a consensus and the variance falls to zero.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
-from skcomplex.models.social.opinion_dynamics import opinion_grid
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
+from skcomplex.systems.social.opinion_dynamics import opinion_grid
 
-MODEL = 'kinetic_opinion'
+SYSTEM = 'kinetic_opinion'
 
 # The distribution has no spatial view that shows polarisation, so the primary view is the variance over the run.
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -33,14 +33,14 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-system = create(MODEL)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM)
 simulation = (
     Simulation(
         system,
         observers=[observer],
         dt=0.5,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(
@@ -58,9 +58,9 @@ simulation = (
 
 def final_distribution(confidence, repulsion):
     """Return the final distribution and variance of the opinions for a confidence and a repulsion."""
-    model_system = create(MODEL, confidence=confidence, repulsion=repulsion)
+    system_system = create_system(SYSTEM, confidence=confidence, repulsion=repulsion)
     run = (
-        Simulation(model_system, dt=60.0, observables=describe(MODEL).observables_of(model_system))
+        Simulation(system_system, dt=60.0, observables=describe(SYSTEM).observables_of(system_system))
         .prepare()
         .run(until=60)
     )

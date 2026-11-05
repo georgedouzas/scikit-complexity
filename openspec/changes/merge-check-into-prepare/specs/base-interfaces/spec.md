@@ -9,7 +9,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Configurable bases share two verbs
-Every base class of the library SHALL derive from `BaseConfig` in `skcomplex.base`, which defines
+Every base class of the library SHALL derive from `BaseConfig` in `skcomplex.core.base`, which defines
 `prepare(context)` and `run(input, final=False)` once. `prepare` SHALL call the private hook `_check` and then `_prepare`,
 and `run` SHALL call `_run`. No public `check` SHALL exist. `BaseConfig` SHALL declare the
 hooks `_check`, `_prepare`, and `_run` as abstract methods, so a class that does not implement all three cannot be
@@ -57,7 +57,7 @@ attribute SHALL end in `_` and be set only by `prepare` or `run`, and the checks
 
 ### Requirement: Values carry fields and validate when prepared
 Every dataclass of the library outside the models SHALL be a frozen spec that derives from `BaseSpec`, itself a
-`BaseConfig`, SHALL be named with the suffix `Spec`, and SHALL be importable from `skcomplex.specs`. A spec SHALL hold
+`BaseConfig`, SHALL be named with the suffix `Spec`, and SHALL be importable from `skcomplex.core.specs`. A spec SHALL hold
 only its fields, the hook `_check`, and readers of its own fields. Validation SHALL validate every law of a system, and
 a spec SHALL validate when it is prepared on its own or when its owner is prepared.
 
@@ -155,5 +155,5 @@ owner inside the library SHALL call it on a part it does not prepare.
 - **THEN** the second `prepare` raises an error that names the parameter
 
 #### Scenario: Removed names
-- **WHEN** a user lists the attributes of `BaseConfig`, `BaseSpec`, and `BasePart`, and the names in `skcomplex.errors`
+- **WHEN** a user lists the attributes of `BaseConfig`, `BaseSpec`, and `BasePart`, and the names in `skcomplex.core.errors`
 - **THEN** none has `check`, and `NotCheckedError` does not exist

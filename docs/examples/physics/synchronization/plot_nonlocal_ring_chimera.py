@@ -8,26 +8,26 @@ coexistence of order and disorder among identical units is a chimera state.
 
 # %%
 # One hundred oscillators are coupled to their 14 nearest neighbours on each side with the phase lag
-# `alpha = 1.46`. The model's blueprint shows the phase of every oscillator against its place on the ring, colored
+# `alpha = 1.46`. The system's blueprint shows the phase of every oscillator against its place on the ring, colored
 # around the cycle of phases: the coherent stretch is a smooth curve, the incoherent one a scatter of points.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'nonlocal_ring_chimera'
+SYSTEM = 'nonlocal_ring_chimera'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
         dt=1.0,
         observers=[observer],
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(

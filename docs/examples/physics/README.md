@@ -1,3 +1,3 @@
 # Physics
 
-Examples of the models of `skcomplex.models.physics`.
+Examples of the systems of `skcomplex.systems.physics`.

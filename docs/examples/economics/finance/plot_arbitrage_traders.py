@@ -15,15 +15,15 @@ traders drift towards the profitable direction faster and faster.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'arbitrage_traders'
+SYSTEM = 'arbitrage_traders'
 N_SITES, LENGTH, D, E, UNTIL = 200, 20.0, 0.5, 0.5, 3.5
 
-system = create(MODEL, n_sites=N_SITES, length=LENGTH, D=D, E=E)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='rho history', interval=1)
+system = create_system(SYSTEM, n_sites=N_SITES, length=LENGTH, D=D, E=E)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='rho history', interval=1)
 simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=UNTIL)
 
 # %%

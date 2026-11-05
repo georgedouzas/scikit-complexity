@@ -1,196 +1,145 @@
-"""Define the types of the core: the targets of laws, the pairings and rules of matches, and the protocols."""
+"""Define the types every layer of the package reads: arrays, tuples, functions, keys, and kinds."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from __future__ import annotations
-
-from collections.abc import Callable, Hashable, Mapping, MutableMapping, Sequence
-from types import SimpleNamespace
-from typing import Protocol, runtime_checkable
+from collections.abc import Callable, Mapping
+from enum import StrEnum
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import Expression
-from sage.modules.free_module_element import FreeModuleElement
-from shapely import Polygon
 
-from ..specs import (
-    BatchMatchingSpec,
-    ContinuousMatchingSpec,
-    IterativeMatchingSpec,
-    PartnerSpec,
-    PartnerSwitchSpec,
-    QueueSpec,
-    RandomSearchSpec,
-    StableMatchingSpec,
-)
-from ..types import Array
-from .spaces import LatticeNeighborhood, MemoryNeighborhood
+# arrays and tuples
+type Array = npt.NDArray[np.float64]
+type IntArray = npt.NDArray[np.int64]
+type Indices = npt.NDArray[np.intp]
+type ComplexArray = npt.NDArray[np.complex128]
+type AnyArray = npt.NDArray[np.generic]
+type IntTuple = tuple[int, ...]
+type Pair = tuple[int, int]
 
-type Target = Expression | FreeModuleElement
-type Process = str | tuple[str, ...] | Expression | FreeModuleElement | None
-type Feasibility = Callable[[AgentViewProtocol, AgentViewProtocol], bool]
-type Pairing = Callable[[Sequence[object], Sequence[object], np.random.Generator, int], list[tuple[object, object]]]
-type Reach = LatticeNeighborhood | MemoryNeighborhood
-type MatchingRule = (
-    RandomSearchSpec
-    | PartnerSpec
-    | PartnerSwitchSpec
-    | QueueSpec
-    | IterativeMatchingSpec
-    | ContinuousMatchingSpec
-    | BatchMatchingSpec
-    | StableMatchingSpec
-)
-type NamespaceFunction = Callable[[SimpleNamespace], Target]
-type PairPotential = Callable[[SimpleNamespace, Expression], Expression]
-type Combination = Callable[[SimpleNamespace, Target], Target]
-type AgentCombination = Callable[[AgentViewProtocol, ModelViewProtocol, Array | None, int | None], npt.ArrayLike]
+# functions and keys
+type VectorFunction = Callable[[float, Array, Array], Array]
+type ProcessKey = tuple[str, str, str | int]
+type Preference = Callable[[object, object], float]
+type Stoichiometry = Mapping[tuple[str, str] | str, float | Callable[..., object]]
 
 
-@runtime_checkable
-class AgentViewProtocol(Protocol):
-    """Agent as agent rules read it, such as `AgentView` of the agent stepper: its id, location, moves, and life."""
+class DataKind(StrEnum):
+    """Kind of data an analysis consumes, whatever system or measurement produced it.
+
+    A kind equals its value, so an analysis may return the plain string, such as `'series'`.
+
+    Examples:
+        >>> from skcomplex.core.types import DataKind
+        >>> DataKind('field').reading
+        'a grid of values, or frames of grids'
+        >>> DataKind.SERIES == 'series'
+        True
+    """
+
+    SERIES = 'series'
+    PATH = 'path'
+    FIELD = 'field'
+    AGENTS = 'agents'
+    NETWORK = 'network'
+    ENSEMBLE = 'ensemble'
+    SYSTEM = 'system'
 
     @property
-    def id(self) -> int:
-        """Unique id of the agent."""
-
-    @property
-    def group(self) -> str:
-        """Path of the group of the agent."""
-
-    @property
-    def group_label(self) -> str:
-        """Label of the agent's group, the last part of its path."""
-
-    @property
-    def location(self) -> object:
-        """Grid coordinates, network node, or position of the agent."""
-
-    @property
-    def location_key(self) -> Hashable:
-        """Location of the agent as a key, equal to the coordinates `neighbor_cells` gives for its cell or node."""
-
-    @property
-    def alive(self) -> bool:
-        """Whether the agent has not been removed."""
-
-    def neighbor_cells(self) -> list[object]:
-        """Return the coordinates of the cells or nodes around the agent's cell or node, hashable as location keys."""
-
-    def agents_here(self, group: str | None = None) -> Sequence[AgentViewProtocol]:
-        """Return the other agents of the agent's cell or node, of every group or of the group of a path."""
-
-    def displacement_to(self, other: AgentViewProtocol | object) -> npt.NDArray[np.float64]:
-        """Return the vector from the agent to another agent or a location, the shortest one on a torus."""
-
-    def distance_to(self, other: AgentViewProtocol | object) -> float:
-        """Return the distance to another agent or a location, the number of hops on a network."""
-
-    def neighbors(self, radius: float | None = None, layer: str | None = None) -> Sequence[AgentViewProtocol]:
-        """Return the other agents in the neighbouring cells or nodes, within a radius, or around it in a layer."""
-
-    def regions_here(self, layer: str) -> list[int]:
-        """Return the indices of the regions of a layer of the continuous space that contain the agent."""
-
-    def move_to(self, location: object) -> None:
-        """Move the agent to a cell, a node, or a position, or to a uniform point inside a polygon."""
-
-    def remove(self) -> None:
-        """Remove the agent from the model."""
-
-    def create(self, group: str | None = None, location: object = None, **values: object) -> AgentViewProtocol:
-        """Create an agent of a group, by default the agent's own group at the agent's location."""
-
-    def referenced(self, state: str) -> AgentViewProtocol | None:
-        """Return the member of another group that a reference state of the agent names, or `None`."""
-
-    def lags(self, state: str, window: int | None = None) -> npt.NDArray[np.float64]:
-        """Return the past values of a state of the agent at the ends of the last steps, the last one last."""
+    def reading(self) -> str:
+        """Plain arrays or graphs the analyses of the kind read."""
+        readings = {
+            DataKind.SERIES: 'a series of values, or the columns of an array as series',
+            DataKind.PATH: 'the jump times and the states after every jump',
+            DataKind.FIELD: 'a grid of values, or frames of grids',
+            DataKind.AGENTS: 'positions, velocities, directions, or states of agents, one row per agent',
+            DataKind.NETWORK: 'a NetworkX graph, or one graph per frame',
+            DataKind.ENSEMBLE: 'one row per run and one column per common time',
+            DataKind.SYSTEM: (
+                'a system, a problem compiled from one, or a trajectory of one, whose equations are analysed'
+            ),
+        }
+        return readings[self]
 
 
-@runtime_checkable
-class ModelViewProtocol(Protocol):
-    """Model as agent rules read it, such as `ModelView` of the agent stepper: its agents, storage, and randomness."""
+class DomainKind(StrEnum):
+    """Kind of value a state takes, which decides the laws that may target it."""
 
-    @property
-    def rng(self) -> np.random.Generator:
-        """Random number generator of the model."""
+    REAL = 'real'
+    INTEGER = 'integer'
+    BOOLEAN = 'boolean'
+    CATEGORICAL = 'categorical'
+    ANGLE = 'angle'
+    COMPLEX = 'complex'
+    VECTOR = 'vector'
+    TENSOR = 'tensor'
+    HILBERT = 'hilbert'
+    SEQUENCE = 'sequence'
+    GRAPH = 'graph'
+    TILING = 'tiling'
 
-    @property
-    def storage(self) -> MutableMapping[str, object]:
-        """Mutable mapping private to the owner of the rule that persists across the steps of one run."""
 
-    def agents(self, name: str) -> Sequence[AgentViewProtocol]:
-        """Return the agents of a group bound to a role of the owner, or of a group by path."""
+class VariableKind(StrEnum):
+    """Role a declared argument plays in a part."""
 
-    @property
-    def dimensions(self) -> tuple[float, ...] | None:
-        """Extent of the agent space per axis, cells of a lattice or lengths of a continuous space, `None` otherwise."""
+    STATE = 'state'
+    PARAMETER = 'parameter'
+    ROLE = 'role'
 
-    @property
-    def torus(self) -> bool:
-        """Whether the agent space wraps around at its edges."""
 
-    def groups(self, name: str) -> list[str]:
-        """Return the paths of the groups a role of the owner binds, or of a group by path."""
+class OrderKind(StrEnum):
+    """Kind of order of the time derivative that the rate laws on a state give."""
 
-    def regions(self, layer: str) -> int:
-        """Return the number of regions of a layer of the continuous space."""
+    INTEGER = 'integer'
+    FRACTIONAL = 'fractional'
 
-    def region(self, layer: str, index: int) -> Polygon:
-        """Return the polygon of a region of a layer of the continuous space."""
 
-    def parameter(self, name: str) -> float:
-        """Return the current value of a parameter of the owner."""
+class NoiseKind(StrEnum):
+    """Structure of the Wiener processes that the noise laws of a system draw."""
 
-    @property
-    def parameters(self) -> dict[str, float]:
-        """Current values of every parameter by dotted name."""
+    DIAGONAL = 'diagonal'
+    SHARED = 'shared'
+    CORRELATED = 'correlated'
+    CONSERVED = 'conserved'
 
-    def set_parameter(self, name: str, value: float) -> None:
-        """Set a parameter of any group or interaction during the run, recorded in the trajectory."""
 
-    @property
-    def inputs(self) -> Mapping[str, object]:
-        """Values of the states of other partitions at the last synchronisation point, by dotted name."""
+class FormKind(StrEnum):
+    """Mathematical form of a compiled system, which decides the solvers that advance it.
 
-    @property
-    def round(self) -> int:
-        """Index of the current round of a repeated phase, `0` outside repeated phases."""
+    Examples:
+        >>> from skcomplex.core.types import FormKind
+        >>> FormKind.SDE.value
+        'stochastic differential equations'
+    """
 
-    def count(self, name: str) -> int:
-        """Return the number of agents of a group, a role of the owner or a path."""
+    ODE = 'ordinary differential equations'
+    FRACTIONAL = 'fractional differential equations'
+    SDE = 'stochastic differential equations'
+    JUMP = 'jump process'
+    DISCRETE = 'discrete map'
+    AGENT = 'agent-based system'
+    LATTICE = 'lattice dynamics'
+    MONTE_CARLO = 'Monte Carlo sampling'
+    RENEWAL = 'renewal process'
+    COUPLED = 'co-simulation'
+    OPERATOR = 'operator dynamics'
+    LEARNING = 'learning by gradient steps'
+    STATIC = 'static solution'
+    REWRITING = 'rewriting system'
 
-    def random_empty_cell(self) -> object:
-        """Return the coordinates of a random empty cell of the grid or network."""
 
-    def observable(self, name: str) -> object:
-        """Return the current value of an observable of the system, such as an aggregate of a group."""
+class ElementKind(StrEnum):
+    """Kind of element or system that carries states, as solvers, backends, and the roles of interactions name them.
 
-    def field(self, name: str, cell: object) -> float:
-        """Return the value of a field state, by path or as `<role>.<state>`, at a cell or node."""
+    `ANY` names every kind in a role that accepts them all, and no element is of this kind.
+    """
 
-    def deposit(self, name: str, cell: object, amount: float) -> None:
-        """Add an amount to a field state, by path or as `<role>.<state>`, at a cell or node."""
-
-    def create(self, group: str, location: object = None, **values: object) -> AgentViewProtocol:
-        """Create an agent of a group, a role of the owner or a path, at a location or by default a random place."""
-
-    @property
-    def time(self) -> float:
-        """Time of the model, with the fraction of the step that the visits of a phase reached."""
-
-    def history(self, name: str, window: int | None = None) -> npt.NDArray[np.float64]:
-        """Return the past values of a reporter, or of an observable at the end of every earlier step."""
-
-    def composition(self, name: str, state: str) -> dict[Hashable, int]:
-        """Return the number of agents of a group, a role of the owner or a path, by value of a state."""
-
-    def occupancy(self, name: str) -> dict[Hashable, int]:
-        """Return the number of agents of a group, a role of the owner or a path, by the key of their location."""
-
-    def report(self, name: str, value: float) -> None:
-        """Publish a value of the owner as the reporter `<owner>.<name>`."""
+    ANY = 'any'
+    ELEMENT = 'element'
+    GROUP = 'group'
+    VARIABLE_GROUP = 'variable-group'
+    SITE_GROUP = 'site-group'
+    EDGE_GROUP = 'edge-group'
+    HYPEREDGE_GROUP = 'hyperedge-group'
+    SYSTEM = 'system'

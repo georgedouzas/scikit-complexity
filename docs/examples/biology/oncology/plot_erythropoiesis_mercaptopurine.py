@@ -6,21 +6,21 @@ red cells and the quiescent cells fall, all settling over a few years at new ste
 """
 
 # %%
-# The model is created by name from the catalog with a drug level of 500 pMol per 8 x 10^8 red cells, within the range
+# The system is created by name from the catalog with a drug level of 500 pMol per 8 x 10^8 red cells, within the range
 # of the book. The observer saves every second frame with the default blueprint, whose primary view is the time series
 # of the cells and the mean volume.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'erythropoiesis_mercaptopurine'
+SYSTEM = 'erythropoiesis_mercaptopurine'
 
-system = create(MODEL, U=500.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM, U=500.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=10.0, observers=[observer]).prepare().run(until=3000)
 
 # %%
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=10.0, observers=[observer]).prepare().run(unt
 levels = np.array([0.0, 158.0, 300.0, 500.0, 750.0, 1000.0])
 volumes, cells = [], []
 for level in levels:
-    trajectory = Simulation(create(MODEL, U=level), dt=20.0).prepare().run(until=8000).trajectory_
+    trajectory = Simulation(create_system(SYSTEM, U=level), dt=20.0).prepare().run(until=8000).trajectory_
     volumes.append(trajectory.values('patient.MCV')[-1])
     cells.append(trajectory.values('patient.L')[-1])
 fig, (course, steady) = plt.subplots(1, 2, figsize=(10, 4))

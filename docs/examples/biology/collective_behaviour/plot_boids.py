@@ -6,7 +6,7 @@ boids share a colour, which shows their horizontal velocity.
 """
 
 # %%
-# The boids fly on a square torus. The blueprint shows the whole torus and draws the boids larger than the model's
+# The boids fly on a square torus. The blueprint shows the whole torus and draws the boids larger than the system's
 # visual does, so they read in the gallery thumbnail.
 
 import matplotlib.pyplot as plt
@@ -14,11 +14,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'boids'
+SYSTEM = 'boids'
 
 flock = rrb.Spatial2DView(
     origin='/flock',
@@ -32,8 +32,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, n_boids=150, size=40.0, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+system = create_system(SYSTEM, n_boids=150, size=40.0, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=200)
 
 # %%

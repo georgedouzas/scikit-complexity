@@ -23,7 +23,7 @@ nav:
     - Compatibility: overview/compatibility.md
     - Changelog: overview/changelog.md
     - License: overview/license.md
-  - Models: models/
+  - Systems: systems/
   - API: api/
   - Examples:
     - Physics: generated/gallery/physics
@@ -65,7 +65,8 @@ markdown_extensions:
   - pymdownx.magiclink
   - pymdownx.snippets:
       check_paths: true
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      relaxed_headers: true
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.tasklist
@@ -97,7 +98,7 @@ plugins:
   - gen-files:
       scripts:
       - docs/generate_api.py
-      - docs/generate_models.py
+      - docs/generate_systems.py
       - docs/generate_compatibility.py
   - literate-nav:
       nav_file: SUMMARY.md

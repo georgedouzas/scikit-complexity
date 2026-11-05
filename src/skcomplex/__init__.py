@@ -1,1 +1,1 @@
-"""Create, simulate, and visualize complex systems from any science."""
+"""Create, simulate, and visualize complex systems in any field of science."""

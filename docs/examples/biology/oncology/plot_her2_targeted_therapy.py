@@ -6,23 +6,23 @@ their rate, while the paclitaxel accumulates in the cells.
 """
 
 # %%
-# The model is created by name from the catalog with the culture of Jarrett et al.: 35,000 cells, counted in millions,
+# The system is created by name from the catalog with the culture of Jarrett et al.: 35,000 cells, counted in millions,
 # under a free antibody and a free paclitaxel from day 1. The observer saves every frame with the default blueprint,
 # whose primary view is the time series of the cells, the bound antibody, and the internalized paclitaxel.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'her2_targeted_therapy'
+SYSTEM = 'her2_targeted_therapy'
 SOLVER = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.05, solver=SOLVER, observers=[observer]).prepare().run(until=10)
 
 # %%
@@ -32,7 +32,10 @@ simulation = Simulation(system, dt=0.05, solver=SOLVER, observers=[observer]).pr
 # instead of 0.83. The treated tumour should follow the logistic curve of that rate, and lag behind the untreated one.
 
 untreated = (
-    Simulation(create(MODEL, antibody=0.0, paclitaxel=0.0), dt=0.05, solver=SOLVER).prepare().run(until=10).trajectory_
+    Simulation(create_system(SYSTEM, antibody=0.0, paclitaxel=0.0), dt=0.05, solver=SOLVER)
+    .prepare()
+    .run(until=10)
+    .trajectory_
 )
 treated = simulation.trajectory_
 times, cells = treated.times, treated.values('tumour.A')

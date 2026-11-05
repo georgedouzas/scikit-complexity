@@ -2,8 +2,8 @@
 
 ## 1. Base classes
 
-- [x] 1.1 Record the hashes of the seeded popularity-similarity networks and the compile time of `tests/models/test_catalog.py` as the values to compare against; verify they repeat.
-- [x] 1.2 Make `prepare` of `BaseConfig`, `BasePart`, and `BaseSpec` validate first, and remove `check`, `_is_checked`, `_checked`, and `NotCheckedError`; verify the scenarios of `base-interfaces` in `tests/test_base.py`, `tests/core/test_base.py`, and `tests/test_errors.py`.
+- [x] 1.1 Record the hashes of the seeded popularity-similarity networks and the compile time of `tests/systems/test_catalog.py` as the values to compare against; verify they repeat.
+- [x] 1.2 Make `prepare` of `BaseConfig`, `BasePart`, and `BaseSpec` validate first, and remove `check`, `_is_checked`, `_checked`, and `NotCheckedError`; verify the scenarios of `base-interfaces` in `tests/core/test_base.py`, `tests/core/components/test_base.py`, and `tests/core/test_errors.py`.
 - [x] 1.3 Replace `.check()` in `src` outside doctests with `._validated()` on the same object, including `ModelEntry` and the compiler's report; verify the core and engine tests.
 - [x] 1.4 Compare the compile time with task 1.1, and move any validation that a hot path repeats; verify the time is within 5 percent.
 

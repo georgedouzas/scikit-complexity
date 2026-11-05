@@ -14,10 +14,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import run
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation
 
-MODEL = 'car_dealer'
+SYSTEM = 'car_dealer'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -26,8 +26,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = run(MODEL, settings={'until': 100, 'dt': 1.0, 'observers': [observer]})
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = create_simulation(SYSTEM).set_params(dt=1.0, observers=[observer]).prepare().run(until=100)
 
 # %%
 # The flows and the delays
@@ -51,7 +51,7 @@ for label, settings in {
     'perception 2, response 3': {'perception_delay': 2.0},
     'perception 5, response 6': {'response_delay': 6.0},
 }.items():
-    scenario = run(MODEL, settings={'until': 100, 'dt': 1.0}, **settings)
+    scenario = create_simulation(SYSTEM, **settings).set_params(dt=1.0).prepare().run(until=100)
     delays.plot(times, scenario.trajectory_.values('dealer.inventory'), label=label)
 delays.set_xlabel('days')
 delays.set_ylabel('cars')

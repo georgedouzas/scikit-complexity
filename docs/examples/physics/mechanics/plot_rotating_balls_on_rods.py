@@ -13,11 +13,11 @@ their angular momentum is conserved, so halving the distance quadruples the angu
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'rotating_balls_on_rods'
+SYSTEM = 'rotating_balls_on_rods'
 
 
 def radius_at(time):
@@ -25,8 +25,8 @@ def radius_at(time):
     return 1.0 if time < 5.0 else 0.5
 
 
-system = create(MODEL, omega=1.0, r=1.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, omega=1.0, r=1.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 schedule = {'right.r': radius_at, 'left.r': radius_at}
 simulation = Simulation(system, dt=0.04, observers=[observer], schedule=schedule).prepare().run(until=10)
 
@@ -39,7 +39,7 @@ simulation = Simulation(system, dt=0.04, observers=[observer], schedule=schedule
 fig, ax = plt.subplots(figsize=(6, 4))
 for radius in [0.9, 0.7, 0.5]:
     pulled = {'right.r': lambda time, value=radius: 1.0 if time < 5.0 else value}
-    run = Simulation(create(MODEL, omega=1.0, r=1.0), dt=0.02, schedule=pulled).prepare().run(until=10)
+    run = Simulation(create_system(SYSTEM, omega=1.0, r=1.0), dt=0.02, schedule=pulled).prepare().run(until=10)
     times = np.asarray(run.trajectory_.times)
     angle = np.unwrap(np.ravel(run.trajectory_.values('right.theta')))
     line = ax.plot(times[1:], np.diff(angle) / np.diff(times), label=f'r = {radius} after t = 5')[0]

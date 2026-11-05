@@ -6,20 +6,20 @@ robots on its side can see: the illuminated robots keep a wider berth, which pus
 """
 
 # %%
-# The model is created by name from the catalog with 20 robots starting in a cluster near the left edge of an arena of
+# The system is created by name from the catalog with 20 robots starting in a cluster near the left edge of an arena of
 # size 100, with the beacon at the middle of the right edge, and runs for 3000 steps. The blueprint shows the robots in
-# the left half of the arena, drawn larger than the model's visual so they read in the thumbnail.
+# the left half of the arena, drawn larger than the system's visual so they read in the thumbnail.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'swarmtaxis'
+SYSTEM = 'swarmtaxis'
 
 arena = rrb.Spatial2DView(
     origin='/robots',
@@ -33,8 +33,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = Simulation(system, dt=15, observers=[observer]).prepare().run(until=3000)
 
 # %%

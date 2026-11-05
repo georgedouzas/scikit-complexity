@@ -8,25 +8,30 @@ diffusion coefficients, inoculum, and step of 0.1 h, for the first 14 h.
 """
 
 # %%
-# The model is created by name from the catalog, which needs the extra `metabolism`. The primary view is the image of
+# The system is created by name from the catalog, which needs the extra `metabolism`. The primary view is the image of
 # the growth flux of every box, beside the images of the fields.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import IMEXEulerSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import IMEXEulerSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'comets'
+SYSTEM = 'comets'
 SHAPE = (50, 50)
 STEP = 0.1
 INTERVAL = 4
 INOCULUM_PER_LEVEL = 3.0
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=INTERVAL)
-simulation = Simulation(create(MODEL, shape=SHAPE), solver=IMEXEulerSolver(dt=STEP), dt=STEP, observers=[observer])
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=INTERVAL)
+simulation = Simulation(
+    create_system(SYSTEM, shape=SHAPE),
+    solver=IMEXEulerSolver(dt=STEP),
+    dt=STEP,
+    observers=[observer],
+)
 trajectory = simulation.prepare().run(until=14.0).trajectory_
 
 # %%

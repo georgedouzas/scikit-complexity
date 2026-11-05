@@ -6,21 +6,21 @@ first lock into local cycles, then spiral waves form around their defects and gr
 """
 
 # %%
-# The model is created by name from the catalog on a 128 by 128 grid with 14 levels and threshold 1, from random
+# The system is created by name from the catalog on a 128 by 128 grid with 14 levels and threshold 1, from random
 # levels, and runs for 300 steps. The default blueprint shows the levels on the grid.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import CorrelationAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import CorrelationAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'cyclic_cellular_automaton'
+SYSTEM = 'cyclic_cellular_automaton'
 
-system = create(MODEL, shape=(128, 128), random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM, shape=(128, 128), random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=300)
 
 # %%

@@ -13,14 +13,14 @@ almost still: elastic collisions between equal masses pass the whole momentum an
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'newtons_cradle'
+SYSTEM = 'newtons_cradle'
 
-system = create(MODEL, n_balls=5, speed=0.5)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM, n_balls=5, speed=0.5)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(until=5)
 
 # %%

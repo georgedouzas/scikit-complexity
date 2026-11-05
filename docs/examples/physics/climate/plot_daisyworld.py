@@ -7,26 +7,26 @@ star.
 """
 
 # %%
-# The model is created by name from the catalog with a fifth of the planet covered by each kind of daisy, at the
+# The system is created by name from the catalog with a fifth of the planet covered by each kind of daisy, at the
 # luminosity `L = 1`. The default blueprint shows the areas of white and black daisies in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'daisyworld'
+SYSTEM = 'daisyworld'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 simulation = (
     Simulation(
         system,
         dt=0.5,
         observers=[observer],
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(
@@ -45,9 +45,9 @@ S, sigma = 917.0, 5.67e-8
 luminosities = np.linspace(0.6, 1.6, 41)
 temperatures, whites, blacks = [], [], []
 for luminosity in luminosities:
-    model_system = create(MODEL, L=luminosity, white=0.05, black=0.05)
+    system_system = create_system(SYSTEM, L=luminosity, white=0.05, black=0.05)
     run = (
-        Simulation(model_system, dt=1.0, observables=describe(MODEL).observables_of(model_system))
+        Simulation(system_system, dt=1.0, observables=describe(SYSTEM).observables_of(system_system))
         .prepare()
         .run(until=200)
         .trajectory_

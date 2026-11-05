@@ -7,22 +7,22 @@ split in two at ever closer slopes as `mu` falls towards 1, and merge into a sin
 """
 
 # %%
-# The map runs at the slope `mu = 1.99`, and the model logs `x` as a time series. The orbit diagram, the values that `x`
-# visits after a transient of 500 steps at 400 slopes, is logged once as points, and the blueprint puts it first, as the
-# primary view.
+# The map runs at the slope `mu = 1.99`, and the system logs `x` as a time series. The orbit diagram, the values that
+# `x` visits after a transient of 500 steps at 400 slopes, is logged once as points, and the blueprint puts it first, as
+# the primary view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import LyapunovAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.experiments import OrbitDiagramExperiment
-from skcomplex.models import create, describe
+from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.experiments import OrbitDiagramExperiment
+from skcomplex.systems import create_system, describe
 
-MODEL = 'tent_map'
+SYSTEM = 'tent_map'
 
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
@@ -42,12 +42,12 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).prepare().run(until=200)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=200)
 slopes = np.linspace(1.0, 2.0, 400)
 diagram = (
     OrbitDiagramExperiment(
-        describe(MODEL).factory,
+        describe(SYSTEM).factory,
         'map.mu',
         slopes,
         'map.x',

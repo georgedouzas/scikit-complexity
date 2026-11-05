@@ -7,8 +7,8 @@ they differ little drift can fix the worse one, and the mean fitness climbs whil
 """
 
 # %%
-# The population has 100 genomes; every step a tenth of them die and are replaced by copies of parents chosen in
-# proportion to their fitness, with one bit flipped in one copy in twenty. The model only logs the size of the
+# The population has 100 genomes. Every step a tenth of them die and are replaced by copies of parents chosen in
+# proportion to their fitness, with one bit flipped in one copy in twenty. The system only logs the size of the
 # population, which stays 100. After the run, the share of genomes carrying the better allele at each of the 8 loci
 # (rows, sorted by the gap between the two alleles, largest first) at every step (columns) is logged once as an
 # image, dark for none and yellow for all, and the blueprint puts it first, as the primary view.
@@ -18,11 +18,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'bit_string_evolution'
+SYSTEM = 'bit_string_evolution'
 
 blueprint = rrb.Blueprint(
     rrb.Spatial2DView(origin='/alleles', name='share of the better allele, locus by step'),
@@ -30,9 +30,11 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, random_state=0), dt=1, observers=[observer], random_state=0).prepare().run(until=200)
+    Simulation(create_system(SYSTEM, random_state=0), dt=1, observers=[observer], random_state=0)
+    .prepare()
+    .run(until=200)
 )
 landscape = np.random.default_rng(0)
 zero_values, one_values = landscape.random(8), landscape.random(8)

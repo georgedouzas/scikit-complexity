@@ -177,10 +177,10 @@ select = ["C", "E", "F", "W", "B", "I", "D", "N", "UP", "YTT", "ANN", "S",
 
 [tool.ruff.lint.flake8-bugbear]
 # Specs are frozen dataclasses, so a spec in a default argument is shared safely.
-extend-immutable-calls = ["skcomplex.specs.VisualSpec", "skcomplex.specs.HilbertSpec", "skcomplex.specs.RandomSearchSpec", "skcomplex.specs.DifferentialEvolutionSpec"]
+extend-immutable-calls = ["skcomplex.core.specs.VisualSpec", "skcomplex.core.specs.HilbertSpec", "skcomplex.core.specs.RandomSearchSpec", "skcomplex.core.specs.DifferentialEvolutionSpec"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
-"sympy".msg = "Sage is the symbolic layer. Write expressions with Sage, through `skcomplex.core.base` or `sage.all__sagemath_symbolics`."
+"sympy".msg = "Sage is the symbolic layer. Write expressions with Sage, through `skcomplex.core.components.base` or `sage.all__sagemath_symbolics`."
 
 [tool.ruff.lint.per-file-ignores]
 "docs/examples/*" = ["ANN", "D", "B018", "PLR2004"]
@@ -188,13 +188,13 @@ extend-immutable-calls = ["skcomplex.specs.VisualSpec", "skcomplex.specs.Hilbert
 # Test classes document their arguments in the class docstring, so their `__init__` methods carry none.
 "test_*" = ["ANN", "PLR2004", "D107"]
 "conftest.py" = ["D107"]
-"src/skcomplex/core/declarations.py" = ["ANN401"]
+"src/skcomplex/core/components/declarations.py" = ["ANN401"]
 # Numba-compiled loops take positional arrays and compiled functions, whose Numba types have no Python annotation.
-"src/skcomplex/analysis/_lyapunov.py" = ["PLR0917", "ANN401"]
+"src/skcomplex/core/analysis/_lyapunov.py" = ["PLR0917", "ANN401"]
 # The background run keeps any error it meets for `wait` to raise in the calling thread.
-"src/skcomplex/engine/runtime/_simulations.py" = ["BLE001"]
-# Model element constructors only store their many arguments, which trips the statement count.
-"src/skcomplex/models/**" = ["PLR0915"]
+"src/skcomplex/core/engine/runtime/_simulations.py" = ["BLE001"]
+# System element constructors only store their many arguments, which trips the statement count.
+"src/skcomplex/systems/**" = ["PLR0915"]
 # The gallery tools run the installed Rerun viewer in a subprocess and import Playwright only for the web backend.
 "docs/gallery_tools/**" = ["S404", "S603", "PLC0415"]
 
@@ -248,8 +248,8 @@ ViennaRNA = "RNA"
 
 [tool.deptry.per_rule_ignores]
 # Maxima, cysignals, and the Sage groups that pickle GAP groups are loaded by Sage, and MPI by LAMMPS, so the package never imports them. The analysis
-# libraries are imported on first use through `skcomplex.analysis._lazy.module`, by name, and GAP on the first
-# group space that needs it, by name. The optional extras are imported by name on first use, in the models that need
+# libraries are imported on first use through `skcomplex.core.analysis._lazy.module`, by name, and GAP on the first
+# group space that needs it, by name. The optional extras are imported by name on first use, in the systems that need
 # them.
 DEP002 = [
     "cobra",
@@ -281,19 +281,19 @@ root_package = "skcomplex"
 name = "Experiments build on analysis, which builds on the engine, which builds on the core, which builds on the root modules"
 type = "layers"
 layers = [
-    "skcomplex.experiments",
-    "skcomplex.analysis",
-    "skcomplex.engine",
-    "skcomplex.core",
-    "skcomplex.specs",
-    "skcomplex.base",
-    "skcomplex.types | skcomplex.errors",
+    "skcomplex.core.experiments",
+    "skcomplex.core.analysis",
+    "skcomplex.core.engine",
+    "skcomplex.core.components",
+    "skcomplex.core.specs",
+    "skcomplex.core.base",
+    "skcomplex.core.types | skcomplex.core.errors",
 ]
 
 [[tool.importlinter.contracts]]
 name = "Core packages import only the packages listed before them"
 type = "layers"
-containers = ["skcomplex.core"]
+containers = ["skcomplex.core.components"]
 layers = [
     "specs",
     "system",
@@ -306,7 +306,7 @@ layers = [
 [[tool.importlinter.contracts]]
 name = "Engine packages import only the packages listed before them"
 type = "layers"
-containers = ["skcomplex.engine"]
+containers = ["skcomplex.core.engine"]
 layers = [
     "translators",
     "viz",
@@ -319,175 +319,175 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "The core, the engine, experiments, and analysis never import the models"
+name = "The core, the engine, experiments, and analysis never import the systems"
 type = "forbidden"
 source_modules = [
-    "skcomplex.analysis",
-    "skcomplex.core",
-    "skcomplex.engine",
-    "skcomplex.experiments",
+    "skcomplex.core.analysis",
+    "skcomplex.core.components",
+    "skcomplex.core.engine",
+    "skcomplex.core.experiments",
 ]
-forbidden_modules = ["skcomplex.models"]
+forbidden_modules = ["skcomplex.systems"]
 
 [[tool.importlinter.contracts]]
-name = "Models import only public modules of the core, the engine, experiments, and analysis"
+name = "Systems import only public modules of the core, the engine, experiments, and analysis"
 type = "forbidden"
-source_modules = ["skcomplex.models"]
+source_modules = ["skcomplex.systems"]
 forbidden_modules = [
-    "skcomplex.analysis.*",
-    "skcomplex.core.**",
-    "skcomplex.engine.**",
-    "skcomplex.experiments.*",
+    "skcomplex.core.analysis.*",
+    "skcomplex.core.components.**",
+    "skcomplex.core.engine.**",
+    "skcomplex.core.experiments.*",
 ]
 allow_indirect_imports = true
 ignore_imports = [
-    "skcomplex.models.** -> skcomplex.core.*",
-    "skcomplex.models.** -> skcomplex.core.laws.utils",
-    "skcomplex.models.** -> skcomplex.analysis.types",
-    "skcomplex.models.** -> skcomplex.engine.*",
+    "skcomplex.systems.** -> skcomplex.core.components.*",
+    "skcomplex.systems.** -> skcomplex.core.components.laws.utils",
+    "skcomplex.systems.** -> skcomplex.core.analysis.types",
+    "skcomplex.systems.** -> skcomplex.core.engine.*",
 ]
 
 [[tool.importlinter.contracts]]
-name = "Model subfield packages are self-contained"
+name = "System subfield packages are self-contained"
 type = "independence"
 modules = [
-    "skcomplex.models.biology.collective_behaviour",
-    "skcomplex.models.biology.ecology",
-    "skcomplex.models.biology.epidemiology",
-    "skcomplex.models.biology.evolution",
-    "skcomplex.models.biology.neuroscience",
-    "skcomplex.models.biology.oncology",
-    "skcomplex.models.biology.physiology",
-    "skcomplex.models.biology.systems_biology",
-    "skcomplex.models.chemistry.kinetics",
-    "skcomplex.models.chemistry.pattern_formation",
-    "skcomplex.models.computer_science.automata",
-    "skcomplex.models.computer_science.evolutionary_computation",
-    "skcomplex.models.computer_science.neural_networks",
-    "skcomplex.models.economics.econophysics",
-    "skcomplex.models.economics.finance",
-    "skcomplex.models.economics.innovation",
-    "skcomplex.models.economics.macroeconomics",
-    "skcomplex.models.economics.markets",
-    "skcomplex.models.economics.resources",
-    "skcomplex.models.engineering.circuits",
-    "skcomplex.models.engineering.control",
-    "skcomplex.models.engineering.mechatronics",
-    "skcomplex.models.engineering.power_systems",
-    "skcomplex.models.engineering.processes",
-    "skcomplex.models.engineering.robotics",
-    "skcomplex.models.engineering.traffic",
-    "skcomplex.models.mathematics.dynamical_systems",
-    "skcomplex.models.mathematics.fractals",
-    "skcomplex.models.mathematics.fractional_dynamics",
-    "skcomplex.models.mathematics.networks",
-    "skcomplex.models.mathematics.stochastic_processes",
-    "skcomplex.models.physics.active_matter",
-    "skcomplex.models.physics.celestial_mechanics",
-    "skcomplex.models.physics.climate",
-    "skcomplex.models.physics.cosmology",
-    "skcomplex.models.physics.criticality",
-    "skcomplex.models.physics.fluids",
-    "skcomplex.models.physics.heat",
-    "skcomplex.models.physics.mechanics",
-    "skcomplex.models.physics.nonlinear_oscillators",
-    "skcomplex.models.physics.oceanography",
-    "skcomplex.models.physics.pattern_formation",
-    "skcomplex.models.physics.seismology",
-    "skcomplex.models.physics.soft_matter",
-    "skcomplex.models.physics.statistical_mechanics",
-    "skcomplex.models.physics.synchronization",
-    "skcomplex.models.physics.waves",
-    "skcomplex.models.social.cooperation",
-    "skcomplex.models.social.crowds",
-    "skcomplex.models.social.opinion_dynamics",
-    "skcomplex.models.social.organizations",
-    "skcomplex.models.social.segregation",
-    "skcomplex.models.social.spreading",
+    "skcomplex.systems.biology.collective_behaviour",
+    "skcomplex.systems.biology.ecology",
+    "skcomplex.systems.biology.epidemiology",
+    "skcomplex.systems.biology.evolution",
+    "skcomplex.systems.biology.neuroscience",
+    "skcomplex.systems.biology.oncology",
+    "skcomplex.systems.biology.physiology",
+    "skcomplex.systems.biology.systems_biology",
+    "skcomplex.systems.chemistry.kinetics",
+    "skcomplex.systems.chemistry.pattern_formation",
+    "skcomplex.systems.computer_science.automata",
+    "skcomplex.systems.computer_science.evolutionary_computation",
+    "skcomplex.systems.computer_science.neural_networks",
+    "skcomplex.systems.economics.econophysics",
+    "skcomplex.systems.economics.finance",
+    "skcomplex.systems.economics.innovation",
+    "skcomplex.systems.economics.macroeconomics",
+    "skcomplex.systems.economics.markets",
+    "skcomplex.systems.economics.resources",
+    "skcomplex.systems.engineering.circuits",
+    "skcomplex.systems.engineering.control",
+    "skcomplex.systems.engineering.mechatronics",
+    "skcomplex.systems.engineering.power_systems",
+    "skcomplex.systems.engineering.processes",
+    "skcomplex.systems.engineering.robotics",
+    "skcomplex.systems.engineering.traffic",
+    "skcomplex.systems.mathematics.dynamical_systems",
+    "skcomplex.systems.mathematics.fractals",
+    "skcomplex.systems.mathematics.fractional_dynamics",
+    "skcomplex.systems.mathematics.networks",
+    "skcomplex.systems.mathematics.stochastic_processes",
+    "skcomplex.systems.physics.active_matter",
+    "skcomplex.systems.physics.celestial_mechanics",
+    "skcomplex.systems.physics.climate",
+    "skcomplex.systems.physics.cosmology",
+    "skcomplex.systems.physics.criticality",
+    "skcomplex.systems.physics.fluids",
+    "skcomplex.systems.physics.heat",
+    "skcomplex.systems.physics.mechanics",
+    "skcomplex.systems.physics.nonlinear_oscillators",
+    "skcomplex.systems.physics.oceanography",
+    "skcomplex.systems.physics.pattern_formation",
+    "skcomplex.systems.physics.seismology",
+    "skcomplex.systems.physics.soft_matter",
+    "skcomplex.systems.physics.statistical_mechanics",
+    "skcomplex.systems.physics.synchronization",
+    "skcomplex.systems.physics.waves",
+    "skcomplex.systems.social.cooperation",
+    "skcomplex.systems.social.crowds",
+    "skcomplex.systems.social.opinion_dynamics",
+    "skcomplex.systems.social.organizations",
+    "skcomplex.systems.social.segregation",
+    "skcomplex.systems.social.spreading",
 ]
 
 [[tool.importlinter.contracts]]
-name = "Models of biology use only the shared code of their own field"
+name = "Systems of biology use only the shared code of their own field"
 type = "forbidden"
-source_modules = ["skcomplex.models.biology"]
+source_modules = ["skcomplex.systems.biology"]
 forbidden_modules = [
-    "skcomplex.models.economics.common",
-    "skcomplex.models.engineering.common",
-    "skcomplex.models.physics.common",
+    "skcomplex.systems.economics.common",
+    "skcomplex.systems.engineering.common",
+    "skcomplex.systems.physics.common",
 ]
 
 [[tool.importlinter.contracts]]
-name = "Models of chemistry use only the shared code of their own field"
+name = "Systems of chemistry use only the shared code of their own field"
 type = "forbidden"
-source_modules = ["skcomplex.models.chemistry"]
+source_modules = ["skcomplex.systems.chemistry"]
 forbidden_modules = [
-    "skcomplex.models.biology.common",
-    "skcomplex.models.economics.common",
-    "skcomplex.models.engineering.common",
-    "skcomplex.models.physics.common",
+    "skcomplex.systems.biology.common",
+    "skcomplex.systems.economics.common",
+    "skcomplex.systems.engineering.common",
+    "skcomplex.systems.physics.common",
 ]
 
 [[tool.importlinter.contracts]]
-name = "Models of computer_science use only the shared code of their own field"
+name = "Systems of computer_science use only the shared code of their own field"
 type = "forbidden"
-source_modules = ["skcomplex.models.computer_science"]
+source_modules = ["skcomplex.systems.computer_science"]
 forbidden_modules = [
-    "skcomplex.models.biology.common",
-    "skcomplex.models.economics.common",
-    "skcomplex.models.engineering.common",
-    "skcomplex.models.physics.common",
+    "skcomplex.systems.biology.common",
+    "skcomplex.systems.economics.common",
+    "skcomplex.systems.engineering.common",
+    "skcomplex.systems.physics.common",
 ]
 
 [[tool.importlinter.contracts]]
-name = "Models of economics use only the shared code of their own field"
+name = "Systems of economics use only the shared code of their own field"
 type = "forbidden"
-source_modules = ["skcomplex.models.economics"]
+source_modules = ["skcomplex.systems.economics"]
 forbidden_modules = [
-    "skcomplex.models.biology.common",
-    "skcomplex.models.engineering.common",
-    "skcomplex.models.physics.common",
+    "skcomplex.systems.biology.common",
+    "skcomplex.systems.engineering.common",
+    "skcomplex.systems.physics.common",
 ]
 
 [[tool.importlinter.contracts]]
-name = "Models of engineering use only the shared code of their own field"
+name = "Systems of engineering use only the shared code of their own field"
 type = "forbidden"
-source_modules = ["skcomplex.models.engineering"]
+source_modules = ["skcomplex.systems.engineering"]
 forbidden_modules = [
-    "skcomplex.models.biology.common",
-    "skcomplex.models.economics.common",
-    "skcomplex.models.physics.common",
+    "skcomplex.systems.biology.common",
+    "skcomplex.systems.economics.common",
+    "skcomplex.systems.physics.common",
 ]
 
 [[tool.importlinter.contracts]]
-name = "Models of mathematics use only the shared code of their own field"
+name = "Systems of mathematics use only the shared code of their own field"
 type = "forbidden"
-source_modules = ["skcomplex.models.mathematics"]
+source_modules = ["skcomplex.systems.mathematics"]
 forbidden_modules = [
-    "skcomplex.models.biology.common",
-    "skcomplex.models.economics.common",
-    "skcomplex.models.engineering.common",
-    "skcomplex.models.physics.common",
+    "skcomplex.systems.biology.common",
+    "skcomplex.systems.economics.common",
+    "skcomplex.systems.engineering.common",
+    "skcomplex.systems.physics.common",
 ]
 
 [[tool.importlinter.contracts]]
-name = "Models of physics use only the shared code of their own field"
+name = "Systems of physics use only the shared code of their own field"
 type = "forbidden"
-source_modules = ["skcomplex.models.physics"]
+source_modules = ["skcomplex.systems.physics"]
 forbidden_modules = [
-    "skcomplex.models.biology.common",
-    "skcomplex.models.economics.common",
-    "skcomplex.models.engineering.common",
+    "skcomplex.systems.biology.common",
+    "skcomplex.systems.economics.common",
+    "skcomplex.systems.engineering.common",
 ]
 
 [[tool.importlinter.contracts]]
-name = "Models of social use only the shared code of their own field"
+name = "Systems of social use only the shared code of their own field"
 type = "forbidden"
-source_modules = ["skcomplex.models.social"]
+source_modules = ["skcomplex.systems.social"]
 forbidden_modules = [
-    "skcomplex.models.biology.common",
-    "skcomplex.models.economics.common",
-    "skcomplex.models.engineering.common",
-    "skcomplex.models.physics.common",
+    "skcomplex.systems.biology.common",
+    "skcomplex.systems.economics.common",
+    "skcomplex.systems.engineering.common",
+    "skcomplex.systems.physics.common",
 ]
 
 [tool.pytest.ini_options]

@@ -6,21 +6,21 @@ mutation, grow back into a tumour of 10^11 cells.
 """
 
 # %%
-# The model is created by name from the catalog with drug 1 infused at a constant rate of 10 dosage units a day and the
+# The system is created by name from the catalog with drug 1 infused at a constant rate of 10 dosage units a day and the
 # two other drugs withheld, from a tumour of 4.6 x 10^11 sensitive cells. The observer saves every second frame with
 # the default blueprint, whose primary view is the time series of the populations, the drugs, and their toxicities.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'multidrug_resistance'
+SYSTEM = 'multidrug_resistance'
 
-system = create(MODEL, u2=0.0, u3=0.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM, u2=0.0, u3=0.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=2.0, observers=[observer]).prepare().run(until=600)
 
 # %%
@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=2.0, observers=[observer]).prepare().run(unti
 
 names = ('S', 'R1', 'R2', 'R3', 'R12', 'R13', 'R23', 'R123')
 single = simulation.trajectory_
-combined = Simulation(create(MODEL), dt=2.0).prepare().run(until=600).trajectory_
+combined = Simulation(create_system(SYSTEM), dt=2.0).prepare().run(until=600).trajectory_
 fig, (one, three) = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
 for axis, trajectory, title in ((one, single, 'Drug 1 alone'), (three, combined, 'All three drugs')):
     for name in ('S', 'R1', 'R12', 'R123'):

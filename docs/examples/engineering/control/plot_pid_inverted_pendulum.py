@@ -7,22 +7,22 @@ does not watch its position.
 """
 
 # %%
-# The model is created by name from the catalog with a cart of mass 1, a point mass 0.1 on a rod of length 0.5, and
+# The system is created by name from the catalog with a cart of mass 1, a point mass 0.1 on a rod of length 0.5, and
 # the gains `kp = 40`, `ki = 1`, and `kd = 8`. RK4 integrates it with steps of 1 ms, and the controller sets the force
 # after every step. The default blueprint shows the angle, the position, and the force in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'pid_inverted_pendulum'
+SYSTEM = 'pid_inverted_pendulum'
 
-system = create(MODEL)
-entry = describe(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+entry = describe(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,

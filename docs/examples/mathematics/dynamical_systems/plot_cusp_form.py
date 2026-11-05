@@ -14,11 +14,11 @@ fold: a hysteresis loop, the catastrophe of the cusp.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'cusp_form'
+SYSTEM = 'cusp_form'
 PERIOD = 600.0
 
 
@@ -28,10 +28,10 @@ def beta1_at(time):
     return -0.6 + 2.4 * phase if phase < 0.5 else 1.8 - 2.4 * phase
 
 
-system = create(MODEL, x=-1.0, beta1=-0.6, beta2=1.0)
+system = create_system(SYSTEM, x=-1.0, beta1=-0.6, beta2=1.0)
 observer = RerunObserver(
-    MODEL,
-    save_path=f'{MODEL}.rrd',
+    SYSTEM,
+    save_path=f'{SYSTEM}.rrd',
     blueprint='default',
     parameters=True,
     interval=3,
@@ -48,7 +48,11 @@ simulation = (
 # that shrinks with the sweep rate, and never visit the unstable middle branch.
 
 trajectory = simulation.trajectory_
-fine = Simulation(create(MODEL, x=-1.0, beta1=-0.6, beta2=1.0), dt=0.1, schedule={'form.beta1': beta1_at}).prepare()
+fine = Simulation(
+    create_system(SYSTEM, x=-1.0, beta1=-0.6, beta2=1.0),
+    dt=0.1,
+    schedule={'form.beta1': beta1_at},
+).prepare()
 fine = fine.run(until=PERIOD).trajectory_
 x = np.linspace(-1.3, 1.3, 400)
 branch = x**3 - x

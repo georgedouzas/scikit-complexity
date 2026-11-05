@@ -6,21 +6,21 @@ amplitude, because their equilibrium is unstable: the populations spiral away fr
 """
 
 # %%
-# The model is created by name from the catalog and started close to its equilibrium of about 27.7 hosts and 13.9
+# The system is created by name from the catalog and started close to its equilibrium of about 27.7 hosts and 13.9
 # parasitoids. The observer saves every generation with the default blueprint, whose primary view is the time series
 # of both populations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'nicholson_bailey'
+SYSTEM = 'nicholson_bailey'
 
-system = create(MODEL, hosts=25.0, parasitoids=12.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, hosts=25.0, parasitoids=12.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=30)
 
 # %%

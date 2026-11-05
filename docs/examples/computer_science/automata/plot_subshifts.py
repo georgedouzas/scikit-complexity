@@ -12,16 +12,16 @@ shift, the configurations without two adjacent ones, whose number grows as the p
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import AutomatonAnalysis
-from skcomplex.core.spaces import LatticeSpace
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import AutomatonAnalysis
+from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'subshifts'
+SYSTEM = 'subshifts'
 
-system = create(MODEL, size=200)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
+system = create_system(SYSTEM, size=200)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=50)
 
 # %%

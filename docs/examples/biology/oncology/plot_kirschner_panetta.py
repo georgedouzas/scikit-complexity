@@ -6,22 +6,22 @@ regrows, while adoptive therapy with IL-2 above the book's treatment levels clea
 """
 
 # %%
-# The model is created by name from the catalog with an antigenicity of 0.02, in the oscillatory range, and no
+# The system is created by name from the catalog with an antigenicity of 0.02, in the oscillatory range, and no
 # treatment, from one unit of every population. The system is stiff, so it runs with LSODA. The observer saves every
 # frame with the default blueprint, whose primary view is the time series of the effector cells, the tumour, and IL-2.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'kirschner_panetta'
+SYSTEM = 'kirschner_panetta'
 
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
-system = create(MODEL, alpha_a=0.02)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, alpha_a=0.02)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=5.0, solver=solver, observers=[observer]).prepare().run(until=1000)
 
 # %%
@@ -33,7 +33,10 @@ simulation = Simulation(system, dt=5.0, solver=solver, observers=[observer]).pre
 
 untreated = simulation.trajectory_
 treated = (
-    Simulation(create(MODEL, alpha_a=0.02, u1=1.1, u2=1.1), dt=5.0, solver=solver).prepare().run(until=1000).trajectory_
+    Simulation(create_system(SYSTEM, alpha_a=0.02, u1=1.1, u2=1.1), dt=5.0, solver=solver)
+    .prepare()
+    .run(until=1000)
+    .trajectory_
 )
 fig, (cycles, therapy) = plt.subplots(1, 2, figsize=(10, 4))
 cycles.semilogy(untreated.times, untreated.values('site.A'), label='tumour')

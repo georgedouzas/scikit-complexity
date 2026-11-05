@@ -7,28 +7,28 @@ time series show both observables during the run.
 """
 
 # %%
-# The model is created by name from the catalog on a 48 x 48 lattice at `T = 1.5 J`, starting from random spins. One
+# The system is created by name from the catalog on a 48 x 48 lattice at `T = 1.5 J`, starting from random spins. One
 # unit of time is one sweep of Metropolis updates. The observer saves every frame with the default blueprint, whose
 # primary view is the time series of the overlap and the magnetization.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'mattis_spin_glass'
+SYSTEM = 'mattis_spin_glass'
 
-system = create(MODEL, size=48, temperature=1.5)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, size=48, temperature=1.5)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
         dt=2,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(until=400)
@@ -37,7 +37,7 @@ simulation = (
 # %%
 # Hidden order and the gauge transformation
 # -----------------------------------------
-# The gauge variables `sigma_i = xi_i s_i` follow the Ising model, so the overlap should match Onsager's spontaneous
+# The gauge variables `sigma_i = xi_i s_i` follow the Ising system, so the overlap should match Onsager's spontaneous
 # magnetization `(1 - sinh(2 J / T)^-4)^(1/8)` below `T_c = 2.269 J` and vanish above it, while the magnetization stays
 # near zero at every temperature. The left panel shows the spins and the gauge variables at the end of the run above:
 # the spins look disordered and the gauge variables form one domain.
@@ -47,13 +47,13 @@ pattern = system.elements[0].values['pattern'].reshape(lattice.shape)
 temperatures = np.linspace(1.0, 3.5, 11)
 overlaps, magnetizations = [], []
 for temperature in temperatures:
-    model_system = create(MODEL, size=32, temperature=temperature)
+    system_system = create_system(SYSTEM, size=32, temperature=temperature)
     trajectory = (
         Simulation(
-            model_system,
+            system_system,
             dt=10,
             random_state=0,
-            observables=describe(MODEL).observables_of(model_system),
+            observables=describe(SYSTEM).observables_of(system_system),
         )
         .prepare()
         .run(until=1000)
@@ -76,7 +76,7 @@ curve.plot(temperatures, overlaps, 'o', label='overlap |m_xi|')
 curve.plot(temperatures, magnetizations, 's', label='magnetization |m|')
 curve.set_xlabel('temperature T / J')
 curve.set_ylabel('order parameter')
-curve.set_title('The overlap orders like the Ising model')
+curve.set_title('The overlap orders like the Ising system')
 curve.legend()
 fig.tight_layout()
 plt.show()

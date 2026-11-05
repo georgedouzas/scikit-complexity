@@ -11,14 +11,14 @@ the previous one, and the state diverges at the finite time `t* = 1 / x0`: a sin
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'finite_time_blow_up'
+SYSTEM = 'finite_time_blow_up'
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(create(MODEL), dt=0.001, observers=[observer]).prepare().run(until=0.99)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
+simulation = Simulation(create_system(SYSTEM), dt=0.001, observers=[observer]).prepare().run(until=0.99)
 
 # %%
 # Approach to the singularity
@@ -30,7 +30,9 @@ simulation = Simulation(create(MODEL), dt=0.001, observers=[observer]).prepare()
 fig, ax = plt.subplots(figsize=(6, 4.5))
 for p in (1.5, 2.0, 3.0):
     singular = 1 / (p - 1)
-    trajectory = Simulation(create(MODEL, p=p), dt=singular / 2000).prepare().run(until=0.999 * singular).trajectory_
+    trajectory = (
+        Simulation(create_system(SYSTEM, p=p), dt=singular / 2000).prepare().run(until=0.999 * singular).trajectory_
+    )
     remaining = singular - trajectory.times
     (line,) = ax.loglog(remaining, trajectory.values('growth.x'), label=f'p = {p}')
     ax.loglog(remaining, ((p - 1) * remaining) ** (-1 / (p - 1)), ':', color='black')

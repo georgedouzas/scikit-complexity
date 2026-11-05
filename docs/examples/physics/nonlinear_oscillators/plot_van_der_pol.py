@@ -11,14 +11,14 @@ limit cycle: a self-sustained oscillation of amplitude close to 2 that does not 
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'van_der_pol'
+SYSTEM = 'van_der_pol'
 
-system = create(MODEL, x=0.1, v=0.0, mu=3.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
+system = create_system(SYSTEM, x=0.1, v=0.0, mu=3.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
 simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=50)
 
 # %%
@@ -29,7 +29,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 
 fig, ax = plt.subplots(figsize=(6, 4))
 for x, v in [(0.1, 0.0), (4.0, 6.0), (-3.0, -8.0)]:
-    run = Simulation(create(MODEL, x=x, v=v, mu=3.0), dt=0.02).prepare().run(until=30)
+    run = Simulation(create_system(SYSTEM, x=x, v=v, mu=3.0), dt=0.02).prepare().run(until=30)
     ax.plot(
         run.trajectory_.values('oscillator.x'),
         run.trajectory_.values('oscillator.x_d1'),

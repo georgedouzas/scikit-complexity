@@ -8,7 +8,7 @@ shrink, and the capacity that climbs with every episode and decays a little betw
 """
 
 # %%
-# The model is created by name from the catalog with the adaptive strategy and episodes of height 1 and width 2 every
+# The system is created by name from the catalog with the adaptive strategy and episodes of height 1 and width 2 every
 # 10 time units. The run lasts 200 time units and the observer saves every tenth step. The blueprint shows the
 # excursion `e` and the capacity `c` over the whole run.
 
@@ -16,11 +16,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'adaptive_response_costs'
+SYSTEM = 'adaptive_response_costs'
 COSTS = ('response', 'restore', 'repair', 'prepare')
 STRATEGIES = ('stimulus-response', 'adaptive', 'anticipatory')
 
@@ -36,8 +36,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, strategy='adaptive')
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=10)
+system = create_system(SYSTEM, strategy='adaptive')
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=10)
 simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=200)
 
 # %%
@@ -50,7 +50,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 
 totals = {}
 for strategy in STRATEGIES:
-    trajectory = Simulation(create(MODEL, strategy=strategy), dt=0.1).prepare().run(until=200).trajectory_
+    trajectory = Simulation(create_system(SYSTEM, strategy=strategy), dt=0.1).prepare().run(until=200).trajectory_
     totals[strategy] = [trajectory.values(f'organism.{kind}_cost')[-1] for kind in COSTS]
 fig, (bars, peaks) = plt.subplots(1, 2, figsize=(10, 4))
 bottom = np.zeros(len(STRATEGIES))

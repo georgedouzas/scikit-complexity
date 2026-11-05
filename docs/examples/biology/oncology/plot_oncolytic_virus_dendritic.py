@@ -6,7 +6,7 @@ dilute the infection, and the tumour regrows past its initial volume.
 """
 
 # %%
-# The model is created by name from the catalog with the book's rates of virus and dendritic cells and a tumour of
+# The system is created by name from the catalog with the book's rates of virus and dendritic cells and a tumour of
 # 60 mm³, and runs for 20 days with the stiff solver of its catalog entry. The virions and the T cells number in the
 # billions and millions, so the blueprint shows only the uninfected and infected tumour volumes, in one time series
 # view over the whole run.
@@ -16,12 +16,12 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'oncolytic_virus_dendritic'
+SYSTEM = 'oncolytic_virus_dendritic'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 volumes = rrb.TimeSeriesView(
@@ -37,9 +37,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL)
+system = create_system(SYSTEM)
 solver = ScipyODESolver(method='LSODA')
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
 simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).prepare().run(until=20)
 
 # %%
@@ -49,7 +49,11 @@ simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).pre
 # the T cells kill only through the infected cells when `a0 = 0`. With both, the tumour should first fall with the
 # virus alone and then regrow, because the T cells raise the total `Atot` that divides the infection.
 
-arms = {'untreated': create(MODEL, uv=0.0, ud=0.0), 'virus alone': create(MODEL, ud=0.0), 'both': system}
+arms = {
+    'untreated': create_system(SYSTEM, uv=0.0, ud=0.0),
+    'virus alone': create_system(SYSTEM, ud=0.0),
+    'both': system,
+}
 fig, (volume, cells) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
     trajectory = Simulation(arm, dt=0.1, solver=solver).prepare().run(until=20).trajectory_

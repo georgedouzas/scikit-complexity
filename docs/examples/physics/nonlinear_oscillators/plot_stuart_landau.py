@@ -12,15 +12,15 @@ amplitude saturates at `sqrt(μ)`, the universal behaviour near the onset of any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'stuart_landau'
+SYSTEM = 'stuart_landau'
 
 mu, omega, beta = 1.0, 2.0, 1.0
-system = create(MODEL, x=0.01, y=0.0, mu=mu, omega=omega, beta=beta)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM, x=0.01, y=0.0, mu=mu, omega=omega, beta=beta)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=20)
 
 # %%

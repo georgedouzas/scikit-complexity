@@ -1,0 +1,121 @@
+"""Pass that makes the requests of update laws vanish on the free rows of capacity layouts."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+
+from sage.all__sagemath_symbolics import SR, Expression
+from sage.modules.free_module_element import FreeModuleElement
+
+from ....components.laws import BaseLaw, UpdateLaw
+from ..._utils import vector
+from ...problems import DeclarationsSpec, KernelSpec
+from ...problems._declarations_spec import _ACTIVE
+from ...problems._edge_search import EdgeSearch
+from ...types import ReadKind
+from .._base import BasePass
+from .._compilation import Compilation
+
+
+class MaskRequestsPass(BasePass):
+    """Pass that makes the requests of update laws vanish on the free rows of capacity layouts."""
+
+    def _get_reads(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass reads."""
+        return ('drawn_apart', 'layout')
+
+    def _get_writes(self) -> tuple[str, ...]:
+        """Return the fields of the compilation the pass writes."""
+        return ('drawn_apart',)
+
+    def _run(self, inputs: object = None) -> None:
+        """Mask the requests of the update laws set apart."""
+        compilation = self.compilation_
+        declarations = Compilation._required(compilation.layout, 'layout')
+        compilation.drawn_apart = [
+            (spec, self._masked_requests(spec, laws, declarations))
+            for spec, laws in Compilation._required(compilation.drawn_apart, 'drawn_apart')
+        ]
+
+    @staticmethod
+    def _masked_requests(spec: KernelSpec, laws: list[BaseLaw], declarations: DeclarationsSpec) -> list[BaseLaw]:
+        """Return update laws that request topology changes, with probabilities that vanish on free rows."""
+        mask = MaskRequestsPass._mask_of(spec, declarations)
+        if mask is None:
+            return laws
+        return [
+            (
+                UpdateLaw(law._get_targets()[0], MaskRequestsPass._masked_value(law.value, mask))
+                if isinstance(law, UpdateLaw)
+                else law
+            )
+            for law in laws
+        ]
+
+    @staticmethod
+    def _activity_symbol(spec: KernelSpec, group: str | None) -> Expression | None:
+        """Return the symbol of the activity of the rows of a capacity group that a spec reads per member, or `None`.
+
+        Args:
+            spec:
+                The kernel spec.
+
+            group:
+                The path of the group, or `None`.
+
+        Returns:
+            activity:
+                The symbol, or `None`.
+        """
+        name = f'{group}.{_ACTIVE}'
+        return next(
+            (
+                item
+                for item, reference in spec.references.items()
+                if reference.entry.name == name and reference.source is ReadKind.MEMBER
+            ),
+            None,
+        )
+
+    @staticmethod
+    def _mask_of(spec: KernelSpec, declarations: DeclarationsSpec) -> Expression | None:
+        """Return the activity of the rows a spec runs on, the edges of a changing layer or a capacity group's members.
+
+        Args:
+            spec:
+                The kernel spec.
+
+            declarations:
+                The declarations of the components.
+
+        Returns:
+            mask:
+                The symbol of the activity, or `None` for a spec that runs on no capacity rows.
+        """
+        if isinstance(spec.pairs, EdgeSearch) and spec.pairs.source is not None:
+            name = spec.pairs.source.name.rpartition('.')[0]
+            return MaskRequestsPass._activity_symbol(spec, name)
+        if spec.group in declarations.capacity:
+            return MaskRequestsPass._activity_symbol(spec, spec.group)
+        return None
+
+    @staticmethod
+    def _masked_value(value: object, mask: Expression) -> object:
+        """Return a law value that vanishes on the free rows of a capacity layout.
+
+        Args:
+            value:
+                The law value.
+
+            mask:
+                The activity of the rows.
+
+        Returns:
+            value:
+                The masked value, or the value itself when it is neither symbolic nor a number.
+        """
+        if isinstance(value, FreeModuleElement):
+            return vector(SR(item) * mask for item in value)
+        if isinstance(value, Expression | int | float):
+            return SR(value) * mask
+        return value

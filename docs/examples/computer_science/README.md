@@ -1,3 +1,3 @@
 # Computer science
 
-Examples of the models of `skcomplex.models.computer_science`.
+Examples of the systems of `skcomplex.systems.computer_science`.

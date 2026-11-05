@@ -1,5 +1,5 @@
 """
-# Curie-Weiss model
+# Curie-Weiss system
 
 Below the critical temperature `T_c = J`, 200 fully connected spins that start at random order within a few units of
 time. The space-time image shows the spins drawn in a row, one row per frame with the earliest at the top, turning
@@ -7,7 +7,7 @@ to one color with a few short-lived flips of single spins.
 """
 
 # %%
-# The model is created by name from the catalog with 200 spins at `T = 0.5 J`, starting from random spins. One unit
+# The system is created by name from the catalog with 200 spins at `T = 0.5 J`, starting from random spins. One unit
 # of time is one attempted flip per spin. The observer saves every frame with the default blueprint, whose primary
 # view is the space-time image of the spins.
 
@@ -15,21 +15,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import brentq
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'curie_weiss'
+SYSTEM = 'curie_weiss'
 
-system = create(MODEL, n_spins=200, temperature=0.5)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_spins=200, temperature=0.5)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
         dt=0.2,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(until=30)
@@ -54,9 +54,9 @@ def mean_field_magnetization(temperature):
 temperatures = np.linspace(0.4, 1.6, 9)
 measured = []
 for temperature in temperatures:
-    ordered = create(MODEL, n_spins=1000, temperature=temperature, initial='up')
+    ordered = create_system(SYSTEM, n_spins=1000, temperature=temperature, initial='up')
     run = (
-        Simulation(ordered, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(ordered))
+        Simulation(ordered, dt=1.0, random_state=0, observables=describe(SYSTEM).observables_of(ordered))
         .prepare()
         .run(until=40)
     )

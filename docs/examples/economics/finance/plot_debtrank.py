@@ -16,19 +16,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'debtrank'
+SYSTEM = 'debtrank'
 N_BANKS, DENSITY, ROUNDS = 50, 0.1, 10
 
 
 def cascade(bank):
     """Return the trajectory of the cascade from the default of one bank."""
-    system = create(MODEL, n_banks=N_BANKS, density=DENSITY, distressed=(bank,), random_state=0)
+    system = create_system(SYSTEM, n_banks=N_BANKS, density=DENSITY, distressed=(bank,), random_state=0)
     return (
-        Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system))
+        Simulation(system, random_state=0, observables=describe(SYSTEM).observables_of(system))
         .prepare()
         .run(until=ROUNDS)
         .trajectory_
@@ -41,7 +41,7 @@ def debtrank(trajectory):
 
 
 ranks = np.array([debtrank(cascade(bank)) for bank in range(N_BANKS)])
-system = create(MODEL, n_banks=N_BANKS, density=DENSITY, distressed=(int(ranks.argmax()),), random_state=0)
+system = create_system(SYSTEM, n_banks=N_BANKS, density=DENSITY, distressed=(int(ranks.argmax()),), random_state=0)
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(origin='/value_at_risk', name='value at risk', axis_x=rrb.TimeAxis(view_range=whole_run)),
@@ -49,13 +49,13 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
     Simulation(
         system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(until=ROUNDS)
@@ -66,7 +66,7 @@ simulation = (
 # ----------------------
 # Battiston and co-authors iterate `h_j <- min(1, h_j + sum_i W_ij h_i)` over the banks `i` distressed in the previous
 # round, after which those banks become inactive, and sum `h_j v_j` over the banks. The same iteration written
-# directly with the impact matrix `W` should give the DebtRank the model computes for every bank, and comparing the
+# directly with the impact matrix `W` should give the DebtRank the system computes for every bank, and comparing the
 # DebtRank with the economic value `v_i` of the defaulting bank shows which banks matter more than their size.
 
 
@@ -86,7 +86,7 @@ values = simulation.trajectory_.agents('banks', 0).values['value']
 fig, (check, importance) = plt.subplots(1, 2, figsize=(10, 4))
 check.plot(ranks, [direct(impact, values, bank) for bank in range(N_BANKS)], 'o')
 check.plot([0, ranks.max()], [0, ranks.max()], 'k:', lw=0.8)
-check.set_xlabel('DebtRank of the model')
+check.set_xlabel('DebtRank of the system')
 check.set_ylabel('DebtRank of the direct iteration')
 check.set_title('The cascade matches the DebtRank iteration')
 importance.plot(values, ranks, 'o')

@@ -13,15 +13,15 @@ length: their durations follow a power law.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DistributionAnalysis, EventAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis, EventAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'intermittency_map'
+SYSTEM = 'intermittency_map'
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=10)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).prepare().run(until=2900)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
+simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=2900)
 
 # %%
 # Durations of the laminar phases
@@ -36,7 +36,7 @@ series.set_xlabel('step')
 series.set_ylabel('x')
 series.set_title('Laminar phases and bursts, z = 2')
 for z in (1.5, 2.0):
-    values = Simulation(create(MODEL, z=z), dt=1).prepare().run(until=200_000).trajectory_.values('map.x')
+    values = Simulation(create_system(SYSTEM, z=z), dt=1).prepare().run(until=200_000).trajectory_.values('map.x')
     laminar = EventAnalysis('laminar-durations', threshold=0.1).prepare(values).run()
     ccdf = DistributionAnalysis('ccdf').prepare(laminar.durations_).run()
     durations, share = ccdf.support_, ccdf.survival_

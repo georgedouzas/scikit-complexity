@@ -15,11 +15,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'cournot_duopoly'
+SYSTEM = 'cournot_duopoly'
 A, B, COSTS = 1500.0, 10.0, (0.0, 150.0)
 NASH = np.array([(A - 2 * COSTS[0] + COSTS[1]) / (3 * B), (A - 2 * COSTS[1] + COSTS[0]) / (3 * B)])
 
@@ -30,14 +30,14 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-system = create(MODEL, outputs=(0.0, 0.0), costs=COSTS, a=A, b=B, error=0.05)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, outputs=(0.0, 0.0), costs=COSTS, a=A, b=B, error=0.05)
 simulation = (
     Simulation(
         system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(until=60)
@@ -56,9 +56,9 @@ def outputs(trajectory):
     return np.array([trajectory.agents('firms', frame).values['output'] for frame in range(len(trajectory.times))])
 
 
-exact_system = create(MODEL, outputs=(100.0, 0.0), costs=COSTS, a=A, b=B)
+exact_system = create_system(SYSTEM, outputs=(100.0, 0.0), costs=COSTS, a=A, b=B)
 exact = outputs(
-    Simulation(exact_system, random_state=0, observables=describe(MODEL).observables_of(exact_system))
+    Simulation(exact_system, random_state=0, observables=describe(SYSTEM).observables_of(exact_system))
     .prepare()
     .run(until=20)
     .trajectory_,

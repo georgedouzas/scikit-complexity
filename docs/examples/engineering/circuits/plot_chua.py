@@ -6,21 +6,21 @@ other at irregular times: the double-scroll chaotic attractor.
 """
 
 # %%
-# The model is created by name from the catalog with the piecewise-linear diode and its default parameters, and runs
+# The system is created by name from the catalog with the piecewise-linear diode and its default parameters, and runs
 # for 100 time units. The default blueprint shows the two capacitor voltages `x` and `y` and the inductor current `z` in
 # one time series view.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.analysis import LyapunovAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'chua'
+SYSTEM = 'chua'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=8)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=8)
 simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=100)
 
 # %%

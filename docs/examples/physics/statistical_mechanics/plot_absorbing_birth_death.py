@@ -7,22 +7,22 @@ fluctuation that takes a time growing like `exp(V phi(0))`. The time series show
 """
 
 # %%
-# The model is created by name from the catalog with `kappa = 2`, `nu = lambda = 1`, and `V = 100`, so `rho_0 = 1`.
+# The system is created by name from the catalog with `kappa = 2`, `nu = lambda = 1`, and `V = 100`, so `rho_0 = 1`.
 # The observer saves every frame of the run with the default blueprint, whose primary view is the time series of the
 # number of particles. The Numba backend runs the jumps in a compiled loop.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.backends import NumbaBackend
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.backends import NumbaBackend
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'absorbing_birth_death'
+SYSTEM = 'absorbing_birth_death'
 
-system = create(MODEL, kappa=2.0, volume=100.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, kappa=2.0, volume=100.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(system, dt=0.5, observers=[observer], random_state=0, backend=NumbaBackend()).prepare().run(until=100)
 )
@@ -45,7 +45,7 @@ def large_deviation(rho, kappa, nu=1.0, lam=1.0):
 
 
 long = (
-    Simulation(create(MODEL, kappa=2.0, volume=100.0), dt=0.5, random_state=1, backend=NumbaBackend())
+    Simulation(create_system(SYSTEM, kappa=2.0, volume=100.0), dt=0.5, random_state=1, backend=NumbaBackend())
     .prepare()
     .run(
         until=4000,
@@ -56,7 +56,9 @@ kappas = np.linspace(0.6, 2.4, 10)
 means = []
 for kappa in kappas:
     run = (
-        Simulation(create(MODEL, kappa=kappa), dt=0.5, random_state=0, backend=NumbaBackend()).prepare().run(until=200)
+        Simulation(create_system(SYSTEM, kappa=kappa), dt=0.5, random_state=0, backend=NumbaBackend())
+        .prepare()
+        .run(until=200)
     )
     means.append((run.trajectory_.values('particles.n')[100:] / 100).mean())
 grid = np.linspace(0.5, 1.5, 200)

@@ -1,14 +1,14 @@
 """
 # Gas-kinetic-based traffic
 
-Drivers of the gas-kinetic-based traffic model brake on the traffic at an interaction point ahead of them, read at a
+Drivers of the gas-kinetic-based traffic system brake on the traffic at an interaction point ahead of them, read at a
 distance that grows with their own speed. Between about 24 and 51 vehicles per kilometre, uniform traffic is unstable:
 a small dipole of density grows into stop-and-go waves, jams of about 57 vehicles per kilometre whose fronts travel
 against the traffic.
 """
 
 # %%
-# The model is created by name from the catalog on a ring of 10 kilometres in 200 cells, at 35 vehicles per kilometre
+# The system is created by name from the catalog on a ring of 10 kilometres in 200 cells, at 35 vehicles per kilometre
 # with a perturbation of 2, with the calibrated parameters of Treiber, Hennecke, and Helbing. Lengths are in kilometres
 # and times in hours, and SSPRK integrates it for one hour. The default blueprint puts the history of the density first,
 # where the jams are the bright bands that lean against the traffic.
@@ -16,15 +16,15 @@ against the traffic.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import SSPRKSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import SSPRKSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'gkt_traffic'
+SYSTEM = 'gkt_traffic'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=1 / 60, solver=SSPRKSolver(cfl=0.4), observers=[observer]).prepare().run(1.0)
 
 # %%
@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=1 / 60, solver=SSPRKSolver(cfl=0.4), observer
 # -------------------------
 # The profile should travel without changing shape, so the shift that best aligns two profiles 10 minutes apart gives
 # its velocity. The review of Helbing reports upstream fronts of 15 plus or minus 5 kilometres per hour on real
-# freeways, and this model should give about 20, from the jump between the jam and its outflow. The density should stay
+# freeways, and this system should give about 20, from the jump between the jam and its outflow. The density should stay
 # conserved.
 
 trajectory = simulation.trajectory_

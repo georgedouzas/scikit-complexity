@@ -1,7 +1,7 @@
 """
 # Creative phase transition
 
-Hanel, Kauffman, and Thurner's model of combinatorial innovation: existing goods combine in pairs to produce new
+Hanel, Kauffman, and Thurner's system of combinatorial innovation: existing goods combine in pairs to produce new
 ones, and every new good opens new combinations, the adjacent possible. Below a critical density of productive rules
 the economy stays sparse, while above it a creative explosion fills almost the whole space of possible goods. The
 final diversity jumps discontinuously as the rule density crosses the critical line.
@@ -15,15 +15,15 @@ final diversity jumps discontinuously as the rule density crosses the critical l
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'creative_phase_transition'
+SYSTEM = 'creative_phase_transition'
 UNTIL = 50
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL, x=0.1, r=5.0), dt=1, observers=[observer]).prepare().run(until=20)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(create_system(SYSTEM, x=0.1, r=5.0), dt=1, observers=[observer]).prepare().run(until=20)
 
 # %%
 # Phase diagram
@@ -56,7 +56,10 @@ series.legend()
 for index, start in enumerate((0.05, 0.1, 0.2)):
     diagram.plot(densities, [final_diversity(start, r) for r in densities], color=f'C{index}', label=f'x0 = {start}')
     finals = [
-        Simulation(create(MODEL, x=start, r=r), dt=1).prepare().run(until=UNTIL).trajectory_.values('system.x')[-1]
+        Simulation(create_system(SYSTEM, x=start, r=r), dt=1)
+        .prepare()
+        .run(until=UNTIL)
+        .trajectory_.values('system.x')[-1]
         for r in coarse
     ]
     diagram.plot(coarse, finals, 'o', color=f'C{index}')

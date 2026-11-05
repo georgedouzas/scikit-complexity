@@ -6,21 +6,21 @@ overtake them in the bone marrow, spill into the blood, and end up outnumbering 
 """
 
 # %%
-# The model is created by name from the catalog with the initial cells of the book and rates within its ranges, and
+# The system is created by name from the catalog with the initial cells of the book and rates within its ranges, and
 # runs for 3000 hours with the maturation delay of 96 hours and the conversion delay of 576 hours. The observer saves
 # every second frame with the default blueprint, whose primary view is the time series of the five populations.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'bone_marrow_blood_leukaemia'
+SYSTEM = 'bone_marrow_blood_leukaemia'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = (
     Simulation(system, dt=10.0, solver=ScipyODESolver(method='BDF'), observers=[observer]).prepare().run(until=3000)
 )

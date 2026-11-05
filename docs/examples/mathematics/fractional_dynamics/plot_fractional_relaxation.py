@@ -7,7 +7,7 @@ the order, the longer the memory of the start and the heavier the tail.
 """
 
 # %%
-# The model runs with order 0.6 and logs `x` as a time series. Runs of orders 1, 0.8, 0.6, and 0.4 from the same state
+# The system runs with order 0.6 and logs `x` as a time series. Runs of orders 1, 0.8, 0.6, and 0.4 from the same state
 # are logged once as curves of `x` against time, and the blueprint puts that view first, as the primary view.
 
 import math
@@ -17,12 +17,12 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import SymbolicAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import SymbolicAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'fractional_relaxation'
+SYSTEM = 'fractional_relaxation'
 ORDERS = (1.0, 0.8, 0.6, 0.4)
 COLORS = [[90, 170, 255], [120, 210, 120], [255, 170, 40], [235, 90, 90]]
 
@@ -44,9 +44,12 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, order=0.6), dt=0.1, observers=[observer]).prepare().run(until=20)
-runs = {order: Simulation(create(MODEL, order=order), dt=0.1).prepare().run(until=20).trajectory_ for order in ORDERS}
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = Simulation(create_system(SYSTEM, order=0.6), dt=0.1, observers=[observer]).prepare().run(until=20)
+runs = {
+    order: Simulation(create_system(SYSTEM, order=order), dt=0.1).prepare().run(until=20).trajectory_
+    for order in ORDERS
+}
 strips = [np.column_stack([10 * run.times, -100 * run.values('relaxation.x')]) for run in runs.values()]
 observer.recording_.log('orders', rr.LineStrips2D(strips, radii=0.8, colors=COLORS), static=True)
 observer.recording_.flush()
@@ -61,7 +64,7 @@ observer.recording_.flush()
 fig, ax = plt.subplots(figsize=(6, 4.5))
 for (order, run), color in zip(runs.items(), COLORS, strict=True):
     times = run.times[1:]
-    solve = SymbolicAnalysis('solve', use_initial_state=True).prepare(create(MODEL, order=order)).run()
+    solve = SymbolicAnalysis('solve', use_initial_state=True).prepare(create_system(SYSTEM, order=order)).run()
     solution = solve.solutions_['relaxation.x'].rhs()
     symbols = {str(symbol): symbol for symbol in solution.variables()}
     exact = [float(solution.subs({symbols['t']: time, symbols['lam_relaxation']: 1.0})) for time in times]

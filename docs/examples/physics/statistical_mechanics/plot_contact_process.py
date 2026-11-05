@@ -8,21 +8,21 @@ irregular clusters that keep splitting, merging, and dying out. The view shows a
 """
 
 # %%
-# The model is created by name from the catalog with half of the sites infected at the start and a time slice
+# The system is created by name from the catalog with half of the sites infected at the start and a time slice
 # `tau = 0.1` per step. The observer saves every second step with the default blueprint, whose primary view is the
 # image of the infections.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'contact_process'
+SYSTEM = 'contact_process'
 
-system = create(MODEL, shape=(128, 128), rate=1.75, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM, shape=(128, 128), rate=1.75, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=500)
 
 # %%
@@ -37,7 +37,7 @@ rates = np.linspace(1.0, 4.0, 16)
 densities = []
 for rate in rates:
     run = (
-        Simulation(create(MODEL, shape=(64, 64), rate=rate, random_state=1), dt=1, random_state=1)
+        Simulation(create_system(SYSTEM, shape=(64, 64), rate=rate, random_state=1), dt=1, random_state=1)
         .prepare()
         .run(until=1500)
     )

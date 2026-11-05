@@ -6,21 +6,21 @@ of 67.8 mm³ a day, near day 15.
 """
 
 # %%
-# The model is created by name from the catalog and run for 40 days from 2 mm³ with the breast cancer fit of
+# The system is created by name from the catalog and run for 40 days from 2 mm³ with the breast cancer fit of
 # Padmanabhan et al. The observer saves every frame with the default blueprint, whose primary view is the time series
 # of the volume.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'exponential_linear_growth'
+SYSTEM = 'exponential_linear_growth'
 
-system = create(MODEL, n=2.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n=2.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=40)
 
 # %%

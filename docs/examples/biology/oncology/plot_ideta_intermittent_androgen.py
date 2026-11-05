@@ -6,20 +6,20 @@ between the two thresholds.
 """
 
 # %%
-# The model is created by name from the catalog: five androgen-dependent cells at the normal androgen of 30 nmol/L.
+# The system is created by name from the catalog: five androgen-dependent cells at the normal androgen of 30 nmol/L.
 # The observer saves every third frame with the default blueprint, whose primary view is the time series of the cells,
 # the androgen, and the therapy.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'ideta_intermittent_androgen'
+SYSTEM = 'ideta_intermittent_androgen'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=3)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
 simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=600)
 
 # %%

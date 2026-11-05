@@ -16,11 +16,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'exchange_rates'
+SYSTEM = 'exchange_rates'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -29,14 +29,14 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-system = create(MODEL, floating=False)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, floating=False)
 simulation = (
     Simulation(
         system,
         dt=1,
         observers=[observer],
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(
@@ -58,9 +58,9 @@ EXPORTS, PRICE, RISE = 32.0, 1.2, 0.1
 
 def run(elasticity, floating):
     """Return the trajectory of two stages of adjustment with equal elasticities."""
-    system = create(MODEL, floating=floating, export_elasticity=elasticity, import_elasticity=elasticity)
+    system = create_system(SYSTEM, floating=floating, export_elasticity=elasticity, import_elasticity=elasticity)
     return (
-        Simulation(system, dt=1, observables=describe(MODEL).observables_of(system)).prepare().run(until=2).trajectory_
+        Simulation(system, dt=1, observables=describe(SYSTEM).observables_of(system)).prepare().run(until=2).trajectory_
     )
 
 

@@ -6,7 +6,7 @@ folded on itself: the Hénon strange attractor, whose bands split into finer ban
 """
 
 # %%
-# The map iterates 3000 steps from the origin with the classic parameters `a = 1.4` and `b = 0.3`. The model logs `x`
+# The map iterates 3000 steps from the origin with the classic parameters `a = 1.4` and `b = 0.3`. The system logs `x`
 # and `y` as time series. After the run, the whole orbit is logged once more as points in the plane, and the blueprint
 # puts that view of the attractor first, as the primary view.
 
@@ -15,12 +15,12 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import ScalingAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import ScalingAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'henon_map'
+SYSTEM = 'henon_map'
 
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
@@ -40,8 +40,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=12)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).prepare().run(until=3000)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=12)
+simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=3000)
 points = np.column_stack([simulation.trajectory_.values('map.x'), -simulation.trajectory_.values('map.y')])[10:]
 observer.recording_.log('attractor', rr.Points2D(100 * points, radii=0.5, colors=[90, 170, 255]), static=True)
 observer.recording_.flush()
@@ -54,7 +54,7 @@ observer.recording_.flush()
 # close to the 1.21 that Grassberger and Procaccia measured.
 
 orbit = np.column_stack([simulation.trajectory_.values('map.x'), simulation.trajectory_.values('map.y')])[10:]
-long_orbit = Simulation(create(MODEL), dt=1).prepare().run(until=100_000).trajectory_
+long_orbit = Simulation(create_system(SYSTEM), dt=1).prepare().run(until=100_000).trajectory_
 long_orbit = np.column_stack([long_orbit.values('map.x'), long_orbit.values('map.y')])[10:]
 dimension = ScalingAnalysis('correlation-dimension').prepare(long_orbit[:20000]).run().exponent_
 fig, (whole, zoom) = plt.subplots(1, 2, figsize=(10, 4))

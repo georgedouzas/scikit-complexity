@@ -7,20 +7,20 @@ population activity.
 """
 
 # %%
-# The model is created by name from the catalog with Wilson and Cowan's couplings and the input `P = 1.25`. The
+# The system is created by name from the catalog with Wilson and Cowan's couplings and the input `P = 1.25`. The
 # observer saves every second frame with the default blueprint, whose primary view is the time series of both
 # activities.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'wilson_cowan'
+SYSTEM = 'wilson_cowan'
 
-system = create(MODEL, P=1.25)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM, P=1.25)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=50)
 
 # %%
@@ -30,8 +30,8 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(unti
 # without input the activity should decay to rest.
 
 oscillating = simulation.trajectory_
-second = Simulation(create(MODEL, E=0.4, I=0.3, P=1.25), dt=0.2).prepare().run(until=100).trajectory_
-resting = Simulation(create(MODEL, E=0.4, I=0.3, P=0.0), dt=0.2).prepare().run(until=100).trajectory_
+second = Simulation(create_system(SYSTEM, E=0.4, I=0.3, P=1.25), dt=0.2).prepare().run(until=100).trajectory_
+resting = Simulation(create_system(SYSTEM, E=0.4, I=0.3, P=0.0), dt=0.2).prepare().run(until=100).trajectory_
 fig, ax = plt.subplots(figsize=(6, 5))
 ax.plot(oscillating.values('cortex.E'), oscillating.values('cortex.I'), label='P = 1.25, from (0.1, 0.05)')
 ax.plot(second.values('cortex.E'), second.values('cortex.I'), '--', label='P = 1.25, from (0.4, 0.3)')

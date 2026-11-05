@@ -6,21 +6,21 @@ open and the potential shoots up to about +40 mV, then the potassium channels op
 """
 
 # %%
-# The model is created by name from the catalog with a current of 10 µA/cm², above the threshold of periodic firing,
+# The system is created by name from the catalog with a current of 10 µA/cm², above the threshold of periodic firing,
 # and run for 50 ms. The observer saves every second frame with the default blueprint, whose primary view is the time
 # series of the potential and the gates.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'hodgkin_huxley'
+SYSTEM = 'hodgkin_huxley'
 
-system = create(MODEL, I=10.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM, I=10.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=50)
 
 # %%

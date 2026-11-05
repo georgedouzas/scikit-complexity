@@ -8,19 +8,19 @@ holds the longest memory.
 """
 
 # %%
-# The model is created by name from the catalog with a pulse every ten steps until step 150. The observer saves every
+# The system is created by name from the catalog with a pulse every ten steps until step 150. The observer saves every
 # second step with the default blueprint, whose primary view is the time series of the three weights.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'adaptrode'
+SYSTEM = 'adaptrode'
 
-system = create(MODEL, period=10.0, stop=150.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM, period=10.0, stop=150.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=400)
 
 # %%

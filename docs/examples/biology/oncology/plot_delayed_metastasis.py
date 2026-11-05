@@ -6,20 +6,20 @@ day seed a secondary tumour that does the same at the second site.
 """
 
 # %%
-# The model is created by name from the catalog, untreated, from 165 tumour cells at the primary site and none at the
+# The system is created by name from the catalog, untreated, from 165 tumour cells at the primary site and none at the
 # secondary site. The observer saves every frame with the default blueprint, whose primary view is the time series of
 # the cells at both sites.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'delayed_metastasis'
+SYSTEM = 'delayed_metastasis'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=6)
 
 # %%

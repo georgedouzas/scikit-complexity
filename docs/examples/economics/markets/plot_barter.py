@@ -16,12 +16,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
-from skcomplex.models.economics.markets import contract_curve
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
+from skcomplex.systems.economics.markets import contract_curve
 
-MODEL = 'barter'
+SYSTEM = 'barter'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -34,8 +34,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, n_barterers=100, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, n_barterers=100, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=30)
 
 # %%
@@ -53,7 +53,7 @@ box.plot(chocolate, contract_curve(chocolate, A, B, 10.0, 10.0), color='black', 
 rng = np.random.default_rng(1)
 for index in range(8):
     x, y = rng.uniform(1, 9, 2)
-    edgeworth = create(MODEL, chocolate=(x, 10 - x), cigarettes=(y, 10 - y), weights=(A, B))
+    edgeworth = create_system(SYSTEM, chocolate=(x, 10 - x), cigarettes=(y, 10 - y), weights=(A, B))
     final = Simulation(edgeworth, random_state=0).prepare().run(until=2).trajectory_.agents('barterers', 2).values
     label = ('endowment', 'final allocation') if index == 0 else (None, None)
     box.plot([x, final['chocolate'][0]], [y, final['cigarettes'][0]], color='grey', lw=0.8)

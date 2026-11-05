@@ -6,7 +6,7 @@ wings of the butterfly-shaped Lorenz attractor at irregular times.
 """
 
 # %%
-# The model logs its three states as time series. After the run, the whole trajectory is logged once more as a line in
+# The system logs its three states as time series. After the run, the whole trajectory is logged once more as a line in
 # three dimensions, and the blueprint puts that view of the attractor first, as the primary view.
 
 import matplotlib.pyplot as plt
@@ -15,11 +15,11 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.signal import find_peaks
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'lorenz'
+SYSTEM = 'lorenz'
 
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
@@ -41,8 +41,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=20)
-simulation = Simulation(create(MODEL), dt=0.01, observers=[observer]).prepare().run(until=50)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=20)
+simulation = Simulation(create_system(SYSTEM), dt=0.01, observers=[observer]).prepare().run(until=50)
 points = np.column_stack([simulation.trajectory_.values(f'lorenz.{state}') for state in 'xyz'])
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.15, colors=[255, 170, 40]), static=True)
 observer.recording_.flush()

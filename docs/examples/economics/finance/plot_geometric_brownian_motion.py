@@ -1,7 +1,7 @@
 """
 # Geometric Brownian motion
 
-The price of an asset follows `dS = mu S dt + sigma S dW`, the model behind Black and Scholes' option pricing. The
+The price of an asset follows `dS = mu S dt + sigma S dW`, the system behind Black and Scholes' option pricing. The
 returns are proportional to the price, so the price stays positive and wanders on a logarithmic scale, and the
 log-price is a Brownian motion with drift `mu - sigma^2 / 2`.
 """
@@ -14,15 +14,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'geometric_brownian_motion'
+SYSTEM = 'geometric_brownian_motion'
 PRICE, MU, SIGMA, YEARS, DT = 100.0, 0.05, 0.2, 10, 0.05
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-system = create(MODEL, price=PRICE, mu=MU, sigma=SIGMA)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, price=PRICE, mu=MU, sigma=SIGMA)
 simulation = Simulation(system, dt=DT, observers=[observer], random_state=0).prepare().run(until=YEARS)
 
 # %%
@@ -32,7 +32,9 @@ simulation = Simulation(system, dt=DT, observers=[observer], random_state=0).pre
 # `sigma^2 tau`. Along one path of 200 years, the variance of the log returns should grow linearly with the lag, and
 # the one-step log returns should follow that normal density.
 
-long_run = Simulation(create(MODEL, price=PRICE, mu=MU, sigma=SIGMA), dt=DT, random_state=1).prepare().run(until=200)
+long_run = (
+    Simulation(create_system(SYSTEM, price=PRICE, mu=MU, sigma=SIGMA), dt=DT, random_state=1).prepare().run(until=200)
+)
 logs = np.log(long_run.trajectory_.values('asset.price'))
 lags = np.unique(np.logspace(0, 2.5, 20).astype(int))
 returns = logs[1:] - logs[:-1]

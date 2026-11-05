@@ -13,14 +13,14 @@ one. Which magnet wins depends so sensitively on where the bob is released that 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'magnetic_pendulum'
+SYSTEM = 'magnetic_pendulum'
 
-system = create(MODEL, x=1.0, y=1.5, n_magnets=3)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, x=1.0, y=1.5, n_magnets=3)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=25)
 
 # %%
@@ -35,7 +35,7 @@ magnets = np.column_stack([np.cos(angles), np.sin(angles)])
 starts = np.linspace(-2.0, 2.0, 80)
 winners = []
 for start in starts:
-    run = Simulation(create(MODEL, x=start, y=1.5, n_magnets=3), dt=0.1).prepare().run(until=40)
+    run = Simulation(create_system(SYSTEM, x=start, y=1.5, n_magnets=3), dt=0.1).prepare().run(until=40)
     final = np.asarray(run.trajectory_.values('bob.x'))[-1]
     winners.append(np.argmin(np.linalg.norm(magnets - final, axis=1)))
 fig, ax = plt.subplots(figsize=(8, 3))

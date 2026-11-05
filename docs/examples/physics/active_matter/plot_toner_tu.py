@@ -9,22 +9,22 @@ shows the density of a 64 x 64 periodic lattice.
 """
 
 # %%
-# The model is created by name from the catalog with mean density `rho0 = 1` above the critical density
+# The system is created by name from the catalog with mean density `rho0 = 1` above the critical density
 # `rho_c = 0.5`. The Euler-Maruyama stepper takes steps of 0.02 and the observer saves every frame of 0.25 with the
 # default blueprint, whose primary view is the image of the density.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'toner_tu'
+SYSTEM = 'toner_tu'
 
-system = create(MODEL, shape=(64, 64), random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, shape=(64, 64), random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.02)
 simulation = Simulation(system, solver=solver, dt=0.25, observers=[observer], random_state=0).prepare().run(until=30)
 
@@ -38,7 +38,7 @@ simulation = Simulation(system, solver=solver, dt=0.25, observers=[observer], ra
 densities = np.linspace(0.2, 2.0, 10)
 speeds = []
 for density in densities:
-    system_d = create(MODEL, shape=(16, 16), rho0=density, random_state=1)
+    system_d = create_system(SYSTEM, shape=(16, 16), rho0=density, random_state=1)
     run = Simulation(system_d, solver=solver, dt=1.0, random_state=1).prepare().run(until=60)
     velocity = np.stack([run.trajectory_.values('flock.vx')[-10:], run.trajectory_.values('flock.vy')[-10:]], axis=-1)
     speeds.append(np.linalg.norm(velocity.mean(axis=1), axis=-1).mean())

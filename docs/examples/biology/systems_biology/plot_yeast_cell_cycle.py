@@ -7,20 +7,20 @@ and back to the stationary G1 state.
 """
 
 # %%
-# The model is created by name from the catalog in the G1 state with Cln3 on. The observer saves every step with the
+# The system is created by name from the catalog in the G1 state with Cln3 on. The observer saves every step with the
 # default blueprint, whose primary view is the time series of the protein values.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'yeast_cell_cycle'
+SYSTEM = 'yeast_cell_cycle'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=15)
 
 # %%

@@ -7,7 +7,7 @@ the curves are jagged.
 """
 
 # %%
-# The model runs as a jump process. The blueprint shows the three compartments in one time series view over the
+# The system runs as a jump process. The blueprint shows the three compartments in one time series view over the
 # whole run, in the usual colours.
 
 import matplotlib.pyplot as plt
@@ -16,11 +16,11 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.optimize import brentq
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'sir'
+SYSTEM = 'sir'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 colors = {'S': [70, 130, 230], 'I': [230, 60, 60], 'R': [80, 190, 90]}
@@ -38,9 +38,11 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = (
-    Simulation(create(MODEL, stochastic=True), dt=1.0, observers=[observer], random_state=0).prepare().run(until=160)
+    Simulation(create_system(SYSTEM, stochastic=True), dt=1.0, observers=[observer], random_state=0)
+    .prepare()
+    .run(until=160)
 )
 
 # %%

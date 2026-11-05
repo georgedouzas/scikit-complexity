@@ -7,22 +7,22 @@ with ever smaller steps, and the spread grows as `t^0.5` instead of `t`. The vie
 """
 
 # %%
-# The model is created by name from the catalog with eight walkers, `alpha = 0.5`, `K = 1`, and `t0 = 0.01`. The
+# The system is created by name from the catalog with eight walkers, `alpha = 0.5`, `K = 1`, and `t0 = 0.01`. The
 # Euler-Maruyama stepper takes steps of 0.01 and the observer saves every frame of 0.05 with the default blueprint,
 # whose primary view is the time series of the positions.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'scaled_brownian_motion'
+SYSTEM = 'scaled_brownian_motion'
 
-system = create(MODEL, n_particles=8, alpha=0.5)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_particles=8, alpha=0.5)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
 simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], random_state=0).prepare().run(until=10)
 
@@ -36,7 +36,7 @@ simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], ra
 fig, ax = plt.subplots(figsize=(7, 4))
 for alpha, color in ((0.5, 'tab:blue'), (1.5, 'tab:orange')):
     run = (
-        Simulation(create(MODEL, n_particles=2000, alpha=alpha), solver=solver, dt=0.05, random_state=1)
+        Simulation(create_system(SYSTEM, n_particles=2000, alpha=alpha), solver=solver, dt=0.05, random_state=1)
         .prepare()
         .run(10)
     )

@@ -6,7 +6,7 @@ steady slow rate, the precession, while the inner ring nods rapidly by a tiny an
 """
 
 # %%
-# The model is created by name from the catalog with the rotor spinning at 50 in an inner ring tilted by 0.3 and a
+# The system is created by name from the catalog with the rotor spinning at 50 in an inner ring tilted by 0.3 and a
 # unit torque on the axis of the inner ring, and runs for 10 time units. The blueprint shows the angle of the outer
 # ring, which falls at the steady precession rate, over the whole run.
 
@@ -14,11 +14,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'gimballed_gyroscope'
+SYSTEM = 'gimballed_gyroscope'
 
 precession = rrb.TimeSeriesView(
     origin='/gyroscope/alpha',
@@ -33,8 +33,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=4)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=4)
 simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(until=10)
 
 # %%
@@ -48,7 +48,11 @@ trajectory = simulation.trajectory_
 early = trajectory.times <= 0.5
 spins = np.array([25.0, 50.0, 100.0, 200.0])
 rates = [
-    Simulation(create(MODEL, spin=spin), dt=0.01).prepare().run(until=10).trajectory_.values('gyroscope.alpha')[-1] / 10
+    Simulation(create_system(SYSTEM, spin=spin), dt=0.01)
+    .prepare()
+    .run(until=10)
+    .trajectory_.values('gyroscope.alpha')[-1]
+    / 10
     for spin in spins
 ]
 grid = np.linspace(20.0, 220.0, 100)

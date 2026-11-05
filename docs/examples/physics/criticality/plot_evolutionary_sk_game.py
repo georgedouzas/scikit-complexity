@@ -8,7 +8,7 @@ learning. The view shows the histogram of the temperatures of the agents, which 
 """
 
 # %%
-# The model is created by name from the catalog with memory 0.75, the value of Lesmana et al. Every third step
+# The system is created by name from the catalog with memory 0.75, the value of Lesmana et al. Every third step
 # replaces the least fit agent, and two steps of learning alone follow. The observer saves every 50th step with the
 # default blueprint, whose primary view is the histogram of the temperatures. Every third frame of the
 # trajectory holds the fitnesses that decide a replacement.
@@ -16,17 +16,17 @@ learning. The view shows the histogram of the temperatures of the agents, which 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DistributionAnalysis, ErgodicityAnalysis, EventAnalysis, FitAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis, ErgodicityAnalysis, EventAnalysis, FitAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'evolutionary_sk_game'
+SYSTEM = 'evolutionary_sk_game'
 STEPS = 14999
 TRANSIENT = 1500
 
-system = create(MODEL, memory=0.75, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=50)
+system = create_system(SYSTEM, memory=0.75, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=50)
 simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=STEPS)
 trajectory = simulation.trajectory_
 temperatures = np.asarray(trajectory.values('agents.temperature'))
@@ -38,7 +38,7 @@ rewards = np.asarray(trajectory.values('agents.reward')).mean(axis=1)
 # --------------------------------------------------------
 # The temperatures should leave their uniform start and gather at low values, as in Fig. 2 of Lesmana et al.
 # A replacement starts a cascade of agents whose fitness falls below a threshold `f_0`, the avalanche of the
-# Bak-Sneppen model, here with `f_0` at the 97th percentile of the least fitness. Its sizes should follow
+# Bak-Sneppen system, here with `f_0` at the 97th percentile of the least fitness. Its sizes should follow
 # `P(S) ~ S^-3/2`, the exponent of a critical branching process, which Lesmana et al. measure as 1.58. The ergodicity
 # coefficient is the median total-variation distance between the reward distribution of one of four independent runs
 # of the game without replacement and that of all four, at the evolved temperatures rescaled by `2^k`. It should be
@@ -58,7 +58,7 @@ scales = np.arange(-2, 3)
 coefficients = []
 for scale in scales:
     runs = [
-        Simulation(create(MODEL, temperature=evolved * 2.0**scale, random_state=0), dt=1, random_state=run)
+        Simulation(create_system(SYSTEM, temperature=evolved * 2.0**scale, random_state=0), dt=1, random_state=run)
         .prepare()
         .run(until=300)
         .trajectory_.values('agents.reward')

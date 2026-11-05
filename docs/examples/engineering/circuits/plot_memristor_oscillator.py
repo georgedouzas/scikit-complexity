@@ -6,21 +6,21 @@ that has flowed through it, and the voltage oscillates with irregular, never-rep
 """
 
 # %%
-# The model is created by name from the catalog with `C = 1`, `L = 3`, `alpha = 0.6`, and `beta = 1.5`, and runs for
+# The system is created by name from the catalog with `C = 1`, `L = 3`, `alpha = 0.6`, and `beta = 1.5`, and runs for
 # 200 time units. The default blueprint shows the voltage, the current, and the memristor state in one time series
 # view.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.analysis import LyapunovAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'memristor_oscillator'
+SYSTEM = 'memristor_oscillator'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=8)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=8)
 simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=200)
 
 # %%

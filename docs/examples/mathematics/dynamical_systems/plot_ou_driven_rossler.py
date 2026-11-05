@@ -8,7 +8,7 @@ spikes of `z` that lift the trajectory out of the plane.
 """
 
 # %%
-# The model is created by name from the catalog with the parameters `a = 0.2`, `b = 0.4`, and `c = 5.743` of Cestnik
+# The system is created by name from the catalog with the parameters `a = 0.2`, `b = 0.4`, and `c = 5.743` of Cestnik
 # and Martens, the correlation time `tau = 50`, and the noise amplitude `rho = 1.5`, so the control has the standard
 # deviation `rho / sqrt(2 tau) = 0.15`. The run of 600 time units uses the Numba backend. After the run, the trajectory
 # is logged once as a line in three dimensions, and the blueprint puts that view first, as the primary view.
@@ -19,14 +19,14 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.signal import find_peaks
 
-from skcomplex.engine.backends import NumbaBackend
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.backends import NumbaBackend
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'ou_driven_rossler'
+SYSTEM = 'ou_driven_rossler'
 
-solver = describe(MODEL).defaults['solver']
+solver = describe(SYSTEM).defaults['solver']
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
     view_range=rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite()),
@@ -42,10 +42,10 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=25)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=25)
 simulation = (
     Simulation(
-        create(MODEL, rho=1.5),
+        create_system(SYSTEM, rho=1.5),
         dt=0.1,
         solver=solver,
         observers=[observer],
@@ -68,7 +68,7 @@ observer.recording_.flush()
 # standard deviation 0.15.
 
 long = (
-    Simulation(create(MODEL, rho=1.5), dt=0.1, solver=solver, random_state=1, backend=NumbaBackend())
+    Simulation(create_system(SYSTEM, rho=1.5), dt=0.1, solver=solver, random_state=1, backend=NumbaBackend())
     .prepare()
     .run(until=3000)
 )
@@ -77,7 +77,7 @@ peaks = find_peaks(x)[0]
 fig, (diagram, density) = plt.subplots(1, 2, figsize=(10, 4))
 diagram.plot(eta[peaks], x[peaks], '.', markersize=3, alpha=0.5, label='noisy control')
 for control in np.linspace(-0.3, 0.3, 13):
-    fixed = create(MODEL, eta=control, tau=1e9, rho=0.0)
+    fixed = create_system(SYSTEM, eta=control, tau=1e9, rho=0.0)
     held = (
         Simulation(fixed, dt=0.1, solver=solver, backend=NumbaBackend())
         .prepare()

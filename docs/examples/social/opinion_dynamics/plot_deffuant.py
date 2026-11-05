@@ -7,20 +7,20 @@ within a confidence bound. Opinions that start spread uniformly settle into a fe
 """
 
 # %%
-# Two hundred people start with uniform opinions and a confidence bound of 0.2. The model's blueprint shows the
+# Two hundred people start with uniform opinions and a confidence bound of 0.2. The system's blueprint shows the
 # histogram of the opinions, which collapses into two or three peaks.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'deffuant'
+SYSTEM = 'deffuant'
 
-system = create(MODEL, confidence=0.2, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, confidence=0.2, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=50)
 
 # %%
@@ -33,7 +33,11 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 
 def clusters(confidence, seed):
     """Return the number of clusters of at least five people at the end of a run."""
-    run = Simulation(create(MODEL, confidence=confidence, random_state=seed), random_state=seed).prepare().run(until=50)
+    run = (
+        Simulation(create_system(SYSTEM, confidence=confidence, random_state=seed), random_state=seed)
+        .prepare()
+        .run(until=50)
+    )
     opinions = np.sort(run.trajectory_.agents('people', len(run.trajectory_.times) - 1).values['opinion'])
     groups = np.split(opinions, np.flatnonzero(np.diff(opinions) > 0.01) + 1)
     return sum(len(group) >= 5 for group in groups)

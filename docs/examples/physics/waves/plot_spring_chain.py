@@ -13,15 +13,15 @@ sum of the string's normal modes beating together.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'spring_chain'
+SYSTEM = 'spring_chain'
 N_MASSES = 15
 
-system = create(MODEL, n_masses=N_MASSES, pluck=0.05)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM, n_masses=N_MASSES, pluck=0.05)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=4)
 
 # %%

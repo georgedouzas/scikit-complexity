@@ -14,18 +14,18 @@ Netto review near the exponent 1.15.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import ScalingAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.experiments import Experiment, GridDesign
-from skcomplex.models import create, describe
-from skcomplex.models.social.organizations import urban_scaling_interactions
+from skcomplex.core.analysis import ScalingAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.systems import create_system, describe
+from skcomplex.systems.social.organizations import urban_scaling_interactions
 
-MODEL = 'urban_scaling_interactions'
+SYSTEM = 'urban_scaling_interactions'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-observables = describe(MODEL).observables_of(system)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
+observables = describe(SYSTEM).observables_of(system)
 simulation = Simulation(system, observers=[observer], observables=observables, random_state=0).prepare().run(until=297)
 
 # %%
@@ -33,7 +33,7 @@ simulation = Simulation(system, observers=[observer], observables=observables, r
 # -------------------------------
 # An `Experiment` sweeps the size of the city at three rates of internal links, and `ScalingAnalysis(kind='allometric')`
 # fits the exponent of the meetings with a confidence interval. Without internal links the exponent stays near 1, and
-# it rises with the rate of the internal links. This rate per resident is the assumption of this model, and it sets the
+# it rises with the rate of the internal links. This rate per resident is the assumption of this system, and it sets the
 # exponent. Papadopoulos et al. (2015) add a fixed number of internal links per step, which keeps the mean degree
 # constant.
 

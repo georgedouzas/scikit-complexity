@@ -17,11 +17,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'threshold_adoption'
+SYSTEM = 'threshold_adoption'
 N_AGENTS, SIZE, STEPS = 300, 175.0, 30
 
 blueprint = rrb.Blueprint(
@@ -30,9 +30,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, reach=9.0, random_state=0), observers=[observer], random_state=0)
+    Simulation(create_system(SYSTEM, reach=9.0, random_state=0), observers=[observer], random_state=0)
     .prepare()
     .run(until=STEPS)
 )
@@ -62,7 +62,7 @@ for mode, color in (('infection', 'C0'), ('influence', 'C1')):
         finals.append(
             np.mean(
                 [
-                    Simulation(create(MODEL, reach=reach, mode=mode, random_state=seed), random_state=seed)
+                    Simulation(create_system(SYSTEM, reach=reach, mode=mode, random_state=seed), random_state=seed)
                     .prepare()
                     .run(until=STEPS)
                     .trajectory_.agents('people', STEPS)

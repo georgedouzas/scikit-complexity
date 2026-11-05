@@ -14,16 +14,18 @@ price than demand, the cobweb theorem of Ezekiel.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'cobweb'
+SYSTEM = 'cobweb'
 A, B, C = 10.0, 2.0, 1.0
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(create(MODEL, price=1.0, a=A, b=B, c=C, d=1.6), dt=1, observers=[observer]).prepare().run(until=30)
+    Simulation(create_system(SYSTEM, price=1.0, a=A, b=B, c=C, d=1.6), dt=1, observers=[observer])
+    .prepare()
+    .run(until=30)
 )
 
 # %%
@@ -37,7 +39,7 @@ simulation = (
 def prices(d, until=30):
     """Return the prices of a cobweb market with supply slope `d`."""
     return (
-        Simulation(create(MODEL, price=1.0, a=A, b=B, c=C, d=d), dt=1)
+        Simulation(create_system(SYSTEM, price=1.0, a=A, b=B, c=C, d=d), dt=1)
         .prepare()
         .run(until=until)
         .trajectory_.values('market.price')

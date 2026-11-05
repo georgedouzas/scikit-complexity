@@ -7,20 +7,20 @@ is at capacity, ahead of it the line is empty, and the front keeps its shape whi
 """
 
 # %%
-# The model is created by name from the catalog with the left 5% of a line of 200 units occupied. The blueprint shows
+# The system is created by name from the catalog with the left 5% of a line of 200 units occupied. The blueprint shows
 # the space-time history of the density, where the front is a straight diagonal edge.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'fisher_kpp'
+SYSTEM = 'fisher_kpp'
 
-system = create(MODEL, length=800, D=1.0, r=1.0, spacing=0.25, front=0.05)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, length=800, D=1.0, r=1.0, spacing=0.25, front=0.05)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=80)
 
 # %%

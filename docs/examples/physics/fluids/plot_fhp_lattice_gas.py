@@ -7,22 +7,22 @@ fluid at large scales. The view shows the number of particles of every hexagonal
 """
 
 # %%
-# The model is created by name from the catalog on a periodic 64 x 64 triangular lattice, where every channel is
+# The system is created by name from the catalog on a periodic 64 x 64 triangular lattice, where every channel is
 # occupied with probability 0.2, or 0.6 inside a disc at the centre. The observer saves every step with the default
 # blueprint, whose primary view shows the particle number of every cell.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.spaces import LatticeSpace
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'fhp_lattice_gas'
+SYSTEM = 'fhp_lattice_gas'
 
-system = create(MODEL, shape=(64, 64))
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, shape=(64, 64))
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=120)
 
 # %%

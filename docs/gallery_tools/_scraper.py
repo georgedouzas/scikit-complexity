@@ -13,8 +13,8 @@ from pathlib import Path
 from mkdocs_gallery.gen_data_model import GalleryScript
 from mkdocs_gallery.scrapers import figure_md_or_html
 
-from skcomplex.engine.problems import BaseProblemSpec
-from skcomplex.engine.viz import RerunObserver
+from skcomplex.core.engine.problems import BaseProblemSpec
+from skcomplex.core.engine.viz import RerunObserver
 
 from ._cache import ScreenshotCache
 from ._errors import GalleryError
@@ -170,7 +170,7 @@ class RerunScraper:
 
         Raises:
             GalleryError:
-                The example names no model, exceeds its budget, its whole script included, or its capture fails its
+                The example names no system, exceeds its budget, its whole script included, or its capture fails its
                 checks.
         """
         seconds = self._seconds()
@@ -185,14 +185,14 @@ class RerunScraper:
         observer, example = observers[-1], Path(script.src_py_file)
         stamp = Path(script.dwnld_py_file).with_suffix('.py.key')
         stamp.unlink(missing_ok=True)
-        model = variables.get('MODEL')
-        if not isinstance(model, str):
-            error_msg = f'{example.stem} sets no `MODEL` constant. Name the model it runs.'
+        system = variables.get('SYSTEM')
+        if not isinstance(system, str):
+            error_msg = f'{example.stem} sets no `SYSTEM` constant. Name the system it runs.'
             raise GalleryError(error_msg)
         start = time.perf_counter()
         thumbnail, _ = thumbnail_of(
             example,
-            model,
+            system,
             observer,
             ScreenshotCache(self.cache),
             backend=self.backend,

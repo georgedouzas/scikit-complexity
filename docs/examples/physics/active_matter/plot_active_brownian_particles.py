@@ -2,15 +2,15 @@
 # Active Brownian particles
 
 Self-propelled colloids swim at a constant speed along their own heading, which turns by rotational diffusion. Over
-times shorter than the persistence time `1 / D_r` each particle moves in a nearly straight line; over longer times its
+times shorter than the persistence time `1 / D_r` each particle moves in a nearly straight line. Over longer times its
 heading forgets its start and it diffuses, much faster than a passive particle. The view shows 200 swimmers spread
 over a periodic square, each following its own persistent, wandering path.
 """
 
 # %%
-# The model is created by name from the catalog with speed `v = 3`, translational diffusion `D_t = 0.1`, and
+# The system is created by name from the catalog with speed `v = 3`, translational diffusion `D_t = 0.1`, and
 # rotational diffusion `D_r = 1` in a square of side 50. The Euler-Maruyama stepper takes steps of 0.01 and the
-# observer saves every frame of 0.1. The blueprint shows the square with the swimmers drawn larger than the model's
+# observer saves every frame of 0.1. The blueprint shows the square with the swimmers drawn larger than the system's
 # visual does, so they read in the gallery thumbnail.
 
 import matplotlib.pyplot as plt
@@ -18,14 +18,14 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'active_brownian_particles'
+SYSTEM = 'active_brownian_particles'
 
-system = create(MODEL, random_state=0)
+system = create_system(SYSTEM, random_state=0)
 view = rrb.Spatial2DView(
     origin='/swimmers',
     name='swimmers',
@@ -39,7 +39,7 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
 simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).prepare().run(until=20)
 
@@ -53,7 +53,7 @@ simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], ran
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for rotation, color in ((1.0, 'tab:blue'), (0.1, 'tab:orange')):
-    system_r = create(MODEL, n_particles=500, D_r=rotation, size=1e5, random_state=1)
+    system_r = create_system(SYSTEM, n_particles=500, D_r=rotation, size=1e5, random_state=1)
     run = Simulation(system_r, solver=solver, dt=0.1, random_state=1).prepare().run(until=40)
     positions = run.trajectory_.values('swimmers.x')
     times = run.trajectory_.times[1:]

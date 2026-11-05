@@ -6,21 +6,21 @@ regrows quickly, since a smaller Gompertzian tumour grows faster.
 """
 
 # %%
-# The model is created by name from the catalog: a tumour of 100 mm³ grows towards 1964 mm³, and from day 42 a one-day
+# The system is created by name from the catalog: a tumour of 100 mm³ grows towards 1964 mm³, and from day 42 a one-day
 # dose every three weeks kills at the rate 1. The observer saves every second frame with the default blueprint, whose
 # primary view is the time series of the volume.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'norton_simon'
+SYSTEM = 'norton_simon'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=150)
 
 # %%

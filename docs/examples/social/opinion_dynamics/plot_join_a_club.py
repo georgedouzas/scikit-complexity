@@ -15,13 +15,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'join_a_club'
+SYSTEM = 'join_a_club'
 
-system = create(MODEL)
+system = create_system(SYSTEM)
 # The graph view lays out the nodes of a changing network by forces, which these settings keep compact and centred.
 blueprint = rrb.Blueprint(
     rrb.GraphView(
@@ -37,7 +37,7 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=150)
 
 # %%
@@ -50,7 +50,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 betas = np.linspace(0.0, 0.6, 7)
 order, crossing, mixed = [], [], []
 for beta in betas:
-    run = Simulation(create(MODEL, beta=beta), dt=10.0, random_state=2).prepare().run(until=150).trajectory_
+    run = Simulation(create_system(SYSTEM, beta=beta), dt=10.0, random_state=2).prepare().run(until=150).trajectory_
     members = run.values('voters.opinion')[-1]
     snapshot = run.network(-1)
     order.append(abs(2 * members.mean() - 1))

@@ -10,9 +10,9 @@ import pytest
 FOLDERS = ('src', 'tests', 'docs')
 DOCUMENTS = ('README.md', 'docs/overview/user_guide.md')
 PYTHON_BLOCK = re.compile(r'^```python[^\n]*\n(.*?)^```$', re.MULTILINE | re.DOTALL)
-MODELS = 'skcomplex.models'
-CATALOG_FUNCTIONS = ('catalog', 'describe', 'create', 'run')
-FIELD_MODULE = re.compile(rf'{re.escape(MODELS)}\.[\w<]')
+SYSTEMS = 'skcomplex.systems'
+CATALOG_FUNCTIONS = ('catalog', 'describe', 'create_system', 'create_simulation')
+FIELD_MODULE = re.compile(rf'{re.escape(SYSTEMS)}\.[\w<]')
 GENERATED = Path('docs') / 'generated'
 FORBIDDEN = (
     'TYPE' + '_CHECKING',
@@ -63,12 +63,12 @@ def _imported_names(code: str) -> list[tuple[int, str, str]]:
 
 
 def _is_field_import(module: str, name: str) -> bool:
-    """Return whether an import reaches into the model library, beyond the functions of the catalog."""
-    if module.startswith(f'{MODELS}.'):
+    """Return whether an import reaches into the catalog, beyond the functions of the catalog."""
+    if module.startswith(f'{SYSTEMS}.'):
         return True
-    if module == MODELS:
+    if module == SYSTEMS:
         return name not in CATALOG_FUNCTIONS
-    return module == 'skcomplex' and name == 'models'
+    return module == 'skcomplex' and name == 'systems'
 
 
 def _field_imports(root: Path) -> list[str]:
@@ -93,7 +93,7 @@ def _field_mentions(root: Path) -> list[str]:
 
 
 def test_documents_import_from_no_field_module(request):
-    """Test that the Python blocks of the README and the user guide import only the catalog functions of the models."""
+    """Test that the Python blocks of the README and the user guide import only the catalog functions of the systems."""
     found = _field_imports(request.config.rootpath)
     assert not found, f'{len(found)} imports beyond the catalog functions:\n' + '\n'.join(found)
 
@@ -104,16 +104,16 @@ def test_documents_name_no_field_module(request):
     assert not found, f'{len(found)} lines name a field module:\n' + '\n'.join(found)
 
 
-def test_readme_custom_model_runs_from_the_core_alone(request):
-    """Test that the first custom model of the README simulates in a fresh interpreter without the model library."""
+def test_readme_custom_system_runs_from_the_core_alone(request):
+    """Test that the first custom system of the README simulates in a fresh interpreter without the catalog."""
     text = (request.config.rootpath / 'README.md').read_text(encoding='utf-8')
-    section = text[text.index('### Build a custom model') :]
+    section = text[text.index('### Build a custom system') :]
     code = PYTHON_BLOCK.search(section).group(1)
     assert 'Simulation' in code
     check = f"""
 import sys
 {code}
-loaded = [name for name in sys.modules if name == {MODELS!r} or name.startswith({MODELS + '.'!r})]
+loaded = [name for name in sys.modules if name == {SYSTEMS!r} or name.startswith({SYSTEMS + '.'!r})]
 assert loaded == [], loaded
 """
     process = multiprocessing.get_context('spawn').Process(target=exec, args=(check, {'__name__': '__main__'}))

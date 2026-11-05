@@ -14,14 +14,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'growing_simplicial_complex'
+SYSTEM = 'growing_simplicial_complex'
 
-system = create(MODEL)
+system = create_system(SYSTEM)
 # The graph view lays out the nodes of a changing network by forces, which these settings keep compact and centred.
 blueprint = rrb.Blueprint(
     rrb.GraphView(
@@ -37,7 +37,7 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).prepare().run(until=300)
 
 # %%
@@ -45,7 +45,7 @@ simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).pr
 # -----------
 # The degrees should follow `P(k) ~ k^-3`, so the share of nodes of degree at least `k` should fall as `k^-2`.
 
-run = Simulation(create(MODEL, n_nodes=3003), dt=3000.0, random_state=0).prepare().run(until=3000)
+run = Simulation(create_system(SYSTEM, n_nodes=3003), dt=3000.0, random_state=0).prepare().run(until=3000)
 snapshot = run.trajectory_.network(-1)
 degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
 ccdf = DistributionAnalysis('ccdf').prepare(degrees).run()

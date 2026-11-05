@@ -6,20 +6,20 @@ grows into a self-sustained oscillation of fixed amplitude, the limit cycle of t
 """
 
 # %%
-# The model is created by name from the catalog with `L = C = 1`, `alpha = gamma = 1`, and the initial voltage 0.1, and
+# The system is created by name from the catalog with `L = C = 1`, `alpha = gamma = 1`, and the initial voltage 0.1, and
 # runs for 50 time units. The default blueprint shows the voltage and the current in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'tunnel_diode_oscillator'
+SYSTEM = 'tunnel_diode_oscillator'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
 simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=50)
 
 # %%
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 
 fig, ax = plt.subplots(figsize=(6, 5))
 for V0, i0 in [(0.1, 0.0), (2.0, 1.0), (-1.5, -1.5), (0.0, 2.5)]:
-    run = Simulation(create(MODEL, V=V0, i=i0), dt=0.05).prepare().run(until=50).trajectory_
+    run = Simulation(create_system(SYSTEM, V=V0, i=i0), dt=0.05).prepare().run(until=50).trajectory_
     ax.plot(run.values('circuit.V'), run.values('circuit.i'), linewidth=0.8)
     ax.plot(V0, i0, 'o', color='gray', markersize=4)
 trajectory = simulation.trajectory_

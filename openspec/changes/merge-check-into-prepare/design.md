@@ -4,10 +4,10 @@
 
 Observed in the code on 2026-11-05:
 
-- `BaseConfig` in `src/skcomplex/base.py` defines `check`, `prepare`, and `run`. `check` calls `_check` and sets
+- `BaseConfig` in `src/skcomplex/core/base.py` defines `check`, `prepare`, and `run`. `check` calls `_check` and sets
   `_checked`, and `prepare` and `run` raise `NotCheckedError` without it.
 - `BaseSpec` defines its own `check` and `prepare` and skips the guards, since a frozen value cannot be marked.
-- `BasePart.check` in `src/skcomplex/core/base.py` also validates the label and every declared spec.
+- `BasePart.check` in `src/skcomplex/core/components/base.py` also validates the label and every declared spec.
 - `ModelEntry` is not a `BaseConfig` but has a `check`, which `register_model` calls in `models/_catalog.py`.
 - `System._check` calls `check` on every part, and other owners do the same for the specs and laws they hold.
 - `report_.check()` in `engine/compile/_base.py` raises when the report of a compiler holds an error.

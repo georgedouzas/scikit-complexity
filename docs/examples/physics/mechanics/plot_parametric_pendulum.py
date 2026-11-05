@@ -13,11 +13,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'parametric_pendulum'
+SYSTEM = 'parametric_pendulum'
 
 
 blueprint = rrb.Blueprint(
@@ -26,8 +26,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, theta=0.1, omega=0.0, epsilon=0.2)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=6)
+system = create_system(SYSTEM, theta=0.1, omega=0.0, epsilon=0.2)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=6)
 simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=30)
 
 # %%
@@ -41,7 +41,7 @@ simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(unt
 natural = np.sqrt(9.81)
 fig, ax = plt.subplots(figsize=(6, 4))
 for epsilon in [0.2, 0.0]:
-    run = Simulation(create(MODEL, theta=0.01, omega=0.0, epsilon=epsilon), dt=0.01).prepare().run(until=40)
+    run = Simulation(create_system(SYSTEM, theta=0.01, omega=0.0, epsilon=epsilon), dt=0.01).prepare().run(until=40)
     times = np.asarray(run.trajectory_.times)
     angle = np.abs(np.ravel(run.trajectory_.values('swing.theta')))
     peaks = (angle[1:-1] > angle[:-2]) & (angle[1:-1] >= angle[2:])

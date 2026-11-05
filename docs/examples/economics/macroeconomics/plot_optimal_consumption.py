@@ -7,22 +7,22 @@ rule, and the economy saves a falling share of its output as it grows richer.
 """
 
 # %%
-# The model is created by name from the catalog with the Cobb-Douglas output `k^0.3`, depreciation 0.05, the discount
+# The system is created by name from the catalog with the Cobb-Douglas output `k^0.3`, depreciation 0.05, the discount
 # rate 0.03, and the initial capital 1. The collocation solver of its catalog entry solves the problem over 40 years.
 # The default blueprint shows capital and consumption in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'optimal_consumption'
+SYSTEM = 'optimal_consumption'
 
-system = create(MODEL)
-entry = describe(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+entry = describe(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,

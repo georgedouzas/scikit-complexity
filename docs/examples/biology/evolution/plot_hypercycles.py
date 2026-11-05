@@ -7,21 +7,21 @@ dominates the soup, boosts the next one, and gives way to it.
 """
 
 # %%
-# The model is created by name from the catalog as a ring of six molecules whose own growth rates differ only
+# The system is created by name from the catalog as a ring of six molecules whose own growth rates differ only
 # slightly, `alpha = 0.01`, so that catalysis dominates. The observer saves every frame with the default blueprint,
 # whose primary view is the time series of the concentrations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'hypercycles'
+SYSTEM = 'hypercycles'
 
-system = create(MODEL, molecules=6, alpha=0.01, topology='cycle')
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, molecules=6, alpha=0.01, topology='cycle')
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=290)
 
 # %%
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(unti
 
 ring = simulation.trajectory_
 complete = (
-    Simulation(create(MODEL, molecules=10, topology='complete'), dt=0.5)
+    Simulation(create_system(SYSTEM, molecules=10, topology='complete'), dt=0.5)
     .prepare()
     .run(until=200)
     .trajectory_.values('soup.x')

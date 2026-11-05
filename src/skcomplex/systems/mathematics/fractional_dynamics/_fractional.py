@@ -1,0 +1,338 @@
+"""Fractional dynamics systems: relaxation, oscillators, and chaotic flows with Caputo derivatives of states."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from functools import cache
+from typing import Annotated
+
+from ....core.components.elements import Element
+from ....core.components.system import System
+from ....core.specs import StateSpec, VisualSpec
+from ..._catalog import register_system
+from ..common.flows import LorenzElement
+from ._oscillator import OscillatorElement
+from ._relaxation import RelaxationElement
+from ._van_der_pol import VanDerPolElement
+
+
+def _published[ElementT: Element](element_type: type[ElementT], name: str) -> type[ElementT]:
+    """Return an element type after naming it and binding it to its name in this module, so it pickles by reference."""
+    element_type.__name__ = element_type.__qualname__ = name
+    globals()[name] = element_type
+    return element_type
+
+
+def _type_name(prefix: str, order: float) -> str:
+    """Return the name of the element type of an order, which holds the order with `p` for the decimal point."""
+    return f'{prefix}_{repr(order).replace(".", "p")}'
+
+
+@cache
+def relaxation_type(order: float) -> type[RelaxationElement]:
+    """Return the element type of fractional relaxation `D^alpha x = -lambda x` of an order.
+
+    Args:
+        order:
+            The order `alpha` of the Caputo derivative of `x`.
+
+    Returns:
+        element_type:
+            The subclass of `RelaxationElement` whose state has the order, the same for equal orders.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import relaxation_type
+        >>> relaxation_type(0.5).__name__
+        'FractionalRelaxation_0p5'
+    """
+
+    class FractionalElement(RelaxationElement):
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[float, StateSpec(order=order)] = 1.0,
+            lam: float = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual, x=x, lam=lam)
+
+    return _published(FractionalElement, _type_name('FractionalRelaxation', order))
+
+
+@cache
+def oscillator_type(order: float) -> type[OscillatorElement]:
+    """Return the element type of the fractional oscillator `D^alpha x = v`, `D^alpha v = -omega^2 x - 2 gamma v`.
+
+    Args:
+        order:
+            The order `alpha` of the Caputo derivatives of `x` and `v`.
+
+    Returns:
+        element_type:
+            The subclass of `OscillatorElement` whose states have the order, the same for equal orders.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import oscillator_type
+        >>> oscillator_type(0.8).__name__
+        'FractionalOscillator_0p8'
+    """
+
+    class FractionalElement(OscillatorElement):
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[float, StateSpec(order=order)] = 1.0,
+            v: Annotated[float, StateSpec(order=order)] = 0.0,
+            omega: float = 1.0,
+            gamma: float = 0.0,
+        ) -> None:
+            super().__init__(label, visual=visual, x=x, v=v, omega=omega, gamma=gamma)
+
+    return _published(FractionalElement, _type_name('FractionalOscillator', order))
+
+
+@cache
+def van_der_pol_type(order: float) -> type[VanDerPolElement]:
+    """Return the element type of the fractional Van der Pol system `D^alpha x = y`, `D^alpha y = mu (1 - x^2) y - x`.
+
+    Args:
+        order:
+            The order `alpha` of the Caputo derivatives of `x` and `y`.
+
+    Returns:
+        element_type:
+            The subclass of `VanDerPolElement` whose states have the order, the same for equal orders.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import van_der_pol_type
+        >>> van_der_pol_type(0.9).__name__
+        'FractionalVanDerPol_0p9'
+    """
+
+    class FractionalElement(VanDerPolElement):
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[float, StateSpec(order=order)] = 2.0,
+            y: Annotated[float, StateSpec(order=order)] = 0.0,
+            mu: float = 1.0,
+        ) -> None:
+            super().__init__(label, visual=visual, x=x, y=y, mu=mu)
+
+    return _published(FractionalElement, _type_name('FractionalVanDerPol', order))
+
+
+@cache
+def lorenz_type(order: float) -> type[LorenzElement]:
+    """Return the element type of the fractional Lorenz flow, the Lorenz equations with Caputo derivatives of an order.
+
+    Args:
+        order:
+            The order `q` of the Caputo derivatives of `x`, `y`, and `z`.
+
+    Returns:
+        element_type:
+            The subclass of `LorenzElement` whose states have the order, the same for equal orders.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import lorenz_type
+        >>> lorenz_type(0.99).__name__
+        'FractionalLorenz_0p99'
+    """
+
+    class FractionalElement(LorenzElement):
+        def __init__(
+            self,
+            label: str,
+            visual: VisualSpec | None = None,
+            *,
+            x: Annotated[float, StateSpec(order=order)] = 1.0,
+            y: Annotated[float, StateSpec(order=order)] = 1.0,
+            z: Annotated[float, StateSpec(order=order)] = 1.0,
+            sigma: float = 10.0,
+            rho: float = 28.0,
+            beta: float = 8 / 3,
+        ) -> None:
+            super().__init__(label, visual=visual, x=x, y=y, z=z, sigma=sigma, rho=rho, beta=beta)
+
+    return _published(FractionalElement, _type_name('FractionalLorenz', order))
+
+
+@register_system(
+    field='mathematics/fractional_dynamics',
+    tags=('fractional', 'memory', 'anomalous relaxation'),
+    references=('Podlubny 1999', 'Trzaska 2023'),
+    defaults={'until': 20.0, 'dt': 0.1},
+)
+def fractional_relaxation(x: float = 1.0, *, order: float = 0.6, lam: float = 1.0) -> System:
+    """Return fractional relaxation `D^alpha x = -lambda x`, which decays as the Mittag-Leffler function `E_alpha`.
+
+    The solution `x(0) E_alpha(-lambda t^alpha)` decays slower than any exponential, as the power law `t^(-alpha)` at
+    long times, since the Caputo derivative keeps the memory of the whole past. Order 1 gives exponential decay.
+
+    Args:
+        x:
+            The initial value.
+
+        order:
+            The order `alpha` of the Caputo derivative, in `(0, 1]`.
+
+        lam:
+            The relaxation rate.
+
+    Returns:
+        system:
+            The system, with the state `relaxation.x`.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import fractional_relaxation
+        >>> fractional_relaxation(order=0.5).elements[0].lam
+        1.0
+    """
+    return System(elements=[relaxation_type(float(order))('relaxation', x=x, lam=lam)])
+
+
+@register_system(
+    field='mathematics/fractional_dynamics',
+    tags=('fractional', 'memory', 'oscillator'),
+    references=('Podlubny 1999', 'Trzaska 2023'),
+    defaults={'until': 30.0, 'dt': 0.1},
+)
+def fractional_oscillator(
+    x: float = 1.0,
+    v: float = 0.0,
+    *,
+    order: float = 0.8,
+    omega: float = 1.0,
+    gamma: float = 0.0,
+) -> System:
+    """Return the fractional damped oscillator `D^alpha x = v`, `D^alpha v = -omega^2 x - 2 gamma v`.
+
+    With `gamma = 0` the system is the fractional oscillation equation of order `2 alpha`, whose memory damps the
+    oscillations for `1/2 < alpha < 1` without any friction. Order 1 gives the harmonic oscillator.
+
+    Args:
+        x:
+            The initial displacement.
+
+        v:
+            The initial value of the first state's derivative of order `alpha`.
+
+        order:
+            The order `alpha` of the Caputo derivatives, in `(0, 1]`.
+
+        omega:
+            The angular frequency.
+
+        gamma:
+            The damping rate.
+
+    Returns:
+        system:
+            The system, with the states `oscillator.x` and `oscillator.v`.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import fractional_oscillator
+        >>> fractional_oscillator(order=0.9).elements[0].omega
+        1.0
+    """
+    return System(elements=[oscillator_type(float(order))('oscillator', x=x, v=v, omega=omega, gamma=gamma)])
+
+
+@register_system(
+    field='mathematics/fractional_dynamics',
+    tags=('fractional', 'memory', 'limit cycle'),
+    references=('Podlubny 1999', 'Trzaska 2023'),
+    defaults={'until': 40.0, 'dt': 0.1},
+)
+def fractional_van_der_pol(x: float = 2.0, y: float = 0.0, *, order: float = 0.9, mu: float = 1.0) -> System:
+    """Return the fractional Van der Pol oscillator `D^alpha x = y`, `D^alpha y = mu (1 - x^2) y - x`.
+
+    For orders close to 1 the trajectory approaches a closed cycle, and the memory of lower orders shrinks it toward
+    the fixed point at the origin.
+
+    Args:
+        x:
+            The initial displacement.
+
+        y:
+            The initial value of the displacement's derivative of order `alpha`.
+
+        order:
+            The order `alpha` of the Caputo derivatives, in `(0, 1]`.
+
+        mu:
+            The strength of the nonlinear damping.
+
+    Returns:
+        system:
+            The system, with the states `oscillator.x` and `oscillator.y`.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import fractional_van_der_pol
+        >>> fractional_van_der_pol(mu=2.0).elements[0].mu
+        2.0
+    """
+    return System(elements=[van_der_pol_type(float(order))('oscillator', x=x, y=y, mu=mu)])
+
+
+@register_system(
+    field='mathematics/fractional_dynamics',
+    tags=('fractional', 'memory', 'chaos', 'strange attractor'),
+    references=('Grigorenko and Grigorenko 2003', 'Trzaska 2023'),
+    defaults={'until': 30.0, 'dt': 0.05},
+)
+def fractional_lorenz(
+    x: float = 1.0,
+    y: float = 1.0,
+    z: float = 1.0,
+    *,
+    order: float = 0.995,
+    sigma: float = 10.0,
+    rho: float = 28.0,
+    beta: float = 8 / 3,
+) -> System:
+    """Return the fractional Lorenz flow of Grigorenko and Grigorenko, chaotic for orders close enough to 1.
+
+    Grigorenko and Grigorenko report chaos down to the total order 2.97. With Caputo derivatives from rest and the
+    predictor-corrector, the flow is chaotic for the order 0.995 of every state, a total of 2.985, and settles on a
+    fixed point of the two wings for 0.99 after a chaotic transient.
+
+    Args:
+        x:
+            The initial convection intensity.
+
+        y:
+            The initial temperature difference between rising and falling currents.
+
+        z:
+            The initial deviation of the vertical temperature profile.
+
+        order:
+            The order `q` of the Caputo derivatives of all three states, in `(0, 1]`.
+
+        sigma:
+            The Prandtl number.
+
+        rho:
+            The Rayleigh number relative to its critical value.
+
+        beta:
+            The geometric factor.
+
+    Returns:
+        system:
+            The system, with the states `lorenz.x`, `lorenz.y`, and `lorenz.z`.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.fractional_dynamics import fractional_lorenz
+        >>> fractional_lorenz(rho=20.0).elements[0].rho
+        20.0
+    """
+    flow = lorenz_type(float(order))('lorenz', x=x, y=y, z=z, sigma=sigma, rho=rho, beta=beta)
+    return System(elements=[flow])

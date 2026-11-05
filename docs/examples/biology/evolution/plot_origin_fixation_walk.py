@@ -7,7 +7,7 @@ switch to their fitter allele, while loci with weak fields keep flipping between
 """
 
 # %%
-# The model is created by name from the catalog with 96 loci, random fields of standard deviation 0.01, no couplings,
+# The system is created by name from the catalog with 96 loci, random fields of standard deviation 0.01, no couplings,
 # and the per-locus mutation rate 0.01, so mutants of a locus arise at the rate 1. The observer saves every frame with
 # the default blueprint, whose primary view is the space-time image of the alleles.
 
@@ -16,21 +16,21 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'origin_fixation_walk'
+SYSTEM = 'origin_fixation_walk'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
         dt=10.0,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(until=640)
@@ -51,9 +51,9 @@ fields = system.elements[0].values['h']
 stationary = 1.0
 for _ in range(100):
     stationary = 1 + np.sum(fields * np.tanh(99 * fields / stationary))
-small = create(MODEL, loci=4, N=10.0, mu=1.0, field=0.1, coupling=0.3, random_state=1)
+small = create_system(SYSTEM, loci=4, N=10.0, mu=1.0, field=0.1, coupling=0.3, random_state=1)
 alleles = (
-    Simulation(small, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(small))
+    Simulation(small, dt=1.0, random_state=0, observables=describe(SYSTEM).observables_of(small))
     .prepare()
     .run(until=5000)
     .trajectory_.values('genome.s')[100:]

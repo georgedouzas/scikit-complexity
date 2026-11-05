@@ -6,21 +6,21 @@ they divide once more and die over the following weeks, while the survivors regr
 """
 
 # %%
-# The model is created by name from the catalog: a xenograft of 27 mm³ receives ten fractions of 2 Gy, the first
+# The system is created by name from the catalog: a xenograft of 27 mm³ receives ten fractions of 2 Gy, the first
 # three hours after a radiosensitizer at 2 μg/mL. The observer saves every frame with the default blueprint, whose
 # primary view is the time series of the six compartments over the 40 days of the response.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'lq_radiosensitizer'
+SYSTEM = 'lq_radiosensitizer'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.25, observers=[observer]).prepare().run(until=40)
 
 # %%
@@ -38,7 +38,7 @@ survival = [event.after[cells] / event.before[cells] for event in trajectory.eve
 predicted = [
     np.exp(-(1 + ap * event.before[sensitizer]) * (alpha * dose + beta * dose**2)) for event in trajectory.events
 ]
-alone = Simulation(create(MODEL, Us=0.0), dt=0.25).prepare().run(until=40).trajectory_
+alone = Simulation(create_system(SYSTEM, Us=0.0), dt=0.25).prepare().run(until=40).trajectory_
 
 
 def total(run):

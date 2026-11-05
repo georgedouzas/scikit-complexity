@@ -1,0 +1,250 @@
+"""Markets systems: Epstein and Axtell's Sugarscape of foragers on a landscape of regrowing sugar."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Mapping
+
+import numpy as np
+
+from ....core.analysis import DistributionAnalysis
+from ....core.components.elements import GroupElement
+from ....core.components.interactions import LifeCycleInteraction, MovementInteraction, TransferInteraction
+from ....core.components.laws import Sink
+from ....core.components.spaces import DiscreteTime, LatticeSpace
+from ....core.components.system import System
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.types import Array
+from ..._catalog import register_system
+from ..common.resources import RegrowthInteraction
+from ._forager import ForagerElement
+from ._forager_view import ForagerView
+from ._patch_map_spec import _PatchMapSpec
+from ._sugar_patch import SugarPatchElement
+from ._sugar_patch_view import SugarPatchView
+
+PEAKS = ((0.3, 0.3), (0.7, 0.7))
+
+
+BOUNDS = (21, 16, 11, 6)
+
+
+DIRECTIONS = ((1, 0), (-1, 0), (0, 1), (0, -1))
+
+
+def landscape(width: int, height: int) -> Array:
+    """Return the sugar capacity of every cell, from 0 to 4 in rings around two peaks.
+
+    The peaks sit at 30 and 70 percent of the extent of the grid, and the rings of Downey (2018 ch. 9) have radii of
+    21, 16, 11, and 6 cells on a grid of 50 cells, scaled with the grid.
+
+    Args:
+        width:
+            The number of columns.
+
+        height:
+            The number of rows.
+
+    Returns:
+        capacity:
+            The capacity of the cell `(x, y)` at `[x, y]`.
+
+    Examples:
+        >>> from skcomplex.systems.economics.markets._sugarscape import landscape
+        >>> float(landscape(50, 50).max()), float(landscape(50, 50)[0, 49])
+        (4.0, 0.0)
+    """
+    x, y = np.meshgrid(np.arange(width), np.arange(height), indexing='ij')
+    scale = min(width, height) / 50
+    distance = np.min([np.hypot(x - px * width, y - py * height) for px, py in PEAKS], axis=0)
+    return np.sum([distance < bound * scale for bound in BOUNDS], axis=0).astype(float)
+
+
+def _cell_of(location: object) -> tuple[int, int]:
+    """Return the cell of a location on the lattice."""
+    x, y = (int(item) for item in np.asarray(location, dtype=float))
+    return x, y
+
+
+def _get_patches(system: SystemViewProtocol) -> Mapping[tuple[int, int], SugarPatchView]:
+    """Return the patches by cell, built once per run in the storage of the movement."""
+    cached = system.storage.get('patches')
+    if not isinstance(cached, _PatchMapSpec):
+        patches = {
+            _cell_of(patch.location): patch for patch in system.agents('patches') if isinstance(patch, SugarPatchView)
+        }
+        cached = _PatchMapSpec(patches)
+        system.storage['patches'] = cached
+    return cached.patches
+
+
+def _get_sugar(agent: AgentViewProtocol, cell: object, system: SystemViewProtocol) -> float:
+    """Return the sugar of the patch of a cell, the score a forager maximizes."""
+    return float(_get_patches(system)[_cell_of(cell)].sugar)
+
+
+def _get_vision(agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
+    """Return the number of cells a forager sees along every direction."""
+    return float(agent.vision) if isinstance(agent, ForagerView) else 0.0
+
+
+def _get_harvest(patch: AgentViewProtocol, forager: AgentViewProtocol, system: SystemViewProtocol) -> float:
+    """Return the whole sugar of the patch of a forager."""
+    return float(patch.sugar) if isinstance(patch, SugarPatchView) else 0.0
+
+
+def _get_metabolism(forager: AgentViewProtocol, other: AgentViewProtocol, system: SystemViewProtocol) -> float:
+    """Return the sugar a forager burns in a step."""
+    return float(forager.metabolism) if isinstance(forager, ForagerView) else 0.0
+
+
+def _is_starved(forager: AgentViewProtocol, system: SystemViewProtocol) -> bool:
+    """Return whether the wealth of a forager has fallen below zero."""
+    return isinstance(forager, ForagerView) and forager.sugar < 0
+
+
+def _get_foraging() -> list[MovementInteraction | TransferInteraction | LifeCycleInteraction]:
+    """Return the member interactions of a forager: move to the best cell in sight, harvest, burn, and starve."""
+    return [
+        MovementInteraction(
+            'search',
+            target='foragers',
+            step='best',
+            score=_get_sugar,
+            vision=_get_vision,
+            exclusive=True,
+            schedule='member',
+            phase='foraging',
+        ),
+        TransferInteraction(
+            'harvest',
+            source='patches',
+            target='foragers',
+            state='sugar',
+            amount=_get_harvest,
+            pairing='cell',
+            form='agent',
+            actor='target',
+            schedule='member',
+            phase='foraging',
+        ),
+        TransferInteraction(
+            'metabolism',
+            source='foragers',
+            target='foragers',
+            state='sugar',
+            into=Sink(),
+            amount=_get_metabolism,
+            form='agent',
+            schedule='member',
+            phase='foraging',
+        ),
+        LifeCycleInteraction('starvation', target='foragers', death=_is_starved, schedule='member', phase='foraging'),
+    ]
+
+
+def _gini(wealth: object) -> float:
+    """Return the Gini coefficient of the wealth of the foragers."""
+    return float(DistributionAnalysis('gini').prepare(np.asarray(wealth, dtype=float)).run().gini_)
+
+
+@register_system(
+    field='economics/markets',
+    tags=('sugarscape', 'wealth', 'agents', 'grid'),
+    references=('Argun et al. 2021 sec. 16.2', 'Downey 2018 ch. 9'),
+    defaults={'until': 100},
+    observables=lambda system: [
+        ObservableSpec('population', group='foragers', variable='sugar', reduce='count'),
+        ObservableSpec('gini', group='foragers', variable='sugar', reduce=_gini),
+    ],
+)
+def sugarscape(
+    width: int = 50,
+    height: int = 50,
+    *,
+    n_foragers: int = 400,
+    max_vision: int = 6,
+    max_metabolism: float = 4.0,
+    low_sugar: float = 5.0,
+    high_sugar: float = 25.0,
+    growback: float = 1.0,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return the Sugarscape of Epstein and Axtell, foragers of random vision and metabolism on two sugar peaks.
+
+    Every step the foragers, in random order, move to the richest free cell in sight, harvest it, and burn their
+    metabolism, and those whose wealth falls below zero die. Then the sugar grows back. Foragers of poor vision or
+    high metabolism starve, so the population falls to the carrying capacity of the landscape, and the wealth of the
+    survivors becomes skewed, with a Gini coefficient that rises from its initial value.
+
+    Args:
+        width:
+            The number of columns.
+
+        height:
+            The number of rows.
+
+        n_foragers:
+            The initial number of foragers.
+
+        max_vision:
+            The largest vision, every forager seeing from 1 to `max_vision` cells.
+
+        max_metabolism:
+            The largest metabolism, every forager burning from 1 to `max_metabolism` sugar a step.
+
+        low_sugar:
+            The lowest initial wealth.
+
+        high_sugar:
+            The highest initial wealth.
+
+        growback:
+            The sugar that grows back on every patch in a step.
+
+        random_state:
+            The seed or generator of the foragers' cells, visions, metabolisms, and wealth.
+
+    Returns:
+        system:
+            The system, with the groups `patches` and `foragers`, whose catalog observables are the population
+            `population` and the Gini coefficient of wealth `gini`.
+
+    Examples:
+        >>> from skcomplex.systems.economics.markets import sugarscape
+        >>> [group.size for group in sugarscape(10, 10, n_foragers=20).elements]
+        [100, 20]
+    """
+    rng = np.random.default_rng(random_state)
+    capacity = landscape(width, height).ravel()
+    cells = [(x, y) for x in range(width) for y in range(height)]
+    patches = GroupElement(
+        'patches',
+        element=SugarPatchElement,
+        size=len(cells),
+        values={'sugar': capacity, 'capacity': capacity, 'growback': growback},
+        location=cells,
+    )
+    occupied = rng.choice(len(cells), size=min(n_foragers, len(cells)), replace=False)
+    foragers = GroupElement(
+        'foragers',
+        element=ForagerElement,
+        size=len(occupied),
+        values={
+            'sugar': rng.uniform(low_sugar, high_sugar, len(occupied)),
+            'vision': rng.integers(1, max_vision + 1, len(occupied)).astype(float),
+            'metabolism': rng.uniform(1.0, max_metabolism, len(occupied)),
+        },
+        variable=True,
+        location=[cells[index] for index in occupied],
+    )
+    return System(
+        elements=[patches, foragers],
+        interactions=[
+            *_get_foraging(),
+            RegrowthInteraction('growback', target='patches', state='sugar', growth='growback', phase='growth'),
+        ],
+        space=LatticeSpace((width, height), boundary='fixed', neighborhood='von_neumann'),
+        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('foraging'), PhaseSpec('growth')])),
+    )

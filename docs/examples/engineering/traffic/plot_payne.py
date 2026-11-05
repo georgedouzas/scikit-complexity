@@ -1,27 +1,27 @@
 """
-# Payne traffic model
+# Payne traffic system
 
 A bump of density on a ring road of uniform traffic splits and travels, while the relaxation of the speed towards the
 Greenshields law and the anticipation of drivers smooth it out, so the road returns towards uniform flow.
 """
 
 # %%
-# The model is created by name from the catalog on a ring of 200 cells at density 0.3 with a bump of 0.2, the
+# The system is created by name from the catalog on a ring of 200 cells at density 0.3 with a bump of 0.2, the
 # relaxation time `tau = 0.5`, and is integrated with SSPRK for one time unit. The default blueprint puts the history of
 # the density first.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import SSPRKSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import SSPRKSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'payne'
+SYSTEM = 'payne'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 simulation = Simulation(system, dt=0.01, solver=SSPRKSolver(), observers=[observer]).prepare().run(until=1.0)
 
 # %%

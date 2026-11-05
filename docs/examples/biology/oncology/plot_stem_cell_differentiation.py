@@ -6,20 +6,20 @@ a steady state in which the mutation of normal progenitors feeds a small maligna
 """
 
 # %%
-# The model is created by name from the catalog with the book's parameters and initial cells, a mutation rate drawn
+# The system is created by name from the catalog with the book's parameters and initial cells, a mutation rate drawn
 # once with the seed 0, and continuous therapy, and runs for 2000 time units. The observer saves every frame with the
 # default blueprint, whose primary view is the time series of the eight compartments.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'stem_cell_differentiation'
+SYSTEM = 'stem_cell_differentiation'
 
-system = create(MODEL, seed=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, seed=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=10.0, observers=[observer]).prepare().run(until=2000)
 
 # %%
@@ -39,7 +39,7 @@ lineages.set_title('The lineages settle under therapy')
 lineages.legend()
 rates, finals = [], []
 for seed in range(8):
-    run = create(MODEL, seed=seed)
+    run = create_system(SYSTEM, seed=seed)
     rates.append(run.elements[0].m1)
     finals.append(Simulation(run, dt=10.0).prepare().run(until=2000).trajectory_.values('tissue.AD')[-1])
 mutation.plot(rates, finals, 'o')

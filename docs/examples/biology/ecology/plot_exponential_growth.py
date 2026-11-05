@@ -6,21 +6,21 @@ size, so its curve bends ever more steeply upwards.
 """
 
 # %%
-# The model is created by name from the catalog with a growth rate of 0.2 and run for 20 time units, about six
+# The system is created by name from the catalog with a growth rate of 0.2 and run for 20 time units, about six
 # doubling times. The observer saves every frame with the default blueprint, whose primary view is the time series of
 # the population.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'exponential_growth'
+SYSTEM = 'exponential_growth'
 
-system = create(MODEL, n=10.0, r=0.2)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n=10.0, r=0.2)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
 
 # %%
@@ -39,6 +39,6 @@ for doubling in np.arange(0, times[-1], np.log(2) / r):
     ax.axvline(doubling, color='grey', linestyle=':', linewidth=0.8)
 ax.set_xlabel('time')
 ax.set_ylabel('population (log scale)')
-ax.set_title(f'Fitted rate {slope:.3f}, model rate {r}; dotted lines every doubling time')
+ax.set_title(f'Fitted rate {slope:.3f}, system rate {r}; dotted lines every doubling time')
 ax.legend()
 plt.show()

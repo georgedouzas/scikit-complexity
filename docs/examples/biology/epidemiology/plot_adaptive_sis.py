@@ -7,21 +7,21 @@ stays far below its value on the same network without rewiring.
 """
 
 # %%
-# The model is created by name from the catalog on an Erdős-Rényi network of 200 nodes with mean degree 6, run by the
+# The system is created by name from the catalog on an Erdős-Rényi network of 200 nodes with mean degree 6, run by the
 # Gillespie solver. The observer saves every frame with the default blueprint, whose primary view is the network
 # drawn by its force layout, with the infected nodes bright, and its edges as they are rewired.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'adaptive_sis'
+SYSTEM = 'adaptive_sis'
 
-system = create(MODEL, w=1.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, w=1.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.25, observers=[observer], random_state=1).prepare().run(until=30)
 
 # %%
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=0.25, observers=[observer], random_state=1).p
 
 fig, ax = plt.subplots(figsize=(8, 4))
 for w in (0.0, 1.0, 4.0):
-    trajectory = Simulation(create(MODEL, w=w), dt=0.25, random_state=1).prepare().run(until=30).trajectory_
+    trajectory = Simulation(create_system(SYSTEM, w=w), dt=0.25, random_state=1).prepare().run(until=30).trajectory_
     snapshot = trajectory.network(-1)
     infected = np.nan_to_num(trajectory.values('hosts.i')[-1])
     healthy = np.mean((infected[snapshot.sources] == 0) & (infected[snapshot.targets] == 0))

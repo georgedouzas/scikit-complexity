@@ -17,11 +17,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe, run
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation, create_system, describe
 
-MODEL = 'koopman_model_predictive_control'
+SYSTEM = 'koopman_model_predictive_control'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -30,10 +30,10 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 trajectory = (
-    Simulation(system, dt=1.0, observers=[observer], observables=describe(MODEL).observables_of(system))
+    Simulation(system, dt=1.0, observers=[observer], observables=describe(SYSTEM).observables_of(system))
     .prepare()
     .run(until=200.0)
     .trajectory_
@@ -59,7 +59,11 @@ observer.recording_.flush()
 def tracked(plant, *, controlled):
     """Return the times, the output, the reference, and the mean squared error of a run of a plant."""
     until = 300.0 if plant == 'motor' else 150.0
-    found = run(MODEL, plant=plant, controlled=controlled, n_runs=20, duration=200, settings={'until': until})
+    found = (
+        create_simulation(SYSTEM, plant=plant, controlled=controlled, n_runs=20, duration=200)
+        .prepare()
+        .run(until=until)
+    )
     found = found.trajectory_
     output, reference = found.values('plant/state.y'), found.values('reference')
     return found.times, output, reference, np.mean((output - reference) ** 2)

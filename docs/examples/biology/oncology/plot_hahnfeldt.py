@@ -1,26 +1,26 @@
 """
-# Hahnfeldt angiogenesis model
+# Hahnfeldt angiogenesis system
 
 A tumour at the equilibrium of its vasculature regresses under a continuous infusion of endostatin, which prunes the
 vasculature that sets its carrying capacity.
 """
 
 # %%
-# The model is created by name from the catalog with its defaults: tumour and vascular volumes at the equilibrium of
+# The system is created by name from the catalog with its defaults: tumour and vascular volumes at the equilibrium of
 # 17347 mm³ and a continuous infusion of 20 mg/kg/day of endostatin from day 0. The observer saves every frame with
 # the default blueprint, whose primary view is the time series of the volumes and the inhibitor.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'hahnfeldt'
+SYSTEM = 'hahnfeldt'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=30)
 
 # %%
@@ -29,7 +29,7 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(unti
 # Untreated, a small tumour and its vasculature should both approach `(xi_s / xi_i)^(3/2)`, about 17347 mm³. Under the
 # infusion, the inhibitor should settle at `dose / du`, and the vasculature and then the tumour should shrink.
 
-untreated = Simulation(create(MODEL, A=200.0, Vb=625.0, dose=0.0), dt=1.0).prepare().run(until=100).trajectory_
+untreated = Simulation(create_system(SYSTEM, A=200.0, Vb=625.0, dose=0.0), dt=1.0).prepare().run(until=100).trajectory_
 treated = simulation.trajectory_
 equilibrium = (5.85 / 0.00873) ** 1.5
 fig, (growth, therapy) = plt.subplots(1, 2, figsize=(10, 4))

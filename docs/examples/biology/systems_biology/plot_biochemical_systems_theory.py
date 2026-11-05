@@ -1,26 +1,26 @@
 """
-# Power-law models of biochemical systems theory
+# Power-law systems of biochemical systems theory
 
 An unbranched pathway whose end product inhibits its supply, written as an S-system, relaxes to the steady state that
 the linear equations in the logarithms of the concentrations predict.
 """
 
 # %%
-# The model is created by name from the catalog. The pathway `X1 -> X2 -> X3` has power-law fluxes, and `X3` inhibits
+# The system is created by name from the catalog. The pathway `X1 -> X2 -> X3` has power-law fluxes, and `X3` inhibits
 # the supply of `X1` with a kinetic order of -0.5. The observer saves every frame of the 20 time units with the
 # default blueprint, whose primary view is the time series of the three concentrations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'biochemical_systems_theory'
+SYSTEM = 'biochemical_systems_theory'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
 
 # %%
@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 g = np.array([[0.0, 0.0, -0.5], [0.5, 0.0, 0.0], [0.0, 0.5, 0.0]])
 h = 0.5 * np.eye(3)
 steady = np.exp(np.linalg.solve(g - h, np.log(np.array([1.0, 1.0, 1.0]) / np.array([2.0, 1.0, 1.0]))))
-gma = Simulation(create(MODEL, form='gma'), dt=0.1).prepare().run(until=20).trajectory_
+gma = Simulation(create_system(SYSTEM, form='gma'), dt=0.1).prepare().run(until=20).trajectory_
 trajectory = simulation.trajectory_
 fig, ax = plt.subplots(figsize=(7, 4))
 for index, color in zip((1, 2, 3), ('C0', 'C1', 'C2'), strict=False):

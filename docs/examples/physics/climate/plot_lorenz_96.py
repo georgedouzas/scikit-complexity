@@ -6,7 +6,7 @@ travel around the latitude circle, from site to site.
 """
 
 # %%
-# The model is created by name from the catalog with 20 sites and the forcing `F = 8`, with the first site displaced by
+# The system is created by name from the catalog with 20 sites and the forcing `F = 8`, with the first site displaced by
 # 0.01 from the steady state, and runs for 30 time units. The blueprint shows three sites of the ring in one time series
 # view, hiding the other seventeen.
 
@@ -15,11 +15,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'lorenz_96'
+SYSTEM = 'lorenz_96'
 
 shown = [site in (0, 7, 14) for site in range(20)]
 sites = rrb.TimeSeriesView(
@@ -37,8 +37,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=3)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=3)
 simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=30)
 
 # %%

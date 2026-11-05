@@ -14,10 +14,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import run
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation
 
-MODEL = 'hilsa_fishery'
+SYSTEM = 'hilsa_fishery'
 
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
@@ -32,8 +32,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = run(MODEL, settings={'until': 120, 'dt': 0.5, 'observers': [observer]})
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = create_simulation(SYSTEM).set_params(dt=0.5, observers=[observer]).prepare().run(until=120)
 
 # %%
 # Management scenarios
@@ -51,7 +51,9 @@ scenarios = {
 }
 for name, changes in scenarios.items():
     scenario = (
-        simulation.trajectory_ if not changes else run(MODEL, settings={'until': 120, 'dt': 0.5}, **changes).trajectory_
+        simulation.trajectory_
+        if not changes
+        else create_simulation(SYSTEM, **changes).set_params(dt=0.5).prepare().run(until=120).trajectory_
     )
     times = np.asarray(scenario.times) / 12
     stock.plot(times, scenario.values('hilsa.adult_weight'), label=name)

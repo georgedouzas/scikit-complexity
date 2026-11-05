@@ -13,15 +13,15 @@ makes the mean opinion drift towards the pairs that agree.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'hypergraph_consensus'
+SYSTEM = 'hypergraph_consensus'
 
-system = create(MODEL)
-observables = describe(MODEL).observables_of(system)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='observables', interval=1)
+system = create_system(SYSTEM)
+observables = describe(SYSTEM).observables_of(system)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 simulation = Simulation(system, dt=0.1, observers=[observer], observables=observables).prepare().run(until=10.0)
 
 # %%
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer], observables=observ
 
 fig, axes = plt.subplots(1, 2, figsize=(9, 4))
 for reinforcement in (0.0, -1.0):
-    run = Simulation(create(MODEL, reinforcement=reinforcement), dt=0.1).prepare().run(until=10.0)
+    run = Simulation(create_system(SYSTEM, reinforcement=reinforcement), dt=0.1).prepare().run(until=10.0)
     opinions = np.asarray(run.trajectory_.values('nodes.x'))
     opinions = opinions.reshape(len(opinions), -1)
     label = f'reinforcement {reinforcement}'

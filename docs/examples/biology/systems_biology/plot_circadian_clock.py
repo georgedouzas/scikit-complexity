@@ -7,7 +7,7 @@ self-sustained circadian rhythm.
 """
 
 # %%
-# The model is created by name from the catalog with Goldbeter's parameters and run for ten days. The observer saves
+# The system is created by name from the catalog with Goldbeter's parameters and run for ten days. The observer saves
 # every second frame with the default blueprint, whose primary view is the time series of the mRNA and the forms of
 # PER.
 
@@ -15,21 +15,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'circadian_clock'
+SYSTEM = 'circadian_clock'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=240)
 
 # %%
 # Period of the clock
 # -------------------
 # The time between peaks of the mRNA should be close to 24 hours for the published parameters. Changing the maximal
-# degradation rate of PER, the parameter Goldbeter used to model the period mutants of the fly, should shift the period
+# degradation rate of PER, the parameter Goldbeter used to system the period mutants of the fly, should shift the period
 # by a few hours either way.
 
 fig, (series, periods) = plt.subplots(1, 2, figsize=(11, 4))
@@ -43,7 +43,7 @@ series.legend()
 rates = np.linspace(0.8, 1.6, 9)
 lengths = []
 for rate in rates:
-    run = Simulation(create(MODEL, v_d=rate), dt=0.5).prepare().run(until=480).trajectory_
+    run = Simulation(create_system(SYSTEM, v_d=rate), dt=0.5).prepare().run(until=480).trajectory_
     peaks, _ = find_peaks(run.values('clock.M'))
     lengths.append(np.diff(run.times[peaks][-4:]).mean())
 periods.plot(rates, lengths, 'o-')

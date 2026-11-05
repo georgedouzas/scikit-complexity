@@ -7,28 +7,28 @@ transient most columns keep one color, a frozen pattern of both colors with no n
 """
 
 # %%
-# The model is created by name from the catalog with 200 spins at `T = 0.3 J`, starting from random spins. One unit
+# The system is created by name from the catalog with 200 spins at `T = 0.3 J`, starting from random spins. One unit
 # of time is one attempted flip per spin. The observer saves every frame with the default blueprint, whose primary
 # view is the space-time image of the spins.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'sherrington_kirkpatrick'
+SYSTEM = 'sherrington_kirkpatrick'
 
-system = create(MODEL, n_spins=200, temperature=0.3)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_spins=200, temperature=0.3)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
         dt=0.5,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(until=100)
@@ -47,9 +47,9 @@ couplings = system.elements[0].values['couplings']
 temperatures = np.linspace(0.2, 2.0, 7)
 energies, frozen = [], []
 for temperature in temperatures:
-    sample = create(MODEL, n_spins=200, temperature=temperature)
+    sample = create_system(SYSTEM, n_spins=200, temperature=temperature)
     spins = (
-        Simulation(sample, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(sample))
+        Simulation(sample, dt=1.0, random_state=0, observables=describe(SYSTEM).observables_of(sample))
         .prepare()
         .run(until=100)
         .trajectory_.values('spins.spin')[50:]

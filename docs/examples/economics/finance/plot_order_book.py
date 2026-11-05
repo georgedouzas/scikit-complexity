@@ -10,7 +10,7 @@ chartists falls.
 # %%
 # Every step every trader forecasts the price with its strategy and a 2% noise, and bids its forecast for one share
 # when it is above the last price or asks it when it is below. A matching law pairs the orders with the limit order
-# book shared by the economics models, with price-time priority, and every trade moves money and a share between the
+# book shared by the economics systems, with price-time priority, and every trade moves money and a share between the
 # two traders. Then every trader may copy the strategy of a random neighbour whose wealth grew more. Half the traders
 # start as chartists. The blueprint shows the price and the share of chartists.
 
@@ -18,11 +18,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'order_book'
+SYSTEM = 'order_book'
 STEPS = 150
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -36,14 +36,14 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, chartists=0.5, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, chartists=0.5, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
     Simulation(
         system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(until=STEPS)
@@ -61,7 +61,7 @@ shares = (0.0, 0.25, 0.5, 0.75)
 volatility, deviation = [], []
 for share in shares:
     run = (
-        Simulation(create(MODEL, chartists=share, imitation=0.0, random_state=0), random_state=0)
+        Simulation(create_system(SYSTEM, chartists=share, imitation=0.0, random_state=0), random_state=0)
         .prepare()
         .run(until=STEPS)
     )

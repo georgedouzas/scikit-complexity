@@ -11,15 +11,15 @@ connection lets them agree. A flux of pi around the ring frustrates the loop, so
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'gauge_network_agents'
+SYSTEM = 'gauge_network_agents'
 
-system = create(MODEL, flux=np.pi)
-observables = describe(MODEL).observables_of(system)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, flux=np.pi)
+observables = describe(SYSTEM).observables_of(system)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 Simulation(system, dt=0.5, observers=[observer], observables=observables).prepare().run(until=40)
 
 # %%
@@ -29,9 +29,9 @@ Simulation(system, dt=0.5, observers=[observer], observables=observables).prepar
 
 fig, ax = plt.subplots(figsize=(6, 4))
 for label, flux in (('flat connection', 0.0), ('flux of pi', np.pi)):
-    model_system = create(MODEL, flux=flux)
+    system_system = create_system(SYSTEM, flux=flux)
     run = (
-        Simulation(model_system, dt=0.5, observables=describe(MODEL).observables_of(model_system))
+        Simulation(system_system, dt=0.5, observables=describe(SYSTEM).observables_of(system_system))
         .prepare()
         .run(until=40)
     )

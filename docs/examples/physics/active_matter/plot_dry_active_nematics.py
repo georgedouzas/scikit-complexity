@@ -7,23 +7,23 @@ image shows the density at the end of the run.
 """
 
 # %%
-# The model is created by name from the catalog on a periodic square of 64 sites, above the critical density, where the
+# The system is created by name from the catalog on a periodic square of 64 sites, above the critical density, where the
 # isotropic state loses stability. The catalog defaults integrate it with RK4 on the Numba backend.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import AlignmentAnalysis
-from skcomplex.engine.backends import NumbaBackend
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import AlignmentAnalysis
+from skcomplex.core.engine.backends import NumbaBackend
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'dry_active_nematics'
+SYSTEM = 'dry_active_nematics'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(system, dt=5.0, solver=RK4Solver(dt=0.02), backend=NumbaBackend(), observers=[observer], random_state=0)
     .prepare()

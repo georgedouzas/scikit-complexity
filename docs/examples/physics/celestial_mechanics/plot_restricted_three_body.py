@@ -14,16 +14,16 @@ quantity of the rotating frame, although at this energy a narrow neck towards th
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'restricted_three_body'
+SYSTEM = 'restricted_three_body'
 MU = 0.01215
 
 
-system = create(MODEL, x=0.5, y=0.0, vx=0.0, vy=1.0, mu=MU)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=8)
+system = create_system(SYSTEM, x=0.5, y=0.0, vx=0.0, vy=1.0, mu=MU)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=8)
 simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=40)
 
 # %%

@@ -7,7 +7,7 @@ stick one after the other, until the whole chain is frozen in a blocked configur
 """
 
 # %%
-# The model is created by name from the catalog with 60 blocks of unit weight joined by unit springs, with static and
+# The system is created by name from the catalog with 60 blocks of unit weight joined by unit springs, with static and
 # dynamic friction coefficients 1 and 0.8, shaken for 2 time units with a random force of amplitude 2 and relaxed for
 # 20 time units in every cycle, and simulated for 13 cycles. The observer saves every frame with the default
 # blueprint, whose primary view is the space-time image of the positions.
@@ -15,15 +15,15 @@ stick one after the other, until the whole chain is frozen in a blocked configur
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'shaken_spring_block'
+SYSTEM = 'shaken_spring_block'
 
-system = create(MODEL, n_blocks=60, amplitude=2.0, shake_time=2.0, relax_time=20.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_blocks=60, amplitude=2.0, shake_time=2.0, relax_time=20.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(
     system,
     dt=1.0,
@@ -49,7 +49,7 @@ moving = np.mean(np.abs(simulation.trajectory_.values('chain.v')) > 0.02, axis=1
 def blocked_statistics(amplitude, relax_time):
     period = 2.0 + relax_time
     run = Simulation(
-        create(MODEL, n_blocks=100, amplitude=amplitude, relax_time=relax_time),
+        create_system(SYSTEM, n_blocks=100, amplitude=amplitude, relax_time=relax_time),
         dt=period,
         solver=EulerMaruyamaSolver(dt=0.01),
         random_state=1,

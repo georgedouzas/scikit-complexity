@@ -6,22 +6,22 @@ that keeps its shape and moves around the ring road while the traffic outside it
 """
 
 # %%
-# The model is created by name from the catalog on a ring of length 10 in 40 cells at density 0.25 with a bump of 0.1,
+# The system is created by name from the catalog on a ring of length 10 in 40 cells at density 0.25 with a bump of 0.1,
 # and is integrated with SSPRK for 100 time units. The default blueprint puts the history of the density first, where
 # the cluster is the bright band.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import SSPRKSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import SSPRKSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'kerner_konhauser'
+SYSTEM = 'kerner_konhauser'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, dt=0.2, solver=SSPRKSolver(cfl=0.15), observers=[observer]).prepare().run(until=100)
 
 # %%

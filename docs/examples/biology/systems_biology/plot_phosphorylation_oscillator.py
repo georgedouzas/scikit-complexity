@@ -6,7 +6,7 @@ loop keeps oscillating with a period of about 4.2.
 """
 
 # %%
-# The model is created by name from the catalog and run for 40 time units from A unphosphorylated and B and C
+# The system is created by name from the catalog and run for 40 time units from A unphosphorylated and B and C
 # phosphorylated. The Michaelis constants are a hundredth of the totals, so every phosphorylation cycle acts as a
 # sharp switch. The observer saves every fourth frame with the default blueprint, whose primary view is the time
 # series of the three amounts.
@@ -14,14 +14,14 @@ loop keeps oscillating with a period of about 4.2.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'phosphorylation_oscillator'
+SYSTEM = 'phosphorylation_oscillator'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
 simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=40)
 
 # %%

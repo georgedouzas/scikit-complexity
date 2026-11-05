@@ -8,24 +8,24 @@ and over long times the particles diffuse, much more slowly than straight swimme
 """
 
 # %%
-# The model is created by name from the catalog with speed `v = 3`, angular velocity `omega = 2`, translational
+# The system is created by name from the catalog with speed `v = 3`, angular velocity `omega = 2`, translational
 # diffusion `D_t = 0.1`, and rotational diffusion `D_r = 0.1` in a square of side 50. The Euler-Maruyama stepper takes
 # steps of 0.01 and the observer saves every frame of 0.1. The blueprint shows the square with the swimmers drawn
-# larger than the model's visual does, so they read in the gallery thumbnail.
+# larger than the system's visual does, so they read in the gallery thumbnail.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'chiral_active_particles'
+SYSTEM = 'chiral_active_particles'
 
-system = create(MODEL, random_state=0)
+system = create_system(SYSTEM, random_state=0)
 view = rrb.Spatial2DView(
     origin='/swimmers',
     name='swimmers',
@@ -39,7 +39,7 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
 simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).prepare().run(until=20)
 
@@ -55,7 +55,7 @@ simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], ran
 fig, ax = plt.subplots(figsize=(7, 4))
 rotation = 0.1
 for omega, color in ((0.0, 'tab:blue'), (2.0, 'tab:orange')):
-    system_o = create(MODEL, n_particles=500, omega=omega, size=1e5, random_state=1)
+    system_o = create_system(SYSTEM, n_particles=500, omega=omega, size=1e5, random_state=1)
     run = Simulation(system_o, solver=solver, dt=0.1, random_state=1).prepare().run(until=40)
     positions = run.trajectory_.values('swimmers.x')
     times = run.trajectory_.times[1:]

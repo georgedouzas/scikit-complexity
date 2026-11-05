@@ -14,15 +14,15 @@ coexists with it, so where the oscillators end depends on where they start.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'hypergraph_kuramoto'
+SYSTEM = 'hypergraph_kuramoto'
 
-system = create(MODEL, n_oscillators=40, K2=8.0, seed=0)
-observables = describe(MODEL).observables_of(system)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='observables', interval=1)
+system = create_system(SYSTEM, n_oscillators=40, K2=8.0, seed=0)
+observables = describe(SYSTEM).observables_of(system)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 simulation = Simulation(system, dt=0.5, observers=[observer], observables=observables).prepare().run(until=40)
 
 # %%
@@ -37,9 +37,9 @@ fig, ax = plt.subplots(figsize=(6, 4))
 for label, phases in (('from incoherent phases', None), ('from synchronized phases', np.zeros(40))):
     order = []
     for coupling in couplings:
-        model_system = create(MODEL, n_oscillators=40, K2=coupling, phases=phases, seed=0)
+        system_system = create_system(SYSTEM, n_oscillators=40, K2=coupling, phases=phases, seed=0)
         run = (
-            Simulation(model_system, dt=0.5, observables=describe(MODEL).observables_of(model_system))
+            Simulation(system_system, dt=0.5, observables=describe(SYSTEM).observables_of(system_system))
             .prepare()
             .run(until=40)
         )

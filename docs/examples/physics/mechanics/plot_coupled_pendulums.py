@@ -13,11 +13,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'coupled_pendulums'
+SYSTEM = 'coupled_pendulums'
 
 
 blueprint = rrb.Blueprint(
@@ -26,8 +26,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, theta1=0.2, theta2=0.0, k=0.5)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=4)
+system = create_system(SYSTEM, theta1=0.2, theta2=0.0, k=0.5)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=4)
 simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=50)
 
 # %%

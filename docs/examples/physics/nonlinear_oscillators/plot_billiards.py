@@ -11,15 +11,15 @@ apart at every hit, so the motion of the Sinai billiard is chaotic and its path 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'billiards'
+SYSTEM = 'billiards'
 
 
-system = create(MODEL, shape='sinai', x=0.1, y=0.6, vx=0.6, vy=0.8)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
+system = create_system(SYSTEM, shape='sinai', x=0.1, y=0.6, vx=0.6, vy=0.8)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
 simulation = Simulation(system, dt=0.04, observers=[observer]).prepare().run(until=40)
 
 # %%
@@ -33,7 +33,7 @@ turn = 1e-8
 vx, vy = 0.6 * np.cos(turn) - 0.8 * np.sin(turn), 0.6 * np.sin(turn) + 0.8 * np.cos(turn)
 paths = [
     (
-        Simulation(create(MODEL, shape='sinai', x=0.1, y=0.6, vx=velocity[0], vy=velocity[1]), dt=0.01)
+        Simulation(create_system(SYSTEM, shape='sinai', x=0.1, y=0.6, vx=velocity[0], vy=velocity[1]), dt=0.01)
         .prepare()
         .run(until=60)
     )

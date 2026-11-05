@@ -7,20 +7,20 @@ individual, so the level fluctuates.
 """
 
 # %%
-# The model runs as a jump process from ten infected in a population of 1000. The observer saves every day with the
+# The system runs as a jump process from ten infected in a population of 1000. The observer saves every day with the
 # default blueprint, whose primary view is the time series of both compartments.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'sis'
+SYSTEM = 'sis'
 
-system = create(MODEL, stochastic=True)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, stochastic=True)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).prepare().run(until=100)
 
 # %%

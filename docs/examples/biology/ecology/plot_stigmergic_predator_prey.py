@@ -7,19 +7,19 @@ while the predators grow on the prey and decline after them.
 """
 
 # %%
-# The model is created by name from the catalog with 300 plants, 120 prey, and 20 predators on a 30 by 30 grid. The
+# The system is created by name from the catalog with 300 plants, 120 prey, and 20 predators on a 30 by 30 grid. The
 # observer saves every step with the default blueprint, whose primary view is the image of the marks.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'stigmergic_predator_prey'
+SYSTEM = 'stigmergic_predator_prey'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=100)
 
 # %%
@@ -29,7 +29,10 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # changes how the animals move, and with it the timing of the prey boom and crash.
 
 without = (
-    Simulation(create(MODEL, emotions=False, random_state=0), dt=1, random_state=0).prepare().run(until=100).trajectory_
+    Simulation(create_system(SYSTEM, emotions=False, random_state=0), dt=1, random_state=0)
+    .prepare()
+    .run(until=100)
+    .trajectory_
 )
 fig, axes = plt.subplots(1, 2, figsize=(11, 4), sharey=True)
 for ax, trajectory, title in zip(axes, [simulation.trajectory_, without], ['with emotions', 'without'], strict=True):

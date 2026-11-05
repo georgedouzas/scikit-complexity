@@ -7,21 +7,21 @@ its predators.
 """
 
 # %%
-# The model is created by name from the catalog with its default web. The observer saves every frame with the default
+# The system is created by name from the catalog with its default web. The observer saves every frame with the default
 # blueprint, whose primary view is the time series of the four populations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import StabilityAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import StabilityAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'food_webs'
+SYSTEM = 'food_webs'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=100)
 
 # %%

@@ -13,14 +13,14 @@ The extra birth rule shows on special patterns, such as the replicator, which co
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'highlife'
+SYSTEM = 'highlife'
 
-system = create(MODEL, shape=(100, 100), density=0.3, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, shape=(100, 100), density=0.3, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=200)
 
 # %%
@@ -32,14 +32,14 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 # `B3/S23` should settle into a few still lifes within about 25 generations.
 
 life = (
-    Simulation(create(MODEL, shape=(100, 100), rule='B3/S23', density=0.3, random_state=0), dt=1)
+    Simulation(create_system(SYSTEM, shape=(100, 100), rule='B3/S23', density=0.3, random_state=0), dt=1)
     .prepare()
     .run(until=200)
 )
 replicator = np.zeros((64, 64))
 replicator[30:35, 30:35] = [[0, 0, 1, 1, 1], [0, 1, 0, 0, 1], [1, 0, 0, 0, 1], [1, 0, 0, 1, 0], [1, 1, 1, 0, 0]]
 grown = {
-    rule: Simulation(create(MODEL, shape=(64, 64), rule=rule, initial=replicator), dt=1)
+    rule: Simulation(create_system(SYSTEM, shape=(64, 64), rule=rule, initial=replicator), dt=1)
     .prepare()
     .run(until=90)
     .trajectory_.lattice('cells.alive')

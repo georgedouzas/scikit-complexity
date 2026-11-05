@@ -13,15 +13,15 @@ density waves grow at a preferred wavelength and form a train of dense jams sepa
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'traffic_density_equation'
+SYSTEM = 'traffic_density_equation'
 
-system = create(MODEL, perturbation=1e-4)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
+system = create_system(SYSTEM, perturbation=1e-4)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 simulation = Simulation(system, dt=4.0, solver=RK4Solver(dt=0.1), observers=[observer]).prepare().run(until=400)
 
 # %%

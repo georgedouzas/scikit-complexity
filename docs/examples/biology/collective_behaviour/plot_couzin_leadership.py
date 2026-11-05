@@ -8,22 +8,22 @@ as the shoal turns to swim to the right.
 """
 
 # %%
-# The model is created by name from the catalog with 50 fish, of which 10% are informed with the weight
+# The system is created by name from the catalog with 50 fish, of which 10% are informed with the weight
 # `omega = 0.5` of the preferred direction at angle 0, on a torus of side 50. The primary view shows the observable
 # `heading_x`, the mean of the horizontal headings, over the whole run. The view of the torus beside it draws the fish
-# larger than the model's visual does, with the informed fish in a lighter colour.
+# larger than the system's visual does, with the informed fish in a lighter colour.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
-from skcomplex.specs import ObservableSpec
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.systems import create_system
 
-MODEL = 'couzin_leadership'
+SYSTEM = 'couzin_leadership'
 SIZE = 50.0
 
 
@@ -49,8 +49,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, n_fish=50, informed=0.1, size=SIZE, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+system = create_system(SYSTEM, n_fish=50, informed=0.1, size=SIZE, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 heading_x = ObservableSpec('heading_x', group='shoal', variable='vx')
 simulation = (
     Simulation(system, dt=1, observers=[observer], observables=[heading_x], random_state=0).prepare().run(until=150)
@@ -71,7 +71,7 @@ for fraction in fractions:
     cosines = []
     for seed in range(3):
         run = Simulation(
-            create(MODEL, n_fish=20, informed=fraction, random_state=seed),
+            create_system(SYSTEM, n_fish=20, informed=fraction, random_state=seed),
             dt=1,
             random_state=seed,
         ).prepare()

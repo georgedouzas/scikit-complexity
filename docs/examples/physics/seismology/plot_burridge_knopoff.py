@@ -7,25 +7,25 @@ sizes separated by long quiet loading.
 """
 
 # %%
-# The model is created by name from the catalog with 20 blocks, the coupling `k_c = 2.5`, and the plate speed 0.01,
-# and runs for 2000 time units, about twenty loading cycles, with the model's registered fixed-step
+# The system is created by name from the catalog with 20 blocks, the coupling `k_c = 2.5`, and the plate speed 0.01,
+# and runs for 2000 time units, about twenty loading cycles, with the system's registered fixed-step
 # `RK4Solver(dt=0.05)`, since the adaptive integrators stall where blocks stick and slip. The blueprint puts the history
 # of the block speeds first, where blocks caught slipping light up against the stuck ones.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'burridge_knopoff'
+SYSTEM = 'burridge_knopoff'
 
-system = create(MODEL)
+system = create_system(SYSTEM)
 observer = RerunObserver(
-    MODEL,
-    save_path=f'{MODEL}.rrd',
+    SYSTEM,
+    save_path=f'{SYSTEM}.rrd',
     blueprint='default',
     primary='fault/space_time/v',
 )

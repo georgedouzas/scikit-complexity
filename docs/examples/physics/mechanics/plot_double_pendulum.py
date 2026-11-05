@@ -12,11 +12,11 @@ never repeating path, and two releases that differ by a hair soon move in comple
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'double_pendulum'
+SYSTEM = 'double_pendulum'
 
 
 def bobs(theta1, theta2):
@@ -25,8 +25,8 @@ def bobs(theta1, theta2):
     return first, first + np.array([np.sin(theta2), np.cos(theta2)])
 
 
-system = create(MODEL, theta1=2.0, theta2=2.5)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=10)
+system = create_system(SYSTEM, theta1=2.0, theta2=2.5)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
 simulation = Simulation(system, dt=0.005, observers=[observer]).prepare().run(until=12)
 
 # %%
@@ -37,7 +37,7 @@ simulation = Simulation(system, dt=0.005, observers=[observer]).prepare().run(un
 # pendulum itself.
 
 runs = [
-    Simulation(create(MODEL, theta1=np.pi / 2 + shift, theta2=np.pi / 2), dt=0.005).prepare().run(until=20)
+    Simulation(create_system(SYSTEM, theta1=np.pi / 2 + shift, theta2=np.pi / 2), dt=0.005).prepare().run(until=20)
     for shift in [0.0, 1e-8]
 ]
 lower = [

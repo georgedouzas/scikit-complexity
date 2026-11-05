@@ -7,7 +7,7 @@ the swimmers end up moving together, and the points take one colour, which shows
 
 # %%
 # The swimmers move in a periodic box of side 20 at the density 0.5, and the alignment strength is eight times its
-# threshold. The blueprint shows the whole box and draws the swimmers larger than the model's visual does, so they
+# threshold. The blueprint shows the whole box and draws the swimmers larger than the system's visual does, so they
 # read in the gallery thumbnail.
 
 import math
@@ -17,12 +17,12 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'aligning_active_brownian_particles'
+SYSTEM = 'aligning_active_brownian_particles'
 
 box = rrb.Spatial2DView(
     origin='/swimmers',
@@ -37,8 +37,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, gamma=1.0, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+system = create_system(SYSTEM, gamma=1.0, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = (
     Simulation(
         system,
@@ -46,7 +46,7 @@ simulation = (
         solver=EulerMaruyamaSolver(dt=0.05),
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(
@@ -67,13 +67,13 @@ threshold = 2 * D_r / (math.pi * d0**2 * density)
 strengths = np.array([0.02, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0])
 polarizations = []
 for gamma in strengths:
-    model_system = create(MODEL, gamma=gamma, random_state=1)
+    system_system = create_system(SYSTEM, gamma=gamma, random_state=1)
     run = Simulation(
-        model_system,
+        system_system,
         dt=1.0,
         solver=EulerMaruyamaSolver(dt=0.05),
         random_state=1,
-        observables=describe(MODEL).observables_of(model_system),
+        observables=describe(SYSTEM).observables_of(system_system),
     ).prepare()
     polarizations.append(np.abs(run.run(until=150).trajectory_.values('polarization')[75:]).mean())
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))

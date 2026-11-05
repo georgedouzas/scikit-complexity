@@ -17,20 +17,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import expit
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'fair_food'
+SYSTEM = 'fair_food'
 
-system = create(MODEL, width=20, height=20, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, width=20, height=20, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
     .prepare()
     .run(until=30)
@@ -53,9 +53,9 @@ shares = {}
 for social_weight in (0.0, 2.0):
     shares[social_weight] = [
         Simulation(
-            create(MODEL, premium=premium, social_weight=social_weight, random_state=0),
+            create_system(SYSTEM, premium=premium, social_weight=social_weight, random_state=0),
             random_state=0,
-            observables=describe(MODEL).observables_of(system),
+            observables=describe(SYSTEM).observables_of(system),
         )
         .prepare()
         .run(until=15)
