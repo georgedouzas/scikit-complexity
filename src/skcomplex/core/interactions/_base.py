@@ -350,9 +350,11 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
     def _get_law_classes(cls) -> tuple[type[BaseLaw], ...]:
         """Return the law classes the class lists, none when a subclass writes its own laws below the list."""
         for klass in cls.__mro__:
-            if 'law_classes' in vars(klass):
-                return klass.law_classes
-            if '_get_laws' in vars(klass):
+            declared = vars(klass)
+            if 'law_classes' in declared:
+                classes: tuple[type[BaseLaw], ...] = declared['law_classes']
+                return classes
+            if '_get_laws' in declared:
                 return ()
         return ()
 
