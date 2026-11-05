@@ -40,6 +40,7 @@ from ._jump_path_spec import JumpPathSpec
 from ._layer_spec import LayerSpec
 from ._layout_spec import LayoutSpec
 from ._linear_objective_spec import LinearObjectiveSpec
+from ._linear_rule_spec import LinearRuleSpec
 from ._local_operator_spec import LocalOperatorSpec
 from ._lookup_spec import LookupSpec
 from ._lowered_functions_spec import LoweredFunctionsSpec
@@ -86,6 +87,7 @@ from ._stable_matching_spec import StableMatchingSpec
 from ._state_spec import StateSpec
 from ._step_spec import StepSpec
 from ._structure_state_spec import StructureStateSpec
+from ._subshift_spec import SubshiftSpec
 from ._support_spec import SupportSpec
 from ._symmetry_spec import SymmetrySpec
 from ._table_spec import TableSpec
@@ -148,6 +150,7 @@ __all__ = [
     'LayerSpec',
     'LayoutSpec',
     'LinearObjectiveSpec',
+    'LinearRuleSpec',
     'LocalOperatorSpec',
     'LookupSpec',
     'LoweredFunctionsSpec',
@@ -195,6 +198,7 @@ __all__ = [
     'StateSpec',
     'StepSpec',
     'StructureStateSpec',
+    'SubshiftSpec',
     'SupportSpec',
     'SymmetrySpec',
     'TableSpec',

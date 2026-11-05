@@ -32,6 +32,7 @@ from ....errors import ValidationError
 from ....specs import (
     ArgumentsSpec,
     IssueSpec,
+    LinearRuleSpec,
     LookupSpec,
     MoveSpec,
     ObjectiveSpec,
@@ -604,7 +605,9 @@ class LatticeProblemPass(BasePass):
             raise ValidationError(error_msg)
         space = targets[0].space
         table = LatticeProblemPass._index_table(space, law.over, owner)
-        rule = LatticeProblemPass._as_table(law.rule)
+        rule = (
+            law._get_linear_values if isinstance(law.rule, LinearRuleSpec) else LatticeProblemPass._as_table(law.rule)
+        )
         if isinstance(space, NetworkSpace) and isinstance(rule, TableSpec):
             error_msg = (
                 f'{owner} uses a table of ordered patterns on a network, whose sites have different degrees. Use a '

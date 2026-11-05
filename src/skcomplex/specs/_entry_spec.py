@@ -16,6 +16,7 @@ from sage.sets.real_set import RealSet
 
 from ..types import Array, ComplexArray, DomainKind
 from ._base_spec import BaseSpec
+from ._subshift_spec import SubshiftSpec
 from ._tensor_spec import TensorSpec
 
 PARTS = 2
@@ -274,6 +275,11 @@ class EntrySpec(BaseSpec):
         return tuple(domain)
 
     @staticmethod
+    def _cell_domain(domain: object) -> object:
+        """Return the Sage set of the values of one cell: the alphabet of a subshift, or any other domain as it is."""
+        return domain.alphabet if isinstance(domain, SubshiftSpec) else domain
+
+    @staticmethod
     def _domain_kind(domain: object, period: object = None) -> DomainKind:
         """Return the kind of value a Sage set holds, with an angle for a periodic state.
 
@@ -290,6 +296,7 @@ class EntrySpec(BaseSpec):
         """
         if period is not None:
             return DomainKind.ANGLE
+        domain = EntrySpec._cell_domain(domain)
         if domain is CC:
             return DomainKind.COMPLEX
         if isinstance(domain, FiniteEnumeratedSet):
@@ -391,6 +398,7 @@ class EntrySpec(BaseSpec):
             is_contained:
                 Whether every component belongs to the set.
         """
+        domain = EntrySpec._cell_domain(domain)
         labels = EntrySpec._labels_of(domain)
         items = np.asarray(value, dtype=object).ravel()
         if labels is not None:

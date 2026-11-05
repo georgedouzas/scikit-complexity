@@ -26,7 +26,8 @@ class StateSpec(BaseSpec):
     Args:
         domain:
             The Sage set of the values of the state, such as `RR`, `ZZ`, `RealSet.closed_open(0, oo)`, or
-            `FiniteEnumeratedSet(['S', 'I', 'R'])`, or `None` for a structure rewritten as a whole, such as a word,
+            `FiniteEnumeratedSet(['S', 'I', 'R'])`, a `SubshiftSpec` for the configurations a state of a lattice may
+            take, or `None` for a structure rewritten as a whole, such as a word,
             whose element checks it. A state of an agent with the domain `None` or `object` holds any hashable value,
             such as a tuple, a string, or a frozen set.
 
