@@ -1,0 +1,164 @@
+{UTF-8}
+Effect Table(
+	[(0,0)-(4,2)],(0,0),(1,0.5),(2,1),(4,2))
+	~	Dmnl
+	~	A table of the effect of the level.
+	|
+
+Effect=
+	Effect Table(Level)
+	~	Dmnl
+	~	The effect of the level.
+	|
+
+Inline=
+	WITH LOOKUP(Level, ([(0,0)-(10,1)],(0,0),(10,1)))
+	~	Dmnl
+	~	A table written inside its variable.
+	|
+
+Clock=
+	Time
+	~	Weeks
+	~	The time of the file.
+	|
+
+Switch=
+	IF THEN ELSE(Time >= 12 :AND: Level > 0, 1, 0)
+	~	Dmnl
+	~	A condition on the time and the level.
+	|
+
+Ratio=
+	ZIDZ(Level, Effect) + XIDZ(Level, Effect, 2)
+	~	Dmnl
+	~	Divisions that guard against a zero.
+	|
+
+Pulsed=
+	PULSE(13, 2)
+	~	Dmnl
+	~	A pulse of width 2 from week 13.
+	|
+
+Train=
+	PULSE TRAIN(11, 1, 4, 22)
+	~	Dmnl
+	~	Pulses of width 1 every 4 weeks from week 11 until week 22.
+	|
+
+Ramped=
+	RAMP(0.5, 12, 18)
+	~	Dmnl
+	~	A slope of 0.5 from week 12 to week 18.
+	|
+
+Stepped=
+	STEP(2, 14)
+	~	Dmnl
+	~	A step of height 2 at week 14.
+	|
+
+Bounded=
+	MIN(MAX(Level, 1), 3)
+	~	Dmnl
+	~	The level between 1 and 3.
+	|
+
+Smallest=
+	MIN(Level, 2) + MAX(Level, 2)
+	~	Dmnl
+	~	A smaller and a larger value.
+	|
+
+Smoothed=
+	SMOOTH(Stepped, 3)
+	~	Dmnl
+	~	The step smoothed over 3 weeks.
+	|
+
+Smoothed Third=
+	SMOOTH3(Stepped, 3)
+	~	Dmnl
+	~	The step smoothed in three stages.
+	|
+
+Delayed First=
+	DELAY1(Stepped, 3)
+	~	Dmnl
+	~	The step after a first-order delay.
+	|
+
+Delayed Nth=
+	DELAY N(Stepped, 3, Stepped, 5)
+	~	Dmnl
+	~	The step after a fifth-order delay.
+	|
+
+Smoothed Nth=
+	SMOOTH N(Stepped, 3, Stepped, 4)
+	~	Dmnl
+	~	The step smoothed in four stages.
+	|
+
+Delayed Fixed=
+	DELAY FIXED(Level, 2, Level)
+	~	Dmnl
+	~	The level two weeks ago.
+	|
+
+Rounded=
+	INTEGER(Level) + MODULO(Level, 2) + Level ^ 2 * 0.01 + (0 - Level) ^ 2 * 0.01
+	~	Dmnl
+	~	A whole part, a remainder, and powers.
+	|
+
+Negated=
+	IF THEN ELSE(:NOT: Level > 3 :OR: Level > 100, 1, 0)
+	~	Dmnl
+	~	A negation and a disjunction.
+	|
+
+Inflow=
+	0.5 + Train + Pulsed + Switch * 0.25 + Ramped * 0.125 + Stepped * 0.0625
+	~	Dmnl/Week
+	~	What enters the level.
+	|
+
+Level= INTEG (
+	Inflow - 0.1 * Effect - 0.01 * Inline - 0.01 * Ratio + 0.01 * Bounded + 0.01 * Smallest
+	+ 0.01 * Smoothed + 0.01 * Smoothed Third + 0.01 * Delayed First + 0.01 * Delayed Nth
+	+ 0.01 * Smoothed Nth + 0.01 * Delayed Fixed + 0.001 * Clock + 0.01 * Rounded + 0.01 * Negated + EXP(-Level) + ABS(Level - 5) * 0.001,
+		1)
+	~	Dmnl
+	~	The level.
+	|
+
+********************************************************
+	.Control
+********************************************************~
+		Simulation Control Parameters
+	|
+
+FINAL TIME  = 30
+	~	Weeks
+	~	The final time for the simulation.
+	|
+
+INITIAL TIME  = 10
+	~	Weeks
+	~	The initial time for the simulation.
+	|
+
+SAVEPER  = 0.25
+	~	Weeks
+	~	The frequency with which output is stored.
+	|
+
+TIME STEP  = 0.125
+	~	Weeks
+	~	The time step for the simulation.
+	|
+
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored

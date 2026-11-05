@@ -67,6 +67,7 @@ dependencies = [
     "diffrax>=0.7.2",
     "highspy>=1.15.1",
     "passagemath-polyhedra>=10.8.13",
+    "pysd>=3.14.3,<4",
 ]
 
 [project.optional-dependencies]
@@ -307,6 +308,7 @@ name = "Engine packages import only the packages listed before them"
 type = "layers"
 containers = ["skcomplex.engine"]
 layers = [
+    "translators",
     "viz",
     "runtime",
     "solvers",

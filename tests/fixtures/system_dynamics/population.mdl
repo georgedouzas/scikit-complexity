@@ -1,0 +1,60 @@
+{UTF-8}
+Birth Fraction=
+	0.04
+	~	1/Year
+	~	The births per person.
+	|
+
+Death Fraction=
+	0.02
+	~	1/Year
+	~	The deaths per person.
+	|
+
+Births=
+	Population * Birth Fraction
+	~	Persons/Year
+	~	The people born.
+	|
+
+Deaths=
+	Population * Death Fraction
+	~	Persons/Year
+	~	The people who die.
+	|
+
+Population= INTEG (
+	Births - Deaths,
+		1000)
+	~	Persons
+	~	The people.
+	|
+
+********************************************************
+	.Control
+********************************************************~
+		Simulation Control Parameters
+	|
+
+FINAL TIME  = 50
+	~	Years
+	~	The final time for the simulation.
+	|
+
+INITIAL TIME  = 0
+	~	Years
+	~	The initial time for the simulation.
+	|
+
+SAVEPER  = 1
+	~	Years
+	~	The frequency with which output is stored.
+	|
+
+TIME STEP  = 0.25
+	~	Years
+	~	The time step for the simulation.
+	|
+
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored

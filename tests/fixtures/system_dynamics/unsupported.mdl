@@ -1,0 +1,72 @@
+{UTF-8}
+Branch:
+	Left, Right
+	~
+	~	The branches.
+	|
+
+Demand[Branch]=
+	10, 20
+	~	Units/Week
+	~	The requests of every branch.
+	|
+
+Priority[Branch]=
+	2, 1
+	~	Dmnl
+	~	The priority of every branch.
+	|
+
+Supply=
+	15
+	~	Units/Week
+	~	The units to share.
+	|
+
+Shipments[Branch]=
+	ALLOCATE BY PRIORITY(Demand[Branch], Priority[Branch], ELMCOUNT(Branch), 1, Supply)
+	~	Units/Week
+	~	The units every branch receives.
+	|
+
+Sales Data:=
+	GET XLS DATA('sales.xlsx', 'Sheet1', 'A', 'B2')
+	~	Units/Week
+	~	The recorded sales.
+	|
+
+Stock[Branch]= INTEG (
+	Shipments[Branch] - Sales Data,
+		0)
+	~	Units
+	~	The stock of every branch.
+	|
+
+********************************************************
+	.Control
+********************************************************~
+		Simulation Control Parameters
+	|
+
+FINAL TIME  = 10
+	~	Weeks
+	~	The final time for the simulation.
+	|
+
+INITIAL TIME  = 0
+	~	Weeks
+	~	The initial time for the simulation.
+	|
+
+SAVEPER  = 1
+	~	Weeks
+	~	The frequency with which output is stored.
+	|
+
+TIME STEP  = 0.25
+	~	Weeks
+	~	The time step for the simulation.
+	|
+
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored
