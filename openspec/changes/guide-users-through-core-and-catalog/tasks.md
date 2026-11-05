@@ -4,7 +4,7 @@
 
 - [ ] 1.1 Add `elements` and `states` to `RoleSpec`, with doctests, defaulting to any element and no states; verify `tests/test_specs.py` and that every existing model still compiles through `tests/models/test_catalog.py`.
 - [x] 1.2 Add `get_requirements()` to `BaseInteraction` and `get_states()` to `BaseElement`, settled against how `add-declared-state-elements` holds the states; verify the reading requirements scenario.
-- [x] 1.3 Declare the roles of the 42 interactions of `skcomplex.core.interactions`; verify the every core interaction declares scenario.
+- [x] 1.3 Declare the roles of the 41 interactions of `skcomplex.core.interactions`; verify the every core interaction declares scenario.
 
 ## 2. Validation
 
@@ -23,7 +23,7 @@
 - [x] 4.2 Rewrite the usage section of the README around the two paths, with the custom model from the core; verify the first screen and core alone scenarios.
 - [x] 4.3 Rewrite the concepts opening of the guide around the two paths, and add the section on choosing compatible components, using `get_requirements()`, `get_states()`, and the report; verify the asking before building and getting it wrong scenarios.
 - [ ] 4.4 Replace the imports from field modules in the guide, section by section: a small `Element` from the core where a model's part was only a convenience, and `create` by name where a section documents a family; verify the test of 4.1 passes and all guide blocks pass.
-- [ ] 4.5 Review the 31 gallery examples that import from field modules; keep those whose subject is a model's own analysis or parts, and list them in the review; verify the gallery coverage check and the sample build.
+- [ ] 4.5 Review the 26 gallery examples that import from field modules; keep those whose subject is a model's own analysis or parts, and list them in the review; verify the gallery coverage check and the sample build.
 
 ## 5. Move general classes to the core
 
