@@ -1,0 +1,80 @@
+name: Verify the two verbs with the full suite and gallery
+
+on:
+  push:
+    branches:
+      - tmp-verify-two-verbs
+
+permissions:
+  contents: read
+
+env:
+  OMP_NUM_THREADS: '1'
+  OPENBLAS_NUM_THREADS: '1'
+  MKL_NUM_THREADS: '1'
+  NUMBA_NUM_THREADS: '1'
+
+jobs:
+
+  group:
+
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 300
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - {name: models, args: --slow tests/models}
+        - {name: rest, args: --slow tests --ignore=tests/models}
+        - {name: doctests, args: src/skcomplex README.md docs/overview/user_guide.md}
+
+    name: group (${{ matrix.name }})
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up PDM
+      uses: pdm-project/setup-pdm@v4
+      with:
+        python-version: '3.14'
+        cache: true
+        cache-dependency-path: pyproject.toml
+
+    - name: Install dependencies
+      run: pdm install -dG tests -G :all
+
+    - name: Run the group
+      run: pdm run pytest -n auto --durations=15 ${{ matrix.args }}
+
+  gallery:
+
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 340
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up PDM
+      uses: pdm-project/setup-pdm@v4
+      with:
+        python-version: '3.13'
+        cache: true
+        cache-dependency-path: pyproject.toml
+
+    - name: Install software rendering
+      run: sudo apt-get update && sudo apt-get install -y mesa-vulkan-drivers libvulkan1 xvfb
+
+    - name: Install dependencies
+      run: pdm install -dG maintenance -dG docs -dG gallery -G structures -G rna -G metabolism
+
+    - name: Build the whole gallery
+      env:
+        WGPU_BACKEND: vulkan
+        SKCOMPLEX_GALLERY_CAPTURE: '1'
+        SKCOMPLEX_GALLERY_MAX_SECONDS: '600'
+      run: pdm run nox --error-on-external-run -R -s gallery -- --backend native
