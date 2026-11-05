@@ -200,3 +200,9 @@ def test_generated_classes_finds_a_planted_signature(tmp_path):
         "vars(f)['__signature__'] = 1\nf.__signature__ = 2\nC = type('C', (object,), {})\nd = type(object())\n",
     )
     assert _generated_classes(tmp_path) == {'planted.py': [1, 2, 3]}
+
+
+def test_get_states_returns_the_states_declared_from_data():
+    """Test that a declared element returns the states an instance declares, and no parameter."""
+    variables = {'x': DeclaredVariableSpec(1.0, StateSpec()), 'r': DeclaredVariableSpec(0.5, ParameterSpec())}
+    assert list(DeclaredElement('cell', variables=variables).get_states()) == ['x']

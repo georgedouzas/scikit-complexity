@@ -13,6 +13,7 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ...specs import ParameterSpec, RoleSpec
+from ...types import ElementKind
 from ..base import BasePart
 from ._base import BaseInteraction
 
@@ -57,8 +58,8 @@ class PairInteraction(BaseInteraction):
     def __init__(
         self,
         label: str,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
+        first: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('position',))],
+        second: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('position',))],
         cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         position: str = 'x',
     ) -> None:

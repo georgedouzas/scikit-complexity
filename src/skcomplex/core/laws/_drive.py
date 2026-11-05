@@ -60,7 +60,7 @@ class DriveLaw(BaseLaw):
 
     def _get_requirements(self) -> RequirementSpec:
         """Return what the drive requires of a system: discrete time on a lattice, or a network without a score."""
-        space = (LatticeSpace,) if self.score is not None else (LatticeSpace, NetworkSpace)
+        space = (LatticeSpace,) if getattr(self, 'score', None) is not None else (LatticeSpace, NetworkSpace)
         return RequirementSpec(time=(DiscreteTime,), space=space)
 
     def _check(self) -> None:

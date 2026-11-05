@@ -58,6 +58,7 @@ from skcomplex.specs import (
     VisualSpec,
     WienerProcessSpec,
 )
+from skcomplex.types import ElementKind
 
 HEALTH = FiniteEnumeratedSet(['susceptible', 'infected', 'recovered'])
 FIELD_WEIGHTS = np.ones((4, 4)) - np.eye(4)
@@ -853,3 +854,18 @@ def test_partner_spec_check_rejects_unusable_settings(arguments):
     """Test that the check of a partner spec names a choice, fallback, distance, capacity, or score it cannot take."""
     with pytest.raises(ValidationError):
         PartnerSpec(**arguments).check()
+
+
+def test_role_spec_defaults_to_any_element_and_no_states():
+    """Test that a role that declares nothing accepts every kind of element and reads no state."""
+    role = RoleSpec().check()
+    assert role.states == ()
+    assert all(role.accepts(kind) for kind in ElementKind)
+
+
+def test_role_spec_accepts_only_the_kinds_it_names():
+    """Test that a role accepts the kinds it names, or every kind when it names any."""
+    role = RoleSpec(elements=(ElementKind.GROUP,), states=('state',)).check()
+    assert role.accepts(ElementKind.GROUP)
+    assert not role.accepts(ElementKind.ELEMENT)
+    assert RoleSpec(elements=(ElementKind.ANY,)).accepts(ElementKind.ELEMENT)

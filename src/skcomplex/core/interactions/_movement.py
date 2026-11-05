@@ -5,7 +5,7 @@
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -13,6 +13,7 @@ from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
 from ...specs import ParameterSpec, RoleSpec
+from ...types import ElementKind
 from ..laws import BaseLaw, RuleLaw
 from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, ModelViewProtocol
@@ -130,11 +131,13 @@ class MovementInteraction(Interaction):
         [True, True]
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP))],
         step: Step = 'neighbor',
         probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
         rate: float | None = None,

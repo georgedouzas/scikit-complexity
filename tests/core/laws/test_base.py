@@ -88,3 +88,13 @@ def test_values_flatten_calls_vectors_and_mappings():
     assert RateLaw(x, CallSpec(_double, (k * x,)))._get_values() == [x, k * x, None, None]
     assert RateLaw(vector([x, y]), vector([y, -x]))._get_values() == [x, y, y, -x, None, None]
     assert JumpLaw(k * x, {x: -1, y: 1})._get_values() == [k * x, x, -1, y, 1, None, None]
+
+
+def test_get_requirements_reads_every_law_class_without_an_instance():
+    """Test that every public law class states its time and space before any law of it exists."""
+    classes = [getattr(laws, name) for name in laws.__all__]
+    for law in [
+        item for item in classes if inspect.isclass(item) and issubclass(item, BaseLaw) and item is not BaseLaw
+    ]:
+        assert isinstance(law.get_requirements(), RequirementSpec)
+    assert JumpLaw.get_requirements().time == RateLaw.get_requirements().time

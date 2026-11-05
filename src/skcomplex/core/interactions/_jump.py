@@ -6,13 +6,14 @@
 import re
 from collections.abc import Callable, Mapping
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
+from ...types import ElementKind
 from ..laws import BaseLaw, JumpLaw, UpdateLaw
 from ..laws.utils import uniform, where
 from ._interaction import Interaction
@@ -71,11 +72,13 @@ class JumpInteraction(Interaction):
         True
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, UpdateLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('changes', 'reset'))],
         changes: Mapping[str, float] | None = None,
         rate: Callable[[SimpleNamespace], object] | None = None,
         probability: Callable[[SimpleNamespace], object] | None = None,

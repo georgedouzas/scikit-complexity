@@ -1,5 +1,24 @@
 # User guide
 
+There are two ways to use the library.
+
+- **Select a prebuilt model.** `catalog` lists the models, `describe` tells you what one is, `run` simulates it by its
+  name, and `create` returns its system. You import these four functions from `skcomplex.models` and nothing else.
+- **Build a custom model.** You write elements and interactions from `skcomplex.core`, use specs from `skcomplex.specs`,
+  run them with `skcomplex.engine`, and study them with `skcomplex.analysis`.
+
+```python
+from skcomplex.models import catalog, describe, run
+
+print(len(catalog(field='biology/ecology')) > 0, describe('sir').formalism)
+print(run('sir').trajectory_.values('I.n').max().round())
+```
+
+Every prebuilt model is written with the same classes as a custom one, so the page of a model under
+[Models](../models/index.md) also works as a pattern. The section
+[Choosing compatible components](#choosing-compatible-components) shows how to find which parts of a custom model fit
+together.
+
 ## Concepts
 
 `scikit-complexity` separates the description of a model from the way it is solved.
@@ -36,6 +55,129 @@ and builds fast numeric functions that its solvers advance.
 | `RateLaw` and `NoiseLaw` | stochastic differential equations | `EulerMaruyamaSolver` |
 | `JumpLaw` | jump process | `GillespieSolver` |
 | `UpdateLaw` | discrete map | `IterationSolver` |
+
+## Choosing compatible components
+
+Choose the parts of a system in this order: time and space, then elements, then interactions, then the solver. Each
+choice narrows the next, and you can ask every part what it needs before you build anything. The
+[compatibility page](compatibility.md) lists the same facts for every class.
+
+### Time and space
+
+An interaction states the time and the space its laws run in. `RateInteraction` returns rates, so it needs continuous
+time and accepts any space. `MapInteraction` returns updates and rules, so it needs discrete time.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import MapInteraction, MovementInteraction, RateInteraction
+from skcomplex.core.spaces import ContinuousTime, DiscreteTime
+from skcomplex.core.system import System
+from skcomplex.engine.compile import PassCompiler
+from skcomplex.specs import StateSpec
+from skcomplex.types import ElementKind
+
+growth = RateInteraction('growth', target='rabbits', state='n', rate=lambda s: 0.5 * s.target.n)
+needs = growth.get_requirements()
+assert needs.time == (ContinuousTime,)
+assert needs.space == ()
+assert MapInteraction('step', target='rabbits', state='n', function=lambda s: s.target.n).get_requirements().time == (
+    DiscreteTime,
+)
+print([law.__name__ for law in needs.laws])
+```
+
+### Elements
+
+An element carries the states you declare, and `get_states()` returns them with their specs. A `GroupElement` returns
+the states of its members.
+
+```python continuation
+class PopulationElement(Element):
+    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
+        self.n = n
+
+
+rabbits = PopulationElement('rabbits', n=40)
+print(list(rabbits.get_states()))
+```
+
+### Interactions
+
+An interaction names what each of its roles needs. `get_requirements().roles` holds, for every role, the kinds of
+element it accepts and the states it reads for the arguments you passed, so you can compare them with what the element
+carries.
+
+```python continuation
+target = needs.roles['target']
+print(target.states, target.elements)
+assert target.accepts(ElementKind.ELEMENT)
+assert all(state in rabbits.get_states() for state in target.states)
+```
+
+The two agree, so the interaction fits the element. Some roles accept only some kinds. `MovementInteraction` moves the
+agents of a group, so its `target` accepts a group and not a single element.
+
+```python continuation
+walk = MovementInteraction('walk', target='rabbits').get_requirements().roles['target']
+print(walk.elements)
+assert walk.accepts(ElementKind.GROUP)
+assert not walk.accepts(ElementKind.ELEMENT)
+```
+
+### When a part does not fit
+
+Validation reports a role filled by an unsuitable element as the issue `role-element`, with the other problems of the
+system. Here the rate reads the state `n` of a tank that carries `level`.
+
+```python continuation
+class TankElement(Element):
+    def __init__(self, label, *, level: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
+        self.level = level
+
+
+wrong = System(elements=[TankElement('tank')], interactions=[RateInteraction('growth', target='tank', state='n', rate=1.0)])
+issue = PassCompiler().check().prepare(wrong).report_.issues[0]
+print(issue.code, issue.path)
+print(issue.message)
+print(issue.fix)
+assert issue.code == 'role-element'
+assert issue.message == "The role 'target' of growth reads the state 'n', but the element tank bound to it carries level."
+```
+
+This prints the following.
+
+```text
+role-element growth
+The role 'target' of growth reads the state 'n', but the element tank bound to it carries level.
+Bind the role to an element that carries the state, declare the state on the element, or read another state. `get_requirements()` of an interaction and `get_states()` of an element show what they need and carry.
+```
+
+An interaction of your own gets the same report. A `RoleSpec(states=('n',))` states the read in advance, so
+`get_requirements()` shows it. An interaction that declares nothing is still reported when validation builds its laws
+and a law reads a state that the element does not have. A function you pass, such as the `rate` above, is covered in
+the same way. An error of another kind inside a law reaches you unchanged.
+
+### The solver
+
+The laws of a system decide its mathematical form, and the form decides the default solver, so you can leave the solver
+out. To choose one yourself, pass it to the compiler and read the report before you run. The compatibility page lists
+what every solver supports.
+
+```python continuation
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import IterationSolver, RK4Solver
+
+system = System(elements=[rabbits], interactions=[growth])
+print(compile_system(system).form.value)
+assert PassCompiler(solver=RK4Solver()).check().prepare(system).report_.ok
+assert not PassCompiler(solver=IterationSolver()).check().prepare(system).report_.ok
+print(Simulation(system, dt=0.1).check().prepare().run(until=1).trajectory_.values('rabbits.n')[-1].round(1))
+```
 
 ## Defining elements
 
@@ -201,12 +343,18 @@ values are keyed by dotted state and parameter name.
 ```python
 from typing import Annotated
 
+from skcomplex.core.elements import Element
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
-from skcomplex.specs import RoleSpec
+from skcomplex.specs import RoleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.common.populations import PopulationElement
+
+
+class PopulationElement(Element):
+    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
+        self.n = n
 
 
 class CullInteraction(Interaction):
@@ -604,16 +752,103 @@ assert trajectory.values('first.a_mu')[-1] == 2.0
 assert trajectory.values('second.a_n')[-1] == -1.0
 ```
 
-The electrical connector and components live in `skcomplex.models.engineering.common.electrical`, and the thermal
-connector and components in `skcomplex.models.engineering.control`.
+A circuit takes one connector and one element class per component. The models of the field `engineering` in the catalog
+hold electrical and thermal components built in the same way.
 
 ```python
+from typing import Annotated, ClassVar
+
 import numpy as np
 
+from skcomplex.core.elements import Element
 from skcomplex.core.interactions import ConnectionInteraction
+from skcomplex.core.laws import EquationLaw
+from skcomplex.core.laws.utils import derivative
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.engineering.common.electrical import CapacitorElement, GroundElement, ResistorElement
+from skcomplex.specs import ConnectorSpec, ParameterSpec, StateSpec
+
+ELECTRICAL = ConnectorSpec('electrical', potential='v', flow='i')
+
+
+class TwoPinElement(Element):
+    ports: ClassVar = {'p': ELECTRICAL, 'n': ELECTRICAL}
+
+    def __init__(
+        self,
+        label,
+        *,
+        p_v: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        p_i: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        n_v: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        n_i: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+    ):
+        super().__init__(label)
+        self.p_v = p_v
+        self.p_i = p_i
+        self.n_v = n_v
+        self.n_i = n_i
+
+    def _get_laws(self, s):
+        return [EquationLaw(s.p_i + s.n_i, 0)]
+
+
+class ResistorElement(TwoPinElement):
+    def __init__(
+        self,
+        label,
+        *,
+        p_v: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        p_i: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        n_v: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        n_i: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        R: Annotated[float, ParameterSpec()] = 1.0,
+    ):
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        self.R = R
+
+    def _get_laws(self, s):
+        return [*super()._get_laws(s), EquationLaw(s.p_v - s.n_v, s.R * s.p_i)]
+
+
+class CapacitorElement(TwoPinElement):
+    def __init__(
+        self,
+        label,
+        *,
+        p_v: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        p_i: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        n_v: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        n_i: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        u: Annotated[float, StateSpec()] = 0.0,
+        C: Annotated[float, ParameterSpec()] = 1.0,
+    ):
+        super().__init__(label, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+        self.u = u
+        self.C = C
+
+    def _get_laws(self, s):
+        return [*super()._get_laws(s), EquationLaw(s.C * derivative(s.u, 1), s.p_i), EquationLaw(s.u, s.p_v - s.n_v)]
+
+
+class GroundElement(Element):
+    ports: ClassVar = {'p': ELECTRICAL}
+
+    def __init__(
+        self,
+        label,
+        *,
+        p_v: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+        p_i: Annotated[float, StateSpec(algebraic=True)] = 0.0,
+    ):
+        super().__init__(label)
+        self.p_v = p_v
+        self.p_i = p_i
+
+    def _get_laws(self, s):
+        return [EquationLaw(s.p_v, 0)]
+
+
 
 circuit = System(
     elements=[CapacitorElement('tank', u=1.0, C=0.5), ResistorElement('load', R=2.0), GroundElement('ground')],
@@ -789,9 +1024,41 @@ Systems nest. A system holds nested systems in `systems`, and an interaction ref
 a slash-separated path.
 
 ```python
+from typing import Annotated
+
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import Interaction
+from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
-from skcomplex.models.biology.common.populations import PopulationElement
-from skcomplex.models.biology.ecology import PredationInteraction
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
+
+
+class PopulationElement(Element):
+    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
+        self.n = n
+
+
+class PredationInteraction(Interaction):
+    def __init__(
+        self,
+        label,
+        *,
+        predator: Annotated[str, RoleSpec(states=('n',))],
+        prey: Annotated[str, RoleSpec(states=('n',))],
+        a: Annotated[float, ParameterSpec()] = 0.4,
+        b: Annotated[float, ParameterSpec()] = 0.1,
+    ):
+        super().__init__(label)
+        self.predator = predator
+        self.prey = prey
+        self.a = a
+        self.b = b
+
+    def _get_laws(self, s):
+        contacts = s.predator.n * s.prey.n
+        return [RateLaw(s.prey.n, -s.a * contacts), RateLaw(s.predator.n, s.b * contacts)]
+
 
 landscape = System(
     systems=[
@@ -2141,10 +2408,10 @@ are also the examples of how to build a part of your own.
 
 ```python
 from skcomplex.core.interactions import RateInteraction
-from skcomplex.models.biology.common.populations import GrowthInteraction
-from skcomplex.models.physics.common.particles import ConstantForceInteraction, DampingInteraction
+from skcomplex.models import create
 
-print(all(issubclass(cls, RateInteraction) for cls in (GrowthInteraction, ConstantForceInteraction, DampingInteraction)))
+system = create('lotka_volterra')
+print({type(part).__name__: isinstance(part, RateInteraction) for part in system.interactions})
 ```
 
 ### Elements
@@ -2236,7 +2503,6 @@ from skcomplex.core.interactions import EulerLagrangeInteraction
 from skcomplex.core.laws.utils import derivative
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2323,7 +2589,6 @@ from skcomplex.core.interactions import AdvectionInteraction, ConservationIntera
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2362,7 +2627,6 @@ from skcomplex.core.interactions import MapInteraction
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2389,7 +2653,6 @@ from skcomplex.core.interactions import SignAdjustmentInteraction
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2554,8 +2817,8 @@ print(round(float(Simulation(sir, dt=1.0).check().prepare().run(until=50).trajec
 `TransitionInteraction(target, state, source, destination, rate=None, probability=None, condition=None, matrix=None,
 ...)` moves a discrete state from a value, a set of values, or the values a function accepts, to another value: at a
 rate, with a probability per step, when a condition holds, by a transition or an emission matrix, and after a
-residence time (`after`). `SpreadingInteraction(target, state, beta, gamma, omega)` of
-`skcomplex.models.biology.epidemiology` is its subclass for an active value along edges, with recovery and return.
+residence time (`after`). A rate can read the neighbours of a member, so spreading along edges with recovery takes two
+transitions, and the models of the field `biology/epidemiology` in the catalog build on such a subclass.
 
 ```python
 from typing import Annotated
@@ -2565,10 +2828,10 @@ from sage.all__sagemath_symbolics import NN
 
 from skcomplex.core.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.interactions import TransitionInteraction
+from skcomplex.core.laws.utils import neighbors, where
 from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2584,9 +2847,17 @@ system = System(elements=[holders], interactions=[move], time=DiscreteTime())
 values = Simulation(system, random_state=0).check().prepare().run(until=3).trajectory_.values('holders.state')
 print(round(float((values[-1] == 1).mean()), 1))
 
-contact = SpreadingInteraction('contact', target='sites', beta=4.0, gamma=1.0, form='fraction')
+contact = TransitionInteraction(
+    'contact',
+    target='sites',
+    state='state',
+    source=0,
+    destination=1,
+    rate=lambda s: 4.0 * neighbors(where(s.target.other.state == 1, 1, 0), reduce='mean'),
+)
+recovery = TransitionInteraction('recovery', target='sites', state='state', source=1, destination=0, rate=lambda s: 1.0)
 sites = LatticeElement('sites', element=HolderElement, space=LatticeSpace((20, 20)))
-system = System(elements=[sites], interactions=[contact])
+system = System(elements=[sites], interactions=[contact, recovery])
 values = Simulation(system, dt=1.0, random_state=0).check().prepare().run(until=10).trajectory_.values('sites.state')
 print(values[-1].mean() > 0.3)
 ```
@@ -2630,7 +2901,6 @@ from skcomplex.core.interactions import CrossingInteraction, ImpulseInteraction
 from skcomplex.core.laws import RateLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2664,7 +2934,6 @@ from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2777,7 +3046,6 @@ from skcomplex.core.interactions import MapInteraction, MovementInteraction
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2813,7 +3081,6 @@ from skcomplex.core.laws.utils import mean
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2845,7 +3112,6 @@ from skcomplex.core.interactions import ImitationInteraction
 from skcomplex.core.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2873,7 +3139,6 @@ from skcomplex.core.interactions import ReinforcementInteraction
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -2977,7 +3242,6 @@ from skcomplex.core.elements import Element
 from skcomplex.core.interactions import TransferInteraction
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -3012,7 +3276,6 @@ from skcomplex.core.laws.utils import bernoulli
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -3048,7 +3311,6 @@ from skcomplex.core.interactions import LifeCycleInteraction
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -3074,7 +3336,6 @@ from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import GroupingInteraction
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -3289,12 +3550,10 @@ import numpy as np
 
 from skcomplex.core.elements import Element, FieldElement
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.laws.utils import inverse_laplacian, laplacian, leray_projection, tensor_divergence
-from skcomplex.models.physics.common.fields import corotational
+from skcomplex.core.laws.utils import advection, inverse_laplacian, laplacian, leray_projection, tensor_divergence
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -3306,7 +3565,7 @@ class StirredElement(Element):
     def _get_laws(self, s):
         force = tensor_divergence(s.Q)
         velocity = leray_projection(force.apply_map(lambda item: inverse_laplacian(-item)))
-        return [RateLaw(s.Q, -corotational(s.Q, velocity, 0.5) + s.Q.apply_map(laplacian) - s.Q)]
+        return [RateLaw(s.Q, -s.Q.apply_map(lambda item: advection(item, velocity)) + s.Q.apply_map(laplacian) - s.Q)]
 
 
 size = 16
@@ -3483,7 +3742,6 @@ from skcomplex.core.laws import RuleLaw
 from skcomplex.core.spaces import DiscreteTime
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -4046,9 +4304,9 @@ that count as updates, such as the toppling sites of a sandpile.
 ```python
 from skcomplex.engine.runtime import Simulation
 
-from skcomplex.models.physics.criticality import sandpile
+from skcomplex.models import create
 
-trajectory = Simulation(sandpile((20, 20)), dt=100, random_state=0).check().prepare().run(until=2000).trajectory_
+trajectory = Simulation(create('sandpile', shape=(20, 20)), dt=100, random_state=0).check().prepare().run(until=2000).trajectory_
 print(max(event.size for event in trajectory.events))
 ```
 
@@ -4430,7 +4688,6 @@ from skcomplex.core.laws.utils import mean, where
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -4511,7 +4768,6 @@ from skcomplex.core.spaces import NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.compile import compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -5383,9 +5639,9 @@ and `RK45` warns when one call spans more than 1000 stable steps of the diffusio
 from skcomplex.engine.runtime import Simulation
 
 from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.models.biology.ecology import fisher_kpp
+from skcomplex.models import create
 
-stiff = fisher_kpp(400, D=1.0, spacing=0.05)
+stiff = create('fisher_kpp', length=400, D=1.0, spacing=0.05)
 simulation = Simulation(stiff, dt=1.0, solver=ScipyODESolver(method='BDF')).check().prepare().run(until=5)
 print(simulation.stepper_.jacobian_pattern_.nnz, simulation.state_.max().round(3))
 ```
@@ -5498,7 +5754,6 @@ from skcomplex.core.interactions import CouplingInteraction
 from skcomplex.core.spaces import LatticeSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.epidemiology import SpreadingInteraction
 from skcomplex.specs import StateSpec
 
 
@@ -5658,9 +5913,9 @@ second or two that small systems do not win back, and `problem_.backend` names t
 from skcomplex.engine.backends import NumbaBackend
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
-from skcomplex.models.physics.statistical_mechanics import ideal_gas
+from skcomplex.models import create
 
-simulation = Simulation(ideal_gas(50_000, random_state=0), solver=RK4Solver(dt=0.01), backend=NumbaBackend(), dt=0.01).check().prepare()
+simulation = Simulation(create('ideal_gas', n_molecules=50_000, random_state=0), solver=RK4Solver(dt=0.01), backend=NumbaBackend(), dt=0.01).check().prepare()
 print(simulation.run(until=0.5).problem_.backend)
 ```
 
@@ -5680,14 +5935,19 @@ from typing import Annotated
 
 import numba
 
-from skcomplex.core.elements import GroupElement
+from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import Interaction
 from skcomplex.core.laws import RateLaw
 from skcomplex.specs import CallSpec
-from skcomplex.specs import ParameterSpec, RoleSpec
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.biology.common.populations import PopulationElement
+
+
+class PopulationElement(Element):
+    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
+        self.n = n
 
 
 @numba.njit
@@ -5720,36 +5980,72 @@ backend, but runs in Python and turns off the compiled stepper loops for that ki
 An external backend runs a whole system in a third-party solver library, and the simulation keeps its frames,
 trajectories, live parameters, and Rerun visualization. `LammpsSolver` runs particle systems in LAMMPS, which
 integrates them with velocity Verlet. Its `pairs` map pair potential classes to native LAMMPS pair styles and its
-`fixes` map interaction classes to native fixes, and the particle realizations of physics give both as `LAMMPS_PAIRS`
-and `LAMMPS_FIXES`.
+`fixes` map interaction classes to native fixes. You write both maps for your own classes, as below, and the prebuilt
+particle models come with theirs.
 
 ```python
 import numpy as np
 
-from skcomplex.core.elements import GroupElement
+from typing import Annotated
+
+from skcomplex.core.elements import GroupElement, PointElement
+from skcomplex.core.interactions import PairCouplingInteraction, RateInteraction
+from skcomplex.core.laws.utils import derivative
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import LammpsSolver
-from skcomplex.models.physics.common.particles import (
-    LAMMPS_FIXES,
-    LAMMPS_PAIRS,
-    LangevinThermostatInteraction,
-    LennardJonesInteraction,
-    MassPointElement,
-)
+from skcomplex.specs import ParameterSpec
+
+
+class LennardJonesInteraction(PairCouplingInteraction):
+    def __init__(
+        self,
+        label,
+        first,
+        second,
+        cutoff=1.0,
+        position='x',
+        *,
+        epsilon: Annotated[float, ParameterSpec()] = 1.0,
+        sigma: Annotated[float, ParameterSpec()] = 1.0,
+    ):
+        super().__init__(label, first, second, cutoff=cutoff, position=position, potential=self._get_energy)
+        self.epsilon = epsilon
+        self.sigma = sigma
+
+    @staticmethod
+    def _get_energy(s, r):
+        return 4 * s.epsilon * ((s.sigma / r) ** 12 - (s.sigma / r) ** 6)
+
+
+class DragInteraction(RateInteraction):
+    def __init__(self, label, *, target, gamma: Annotated[float, ParameterSpec()] = 1.0):
+        super().__init__(label, target=target, state='x', rate=lambda s: -s.gamma * s.target.x.apply_map(lambda item: derivative(item, 1)))
+        self.gamma = gamma
+
+
+def get_pair_coefficients(value):
+    return f'{float(value("epsilon")[0])} {float(value("sigma")[0])}'
+
+
+def get_drag_fix(fix):
+    return f'fix {fix.name} {fix.group} viscous {float(fix.value("gamma")[0])}'
+
 
 side = np.arange(10) * 1.2
 grid = np.stack(np.meshgrid(side, side), axis=-1).reshape(-1, 2)
 atoms = System(
-    elements=[GroupElement('atoms', element=MassPointElement, size=100, values={'x': grid})],
+    elements=[GroupElement('atoms', element=PointElement, size=100, values={'x': grid})],
     interactions=[
-        LennardJonesInteraction('lj', first='atoms', second='atoms', cutoff=2.5, divisor='m'),
-        LangevinThermostatInteraction('bath', target='atoms', temperature=0.5, gamma=1.0),
+        LennardJonesInteraction('lj', 'atoms', 'atoms', cutoff=2.5),
+        DragInteraction('air', target='atoms', gamma=1.0),
     ],
     space=ContinuousSpace(n_dim=2),
 )
-solver = LammpsSolver(dt=0.005, pairs=LAMMPS_PAIRS, fixes=LAMMPS_FIXES)
+pairs = {LennardJonesInteraction: ('lj/cut', get_pair_coefficients)}
+fixes = {DragInteraction: get_drag_fix}
+solver = LammpsSolver(dt=0.005, pairs=pairs, fixes=fixes)
 trajectory = Simulation(atoms, solver=solver, dt=0.05, random_state=0).check().prepare().run(until=1).trajectory_
 print(trajectory.values('atoms.x').shape)
 ```
@@ -6398,17 +6694,31 @@ given to the simulation as `initial_state={'<system label>.state': value}`.
 from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import CC
 
-from skcomplex.core.elements import LatticeElement
+from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.interactions import NeighborInteraction
 from skcomplex.core.laws import GeneratorLaw
 from skcomplex.core.laws.utils import local_operator
 from skcomplex.core.spaces import LatticeSpace
-from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec
+from skcomplex.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.physics.common.quantum import SpinElement
 from skcomplex.engine.compile import OperatorCompiler
+
+PAULI = {
+    'x': (np.array([[0, 0.5], [0.5, 0]]), True),
+    'y': (np.array([[0, -0.5j], [0.5j, 0]]), True),
+    'z': (np.array([[0.5, 0], [0, -0.5]]), True),
+}
+SPIN_HALF = HilbertSpec(2, PAULI, basis={'up': 0, 'down': 1})
+
+
+class SpinElement(Element):
+    def __init__(self, label, psi: Annotated[object, StateSpec(domain=CC)] = 'up', *, hilbert=SPIN_HALF):
+        super().__init__(label)
+        self.psi = psi
+        self.hilbert = hilbert
 
 
 class CouplingInteraction(NeighborInteraction):
@@ -6471,9 +6781,9 @@ elements mix law kinds raises `IncompatibleLawsError` with its path and the sugg
 from skcomplex.engine.runtime import Simulation
 
 from skcomplex.engine.compile import compile_system
-from skcomplex.models.economics.resources import harvesting
+from skcomplex.models import create
 
-farming = harvesting(10, effort=0.05)
+farming = create('harvesting', farmers=10, effort=0.05)
 print([(partition.name, partition.problem.form.value) for partition in compile_system(farming).partitions])
 trajectory = Simulation(farming, random_state=0).check().prepare().run(until=50).trajectory_
 print(round(trajectory.values('land/stock.n')[-1]), trajectory.agents('village/farmers', 50).values['wealth'].size)
@@ -6510,13 +6820,17 @@ from skcomplex.core.system import System
 import tempfile
 from pathlib import Path
 
+from skcomplex.core.elements import PointElement
+from skcomplex.core.interactions import RateInteraction
 from skcomplex.core.spaces import ContinuousSpace
-from skcomplex.models.physics.common.particles import MassPointElement, SpringInteraction
 from skcomplex.engine.viz import RerunObserver
 
 molecule = System(
-    elements=[MassPointElement('a', x=[0.0, 0.0, 0.0]), MassPointElement('b', x=[1.5, 0.0, 0.0], x_d1=[0.0, 0.5, 0.0])],
-    interactions=[SpringInteraction('bond', first='a', second='b', k=4.0, length=1.0)],
+    elements=[PointElement('a', x=[0.0, 0.0, 0.0]), PointElement('b', x=[1.5, 0.0, 0.0], x_d1=[0.0, 0.5, 0.0])],
+    interactions=[
+        RateInteraction('pull', target='a', sources=['b'], rate=lambda s: 4.0 * (s.sources[0].x - s.target.x)),
+        RateInteraction('push', target='b', sources=['a'], rate=lambda s: 4.0 * (s.sources[0].x - s.target.x)),
+    ],
     space=ContinuousSpace(n_dim=3),
 )
 path = Path(tempfile.mkdtemp()) / 'molecule.rrd'
@@ -6644,9 +6958,9 @@ on it is an `EquationLaw` on a scalar element, read by an interaction that binds
 
 ```python
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.physics.statistical_mechanics import random_energy_model
+from skcomplex.models import create
 
-system = random_energy_model(12, temperature=2.0)
+system = create('random_energy_model', n_spins=12, temperature=2.0)
 trajectory = Simulation(system).check().prepare().run(1.0).trajectory_
 print(trajectory.values('ensemble.entropy')[0])
 ```
@@ -6702,9 +7016,9 @@ through pymoo. The `objective` takes the array of candidates, and the algorithm 
 
 ```python
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.computer_science.evolutionary_computation import evolutionary_optimisers
+from skcomplex.models import create
 
-system = evolutionary_optimisers(algorithm='particle-swarm', random_state=1)
+system = create('evolutionary_optimisers', algorithm='particle-swarm', random_state=1)
 print(Simulation(system, random_state=1).check().prepare().run(until=20).trajectory_.values('search.best')[-1] < 20)
 ```
 
@@ -6725,16 +7039,15 @@ keeps the results in `result_`.
 
 ```python
 from skcomplex.experiments import Experiment, GridDesign
-from skcomplex.models.biology.epidemiology import sir
-from skcomplex.models.economics.resources import harvesting
+from skcomplex.models import describe
 from skcomplex.core.specs import ScenarioSpec
 
 bounds = {'stochastic': [True], 'gamma': [0.1, 0.2]}
-ensemble = Experiment(sir, GridDesign(), bounds, replicates=10, until=60, random_state=0).check().check().prepare().run()
+ensemble = Experiment(describe('sir').factory, GridDesign(), bounds, replicates=10, until=60, random_state=0).check().check().prepare().run()
 print(round(float(ensemble.result_.summary()[0]['I.n.mean']), 1))
 
 policies = [ScenarioSpec('baseline'), ScenarioSpec('quota', schedule=[(50.0, 'harvest.effort', 0.025)])]
-stocks = Experiment(harvesting, scenarios=policies, until=80, outputs=['land/stock.n']).check().check().prepare().run()
+stocks = Experiment(describe('harvesting').factory, scenarios=policies, until=80, outputs=['land/stock.n']).check().check().prepare().run()
 print([round(float(row['land/stock.n'])) for row in stocks.result_.rows])
 ```
 
@@ -6755,10 +7068,11 @@ print([round(float(row['land/stock.n'])) for row in stocks.result_.rows])
 
 ```python
 from skcomplex.experiments import CalibrationExperiment, Experiment, OneAtATimeDesign, SensitivityAnalysis
-from skcomplex.models.biology.ecology import logistic_growth
+from skcomplex.models import describe
 
 import numpy as np
 
+logistic_growth = describe('logistic_growth').factory
 times = np.arange(0.0, 21.0)
 observed = 500 / (1 + 49 * np.exp(-0.8 * times))
 bounds = {'growth.r': (0.1, 2.0), 'growth.K': (100, 1000)}
@@ -6964,15 +7278,16 @@ solves an ODE system exactly where Maxima can, with `desolve` for one equation a
 with constant coefficients.
 
 ```python
+from skcomplex.core.elements import PointElement
+from skcomplex.core.interactions import RateInteraction
 from skcomplex.core.spaces import ContinuousSpace
 from skcomplex.core.system import System
 
 from skcomplex.analysis import SymbolicAnalysis
-from skcomplex.models.physics.common.particles import HarmonicPotentialInteraction, MassPointElement
 
 oscillator = System(
-    elements=[MassPointElement('p', x=1.0)],
-    interactions=[HarmonicPotentialInteraction('trap', target='p', k=4.0)],
+    elements=[PointElement('p', x=1.0)],
+    interactions=[RateInteraction('trap', target='p', rate=lambda s: -4.0 * s.target.x)],
     space=ContinuousSpace(n_dim=1),
 )
 print(SymbolicAnalysis().check().prepare(oscillator).run().equations_['p.x[0]'])
@@ -6993,12 +7308,11 @@ conditions.
 ```python
 from skcomplex.analysis import LyapunovAnalysis, StabilityAnalysis
 from skcomplex.experiments import OrbitDiagramExperiment
-from skcomplex.models.biology.ecology import lotka_volterra
-from skcomplex.models.mathematics.dynamical_systems import logistic_map, lorenz
+from skcomplex.models import create, describe
 
-print(StabilityAnalysis().check().prepare(lotka_volterra()).run().classifications_)
-print(LyapunovAnalysis(until=200).check().prepare(lorenz()).run().exponents_.round(2).tolist())
-diagram = OrbitDiagramExperiment(logistic_map, 'map.r', [2.9, 3.2, 3.5], 'map.x', transient=500, keep=32, dt=1)
+print(StabilityAnalysis().check().prepare(create('lotka_volterra')).run().classifications_)
+print(LyapunovAnalysis(until=200).check().prepare(create('lorenz')).run().exponents_.round(2).tolist())
+diagram = OrbitDiagramExperiment(describe('logistic_map').factory, 'map.r', [2.9, 3.2, 3.5], 'map.x', transient=500, keep=32, dt=1)
 print(diagram.check().prepare().run().periods_.tolist())
 ```
 
@@ -7011,9 +7325,9 @@ import numpy as np
 import math
 
 from skcomplex.analysis import SectionAnalysis
-from skcomplex.models.physics.nonlinear_oscillators import duffing
+from skcomplex.models import create
 
-section = SectionAnalysis('stroboscopic', period=2 * math.pi / 1.2, n_points=200).check().prepare(duffing()).run()
+section = SectionAnalysis('stroboscopic', period=2 * math.pi / 1.2, n_points=200).check().prepare(create('duffing')).run()
 print(len(np.unique(np.round(section.states_, 4), axis=0)))
 ```
 
@@ -7422,9 +7736,9 @@ instability, and a growing mode with a nonzero frequency travels.
 import numpy as np
 
 from skcomplex.analysis import ClusterAnalysis, DistributionAnalysis, DomainAnalysis, StabilityAnalysis
-from skcomplex.models.chemistry.pattern_formation import brusselator
+from skcomplex.models import create
 
-relation = StabilityAnalysis('dispersion').check().prepare(brusselator((128,), b=1.9)).run()
+relation = StabilityAnalysis('dispersion').check().prepare(create('brusselator', shape=(128,), b=1.9)).run()
 print(relation.band_.min().round(2), relation.band_.max().round(2))
 
 stripes = np.cos(2 * np.pi * np.arange(64) / 8)[:, None] * np.ones(64)

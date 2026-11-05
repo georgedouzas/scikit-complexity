@@ -5,12 +5,13 @@
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
+from ...types import ElementKind
 from ..base import BasePart
-from ..laws import RateLaw
+from ..laws import BaseLaw, FluxLaw, RateLaw
 from ..laws.utils import laplacian
 from ._conservation import ConservationInteraction
 
@@ -60,11 +61,13 @@ class DiffusionInteraction(ConservationInteraction):
         1.0
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (FluxLaw, RateLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
         state: str = 'u',
         coefficient: Callable[[SimpleNamespace], object] | float = 1.0,
     ) -> None:

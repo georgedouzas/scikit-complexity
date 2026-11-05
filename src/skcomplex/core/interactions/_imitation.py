@@ -6,7 +6,7 @@
 import itertools
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp, oo
@@ -14,6 +14,7 @@ from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
 from ...specs import BaseSpec, ParameterSpec, RoleSpec
+from ...types import ElementKind
 from ..laws import BaseLaw, JumpLaw, RuleLaw, UpdateLaw
 from ..laws.utils import categorical, neighbors, uniform, where
 from ..spaces import AdjacencyNeighborhood
@@ -107,11 +108,13 @@ class ImitationInteraction(NeighborInteraction):
         'better'
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, RuleLaw, UpdateLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
         state: str = 'state',
         payoff: str = 'payoff',
         options: Sequence[float] = (0.0, 1.0),

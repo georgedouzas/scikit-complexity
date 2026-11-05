@@ -53,3 +53,10 @@ def test_elements_and_groups_derive_from_the_element_base_only():
         assert issubclass(kind, BaseElement)
     for kind in (BaseInteraction, System):
         assert not issubclass(kind, BaseElement)
+
+
+def test_get_states_returns_the_states_with_their_specs():
+    """Test that an element returns the states it declares with their specs, and no parameter."""
+    states = PopulationElement('rabbits').get_states()
+    assert list(states) == ['n']
+    assert isinstance(states['n'], StateSpec)

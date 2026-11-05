@@ -5,10 +5,11 @@
 
 from collections.abc import Callable, Mapping
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from ...errors import ValidationError
 from ...specs import BaseSpec, RoleSpec, TopologyRequestSpec
+from ...types import ElementKind
 from ..laws import BaseLaw, JumpLaw, UpdateLaw
 from ..laws.utils import where
 from ._neighbor import NeighborInteraction
@@ -116,11 +117,13 @@ class TopologyInteraction(NeighborInteraction):
         (6, 3)
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, UpdateLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str | None, RoleSpec(optional=True)] = None,
+        target: Annotated[str | None, RoleSpec(optional=True, elements=(ElementKind.ANY,))] = None,
         action: str = 'add-edge',
         rate: Chance | None = None,
         probability: Chance | None = None,

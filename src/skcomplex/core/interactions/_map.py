@@ -6,7 +6,7 @@
 import re
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, SupportsFloat, cast
+from typing import Annotated, ClassVar, SupportsFloat, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -14,8 +14,9 @@ from sage.all__sagemath_symbolics import SR
 
 from ...errors import ValidationError
 from ...specs import BaseSpec, RoleSpec
+from ...types import ElementKind
 from ..base import BasePart
-from ..laws import RuleLaw, UpdateLaw
+from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import uniform
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._base import SCHEDULES
@@ -112,14 +113,16 @@ class MapInteraction(Interaction):
         [[4.0, 8.0]]
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
         state: str,
         function: Callable[..., object],
-        sources: Annotated[Sequence[str], RoleSpec(variadic=True)] = (),
+        sources: Annotated[Sequence[str], RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = (),
         mode: str = 'replace',
         schedule: str = 'synchronous',
         form: str = 'symbolic',

@@ -25,7 +25,7 @@ from ...specs import (
     ParticleSwarmSpec,
     RoleSpec,
 )
-from ...types import Array
+from ...types import Array, ElementKind
 from ..laws import BaseLaw, RuleLaw
 from ..types import ModelViewProtocol
 from ._interaction import Interaction
@@ -80,11 +80,13 @@ class OptimizationInteraction(Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('best', 'mean')
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('state',))],
         state: str,
         objective: Callable[[Array], npt.ArrayLike],
         bounds: tuple[npt.ArrayLike, npt.ArrayLike],

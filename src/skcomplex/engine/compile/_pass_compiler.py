@@ -17,6 +17,7 @@ from sklearn.base import clone
 from ...base import BaseConfig
 from ...core.elements import FieldElement, GroupElement
 from ...core.interactions import (
+    BaseInteraction,
     ConnectionInteraction,
     HyperedgeInteraction,
     NeighborInteraction,
@@ -48,6 +49,7 @@ from ...errors import (
     ParameterError,
     PhaseSpaceTooLargeError,
     PipelineError,
+    RoleElementError,
     SkcomplexError,
     SolverError,
     SpaceError,
@@ -59,13 +61,14 @@ from ...specs import (
     IssueSpec,
     NeighborReductionSpec,
     ObservableSpec,
+    RoleSpec,
     TopologyRequestSpec,
     WienerProcessSpec,
 )
 from ...specs._held_reduction_spec import _HeldReductionSpec
 from ...specs._issue_spec import _ERROR
-from ...types import Array, DomainKind, FormKind, NoiseKind, ProcessKey, VariableKind, VectorFunction
-from .._utils import declarations_of, default_of, symbol
+from ...types import Array, DomainKind, ElementKind, FormKind, NoiseKind, ProcessKey, VariableKind, VectorFunction
+from .._utils import bound_labels, declarations_of, default_of, symbol
 from ..backends import BaseBackend
 from ..problems import BaseProblemSpec, PartitionSpec, ProblemSpec
 from ..problems._neighborhood_kernel import NeighborhoodKernel
@@ -76,6 +79,7 @@ from ._field_lowering import FieldLowering
 from ._learning_compiler import _LearningCompiler
 from ._observables import _check_held_reads, _held_observables, _with_held_observables, _with_held_reductions
 from .passes._cells import DEGREES
+from .passes._census import CensusPass
 from .passes._compile_encounters import CompileEncountersPass
 from .passes._conserved_noise import ConservedNoisePass
 from .passes._core import _PASSES
@@ -893,6 +897,65 @@ class PassCompiler(BaseCompiler):
         return issues
 
     @staticmethod
+    def _bound_nodes(node: NodeSpec, role: str, by_path: dict[str, NodeSpec]) -> list[tuple[ElementKind, NodeSpec]]:
+        """Return the kind and the node of every element or group a role binds, a member of a group as an element."""
+        found = []
+        for label in bound_labels(getattr(node.component, role, None)):
+            path = f'{node.scope}{label}'
+            if path in by_path:
+                found.append((CensusPass._component_kind(by_path[path]), by_path[path]))
+            elif path.partition('[')[0] in by_path:
+                found.append((ElementKind.ELEMENT, by_path[path.partition('[')[0]]))
+        return found
+
+    @staticmethod
+    def _carried_issues(node: NodeSpec, role: str, needs: RoleSpec, bound: NodeSpec) -> list[IssueSpec]:
+        """Return the states a role reads that the element or group it binds does not carry."""
+        kinds = (VariableKind.STATE, VariableKind.PARAMETER)
+        carried = sorted(name for kind in kinds for name in declarations_of(bound.component_type, kind))
+        issues = []
+        for state in needs.states:
+            if state in carried:
+                continue
+            message = (
+                f'The role {role!r} of {node.path} reads the state {state!r}, but the element {bound.path} bound to it '
+                f'carries {", ".join(carried) or "nothing"}.'
+            )
+            code, fix = _FIXES[RoleElementError]
+            issues.append(IssueSpec(code, node.path, message, fix, error=RoleElementError))
+        return issues
+
+    @staticmethod
+    def _role_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
+        """Return the roles bound to an element of a kind they do not accept or without a state they read.
+
+        Args:
+            nodes:
+                The elements, groups, and interactions of the system tree.
+
+        Returns:
+            issues:
+                The issues, one per kind and one per state.
+        """
+        by_path = {node.path: node for node in nodes}
+        issues = []
+        for node in nodes:
+            if not isinstance(node.component, BaseInteraction):
+                continue
+            for role, needs in node.component.get_requirements().roles.items():
+                for kind, bound in PassCompiler._bound_nodes(node, role, by_path):
+                    issues += PassCompiler._carried_issues(node, role, needs, bound)
+                    if needs.accepts(kind):
+                        continue
+                    accepted = ', '.join(needs.elements)
+                    message = (
+                        f'The role {role!r} of {node.path} accepts {accepted}, but {bound.path} is of kind {kind}.'
+                    )
+                    fix = f'Bind the role {role!r} to an element of kind {accepted}.'
+                    issues.append(IssueSpec('role-element', node.path, message, fix, error=RoleElementError))
+        return issues
+
+    @staticmethod
     def _shape_issues(nodes: list[NodeSpec]) -> list[IssueSpec]:
         """Return the shaped parameters whose roles are not bound to groups."""
         groups = LayoutPass._group_sizes(nodes)
@@ -1700,14 +1763,15 @@ class PassCompiler(BaseCompiler):
         nodes = Compilation._required(compilation.nodes, 'nodes')
         bindings = PassCompiler._binding_issues(nodes)
         shapes = PassCompiler._shape_issues(nodes)
-        unbound = {issue.path for issue in bindings} | {issue.path.rpartition('.')[0] for issue in shapes}
+        roles = PassCompiler._role_issues(nodes)
+        unbound = {issue.path for issue in [*bindings, *roles]} | {issue.path.rpartition('.')[0] for issue in shapes}
         issues = []
         for path, failure in census.errors:
             if path in unbound:
                 continue
             code, fix = _FIXES.get(type(failure), ('value', 'Correct the component as the message describes.'))
             issues.append(IssueSpec(code, path, str(failure), fix, error=type(failure)))
-        return issues + bindings + shapes
+        return issues + bindings + shapes + roles
 
     @staticmethod
     def _probability_sum(total: object) -> float | None:

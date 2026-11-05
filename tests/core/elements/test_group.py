@@ -168,3 +168,8 @@ def test_clone_keeps_values_and_compiles_to_the_same_problem():
     first, second = compile_system(System(elements=[group])), compile_system(System(elements=[cloned]))
     assert np.array_equal(first.initial_state, second.initial_state)
     assert first.equations == second.equations
+
+
+def test_get_states_returns_the_states_of_a_member():
+    """Test that a group returns the states of its members, which it does not declare itself."""
+    assert list(GroupElement('cells', element=PopulationElement, size=2).get_states()) == ['n']

@@ -10,7 +10,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import ZZ
 
 from ...errors import SpaceError, ValidationError
-from ...specs import RoleSpec, Spec, VisualSpec
+from ...specs import RoleSpec, Spec, StateSpec, VisualSpec
 from ..base import BasePart
 from ..spaces import BaseSpace
 from ._base import BaseElement
@@ -164,6 +164,22 @@ class GroupElement(BaseElement):
             1.0
         """
         return self._get_member() if issubclass(self.element, DeclaredElement) else self.element
+
+    def get_states(self) -> dict[str, StateSpec]:
+        """Return the states of a member of the group with their specs.
+
+        Returns:
+            states:
+                A mapping from the name of every state to its spec.
+
+        Examples:
+            >>> from skcomplex.core.elements import DeclaredElement, GroupElement
+            >>> from skcomplex.specs import DeclaredVariableSpec, StateSpec
+            >>> values = {'variables': {'x': DeclaredVariableSpec(1.0, StateSpec())}}
+            >>> list(GroupElement('cells', element=DeclaredElement, size=3, values=values).get_states())
+            ['x']
+        """
+        return {name: spec for name, spec in self._get_member_specs().items() if isinstance(spec, StateSpec)}
 
     def _get_member_location(self, index: int, size: int) -> object:
         """Return the initial location of one of `size` members, from per-member locations or one shared location."""

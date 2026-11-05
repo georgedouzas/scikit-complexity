@@ -6,7 +6,7 @@
 import inspect
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -14,7 +14,7 @@ from sage.all__sagemath_symbolics import RR, SR, ConditionSet, Expression
 
 from ...errors import ValidationError
 from ...specs import MoveSpec, ObjectiveSpec, ParameterSpec, RoleSpec, RowScoreSpec, SamplerSpec
-from ...types import Array
+from ...types import Array, ElementKind
 from ..laws import BaseLaw, DriveLaw, SampleLaw
 from ..spaces import BaseNeighborhood, VonNeumannNeighborhood
 from ._interaction import Interaction
@@ -151,11 +151,13 @@ class SamplingInteraction(Interaction):
         (4, 2)
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (DriveLaw, SampleLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
         state: str,
         objective: Callable[[SimpleNamespace], object] | RowScoreSpec,
         move: str | Callable[..., object] = 'flip',

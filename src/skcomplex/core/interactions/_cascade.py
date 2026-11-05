@@ -5,13 +5,13 @@
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import numpy as np
 
 from ...errors import ValidationError
 from ...specs import BaseSpec, RoleSpec
-from ...types import Array
+from ...types import Array, ElementKind
 from ..laws import BaseLaw, CascadeLaw, DriveLaw, LocalRuleLaw
 from ..spaces import BaseNeighborhood, LatticeNeighborhood, VonNeumannNeighborhood
 from ._neighbor import NeighborInteraction
@@ -74,11 +74,13 @@ class CascadeInteraction(NeighborInteraction):
         'redistribute'
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (CascadeLaw, DriveLaw, LocalRuleLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
         state: str = 'x',
         threshold: float = 1.0,
         share: float = 0.0,

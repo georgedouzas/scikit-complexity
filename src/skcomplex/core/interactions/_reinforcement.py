@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
@@ -13,9 +13,9 @@ from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
 from ...specs import ParameterSpec, RoleSpec
-from ...types import Array
+from ...types import Array, ElementKind
 from ..base import BasePart
-from ..laws import RuleLaw, UpdateLaw
+from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import where
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._base import SCHEDULES
@@ -101,11 +101,13 @@ class ReinforcementInteraction(Interaction):
         'shop'
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('scores', 'chosen'))],
         scores: str | Sequence[str],
         payoff: Callable[..., float | Expression],
         rate: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.1,

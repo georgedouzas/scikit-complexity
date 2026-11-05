@@ -24,6 +24,17 @@ from skcomplex.models.biology.common.populations import (
 from skcomplex.models.biology.ecology import PredationInteraction
 
 
+def _undeclared_laws(system: System) -> list[str]:
+    """Return the laws an interaction of a compiled system returned that its class does not list."""
+    found = [
+        f'{interaction.label}: {type(law).__name__}'
+        for interaction in system.interactions
+        for law in getattr(interaction, 'laws_', ())
+        if interaction.get_requirements().laws and not isinstance(law, interaction.get_requirements().laws)
+    ]
+    return found + [item for child in system.systems for item in _undeclared_laws(child)]
+
+
 def test_create_unknown_name_suggests_close_names():
     """Test that an unknown model name raises an error that suggests the closest registered names."""
     with pytest.raises(RegistryError, match=r"'pendulumm'\. Did you mean pendulum"):
@@ -198,6 +209,7 @@ def test_model_conforms(entry, tmp_path):
     compiler = defaults.get('compiler', PassCompiler())
     assert clone(compiler).check().prepare(system).report_.ok
     problem = compile_system(system, compiler=compiler)
+    assert _undeclared_laws(system) == []
     settings = {key: value for key, value in defaults.items() if key != 'until'}
     dt = settings.get('dt', 1.0)
     until = min(defaults.get('until', CONFORMANCE_FRAMES * dt), CONFORMANCE_FRAMES * dt)

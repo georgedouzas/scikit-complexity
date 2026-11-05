@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 
 from ...errors import SimulationError, ValidationError
 from ...specs import BaseSpec, ParameterSpec, RoleSpec
-from ...types import Array
+from ...types import Array, ElementKind
 from ..laws import BaseLaw, RuleLaw
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._interaction import Interaction
@@ -140,11 +140,16 @@ class EvolutionInteraction(Interaction):
         50
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[
+            str,
+            RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('strategy',)),
+        ],
         strategy: str | Sequence[str] = 'strategy',
         fitness: str | None = 'fitness',
         selection: str = 'tournament',

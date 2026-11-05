@@ -5,15 +5,16 @@
 
 from collections.abc import Callable
 from types import SimpleNamespace
-from typing import Annotated, SupportsFloat
+from typing import Annotated, ClassVar, SupportsFloat
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
+from ...types import ElementKind
 from ..base import BasePart
-from ..laws import RuleLaw, UpdateLaw
+from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import clip, sign
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._base import SCHEDULES
@@ -101,11 +102,13 @@ class SignAdjustmentInteraction(Interaction):
         [1.0, 1.5, 2.0, 2.0]
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
         state: str,
         signal: Callable[..., object],
         step: Value = 0.1,
