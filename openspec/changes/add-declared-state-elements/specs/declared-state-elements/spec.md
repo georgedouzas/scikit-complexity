@@ -28,7 +28,8 @@ No module of the library SHALL set `__signature__` or build a part with `type()`
 #### Scenario: Source check
 
 - **WHEN** the test suite scans the modules of the library
-- **THEN** it finds no `__signature__` assignment and no `type()` call with three arguments
+- **THEN** it finds no `__signature__` assignment and no part built with `type()`; the Mesa agent and view classes that
+  `MesaSolver` builds are not parts
 
 ### Requirement: Moved models keep their results
 

@@ -1,5 +1,8 @@
 """Test the `_declared` module of `skcomplex.core.elements`."""
 
+import ast
+from importlib.resources import files
+from pathlib import Path
 from typing import Annotated
 
 import numpy as np
@@ -16,6 +19,8 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import ValidationError
 from skcomplex.experiments import BaseExperiment
 from skcomplex.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
+
+GENERATED_CLASSES_ALLOWED = {'engine/solvers/_mesa.py': 2}
 
 
 class _AnnotatedDecayElement(Element):
@@ -61,12 +66,26 @@ def _simulate(system, until=1.0):
     return Simulation(system, dt=0.01).check().prepare().run(until=until).trajectory_
 
 
+def _generated_classes(root):
+    """Return the `__signature__` assignments and the calls of `type` with three arguments of a source tree."""
+    found: dict[str, list[int]] = {}
+    for path in sorted(root.rglob('*.py')):
+        lines = []
+        for node in ast.walk(ast.parse(path.read_text())):
+            is_type = isinstance(node, ast.Call) and getattr(node.func, 'id', None) == 'type' and len(node.args) == 3
+            is_signature = '__signature__' in {getattr(node, 'attr', None), getattr(node, 'value', None)}
+            if is_type or is_signature:
+                lines.append(node.lineno)
+        if lines:
+            found[path.relative_to(root).as_posix()] = sorted(lines)
+    return found
+
+
 def test_declared_element_gives_the_trajectory_of_annotated_states():
     """Test that states and a parameter given as data run as the same annotated ones do, within 1e-12."""
     annotated = _simulate(System(elements=[_AnnotatedDecayElement('cell')], time=ContinuousTime()))
-    declared = _simulate(
-        System(elements=[_DeclaredDecayElement('cell', variables=_variables())], time=ContinuousTime()),
-    )
+    element = _DeclaredDecayElement('cell', variables=_variables())
+    declared = _simulate(System(elements=[element], time=ContinuousTime()))
     for path in ('cell.x', 'cell.y'):
         np.testing.assert_allclose(declared.values(path), annotated.values(path), rtol=1e-12, atol=1e-12)
 
@@ -167,6 +186,20 @@ def test_declared_element_rejects_an_unknown_name_to_set():
     """Test that setting a name that is neither an argument nor a declared variable raises the error of `set_params`."""
     with pytest.raises(ValueError, match='nothing'):
         DeclaredElement('cell', variables=_variables()).set_params(nothing=1.0)
+
+
+def test_library_generates_no_classes_of_parts():
+    """Test that no module sets `__signature__` and that only the agents of Mesa are built with `type`."""
+    found = _generated_classes(Path(str(files('skcomplex'))))
+    assert {path: len(lines) for path, lines in found.items()} == GENERATED_CLASSES_ALLOWED
+
+
+def test_generated_classes_finds_a_planted_signature(tmp_path):
+    """Test that the source check finds a planted `__signature__` and a planted class built with `type`."""
+    (tmp_path / 'planted.py').write_text(
+        "vars(f)['__signature__'] = 1\nf.__signature__ = 2\nC = type('C', (object,), {})\nd = type(object())\n",
+    )
+    assert _generated_classes(tmp_path) == {'planted.py': [1, 2, 3]}
 
 
 def test_get_states_returns_the_states_declared_from_data():
