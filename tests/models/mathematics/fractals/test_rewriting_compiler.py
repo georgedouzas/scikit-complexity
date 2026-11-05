@@ -120,6 +120,12 @@ def _fibonacci():
     )
 
 
+def _run_word(word, until, **settings):
+    """Return the trajectory of a word run for a number of generations."""
+    simulation = Simulation(System(elements=[word]), compiler=RewritingCompiler(), **settings)
+    return simulation.check().prepare().run(until=until).trajectory_
+
+
 def test_generations_as_steps():
     """Test that an L-system compiles to the rewriting form and rewrites once per frame."""
     system = _fibonacci()
@@ -593,6 +599,36 @@ def test_rule_of_a_word():
         .trajectory_
     )
     assert trajectory.structure('algae', 5).text == 'ABAABABAABAAB'
+
+
+def test_words_reference_values():
+    """Test the words of the algae, of a seeded stochastic system, and of a context-sensitive system."""
+    algae = _run_word(RuledWordElement('word', axiom='A', rules=[ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]), 7)
+    assert algae.values('word.size').tolist() == [1.0, 2.0, 3.0, 5.0, 8.0, 13.0, 21.0, 34.0]
+    assert algae.structure('word', 7).text == 'ABAABABAABAABABAABABAABAABABAABAAB'
+    rules = [ProductionLaw('F', 'F+F', probability=0.3), ProductionLaw('F', 'F-F', probability=0.7)]
+    stochastic = _run_word(RuledWordElement('word', axiom='F', alphabet='F+-', rules=rules), 4, random_state=3)
+    assert stochastic.structure('word', 4).text == 'F+F+F+F-F-F+F+F-F+F-F+F-F-F-F-F'
+    rules = [ProductionLaw('a', 'b', left='b'), ProductionLaw('b', 'a')]
+    moving = _run_word(RuledWordElement('word', axiom='baaa', rules=rules), 3)
+    assert [moving.structure('word', step).text for step in range(4)] == ['baaa', 'abaa', 'aaba', 'aaab']
+
+
+def test_three_dimensional_geometry_reference_values():
+    """Test the points and the branch depths of a branching word in three dimensions against literal values."""
+    geometry = GeometrySpec(angle=30.0, dimension=3, contraction=0.5)
+    rules = [ProductionLaw('F', 'F[&F][/^F]')]
+    word = RuledWordElement('tree', axiom='F', alphabet='F&^/\\[]', geometry=geometry, rules=rules)
+    trajectory = _run_word(word, 1)
+    structure = trajectory.structure('tree', 1)
+    points = [
+        [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]],
+        [[0.5, 0.0, 0.0], [0.933012702, 0.0, -0.25]],
+        [[0.5, 0.0, 0.0], [0.933012702, 0.125, 0.216506351]],
+    ]
+    assert trajectory.values('tree.size').tolist() == [1.0, 10.0]
+    assert np.allclose(structure.segments(), points, rtol=0, atol=1e-9)
+    assert structure.depths.tolist() == [0, 1, 1]
 
 
 def test_the_library_names_no_rewriting():
