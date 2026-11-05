@@ -23,7 +23,6 @@ def test_graph_ising_orders_at_low_temperature():
             outputs=[magnetization],
             random_state=0,
         )
-        .check()
         .prepare()
         .run()
         .result_

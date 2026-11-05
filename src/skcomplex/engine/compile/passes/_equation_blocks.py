@@ -214,7 +214,7 @@ class EquationBlocksLowering(BaseLowering[Laws]):
     @staticmethod
     def _printed(expressions: Sequence[Expression], arguments: Sequence[Expression], time: Expression) -> _Printed:
         """Return the function of time and arguments that evaluates expressions."""
-        function = ExpressionPrinter(time=time, compiled=True).check().prepare(list(arguments)).run(expressions).code_
+        function = ExpressionPrinter(time=time, compiled=True).prepare(list(arguments)).run(expressions).code_
         if not callable(function):
             error_msg = 'The printer returns no function of the equations of a block.'
             raise TypeError(error_msg)

@@ -21,7 +21,7 @@ MODEL = 'memristor_oscillator'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=8)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=200)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=200)
 
 # %%
 # A chaotic attractor
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().
 
 trajectory = simulation.trajectory_
 settled = trajectory.times > 20
-exponent = LyapunovAnalysis(n_exponents=1, until=500.0, dt=0.01).check().prepare(system).run().exponents_[0]
+exponent = LyapunovAnalysis(n_exponents=1, until=500.0, dt=0.01).prepare(system).run().exponents_[0]
 fig, ax = plt.subplots(figsize=(6, 5))
 ax.plot(trajectory.values('circuit.v')[settled], trajectory.values('circuit.i')[settled], linewidth=0.5)
 ax.set_xlabel('capacitor voltage v')

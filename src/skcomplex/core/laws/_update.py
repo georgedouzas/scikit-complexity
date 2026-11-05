@@ -61,11 +61,11 @@ class UpdateLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import UpdateLaw
         >>> x = var('x')
-        >>> UpdateLaw(x, 4 * x * (1 - x)).check().prepare().run({'x': 0.5}).value_
+        >>> UpdateLaw(x, 4 * x * (1 - x)).prepare().run({'x': 0.5}).value_
         1.0
-        >>> UpdateLaw(x, x + 1, increment=True).check().increment
+        >>> UpdateLaw(x, x + 1, increment=True).increment
         True
-        >>> UpdateLaw(x, x + 1, phase='imitate').check().phase
+        >>> UpdateLaw(x, x + 1, phase='imitate').phase
         'imitate'
     """
 

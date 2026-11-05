@@ -39,7 +39,7 @@ class ImmunityLossInteraction(ReactionInteraction):
 
     Examples:
         >>> from skcomplex.models.biology.epidemiology import ImmunityLossInteraction
-        >>> ImmunityLossInteraction('waning', recovered='R', susceptible='S', xi=0.05).check().xi
+        >>> ImmunityLossInteraction('waning', recovered='R', susceptible='S', xi=0.05).xi
         0.05
     """
 

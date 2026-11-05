@@ -50,7 +50,7 @@ class BaseLaw(BasePart[str, object]):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import RateLaw
         >>> x, k = var('x'), var('k')
-        >>> law = RateLaw(x, -k * x).check().prepare('decay')
+        >>> law = RateLaw(x, -k * x).prepare('decay')
         >>> law.targets_, sorted(map(str, law.reads_)), law.owner_
         ((x,), ['k', 'x'], 'decay')
         >>> law.run({'x': 2.0, 'k': 0.5}).value_

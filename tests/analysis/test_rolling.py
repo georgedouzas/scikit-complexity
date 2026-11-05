@@ -9,7 +9,7 @@ from skcomplex.errors import AnalysisError
 
 def _rolling(kind: str, source: object, window: int, **settings: object) -> RollingAnalysis:
     """Return the rolling analysis of a source for one kind, run."""
-    return RollingAnalysis(kind, window=window, **settings).check().prepare(source).run()
+    return RollingAnalysis(kind, window=window, **settings).prepare(source).run()
 
 
 def _harvested_population(rng: np.random.Generator) -> np.ndarray:
@@ -62,8 +62,8 @@ def test_rolling_rises_before_tipping():
 def test_rolling_rejects_kinds_and_windows():
     """Test that an unknown kind, a missing window, and a window longer than the series raise errors."""
     with pytest.raises(AnalysisError, match='variance, autocorrelation, skewness'):
-        RollingAnalysis('kurtosis', window=10).check()
+        RollingAnalysis('kurtosis', window=10).prepare()
     with pytest.raises(AnalysisError, match='Give a window'):
-        RollingAnalysis().check()
+        RollingAnalysis().prepare()
     with pytest.raises(AnalysisError, match='must lie between'):
         _rolling('variance', np.zeros(10), 20)

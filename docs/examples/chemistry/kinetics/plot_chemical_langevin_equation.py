@@ -25,9 +25,7 @@ MODEL = 'chemical_langevin_equation'
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=20)
 solver = EulerMaruyamaSolver(dt=0.001)
-simulation = (
-    Simulation(system, dt=0.05, solver=solver, observers=[observer], random_state=0).check().prepare().run(until=200)
-)
+simulation = Simulation(system, dt=0.05, solver=solver, observers=[observer], random_state=0).prepare().run(until=200)
 
 # %%
 # Two states and the switches between them
@@ -41,7 +39,7 @@ drift = np.polynomial.Polynomial([c3 * B, -c1 * A / 2 - c4 - c2 / 3, c1 * A / 2 
 roots = np.sort(drift.roots().real)
 trajectory = simulation.trajectory_
 x = trajectory.values('reactor.x')
-histogram = DistributionAnalysis('histogram', bins=40).check().prepare(x[trajectory.times > 5]).run()
+histogram = DistributionAnalysis('histogram', bins=40).prepare(x[trajectory.times > 5]).run()
 edges, density = histogram.edges_, histogram.density_
 fig, (series, distribution) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(trajectory.times, x, linewidth=0.5)

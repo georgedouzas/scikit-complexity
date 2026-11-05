@@ -161,7 +161,7 @@ class HyperedgeTables:
             >>> import networkx as nx
             >>> from skcomplex.core.spaces import NetworkSpace
             >>> from skcomplex.engine.compile.passes._hyperedges import HyperedgeTables
-            >>> space = NetworkSpace(nx.complete_graph(4), hyperedges=[(0, 1, 2), (1, 2, 3)]).check().prepare()
+            >>> space = NetworkSpace(nx.complete_graph(4), hyperedges=[(0, 1, 2), (1, 2, 3)]).prepare()
             >>> indptr, others = HyperedgeTables._incidences(space, 3)
             >>> indptr.tolist(), [item.tolist() for item in others]
             ([0, 1, 3, 5, 6], [[1, 2, 0, 1, 0, 1], [2, 3, 2, 3, 1, 2]])
@@ -367,9 +367,9 @@ class HyperedgeTables:
         if activity is None:
             return law
         if isinstance(law, RateLaw | NoiseLaw):
-            return BasePass._replaced(law, value=HyperedgeTables._scaled(spec, law, law.value, activity)).check()
+            return BasePass._replaced(law, value=HyperedgeTables._scaled(spec, law, law.value, activity))._validated()
         if isinstance(law, JumpLaw):
-            return BasePass._replaced(law, rate=HyperedgeTables._scaled(spec, law, law.rate, activity)).check()
+            return BasePass._replaced(law, rate=HyperedgeTables._scaled(spec, law, law.rate, activity))._validated()
         if isinstance(law, UpdateLaw) and spec.hyperedge == HYPEREDGE_LAWS:
             return law
         error_msg = (

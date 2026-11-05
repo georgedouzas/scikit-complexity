@@ -33,7 +33,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(model_system),
     )
-    .check()
     .prepare()
     .run(until=STEPS)
 )
@@ -55,7 +54,7 @@ def moment(alpha):
 alpha = brentq(moment, 0.1, 10.0)
 trajectory = simulation.trajectory_
 sizes = np.array([trajectory.agents('firms', frame).values['x'] for frame in range(STEPS - 100, STEPS + 1)])
-ccdf = DistributionAnalysis('ccdf').check().prepare(sizes.ravel()).run()
+ccdf = DistributionAnalysis('ccdf').prepare(sizes.ravel()).run()
 values, probabilities = ccdf.support_, ccdf.survival_
 anchor = np.searchsorted(values, 100.0)
 fig, (tail, mean) = plt.subplots(1, 2, figsize=(10, 4))

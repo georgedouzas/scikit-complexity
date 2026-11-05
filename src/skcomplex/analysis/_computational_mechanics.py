@@ -61,7 +61,7 @@ class EpsilonMachineAnalysis(BaseAnalysis):
 
     Examples:
         >>> from skcomplex.analysis import EpsilonMachineAnalysis
-        >>> machine = EpsilonMachineAnalysis(max_length=3).check().prepare([0, 0, 1] * 300).run()
+        >>> machine = EpsilonMachineAnalysis(max_length=3).prepare([0, 0, 1] * 300).run()
         >>> len(machine.histories_), round(machine.statistical_complexity_, 3), round(machine.entropy_rate_, 3)
         (3, 1.585, 0.0)
     """

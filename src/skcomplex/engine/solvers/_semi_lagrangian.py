@@ -51,7 +51,7 @@ class SemiLagrangianSolver(Solver):
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.solvers import SemiLagrangianSolver
         >>> from skcomplex.specs import AxisSpec
-        >>> space = PhaseSpace(LatticeSpace((16,)), [AxisSpec('v', 8, -1.0, 1.0)]).check().prepare()
+        >>> space = PhaseSpace(LatticeSpace((16,)), [AxisSpec('v', 8, -1.0, 1.0)]).prepare()
         >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(16) / 16), np.ones(8))
         >>> gas = FieldElement(
         ...     'gas', element=DensityElement, space=space, values={'f': start}, discretization='finite-volume'
@@ -59,7 +59,7 @@ class SemiLagrangianSolver(Solver):
         >>> stream = AdvectionInteraction('s', target='gas', state='f', drift=lambda s: [coordinate('v'), 0])
         >>> system = System(elements=[gas], interactions=[stream])
         >>> solver = SemiLagrangianSolver(dt=1.0)
-        >>> final = Simulation(system, solver=solver).check().prepare().run(until=2.0).trajectory_.values('gas.f')[-1]
+        >>> final = Simulation(system, solver=solver).prepare().run(until=2.0).trajectory_.values('gas.f')[-1]
         >>> abs(float(final.sum() / start.sum()) - 1.0) < 1e-12
         True
     """

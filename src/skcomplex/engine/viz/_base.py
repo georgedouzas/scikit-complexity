@@ -110,7 +110,7 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
         >>> from skcomplex.engine.viz import ScalarsVisual
         >>> from skcomplex.models import create
         >>> problem = compile_system(create('lotka_volterra'))
-        >>> visual = ScalarsVisual(path='prey').check().prepare(problem)
+        >>> visual = ScalarsVisual(path='prey').prepare(problem)
         >>> visual.element_.path, str(visual.views_[0].origin)
         ('prey', 'prey')
     """

@@ -103,7 +103,7 @@ def _majority_system(
     random_state: int | np.random.Generator | None,
 ) -> System:
     """Return the majority automaton on a group space from random cells."""
-    cells = _random_cells(space.check().prepare().size_, density, random_state)
+    cells = _random_cells(space.prepare().size_, density, random_state)
     return System(
         elements=[LatticeElement('cells', element=BinaryCellElement, space=space, values={'alive': cells})],
         interactions=[
@@ -151,13 +151,13 @@ def free_group_automaton(
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import free_group_automaton
-        >>> free_group_automaton(radius=3).elements[0].check().prepare().size_
+        >>> free_group_automaton(radius=3).elements[0].prepare().size_
         53
     """
     space = CayleySpace(free_group(rank), ball=radius)
     return _majority_system(
         space,
-        GeneratorNeighborhood(space.check().prepare().generators_),
+        GeneratorNeighborhood(space.prepare().generators_),
         density,
         random_state,
     )
@@ -197,11 +197,11 @@ def lamplighter_automaton(
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import lamplighter_automaton
-        >>> lamplighter_automaton(radius=3).elements[0].check().prepare().size_
+        >>> lamplighter_automaton(radius=3).elements[0].prepare().size_
         39
     """
     space = CayleySpace(lamplighter(), ball=radius)
-    cells = _random_cells(space.check().prepare().size_, density, random_state)
+    cells = _random_cells(space.prepare().size_, density, random_state)
     parity = TotalisticSpec({total: total % 2 for total in range(len(LAMPLIGHTER_MEMORY.elements) + 1)})
     return System(
         elements=[LatticeElement('cells', element=BinaryCellElement, space=space, values={'alive': cells})],
@@ -244,13 +244,13 @@ def heisenberg_automaton(
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import heisenberg_automaton
-        >>> heisenberg_automaton(radius=2).elements[0].check().prepare().size_
+        >>> heisenberg_automaton(radius=2).elements[0].prepare().size_
         17
     """
     space = CayleySpace(heisenberg(), ball=radius)
     return _majority_system(
         space,
-        GeneratorNeighborhood(space.check().prepare().generators_),
+        GeneratorNeighborhood(space.prepare().generators_),
         density,
         random_state,
     )
@@ -298,13 +298,13 @@ def baumslag_solitar_automaton(
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import baumslag_solitar_automaton
-        >>> baumslag_solitar_automaton(radius=2).elements[0].check().prepare().size_
+        >>> baumslag_solitar_automaton(radius=2).elements[0].prepare().size_
         17
     """
     space = CayleySpace(baumslag_solitar(m, n), ball=radius)
     return _majority_system(
         space,
-        GeneratorNeighborhood(space.check().prepare().generators_),
+        GeneratorNeighborhood(space.prepare().generators_),
         density,
         random_state,
     )
@@ -341,7 +341,7 @@ def linear_ring_automaton(
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import linear_ring_automaton
-        >>> linear_ring_automaton(11).elements[0].check().prepare().size_
+        >>> linear_ring_automaton(11).elements[0].prepare().size_
         11
     """
     values = np.zeros(size)
@@ -391,7 +391,7 @@ def subshifts(size: int = 200) -> System:
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import subshifts
-        >>> subshifts(10).elements[0].check().prepare().size_
+        >>> subshifts(10).elements[0].prepare().size_
         10
     """
     flips = LocalRuleInteraction(
@@ -444,7 +444,7 @@ def grigorchuk_automaton(
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import grigorchuk_automaton
-        >>> grigorchuk_automaton(radius=3).elements[0].check().prepare().size_
+        >>> grigorchuk_automaton(radius=3).elements[0].prepare().size_
         23
     """
     return _majority_system(CayleySpace(grigorchuk_group(), ball=radius), GRIGORCHUK_MEMORY, density, random_state)

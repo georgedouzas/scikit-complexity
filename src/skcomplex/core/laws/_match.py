@@ -47,7 +47,7 @@ class MatchLaw(BaseLaw):
 
     Examples:
         >>> from skcomplex.core.laws import MatchLaw
-        >>> MatchLaw('buyers', 'sellers', label='trades').check().capacity
+        >>> MatchLaw('buyers', 'sellers', label='trades').capacity
         1
     """
 
@@ -84,7 +84,7 @@ class MatchLaw(BaseLaw):
     def _check(self) -> None:
         """Raise an error for a capacity that is not a positive integer, or an invalid selection of partners."""
         if isinstance(self.pairing, PartnerSpec):
-            self.pairing.check()
+            self.pairing._validated()
         if isinstance(self.capacity, bool) or not isinstance(self.capacity, int) or self.capacity < 1:
             error_msg = f'The match {self.label!r} has capacity {self.capacity!r}. Give a positive integer.'
             raise ValidationError(error_msg)

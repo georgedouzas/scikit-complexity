@@ -22,7 +22,7 @@ MODEL = 'food_webs'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=100)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=100)
 
 # %%
 # Stability of the equilibrium
@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().
 trajectory = simulation.trajectory_
 species = ['frogs', 'mice', 'snakes', 'hawks']
 final = {f'{name}.n': trajectory.values(f'{name}.n')[-1] for name in species}
-result = StabilityAnalysis(points=[final]).check().prepare(system).run()
+result = StabilityAnalysis(points=[final]).prepare(system).run()
 eigenvalues = np.asarray(result.eigenvalues_[0], dtype=complex)
 fig, (series, spectrum) = plt.subplots(1, 2, figsize=(11, 4))
 for name in species:

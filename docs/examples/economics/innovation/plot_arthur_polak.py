@@ -37,7 +37,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=20)
-simulation = Simulation(create(MODEL), observers=[observer], random_state=0).check().prepare().run(until=STEPS)
+simulation = Simulation(create(MODEL), observers=[observer], random_state=0).prepare().run(until=STEPS)
 
 # %%
 # Complexity and the time of invention
@@ -48,7 +48,7 @@ simulation = Simulation(create(MODEL), observers=[observer], random_state=0).che
 
 fig, (pools, invention) = plt.subplots(1, 2, figsize=(10, 4))
 for seed in range(SEEDS):
-    trajectory = Simulation(create(MODEL), random_state=seed).check().prepare().run(until=STEPS).trajectory_
+    trajectory = Simulation(create(MODEL), random_state=seed).prepare().run(until=STEPS).trajectory_
     count = trajectory.values('technologies.count')
     pools.step(trajectory.times, count, where='post', color='C0', alpha=0.4)
     costs = trajectory.agents('technologies', len(trajectory.times) - 1).values['cost']

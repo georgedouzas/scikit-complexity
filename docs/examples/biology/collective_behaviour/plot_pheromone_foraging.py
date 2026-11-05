@@ -21,7 +21,7 @@ MODEL = 'pheromone_foraging'
 
 system = create(MODEL, n_ants=40)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=3)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=600)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=600)
 
 # %%
 # The trail and the traffic

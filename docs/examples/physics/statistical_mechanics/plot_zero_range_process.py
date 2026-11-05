@@ -27,10 +27,7 @@ MODEL = 'zero_range_process'
 system = create(MODEL, n_sites=50, density=3.0, b=4.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(system, dt=12.0, observers=[observer], random_state=0, backend=NumbaBackend())
-    .check()
-    .prepare()
-    .run(until=3000)
+    Simulation(system, dt=12.0, observers=[observer], random_state=0, backend=NumbaBackend()).prepare().run(until=3000)
 )
 
 # %%

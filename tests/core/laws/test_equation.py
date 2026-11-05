@@ -196,28 +196,20 @@ class PushInteraction(Interaction):
 def test_equation_takes_two_sides_or_a_relation():
     """Test that an equation takes either a relation or two sides, and prepares both sides."""
     x, h = var('x h')
-    law = EquationLaw(x == h).check().prepare()
+    law = EquationLaw(x == h).prepare()
     assert (law.lhs_, law.rhs_) == (x, h)
     assert EquationLaw(1, 2).rhs == 2
     with pytest.raises(ValidationError, match='left and a right side'):
-        EquationLaw(1).check()
+        EquationLaw(1).prepare()
 
 
 def test_pendulum_as_written_matches_solved_form():
     """Test that `m l theta'' = -m g sin theta` runs exactly like the rate law `theta'' = -(g / l) sin theta`."""
     written = (
-        Simulation(System(elements=[WrittenElement('bob')]), solver=PRECISE, dt=0.1)
-        .check()
-        .prepare()
-        .run(until=5)
-        .trajectory_
+        Simulation(System(elements=[WrittenElement('bob')]), solver=PRECISE, dt=0.1).prepare().run(until=5).trajectory_
     )
     solved = (
-        Simulation(System(elements=[SolvedElement('bob')]), solver=PRECISE, dt=0.1)
-        .check()
-        .prepare()
-        .run(until=5)
-        .trajectory_
+        Simulation(System(elements=[SolvedElement('bob')]), solver=PRECISE, dt=0.1).prepare().run(until=5).trajectory_
     )
     assert np.array_equal(written.values('bob.theta'), solved.values('bob.theta'))
 
@@ -225,21 +217,20 @@ def test_pendulum_as_written_matches_solved_form():
 def test_rates_add_to_equation():
     """Test that a rate law on a state with an equation adds to the solved highest derivative."""
     pushed = System(elements=[WrittenElement('bob', theta=0.0)], interactions=[PushInteraction('push', target='bob')])
-    trajectory = Simulation(pushed, solver=PRECISE, dt=0.01).check().prepare().run(until=0.1).trajectory_
+    trajectory = Simulation(pushed, solver=PRECISE, dt=0.01).prepare().run(until=0.1).trajectory_
     assert trajectory.values('bob.theta')[-1] == pytest.approx(0.5 * 0.1**2, rel=1e-2)
 
 
 def test_nonlinear_highest_derivative_is_rejected():
     """Test that an equation with the square of a highest derivative names the equation and the derivative."""
     with pytest.raises(ValidationError, match=r'equation .* of s is not linear in the highest derivative x_d1'):
-        Simulation(System(elements=[SquaredElement('s')])).check().prepare().run(until=1)
+        Simulation(System(elements=[SquaredElement('s')])).prepare().run(until=1)
 
 
 def test_many_equations_are_solved_numerically():
     """Test that seven equations, above the symbolic size, are solved per evaluation with the same result."""
     trajectory = (
         Simulation(System(elements=[OscillatorsElement('o')]), solver=PRECISE, dt=0.1)
-        .check()
         .prepare()
         .run(until=3)
         .trajectory_
@@ -256,12 +247,12 @@ def test_many_equations_are_solved_numerically():
 )
 def test_equation_with_driver_or_condition_matches_rate(equation, rate):
     """Test that equations with a driver or a condition on the right side run like their rate laws."""
-    first = Simulation(System(elements=[equation('mass')]), solver=PRECISE, dt=0.1).check().prepare().run(until=3)
-    second = Simulation(System(elements=[rate('mass')]), solver=PRECISE, dt=0.1).check().prepare().run(until=3)
+    first = Simulation(System(elements=[equation('mass')]), solver=PRECISE, dt=0.1).prepare().run(until=3)
+    second = Simulation(System(elements=[rate('mass')]), solver=PRECISE, dt=0.1).prepare().run(until=3)
     assert first.trajectory_.values('mass.x') == pytest.approx(second.trajectory_.values('mass.x'), abs=1e-8)
 
 
 def test_check_names_equations_as_symbolic_only():
     """Test that a function as a side of an equation raises an error pointing to a rate law."""
     with pytest.raises(ValidationError, match=r'solved symbolically.*`RateLaw`'):
-        EquationLaw(var('x'), print).check()
+        EquationLaw(var('x'), print).prepare()

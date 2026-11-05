@@ -34,7 +34,7 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         >>> from skcomplex.engine.compile import RewritingCompiler
         >>> compiler = RewritingCompiler()
         >>> simulation = Simulation(system, compiler=compiler, solver=RewritingSolver())
-        >>> simulation = simulation.check().prepare()
+        >>> simulation = simulation.prepare()
         >>> trajectory = simulation.run(until=5).trajectory_
         >>> trajectory.values('algae.size').tolist()
         [1.0, 2.0, 3.0, 5.0, 8.0, 13.0]

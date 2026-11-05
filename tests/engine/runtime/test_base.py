@@ -41,7 +41,7 @@ def test_verbs_take_one_input():
 def test_observer_receives_every_frame_and_the_end_of_the_run():
     """Test that a simulation prepares an observer, runs it at every frame, and releases it at the end."""
     observer = _TimesObserver()
-    Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[observer]).check().prepare().run(until=3)
+    Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[observer]).prepare().run(until=3)
     assert observer.times_ == [0.0, 1.0, 2.0, 3.0]
     assert observer.ended_
 
@@ -49,8 +49,8 @@ def test_observer_receives_every_frame_and_the_end_of_the_run():
 def test_observer_verbs_return_the_observer():
     """Test that preparing and running an observer return it."""
     observer = _TimesObserver()
-    problem = Simulation(System(elements=[PopulationElement('a')])).check().prepare().problem_
-    assert observer.check().prepare(problem) is observer
+    problem = Simulation(System(elements=[PopulationElement('a')])).prepare().problem_
+    assert observer.prepare(problem) is observer
     assert observer.run(final=True) is observer
     assert observer.ended_
 
@@ -58,7 +58,7 @@ def test_observer_verbs_return_the_observer():
 def test_clock_prepare_marks_the_start():
     """Test that preparing a clock marks the wall time of the start and no lag."""
     before = time.perf_counter()
-    clock = BaseClock().check().prepare()
+    clock = BaseClock().prepare()
     assert before <= clock.started_ <= time.perf_counter()
     assert clock.max_lag_ == 0.0
     assert clock.run(1.0) is clock

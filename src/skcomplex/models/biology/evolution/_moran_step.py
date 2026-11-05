@@ -40,7 +40,7 @@ class MoranStepInteraction(EvolutionInteraction):
 
     Examples:
         >>> from skcomplex.models.biology.evolution import MoranStepInteraction
-        >>> MoranStepInteraction('moran', target='population', advantage=0.1).check().replacement
+        >>> MoranStepInteraction('moran', target='population', advantage=0.1).replacement
         'moran'
     """
 

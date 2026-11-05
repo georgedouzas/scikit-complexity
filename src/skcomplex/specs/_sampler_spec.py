@@ -32,7 +32,7 @@ class SamplerSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import SamplerSpec
-        >>> SamplerSpec('glauber', 2.0).check().schedule
+        >>> SamplerSpec('glauber', 2.0).schedule
         'checkerboard'
     """
 

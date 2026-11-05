@@ -21,7 +21,7 @@ MODEL = 'rock_paper_scissors'
 
 system = create(MODEL, shape=(60, 60), random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=100)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=100)
 
 # %%
 # Coexistence of the three strategies

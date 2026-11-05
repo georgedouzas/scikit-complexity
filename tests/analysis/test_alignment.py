@@ -14,7 +14,7 @@ from skcomplex.models import run
 
 def _alignment(kind: str, source: object, **settings: object) -> AlignmentAnalysis:
     """Return the alignment analysis of a source for one kind, run."""
-    return AlignmentAnalysis(kind, **settings).check().prepare(source).run()
+    return AlignmentAnalysis(kind, **settings).prepare(source).run()
 
 
 def _order(kind: str, source: object, **settings: object) -> np.ndarray:
@@ -107,10 +107,10 @@ def test_alignment_of_every_frame_of_a_trajectory():
 def test_alignment_checks_its_settings():
     """Test that an unknown kind and a setting the kind ignores raise errors, and that a clone has no results."""
     with pytest.raises(AnalysisError, match='mean-vector, mean-rotation, axial, mean-phase'):
-        AlignmentAnalysis('swirl').check()
+        AlignmentAnalysis('swirl').prepare()
     with pytest.raises(AnalysisError, match='does not read vectors'):
-        AlignmentAnalysis('mean-rotation', vectors=True).check()
-    analysis = AlignmentAnalysis().check().prepare([0.0, 0.0]).run()
+        AlignmentAnalysis('mean-rotation', vectors=True).prepare()
+    analysis = AlignmentAnalysis().prepare([0.0, 0.0]).run()
     assert not hasattr(clone(analysis), 'order_')
 
 

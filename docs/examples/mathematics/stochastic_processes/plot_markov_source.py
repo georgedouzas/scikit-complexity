@@ -30,10 +30,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, transition=TRANSITION), dt=1, observers=[observer], random_state=0)
-    .check()
-    .prepare()
-    .run(299)
+    Simulation(create(MODEL, transition=TRANSITION), dt=1, observers=[observer], random_state=0).prepare().run(299)
 )
 
 # %%
@@ -44,10 +41,8 @@ simulation = (
 # run of 100000 symbols should drop from the entropy of single symbols to `h` at `m = 2` and stay there, since one
 # symbol of the past holds all the memory of the source.
 
-symbols = (
-    Simulation(create(MODEL, transition=TRANSITION), dt=1, random_state=1).check().prepare().run(100000).trajectory_
-)
-blocks = EntropyAnalysis('block', dimension=8).check().prepare(symbols.values('source.symbol').astype(int)).run()
+symbols = Simulation(create(MODEL, transition=TRANSITION), dt=1, random_state=1).prepare().run(100000).trajectory_
+blocks = EntropyAnalysis('block', dimension=8).prepare(symbols.values('source.symbol').astype(int)).run()
 entropies = blocks.entropy_[0]
 stationary = np.array([0.8, 0.2])
 rate = -np.sum(stationary[:, None] * TRANSITION * np.log2(TRANSITION))
@@ -73,7 +68,7 @@ plt.show()
 # statistical complexity is then the entropy of `pi`, about 0.722 bits, and its entropy rate is `h`.
 
 source = symbols.values('source.symbol').astype(int)
-machine = EpsilonMachineAnalysis(max_length=3).check().prepare(source).run()
+machine = EpsilonMachineAnalysis(max_length=3).prepare(source).run()
 labels = [f'last symbol {state[0][-1]}' for state in machine.histories_]
 fig, occupancy = plt.subplots(figsize=(5, 4))
 occupancy.bar(labels, machine.stationary_)

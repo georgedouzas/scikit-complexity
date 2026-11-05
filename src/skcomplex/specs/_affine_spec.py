@@ -41,7 +41,7 @@ class AffineSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import AffineSpec
-        >>> AffineSpec(scale=0.5, translation=(1, 0)).check().scale
+        >>> AffineSpec(scale=0.5, translation=(1, 0)).scale
         0.5
     """
 

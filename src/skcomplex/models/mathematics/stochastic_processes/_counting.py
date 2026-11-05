@@ -34,7 +34,7 @@ def bernoulli_process(n_sequences: int = 20, *, p: float = 0.5) -> System:
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import bernoulli_process
-        >>> bernoulli_process(3).elements[0].check().prepare().size_
+        >>> bernoulli_process(3).elements[0].prepare().size_
         3
     """
     trial = MapInteraction(
@@ -80,7 +80,7 @@ def poisson_process(n_processes: int = 20, *, rate: float = 1.0) -> System:
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import poisson_process
-        >>> poisson_process(5).elements[0].check().prepare().size_
+        >>> poisson_process(5).elements[0].prepare().size_
         5
     """
     counters = GroupElement('counters', element=PoissonCounterElement, size=n_processes, values={'rate': rate})

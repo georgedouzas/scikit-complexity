@@ -37,7 +37,6 @@ simulation = (
         observers=[observer],
         random_state=0,
     )
-    .check()
     .prepare()
     .run(until=1500)
 )
@@ -54,7 +53,7 @@ phi = simulation.trajectory_.lattice('fluid.phi')
 times = simulation.trajectory_.times
 sizes = []
 for field in phi[1:]:
-    factor = SpectrumAnalysis('structure-factor').check().prepare(field - field.mean()).run()
+    factor = SpectrumAnalysis('structure-factor').prepare(field - field.mean()).run()
     sizes.append(2 * np.pi * factor.power_.sum() / (factor.wavenumbers_ * factor.power_).sum())
 sizes = np.array(sizes)
 early = np.searchsorted(times[1:], 300.0)

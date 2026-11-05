@@ -47,7 +47,7 @@ class InfectionInteraction(ReactionInteraction):
         ...     elements=[CompartmentElement('S', n=99.0), CompartmentElement('I', n=1.0)],
         ...     interactions=[InfectionInteraction('infection', susceptible='S', infected='I', beta=0.01)],
         ... )
-        >>> trajectory = Simulation(system, dt=0.1).check().prepare().run(until=5.0).trajectory_
+        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=5.0).trajectory_
         >>> round(float(trajectory.values('S.n')[-1] + trajectory.values('I.n')[-1]), 6)
         100.0
     """

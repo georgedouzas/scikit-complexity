@@ -46,7 +46,7 @@ class ExposureInteraction(CouplingInteraction):
 
     Examples:
         >>> from skcomplex.models.social.spreading import ExposureInteraction
-        >>> ExposureInteraction('exposure', target='participants', exponent=1.5).check().exponent
+        >>> ExposureInteraction('exposure', target='participants', exponent=1.5).exponent
         1.5
     """
 
@@ -145,7 +145,7 @@ def hypergraph_exposure_sis(
 
     Examples:
         >>> from skcomplex.models.social.spreading import hypergraph_exposure_sis
-        >>> hypergraph_exposure_sis(40).elements[0].check().prepare().size_
+        >>> hypergraph_exposure_sis(40).elements[0].prepare().size_
         40
     """
     rng = np.random.default_rng(seed)

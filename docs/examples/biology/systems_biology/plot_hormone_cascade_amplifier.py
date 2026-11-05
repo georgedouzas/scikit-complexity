@@ -40,7 +40,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer], random_state=0).check().prepare().run(until=30)
+simulation = Simulation(system, dt=0.2, observers=[observer], random_state=0).prepare().run(until=30)
 
 # %%
 # Amplification and the G-protein timer
@@ -53,7 +53,7 @@ simulation = Simulation(system, dt=0.2, observers=[observer], random_state=0).ch
 
 precise = ScipyODESolver(rtol=1e-9, atol=1e-12)
 runs = {
-    k_gtp: Simulation(create(MODEL, k_gtp=k_gtp), dt=0.05, solver=precise).check().prepare().run(until=60).trajectory_
+    k_gtp: Simulation(create(MODEL, k_gtp=k_gtp), dt=0.05, solver=precise).prepare().run(until=60).trajectory_
     for k_gtp in (0.5, 0.05)
 }
 trajectory = runs[0.5]

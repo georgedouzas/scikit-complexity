@@ -12,7 +12,6 @@ from skcomplex.errors import (
     InfeasibleError,
     LabelError,
     MissingExtraError,
-    NotCheckedError,
     SimulationError,
     SkcomplexError,
     SolverError,
@@ -41,7 +40,6 @@ def test_every_error_derives_from_the_base_of_the_library():
         (SpaceTooLargeError, SpaceError),
         (CapacityError, SimulationError),
         (ArgumentError, TypeError),
-        (NotCheckedError, SkcomplexError),
     ],
 )
 def test_errors_refine_their_bases(error, base):

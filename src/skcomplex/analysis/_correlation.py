@@ -115,13 +115,13 @@ class CorrelationAnalysis(BaseAnalysis):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.analysis import CorrelationAnalysis
-        >>> analysis = CorrelationAnalysis(max_lag=1).check().prepare([1.0, -1.0, 1.0, -1.0]).run()
+        >>> analysis = CorrelationAnalysis(max_lag=1).prepare([1.0, -1.0, 1.0, -1.0]).run()
         >>> analysis.correlation_.round(2).tolist()
         [[1.0, -0.75]]
         >>> two_time = CorrelationAnalysis('two-time', waiting=[2], lags=[0, 3])
-        >>> two_time.check().prepare(np.ones((4, 10))).run().correlation_.tolist()
+        >>> two_time.prepare(np.ones((4, 10))).run().correlation_.tolist()
         [[1.0, 1.0]]
-        >>> CorrelationAnalysis('overlap').check().prepare([[1, -1, 1, 1], [1, -1, -1, 1]]).run().overlap_
+        >>> CorrelationAnalysis('overlap').prepare([[1, -1, 1, 1], [1, -1, -1, 1]]).run().overlap_
         0.5
     """
 

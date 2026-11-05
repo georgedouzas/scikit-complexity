@@ -185,7 +185,7 @@ def tca_labelling_analysis(
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import carbon_13_mfa, tca_labelling_analysis
-        >>> analysis = tca_labelling_analysis('simulation').check().prepare(carbon_13_mfa()).run()
+        >>> analysis = tca_labelling_analysis('simulation').prepare(carbon_13_mfa()).run()
         >>> [round(float(item), 4) for item in analysis.distributions_['published']['Glu']]
         [0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039]
     """
@@ -206,7 +206,7 @@ def tca_labelling_analysis(
         fluxes=TCA_TRUE_FLUXES,
         symmetric=TCA_SYMMETRIC,
     )
-    simulated = truth.check().prepare(carbon_13_mfa()).run().distributions_
+    simulated = truth.prepare(carbon_13_mfa()).run().distributions_
     rng = np.random.default_rng(random_state)
     measurements = []
     for experiment, values in simulated.items():

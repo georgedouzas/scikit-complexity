@@ -185,22 +185,18 @@ class _MemberReductions(BaseConfig[None, object]):
         entry = EntrySpec(f'__observed_{index}', self.extent, shape, RR, members)
         placeholder = symbol(f'_observed_{index}')
         reads = {item: self._read(item) for item in sorted(symbols, key=str)}
-        self.found_[key] = (
-            ReductionKernel(
-                symbol=placeholder,
-                kind=reduction.kind,
-                argument=argument,
-                condition=condition,
-                weights=weights,
-                entry=entry,
-                size=self.size,
-                group=self.group,
-                reads=reads,
-                time=self.time,
-            )
-            .check()
-            .prepare()
-        )
+        self.found_[key] = ReductionKernel(
+            symbol=placeholder,
+            kind=reduction.kind,
+            argument=argument,
+            condition=condition,
+            weights=weights,
+            entry=entry,
+            size=self.size,
+            group=self.group,
+            reads=reads,
+            time=self.time,
+        ).prepare()
         indices = entry.start + np.arange(self.size) if weights is not None else entry.start
         self.reads_[placeholder] = ReadSpec(False, indices, entry)
         return placeholder

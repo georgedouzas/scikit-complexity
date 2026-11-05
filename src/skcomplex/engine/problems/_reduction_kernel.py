@@ -111,7 +111,7 @@ class ReductionKernel(BaseKernel):
     def _function(self) -> Callable[..., object]:
         """NumPy function of the argument and the condition, compiled once."""
         expressions = [self.argument, self.condition if self.condition is not None else 1]
-        printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(self._symbols)
+        printer = ExpressionPrinter(time=self.time, compiled=True).prepare(self._symbols)
         return ExpressionPrinter._function_of(printer.run(expressions).code_)
 
     @property

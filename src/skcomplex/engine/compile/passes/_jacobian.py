@@ -32,7 +32,7 @@ class JacobianPass(BasePass):
                 Compilation._required(compilation.reductions, 'reductions'),
                 declarations.ends[True],
                 declarations.time,
-            ).check()
+            )._validated()
             if compilation.form in (FormKind.ODE, FormKind.STATIC)
             else None
         )

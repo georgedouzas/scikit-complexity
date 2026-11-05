@@ -21,7 +21,7 @@ MODEL = 'integrate_and_fire'
 
 system = create(MODEL, I=2.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=100)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=100)
 
 # %%
 # The firing-rate curve
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().
 currents = np.linspace(1.0, 5.0, 17)
 rates = []
 for current in currents:
-    events = Simulation(create(MODEL, I=current), dt=0.1).check().prepare().run(until=200).trajectory_.events
+    events = Simulation(create(MODEL, I=current), dt=0.1).prepare().run(until=200).trajectory_.events
     rates.append(1000 * sum(event.label == 'spike' for event in events) / 200)
 grid = np.linspace(1.51, 5.0, 200)
 fig, ax = plt.subplots(figsize=(7, 4))

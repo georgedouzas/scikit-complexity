@@ -100,9 +100,9 @@ def test_read_structure_rejects_an_unknown_source():
 def test_structure_spec_rejects_wrong_shapes():
     """Test that coordinates of another shape, and names of another length, raise errors."""
     with pytest.raises(ValidationError, match='models by atoms'):
-        StructureSpec(np.zeros((2, 3)), (), (), (), ()).check()
+        StructureSpec(np.zeros((2, 3)), (), (), (), ()).prepare()
     with pytest.raises(ValidationError, match='one entry'):
-        StructureSpec(np.zeros((1, 2, 3)), ('N',), ('GLY',), (1,), ('A',)).check()
+        StructureSpec(np.zeros((1, 2, 3)), ('N',), ('GLY',), (1,), ('A',)).prepare()
 
 
 def test_read_trajectory_reads_a_dcd_file(tmp_path):
@@ -123,29 +123,29 @@ def test_read_trajectory_reads_a_dcd_file(tmp_path):
 def test_backbone_round_trip_through_internal_coordinates():
     """Test that a chain rebuilt from its own angles matches the read one within 0.01 angstrom after superposition."""
     structure = read_structure('1UBQ')
-    geometry = BackboneGeometry(structure).check().prepare()
+    geometry = BackboneGeometry(structure).prepare()
     positions = geometry.run(geometry.angles_).positions_
-    deviation = ShapeAnalysis('rmsd', reference=structure.coordinates[0]).check().prepare(positions[None]).run().values_
+    deviation = ShapeAnalysis('rmsd', reference=structure.coordinates[0]).prepare(positions[None]).run().values_
     assert deviation[0] < 0.01
 
 
 def test_backbone_rejects_angles_of_another_length():
     """Test that angles of another length raise an error."""
-    geometry = BackboneGeometry(read_structure('1L2Y')).check().prepare()
+    geometry = BackboneGeometry(read_structure('1L2Y')).prepare()
     with pytest.raises(ValidationError, match='38 angles'):
         geometry.run(np.zeros(4))
 
 
 def test_backbone_rejects_two_chains():
     """Test that a structure of two chains raises an error."""
-    structure = StructureSpec(np.zeros((1, 2, 3)), ('N', 'N'), ('GLY', 'GLY'), (1, 1), ('A', 'B')).check()
+    structure = StructureSpec(np.zeros((1, 2, 3)), ('N', 'N'), ('GLY', 'GLY'), (1, 1), ('A', 'B'))
     with pytest.raises(ValidationError, match='one chain'):
-        BackboneGeometry(structure).check()
+        BackboneGeometry(structure).prepare()
 
 
 def test_backbone_filters_only_the_warning_of_vectors():
     """Test that a rebuild shows no warning of Biopython's vectors, and that another warning stays visible."""
-    geometry = BackboneGeometry(read_structure('1L2Y')).check().prepare()
+    geometry = BackboneGeometry(read_structure('1L2Y')).prepare()
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter('always')
         geometry.run(geometry.angles_)
@@ -164,16 +164,16 @@ def test_kyte_doolittle_scale_is_rescaled():
 def test_relative_distance_of_the_ideal_micelle_and_of_uniform_hydrophobicity():
     """Test that `RD` is 0 for an observed distribution equal to the theoretical one, and 1 for a uniform one."""
     structure = read_structure('1L2Y')
-    analysis = FuzzyOilDropAnalysis(structure).check().prepare().run()
-    ideal = FuzzyOilDropAnalysis(structure, observed=analysis.theoretical_[0]).check()
+    analysis = FuzzyOilDropAnalysis(structure).prepare().run()
+    ideal = FuzzyOilDropAnalysis(structure, observed=analysis.theoretical_[0])
     assert ideal.prepare(structure.effective_atoms[:1]).run().values_[0] == pytest.approx(0.0, abs=1e-12)
-    uniform = FuzzyOilDropAnalysis(structure, observed=analysis.uniform_).check()
+    uniform = FuzzyOilDropAnalysis(structure, observed=analysis.uniform_)
     assert uniform.prepare(structure.effective_atoms[:1]).run().values_[0] == pytest.approx(1.0, abs=1e-12)
 
 
 def test_distributions_are_normalised():
     """Test that the profile sets the three distributions, each with a sum of one."""
-    analysis = FuzzyOilDropAnalysis(read_structure('1L2Y'), 'profile').check().prepare().run()
+    analysis = FuzzyOilDropAnalysis(read_structure('1L2Y'), 'profile').prepare().run()
     assert analysis.theoretical_.sum(axis=1) == pytest.approx(1.0)
     assert analysis.observed_.sum(axis=1) == pytest.approx(1.0)
     assert analysis.uniform_.sum() == pytest.approx(1.0)
@@ -182,11 +182,11 @@ def test_distributions_are_normalised():
 def test_environment_factor_recovers_the_factor_of_a_profile():
     """Test that a distribution built by Eq. 1.9, with its complement normalised first, gives its factor back."""
     structure = read_structure('1L2Y')
-    theoretical = FuzzyOilDropAnalysis(structure).check().prepare().run().theoretical_[0]
+    theoretical = FuzzyOilDropAnalysis(structure).prepare().run().theoretical_[0]
     complement = (theoretical.max() - theoretical) / (theoretical.max() - theoretical).sum()
     profile = theoretical + 0.5 * complement
     analysis = FuzzyOilDropAnalysis(structure, 'environment-factor', observed=profile / profile.sum())
-    factor = analysis.check().prepare(structure.effective_atoms[:1]).run().values_[0]
+    factor = analysis.prepare(structure.effective_atoms[:1]).run().values_[0]
     assert factor == pytest.approx(0.5, abs=1e-3)
 
 
@@ -201,21 +201,21 @@ def test_curves_of_fig_1_41_give_the_values_the_book_prints_for_them():
     numbers = tuple(range(count))
     structure = StructureSpec(np.zeros((1, count, 3)), ('CA',) * count, ('GLY',) * count, numbers, ('A',) * count)
     observed = FIGURE_OBSERVED / FIGURE_OBSERVED.sum()
-    factor = FigureAnalysis(structure, 'environment-factor', observed=observed).check().prepare().run().values_[0]
+    factor = FigureAnalysis(structure, 'environment-factor', observed=observed).prepare().run().values_[0]
     assert factor == pytest.approx(0.5, abs=0.02)
-    distance = FigureAnalysis(structure, observed=observed).check().prepare().run().values_[0]
+    distance = FigureAnalysis(structure, observed=observed).prepare().run().values_[0]
     assert distance == pytest.approx(0.7, abs=0.1)
 
 
 def test_native_ubiquitin_is_closer_to_the_micelle_than_its_extended_chain():
     """Test that the native `RD` of ubiquitin is lower than that of its chain with all phi -120 and psi 130."""
     structure = read_structure('1UBQ')
-    geometry = BackboneGeometry(structure).check().prepare()
-    native = FuzzyOilDropAnalysis(structure).check().prepare().run().values_[0]
+    geometry = BackboneGeometry(structure).prepare()
+    native = FuzzyOilDropAnalysis(structure).prepare().run().values_[0]
     angles = np.full(geometry.angles_.size, -120.0)
     angles[angles.size // 2 :] = 130.0
     positions = geometry.run(angles).read_effective_atoms()
-    extended = FuzzyOilDropAnalysis(structure).check().prepare(positions[None]).run().values_[0]
+    extended = FuzzyOilDropAnalysis(structure).prepare(positions[None]).run().values_[0]
     assert native < extended
 
 
@@ -228,15 +228,15 @@ def test_unknown_residue_raises_an_error_that_names_it():
     )
     changed = dataclasses.replace(structure, residue_names=names)
     with pytest.raises(AnalysisError, match=r'SEP at number 5 of chain A is not on the Kyte-Doolittle scale'):
-        FuzzyOilDropAnalysis(changed).check().prepare()
+        FuzzyOilDropAnalysis(changed).prepare()
 
 
 def test_analysis_rejects_bad_settings_and_positions():
     """Test that an unknown kind, a cutoff of zero, and positions of another shape raise errors."""
     structure = read_structure('1L2Y')
     with pytest.raises(AnalysisError, match='waist'):
-        FuzzyOilDropAnalysis(structure, 'waist').check()
+        FuzzyOilDropAnalysis(structure, 'waist').prepare()
     with pytest.raises(AnalysisError, match='cutoff'):
-        FuzzyOilDropAnalysis(structure, cutoff=0.0).check()
+        FuzzyOilDropAnalysis(structure, cutoff=0.0).prepare()
     with pytest.raises(AnalysisError, match='residues'):
-        FuzzyOilDropAnalysis(structure).check().prepare(np.zeros((1, 3, 3)))
+        FuzzyOilDropAnalysis(structure).prepare(np.zeros((1, 3, 3)))

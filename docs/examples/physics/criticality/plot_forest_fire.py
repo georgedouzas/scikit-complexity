@@ -21,7 +21,7 @@ MODEL = 'forest_fire'
 
 system = create(MODEL, shape=(200, 200), growth=0.02, lightning=1e-5, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=598)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=598)
 
 # %%
 # Steady density of trees
@@ -31,10 +31,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).chec
 # well below that threshold, held there by the balance of growth and burning, with fluctuations from the fires.
 
 steady = (
-    Simulation(create(MODEL, shape=(128, 128), growth=0.02, lightning=1e-5), dt=1, random_state=1)
-    .check()
-    .prepare()
-    .run(5000)
+    Simulation(create(MODEL, shape=(128, 128), growth=0.02, lightning=1e-5), dt=1, random_state=1).prepare().run(5000)
 )
 trees = (steady.trajectory_.values('forest.cover') == 1).mean(axis=1)
 

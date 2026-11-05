@@ -15,7 +15,7 @@ from skcomplex.models import create, run
 
 def _discover(source: object) -> DiscoveryAnalysis:
     """Return the discovery of a source, run."""
-    return DiscoveryAnalysis().check().prepare(source).run()
+    return DiscoveryAnalysis().prepare(source).run()
 
 
 def _names(analyses: list) -> set[tuple[str, str | None]]:
@@ -73,7 +73,7 @@ def test_discovered_analyses_run_on_arrays_without_a_simulation():
     entropies = [item for item in _discover(values).analyses_['series'] if isinstance(item, EntropyAnalysis)]
     assert {item.kind for item in entropies} >= {'shannon', 'permutation', 'sample', 'spectral'}
     permutation = next(item for item in entropies if item.kind == 'permutation')
-    assert 0.9 < permutation.check().prepare(values).run().entropy_[0] <= 1
+    assert 0.9 < permutation.prepare(values).run().entropy_[0] <= 1
 
 
 def test_discovery_of_a_jump_path():
@@ -83,5 +83,5 @@ def test_discovery_of_a_jump_path():
     assert 'path' in discovery.kinds_
     assert any(isinstance(item, MarkovAnalysis) for item in discovery.analyses_['path'])
     states = np.asarray(trajectory.values(trajectory.problem.states.names[0]), dtype=int).ravel() % 3
-    model = MarkovAnalysis('state-model').check().prepare(np.tile(states, 20)).run()
+    model = MarkovAnalysis('state-model').prepare(np.tile(states, 20)).run()
     assert model.transition_matrix_.shape[0] >= 2

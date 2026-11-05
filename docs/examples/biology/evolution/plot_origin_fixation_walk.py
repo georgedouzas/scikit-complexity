@@ -32,7 +32,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=640)
 )
@@ -55,7 +54,6 @@ for _ in range(100):
 small = create(MODEL, loci=4, N=10.0, mu=1.0, field=0.1, coupling=0.3, random_state=1)
 alleles = (
     Simulation(small, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(small))
-    .check()
     .prepare()
     .run(until=5000)
     .trajectory_.values('genome.s')[100:]

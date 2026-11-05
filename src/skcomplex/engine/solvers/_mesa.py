@@ -897,7 +897,7 @@ class MesaSolver(ExternalSolver):
         ...     def tick(self, agent, model):
         ...         agent.count += 1
         >>> system = System(elements=[GroupElement('counters', element=CounterElement, size=3)])
-        >>> trajectory = Simulation(system, solver=MesaSolver()).check().prepare().run(until=4).trajectory_
+        >>> trajectory = Simulation(system, solver=MesaSolver()).prepare().run(until=4).trajectory_
         >>> trajectory.agents('counters', 4).values['count'].tolist()
         [4.0, 4.0, 4.0]
     """
@@ -1624,7 +1624,7 @@ class MesaSolver(ExternalSolver):
     def _declared_phases(system: System) -> list[PhaseSpec]:
         """Return the phases of the schedules of a system and its nested systems, the first of every name kept."""
         time = system.time
-        schedule = time.check().prepare().schedule_ if isinstance(time, DiscreteTime) else None
+        schedule = time.prepare().schedule_ if isinstance(time, DiscreteTime) else None
         phases = list(schedule.phases) if isinstance(schedule, PhasesScheduleSpec) else []
         for nested in system.systems:
             phases += MesaSolver._declared_phases(nested)

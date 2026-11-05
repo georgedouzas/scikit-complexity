@@ -23,7 +23,7 @@ from skcomplex.specs import StateSpec, VisualSpec
 
 def _displacement(source: object, **settings: object) -> DisplacementAnalysis:
     """Return the displacement analysis of a source, run."""
-    return DisplacementAnalysis(**settings).check().prepare(source).run()
+    return DisplacementAnalysis(**settings).prepare(source).run()
 
 
 def test_displacement_keeps_its_reference_values():
@@ -132,7 +132,7 @@ def test_mean_squared_displacement_diffusion_on_two_kinds_of_space():
         space=LatticeSpace((20, 20), boundary='periodic', neighborhood='von_neumann'),
     )
     for system in (continuous, grid):
-        trajectory = Simulation(system, dt=1, random_state=0).check().prepare().run(until=600).trajectory_
+        trajectory = Simulation(system, dt=1, random_state=0).prepare().run(until=600).trajectory_
         displacement = _displacement(trajectory, fit_range=(1, 150))
         assert displacement.exponent_ == pytest.approx(1, abs=0.05)
         assert displacement.msd_[-1] > 20.0**2
@@ -177,7 +177,7 @@ def test_mean_squared_displacement_rejects_an_empty_range_and_bad_settings():
     with pytest.raises(AnalysisError, match='fit range'):
         _displacement(np.zeros((10, 2)), fit_range=(100.0, 200.0))
     with pytest.raises(AnalysisError, match='positive time step'):
-        DisplacementAnalysis(dt=-1.0).check()
+        DisplacementAnalysis(dt=-1.0).prepare()
     with pytest.raises(AnalysisError, match='1 frame or more'):
-        DisplacementAnalysis(lags=[0, 1]).check()
+        DisplacementAnalysis(lags=[0, 1]).prepare()
     assert not hasattr(clone(_displacement(np.cumsum(np.ones((20, 3)), axis=0))), 'msd_')

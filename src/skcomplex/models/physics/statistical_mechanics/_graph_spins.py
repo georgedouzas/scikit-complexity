@@ -68,7 +68,7 @@ def graph_ising(
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.models.physics.statistical_mechanics import graph_ising
-        >>> graph_ising(nx.cycle_graph(10)).elements[0].check().prepare().size_
+        >>> graph_ising(nx.cycle_graph(10)).elements[0].prepare().size_
         10
     """
     rng = np.random.default_rng(random_state)

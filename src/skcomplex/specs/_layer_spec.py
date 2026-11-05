@@ -28,7 +28,7 @@ class LayerSpec(BaseSpec):
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.specs import LayerSpec
-        >>> LayerSpec('work', nx.path_graph(3)).check().label
+        >>> LayerSpec('work', nx.path_graph(3)).label
         'work'
     """
 

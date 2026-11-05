@@ -25,7 +25,7 @@ MODEL = 'priority_queues'
 
 system = create(MODEL, greed=0.999, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=400)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=100_000)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=100_000)
 
 # %%
 # Distribution of waiting times
@@ -36,7 +36,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).chec
 # before it bends down past the cutoff.
 
 waits = simulation.trajectory_.values('execution.wait')[1:]
-fit = FitAnalysis(discrete=True, minimum=2, maximum=300, bootstrap=0).check().prepare(waits).run()
+fit = FitAnalysis(discrete=True, minimum=2, maximum=300, bootstrap=0).prepare(waits).run()
 edges = np.unique(np.logspace(0, np.log10(waits.max() + 1), 20).astype(int))
 counts, _ = np.histogram(waits, edges)
 density = counts / np.diff(edges) / len(waits)

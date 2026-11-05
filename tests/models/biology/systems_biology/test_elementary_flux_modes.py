@@ -17,7 +17,7 @@ from skcomplex.models.biology.systems_biology import elementary_flux_modes
 
 def _analysed(system):
     """Return the elementary modes of a system, normalised to the uptake."""
-    return ElementaryModeAnalysis(normalize='cell.v_b1').check().prepare(system).run()
+    return ElementaryModeAnalysis(normalize='cell.v_b1').prepare(system).run()
 
 
 def _column(analysis, name):
@@ -56,7 +56,7 @@ def test_knock_out_leaves_the_second_route():
 def test_genome_scale_network_stops_at_the_limit():
     """Test that the modes of the E. coli core model raise the limit error within one second of a limit of 5 s."""
     system = System(elements=[load_network('textbook', 'cell')], time=StaticTime())
-    analysis = ElementaryModeAnalysis(timeout=5.0).check().prepare(system)
+    analysis = ElementaryModeAnalysis(timeout=5.0).prepare(system)
     start = time.perf_counter()
     with pytest.raises(EnumerationLimitError, match='variables'):
         analysis.run()

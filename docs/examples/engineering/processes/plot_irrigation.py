@@ -34,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=5)
-simulation = Simulation(create(MODEL), dt=1.0, observers=[observer]).check().prepare().run(730)
+simulation = Simulation(create(MODEL), dt=1.0, observers=[observer]).prepare().run(730)
 
 # %%
 # Groundwater as a buffer

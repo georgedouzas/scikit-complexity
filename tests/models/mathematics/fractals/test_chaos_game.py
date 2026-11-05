@@ -18,7 +18,7 @@ def test_chaos_game_draws_the_sierpinski_triangle():
     cells = np.clip((points * 128).astype(int), 0, 127)
     grid = np.zeros((128, 128), dtype=bool)
     grid[cells[:, 1], cells[:, 0]] = True
-    dimension = ScalingAnalysis('box-counting', scales=[1, 2, 4, 8, 16, 32]).check().prepare(grid).run().exponent_
+    dimension = ScalingAnalysis('box-counting', scales=[1, 2, 4, 8, 16, 32]).prepare(grid).run().exponent_
     assert dimension == pytest.approx(np.log(3) / np.log(2), abs=0.05)
 
 
@@ -27,7 +27,6 @@ def test_chaos_game_agrees_across_backends():
     runs = [
         (
             Simulation(create('chaos_game', n_points=20), dt=1, random_state=0, backend=backend)
-            .check()
             .prepare()
             .run(1000)
             .trajectory_

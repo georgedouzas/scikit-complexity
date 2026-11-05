@@ -17,7 +17,7 @@ def _bits(seed: int, columns: int) -> np.ndarray:
 def _parts(first: np.ndarray, second: np.ndarray, target: np.ndarray, **settings: object) -> PartialInformationAnalysis:
     """Return the run decomposition of what two sources tell about a target."""
     source = np.column_stack([first, second, target])
-    return PartialInformationAnalysis(**settings).check().prepare(source).run()
+    return PartialInformationAnalysis(**settings).prepare(source).run()
 
 
 def test_partial_information_and_gate():
@@ -42,10 +42,10 @@ def test_partial_information_redundancy_measures():
 def test_partial_information_unknown_redundancy():
     """Test that an unknown redundancy measure raises an error naming the known ones."""
     with pytest.raises(AnalysisError, match='mmi'):
-        PartialInformationAnalysis(redundancy='minimum').check()
+        PartialInformationAnalysis(redundancy='minimum').prepare()
 
 
 def test_partial_information_needs_three_series():
     """Test that a source without two sources and a target raises an error."""
     with pytest.raises(AnalysisError, match='two sources and a target'):
-        PartialInformationAnalysis().check().prepare(_bits(9, 2))
+        PartialInformationAnalysis().prepare(_bits(9, 2))

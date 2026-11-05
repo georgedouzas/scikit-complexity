@@ -154,7 +154,7 @@ class SiteVisual(BaseVisual):
             if isinstance(space, NetworkSpace):
                 self._log_graph(recording, path, space, values)
                 continue
-            lattice = space if isinstance(space, LatticeSpace) else LatticeSpace(values.size).check().prepare()
+            lattice = space if isinstance(space, LatticeSpace) else LatticeSpace(values.size).prepare()
             positions = lattice.positions_
             if positions.shape[1] == 1:
                 positions = np.column_stack([positions[:, 0], np.zeros(len(positions))])
@@ -192,7 +192,7 @@ class SiteVisual(BaseVisual):
             ...     elements=[LatticeElement('nodes', element=NodeElement, space=NetworkSpace(nx.cycle_graph(4)))]
             ... )
             >>> problem = compile_system(system)
-            >>> views = SiteVisual(path=problem.elements[0].path).check().prepare(problem).views_
+            >>> views = SiteVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [type(view).__name__ for view in views]
             ['GraphView']
         """

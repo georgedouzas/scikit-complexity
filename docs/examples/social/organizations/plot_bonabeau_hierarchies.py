@@ -22,7 +22,7 @@ MODEL = 'bonabeau_hierarchies'
 
 system = create(MODEL, density=0.5, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=100)
+simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=100)
 
 # %%
 # Spread of strengths against density
@@ -36,10 +36,7 @@ densities = np.linspace(0.1, 0.8, 8)
 spread_runs = []
 for density in densities:
     runs = [
-        Simulation(create(MODEL, density=density, random_state=seed), random_state=seed)
-        .check()
-        .prepare()
-        .run(until=100)
+        Simulation(create(MODEL, density=density, random_state=seed), random_state=seed).prepare().run(until=100)
         for seed in range(3)
     ]
     finals = [run.trajectory_.agents('contenders', len(run.trajectory_.times) - 1).values['strength'] for run in runs]

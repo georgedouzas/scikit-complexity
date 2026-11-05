@@ -34,7 +34,7 @@ class SeparationInteraction(TopologyInteraction):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import SeparationInteraction
-        >>> SeparationInteraction('separation', voters='voters', keep='target', opinion=0).check().action
+        >>> SeparationInteraction('separation', voters='voters', keep='target', opinion=0).action
         'rewire'
     """
 

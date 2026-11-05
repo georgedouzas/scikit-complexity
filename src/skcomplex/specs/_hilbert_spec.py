@@ -38,7 +38,7 @@ class HilbertSpec(BaseSpec):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.specs import HilbertSpec
-        >>> spec = HilbertSpec(2, {'z': (np.diag([1.0, -1.0]), True)}, basis={'up': 0, 'down': 1}).check()
+        >>> spec = HilbertSpec(2, {'z': (np.diag([1.0, -1.0]), True)}, basis={'up': 0, 'down': 1})
         >>> spec.basis['down']
         1
     """

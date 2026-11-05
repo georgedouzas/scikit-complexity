@@ -336,7 +336,7 @@ class LayoutPass(BasePass):
         space = component.space if isinstance(component, FieldElement) else None
         if not isinstance(space, PhaseSpace):
             return declarations, block
-        space.check().prepare()
+        space.prepare()
         rows = space.size_
         for name, axis in space.class_axes_.items():
             shape = [1] * space.n_dim_
@@ -539,7 +539,7 @@ class LayoutPass(BasePass):
         """Return the independent components of a declared tensor state in its space, or `None` for any other state."""
         if declaration.tensor is None or space is None:
             return None
-        return TensorSpec(declaration.tensor, int(space.n_dim_)).check()
+        return TensorSpec(declaration.tensor, int(space.n_dim_))._validated()
 
     @staticmethod
     def _shape_of(name: str, declaration: VariableSpec, space: BaseSpace | None) -> tuple[int, ...]:

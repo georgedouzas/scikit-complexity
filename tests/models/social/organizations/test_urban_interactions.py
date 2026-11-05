@@ -26,9 +26,9 @@ def _fit(internal: float) -> ScalingAnalysis:
         observables=observables,
         random_state=0,
     )
-    meetings = experiment.check().prepare().run().result_.series('total_meetings')[:, -1]
+    meetings = experiment.prepare().run().result_.series('total_meetings')[:, -1]
     samples = dict(zip(SIZES, meetings.reshape(len(SIZES), len(SEEDS)), strict=True))
-    return ScalingAnalysis('allometric', resamples=300).check().prepare(samples).run()
+    return ScalingAnalysis('allometric', resamples=300).prepare(samples).run()
 
 
 def test_urban_scaling_interactions_meetings_are_superlinear_with_internal_links():
@@ -46,7 +46,7 @@ def test_urban_scaling_interactions_meetings_are_linear_without_internal_links()
 def test_urban_scaling_interactions_city_stops_growing_at_its_population():
     """Test that a run past the size of the city leaves its residents and links unchanged."""
     system = urban_scaling_interactions(30, internal=0.01)
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=40).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=40).trajectory_
     grown, later = trajectory.network(27), trajectory.network(-1)
     assert grown.nodes.size == later.nodes.size == 30
     assert grown.sources.size == later.sources.size
@@ -55,7 +55,7 @@ def test_urban_scaling_interactions_city_stops_growing_at_its_population():
 def test_urban_scaling_interactions_meetings_stay_within_the_neighbours():
     """Test that no resident meets more residents than it had neighbours."""
     system = urban_scaling_interactions(30)
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=30).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=30).trajectory_
     meetings = np.asarray(trajectory.values('residents.meetings')[-1])
     degree = np.asarray(trajectory.values('residents.degree')[-2])
     assert (meetings <= degree).all()

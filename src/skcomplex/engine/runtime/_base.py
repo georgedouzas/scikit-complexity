@@ -28,9 +28,9 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
         ...
         ...     def _run(self, inputs):
         ...         self.count_ += inputs is not None
-        >>> observer = CountingObserver().check()
+        >>> observer = CountingObserver()
         >>> simulation = Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[observer])
-        >>> _ = simulation.check().prepare().run(until=3)
+        >>> _ = simulation.prepare().run(until=3)
         >>> observer.count_
         4
     """
@@ -78,7 +78,7 @@ class BaseObserver(BaseConfig[BaseProblemSpec, FrameSpec]):
 class BaseClock(BaseConfig[None, float]):
     """Base class of clocks, which decide how long to wait between frames.
 
-    A clock follows the common API of the engine. It is checked and prepared at the start of a run with `prepare()`,
+    A clock follows the common API of the engine. It is prepared at the start of a run with `prepare()`,
     which marks the wall time, and `run(elapsed)` waits until a frame that is `elapsed` simulated time units after the
     start is due. Subclasses implement `_run`.
 

@@ -24,7 +24,7 @@ class PhasesScheduleSpec(ScheduleSpec):
 
     Examples:
         >>> from skcomplex.specs import PhaseSpec, PhasesScheduleSpec
-        >>> [phase.name for phase in PhasesScheduleSpec((PhaseSpec('produce'), PhaseSpec('trade'))).check().phases]
+        >>> [phase.name for phase in PhasesScheduleSpec((PhaseSpec('produce'), PhaseSpec('trade'))).phases]
         ['produce', 'trade']
     """
 

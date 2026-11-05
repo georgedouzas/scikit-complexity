@@ -16,7 +16,6 @@ def test_labour_market_flow_balance():
             random_state=0,
             observables=describe('labour_market').observables_of(built),
         )
-        .check()
         .prepare()
         .run(until=150)
         .trajectory_

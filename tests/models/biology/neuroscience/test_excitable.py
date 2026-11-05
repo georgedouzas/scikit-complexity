@@ -23,11 +23,7 @@ def test_kinouchi_copelli_activity_dies_out_below_and_persists_above_the_critica
     graph = nx.gnp_random_graph(2000, 10 / 1999, seed=0)
     for sigma, persists in ((0.8, False), (1.5, True)):
         trajectory = (
-            Simulation(kinouchi_copelli(graph, sigma=sigma), dt=1, random_state=0)
-            .check()
-            .prepare()
-            .run(300)
-            .trajectory_
+            Simulation(kinouchi_copelli(graph, sigma=sigma), dt=1, random_state=0).prepare().run(300).trajectory_
         )
         assert (trajectory.values('neurons.phase')[-50:] == 1).any() == persists
 
@@ -43,7 +39,7 @@ def test_kinouchi_copelli_dynamic_range_peaks_at_the_critical_point():
         response = []
         for rate in rates:
             system = kinouchi_copelli(graph, sigma=sigma, stimulus=rate)
-            trajectory = Simulation(system, dt=1, random_state=0).check().prepare().run(1000).trajectory_
+            trajectory = Simulation(system, dt=1, random_state=0).prepare().run(1000).trajectory_
             response.append((trajectory.values('neurons.phase')[200:] == 1).mean())
         ranges.append(_dynamic_range(rates, np.array(response)))
     assert sigmas[int(np.argmax(ranges))] == 1.0

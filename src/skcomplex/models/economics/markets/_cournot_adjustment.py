@@ -39,7 +39,7 @@ class CournotAdjustmentInteraction(MapInteraction):
 
     Examples:
         >>> from skcomplex.models.economics.markets import CournotAdjustmentInteraction
-        >>> CournotAdjustmentInteraction('market', target='firms', error=0.1).check().error
+        >>> CournotAdjustmentInteraction('market', target='firms', error=0.1).error
         0.1
     """
 

@@ -33,4 +33,4 @@ def test_wealth_gini_matches_its_definition():
 @pytest.mark.parametrize('name', ['kinetic_wealth_welfare', 'immune_competition', 'kinetic_opinion', 'evacuation'])
 def test_kinetic_models_run_with_the_particle_solver(name):
     """Test that the kinetic models of encounters alone validate with the particle solver."""
-    assert PassCompiler(solver=KineticSolver()).check().prepare(create(name)).report_.ok
+    assert PassCompiler(solver=KineticSolver()).prepare(create(name)).report_.ok

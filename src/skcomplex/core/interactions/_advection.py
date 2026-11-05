@@ -76,7 +76,7 @@ class AdvectionInteraction(ConservationInteraction):
         >>> field = FieldElement('tracer', element=CellElement, space=space, values=values, discretization=volumes)
         >>> drift = AdvectionInteraction('drift', target='tracer', state='u', drift=lambda s: 1.0)
         >>> system = System(elements=[field], interactions=[drift])
-        >>> trajectory = Simulation(system, dt=0.01).check().prepare().run(until=1.0).trajectory_
+        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=1.0).trajectory_
         >>> total = trajectory.values('tracer.u')[-1].sum()
         >>> round(float(total), 6) == round(float(values['u'].sum()), 6)
         True

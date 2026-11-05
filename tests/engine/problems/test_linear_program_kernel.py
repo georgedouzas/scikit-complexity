@@ -43,7 +43,7 @@ def _state(t=0.0):
 
 def test_run_keeps_one_solve_for_one_time_and_one_set_of_values():
     """Test that a second run at one time copies the values, and that a new time solves again."""
-    kernel = LinearProgramKernel(_program()).check().prepare()
+    kernel = LinearProgramKernel(_program()).prepare()
     assert kernel.run(_state()).values_.tolist() == [3.0, 3.0]
     kernel.run(_state())
     assert kernel.solves_ == 1
@@ -53,7 +53,7 @@ def test_run_keeps_one_solve_for_one_time_and_one_set_of_values():
 
 def test_run_raises_for_an_unbounded_program():
     """Test that an objective no bound limits raises an error that names the program."""
-    kernel = LinearProgramKernel(_program(upper=np.array([np.inf]))).check().prepare()
+    kernel = LinearProgramKernel(_program(upper=np.array([np.inf]))).prepare()
     with pytest.raises(SolverError, match='flows'):
         kernel.run(_state())
 
@@ -67,6 +67,6 @@ def test_prepare_evaluates_the_bounds_at_a_state_without_solving():
         function=lambda t, limit: [limit],
         arguments=(reference,),
     )
-    kernel = LinearProgramKernel(program).check().prepare(RunStateSpec(0.0, np.zeros(2), np.array([2.0])))
+    kernel = LinearProgramKernel(program).prepare(RunStateSpec(0.0, np.zeros(2), np.array([2.0])))
     assert kernel.upper_.tolist() == [[2.0]]
     assert kernel.solves_ == 0

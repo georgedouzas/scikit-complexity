@@ -354,9 +354,7 @@ class ObservableEvaluator:
                     'interaction nor an earlier observable. Use the namespace that the expression receives.'
                 )
                 raise ValidationError(error_msg)
-        function = (
-            ExpressionPrinter(time=self.problem.time, compiled=True).check().prepare(arguments).run([expression]).code_
-        )
+        function = ExpressionPrinter(time=self.problem.time, compiled=True).prepare(arguments).run([expression]).code_
         if not callable(function):
             error_msg = f'A compiled printer returns a function, not a {type(function).__name__}.'
             raise TypeError(error_msg)
@@ -529,7 +527,7 @@ class ObservableEvaluator:
             time=self.problem.time,
             parameters=parameters,
         )
-        expression = lowering.check().prepare().run(expression).expression_
+        expression = lowering.prepare().run(expression).expression_
         readers = {item: self._read_of(read) for item, read in lowering.reads_.items() if item not in scalars}
         evaluate = self._compile(path, expression, {}, readers)
         reductions = ReductionScheduleSpec(tuple(lowering.found_.values()), parameters)

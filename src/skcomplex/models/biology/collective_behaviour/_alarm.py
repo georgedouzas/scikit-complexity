@@ -48,7 +48,7 @@ class AlarmInteraction(ReactionInteraction):
         >>> alarm = AlarmInteraction('alarm', calm='calm', nervous='nervous', stochastic=False)
         >>> rats = [RatsElement('calm', n=90.0), RatsElement('nervous', n=10.0)]
         >>> system = System(elements=rats, interactions=[alarm])
-        >>> trajectory = Simulation(system, dt=0.1).check().prepare().run(until=5.0).trajectory_
+        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=5.0).trajectory_
         >>> round(float(trajectory.values('calm.n')[-1] + trajectory.values('nervous.n')[-1]), 6)
         100.0
     """

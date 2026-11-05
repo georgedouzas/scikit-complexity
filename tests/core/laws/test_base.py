@@ -9,7 +9,7 @@ from sage.all__sagemath_symbolics import var, vector
 from skcomplex.core import laws
 from skcomplex.core.laws import BaseLaw, CrossingLaw, JumpLaw, LocalRuleLaw, RateLaw
 from skcomplex.core.spaces import BoxNeighborhood
-from skcomplex.errors import NotCheckedError, ValidationError
+from skcomplex.errors import ValidationError
 from skcomplex.specs import CallSpec, RequirementSpec, TotalisticSpec
 
 
@@ -25,7 +25,7 @@ def test_every_law_derives_from_the_law_base():
 def test_law_runs_alone_once_prepared():
     """Test that a prepared rate law knows its targets, reads, and owner, and runs into its rate at given values."""
     n, r = var('n r')
-    law = RateLaw(n, r * n).check().prepare('meadow/rabbits')
+    law = RateLaw(n, r * n).prepare('meadow/rabbits')
     assert law.run({'n': 10, 'r': 0.5}).value_ == 5.0
     assert law.targets_ == (n,)
     assert law.reads_ == {n, r}
@@ -34,13 +34,7 @@ def test_law_runs_alone_once_prepared():
 
 def test_law_without_an_owner_has_none():
     """Test that a law prepared without the path of its owner has no owner."""
-    assert RateLaw(var('x'), 1).check().prepare().owner_ is None
-
-
-def test_law_must_be_checked_before_it_is_prepared():
-    """Test that preparing a law that was not checked raises an error."""
-    with pytest.raises(NotCheckedError):
-        RateLaw(var('x'), 1).prepare()
+    assert RateLaw(var('x'), 1).prepare().owner_ is None
 
 
 def test_law_contributes_itself():
@@ -52,15 +46,15 @@ def test_law_contributes_itself():
 def test_targets_are_a_tuple_once_prepared():
     """Test that preparing a law sets its targets as a tuple, and that laws without targets have none."""
     x, y = var('x y')
-    assert RateLaw(x, 1).check().prepare().targets_ == (x,)
-    assert LocalRuleLaw(y, BoxNeighborhood(), TotalisticSpec({2: 1})).check().prepare().targets_ == (y,)
-    assert CrossingLaw(x - 1).check().prepare().targets_ == ()
+    assert RateLaw(x, 1).prepare().targets_ == (x,)
+    assert LocalRuleLaw(y, BoxNeighborhood(), TotalisticSpec({2: 1})).prepare().targets_ == (y,)
+    assert CrossingLaw(x - 1).prepare().targets_ == ()
 
 
 def test_law_reads_the_symbols_of_its_nested_arguments():
     """Test that the reads of a law include the symbols inside vectors, sequences, and mappings."""
     x, y, a, b = var('x y a b')
-    law = RateLaw(vector([x, y]), vector([a * x, b])).check().prepare()
+    law = RateLaw(vector([x, y]), vector([a * x, b])).prepare()
     assert law.reads_ == {x, y, a, b}
 
 
@@ -74,7 +68,7 @@ def test_law_requirements_are_a_requirement_spec():
 def test_law_rejects_a_numpy_array_value():
     """Test that a NumPy array, which NumPy builds from a scalar times a vector, is rejected with a fix."""
     with pytest.raises(ValidationError, match='NumPy array'):
-        RateLaw(vector([var('x')]), np.float64(2.0) * vector([var('x')])).check()
+        RateLaw(vector([var('x')]), np.float64(2.0) * vector([var('x')])).prepare()
 
 
 def _double(t, value):

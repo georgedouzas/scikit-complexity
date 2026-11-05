@@ -18,5 +18,5 @@ def test_flight_interaction_moves_boids_by_velocity_on_torus():
         interactions=[FlightInteraction('flight', target='flock')],
         space=ContinuousSpace(extent=(30.0, 30.0), boundary='periodic'),
     )
-    snapshot = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_.agents('flock', 1)
+    snapshot = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.agents('flock', 1)
     np.testing.assert_allclose(snapshot.locations, [[0.5, 1.5], [29.0, 2.0]])

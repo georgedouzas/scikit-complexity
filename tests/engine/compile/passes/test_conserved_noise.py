@@ -55,7 +55,7 @@ def _noise_matrix(problem):
 def test_noise_rejects_conserved_process():
     """Test that a conserved noise law rejects a named process."""
     with pytest.raises(ValidationError, match='per link'):
-        NoiseLaw(symbol('rho'), 1.0, conserved=True, process='common').check()
+        NoiseLaw(symbol('rho'), 1.0, conserved=True, process='common').prepare()
 
 
 def test_compile_system_gives_every_link_two_entries():
@@ -105,7 +105,7 @@ def test_compile_system_rejects_conserved_amplitude_of_state():
 
 def test_validate_reports_conserved_noise_off_lattice():
     """Test that conserved noise on an element that is not a field reports `noise-unsupported` naming lattices."""
-    (issue,) = PassCompiler().check().prepare(System(elements=[ConservedElement('c')])).report_.issues
+    (issue,) = PassCompiler().prepare(System(elements=[ConservedElement('c')])).report_.issues
     assert issue.code == 'noise-unsupported'
     assert 'c.rho' in issue.message
     assert 'LatticeSpace' in issue.fix
@@ -115,14 +115,14 @@ def test_validate_reports_conserved_noise_on_network():
     """Test that conserved noise on a field of a network reports `noise-unsupported`."""
     space = NetworkSpace(nx.cycle_graph(5))
     system = System(elements=[FieldElement('f', element=ConservedElement, space=space)])
-    report = PassCompiler().check().prepare(system).report_
+    report = PassCompiler().prepare(system).report_
     issues = report.issues
     assert [issue.code for issue in issues] == ['noise-unsupported']
 
 
 def test_validate_reports_milstein_with_conserved_noise():
     """Test that Milstein with conserved noise is reported with the solvers that draw link processes."""
-    (issue,) = PassCompiler(solver=MilsteinSolver()).check().prepare(_field((4,))).report_.issues
+    (issue,) = PassCompiler(solver=MilsteinSolver()).prepare(_field((4,))).report_.issues
     assert issue.code == 'noise-unsupported'
     assert 'conserved noise' in issue.message
     assert 'MilsteinSolver' in issue.message
@@ -130,7 +130,7 @@ def test_validate_reports_milstein_with_conserved_noise():
 
 def test_validate_accepts_conserved_noise_on_lattice():
     """Test that conserved noise on a lattice field validates under the default solver."""
-    assert PassCompiler().check().prepare(_field((4, 4))).report_.ok
+    assert PassCompiler().prepare(_field((4, 4))).report_.ok
 
 
 def test_declared_conserved_support():

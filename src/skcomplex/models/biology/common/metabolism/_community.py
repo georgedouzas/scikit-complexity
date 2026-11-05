@@ -85,10 +85,10 @@ class CommunityAnalysis(BaseNetworkAnalysis):
 
     Raises:
         AnalysisError:
-            The kind is unknown, raised by `check`.
+            The kind is unknown, raised by `prepare`.
 
         MissingExtraError:
-            The kind `'tradeoff'` needs the extra, raised by `check`.
+            The kind `'tradeoff'` needs the extra, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.core.spaces import StaticTime
@@ -104,7 +104,7 @@ class CommunityAnalysis(BaseNetworkAnalysis):
         ... }
         >>> element_type = metabolic_network_type('MemberElement', reactions, {'grow': 1.0})
         >>> system = System(elements=[element_type('one'), element_type('two')], time=StaticTime())
-        >>> analysis = CommunityAnalysis().check().prepare(system).run()
+        >>> analysis = CommunityAnalysis().prepare(system).run()
         >>> round(analysis.growth_, 6), round(sum(analysis.abundances_.values()), 6)
         (2.0, 1.0)
     """

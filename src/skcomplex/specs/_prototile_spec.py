@@ -28,7 +28,7 @@ class PrototileSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import PrototileSpec
-        >>> len(PrototileSpec('interval', [(0, 0), (1, 0)]).check().vertices)
+        >>> len(PrototileSpec('interval', [(0, 0), (1, 0)]).vertices)
         2
     """
 

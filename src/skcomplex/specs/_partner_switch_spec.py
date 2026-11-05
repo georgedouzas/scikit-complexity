@@ -30,7 +30,7 @@ class PartnerSwitchSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import PartnerSwitchSpec
-        >>> PartnerSwitchSpec(sample=2, intensity=4.0).check().intensity
+        >>> PartnerSwitchSpec(sample=2, intensity=4.0).intensity
         4.0
     """
 

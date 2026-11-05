@@ -51,7 +51,7 @@ class GradientStepLaw(BaseLaw):
         >>> from skcomplex.core.laws import GradientStepLaw
         >>> from skcomplex.specs import DatasetSpec, ObservableSpec
         >>> data = DatasetSpec({'inputs.x': np.zeros((4, 3, 1))})
-        >>> law = GradientStepLaw(['readout.W'], ObservableSpec('error', 0.0), data, 'adam', 2).check()
+        >>> law = GradientStepLaw(['readout.W'], ObservableSpec('error', 0.0), data, 'adam', 2)
         >>> law.prepare('training').targets_
         ()
     """

@@ -58,7 +58,7 @@ def _get_uniform_gas(positions: int, velocities: int, knudsen: float, half_width
     """Return a gas over one position and two velocity axes, with a density wave, and its collision frequency."""
     length = 2 * math.pi
     axes = [AxisSpec(name, velocities, -half_width, half_width) for name in VELOCITY_AXES]
-    space = PhaseSpace(LatticeSpace((positions,), spacing=length / positions), axes).check().prepare()
+    space = PhaseSpace(LatticeSpace((positions,), spacing=length / positions), axes).prepare()
     vx, vy = np.meshgrid(space.coordinates_['vx'], space.coordinates_['vy'], indexing='ij')
     x = np.arange(positions) * length / positions
     profile = np.exp(-(vx**2 + vy**2) / 2) / (2 * np.pi)
@@ -113,7 +113,7 @@ def boltzmann_equation(
 
     Examples:
         >>> from skcomplex.models.physics.fluids import boltzmann_equation
-        >>> boltzmann_equation(4, 8).elements[0].check().prepare().size_
+        >>> boltzmann_equation(4, 8).elements[0].prepare().size_
         256
     """
     gas, frequency = _get_uniform_gas(positions, velocities, knudsen, half_width)
@@ -173,7 +173,7 @@ def enskog(
 
     Examples:
         >>> from skcomplex.models.physics.fluids import enskog
-        >>> enskog(4, 8).elements[0].check().prepare().size_
+        >>> enskog(4, 8).elements[0].prepare().size_
         256
     """
     gas, frequency = _get_uniform_gas(positions, velocities, knudsen, half_width)
@@ -227,11 +227,11 @@ def bgk_equation(
 
     Examples:
         >>> from skcomplex.models.physics.fluids import bgk_equation
-        >>> bgk_equation(8, 16).elements[0].check().prepare().size_
+        >>> bgk_equation(8, 16).elements[0].prepare().size_
         128
     """
     position = LatticeSpace((positions,), spacing=1.0 / positions, boundary='reflecting')
-    space = PhaseSpace(position, [AxisSpec('v', velocities, -half_width, half_width)]).check().prepare()
+    space = PhaseSpace(position, [AxisSpec('v', velocities, -half_width, half_width)]).prepare()
     left = np.arange(positions) < positions // 2
     density = np.where(left, 1.0, 0.125)
     temperature = np.where(left, 1.0, 0.8)
@@ -296,7 +296,7 @@ def vlasov_equation(
 
     Examples:
         >>> from skcomplex.models.physics.fluids import vlasov_equation
-        >>> vlasov_equation(8, 16).elements[0].check().prepare().size_
+        >>> vlasov_equation(8, 16).elements[0].prepare().size_
         128
     """
     if setup not in SETUPS:
@@ -307,7 +307,7 @@ def vlasov_equation(
         LatticeSpace((positions,), spacing=length / positions),
         [AxisSpec('v', velocities, -half_width, half_width)],
     )
-    space.check().prepare()
+    space.prepare()
     x = np.arange(positions) * length / positions
     v = space.coordinates_['v']
     profile = np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi)

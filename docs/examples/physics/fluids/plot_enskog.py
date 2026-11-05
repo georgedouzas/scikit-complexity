@@ -41,10 +41,7 @@ system = create(MODEL, positions=POSITIONS, velocities=VELOCITIES, knudsen=KNUDS
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='observables', interval=1)
 solver = StrangSplittingSolver(SemiLagrangianSolver(0.1), RK4Solver(0.05), 0.1)
 simulation = (
-    Simulation(system, solver=solver, dt=0.1, observers=[observer], observables=observables)
-    .check()
-    .prepare()
-    .run(until=5.5)
+    Simulation(system, solver=solver, dt=0.1, observers=[observer], observables=observables).prepare().run(until=5.5)
 )
 
 # %%
@@ -58,7 +55,7 @@ simulation = (
 
 def relative_wave(gas):
     """Return the times and the density wave of a gas, relative to its start."""
-    run = Simulation(gas, solver=solver, dt=0.1, observables=observables).check().prepare().run(until=5.5)
+    run = Simulation(gas, solver=solver, dt=0.1, observables=observables).prepare().run(until=5.5)
     wave = run.trajectory_.values('density_wave')
     return run.trajectory_.times, wave / wave[0]
 

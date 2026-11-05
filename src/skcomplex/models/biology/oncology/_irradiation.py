@@ -58,7 +58,7 @@ class IrradiationInteraction(ImpulseInteraction):
 
     Examples:
         >>> from skcomplex.models.biology.oncology import IrradiationInteraction
-        >>> IrradiationInteraction('fraction', target='tumour', fractions=5).check().count
+        >>> IrradiationInteraction('fraction', target='tumour', fractions=5).count
         5
     """
 

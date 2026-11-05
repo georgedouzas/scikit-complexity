@@ -22,7 +22,7 @@ MODEL = 'landau_relaxation'
 
 system = create(MODEL, T=0.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=20)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
 
 # %%
 # Critical slowing down
@@ -35,7 +35,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().
 def relaxation_time(temperature):
     """Return the relaxation time from the late exponential decay of the distance to the minimum."""
     until = 10 / abs(temperature - 1)
-    run = Simulation(create(MODEL, T=temperature), dt=until / 400).check().prepare().run(until=until)
+    run = Simulation(create(MODEL, T=temperature), dt=until / 400).prepare().run(until=until)
     phi = run.trajectory_.values('magnet.phi')
     target = np.sqrt(max(1 - temperature, 0))
     distance = np.abs(phi - target)

@@ -68,7 +68,7 @@ class PartialInformationAnalysis(BaseAnalysis):
     Examples:
         >>> from skcomplex.analysis import PartialInformationAnalysis
         >>> xor = [[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 0]]
-        >>> parts = PartialInformationAnalysis().check().prepare(xor).run()
+        >>> parts = PartialInformationAnalysis().prepare(xor).run()
         >>> round(parts.synergy_, 6), round(parts.redundancy_, 6)
         (1.0, 0.0)
     """

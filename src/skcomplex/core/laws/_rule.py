@@ -36,7 +36,7 @@ class RuleLaw(BaseLaw):
     Examples:
         >>> from skcomplex.core.laws import RuleLaw
         >>> moved = []
-        >>> RuleLaw(lambda agent, model: moved.append(agent)).check().prepare().run(('walker', None)).value_
+        >>> RuleLaw(lambda agent, model: moved.append(agent)).prepare().run(('walker', None)).value_
         >>> moved
         ['walker']
     """

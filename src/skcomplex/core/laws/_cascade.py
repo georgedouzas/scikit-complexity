@@ -44,7 +44,7 @@ class CascadeLaw(BaseLaw):
         >>> from skcomplex.core.spaces import VonNeumannNeighborhood
         >>> height = var('height')
         >>> topple = LocalRuleLaw(height, VonNeumannNeighborhood(center=True), lambda z, *n: z - 4 * (z >= 4))
-        >>> CascadeLaw([], [topple], lambda z: bool((z < 4).all())).check().prepare().targets_
+        >>> CascadeLaw([], [topple], lambda z: bool((z < 4).all())).prepare().targets_
         (height,)
     """
 
@@ -77,4 +77,4 @@ class CascadeLaw(BaseLaw):
     def _check(self) -> None:
         """Check every drive law and every law that relaxes the lattice."""
         for law in (*self.drive, *self.relax):
-            law.check()
+            law._validated()

@@ -37,7 +37,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=50)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=50)
 
 # %%
 # Barsky's fractional extraction
@@ -51,7 +51,7 @@ z = 10
 fractions = np.linspace(0.3, 0.7, 9)
 shares = []
 for k in fractions:
-    run = Simulation(create(MODEL, k=float(k)), dt=1.0).check().prepare().run(until=300).trajectory_
+    run = Simulation(create(MODEL, k=float(k)), dt=1.0).prepare().run(until=300).trajectory_
     shares.append(run.values('fine.m')[-1] - run.values('fine.m')[-2])
 grid = np.linspace(0.3, 0.7, 200)
 feed = z // 2

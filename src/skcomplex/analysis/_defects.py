@@ -50,7 +50,7 @@ class DefectAnalysis(BaseAnalysis):
         >>> from skcomplex.analysis import DefectAnalysis
         >>> rows, columns = np.meshgrid(np.arange(8.0), np.arange(8.0), indexing='ij')
         >>> vortex = np.arctan2(rows - 3.5, columns - 3.5)
-        >>> defects = DefectAnalysis(2 * np.pi, periodic=False).check().prepare(vortex).run()
+        >>> defects = DefectAnalysis(2 * np.pi, periodic=False).prepare(vortex).run()
         >>> defects.positions_[0].tolist(), defects.charges_[0].tolist()
         ([[3.5, 3.5]], [1.0])
     """

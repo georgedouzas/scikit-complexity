@@ -27,7 +27,7 @@ TRANSIENT = 1500
 
 system = create(MODEL, memory=0.75, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=50)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=STEPS)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=STEPS)
 trajectory = simulation.trajectory_
 temperatures = np.asarray(trajectory.values('agents.temperature'))
 fitness = np.asarray(trajectory.values('agents.fitness'))[::3][TRANSIENT // 3 :]
@@ -45,9 +45,9 @@ rewards = np.asarray(trajectory.values('agents.reward')).mean(axis=1)
 # high for frozen runs at low `k`, near 0 for ergodic runs at high `k`, and in between at the evolved temperatures.
 
 threshold = float(np.quantile(fitness.min(axis=1), 0.97))
-sizes = EventAnalysis('excursions').check().prepare((fitness < threshold).sum(axis=1)).run().sizes_
-fit = FitAnalysis(discrete=True, minimum=5).check().prepare(sizes).run()
-histogram = DistributionAnalysis('histogram', bins=15, log=True).check().prepare(sizes).run()
+sizes = EventAnalysis('excursions').prepare((fitness < threshold).sum(axis=1)).run().sizes_
+fit = FitAnalysis(discrete=True, minimum=5).prepare(sizes).run()
+histogram = DistributionAnalysis('histogram', bins=15, log=True).prepare(sizes).run()
 edges, density = histogram.edges_, histogram.density_
 centers, shown = np.sqrt(edges[1:] * edges[:-1]), density > 0
 tail = shown & (centers >= 5)
@@ -59,14 +59,13 @@ coefficients = []
 for scale in scales:
     runs = [
         Simulation(create(MODEL, temperature=evolved * 2.0**scale, random_state=0), dt=1, random_state=run)
-        .check()
         .prepare()
         .run(until=300)
         .trajectory_.values('agents.reward')
         .mean(axis=1)[150:]
         for run in range(4)
     ]
-    distance = ErgodicityAnalysis('distance').check().prepare(np.asarray(runs)).run()
+    distance = ErgodicityAnalysis('distance').prepare(np.asarray(runs)).run()
     coefficients.append(distance.ergodicity_distance_)
 
 fig, (spread, cascades, edge) = plt.subplots(1, 3, figsize=(14, 4))

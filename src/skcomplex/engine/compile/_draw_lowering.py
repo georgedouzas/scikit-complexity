@@ -250,7 +250,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             if request.draw is not None:
                 sampled.append(SampledDrawSpec(position, request.rows, self._sampler(request)))
                 position += request.rows
-        self.draws_ = DrawKernel(self.offset_, np.array(flags, dtype=bool), tuple(sampled), orders).check().prepare()
+        self.draws_ = DrawKernel(self.offset_, np.array(flags, dtype=bool), tuple(sampled), orders).prepare()
 
     @staticmethod
     def _replacement(draw: DrawSpec, arguments: list[Expression], slot: Expression) -> Expression:
@@ -310,7 +310,7 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
                 'component. Give the arguments of draws as expressions of the states and parameters of the member.'
             )
             raise ValidationError(error_msg)
-        function = ExpressionPrinter(time=time, compiled=True).check().prepare(symbols).run(arguments).code_
+        function = ExpressionPrinter(time=time, compiled=True).prepare(symbols).run(arguments).code_
         if not callable(function):
             error_msg = f'A compiled printer returns a function, not a {type(function).__name__}.'
             raise TypeError(error_msg)

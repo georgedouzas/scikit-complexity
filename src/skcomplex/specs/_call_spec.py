@@ -44,7 +44,7 @@ class CallSpec(BaseSpec):
         >>> n = var('n')
         >>> CallSpec(lambda t, n: 2 * n, (n,)).arguments
         (n,)
-        >>> CallSpec(lambda t, values: values['n'], relative=True).check().relative
+        >>> CallSpec(lambda t, values: values['n'], relative=True).relative
         True
     """
 

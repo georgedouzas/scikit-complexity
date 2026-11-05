@@ -39,7 +39,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).check().prepare().run(until=297)
+simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).prepare().run(until=297)
 
 # %%
 # Clustering against the temperature
@@ -51,7 +51,7 @@ temperatures = np.linspace(0.1, 0.9, 5)
 clustering = []
 for temperature in temperatures:
     run = Simulation(create(MODEL, n_nodes=1000, temperature=temperature), dt=997.0, random_state=1)
-    clustering.append(nx.average_clustering(run.check().prepare().run(until=997).trajectory_.network(-1).graph()))
+    clustering.append(nx.average_clustering(run.prepare().run(until=997).trajectory_.network(-1).graph()))
 fig, axis = plt.subplots(figsize=(6, 4))
 axis.plot(temperatures, clustering, 'o-')
 axis.set_xlabel('temperature')
@@ -66,8 +66,8 @@ plt.show()
 # `RenormalizationAnalysis(kind='geometric')` merges pairs of consecutive nodes by angle three times. The tail of the
 # degree distribution keeps its slope at every scale, and the clustering stays high.
 
-run = Simulation(create(MODEL, n_nodes=2000), dt=1997.0, random_state=0).check().prepare().run(until=1997)
-scales = RenormalizationAnalysis('geometric', steps=3, beta=5.0).check().prepare(run.trajectory_).run()
+run = Simulation(create(MODEL, n_nodes=2000), dt=1997.0, random_state=0).prepare().run(until=1997)
+scales = RenormalizationAnalysis('geometric', steps=3, beta=5.0).prepare(run.trajectory_).run()
 fig, axis = plt.subplots(figsize=(6, 4))
 for level, degrees in enumerate(scales.degrees_):
     values = np.sort(degrees)[::-1]

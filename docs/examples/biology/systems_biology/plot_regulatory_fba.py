@@ -26,7 +26,7 @@ FRAME = 0.05
 blueprint = rrb.Blueprint(rrb.TimeSeriesView(origin='culture', name='culture'), collapse_panels=True)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
 solver = CoSimulationSolver(sync_dt=FRAME, solvers={'culture': RK4Solver(dt=0.005)})
-simulation = Simulation(create(MODEL), solver=solver, dt=FRAME, observers=[observer]).check().prepare().run(until=8.0)
+simulation = Simulation(create(MODEL), solver=solver, dt=FRAME, observers=[observer]).prepare().run(until=8.0)
 trajectory = simulation.trajectory_
 
 # %%

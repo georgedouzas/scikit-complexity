@@ -52,14 +52,14 @@ class LinearProgramLaw(BaseLaw):
     Raises:
         ValidationError:
             A constraint is not a relation, an objective is not a `LinearObjectiveSpec`, or the policy is unknown,
-            raised by `check`.
+            raised by `prepare`.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import LinearProgramLaw
         >>> from skcomplex.specs import LinearObjectiveSpec
         >>> v, w = var('v w')
-        >>> law = LinearProgramLaw([v, w], [v + w <= 1], [LinearObjectiveSpec(v)]).check().prepare('flows')
+        >>> law = LinearProgramLaw([v, w], [v + w <= 1], [LinearObjectiveSpec(v)]).prepare('flows')
         >>> law.targets_
         (v, w)
     """
@@ -113,7 +113,7 @@ class LinearProgramLaw(BaseLaw):
             if not isinstance(objective, LinearObjectiveSpec):
                 error_msg = f'An objective of a linear program is a `LinearObjectiveSpec`, not {objective!r}.'
                 raise ValidationError(error_msg)
-            objective.check()
+            objective._validated()
         if self.infeasible not in INFEASIBLE_POLICIES:
             error_msg = (
                 f'Unknown infeasibility policy {self.infeasible!r}. Use one of {", ".join(INFEASIBLE_POLICIES)}.'

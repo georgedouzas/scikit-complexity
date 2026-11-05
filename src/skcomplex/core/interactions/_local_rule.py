@@ -60,7 +60,7 @@ class LocalRuleInteraction(Interaction):
         >>> parity = TotalisticSpec({1: 1, 3: 1})
         >>> around = VonNeumannNeighborhood(n_dim=1, center=True)
         >>> rule = LocalRuleInteraction('parity', target='cells', state='cell', rule=parity, neighborhood=around)
-        >>> rule.check().schedule
+        >>> rule.schedule
         'synchronous'
     """
 

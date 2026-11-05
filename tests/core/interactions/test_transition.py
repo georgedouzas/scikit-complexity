@@ -39,14 +39,14 @@ class HolderElement(Element):
 def _values(element, interactions, until, *, time=None, state='s', dt=1.0, backend=None):
     """Return the values of a state of the members at every unit of time."""
     system = System(elements=[element], interactions=interactions, time=time)
-    simulation = Simulation(system, dt=dt, random_state=0, backend=backend).check().prepare()
+    simulation = Simulation(system, dt=dt, random_state=0, backend=backend).prepare()
     return simulation.run(until=until).trajectory_.values(f'members.{state}')
 
 
 def _agent_values(element, interactions, until, state='s'):
     """Return the values of a state of the agents at the last step."""
     system = System(elements=[element], interactions=interactions, time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=until).trajectory_
     return trajectory.agents('members', until).values[state]
 
 
@@ -309,7 +309,7 @@ def test_emission_matrix_draws_an_observation_given_the_moved_state():
 def test_check_rejects_forms_it_cannot_take(arguments, match):
     """Test that a transition without one form, or with arguments its form ignores, raises an error."""
     with pytest.raises(ValidationError, match=match):
-        TransitionInteraction('move', target='members', state='s', **arguments).check()
+        TransitionInteraction('move', target='members', state='s', **arguments).prepare()
 
 
 def _empty(agent, model):
@@ -340,7 +340,7 @@ def test_agent_transition_over_the_cell_moves_the_members_of_the_cell():
         form='agent',
     )
     system = System(elements=[group], interactions=[spread], space=LatticeSpace((3, 3)), time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
     assert trajectory.agents('members', 1).values['s'].tolist() == [1, 1, 1, 0]
 
 
@@ -360,7 +360,7 @@ def test_agent_transition_over_the_cell_moves_members_of_every_source_value(sour
         form='agent',
     )
     system = System(elements=[group], interactions=[spread], space=LatticeSpace((3, 3)), time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
     assert trajectory.agents('members', 1).values['s'].tolist() == [1, 1, 1, 0]
 
 
@@ -374,4 +374,4 @@ def test_agent_transition_member_schedule_lowers_to_a_member_rule():
         schedule='member',
         form='agent',
     )
-    assert move.check().prepare().run(SimpleNamespace()).laws_[0].members == 'target'
+    assert move.prepare().run(SimpleNamespace()).laws_[0].members == 'target'

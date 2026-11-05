@@ -38,17 +38,17 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).check().prepare().run(until=300)
+simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).prepare().run(until=300)
 
 # %%
 # Degree tail
 # -----------
 # The degrees should follow `P(k) ~ k^-3`, so the share of nodes of degree at least `k` should fall as `k^-2`.
 
-run = Simulation(create(MODEL, n_nodes=3003), dt=3000.0, random_state=0).check().prepare().run(until=3000)
+run = Simulation(create(MODEL, n_nodes=3003), dt=3000.0, random_state=0).prepare().run(until=3000)
 snapshot = run.trajectory_.network(-1)
 degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
-ccdf = DistributionAnalysis('ccdf').check().prepare(degrees).run()
+ccdf = DistributionAnalysis('ccdf').prepare(degrees).run()
 values, shares = ccdf.support_, ccdf.survival_
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.loglog(values, shares, 'o', markersize=3, label='simulation')

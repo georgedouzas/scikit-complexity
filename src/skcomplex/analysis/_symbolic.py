@@ -155,9 +155,9 @@ class SymbolicAnalysis(BaseAnalysis):
         ...     elements=[PopulationElement('a', n=2)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=0.5)],
         ... )
-        >>> SymbolicAnalysis().check().prepare(system).run().equations_['a.n']
+        >>> SymbolicAnalysis().prepare(system).run().equations_['a.n']
         diff(n_a(t), t) == r_g*n_a(t)
-        >>> SymbolicAnalysis('solve', use_initial_state=True).check().prepare(system).run().solutions_['a.n']
+        >>> SymbolicAnalysis('solve', use_initial_state=True).prepare(system).run().solutions_['a.n']
         n_a(t) == 2*e^(r_g*t)
     """
 

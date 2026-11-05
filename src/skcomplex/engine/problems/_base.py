@@ -14,7 +14,7 @@ class BaseKernel(BaseConfig[object, RunStateSpec]):
     """Base of the kernels: laws lowered to numbers, the parts of a problem that a solver runs at a state.
 
     A kernel stores in its constructor what the compiler lowered, such as compiled functions and the indices they read.
-    `check()` validates them, `prepare(problem)` sets what a run needs, such as the first renewal times, and
+    `prepare(problem)` validates them and sets what a run needs, such as the first renewal times, and
     `run(state)` acts at a `RunStateSpec`, the time, the state vector, the parameters, and the random number generator,
     and keeps what the kernel computes, such as the next state or a matrix, in `values_`.
 
@@ -35,7 +35,7 @@ class BaseKernel(BaseConfig[object, RunStateSpec]):
         ...
         ...     def _run(self, inputs):
         ...         self.values_ = -self.rate * inputs.x
-        >>> DecayKernel(0.5).check().prepare().run(RunStateSpec(0.0, np.array([2.0]), np.zeros(0))).values_.tolist()
+        >>> DecayKernel(0.5).prepare().run(RunStateSpec(0.0, np.array([2.0]), np.zeros(0))).values_.tolist()
         [-1.0]
     """
 

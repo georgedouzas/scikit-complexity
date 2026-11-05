@@ -23,7 +23,7 @@ MODEL = 'fhp_lattice_gas'
 
 system = create(MODEL, shape=(64, 64))
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=120)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=120)
 
 # %%
 # Conservation and the spreading disc
@@ -38,7 +38,7 @@ channels = np.stack([trajectory.values(f'gas.n{direction}').astype(float) for di
 angles = np.arange(6) * np.pi / 3
 totals = channels.sum(axis=2)
 momentum = np.stack([np.cos(angles) @ totals, np.sin(angles) @ totals])
-positions = LatticeSpace((64, 64), geometry='triangular').check().prepare().positions_
+positions = LatticeSpace((64, 64), geometry='triangular').prepare().positions_
 disc = np.linalg.norm(positions - positions.mean(axis=0), axis=1) < 64 / 6
 density = trajectory.values('gas.density')
 

@@ -20,7 +20,7 @@ MODEL = 'random_walker_epidemics'
 
 system = create(MODEL, walkers=1000, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=299)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=299)
 
 # %%
 # Density threshold
@@ -32,10 +32,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).chec
 def dead_share(walkers, seed):
     """Return the share of walkers dead at the end of a run."""
     run = (
-        Simulation(create(MODEL, walkers=walkers, random_state=seed), dt=1, random_state=seed)
-        .check()
-        .prepare()
-        .run(until=300)
+        Simulation(create(MODEL, walkers=walkers, random_state=seed), dt=1, random_state=seed).prepare().run(until=300)
     )
     final = run.trajectory_.agents('walkers', len(run.trajectory_.times) - 1)
     return np.mean(final.values['health'] == 2)

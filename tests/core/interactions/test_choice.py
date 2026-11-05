@@ -58,7 +58,7 @@ def _run_choice(choice: ChoiceInteraction, initial: np.ndarray, until: int, seed
     """Return the trajectory of a group of choosers bound to a choice."""
     group = GroupElement('members', element=ChooserElement, size=len(initial), values={'option': initial})
     system = System(elements=[group], interactions=[choice], time=DiscreteTime())
-    return Simulation(system, random_state=seed).check().prepare().run(until=until).trajectory_
+    return Simulation(system, random_state=seed).prepare().run(until=until).trajectory_
 
 
 def _fixed(namespace: object, option: float) -> float:
@@ -311,7 +311,7 @@ def test_choice_interaction_agent_utility_reads_the_history_of_the_model():
         interactions=[choice, PayoffFeedback('feedback', phase='report')],
         time=DiscreteTime(schedule=schedule),
     )
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=5).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=5).trajectory_
     assert 0.0 < trajectory.agents('members', 1).values['option'].mean() < 1.0
     assert trajectory.agents('members', 5).values['option'].mean() > 0.9
 
@@ -348,7 +348,7 @@ def test_check_rejects_invalid_arguments(arguments, message):
     """Test that an unknown variant, a single option, or a utility that is not callable is rejected."""
     values = {'target': 'members', 'state': 'option', 'options': (0, 1), 'utility': _fixed, **arguments}
     with pytest.raises(ValidationError, match=message):
-        ChoiceInteraction('choice', **values).check()
+        ChoiceInteraction('choice', **values).prepare()
 
 
 def _flat(namespace: object, option: float) -> float:

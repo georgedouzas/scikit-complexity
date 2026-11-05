@@ -22,7 +22,7 @@ def _core_system(**values):
 
 def _objective(system):
     """Return the objective of the only program of a static system."""
-    trajectory = Simulation(system).check().prepare().run(0.0).trajectory_
+    trajectory = Simulation(system).prepare().run(0.0).trajectory_
     return float(trajectory.values('cell.objective_0')[0])
 
 
@@ -48,6 +48,6 @@ def test_network_rejects_a_rule_with_another_operator():
 
 def test_network_keeps_its_reference_values():
     """Test the toy and core networks against the values recorded before they moved to declared states."""
-    trajectory = Simulation(flux_balance()).check().prepare().run(0.0).trajectory_
+    trajectory = Simulation(flux_balance()).prepare().run(0.0).trajectory_
     assert float(trajectory.values('cell.v_vbio')[0]) == pytest.approx(50.0, rel=1e-9)
     assert _objective(metabolic_perturbations(genes=('b4025',))) == pytest.approx(0.8631595522084183, rel=1e-9)

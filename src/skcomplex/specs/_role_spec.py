@@ -41,9 +41,9 @@ class RoleSpec(BaseSpec):
     Examples:
         >>> from skcomplex.specs import RoleSpec
         >>> from skcomplex.types import ElementKind
-        >>> RoleSpec(variadic=True).check().variadic
+        >>> RoleSpec(variadic=True).variadic
         True
-        >>> role = RoleSpec(elements=(ElementKind.GROUP,), states=('state',)).check()
+        >>> role = RoleSpec(elements=(ElementKind.GROUP,), states=('state',))
         >>> role.accepts(ElementKind.ELEMENT), role.accepts(ElementKind.GROUP), role.states
         (False, True, ('state',))
     """

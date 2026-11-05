@@ -38,7 +38,6 @@ observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, i
 system = create(MODEL, n_agents=100, capacity=CAPACITY, random_state=0)
 simulation = (
     Simulation(system, observers=[observer], random_state=0, observables=describe(MODEL).observables_of(system))
-    .check()
     .prepare()
     .run(until=WEEKS)
 )

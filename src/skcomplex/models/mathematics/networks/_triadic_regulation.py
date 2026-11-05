@@ -39,7 +39,7 @@ class TriadicRegulationInteraction(HyperedgeInteraction):
 
     Examples:
         >>> from skcomplex.models.mathematics.networks import TriadicRegulationInteraction
-        >>> TriadicRegulationInteraction('regulation', nodes='nodes', links='links').check().size
+        >>> TriadicRegulationInteraction('regulation', nodes='nodes', links='links').size
         3
     """
 

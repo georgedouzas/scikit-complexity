@@ -584,7 +584,7 @@ class FieldFunctionsPass(BasePass):
             raise ValidationError(error_msg)
         symbols = [SR.var(f'_volume_parameter_{index}') for index in range(len(parameters))]
         columns = list(zip(*expressions, strict=True))
-        printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare([*states, *symbols])
+        printer = ExpressionPrinter(time=TIME, compiled=True).prepare([*states, *symbols])
         fluxes = tuple(FieldFunctionsPass._function_of(printer.run(list(column)).code_, owner) for column in columns)
         jacobians = tuple(
             FieldFunctionsPass._function_of(
@@ -599,7 +599,7 @@ class FieldFunctionsPass(BasePass):
                 error_msg = f'The fluxes of {owner} ask for the Godunov flux, which is exact for one state only.'
                 raise ValidationError(error_msg)
             roots = []
-            critical_printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare(symbols)
+            critical_printer = ExpressionPrinter(time=TIME, compiled=True).prepare(symbols)
             for column in columns:
                 found = [item.rhs() for item in solve(column[0].diff(states[0]) == 0, states[0])]
                 roots.append(FieldFunctionsPass._function_of(critical_printer.run(found).code_, owner))
@@ -612,36 +612,32 @@ class FieldFunctionsPass(BasePass):
                 for _, reference, _ in laws
             )
         )
-        return (
-            FiniteVolumeKernel(
-                owner,
-                tuple(reference.entry.start for _, reference, _ in laws),
-                space.shape_,
-                space.spacings_,
-                boundaries,
-                fluxes=fluxes,
-                jacobians=jacobians,
-                parameters=tuple(parameters),
-                reads=FieldFunctionsPass._parameter_reads(parameters, references, declarations, owner),
-                drifts=FieldFunctionsPass._linear_drifts(
-                    columns,
-                    states,
-                    symbols,
-                    parameters=parameters,
-                    printer=printer,
-                    owner=owner,
-                    space=space,
-                ),
-                edges=FieldFunctionsPass._class_edges(space),
-                limiter=first.limiter,
-                riemann=first.riemann,
-                critical=critical,
-                expressions=tuple(columns),
-                speeds=(
-                    FieldFunctionsPass._function_speeds(laws, parameters, n_dim, owner)
-                    or FieldFunctionsPass._compile_speeds(columns, states, printer, owner)
-                ),
-            )
-            .check()
-            .prepare()
-        )
+        return FiniteVolumeKernel(
+            owner,
+            tuple(reference.entry.start for _, reference, _ in laws),
+            space.shape_,
+            space.spacings_,
+            boundaries,
+            fluxes=fluxes,
+            jacobians=jacobians,
+            parameters=tuple(parameters),
+            reads=FieldFunctionsPass._parameter_reads(parameters, references, declarations, owner),
+            drifts=FieldFunctionsPass._linear_drifts(
+                columns,
+                states,
+                symbols,
+                parameters=parameters,
+                printer=printer,
+                owner=owner,
+                space=space,
+            ),
+            edges=FieldFunctionsPass._class_edges(space),
+            limiter=first.limiter,
+            riemann=first.riemann,
+            critical=critical,
+            expressions=tuple(columns),
+            speeds=(
+                FieldFunctionsPass._function_speeds(laws, parameters, n_dim, owner)
+                or FieldFunctionsPass._compile_speeds(columns, states, printer, owner)
+            ),
+        ).prepare()

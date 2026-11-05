@@ -89,12 +89,12 @@ class MotifAnalysis(BaseAnalysis):
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.analysis import MotifAnalysis
-        >>> MotifAnalysis().check().prepare(nx.complete_graph(4)).run().counts_
+        >>> MotifAnalysis().prepare(nx.complete_graph(4)).run().counts_
         [{'path': 0, 'triangle': 4}]
-        >>> MotifAnalysis(size=4).check().prepare(nx.complete_graph(4)).run().counts_
+        >>> MotifAnalysis(size=4).prepare(nx.complete_graph(4)).run().counts_
         [{'clique': 1}]
         >>> graph = nx.gnm_random_graph(30, 60, seed=0)
-        >>> sorted(MotifAnalysis('z-scores', samples=10, random_state=0).check().prepare(graph).run().z_scores_[0])
+        >>> sorted(MotifAnalysis('z-scores', samples=10, random_state=0).prepare(graph).run().z_scores_[0])
         ['path', 'triangle']
     """
 

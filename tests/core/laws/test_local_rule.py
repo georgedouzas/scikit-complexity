@@ -29,8 +29,8 @@ LIFE = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
 def test_local_rule_targets_one_state_or_several_together():
     """Test that a local rule targets one lattice state, or a tuple of them that it updates together."""
     height, grains = var('height grains')
-    assert LocalRuleLaw(height, BoxNeighborhood(), TotalisticSpec({2: 1})).check().prepare().targets_ == (height,)
-    together = LocalRuleLaw((height, grains), BoxNeighborhood(), lambda z, *n: (z, z)).check().prepare()
+    assert LocalRuleLaw(height, BoxNeighborhood(), TotalisticSpec({2: 1})).prepare().targets_ == (height,)
+    together = LocalRuleLaw((height, grains), BoxNeighborhood(), lambda z, *n: (z, z)).prepare()
     assert together.targets_ == (height, grains)
 
 
@@ -46,18 +46,18 @@ def test_local_rule_requires_discrete_time_on_sites():
 def test_local_rule_rejects_an_unknown_schedule():
     """Test that a local rule rejects a schedule it does not know."""
     with pytest.raises(ValidationError, match='Unknown schedule'):
-        LocalRuleLaw(var('cell'), BoxNeighborhood(), TotalisticSpec({2: 1}), schedule='parallel').check()
+        LocalRuleLaw(var('cell'), BoxNeighborhood(), TotalisticSpec({2: 1}), schedule='parallel').prepare()
 
 
 def _run(rule, neighborhood, space, configuration):
     """Return one step of a local rule on a space."""
-    law = LocalRuleLaw(var('alive'), neighborhood, rule).check().prepare()
+    law = LocalRuleLaw(var('alive'), neighborhood, rule).prepare()
     return law.run({'space': space, 'alive': configuration}).value_
 
 
 def _local_map(rule, neighborhood, space, site, states=2):
     """Return the next value at a site of every pattern of the cells it reads, by one run on every configuration."""
-    size = space.check().prepare().size_
+    size = space.prepare().size_
     patterns = list(itertools.product(range(states), repeat=size))
     return _run(rule, neighborhood, space, np.asarray(patterns))[:, site]
 
@@ -151,16 +151,16 @@ def test_run_function_rule_reads_keywords_and_sets_several_targets():
     height, grains = var('height grains')
     own = LatticeNeighborhood(((0,),))
     reading = LocalRuleLaw((height, grains), own, lambda x, y: (x + y, x - y), reads=(height, grains))
-    first, second = reading.check().prepare().run({'space': LatticeSpace(2), 'height': [1, 2], 'grains': [3, 5]}).value_
+    first, second = reading.prepare().run({'space': LatticeSpace(2), 'height': [1, 2], 'grains': [3, 5]}).value_
     assert first.tolist() == [4, 7]
     assert second.tolist() == [-2, -3]
-    scaled = LocalRuleLaw(var('cell'), LatticeNeighborhood(((0,),)), lambda x, *, scale: x * scale).check().prepare()
+    scaled = LocalRuleLaw(var('cell'), LatticeNeighborhood(((0,),)), lambda x, *, scale: x * scale).prepare()
     assert scaled.run({'space': LatticeSpace(2), 'cell': [1, 2], 'scale': 0.5}).value_.tolist() == [0.5, 1.0]
 
 
 def test_run_rejects_invalid_inputs_and_rules():
     """Test that a run without the space or a state, or with an unknown rule or coefficients, raises an error."""
-    law = LocalRuleLaw(var('cell'), BoxNeighborhood(), Wolfram(90)).check().prepare()
+    law = LocalRuleLaw(var('cell'), BoxNeighborhood(), Wolfram(90)).prepare()
     with pytest.raises(ValidationError, match='runs on a mapping'):
         law.run({'cell': [0, 1, 0]})
     with pytest.raises(ValidationError, match='runs on a mapping'):
@@ -170,7 +170,7 @@ def test_run_rejects_invalid_inputs_and_rules():
     with pytest.raises(ValidationError, match='not a linear rule of 3 neighbours'):
         _run(LinearRuleSpec((1,)), BoxNeighborhood(), LatticeSpace(3), [0, 1, 0])
     with pytest.raises(ValidationError, match='Unknown field'):
-        LocalRuleLaw(var('cell'), BoxNeighborhood(), LinearRuleSpec((1, 1, 1), 'GF(x)')).check()
+        LocalRuleLaw(var('cell'), BoxNeighborhood(), LinearRuleSpec((1, 1, 1), 'GF(x)')).prepare()
     graph = AdjacencyNeighborhood()
     with pytest.raises(ValidationError, match='on offsets or a memory set'):
         _run(LIFE, graph, LatticeSpace(3), [0, 1, 0])

@@ -35,11 +35,11 @@ class RadiusSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The reduction is unknown, the function is not callable, or the radius is negative, raised by `check`.
+            The reduction is unknown, the function is not callable, or the radius is negative, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.specs import RadiusSpec
-        >>> RadiusSpec(2.0, lambda agent, other, model: (1.0, 0.0), reduce='mean').check().reduce
+        >>> RadiusSpec(2.0, lambda agent, other, model: (1.0, 0.0), reduce='mean').reduce
         'mean'
     """
 

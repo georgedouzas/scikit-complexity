@@ -66,7 +66,7 @@ def _run(space, heights, threshold, until, seed=0, **arguments):
         interactions=[CascadeInteraction('cascade', target='sites', state='height', threshold=threshold, **arguments)],
         time=DiscreteTime(),
     )
-    return Simulation(system, dt=until, random_state=seed).check().prepare().run(until=until)
+    return Simulation(system, dt=until, random_state=seed).prepare().run(until=until)
 
 
 def test_sandpile_avalanches_follow_a_power_law_over_two_decades():
@@ -159,7 +159,7 @@ def test_random_mode_drives_a_stochastic_sandpile_to_a_stationary_density():
 def test_check_rejects_unknown_modes_drives_and_neighbourhoods(arguments, match):
     """Test that unknown modes, drives, neighbourhoods, and parcels that do not divide the threshold raise errors."""
     with pytest.raises(ValidationError, match=match):
-        CascadeInteraction('cascade', target='sites', **arguments).check()
+        CascadeInteraction('cascade', target='sites', **arguments).prepare()
 
 
 def test_get_laws_reads_a_renamed_target():
@@ -173,6 +173,6 @@ def test_get_laws_reads_a_renamed_target():
         PileInteraction('cascade', pile='sites', state='height', threshold=4, share=1),
     ):
         system = System(elements=elements, interactions=[cascade], time=DiscreteTime())
-        finals.append(Simulation(system, dt=1, random_state=0).check().prepare().run(until=1).state_)
+        finals.append(Simulation(system, dt=1, random_state=0).prepare().run(until=1).state_)
     np.testing.assert_array_equal(finals[1], finals[0])
     assert finals[0].max() < 4.0

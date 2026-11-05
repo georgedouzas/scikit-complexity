@@ -27,7 +27,7 @@ class DiscreteTime(BaseTime):
 
     Examples:
         >>> from skcomplex.core.spaces import DiscreteTime
-        >>> DiscreteTime(schedule='random-sequential').check().prepare().schedule_
+        >>> DiscreteTime(schedule='random-sequential').prepare().schedule_
         'random-sequential'
     """
 
@@ -38,7 +38,7 @@ class DiscreteTime(BaseTime):
     def _check(self) -> None:
         """Raise an error for a schedule that is neither known nor a `ScheduleSpec`."""
         if isinstance(self.schedule, ScheduleSpec):
-            self.schedule.check()
+            self.schedule._validated()
             return
         if self.schedule not in SCHEDULES:
             error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}, or a ScheduleSpec.'

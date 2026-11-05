@@ -36,7 +36,7 @@ class InvariantObserver(BaseObserver):
         ... )
         >>> total = ObservableSpec('total', group='herd', reduce='sum', variable='n')
         >>> monitor = InvariantObserver({'total': 1e-9})
-        >>> _ = Simulation(system, dt=1, observables=[total], observers=[monitor]).check().prepare().run(3)
+        >>> _ = Simulation(system, dt=1, observables=[total], observers=[monitor]).prepare().run(3)
         >>> monitor.initial_
         {'total': 8.0}
     """

@@ -26,13 +26,13 @@ MODEL = 'carbon_13_mfa'
 TRUE = {'v1': 100.0, 'v2': 100.0, 'v3': 50.0, 'v4': 50.0, 'v5': 50.0, 'v6': 50.0, 'v8': 50.0, 'v9': 50.0}
 
 system = create(MODEL)
-analysis = tca_labelling_analysis(noise=0.002, random_state=0).check().prepare(system).run()
+analysis = tca_labelling_analysis(noise=0.002, random_state=0).prepare(system).run()
 network = system.elements[0]
 fixed = {f'{bound}_{name}': analysis.fluxes_[name] for name in TRUE for bound in ('lower', 'upper')}
 estimated = System(elements=[type(network)(network.label).set_params(**fixed)], time=StaticTime())
 blueprint = rrb.Blueprint(rrb.GraphView(origin='tca/graph', name='network'), collapse_panels=True)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-Simulation(estimated, observers=[observer]).check().prepare().run(until=0.0)
+Simulation(estimated, observers=[observer]).prepare().run(until=0.0)
 
 # %%
 # Estimated fluxes against the true ones

@@ -139,9 +139,9 @@ class EntropyAnalysis(BaseAnalysis):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.analysis import EntropyAnalysis
-        >>> EntropyAnalysis().check().prepare([0, 1, 0, 1]).run().entropy_.tolist()
+        >>> EntropyAnalysis().prepare([0, 1, 0, 1]).run().entropy_.tolist()
         [1.0]
-        >>> EntropyAnalysis('excess', dimension=4).check().prepare([0, 0, 1, 1] * 100).run().entropy_.round(3).tolist()
+        >>> EntropyAnalysis('excess', dimension=4).prepare([0, 0, 1, 1] * 100).run().entropy_.round(3).tolist()
         [2.0]
     """
 

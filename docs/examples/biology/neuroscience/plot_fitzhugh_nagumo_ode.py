@@ -21,7 +21,7 @@ MODEL = 'fitzhugh_nagumo_ode'
 
 system = create(MODEL, I=0.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.2, observers=[observer]).check().prepare().run(until=100)
+simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=100)
 
 # %%
 # Limit cycle and nullclines

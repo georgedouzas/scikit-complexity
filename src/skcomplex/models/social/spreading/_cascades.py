@@ -97,7 +97,7 @@ def watts_cascades(
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.models.social.spreading import watts_cascades
-        >>> watts_cascades(nx.cycle_graph(10), random_state=0).elements[0].check().prepare().size_
+        >>> watts_cascades(nx.cycle_graph(10), random_state=0).elements[0].prepare().size_
         10
     """
     rng = np.random.default_rng(random_state)

@@ -57,7 +57,7 @@ class KramersMoyalAnalysis(BaseAnalysis):
         >>> x = np.zeros(100_000)
         >>> for t in range(1, x.size):
         ...     x[t] = x[t - 1] - x[t - 1] * 0.01 + np.sqrt(0.02) * rng.standard_normal()
-        >>> analysis = KramersMoyalAnalysis(dt=0.01, bins=21).check().prepare(x).run()
+        >>> analysis = KramersMoyalAnalysis(dt=0.01, bins=21).prepare(x).run()
         >>> round(float(analysis.diffusion_[10]), 1)
         1.0
     """

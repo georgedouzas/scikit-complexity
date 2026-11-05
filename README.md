@@ -145,7 +145,7 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
 
 system = create('lotka_volterra', r=1.5)
-trajectory = Simulation(system, dt=0.1).check().prepare().run(until=50).trajectory_
+trajectory = Simulation(system, dt=0.1).prepare().run(until=50).trajectory_
 print(round(float(trajectory.values('prey.n').max())))
 ```
 
@@ -214,7 +214,7 @@ system = System(
         RateInteraction('death', target='foxes', state='n', rate=lambda s: -0.4 * s.target.n),
     ],
 )
-trajectory = Simulation(system, dt=0.05).check().prepare().run(until=30).trajectory_
+trajectory = Simulation(system, dt=0.05).prepare().run(until=30).trajectory_
 print(round(float(trajectory.values('rabbits.n').max())))
 ```
 
@@ -234,14 +234,14 @@ simulation = Simulation(
     dt=0.05,
     clock=RealTimeClock(speed=20.0),
     observers=[RerunObserver('predators', save_path=recording)],
-).check().prepare()
+).prepare()
 print(simulation.run(until=30).trajectory_.times[-1])
 ```
 
 A simulation started with `start` runs in the background, and its parameters can change while it runs:
 
 ```python continuation
-simulation = Simulation(system, dt=0.05, clock=RealTimeClock(speed=20.0)).check().prepare().start(until=30)
+simulation = Simulation(system, dt=0.05, clock=RealTimeClock(speed=20.0)).prepare().start(until=30)
 simulation.update_parameters({'hunt.a': 0.2})
 simulation.wait()
 ```
@@ -278,7 +278,7 @@ harvested = System(
         HarvestInteraction('fishing', target='fish', h=0.1),
     ],
 )
-print(SymbolicAnalysis().check().prepare(harvested).run().equations_['fish.n'])
+print(SymbolicAnalysis().prepare(harvested).run().equations_['fish.n'])
 ```
 
 ### Find out which components fit
@@ -306,7 +306,7 @@ wrong = System(
     elements=[TankElement('tank'), PopulationElement('foxes')],
     interactions=[PredationInteraction('hunt', predator='foxes', prey='tank')],
 )
-print(PassCompiler().check().prepare(wrong).report_.issues[0].text)
+print(PassCompiler().prepare(wrong).report_.issues[0].text)
 ```
 
 The [compatibility page](https://georgedouzas.github.io/scikit-complexity/overview/compatibility/) lists every element, interaction, law, solver, and backend, and

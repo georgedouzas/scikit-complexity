@@ -24,11 +24,11 @@ class QueueSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The order is unknown, raised by `check`.
+            The order is unknown, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.specs import QueueSpec
-        >>> QueueSpec(order='limit').check().order
+        >>> QueueSpec(order='limit').order
         'limit'
     """
 

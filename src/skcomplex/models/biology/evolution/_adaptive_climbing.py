@@ -41,7 +41,7 @@ class AdaptiveClimbingInteraction(EvolutionInteraction):
 
     Examples:
         >>> from skcomplex.models.biology.evolution import AdaptiveClimbingInteraction
-        >>> AdaptiveClimbingInteraction('climbing', target='population', mutation=0.1).check().replacement
+        >>> AdaptiveClimbingInteraction('climbing', target='population', mutation=0.1).replacement
         'best-mutant'
     """
 

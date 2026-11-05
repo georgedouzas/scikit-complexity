@@ -67,7 +67,7 @@ class PairCouplingInteraction(PairInteraction):
     Raises:
         ValidationError:
             Not exactly one of the function and the potential is a callable, or the potential has several states to
-            write, raised by `check`.
+            write, raised by `prepare`.
 
     Examples:
         >>> from types import SimpleNamespace
@@ -76,7 +76,7 @@ class PairCouplingInteraction(PairInteraction):
         >>> first = SimpleNamespace(x=vector([var('x1')]), m=var('m1'))
         >>> second = SimpleNamespace(x=vector([var('x2')]), m=var('m2'))
         >>> spring = PairCouplingInteraction('spring', 'a', 'b', potential=lambda s, r: r**2 / 2, divisor='m')
-        >>> [law.value for law in spring.check().prepare().run(SimpleNamespace(first=first, second=second)).laws_]
+        >>> [law.value for law in spring.prepare().run(SimpleNamespace(first=first, second=second)).laws_]
         [(-(x1 - x2)/m1), ((x1 - x2)/m2)]
     """
 

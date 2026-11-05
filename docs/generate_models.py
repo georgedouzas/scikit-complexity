@@ -140,7 +140,7 @@ def _equations(name: str) -> str | None:
     if describe(name).formalism not in EQUATION_FORMS:
         return None
     try:
-        equations = SymbolicAnalysis().check().prepare(create(name)).run().equations_
+        equations = SymbolicAnalysis().prepare(create(name)).run().equations_
     except AnalysisError:
         return None
     return '\n'.join(f'{target}: {equation}' for target, equation in equations.items())

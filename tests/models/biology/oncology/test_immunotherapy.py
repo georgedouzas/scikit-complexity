@@ -17,7 +17,7 @@ STIFF = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 
 def _run(system, until, dt):
     """Return the trajectory of a system integrated with a stiff method."""
-    return Simulation(system, dt=dt, solver=STIFF).check().prepare().run(until=until).trajectory_
+    return Simulation(system, dt=dt, solver=STIFF).prepare().run(until=until).trajectory_
 
 
 def _count_peaks(values):

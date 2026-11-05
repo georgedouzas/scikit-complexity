@@ -36,7 +36,7 @@ def _lorenz_samples(samples=3000, step=STEP, method='RK23', tolerances=(1e-3, 1e
 
 def _forecast(system, steps, names=VARIABLES):
     """Return the variables of a run of the system, one row per step after the first."""
-    trajectory = Simulation(system).check().prepare().run(until=steps).trajectory_
+    trajectory = Simulation(system).prepare().run(until=steps).trajectory_
     return np.column_stack([trajectory.values(f'reservoir.{name}') for name in names])[1:]
 
 
@@ -64,7 +64,7 @@ def test_next_generation_reservoir_agrees_with_analysis():
         horizon=horizon,
         dt=STEP,
     )
-    analysis.check().prepare(values).run()
+    analysis.prepare(values).run()
     forecast = _forecast(next_generation_reservoir(analysis=analysis), horizon)
     assert np.abs(forecast - analysis.forecast_).max() < 1e-6 * np.ptp(values, axis=0).max()
 
@@ -74,7 +74,7 @@ def test_next_generation_reservoir_agrees_with_analysis_for_longer_delays():
     times = 0.1 * np.arange(400.0)
     values = np.column_stack([np.sin(times), np.cos(1.3 * times)])
     analysis = ReservoirAnalysis(['u', 'w'], delay=3, order=3, ridge=1e-6, validation=0.0, horizon=20)
-    analysis.check().prepare(values).run()
+    analysis.prepare(values).run()
     forecast = _forecast(next_generation_reservoir(analysis=analysis), 20, ['u', 'w'])
     assert np.abs(forecast - analysis.forecast_).max() < 1e-6
 
@@ -89,7 +89,7 @@ def test_next_generation_reservoir_needs_standardized_features_for_an_accurate_s
     standardized = next_generation_reservoir(values[: trained + 1], standardize=True)
     assert np.linalg.norm(_forecast(standardized, horizon) - truth, axis=1).max() < limit
     raw = ReservoirAnalysis(VARIABLES, ridge=2.5e-6, standardize=False, validation=0.0, horizon=horizon, dt=STEP)
-    forecast = raw.check().prepare(values[: trained + 1]).run().forecast_
+    forecast = raw.prepare(values[: trained + 1]).run().forecast_
     assert not np.linalg.norm(forecast - truth, axis=1).max() < limit
 
 
@@ -102,7 +102,7 @@ def test_next_generation_reservoir_keeps_lags_of_every_variable():
     assert element.variables['x'].spec.initial == pytest.approx(tuple(values[[-2, -3], 0]))
     assert [interaction.state for interaction in system.interactions] == VARIABLES
     assert all(interaction.mode == 'increment' for interaction in system.interactions)
-    trajectory = Simulation(system).check().prepare().run(until=2).trajectory_
+    trajectory = Simulation(system).prepare().run(until=2).trajectory_
     assert trajectory.values('reservoir.x_lag1')[1] == pytest.approx(values[-1, 0])
     assert trajectory.values('reservoir.x_lag2')[2] == pytest.approx(values[-1, 0])
 
@@ -118,7 +118,7 @@ def test_next_generation_reservoir_fits_the_lorenz_flow_by_default():
 def test_next_generation_reservoir_rejects_echo_state_analysis():
     """Test that a readout of another kind of reservoir raises an error naming the kind."""
     values = np.sin(0.1 * np.arange(300.0))[:, None]
-    analysis = ReservoirAnalysis(['v'], kind='echo_state', units=20).check().prepare(values).run()
+    analysis = ReservoirAnalysis(['v'], kind='echo_state', units=20).prepare(values).run()
     with pytest.raises(ValidationError, match='echo_state'):
         next_generation_reservoir(analysis=analysis)
 
@@ -135,6 +135,6 @@ def test_next_generation_reservoir_keeps_its_reference_values():
     """Test a forecast against the values recorded before the element moved to declared states."""
     values = np.sin(0.1 * np.arange(200.0))[:, None]
     system = next_generation_reservoir(values, variables=['v'])
-    trajectory = Simulation(system, dt=1).check().prepare().run(until=20).trajectory_
+    trajectory = Simulation(system, dt=1).prepare().run(until=20).trajectory_
     last = [float(np.ravel(trajectory.values(path))[-1]) for path in ('reservoir.v', 'reservoir.v_lag1')]
     assert last == pytest.approx([0.09103560049023797, 0.18999621778271003], rel=1e-9)

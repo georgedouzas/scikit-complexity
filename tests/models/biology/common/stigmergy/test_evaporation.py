@@ -34,11 +34,11 @@ def test_evaporation_decays_every_cell_at_its_own_rate():
     marks = FieldElement('marks', element=MarkElement, space=LatticeSpace((4,)), values={'rate': rates})
     evaporation = EvaporationInteraction('evaporation', target='marks', state='level', evaporation='rate')
     system = System(elements=[marks], interactions=[evaporation])
-    trajectory = Simulation(system, dt=0.001).check().prepare().run(until=1.0).trajectory_
+    trajectory = Simulation(system, dt=0.001).prepare().run(until=1.0).trajectory_
     np.testing.assert_allclose(np.asarray(trajectory.values('marks.level'))[-1], np.exp(-rates), rtol=1e-3)
 
 
 def test_evaporation_rejects_a_rate_that_is_no_name():
     """Test that the name of the rate of evaporation must be a name."""
     with pytest.raises(ValidationError, match='evaporation'):
-        EvaporationInteraction('evaporation', target='marks', evaporation='1 rate').check()
+        EvaporationInteraction('evaporation', target='marks', evaporation='1 rate').prepare()

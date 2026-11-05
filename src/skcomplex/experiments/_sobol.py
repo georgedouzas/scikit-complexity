@@ -25,7 +25,7 @@ class SobolDesign(BaseDesign):
 
     Examples:
         >>> from skcomplex.experiments import SobolDesign
-        >>> len(SobolDesign(n=8, random_state=0).check().check().prepare({'r': (0.0, 1.0)}).run().rows_)
+        >>> len(SobolDesign(n=8, random_state=0).prepare({'r': (0.0, 1.0)}).run().rows_)
         8
     """
 

@@ -24,7 +24,7 @@ class TriangularNeighborhood(LatticeNeighborhood):
 
     Examples:
         >>> from skcomplex.core.spaces import TriangularNeighborhood
-        >>> TriangularNeighborhood().check().prepare().offsets_
+        >>> TriangularNeighborhood().prepare().offsets_
         ((0, 1), (1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1))
     """
 

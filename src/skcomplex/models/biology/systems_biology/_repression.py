@@ -64,7 +64,7 @@ class RepressionInteraction(ReactionInteraction):
         ...     'repression', products={('mRNA', 'x'): 1}, modifiers={('repressor', 'x'): 1}, alpha=2.0, K=1.0
         ... )
         >>> species = [SpeciesElement('mRNA'), SpeciesElement('repressor', x=1.0)]
-        >>> trajectory = Simulation(System(elements=species, interactions=[repression]), dt=0.1).check().prepare()
+        >>> trajectory = Simulation(System(elements=species, interactions=[repression]), dt=0.1).prepare()
         >>> round(float(trajectory.run(until=1.0).trajectory_.values('mRNA.x')[-1]), 3)
         1.0
     """

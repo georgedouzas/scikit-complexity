@@ -124,7 +124,7 @@ class _LearningCompiler(BaseCompiler):
 
     def _differentiable_issues(self, model: System, training: TrainingInteraction) -> list[IssueSpec]:
         """Return the laws of the nested system that the JAX backend cannot differentiate."""
-        compiler = clone(self.inner).check().prepare(model)
+        compiler = clone(self.inner).prepare(model)
         compilation = getattr(compiler, 'compilation_', None)
         census = getattr(compilation, 'census', None)
         records = census.records if census is not None else ()
@@ -146,7 +146,7 @@ class _LearningCompiler(BaseCompiler):
     def _compile_inner(self, model: System, training: TrainingInteraction) -> list[IssueSpec]:
         """Compile the nested system into `inner_`, and return the issues that stop it."""
         self.inner_, self.backend_ = None, JaxBackend()
-        compiler = clone(self.inner).set_params(backend=self.backend_).check().prepare(model)
+        compiler = clone(self.inner).set_params(backend=self.backend_).prepare(model)
         if not compiler.report_.ok:
             return list(compiler.report_.issues)
         try:
@@ -183,7 +183,6 @@ class _LearningCompiler(BaseCompiler):
         for phase, kernels in phases:
             backend = (
                 JaxBackend()
-                .check()
                 .prepare()
                 .run(dataclasses.replace(complete, kernels=defaultdict(list, {UpdateLaw: kernels})))
             )
@@ -305,7 +304,7 @@ class _LearningCompiler(BaseCompiler):
         if missing:
             error_msg = f'The observable {path} reads {", ".join(missing)}, which the nested system does not have.'
             raise ValidationError(error_msg)
-        printer = ExpressionPrinter('jax', time=time, compiled=True).check().prepare(arguments)
+        printer = ExpressionPrinter('jax', time=time, compiled=True).prepare(arguments)
         function = ExpressionPrinter._function_of(printer.run([expression]).code_)
         readers = [reads[item] for item in arguments]
 
@@ -389,7 +388,7 @@ class _LearningCompiler(BaseCompiler):
             message = f'The system {system.label} holds no training interaction.'
             return [IssueSpec('compiler', system.label, message, 'Compile it with PassCompiler.')]
         try:
-            training.check()
+            training._validated()
         except ValidationError as error:
             return [self._issue_of(error, training.label, 'value', 'Correct the training interaction.')]
         self.law_ = next(

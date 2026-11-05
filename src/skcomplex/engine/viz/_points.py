@@ -246,7 +246,7 @@ class PointsVisual(BaseVisual):
             >>> gas = GroupElement('gas', element=PointElement, size=10, values={'x': [[0.0, 0.0, 0.0]] * 10})
             >>> problem = compile_system(System(elements=[gas], space=ContinuousSpace(n_dim=3)))
             >>> visual = PointsVisual(position='x', states=(), path=problem.elements[0].path)
-            >>> views = visual.check().prepare(problem).views_
+            >>> views = visual.prepare(problem).views_
             >>> [type(view).__name__ for view in views]
             ['Spatial3DView']
         """

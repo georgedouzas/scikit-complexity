@@ -20,7 +20,7 @@ MODEL = 'adaptive_climbing'
 
 system = create(MODEL, size=10, u=0.1, length=20, seed=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=200)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=200)
 
 # %%
 # An adaptive walk
@@ -32,7 +32,6 @@ best = []
 for seed in range(8):
     run = (
         Simulation(create(MODEL, size=10, u=0.1, length=20, seed=seed), dt=1, random_state=seed)
-        .check()
         .prepare()
         .run(until=200)
     )

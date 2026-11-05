@@ -583,7 +583,7 @@ class TopologyKernel(BaseKernel):
                 A jump changes states and requests a topology change at once, or fires a request more than once.
         """
         if isinstance(law, UpdateLaw):
-            return law.target.check() if isinstance(law.target, TopologyRequestSpec) else None
+            return law.target._validated() if isinstance(law.target, TopologyRequestSpec) else None
         changes = (law.changes or {}) if isinstance(law, JumpLaw) else {}
         requests = [item for item in changes if isinstance(item, TopologyRequestSpec)]
         if not requests:
@@ -594,7 +594,7 @@ class TopologyKernel(BaseKernel):
                 'changes the topology fires one request, `JumpLaw(rate, {request: 1})`.'
             )
             raise ValidationError(error_msg)
-        return requests[0].check()
+        return requests[0]._validated()
 
     @staticmethod
     def _changes_edges(request: TopologyRequestSpec) -> bool:

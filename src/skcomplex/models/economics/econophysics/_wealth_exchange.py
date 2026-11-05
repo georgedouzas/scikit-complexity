@@ -84,7 +84,7 @@ class WealthExchangeInteraction(EncounterInteraction):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import WealthExchangeInteraction
-        >>> WealthExchangeInteraction('exchange', candidate='wealth', field='wealth').check().competition
+        >>> WealthExchangeInteraction('exchange', candidate='wealth', field='wealth').competition
         0.3
     """
 

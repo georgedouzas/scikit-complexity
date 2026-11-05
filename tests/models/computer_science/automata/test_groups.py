@@ -21,13 +21,13 @@ def test_grigorchuk_group_is_an_automaton_group():
     group = grigorchuk_group()
     assert libgap.IsTreeAutomorphismGroup(group)
     assert int(libgap.DegreeOfTree(group)) == 2
-    assert CayleySpace(group, ball=1).check().prepare().generators_ == ('a', 'b', 'c', 'd')
+    assert CayleySpace(group, ball=1).prepare().generators_ == ('a', 'b', 'c', 'd')
 
 
 def test_grigorchuk_growth():
     """Test that the balls of radii 0 to 5 hold 1 to 68 sites, all distinct elements as their level-12 actions show."""
     group = grigorchuk_group()
-    ball = CayleySpace(group, ball=5).check().prepare()
+    ball = CayleySpace(group, ball=5).prepare()
     assert ball.ball_sizes_ == GRIGORCHUK_BALLS[:6]
     generators = libgap.GeneratorsOfGroup(group)
     keys = set()
@@ -43,7 +43,7 @@ def test_grigorchuk_level_quotients_run_periodic_rules():
     """Test that the quotients of levels 1 to 4 hold 2, 8, 128, and 4096 sites and every cell reads inside them."""
     sizes = []
     for level in (1, 2, 3, 4):
-        space = CayleySpace(grigorchuk_group().PermGroupOnLevel(level)).check().prepare()
+        space = CayleySpace(grigorchuk_group().PermGroupOnLevel(level)).prepare()
         sizes.append(space.size_)
         assert (space._index_table(MemoryNeighborhood(('1', *space.generators_))) < space.size_).all()
     assert sizes == [2, 8, 128, 4096]
@@ -51,7 +51,7 @@ def test_grigorchuk_level_quotients_run_periodic_rules():
 
 def test_heisenberg_commutator_is_central():
     """Test that the commutator of the Heisenberg generators commutes with both generators."""
-    space = CayleySpace(heisenberg(), ball=6).check().prepare()
+    space = CayleySpace(heisenberg(), ball=6).prepare()
     commutator = 'a*b*a^-1*b^-1'
     for generator in ('a', 'b'):
         assert _site_of(space, f'{commutator}*{generator}') == _site_of(space, f'{generator}*{commutator}')

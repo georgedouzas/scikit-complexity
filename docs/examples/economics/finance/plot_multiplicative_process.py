@@ -32,7 +32,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=STEPS)
 )
@@ -47,7 +46,7 @@ simulation = (
 trajectory = simulation.trajectory_
 sizes = np.array([trajectory.agents('firms', frame).values['x'] for frame in range(STEPS + 1)])
 relative = sizes / sizes.mean(axis=1, keepdims=True)
-ccdf = DistributionAnalysis('ccdf').check().prepare(relative[-100:].ravel()).run()
+ccdf = DistributionAnalysis('ccdf').prepare(relative[-100:].ravel()).run()
 values, probabilities = ccdf.support_, ccdf.survival_
 alpha = 1 / (1 - FLOOR)
 fig, (tail, spread) = plt.subplots(1, 2, figsize=(10, 4))

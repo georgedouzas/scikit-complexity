@@ -126,7 +126,7 @@ def tipping_cascade_network(
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.models.physics.climate import tipping_cascade_network
-        >>> tipping_cascade_network(nx.cycle_graph(5), c=[1.2, 0, 0, 0, 0]).elements[0].check().prepare().size_
+        >>> tipping_cascade_network(nx.cycle_graph(5), c=[1.2, 0, 0, 0, 0]).elements[0].prepare().size_
         5
     """
     graph = nx.path_graph(4) if graph is None else graph

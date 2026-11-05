@@ -20,7 +20,7 @@ def test_swimming_interaction_turns_by_deviation_and_swims():
         interactions=[SwimmingInteraction('swimming', target='shoal')],
         space=ContinuousSpace(extent=(100.0, 100.0), boundary='periodic'),
     )
-    snapshot = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_.agents('shoal', 1)
+    snapshot = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.agents('shoal', 1)
     heading = [math.cos(0.5), math.sin(0.5)]
     np.testing.assert_allclose([snapshot.values['vx'][0], snapshot.values['vy'][0]], heading)
     np.testing.assert_allclose(snapshot.locations[0], np.mod([99.0 + 2 * heading[0], 1.0 + 2 * heading[1]], 100.0))

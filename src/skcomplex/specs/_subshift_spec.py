@@ -35,7 +35,7 @@ class SubshiftSpec(BaseSpec):
         >>> from skcomplex.core.spaces import LatticeNeighborhood
         >>> from skcomplex.specs import StateSpec, SubshiftSpec
         >>> golden = SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),))
-        >>> StateSpec(domain=golden).check().domain.alphabet.cardinality()
+        >>> StateSpec(domain=golden).domain.alphabet.cardinality()
         2
     """
 

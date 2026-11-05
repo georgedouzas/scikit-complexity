@@ -98,7 +98,7 @@ def birth_death_queue(
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import birth_death_queue
-        >>> birth_death_queue(5).elements[0].check().prepare().size_
+        >>> birth_death_queue(5).elements[0].prepare().size_
         5
     """
     queue = GroupElement(

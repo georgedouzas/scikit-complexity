@@ -47,14 +47,13 @@ class Logs:
 
 def _simulation():
     """Return a simulation of the parity rule on a ball of radius 3 of the free group of rank 2."""
-    space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=3).check().prepare()
+    space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=3).prepare()
     cells = np.zeros(space.size_)
     cells[0] = 1.0
     return (
         Simulation(
             System(elements=[LatticeElement('cells', element=ParityElement, space=space, values={'alive': cells})]),
         )
-        .check()
         .prepare()
         .run(until=2)
     )
@@ -65,7 +64,7 @@ def test_cayley_visual_logs_nodes_on_rings_and_edges_once():
     simulation = _simulation()
     problem = simulation.problem_
     logs = Logs()
-    visual = CayleyVisual(path=problem.elements[0].path, recording=logs).check().prepare(problem)
+    visual = CayleyVisual(path=problem.elements[0].path, recording=logs).prepare(problem)
     for _ in range(2):
         visual.run(FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, problem))
     nodes = [archetype for path, archetype, static in logs.logs if not static]
@@ -82,7 +81,7 @@ def test_cayley_visual_views_are_graph_views():
     """Test that a group on a group space defaults to the Cayley visual, whose view is a graph view of its state."""
     simulation = _simulation()
     problem = simulation.problem_
-    views = CayleyVisual(path=problem.elements[0].path).check().prepare(problem).views_
+    views = CayleyVisual(path=problem.elements[0].path).prepare(problem).views_
     assert [(type(view).__name__, str(view.origin)) for view in views] == [('GraphView', 'cells/alive')]
     assert problem.elements[0].visual.kind == 'cayley'
-    assert RerunObserver(blueprint='default').check().prepare(problem).blueprint_ is not None
+    assert RerunObserver(blueprint='default').prepare(problem).blueprint_ is not None

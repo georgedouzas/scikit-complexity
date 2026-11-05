@@ -87,20 +87,16 @@ class FieldProblemPass(BasePass):
         if not isinstance(expression, Expression) or not FieldLowering._has_operators(expression):
             return None
         observed = replace(spec, owner=f'observable {path}')
-        lowering = FieldLowering(observed).check().prepare(compilation)
+        lowering = FieldLowering(observed).prepare(compilation)
         lowered = lowering._lower(expression)
         _, added = lowering.added_.get(id(observed), (observed, {}))
         declarations = Compilation._required(compilation.layout, 'layout')
-        return (
-            LawKernel(
-                path,
-                declarations.time,
-                {**observed.references, **added},
-                spec.rows,
-                LayoutSpec(tuple(declarations.states)),
-                layout_parameters=LayoutSpec(tuple(declarations.parameters)),
-                outputs=[OutputSpec(None, SR(lowered))],
-            )
-            .check()
-            .prepare()
-        )
+        return LawKernel(
+            path,
+            declarations.time,
+            {**observed.references, **added},
+            spec.rows,
+            LayoutSpec(tuple(declarations.states)),
+            layout_parameters=LayoutSpec(tuple(declarations.parameters)),
+            outputs=[OutputSpec(None, SR(lowered))],
+        ).prepare()

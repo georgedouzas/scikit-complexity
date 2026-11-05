@@ -176,7 +176,7 @@ class MarkovPass(BasePass):
                     'of the parameters of its component.'
                 )
                 raise ValidationError(error_msg)
-        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(entries).code_
+        function = ExpressionPrinter(time=time, compiled=True).prepare(arguments).run(entries).code_
         if not callable(function):
             error_msg = f'The printer returned a {type(function).__name__}, not the function of the matrix entries.'
             raise TypeError(error_msg)
@@ -200,7 +200,7 @@ class MarkovPass(BasePass):
             stacked = np.stack([np.broadcast_to(np.asarray(value, dtype=float), (rows,)) for value in values], axis=-1)
             return stacked.reshape(rows, *shape)
 
-        return MarkovKernel(law.description, evaluate, reads).check().prepare()
+        return MarkovKernel(law.description, evaluate, reads).prepare()
 
     @staticmethod
     def _emission(

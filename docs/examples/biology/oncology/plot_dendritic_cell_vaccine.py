@@ -22,7 +22,7 @@ MODEL = 'dendritic_cell_vaccine'
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=12.0, solver=solver, observers=[observer]).check().prepare().run(until=2880)
+simulation = Simulation(system, dt=12.0, solver=solver, observers=[observer]).prepare().run(until=2880)
 
 # %%
 # Vaccinated and unvaccinated tumours
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=12.0, solver=solver, observers=[observer]).ch
 # `1 - c1 s2 / (d2 r3) = 0.9`. With the vaccine it should fall below 0.05 during the injections.
 
 vaccinated = simulation.trajectory_
-unvaccinated = Simulation(create(MODEL, dose=0.0), dt=12.0, solver=solver).check().prepare().run(until=2880).trajectory_
+unvaccinated = Simulation(create(MODEL, dose=0.0), dt=12.0, solver=solver).prepare().run(until=2880).trajectory_
 days = vaccinated.times / 24
 fig, (tumour, cells) = plt.subplots(1, 2, figsize=(10, 4))
 tumour.plot(days, unvaccinated.values('site.A'), label='no vaccine')

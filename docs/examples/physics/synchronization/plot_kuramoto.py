@@ -28,7 +28,6 @@ simulation = (
         observers=[observer],
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(
         until=30,
@@ -48,7 +47,6 @@ for coupling in couplings:
     model_system = create(MODEL, n_oscillators=400, K=coupling, sigma=1.0, seed=1)
     run = (
         Simulation(model_system, dt=0.2, observables=describe(MODEL).observables_of(model_system))
-        .check()
         .prepare()
         .run(until=60)
     )

@@ -21,7 +21,7 @@ MODEL = 'cyclic_cellular_automaton'
 
 system = create(MODEL, shape=(128, 128), random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=300)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=300)
 
 # %%
 # Self-organization into spirals
@@ -39,7 +39,7 @@ activity.set_xlabel('step')
 activity.set_ylabel('share of cells that advance')
 activity.set_title('Activity rises as the spirals take over')
 for step in (0, 20, 60, 300):
-    phase = CorrelationAnalysis('function', max_distance=40).check().prepare(np.cos(2 * np.pi * levels[step] / 14))
+    phase = CorrelationAnalysis('function', max_distance=40).prepare(np.cos(2 * np.pi * levels[step] / 14))
     phase.run()
     correlation.plot(phase.distances_, phase.correlation_, label=f'step {step}')
 correlation.axhline(0.0, color='gray', linewidth=0.8)

@@ -67,7 +67,7 @@ def _simulated(tracers):
         fluxes=TRUE_FLUXES,
         symmetric=('Suc', 'Fum'),
     )
-    return analysis.check().prepare(_system()).run().distributions_
+    return analysis.prepare(_system()).run().distributions_
 
 
 def _measurements(noise=0.0, seed=0):
@@ -88,7 +88,7 @@ def test_check_names_an_inconsistent_atom_count():
         AtomMapSpec('v2', [('B', 'abcd')], [('Glu', 'abcd')]),
     ]
     with pytest.raises(ValidationError, match=r'v1 gives Glu 5 atoms.*v2'):
-        LabellingAnalysis(atoms=atoms).check()
+        LabellingAnalysis(atoms=atoms).prepare()
 
 
 def test_simulation_gives_the_published_distribution():
@@ -190,7 +190,7 @@ def test_simulation_scrambles_a_symmetric_metabolite():
         fluxes={'in': 1.0, 'on': 1.0, 'out': 1.0},
         symmetric=('Suc',),
     )
-    found = analysis.check().prepare(system).run().distributions_['first']
+    found = analysis.prepare(system).run().distributions_['first']
     assert found['atom1'][1] == pytest.approx(0.5)
     assert found['atom4'][1] == pytest.approx(0.5)
     assert found['atom2'][1] == pytest.approx(0.0)
@@ -210,7 +210,6 @@ def _estimated(measurements, tracers, *, measured=None, intervals='linear', rand
             intervals=intervals,
             random_state=random_state,
         )
-        .check()
         .prepare(_system())
         .run()
     )

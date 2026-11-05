@@ -24,7 +24,7 @@ MODEL = 'rna_neutral_networks'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-trajectory = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=299).trajectory_
+trajectory = Simulation(system, observers=[observer], random_state=0).prepare().run(until=299).trajectory_
 
 # %%
 # Drift, robustness, and evolvability
@@ -43,8 +43,8 @@ letters = trajectory.lattice('walkers.base')
 sequences = np.array([[''.join(row) for row in frame] for frame in letters], dtype=object)
 distances = (letters != letters[0]).sum(axis=2)
 samples = sequences[::10]
-robustness = NeutralNetworkAnalysis(fold_of, 'genotype-robustness').check().prepare(samples).run().values_.ravel()
-evolvability = NeutralNetworkAnalysis(fold_of, 'genotype-evolvability').check().prepare(samples).run().values_.ravel()
+robustness = NeutralNetworkAnalysis(fold_of, 'genotype-robustness').prepare(samples).run().values_.ravel()
+evolvability = NeutralNetworkAnalysis(fold_of, 'genotype-evolvability').prepare(samples).run().values_.ravel()
 correlation = spearmanr(robustness, evolvability).statistic
 
 fig, (drift, trade) = plt.subplots(1, 2, figsize=(11, 4))

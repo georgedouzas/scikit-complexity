@@ -64,7 +64,7 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
 
     Raises:
         ValidationError:
-            The path names no file of a known format, or the name is not an identifier, raised by `check`. The file
+            The path names no file of a known format, or the name is not an identifier, raised by `prepare`. The file
             has constructs without a counterpart, or names that clash, all of them listed, raised by `run`.
 
     Examples:
@@ -82,7 +82,7 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         >>> with tempfile.TemporaryDirectory() as folder:
         ...     path = Path(folder) / 'growth.mdl'
         ...     _ = path.write_text(text)
-        ...     translator = SystemDynamicsTranslator(path).check().prepare().run()
+        ...     translator = SystemDynamicsTranslator(path).prepare().run()
         >>> translator.settings_.until
         4.0
         >>> 'class GrowthElement(Element):' in translator.source_
@@ -284,5 +284,5 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
             listed = '\n'.join(f'- {problem}' for problem in dict.fromkeys(problems))
             error_msg = f'The file {self.path} has constructs that do not translate:\n{listed}'
             raise ValidationError(error_msg)
-        self.settings_ = settings.check()
+        self.settings_ = settings._validated()
         self.source_ = source

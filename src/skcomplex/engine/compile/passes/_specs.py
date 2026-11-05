@@ -83,7 +83,7 @@ class SpecsPass(BasePass):
         elements.update(declarations.processes)
         nodes = Compilation._required(compilation.nodes, 'nodes')
         live = ObservableEvaluator._lowerable_observables(compilation.system, nodes)
-        observer = Observer(declarations, live).check().prepare()
+        observer = Observer(declarations, live).prepare()
         compilation.specs = []
         for block in blocks:
             specs, declarations = self._specs_of(block, elements, declarations, observer)
@@ -389,7 +389,7 @@ class SpecsPass(BasePass):
             ValidationError:
                 The field does not have as many sites as the phase space has positions.
         """
-        target.check().prepare()
+        target.prepare()
         if block.rows != target.position_size_:
             error_msg = (
                 f'{block.node.path} has {block.rows} sites, but it is read by a field on a phase space of '
@@ -484,7 +484,7 @@ class SpecsPass(BasePass):
             )
             raise RoleError(error_msg)
         empty = np.zeros(0, dtype=np.intp)
-        return EdgeSearch(empty, empty, changing.entries[ENDS[0]], changing.entries[ENDS[1]]).check().prepare()
+        return EdgeSearch(empty, empty, changing.entries[ENDS[0]], changing.entries[ENDS[1]]).prepare()
 
     @staticmethod
     def _edge_layer(node: NodeSpec, nodes: BlockSpec, edges: BlockSpec | None) -> str | None:
@@ -572,7 +572,7 @@ class SpecsPass(BasePass):
             size = space.size_
         elif isinstance(space, LatticeSpace | CayleySpace) and edges is None and layer is None:
             size = int(space.size_ or 0)
-            pairs = np.array(space.check().prepare()._neighbor_pairs(), dtype=np.intp).reshape(-1, 2)
+            pairs = np.array(space.prepare()._neighbor_pairs(), dtype=np.intp).reshape(-1, 2)
             sources, targets = pairs[:, 0].copy(), pairs[:, 1].copy()
         else:
             error_msg = (
@@ -592,7 +592,7 @@ class SpecsPass(BasePass):
                 f'{sources.size} edges. Give the edge group one member per edge of its layer.'
             )
             raise RoleError(error_msg)
-        return EdgeSearch(sources, targets).check().prepare()
+        return EdgeSearch(sources, targets).prepare()
 
     @staticmethod
     def _degrees(nodes: BlockSpec, search: EdgeSearch) -> np.ndarray | None:
@@ -777,7 +777,7 @@ class SpecsPass(BasePass):
             namespaces[end], end_references = SpecsPass._namespace(group, source, alias=suffix)
             references.update(end_references)
             if place is not None and isinstance(place.space, LatticeSpace) and 'degree' not in vars(namespaces[end]):
-                degree = SR(2 * place.space.check().prepare().n_dim_)
+                degree = SR(2 * place.space.prepare().n_dim_)
                 namespaces[end] = SimpleNamespace(**vars(namespaces[end]), degree=degree)
         namespace = SimpleNamespace(t=time, **vars(parameters), **namespaces)
         paths: dict[str, str | tuple[str, ...]] = {names[0]: ends[0].node.path, names[1]: nodes.node.path}
@@ -1125,11 +1125,7 @@ class SpecsPass(BasePass):
         references.update(second_references)
         period = getattr(interaction, 'period', None)
         period = period if period is not None else SpecsPass._space_period(node)
-        pairs = (
-            PairSearch(first.entries[position], second.entries[position], block.entries['cutoff'], period)
-            .check()
-            .prepare()
-        )
+        pairs = PairSearch(first.entries[position], second.entries[position], block.entries['cutoff'], period).prepare()
         namespace = SimpleNamespace(
             t=time,
             **vars(parameters),

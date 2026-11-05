@@ -56,7 +56,7 @@ def prisoners_dilemma_tournament(
 
     Examples:
         >>> from skcomplex.models.social.cooperation import prisoners_dilemma_tournament
-        >>> prisoners_dilemma_tournament(10, random_state=0).elements[0].check().prepare().size_
+        >>> prisoners_dilemma_tournament(10, random_state=0).elements[0].prepare().size_
         10
     """
     genomes = np.random.default_rng(random_state).integers(0, 2, (n_agents, GENES)).astype(float)

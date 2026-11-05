@@ -32,10 +32,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, random_state=0), dt=1, observers=[observer], random_state=0)
-    .check()
-    .prepare()
-    .run(until=200)
+    Simulation(create(MODEL, random_state=0), dt=1, observers=[observer], random_state=0).prepare().run(until=200)
 )
 landscape = np.random.default_rng(0)
 zero_values, one_values = landscape.random(8), landscape.random(8)

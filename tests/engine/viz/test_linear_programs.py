@@ -22,7 +22,7 @@ def _prepared(**settings):
     problem = compile_system(create('flux_balance'))
     recording = rr.RecordingStream('linear_program')
     visual = LinearProgramVisual(path='cell', recording=recording, **settings)
-    return problem, visual.check().prepare(problem)
+    return problem, visual.prepare(problem)
 
 
 def _logged(monkeypatch, visual, problem):
@@ -76,14 +76,14 @@ def test_visual_rejects_an_element_without_a_program():
     """Test that an element that no program sets raises an error."""
     problem = compile_system(create('lotka_volterra'))
     with pytest.raises(ValidationError, match='no program sets a state of prey'):
-        LinearProgramVisual(path='prey', recording=rr.RecordingStream('none')).check().prepare(problem)
+        LinearProgramVisual(path='prey', recording=rr.RecordingStream('none')).prepare(problem)
 
 
 def test_observer_streams_a_batch_culture_to_a_file(tmp_path: Path):
     """Test that a dynamic FBA run saves its recording with the variables and the objective series."""
     observer = RerunObserver('culture', save_path=tmp_path / 'run.rrd', blueprint='default', interval=10)
     simulation = Simulation(create('dynamic_fba'), dt=0.05, observers=[observer])
-    trajectory = simulation.check().prepare().run(until=1.0).trajectory_
+    trajectory = simulation.prepare().run(until=1.0).trajectory_
     assert (tmp_path / 'run.rrd').exists()
     assert observer.logged_frames_ == 3
     objective = trajectory.values('fba/cell.objective_0')
@@ -95,5 +95,5 @@ def test_observer_logs_the_growth_of_every_site_as_an_image(tmp_path: Path):
     observer = RerunObserver('colony', save_path=tmp_path / 'colony.rrd', interval=1)
     system = create('comets', shape=(4, 4))
     simulation = Simulation(system, dt=0.1, observers=[observer])
-    simulation.check().prepare().run(until=0.1)
+    simulation.prepare().run(until=0.1)
     assert (tmp_path / 'colony.rrd').exists()

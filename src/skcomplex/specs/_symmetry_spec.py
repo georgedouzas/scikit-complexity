@@ -34,7 +34,7 @@ class SymmetrySpec(BaseSpec):
         >>> from sage.all__sagemath_symbolics import vector
         >>> from skcomplex.specs import SymmetrySpec
         >>> rotation = SymmetrySpec('rotation', lambda s: {'body.q': vector([-s.body.q[1], s.body.q[0]])})
-        >>> rotation.check().label
+        >>> rotation.label
         'rotation'
     """
 

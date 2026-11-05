@@ -21,7 +21,7 @@ MODEL = 'pulsed_electrochemical_reactor'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=5)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=120)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=120)
 
 # %%
 # Locking to the pulse train

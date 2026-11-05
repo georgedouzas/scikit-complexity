@@ -31,7 +31,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=30)
 )
@@ -58,7 +57,6 @@ for temperature in temperatures:
     ordered = create(MODEL, n_spins=1000, temperature=temperature, initial='up')
     run = (
         Simulation(ordered, dt=1.0, random_state=0, observables=describe(MODEL).observables_of(ordered))
-        .check()
         .prepare()
         .run(until=40)
     )

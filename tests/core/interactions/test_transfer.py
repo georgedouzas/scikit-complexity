@@ -65,7 +65,7 @@ class DrainInteraction(TransferInteraction):
 
 def _run(system: System, until: float) -> Trajectory:
     """Return the trajectory of a system run to a time."""
-    return Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
+    return Simulation(system, random_state=0).prepare().run(until=until).trajectory_
 
 
 def _levels(trajectory: Trajectory, frame: int, group: str = 'cells') -> list[float]:
@@ -133,7 +133,7 @@ def test_transfer_guard_stops_a_flow_where_it_does_not_hold():
         guard=lambda s: s.source.level > 1,
     )
     trajectory = Simulation(System(elements=[StockElement('tank', level=3.0)], interactions=[drain]), dt=0.01)
-    level = trajectory.check().prepare().run(until=4.0).trajectory_.values('tank.level')[-1]
+    level = trajectory.prepare().run(until=4.0).trajectory_.values('tank.level')[-1]
     assert level == pytest.approx(1.0, abs=0.02)
 
 
@@ -305,7 +305,7 @@ def test_transfer_moves_every_leg_between_two_agents():
         legs=(('clock', 'clock', lambda first, second, model: first.level / 4),),
         form='agent',
     )
-    transfer.check().transfer(source, target, None)
+    transfer.transfer(source, target, None)
     assert (source.level, target.level, source.clock, target.clock) == (2.0, 2.0, 1.0, 1.0)
 
 
@@ -350,7 +350,7 @@ def test_transfer_symbolic_flows_run_in_discrete_time():
         interactions=[flow],
         time=DiscreteTime(),
     )
-    trajectory = Simulation(system, dt=1, random_state=0).check().prepare().run(until=2).trajectory_
+    trajectory = Simulation(system, dt=1, random_state=0).prepare().run(until=2).trajectory_
     assert trajectory.values('lower.level').tolist() == [0.0, 1.0, 2.0]
 
 
@@ -389,7 +389,7 @@ def test_check_rejects_invalid_arguments(arguments):
     """Test that unknown forms or pairings, malformed legs, amounts, or flow names, and mismatched options fail."""
     settings = {'state': 'level', 'amount': 1.0, **arguments}
     with pytest.raises(ValidationError):
-        TransferInteraction('flow', source='a', target='b', **settings).check()
+        TransferInteraction('flow', source='a', target='b', **settings).prepare()
 
 
 def test_transfer_actors_take_one_partner_of_their_cell_and_remove_it():
@@ -457,7 +457,7 @@ def test_transfer_site_deposits_from_the_agents_into_the_field_at_their_cells(sc
         ],
         interactions=[marking],
     )
-    trajectory = Simulation(system, dt=1).check().prepare().run(until=3).trajectory_
+    trajectory = Simulation(system, dt=1).prepare().run(until=3).trajectory_
     level = trajectory.lattice('ground/level.u')[-1]
     assert (level[1, 2], level[0, 0], level.sum()) == (3.0, 3.0, 6.0)
     assert trajectory.agents('walkers/markers', 3).values['level'].tolist() == [7.0, 7.0]
@@ -517,7 +517,7 @@ def test_transfer_offset_moves_along_the_group_order_in_discrete_time():
         offset=1,
     )
     system = System(elements=[cells], interactions=[shift], time=DiscreteTime())
-    trajectory = Simulation(system, dt=1, random_state=0).check().prepare().run(until=4).trajectory_
+    trajectory = Simulation(system, dt=1, random_state=0).prepare().run(until=4).trajectory_
     levels = np.asarray(trajectory.values('cells.level'))[1:].tolist()
     assert levels == [[0.0, 4.0, 0.0, 0.0], [0.0, 0.0, 4.0, 0.0], [0.0, 0.0, 0.0, 4.0], [4.0, 0.0, 0.0, 0.0]]
 
@@ -553,7 +553,7 @@ def test_transfer_offset_shares_one_draw_per_edge():
         offset=1,
     )
     system = System(elements=[cells], interactions=[hops], time=DiscreteTime())
-    trajectory = Simulation(system, dt=1, random_state=0).check().prepare().run(until=50).trajectory_
+    trajectory = Simulation(system, dt=1, random_state=0).prepare().run(until=50).trajectory_
     levels = np.asarray(trajectory.values('cells.level'))
     assert set(np.unique(levels)) == {0.0, 1.0}
     assert set(levels.sum(axis=1)) == {25.0}
@@ -689,7 +689,7 @@ def test_check_rejects_a_pairing_function_in_the_symbolic_form():
     """Test that a pairing function still meets the check that the symbolic form pairs members."""
     give = TransferInteraction('give', source='a', target='b', state='level', amount=1.0, pairing=_richest_pairs)
     with pytest.raises(ValidationError, match='pairs members'):
-        give.check()
+        give.prepare()
 
 
 def test_check_rejects_an_unknown_pairing_naming_its_values_and_functions():
@@ -704,7 +704,7 @@ def test_check_rejects_an_unknown_pairing_naming_its_values_and_functions():
         form='agent',
     )
     with pytest.raises(ValidationError, match=r"Unknown pairing 'nearest'.*'members'.*'site', a function"):
-        give.check()
+        give.prepare()
 
 
 class ReachElement(StockElement):
@@ -755,11 +755,7 @@ def test_transfer_partner_spec_picks_within_reach_or_else_the_nearest():
     counts = np.zeros(3)
     for seed in range(40):
         trajectory = (
-            Simulation(_reach_system(partners, [2.5, 0.5]), random_state=seed)
-            .check()
-            .prepare()
-            .run(until=1)
-            .trajectory_
+            Simulation(_reach_system(partners, [2.5, 0.5]), random_state=seed).prepare().run(until=1).trajectory_
         )
         counts += _levels(trajectory, 1, 'providers')
     assert counts[2] == 40
@@ -770,11 +766,7 @@ def test_transfer_partner_spec_picks_within_reach_or_else_the_nearest():
 def test_transfer_partner_spec_reads_a_euclidean_radius_in_a_continuous_space():
     """Test that candidates within a distance run in a continuous space, and an agent with none transfers nothing."""
     trajectory = (
-        Simulation(_reach_system(PartnerSpec(1.5), [0.0, 0.0]), random_state=0)
-        .check()
-        .prepare()
-        .run(until=1)
-        .trajectory_
+        Simulation(_reach_system(PartnerSpec(1.5), [0.0, 0.0]), random_state=0).prepare().run(until=1).trajectory_
     )
     assert _levels(trajectory, 1, 'providers') == [1.0, 0.0, 1.0]
 
@@ -783,7 +775,6 @@ def test_transfer_partner_spec_respects_a_capacity():
     """Test that a provider takes at most its capacity of pairs in one step, and the rest go to the next nearest."""
     trajectory = (
         Simulation(_reach_system(PartnerSpec(20.0, 'nearest', capacity=1), [0.0, 0.0]), random_state=0)
-        .check()
         .prepare()
         .run(until=1)
         .trajectory_
@@ -796,7 +787,7 @@ def test_transfer_partner_spec_raises_for_a_state_agents_lack():
     """Test that a radius read from a state the agents do not have raises an error naming the state."""
     system = _reach_system(PartnerSpec('range'), [1.0, 1.0])
     with pytest.raises(ValidationError, match="state 'range'"):
-        Simulation(system, random_state=0).check().prepare().run(until=1)
+        Simulation(system, random_state=0).prepare().run(until=1)
 
 
 def test_prepare_names_the_radius_for_a_cell_pairing_in_a_continuous_space():
@@ -811,7 +802,7 @@ def test_prepare_names_the_radius_for_a_cell_pairing_in_a_continuous_space():
         form='agent',
     )
     with pytest.raises(SpaceError, match='radius pairing'):
-        give.check().prepare(ContinuousSpace(extent=(5.0, 5.0)))
+        give.prepare(ContinuousSpace(extent=(5.0, 5.0)))
 
 
 def test_prepare_names_the_radius_for_grid_candidates_in_a_continuous_space():
@@ -826,7 +817,7 @@ def test_prepare_names_the_radius_for_grid_candidates_in_a_continuous_space():
         form='agent',
     )
     with pytest.raises(SpaceError, match='radius'):
-        give.check().prepare(ContinuousSpace(extent=(5.0, 5.0)))
+        give.prepare(ContinuousSpace(extent=(5.0, 5.0)))
 
 
 NAMED_SHORTHANDS = {
@@ -857,7 +848,7 @@ def _shorthand_levels(pairing: object, seed: int) -> list[float]:
         form='agent',
     )
     system = System(elements=[holders], interactions=[give], space=LatticeSpace((2, 2)))
-    return _levels(Simulation(system, random_state=seed).check().prepare().run(until=3).trajectory_, 3, 'holders')
+    return _levels(Simulation(system, random_state=seed).prepare().run(until=3).trajectory_, 3, 'holders')
 
 
 @pytest.mark.parametrize('name', list(NAMED_SHORTHANDS))
@@ -882,7 +873,7 @@ def test_transfer_member_schedule_draws_partners_by_a_partner_spec():
         schedule='member',
     )
     system = System(elements=[eaters, providers], interactions=[give], space=ContinuousSpace(extent=(10.0, 10.0)))
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
     assert _levels(trajectory, 1, 'providers') == [1.0, 1.0]
 
 
@@ -897,7 +888,7 @@ def test_check_rejects_a_partner_spec_with_settings_it_cannot_take(arguments):
     """Test that a capacity under the member schedule, or `partners` beside a partner spec, raises an error."""
     give = TransferInteraction('give', source='a', target='b', state='level', amount=1.0, form='agent', **arguments)
     with pytest.raises(ValidationError, match='capacity'):
-        give.check()
+        give.prepare()
 
 
 class ProviderElement(StockElement):
@@ -945,7 +936,7 @@ def test_transfer_settlement_credits_both_ends_from_one_draw():
         settlement=settle,
     )
     system = System(elements=[eaters, providers], interactions=[meal], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
     assert len(draws) == 3
     assert sum(_levels(trajectory, 1, 'eaters')) == pytest.approx(sum(draws))
     assert trajectory.agents('providers', 1).values['sold'].tolist() == [3.0]
@@ -960,7 +951,7 @@ def test_check_rejects_a_settlement_the_pairing_or_form_cannot_take(arguments):
     """Test that a settlement raises an error in the symbolic form or on a site."""
     give = TransferInteraction('give', source='a', target='b', state='level', amount=1.0, settlement=print, **arguments)
     with pytest.raises(ValidationError, match='settles a pair'):
-        give.check()
+        give.prepare()
 
 
 @pytest.mark.parametrize(
@@ -984,5 +975,5 @@ def test_transfer_partner_spec_runs_on_grids_and_networks(space, locations, expe
         form='agent',
     )
     system = System(elements=[eaters, providers], interactions=[give], space=space)
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
     assert _levels(trajectory, 1, 'providers') == expected

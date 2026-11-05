@@ -34,7 +34,7 @@ def _levels(*, relative: bool) -> AnyArray:
     stocks = GroupElement('stocks', element=StockElement, size=2, values={'level': [0.0, 3.0]})
     regrowth = RegrowthInteraction('regrowth', target='stocks', state='level', growth='growth', relative=relative)
     system = System(elements=[stocks], interactions=[regrowth], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=3).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=3).trajectory_
     return np.array([trajectory.agents('stocks', frame).values['level'] for frame in range(4)])
 
 

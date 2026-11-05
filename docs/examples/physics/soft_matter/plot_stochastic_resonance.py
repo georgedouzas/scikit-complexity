@@ -25,9 +25,7 @@ MODEL = 'stochastic_resonance'
 system = create(MODEL, D=0.1)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.05)
-simulation = (
-    Simulation(system, solver=solver, dt=4.0, observers=[observer], random_state=0).check().prepare().run(until=1000)
-)
+simulation = Simulation(system, solver=solver, dt=4.0, observers=[observer], random_state=0).prepare().run(until=1000)
 
 # %%
 # Resonance in the noise intensity
@@ -40,9 +38,7 @@ simulation = (
 intensities = np.array([0.04, 0.06, 0.08, 0.1, 0.12, 0.16, 0.22, 0.3])
 responses = []
 for intensity in intensities:
-    run = (
-        Simulation(create(MODEL, D=intensity), solver=solver, dt=1.0, random_state=1).check().prepare().run(until=4000)
-    )
+    run = Simulation(create(MODEL, D=intensity), solver=solver, dt=1.0, random_state=1).prepare().run(until=4000)
     times = run.trajectory_.times
     well = np.sign(run.trajectory_.values('particle.x'))
     responses.append(2 * np.abs(np.mean(well * np.exp(-2j * np.pi * 0.01 * times))))

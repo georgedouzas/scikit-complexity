@@ -22,7 +22,7 @@ def test_on_off_intermittency_laminar_phases():
     """Test that the laminar phases at the bifurcation have durations distributed as tau^(-3/2)."""
     system = on_off_intermittency(50, epsilon=0.0)
     simulation = (
-        Simulation(system, dt=0.1, solver=EulerMaruyamaSolver(dt=0.02), random_state=0).check().prepare().run(until=500)
+        Simulation(system, dt=0.1, solver=EulerMaruyamaSolver(dt=0.02), random_state=0).prepare().run(until=500)
     )
     values = simulation.trajectory_.values('variables.x')
     durations = _laminar_durations(values, 0.05, 0.1)

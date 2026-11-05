@@ -26,7 +26,7 @@ def _cooperation(trajectory):
 
 def _first_payoffs(system, backend):
     """Return the payoffs of the play of the first step."""
-    simulation = Simulation(system, random_state=0, dt=1, backend=backend).check().prepare().run(until=1)
+    simulation = Simulation(system, random_state=0, dt=1, backend=backend).prepare().run(until=1)
     return simulation.trajectory_.values('players.payoff')[1]
 
 
@@ -42,7 +42,7 @@ def test_hypergraph_public_goods_payoffs_sum_the_shares_of_every_hyperedge(backe
     players = system.elements[0]
     strategies = players.values['strategy']
     expected = np.zeros(60)
-    for hyperedge in players.space.check().prepare().hyperedges_:
+    for hyperedge in players.space.prepare().hyperedges_:
         members = list(hyperedge)
         expected[members] += 3.5 * strategies[members].sum() / len(members) - strategies[members]
     np.testing.assert_allclose(_first_payoffs(system, backend), expected, atol=1e-12)
@@ -61,7 +61,7 @@ def test_simplicial_social_dilemmas_payoffs_follow_the_games_of_links_and_simpli
     players = system.elements[0]
     strategies, triangles = players.values['strategy'], players.values['triangles']
     expected = np.zeros(40)
-    for hyperedge in players.space.check().prepare().hyperedges_:
+    for hyperedge in players.space.prepare().hyperedges_:
         for own in hyperedge:
             for other in hyperedge:
                 if other == own:
@@ -89,4 +89,4 @@ def test_simplicial_social_dilemmas_counts_the_triangles_of_every_player():
     """Test that the network holds one triangle per new node besides the ten of the first clique."""
     players = simplicial_social_dilemmas(50, simplices=1.0).elements[0]
     assert players.values['triangles'].sum() == 3 * (10 + 45)
-    assert len(players.space.check().prepare().hyperedges_) == 55
+    assert len(players.space.prepare().hyperedges_) == 55

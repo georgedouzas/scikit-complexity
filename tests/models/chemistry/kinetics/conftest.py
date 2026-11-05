@@ -7,4 +7,4 @@ from skcomplex.engine.solvers import BaseSolver
 
 def _run(system: System, until: float, dt: float, *, solver: BaseSolver | None = None) -> Trajectory:
     """Return the trajectory of a system."""
-    return Simulation(system, dt=dt, random_state=0, solver=solver).check().prepare().run(until=until).trajectory_
+    return Simulation(system, dt=dt, random_state=0, solver=solver).prepare().run(until=until).trajectory_

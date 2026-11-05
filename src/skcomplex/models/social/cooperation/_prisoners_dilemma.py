@@ -46,11 +46,11 @@ class PrisonersDilemmaInteraction(LocalRuleInteraction):
 
     Raises:
         ValidationError:
-            The imitation is unknown, raised by `check`.
+            The imitation is unknown, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.models.social.cooperation import PrisonersDilemmaInteraction
-        >>> PrisonersDilemmaInteraction('play', target='players', imitation='fermi').check().imitation
+        >>> PrisonersDilemmaInteraction('play', target='players', imitation='fermi').imitation
         'fermi'
     """
 

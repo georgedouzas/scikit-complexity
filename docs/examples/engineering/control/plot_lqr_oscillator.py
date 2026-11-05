@@ -34,7 +34,6 @@ simulation = (
         observers=[observer],
         observables=entry.observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=10)
 )
@@ -45,7 +44,7 @@ simulation = (
 # The closed loop `x' = (A - B K) x` decays at the rate of its slowest eigenvalue, so the energy, a quadratic form of
 # the state, should fall as `exp(2 Re(lambda) t)` once the faster mode has died out.
 
-model = LinearizationAnalysis().check().prepare(System(elements=list(system.elements))).run()
+model = LinearizationAnalysis().prepare(System(elements=list(system.elements))).run()
 gain = np.array([system.interactions[0].gain])
 slowest = max(np.linalg.eigvals(model.A_ - model.B_ @ gain).real)
 trajectory = simulation.trajectory_

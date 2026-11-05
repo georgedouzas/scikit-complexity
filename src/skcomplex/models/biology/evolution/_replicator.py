@@ -37,7 +37,7 @@ class ReplicatorInteraction(RateInteraction):
 
     Raises:
         ValidationError:
-            The fitness is not callable, raised by `check`.
+            The fitness is not callable, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.core.elements import GroupElement
@@ -51,7 +51,7 @@ class ReplicatorInteraction(RateInteraction):
         ...     'replication', target='population', fitness=lambda s: total(s.target.x, weights=payoff)
         ... )
         >>> system = System(elements=[population], interactions=[replication])
-        >>> trajectory = Simulation(system, dt=0.1).check().prepare().run(until=20.0).trajectory_
+        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=20.0).trajectory_
         >>> [round(float(share), 3) for share in trajectory.values('population.x')[-1]]
         [1.0, 0.0]
     """

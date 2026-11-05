@@ -22,7 +22,7 @@ N_MASSES = 15
 
 system = create(MODEL, n_masses=N_MASSES, pluck=0.05)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.02, observers=[observer]).check().prepare().run(until=4)
+simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=4)
 
 # %%
 # Normal modes

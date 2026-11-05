@@ -100,7 +100,7 @@ def goods_traders(
 
     Examples:
         >>> from skcomplex.models.economics.markets import goods_traders
-        >>> goods_traders(20, goods=2).elements[0].check().prepare().size_
+        >>> goods_traders(20, goods=2).elements[0].prepare().size_
         20
     """
     if goods not in (2, 3):

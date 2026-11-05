@@ -21,7 +21,7 @@ MODEL = 'sirna_tgf_beta'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=200)
+simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=200)
 
 # %%
 # Immune escape and its reversal
@@ -39,7 +39,7 @@ arms = {
 }
 fig, (tumour, cytokine) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
-    trajectory = Simulation(arm, dt=1.0, solver=solver).check().prepare().run(until=200).trajectory_
+    trajectory = Simulation(arm, dt=1.0, solver=solver).prepare().run(until=200).trajectory_
     tumour.semilogy(trajectory.times, trajectory.values('site.A').clip(1.0), label=name)
     cytokine.semilogy(trajectory.times, trajectory.values('site.C2').clip(1e-3), label=name)
 tumour.set_xlabel('time (days)')

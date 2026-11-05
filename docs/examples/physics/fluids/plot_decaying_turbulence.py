@@ -26,9 +26,7 @@ MODEL = 'decaying_turbulence'
 
 system = create(MODEL, shape=(128, 128), random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(system, solver=ETDRK4Solver(dt=0.05), dt=0.2, observers=[observer]).check().prepare().run(until=40)
-)
+simulation = Simulation(system, solver=ETDRK4Solver(dt=0.05), dt=0.2, observers=[observer]).prepare().run(until=40)
 
 # %%
 # Energy survives, enstrophy decays

@@ -431,7 +431,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
             return np.append(values, ghost)[table]
 
-        read = FieldOperatorKernel(operand=base, symbols=[base], apply=apply, matrix=matrix).check().prepare()
+        read = FieldOperatorKernel(operand=base, symbols=[base], apply=apply, matrix=matrix).prepare()
         self.shifted_[target] = (base, total)
         return self._derived(place, read, target)
 
@@ -587,7 +587,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             return reduced.ravel() if over_positions else np.broadcast_to(reduced, dimensions).ravel()
 
         read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply)
-        return self._derived(place, read.check().prepare())
+        return self._derived(place, read.prepare())
 
     def _equilibrium(
         self,
@@ -600,7 +600,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         space = self._phase_space(operand, place)
         apply = self._equilibrium_apply(space, self._axes_of(coordinates, space), order)
         read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply)
-        return self._derived(place, read.check().prepare())
+        return self._derived(place, read.prepare())
 
     def _collision(self, operand: Expression, place: FieldElement) -> Expression:
         """Return the symbol of the binary collision integral of a density over the class axes of its phase space."""
@@ -612,14 +612,14 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             )
             raise ValidationError(error_msg)
         spacings = (space.spacings_[-PLANE], space.spacings_[-1])
-        kernel = CollisionKernel(space.shape_, spacings, self.cross_section_).check().prepare()
+        kernel = CollisionKernel(space.shape_, spacings, self.cross_section_).prepare()
         empty = np.zeros(0)
 
         def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
             return kernel.run(RunStateSpec(0.0, values, empty)).values_
 
         read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply)
-        return self._derived(place, read.check().prepare())
+        return self._derived(place, read.prepare())
 
     def _discretized(self, name: str, operands: list[object], place: FieldElement) -> Expression:
         """Return a local operator or an inversion lowered for the discretization of its field."""
@@ -710,17 +710,13 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             (item for item in operand.variables() if self._reference_of(item, self.spec) is not None),
             key=str,
         )
-        read = (
-            FieldOperatorKernel(
-                operand=operand,
-                symbols=symbols,
-                apply=self._spectral_apply(multiplier, dimensions),
-                multiplier=multiplier,
-                dimensions=dimensions,
-            )
-            .check()
-            .prepare()
-        )
+        read = FieldOperatorKernel(
+            operand=operand,
+            symbols=symbols,
+            apply=self._spectral_apply(multiplier, dimensions),
+            multiplier=multiplier,
+            dimensions=dimensions,
+        ).prepare()
         return self._derived(place, read)
 
     def _symbols(self, expression: Expression) -> list[Expression]:
@@ -805,7 +801,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
                 'which needs a lattice, a network, or a mesh, with a number outside fixed lattice edges.'
             )
             raise ValidationError(error_msg)
-        read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply).check().prepare()
+        read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply).prepare()
         solution = self._derived(place, read)
         if given is not None:
             self.solution_boundaries_[solution] = (kind, value)
@@ -866,7 +862,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             ]
             steps = [np.arange(-item, item + 1, dtype=float) for item in reach]
         grids = np.meshgrid(*[item * step for item, step in zip(steps, space.spacings_, strict=True)], indexing='ij')
-        printer = ExpressionPrinter(time=TIME, compiled=True).check().prepare(axes)
+        printer = ExpressionPrinter(time=TIME, compiled=True).prepare(axes)
         function = ExpressionPrinter._function_of(printer.run([value]).code_)
         computed = ExpressionPrinter._values_of(function(0.0, *grids))[0]
         sampled = np.broadcast_to(np.asarray(computed, dtype=float), grids[0].shape)
@@ -897,7 +893,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             apply = self._window_apply(window, space.shape_, kind, float(value) if isinstance(value, float) else 0.0)
         matrix = None if SR(radius).is_infinity() else self._window_matrix(window, place, kind, value)
         read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply, matrix=matrix)
-        return self._derived(place, read.check().prepare())
+        return self._derived(place, read.prepare())
 
     def _window_matrix(
         self,
@@ -968,7 +964,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             apply=apply,
             displacement=offset,
         )
-        return self._derived(place, read.check().prepare())
+        return self._derived(place, read.prepare())
 
     def _finite_element(self, name: str, operand: Expression, place: FieldElement) -> Expression:
         """Return the symbol of the finite element Laplacian of an expression."""
@@ -985,16 +981,12 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             (item for item in operand.variables() if self._reference_of(item, self.spec) is not None),
             key=str,
         )
-        read = (
-            FieldOperatorKernel(
-                operand=operand,
-                symbols=symbols,
-                apply=lambda values: matrix @ values,
-                matrix=matrix,
-            )
-            .check()
-            .prepare()
-        )
+        read = FieldOperatorKernel(
+            operand=operand,
+            symbols=symbols,
+            apply=lambda values: matrix @ values,
+            matrix=matrix,
+        ).prepare()
         return self._derived(place, read)
 
     def _note_volume_limit(self, coefficient: Expression, stiffness: float) -> None:
@@ -1004,7 +996,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         references = [reference for reference in found if reference is not None]
         if len(references) < len(symbols) or any(reference.is_state for reference in references):
             return
-        function = ExpressionPrinter(time=TIME, compiled=True).check().prepare(symbols).run([coefficient]).code_
+        function = ExpressionPrinter(time=TIME, compiled=True).prepare(symbols).run([coefficient]).code_
         if not callable(function):
             error_msg = f'A compiled printer returns a function, not a {type(function).__name__}.'
             raise TypeError(error_msg)
@@ -1560,7 +1552,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         nodes = np.frombuffer(points).reshape(shape)
         elements = np.frombuffer(cells, dtype=np.int64).reshape(cell_shape)
         space = MeshSpace(nodes, elements)
-        basis = Basis(space.check().prepare().mesh_, ElementTriP1() if shape[0] == PLANE else ElementTetP1())
+        basis = Basis(space.prepare().mesh_, ElementTriP1() if shape[0] == PLANE else ElementTetP1())
         stiffness = asm(laplace, basis).tocsr()
         lumped = np.asarray(asm(mass, basis).sum(axis=1)).ravel()
         return stiffness, lumped

@@ -49,7 +49,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=300)
 )
@@ -99,7 +98,6 @@ for temperature in temperatures:
             random_state=1,
             observables=describe(MODEL).observables_of(model_system),
         )
-        .check()
         .prepare()
         .run(until=300)
     )

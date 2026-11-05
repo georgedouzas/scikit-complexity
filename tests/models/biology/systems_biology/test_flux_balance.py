@@ -18,7 +18,7 @@ def test_flux_balance_reaches_the_growth_of_raman():
 
 def test_flux_balance_variability_gives_the_ranges_of_raman():
     """Test the ranges of Raman Eq. 8.12 at the optimum of the toy network."""
-    ranges = FluxVariabilityAnalysis().check().prepare(flux_balance()).run().ranges_
+    ranges = FluxVariabilityAnalysis().prepare(flux_balance()).run().ranges_
     expected = {
         'v1': (0, 600),
         'v2': (0, 600),
@@ -51,7 +51,7 @@ def test_flux_balance_oxygen_sweep_by_an_experiment():
         until=0.0,
         outputs=['cell.objective_0'],
     )
-    rows = experiment.check().prepare().run().result_.rows
+    rows = experiment.prepare().run().result_.rows
     growth = [float(np.ravel(row['cell.objective_0'])[-1]) for row in rows]
     assert growth[0] == pytest.approx(0.2117, abs=1e-4)
     assert np.all(np.diff(growth) > 0)

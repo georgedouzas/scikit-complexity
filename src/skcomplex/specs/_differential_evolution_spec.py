@@ -24,7 +24,7 @@ class DifferentialEvolutionSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import DifferentialEvolutionSpec
-        >>> DifferentialEvolutionSpec().check().variant
+        >>> DifferentialEvolutionSpec().variant
         'DE/best/1/bin'
     """
 

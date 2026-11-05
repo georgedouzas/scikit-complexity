@@ -36,7 +36,7 @@ def test_identical_members_grow_at_the_rate_of_one():
     assert members == pytest.approx([0.8739, 0.8739], abs=1e-4)
     assert community == pytest.approx(0.8739, abs=1e-4)
     analysis = CommunityAnalysis(medium={'EX_glc__D_e': -10.0})
-    analysis = analysis.check().prepare(community_fba(knockouts=('', ''), exchanges=exchanges)).run()
+    analysis = analysis.prepare(community_fba(knockouts=('', ''), exchanges=exchanges)).run()
     assert analysis.growth_ == pytest.approx(0.8739, abs=1e-4)
     assert sum(analysis.abundances_.values()) == pytest.approx(1.0)
 

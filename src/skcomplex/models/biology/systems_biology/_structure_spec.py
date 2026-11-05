@@ -41,7 +41,7 @@ class StructureSpec(BaseSpec):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.models.biology.systems_biology import StructureSpec
-        >>> atoms = StructureSpec(np.zeros((1, 2, 3)), ('N', 'CA'), ('GLY', 'GLY'), (1, 1), ('A', 'A')).check()
+        >>> atoms = StructureSpec(np.zeros((1, 2, 3)), ('N', 'CA'), ('GLY', 'GLY'), (1, 1), ('A', 'A'))
         >>> atoms.residues
         (('A', 1, 'GLY'),)
     """

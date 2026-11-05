@@ -21,9 +21,7 @@ V, R, k, b = 12.0, 1.0, 0.5, 0.2
 system = create(MODEL, V=V, R=R, k=k, b=b)
 observables = describe(MODEL).observables_of(system)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = (
-    Simulation(system, dt=0.05, observers=[observer], observables=observables).check().prepare().run(until=10.0)
-)
+simulation = Simulation(system, dt=0.05, observers=[observer], observables=observables).prepare().run(until=10.0)
 
 # %%
 # Speed and current

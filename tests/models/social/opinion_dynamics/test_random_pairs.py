@@ -20,5 +20,5 @@ def test_random_pairs_draw_one_pair_per_agent():
     """Test that a step draws as many pairs of distinct agents as there are agents."""
     people = GroupElement('people', element=DiscussantElement, size=10, values={'opinion': 0.0})
     system = System(elements=[people], interactions=[CountingPairsInteraction('meetings', target='people')])
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=3).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=3).trajectory_
     assert trajectory.agents('people', 3).values['opinion'].sum() == 3 * 2 * 10

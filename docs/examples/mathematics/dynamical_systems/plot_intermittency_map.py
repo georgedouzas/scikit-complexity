@@ -21,7 +21,7 @@ from skcomplex.models import create
 MODEL = 'intermittency_map'
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=10)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().prepare().run(until=2900)
+simulation = Simulation(create(MODEL), dt=1, observers=[observer]).prepare().run(until=2900)
 
 # %%
 # Durations of the laminar phases
@@ -36,9 +36,9 @@ series.set_xlabel('step')
 series.set_ylabel('x')
 series.set_title('Laminar phases and bursts, z = 2')
 for z in (1.5, 2.0):
-    values = Simulation(create(MODEL, z=z), dt=1).check().prepare().run(until=200_000).trajectory_.values('map.x')
-    laminar = EventAnalysis('laminar-durations', threshold=0.1).check().prepare(values).run()
-    ccdf = DistributionAnalysis('ccdf').check().prepare(laminar.durations_).run()
+    values = Simulation(create(MODEL, z=z), dt=1).prepare().run(until=200_000).trajectory_.values('map.x')
+    laminar = EventAnalysis('laminar-durations', threshold=0.1).prepare(values).run()
+    ccdf = DistributionAnalysis('ccdf').prepare(laminar.durations_).run()
     durations, share = ccdf.support_, ccdf.survival_
     (line,) = tails.loglog(durations, share, label=f'z = {z}')
     reference = durations[(durations > 20) & (durations < 2000)]

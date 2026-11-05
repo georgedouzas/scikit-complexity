@@ -17,7 +17,7 @@ from skcomplex.specs import StateSpec, VisualSpec
 
 def _deviations(kind: str, source: object, **settings: object) -> LargeDeviationAnalysis:
     """Return the large deviation analysis of a source for one kind, run."""
-    return LargeDeviationAnalysis(kind, **settings).check().prepare(source).run()
+    return LargeDeviationAnalysis(kind, **settings).prepare(source).run()
 
 
 def _mean_field_magnetizations(size: int, beta: float, field: float, samples: int, seed: int) -> np.ndarray:
@@ -86,9 +86,9 @@ def test_block_generating_function_needs_two_blocks():
     with pytest.raises(AnalysisError, match='fewer than 2 blocks'):
         _deviations('block', [1.0, 2.0], tilts=[0.5], block=5)
     with pytest.raises(AnalysisError, match='needs weights'):
-        LargeDeviationAnalysis('tilted').check()
+        LargeDeviationAnalysis('tilted').prepare()
     with pytest.raises(AnalysisError, match='does not read block'):
-        LargeDeviationAnalysis('reweight', log_weights=[0.0], block=5).check()
+        LargeDeviationAnalysis('reweight', log_weights=[0.0], block=5).prepare()
 
 
 class CounterElement(Element):
@@ -144,4 +144,4 @@ def test_cloning_warns_of_a_collapsed_population_and_rejects_bad_settings():
     with pytest.warns(RuntimeWarning, match='effective population'):
         _deviations('cloning', system, observable='counter.n', tilts=4.0, population=5, until=2.0, random_state=0)
     with pytest.raises(AnalysisError, match='multiple of the interval'):
-        LargeDeviationAnalysis('cloning', observable='counter.n', population=10, interval=1.0, until=2.5).check()
+        LargeDeviationAnalysis('cloning', observable='counter.n', population=10, interval=1.0, until=2.5).prepare()

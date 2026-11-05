@@ -20,7 +20,7 @@ MODEL = 'mackey_glass'
 
 system = create(MODEL, tau=17.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=500)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=500)
 
 # %%
 # Periodic against chaotic
@@ -30,9 +30,9 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().
 
 fig, axes = plt.subplots(1, 2, figsize=(10, 4.5))
 for ax, tau in zip(axes, [6.0, 17.0], strict=True):
-    trajectory = Simulation(create(MODEL, tau=tau), dt=0.5).check().prepare().run(until=1000).trajectory_
+    trajectory = Simulation(create(MODEL, tau=tau), dt=0.5).prepare().run(until=1000).trajectory_
     values = trajectory.values('cells.x')[trajectory.times > 200]
-    embedding = EmbeddingAnalysis(delay=int(tau / 0.5), dimension=2).check().prepare(values).run()
+    embedding = EmbeddingAnalysis(delay=int(tau / 0.5), dimension=2).prepare(values).run()
     vectors = embedding.points_
     ax.plot(vectors[:, 1], vectors[:, 0], linewidth=0.6)
     ax.set_xlabel('x(t)')

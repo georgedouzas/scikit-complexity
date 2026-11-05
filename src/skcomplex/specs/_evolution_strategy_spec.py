@@ -18,7 +18,7 @@ class EvolutionStrategySpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import EvolutionStrategySpec
-        >>> EvolutionStrategySpec(offspring=200).check().offspring
+        >>> EvolutionStrategySpec(offspring=200).offspring
         200
     """
 

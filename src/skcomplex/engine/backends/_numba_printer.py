@@ -316,7 +316,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         symbols = sorted(symbols_of(expressions + arguments), key=str)
         reads = [(str(item), read(item)) for item in symbols if str(item) != 't']
         lines = [f'{pad}{name} = {code}' for name, code in reads if name != code]
-        assignments, codes = self._printed(ExpressionPrinter('scalar').check().prepare(), [*expressions, *arguments])
+        assignments, codes = self._printed(ExpressionPrinter('scalar').prepare(), [*expressions, *arguments])
         lines += [f'{pad}{name} = {code}' for name, code in assignments]
         expression_codes, argument_codes = iter(codes[: len(expressions)]), iter(codes[len(expressions) :])
         values: list[str] = []
@@ -722,7 +722,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             if read.per_member
         ]
         condition = reduction.condition if reduction.condition is not None else 1
-        printer = ExpressionPrinter('scalar', prefix=f'_r{index}cse').check().prepare()
+        printer = ExpressionPrinter('scalar', prefix=f'_r{index}cse').prepare()
         assignments, codes = self._printed(printer, [reduction.argument, condition])
         loop = 'prange' if parallel else 'range'
         return [
@@ -960,7 +960,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
         readers = [item for item in reduction.symbols if sides[item] == 'reader']
         others = [item for item in reduction.symbols if sides[item] in {'other', 'edge', 'pair'}]
         lines += [f'{INDENT}{item} = {self._pair_read_code(reduction, item, index)}' for item in shared]
-        printer = ExpressionPrinter('scalar', prefix=f'_n{index}cse').check().prepare()
+        printer = ExpressionPrinter('scalar', prefix=f'_n{index}cse').prepare()
         assignments, codes = self._printed(printer, [reduction.argument, reduction.weight])
         kind = reduction.kind
         if kind in COMPONENT_KINDS:

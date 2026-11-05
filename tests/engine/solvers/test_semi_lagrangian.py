@@ -29,13 +29,13 @@ def test_large_transport_steps_stay_stable_and_conserve_total() -> None:
     """Stay bounded at a Courant number of 5 and keep the total within 1e-12 relative error."""
     size, length = 32, 2 * np.pi
     spacing = length / size
-    space = PhaseSpace(LatticeSpace((size,), spacing=spacing), [AxisSpec('v', 8, 0.5, 1.5)]).check().prepare()
+    space = PhaseSpace(LatticeSpace((size,), spacing=spacing), [AxisSpec('v', 8, 0.5, 1.5)]).prepare()
     start = np.outer(2.0 + np.sin(np.arange(size) * spacing), np.ones(8))
     gas = FieldElement('gas', element=DensityElement, space=space, values={'f': start}, discretization='finite-volume')
     stream = AdvectionInteraction('s', target='gas', state='f', drift=lambda _: [coordinate('v'), 0])
     solver = SemiLagrangianSolver(dt=5 * spacing)
     system = System(elements=[gas], interactions=[stream])
-    simulation = Simulation(system, dt=5 * spacing, solver=solver).check().prepare()
+    simulation = Simulation(system, dt=5 * spacing, solver=solver).prepare()
     final = simulation.run(until=4.0).trajectory_.values('gas.f')[-1].reshape(size, 8)
     assert np.abs(final).max() < 1.01 * start.max()
     assert abs(final.sum() / start.sum() - 1.0) < 1e-12
@@ -55,7 +55,7 @@ def test_nonlinear_flux_raises_a_named_error() -> None:
     simulation = Simulation(
         System(elements=[wave], interactions=[burgers]),
         solver=SemiLagrangianSolver(dt=0.1),
-    ).check()
+    )
     with pytest.raises(SolverError, match='not a linear drift'):
         simulation.prepare().run(until=0.1)
 
@@ -64,7 +64,7 @@ def test_landau_damping_with_large_steps() -> None:
     """Damp the electric energy at the linear rate within 5 percent at a step that an explicit scheme cannot take."""
     positions, velocities, length = 32, 64, 4 * np.pi
     axis = AxisSpec('v', velocities, -6.0, 6.0)
-    space = PhaseSpace(LatticeSpace((positions,), spacing=length / positions), [axis]).check().prepare()
+    space = PhaseSpace(LatticeSpace((positions,), spacing=length / positions), [axis]).prepare()
     v = space.coordinates_['v']
     x = np.arange(positions) * length / positions
     start = np.outer(1.0 + 0.01 * np.cos(0.5 * x), np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi))
@@ -72,7 +72,7 @@ def test_landau_damping_with_large_steps() -> None:
     drift = AdvectionInteraction('vlasov', target='gas', state='f', drift=poisson_drift)
     system = System(elements=[gas], interactions=[drift])
     solver = SemiLagrangianSolver(dt=0.25)
-    trajectory = Simulation(system, dt=0.25, solver=solver).check().prepare().run(until=30.0).trajectory_
+    trajectory = Simulation(system, dt=0.25, solver=solver).prepare().run(until=30.0).trajectory_
     values = np.asarray(trajectory.values('gas.f')).reshape(-1, positions, velocities)
     density = values.sum(axis=2) * space.spacings_[1]
     field = np.fft.ifft(np.fft.fft(density - density.mean(axis=1, keepdims=True), axis=1), axis=1).real

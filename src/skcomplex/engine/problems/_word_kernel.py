@@ -77,7 +77,7 @@ class WordKernel(BaseKernel):
         values:
             The initial parameter values, used to check the probabilities.
 
-    `check()` compiles the productions, `prepare(problem)` starts the word at its axiom, and `run(state)` rewrites it
+    `prepare(problem)` compiles the productions and starts the word at its axiom, and `run(state)` rewrites it
     once with the parameters and the random stream of the state.
 
     Attributes:
@@ -203,7 +203,7 @@ class WordKernel(BaseKernel):
                 'graph.'
             )
             raise RewritingError(error_msg)
-        printer = ExpressionPrinter(time=time, compiled=True).check().prepare([*variables, *symbols])
+        printer = ExpressionPrinter(time=time, compiled=True).prepare([*variables, *symbols])
         compiled = ExpressionPrinter._function_of(printer.run(values).code_)
 
         def evaluate(*arguments: object) -> Arrays:

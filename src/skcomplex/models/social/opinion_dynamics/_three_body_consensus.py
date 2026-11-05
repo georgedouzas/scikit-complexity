@@ -43,7 +43,7 @@ class ThreeBodyConsensusInteraction(HyperedgeInteraction):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import ThreeBodyConsensusInteraction
-        >>> ThreeBodyConsensusInteraction('consensus', target='nodes', triangles='triangles').check().size
+        >>> ThreeBodyConsensusInteraction('consensus', target='nodes', triangles='triangles').size
         3
     """
 

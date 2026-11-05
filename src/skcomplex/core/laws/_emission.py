@@ -36,7 +36,7 @@ class EmissionLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import EmissionLaw
         >>> observed, hidden = var('observed'), var('hidden')
-        >>> EmissionLaw(observed, hidden, [[0.7, 0.3], [0.2, 0.8]]).check().prepare().targets_
+        >>> EmissionLaw(observed, hidden, [[0.7, 0.3], [0.2, 0.8]]).prepare().targets_
         (observed,)
     """
 

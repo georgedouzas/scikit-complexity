@@ -48,7 +48,7 @@ class ShapeAnalysis(BaseAnalysis):
         >>> import numpy as np
         >>> from skcomplex.analysis import ShapeAnalysis
         >>> chain = np.array([[[0.0, 0.0], [3.0, 4.0]]])
-        >>> ShapeAnalysis('end-to-end').check().prepare(chain).run().values_.tolist()
+        >>> ShapeAnalysis('end-to-end').prepare(chain).run().values_.tolist()
         [5.0]
     """
 

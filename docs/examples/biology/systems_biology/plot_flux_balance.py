@@ -24,7 +24,7 @@ MODEL = 'flux_balance'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-trajectory = Simulation(system, observers=[observer]).check().prepare().run(until=0.0).trajectory_
+trajectory = Simulation(system, observers=[observer]).prepare().run(until=0.0).trajectory_
 
 # %%
 # The ranges of the fluxes at the optimum
@@ -32,8 +32,8 @@ trajectory = Simulation(system, observers=[observer]).check().prepare().run(unti
 # Flux variability should fix `v4` to `v7`, `b1`, `b2`, and growth at the optimum, and leave `v1`, `v2`, and `v3` free
 # over the range from 0 to 600, the two routes from `A` to `B`. The parsimonious solution should sit inside every range.
 
-ranges = FluxVariabilityAnalysis().check().prepare(system).run().ranges_
-parsimonious = Simulation(flux_balance(parsimonious=True)).check().prepare().run(until=0.0).trajectory_
+ranges = FluxVariabilityAnalysis().prepare(system).run().ranges_
+parsimonious = Simulation(flux_balance(parsimonious=True)).prepare().run(until=0.0).trajectory_
 fluxes = [float(parsimonious.values(f'cell.v_{name}')[0]) for name in ranges.index]
 fig, ax = plt.subplots(figsize=(9, 4))
 positions = np.arange(len(ranges))
@@ -63,7 +63,7 @@ experiment = Experiment(
     until=0.0,
     outputs=['cell.objective_0'],
 )
-rows = experiment.check().prepare().run().result_.rows
+rows = experiment.prepare().run().result_.rows
 growth_rates = [float(np.ravel(row['cell.objective_0'])[-1]) for row in rows]
 fig, ax = plt.subplots(figsize=(9, 4))
 ax.plot(oxygen, growth_rates, 'o-')

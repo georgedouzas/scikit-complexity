@@ -59,7 +59,7 @@ class StrangSplittingSolver(Solver):
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
         >>> from skcomplex.specs import AxisSpec
-        >>> space = PhaseSpace(LatticeSpace((8,)), [AxisSpec('v', 16, -6.0, 6.0)]).check().prepare()
+        >>> space = PhaseSpace(LatticeSpace((8,)), [AxisSpec('v', 16, -6.0, 6.0)]).prepare()
         >>> start = np.outer(2 + np.sin(2 * np.pi * np.arange(8) / 8), np.exp(-space.coordinates_['v'] ** 2))
         >>> gas = FieldElement(
         ...     'gas', element=DensityElement, space=space, values={'f': start}, discretization='finite-volume'
@@ -70,7 +70,7 @@ class StrangSplittingSolver(Solver):
         ... )
         >>> system = System(elements=[gas], interactions=[stream, relax])
         >>> solver = StrangSplittingSolver(SemiLagrangianSolver(dt=0.1), RK4Solver(dt=0.1), dt=0.1)
-        >>> final = Simulation(system, solver=solver).check().prepare().run(until=0.2).trajectory_.values('gas.f')[-1]
+        >>> final = Simulation(system, solver=solver).prepare().run(until=0.2).trajectory_.values('gas.f')[-1]
         >>> abs(float(final.sum() / start.sum()) - 1.0) < 1e-12
         True
     """
@@ -123,7 +123,7 @@ class StrangSplittingSolver(Solver):
         if inner._get_support().missing('laws', {law}):
             error_msg = f'StrangSplittingSolver advances {law.__name__} with {type(inner).__name__}, which lacks it.'
             raise SolverError(error_msg)
-        return inner.check().prepare(problem)
+        return inner.prepare(problem)
 
     def _prepare(self, context: ProblemSpec | None) -> None:
         """Prepare the two inner solvers on the transport and the collision parts of the problem.

@@ -21,7 +21,7 @@ MODEL = 'noisy_automata'
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 system = create(MODEL, rule=18, noise=0.01, size=200)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=200)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=200)
 
 # %%
 # Annihilating defects
@@ -32,12 +32,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).chec
 
 fig, ax = plt.subplots(figsize=(6, 4.5))
 for noise in (0.0, 0.001, 0.01):
-    run = (
-        Simulation(create(MODEL, rule=18, noise=noise, size=2000), dt=1, random_state=0)
-        .check()
-        .prepare()
-        .run(until=1000)
-    )
+    run = Simulation(create(MODEL, rule=18, noise=noise, size=2000), dt=1, random_state=0).prepare().run(until=1000)
     alive = run.trajectory_.lattice('cells.alive')
     defects = (alive[:, :-1] * alive[:, 1:]).mean(axis=1)
     ax.loglog(run.trajectory_.times[1:], defects[1:], label=f'noise {noise}')

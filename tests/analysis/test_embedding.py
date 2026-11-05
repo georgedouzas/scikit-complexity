@@ -10,7 +10,7 @@ from skcomplex.errors import AnalysisError
 
 def _embedding(kind: str, source: object, **settings: object) -> EmbeddingAnalysis:
     """Return the embedding analysis of a source for one kind, run."""
-    return EmbeddingAnalysis(kind, **settings).check().prepare(source).run()
+    return EmbeddingAnalysis(kind, **settings).prepare(source).run()
 
 
 def _lorenz_states(rho: float, step: float, duration: float) -> np.ndarray:
@@ -68,6 +68,6 @@ def test_delay_embedding_rejects_short_series_and_several_series():
 def test_unknown_kind_and_ignored_setting():
     """Test that an unknown kind and a setting the kind ignores raise errors."""
     with pytest.raises(AnalysisError, match='delay, false-nearest-neighbors'):
-        EmbeddingAnalysis('unknown').check()
+        EmbeddingAnalysis('unknown').prepare()
     with pytest.raises(AnalysisError, match='does not read ratio'):
-        EmbeddingAnalysis('delay', ratio=5.0).check()
+        EmbeddingAnalysis('delay', ratio=5.0).prepare()

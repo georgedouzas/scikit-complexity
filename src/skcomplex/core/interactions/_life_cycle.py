@@ -133,7 +133,7 @@ class LifeCycleInteraction(Interaction):
     Raises:
         ValidationError:
             The placement, the schedule, or the pick is unknown, both a birth probability and a rate are given, a
-            function is not callable, or the schedule `'member'` has arrivals, raised by `check`.
+            function is not callable, or the schedule `'member'` has arrivals, raised by `prepare`.
 
     Examples:
         >>> from typing import Annotated
@@ -150,7 +150,7 @@ class LifeCycleInteraction(Interaction):
         >>> cells = GroupElement('cells', element=CellElement, size=1, values={'size': 8.0}, variable=True)
         >>> division = LifeCycleInteraction('division', target='cells', birth=1.0, split=('size',))
         >>> system = System(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
-        >>> trajectory = Simulation(system, random_state=0).check().prepare().run(until=2).trajectory_
+        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=2).trajectory_
         >>> trajectory.agents('cells', 2).values['size'].tolist()
         [2.0, 2.0, 2.0, 2.0]
     """

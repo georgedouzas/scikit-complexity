@@ -25,7 +25,7 @@ def test_no_catalog_in_the_engine():
 def test_simulation_rejects_a_model_name():
     """A simulation of a model name raises an error that says to create the model with the models library."""
     with pytest.raises(ValidationError, match=r'takes a system or a compiled problem, not .sir.\. Create a model'):
-        package.Simulation('sir').check()
+        package.Simulation('sir').prepare()
 
 
 def test_classes_derive_from_a_base_of_the_package():

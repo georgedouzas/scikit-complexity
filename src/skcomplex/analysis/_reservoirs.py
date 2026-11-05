@@ -233,7 +233,7 @@ class ReservoirAnalysis(BaseAnalysis):
         >>> import numpy as np
         >>> from skcomplex.analysis import ReservoirAnalysis
         >>> times = np.arange(400.0)
-        >>> analysis = ReservoirAnalysis(['x'], horizon=10).check().prepare(np.sin(0.1 * times)).run()
+        >>> analysis = ReservoirAnalysis(['x'], horizon=10).prepare(np.sin(0.1 * times)).run()
         >>> analysis.states_
         ['x', 'memory_0', 'memory_1']
         >>> bool(abs(analysis.forecast_[-1, 0] - np.sin(0.1 * 409)) < 0.01)

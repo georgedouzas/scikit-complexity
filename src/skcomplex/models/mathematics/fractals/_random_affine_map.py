@@ -53,7 +53,7 @@ class RandomAffineMapInteraction(MapInteraction):
     Examples:
         >>> from skcomplex.models.mathematics.fractals import RandomAffineMapInteraction
         >>> game = RandomAffineMapInteraction('game', target='points', maps=[(0.5, 0, 0, 0.5, 0, 0)], weights=[1.0])
-        >>> game.check().maps
+        >>> game.maps
         [(0.5, 0, 0, 0.5, 0, 0)]
     """
 

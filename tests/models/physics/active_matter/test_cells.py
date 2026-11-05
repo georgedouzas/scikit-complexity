@@ -40,7 +40,6 @@ def test_szabo_cells_repel_and_adhere():
         solver = EulerMaruyamaSolver(dt=0.001)
         trajectory = (
             Simulation(system, dt=0.01, solver=solver, initial_state={'cells.x': positions})
-            .check()
             .prepare()
             .run(until=0.01)
             .trajectory_
@@ -56,7 +55,6 @@ def test_szabo_cells_reads_neighbours_within_a_diameter():
     solver = EulerMaruyamaSolver(dt=0.01)
     final = (
         Simulation(system, dt=0.1, solver=solver, initial_state={'cells.x': positions})
-        .check()
         .prepare()
         .run(until=0.1)
         .trajectory_.values('cells.x')[-1]
@@ -72,7 +70,6 @@ def test_szabo_cells_uses_minimum_image_of_the_periodic_box():
     solver = EulerMaruyamaSolver(dt=0.001)
     final = (
         Simulation(system, dt=0.01, solver=solver, initial_state={'cells.x': positions})
-        .check()
         .prepare()
         .run(until=0.01)
         .trajectory_.values('cells.x')[-1]

@@ -13,7 +13,6 @@ def test_earthquakes_have_broad_sizes():
     observer = EventsObserver()
     (
         Simulation(earthquakes((30, 30)), dt=100, record=False, random_state=0, observers=[observer])
-        .check()
         .prepare()
         .run(until=5000)
     )

@@ -22,10 +22,7 @@ MODEL = 'bone_marrow_blood_leukaemia'
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
 simulation = (
-    Simulation(system, dt=10.0, solver=ScipyODESolver(method='BDF'), observers=[observer])
-    .check()
-    .prepare()
-    .run(until=3000)
+    Simulation(system, dt=10.0, solver=ScipyODESolver(method='BDF'), observers=[observer]).prepare().run(until=3000)
 )
 
 # %%

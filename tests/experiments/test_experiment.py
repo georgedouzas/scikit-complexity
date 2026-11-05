@@ -75,7 +75,7 @@ def test_factory_and_system_give_same_run():
     """Test that factory arguments and dotted paths of a built system give the same run."""
     by_argument = Experiment(logistic_growth, GridDesign(), {'r': [0.7]}, until=10, outputs=['population.n'])
     by_path = Experiment(logistic_growth(), GridDesign(), {'growth.r': [0.7]}, until=10, outputs=['population.n'])
-    first, second = by_argument.check().prepare().run().result_, by_path.check().prepare().run().result_
+    first, second = by_argument.prepare().run().result_, by_path.prepare().run().result_
     assert np.array_equal(first.series('population.n'), second.series('population.n'))
 
 
@@ -91,7 +91,6 @@ def test_analyses_of_stochastic_sir_replicates():
             outputs=['I.n'],
             random_state=7,
         )
-        .check()
         .prepare()
         .run()
     )
@@ -106,7 +105,7 @@ def test_analyses_of_stochastic_sir_replicates():
 
 def test_analyses_of_one_class_are_numbered():
     """Test that two analyses of one class get numbered column prefixes."""
-    experiment = Experiment(sir, analyses=[PeakAnalysis('I.n'), PeakAnalysis('S.n')], until=10).check().prepare().run()
+    experiment = Experiment(sir, analyses=[PeakAnalysis('I.n'), PeakAnalysis('S.n')], until=10).prepare().run()
     row = experiment.result_.rows[0]
     assert row['peakanalysis-1.peak'] > 0
     assert row['peakanalysis-2.peak'] == experiment.result_.series('S.n')[0].max()
@@ -126,7 +125,6 @@ def test_serial_and_process_runs_are_identical():
             random_state=7,
             executor=executor,
         )
-        .check()
         .prepare()
         .run()
         .result_
@@ -140,7 +138,7 @@ def test_ensemble_of_ornstein_uhlenbeck_replicates():
     """Test that the ensemble of 200 Ornstein-Uhlenbeck replicates has one row per replicate carrying its seed."""
     system = System(elements=[OrnsteinUhlenbeckElement('ou')])
     experiment = Experiment(system, replicates=200, until=2, dt=0.1, outputs=['ou.x'], random_state=0)
-    times, values, seeds = experiment.check().prepare().run().result_.ensemble('ou.x')
+    times, values, seeds = experiment.prepare().run().result_.ensemble('ou.x')
     assert values.shape == (200, times.size)
     assert seeds.tolist() == list(range(200))
     assert len({tuple(row) for row in values}) == 200
@@ -157,7 +155,7 @@ def test_replicates_are_independent():
         outputs=['I.n'],
         random_state=7,
     )
-    assert len({tuple(series) for series in experiment.check().prepare().run().result_.series('I.n')}) == 20
+    assert len({tuple(series) for series in experiment.prepare().run().result_.series('I.n')}) == 20
 
 
 def test_orbit_diagram_sweep():
@@ -165,7 +163,7 @@ def test_orbit_diagram_sweep():
     system = System(elements=[LogisticMapElement('map')])
     rates = np.linspace(2.8, 4.0, 200)
     experiment = Experiment(system, GridDesign(), {'map.r': rates}, until=400, warmup=301, outputs=['map.x'])
-    result = experiment.check().prepare().run().result_
+    result = experiment.prepare().run().result_
     assert len(result.rows) == 200
     assert result.column('map.r').tolist() == rates.tolist()
     assert result.series('map.x').shape == (200, 100)
@@ -182,7 +180,7 @@ def test_summary_across_replicates():
         outputs=[last_value],
         random_state=1,
     )
-    result = experiment.check().prepare().run().result_
+    result = experiment.prepare().run().result_
     summary = result.summary()
     assert len(summary) == 2
     for row in summary:
@@ -196,17 +194,17 @@ def test_summary_across_replicates():
 def test_zero_replicates_are_rejected():
     """Test that an experiment of zero replicates builds and fails its check with an error naming the replicates."""
     with pytest.raises(ValidationError, match='replicates = 0'):
-        Experiment(sir, replicates=0).check()
+        Experiment(sir, replicates=0).prepare()
 
 
 def test_bounds_without_design_are_rejected():
     """Test that bounds without a design fail the check."""
     with pytest.raises(ValidationError, match='need a design'):
-        Experiment(sir, bounds={'gamma': [0.1]}).check()
+        Experiment(sir, bounds={'gamma': [0.1]}).prepare()
 
 
 def test_unknown_path_is_rejected():
     """Test that an override of a path that is neither a state nor a parameter names the available paths."""
-    experiment = Experiment(logistic_growth, GridDesign(), {'growth.rate': [1.0]}, until=1).check().prepare()
+    experiment = Experiment(logistic_growth, GridDesign(), {'growth.rate': [1.0]}, until=1).prepare()
     with pytest.raises(ValidationError, match=r'growth\.rate is neither a state nor a parameter'):
         experiment.run()

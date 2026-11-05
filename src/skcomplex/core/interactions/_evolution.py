@@ -130,13 +130,13 @@ class EvolutionInteraction(Interaction):
         >>> from types import SimpleNamespace
         >>> from skcomplex.core.interactions import EvolutionInteraction
         >>> evolution = EvolutionInteraction('evolution', target='agents', selection='roulette', phase='breeding')
-        >>> evolution.check().prepare().run(SimpleNamespace()).laws_[0].phase
+        >>> evolution.prepare().run(SimpleNamespace()).laws_[0].phase
         'breeding'
-        >>> EvolutionInteraction('evolution', target='agents', selection='rank', replacement='moran').check().selection
+        >>> EvolutionInteraction('evolution', target='agents', selection='rank', replacement='moran').selection
         'rank'
         >>> EvolutionInteraction(
         ...     'evolution', target='agents', replacement='truncation', fraction=0.2, change='any', period=50
-        ... ).check().period
+        ... ).period
         50
     """
 

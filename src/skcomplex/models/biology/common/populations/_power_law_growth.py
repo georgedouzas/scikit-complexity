@@ -41,7 +41,7 @@ class PowerLawGrowthInteraction(GrowthInteraction):
         ...     elements=[CompartmentElement('tumour', n=1.0)],
         ...     interactions=[PowerLawGrowthInteraction('growth', target='tumour', r=1.0, p=0.5)],
         ... )
-        >>> trajectory = Simulation(system, dt=0.01).check().prepare().run(until=2.0).trajectory_
+        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=2.0).trajectory_
         >>> round(float(trajectory.values('tumour.n')[-1]), 3)
         4.0
     """

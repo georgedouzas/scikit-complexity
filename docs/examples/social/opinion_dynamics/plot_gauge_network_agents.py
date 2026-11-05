@@ -20,7 +20,7 @@ MODEL = 'gauge_network_agents'
 system = create(MODEL, flux=np.pi)
 observables = describe(MODEL).observables_of(system)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-Simulation(system, dt=0.5, observers=[observer], observables=observables).check().prepare().run(until=40)
+Simulation(system, dt=0.5, observers=[observer], observables=observables).prepare().run(until=40)
 
 # %%
 # Frustration blocks agreement
@@ -32,7 +32,6 @@ for label, flux in (('flat connection', 0.0), ('flux of pi', np.pi)):
     model_system = create(MODEL, flux=flux)
     run = (
         Simulation(model_system, dt=0.5, observables=describe(MODEL).observables_of(model_system))
-        .check()
         .prepare()
         .run(until=40)
     )

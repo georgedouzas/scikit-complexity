@@ -15,8 +15,8 @@ def test_imex2_second_call_restarts_history():
     problem = compile_system(kuramoto_sivashinsky())
     x, p = problem.initial_state, problem.initial_parameters
     stepper, fresh = IMEX2Solver(dt=0.01), IMEX2Solver(dt=0.01)
-    stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
-    fresh.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
+    stepper.set_params(random_state=np.random.default_rng(0)).prepare(problem)
+    fresh.set_params(random_state=np.random.default_rng(0)).prepare(problem)
     first = stepper.run(StepSpec(0.0, x, p, 0.1)).state_
     second = stepper.run(StepSpec(0.0, x, p, 0.1)).state_
     assert np.array_equal(first, second)

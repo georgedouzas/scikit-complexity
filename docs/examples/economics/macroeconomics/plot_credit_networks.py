@@ -43,7 +43,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(model_system),
     )
-    .check()
     .prepare()
     .run(until=100)
 )
@@ -62,7 +61,6 @@ for intensity in intensities:
     model_system = create(MODEL, intensity=intensity, random_state=0)
     trajectory = (
         Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system))
-        .check()
         .prepare()
         .run(100)
         .trajectory_

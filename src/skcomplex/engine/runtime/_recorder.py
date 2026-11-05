@@ -28,7 +28,7 @@ class RecorderObserver(BaseObserver):
         >>> from skcomplex.engine.runtime import RecorderObserver, Simulation
         >>> recorder = RecorderObserver()
         >>> simulation = Simulation(System(elements=[PopulationElement('a')]), dt=1, observers=[recorder])
-        >>> _ = simulation.check().prepare().run(until=2)
+        >>> _ = simulation.prepare().run(until=2)
         >>> len(recorder.trajectory_.times)
         3
     """

@@ -46,7 +46,7 @@ class FluxLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import FluxLaw
         >>> u = var('u')
-        >>> FluxLaw(u, u**2 / 2, riemann='godunov').check().prepare().run({'u': 2.0}).value_
+        >>> FluxLaw(u, u**2 / 2, riemann='godunov').prepare().run({'u': 2.0}).value_
         2.0
     """
 

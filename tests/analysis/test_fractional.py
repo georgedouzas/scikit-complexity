@@ -101,18 +101,18 @@ def test_mittag_leffler_rejects_nonpositive_alpha():
 def test_solve_symbolically_fractional_relaxation():
     """Test that linear fractional relaxation is solved by the Mittag-Leffler function of its order."""
     system = System(elements=[RelaxingElement('r')])
-    solution = SymbolicAnalysis('solve', use_initial_state=True).check().prepare(system).run().solutions_['r.x']
+    solution = SymbolicAnalysis('solve', use_initial_state=True).prepare(system).run().solutions_['r.x']
     assert str(solution) == 'x_r(t) == 2*mittag_leffler(3/5, 1, -lam_r*t^(3/5))'
     symbols = {str(item): item for item in solution.rhs().variables()}
     value = float(solution.rhs().subs({symbols['t']: 2.0, symbols['lam_r']: 0.5}))
     assert value == pytest.approx(2 * float(SymbolicAnalysis._mittag_leffler(0.6, 1.0, -0.5 * 2.0**0.6)), rel=1e-12)
-    assert 'x_r(0)' in str(SymbolicAnalysis('solve').check().prepare(system).run().solutions_['r.x'])
+    assert 'x_r(0)' in str(SymbolicAnalysis('solve').prepare(system).run().solutions_['r.x'])
 
 
 def test_equations_of_fractional_state_write_caputo_derivative():
     """Test that the equation of a fractional state writes its Caputo derivative of the exact order."""
     assert (
-        str(SymbolicAnalysis().check().prepare(System(elements=[RelaxingElement('r')])).run().equations_['r.x'])
+        str(SymbolicAnalysis().prepare(System(elements=[RelaxingElement('r')])).run().equations_['r.x'])
         == 'caputo(x_r(t), t, 3/5) == -lam_r*x_r(t)'
     )
 
@@ -120,4 +120,4 @@ def test_equations_of_fractional_state_write_caputo_derivative():
 def test_solve_symbolically_rejects_nonlinear_fractional_law():
     """Test that a nonlinear fractional law has no exact solution."""
     with pytest.raises(AnalysisError, match='linear fractional relaxation'):
-        SymbolicAnalysis('solve').check().prepare(System(elements=[SaturatingElement('s')])).run()
+        SymbolicAnalysis('solve').prepare(System(elements=[SaturatingElement('s')])).run()

@@ -24,12 +24,12 @@ class LinearObjectiveSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The sense is unknown, raised by `check`.
+            The sense is unknown, raised by `prepare`.
 
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.specs import LinearObjectiveSpec
-        >>> LinearObjectiveSpec(2 * var('v'), sense='min').check().sense
+        >>> LinearObjectiveSpec(2 * var('v'), sense='min').sense
         'min'
     """
 

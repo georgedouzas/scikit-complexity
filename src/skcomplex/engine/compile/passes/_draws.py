@@ -23,7 +23,7 @@ class DrawsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Lower the draws of the laws."""
         compilation = self.compilation_
-        drawing = DrawLowering().check().prepare(compilation)
+        drawing = DrawLowering().prepare(compilation)
         compilation.drawn = drawing.run(Compilation._required(compilation.drawn, 'drawn')).lowered_
         drawing._apply_references()
         compilation.draws = drawing.draws_

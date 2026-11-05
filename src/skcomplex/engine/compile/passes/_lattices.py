@@ -227,8 +227,8 @@ class LatticeProblemPass(BasePass):
         if isinstance(neighborhood, AdjacencyNeighborhood):
             return int(neighborhood.center)
         if isinstance(neighborhood, MemoryNeighborhood):
-            return sum(element.strip() in {'', '1'} for element in neighborhood.check().prepare().elements_)
-        return sum(not any(offset) for offset in neighborhood.check().prepare().offsets_)
+            return sum(element.strip() in {'', '1'} for element in neighborhood.prepare().elements_)
+        return sum(not any(offset) for offset in neighborhood.prepare().offsets_)
 
     @staticmethod
     def _check_checkerboard(
@@ -247,7 +247,7 @@ class LatticeProblemPass(BasePass):
                 'which updates the classes of a proper coloring of the neighbour graph in turn.'
             )
             raise ValidationError(error_msg)
-        odd = all(sum(offset) % 2 for offset in neighborhood.check().prepare().offsets_)
+        odd = all(sum(offset) % 2 for offset in neighborhood.prepare().offsets_)
         even = space.boundary != 'periodic' or all(size % 2 == 0 for size in space.shape_)
         if not (odd and even):
             error_msg = (
@@ -369,7 +369,7 @@ class LatticeProblemPass(BasePass):
             return None
         source = 'import numpy as np\n\n\n' + LatticeProblemPass._extremal_source(targets, key, maximum, arguments)
         functions = {'rule': numba.njit(error_model='numpy')(rule)}
-        module = SourceLoader('skcomplex_loops', functions).check().prepare().run(source).module_
+        module = SourceLoader('skcomplex_loops', functions).prepare().run(source).module_
         loop = numba.njit(module.loop)
         end = max(state.start + state.size for state in (*targets, key))
         width = max((start + size for start, size in zip(arguments.starts, arguments.sizes, strict=True)), default=1)
@@ -564,19 +564,15 @@ class LatticeProblemPass(BasePass):
             drive:
                 The compiled drive.
         """
-        return (
-            DriveKernel(
-                context.owner,
-                LatticeProblemPass._lattice_state(context, law._get_targets()[0], 'A drive'),
-                law.function,
-                LatticeProblemPass._keywords(context, law.function),
-                timed=LatticeProblemPass._names_time(law.function),
-                drawing=bool(LatticeProblemPass._accepted(law.function, ['random'])),
-                score=law.score,
-            )
-            .check()
-            .prepare()
-        )
+        return DriveKernel(
+            context.owner,
+            LatticeProblemPass._lattice_state(context, law._get_targets()[0], 'A drive'),
+            law.function,
+            LatticeProblemPass._keywords(context, law.function),
+            timed=LatticeProblemPass._names_time(law.function),
+            drawing=bool(LatticeProblemPass._accepted(law.function, ['random'])),
+            score=law.score,
+        ).prepare()
 
     @staticmethod
     def _compile_rule(law: LocalRuleLaw, context: LatticeContextSpec) -> RuleKernel:
@@ -628,24 +624,20 @@ class LatticeProblemPass(BasePass):
                 raise ValidationError(error_msg)
             function = rule
         reads_degree = function is not None and 'degree' in LatticeProblemPass._accepted(function, ['degree'])
-        return (
-            RuleKernel(
-                context.owner,
-                targets,
-                reads,
-                table,
-                function,
-                lookup=lookup,
-                schedule=law.schedule,
-                stochastic=law.stochastic,
-                arguments=LatticeProblemPass._keywords(context, function) if function is not None else ArgumentsSpec(),
-                fused=context.fused and lookup is not None and law.schedule == 'synchronous',
-                degrees=LatticeProblemPass._degrees_of(table, law.over) if reads_degree else None,
-                classes=LatticeProblemPass._schedule_classes(law.schedule, space, law.over, table, owner),
-            )
-            .check()
-            .prepare()
-        )
+        return RuleKernel(
+            context.owner,
+            targets,
+            reads,
+            table,
+            function,
+            lookup=lookup,
+            schedule=law.schedule,
+            stochastic=law.stochastic,
+            arguments=LatticeProblemPass._keywords(context, function) if function is not None else ArgumentsSpec(),
+            fused=context.fused and lookup is not None and law.schedule == 'synchronous',
+            degrees=LatticeProblemPass._degrees_of(table, law.over) if reads_degree else None,
+            classes=LatticeProblemPass._schedule_classes(law.schedule, space, law.over, table, owner),
+        ).prepare()
 
     @staticmethod
     def _compile_part(law: object, context: LatticeContextSpec) -> RuleKernel | DriveKernel:
@@ -675,19 +667,15 @@ class LatticeProblemPass(BasePass):
         if not law.relax:
             error_msg = f'A cascade of {context.owner} has no laws to relax with.'
             raise ValidationError(error_msg)
-        return (
-            CascadeKernel(
-                law.label or context.owner,
-                tuple(LatticeProblemPass._compile_part(item, context) for item in law.drive),
-                tuple(LatticeProblemPass._compile_part(item, context) for item in law.relax),
-                tuple(LatticeProblemPass._lattice_state(context, item, "A cascade") for item in law._get_targets()),
-                law.stable,
-                max_iterations=int(law.max_iterations),
-                activity=law.activity,
-            )
-            .check()
-            .prepare()
-        )
+        return CascadeKernel(
+            law.label or context.owner,
+            tuple(LatticeProblemPass._compile_part(item, context) for item in law.drive),
+            tuple(LatticeProblemPass._compile_part(item, context) for item in law.relax),
+            tuple(LatticeProblemPass._lattice_state(context, item, "A cascade") for item in law._get_targets()),
+            law.stable,
+            max_iterations=int(law.max_iterations),
+            activity=law.activity,
+        ).prepare()
 
     @staticmethod
     def _compile_extremal(law: ExtremalLaw, context: LatticeContextSpec) -> ExtremalKernel:
@@ -722,23 +710,19 @@ class LatticeProblemPass(BasePass):
         arguments = LatticeProblemPass._keywords(context, law.rule)
         maximum = law.extremum == 'max'
         loop = LatticeProblemPass._extremal_loop(law.rule, targets, key, maximum, arguments) if context.fused else None
-        return (
-            ExtremalKernel(
-                law.label or context.owner,
-                context.owner,
-                targets,
-                key,
-                members,
-                counts=counts,
-                rule=law.rule,
-                arguments=arguments,
-                maximum=maximum,
-                repeat=int(law.repeat),
-                loop=loop,
-            )
-            .check()
-            .prepare()
-        )
+        return ExtremalKernel(
+            law.label or context.owner,
+            context.owner,
+            targets,
+            key,
+            members,
+            counts=counts,
+            rule=law.rule,
+            arguments=arguments,
+            maximum=maximum,
+            repeat=int(law.repeat),
+            loop=loop,
+        ).prepare()
 
     @staticmethod
     def _bond_of(
@@ -900,10 +884,8 @@ class LatticeProblemPass(BasePass):
             tuple(item[3] for item in found),
         )
         reads = [move.target, *neighbours, proposal, *(masks if masked else []), *extra]
-        objective_change = ExpressionPrinter(time=time, compiled=True).check().prepare(reads).run([change]).code_
-        intensity = (
-            ExpressionPrinter(time=time, compiled=True).check().prepare(extra).run([SR(sampler.intensity)]).code_
-        )
+        objective_change = ExpressionPrinter(time=time, compiled=True).prepare(reads).run([change]).code_
+        intensity = ExpressionPrinter(time=time, compiled=True).prepare(extra).run([SR(sampler.intensity)]).code_
         if not callable(objective_change) or not callable(intensity):
             error_msg = 'The compiled printer returned no function of the objective change or of the intensity.'
             raise TypeError(error_msg)
@@ -911,7 +893,6 @@ class LatticeProblemPass(BasePass):
             None
             if bond is None
             else ExpressionPrinter(time=time, compiled=True)
-            .check()
             .prepare([move.target, neighbours[0], *extra])
             .run([bond])
             .code_
@@ -919,25 +900,21 @@ class LatticeProblemPass(BasePass):
         if bond is not None and not callable(bond_change):
             error_msg = 'The compiled printer returned no function of the objective of a bond.'
             raise TypeError(error_msg)
-        return (
-            MonteCarloKernel(
-                context.owner,
-                target,
-                table,
-                objective_change,
-                arguments,
-                intensity=intensity,
-                move=move,
-                sampler=sampler,
-                classes=classes,
-                masked=masked,
-                bond=bond_change if callable(bond_change) else None,
-                boundary=faces[0] if faces is not None else None,
-                signs=faces[1] if faces is not None else None,
-            )
-            .check()
-            .prepare()
-        )
+        return MonteCarloKernel(
+            context.owner,
+            target,
+            table,
+            objective_change,
+            arguments,
+            intensity=intensity,
+            move=move,
+            sampler=sampler,
+            classes=classes,
+            masked=masked,
+            bond=bond_change if callable(bond_change) else None,
+            boundary=faces[0] if faces is not None else None,
+            signs=faces[1] if faces is not None else None,
+        ).prepare()
 
     @staticmethod
     def _schedule_of(law: object) -> str | None:

@@ -9,8 +9,13 @@ import pytest
 from sklearn.base import clone
 
 import skcomplex
+from skcomplex import errors
 from skcomplex.base import BaseConfig
-from skcomplex.errors import NotCheckedError
+from skcomplex.core.base import BasePart
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import RateInteraction
+from skcomplex.core.system import System
+from skcomplex.errors import ValidationError
 from skcomplex.specs import BaseSpec
 
 
@@ -35,31 +40,47 @@ class ScalingConfig(BaseConfig):
         self.released_ = True
 
 
-def test_verbs_check_prepare_and_run():
-    """Test that checking, preparing against a context, and running act through the hooks."""
-    config = ScalingConfig(3).check().prepare(1)
+def test_verbs_prepare_and_run():
+    """Test that preparing against a context and running act through the hooks."""
+    config = ScalingConfig(3).prepare(1)
     assert config.offset_ == 1
     assert config.run(2) is config
     assert config.scaled_ == 7
 
 
-def test_check_runs_the_check_hook():
-    """Test that checking calls the hook that validates the settings."""
+def test_prepare_runs_the_check_hook():
+    """Test that preparing calls the hook that validates the settings, before it derives anything."""
+    config = ScalingConfig(0)
     with pytest.raises(ValueError, match='factor'):
-        ScalingConfig(0).check()
+        config.prepare()
+    assert not hasattr(config, 'offset_')
 
 
-def test_config_must_be_checked_before_it_is_prepared_or_run():
-    """Test that preparing or running an object that was not checked raises an error."""
-    with pytest.raises(NotCheckedError):
-        ScalingConfig().prepare()
-    with pytest.raises(NotCheckedError):
-        ScalingConfig().run(1)
+def test_prepare_validates_a_setting_changed_after_preparing():
+    """Test that preparing again validates a parameter changed with `set_params`."""
+    config = ScalingConfig(3).prepare()
+    with pytest.raises(ValueError, match='factor'):
+        config.set_params(factor=0).prepare()
+
+
+def test_no_public_check_remains():
+    """Test that the bases have no public `check`, and the error for an unchecked object is gone."""
+    assert not any(hasattr(base, 'check') for base in (BaseConfig, BaseSpec, BasePart))
+    assert not hasattr(errors, 'NotCheckedError')
+
+
+def test_bad_part_fails_before_any_part_is_prepared():
+    """Test that a system holding a part with a bad label raises from `prepare`, with no part prepared."""
+    element = Element('stock')
+    system = System(elements=[element], interactions=[RateInteraction(1, target='stock', state='n', rate=1.0)])
+    with pytest.raises(ValidationError, match='label'):
+        system.prepare()
+    assert not [name for name in vars(element) if name.endswith('_')]
 
 
 def test_final_run_releases():
     """Test that only the final run releases what preparing acquired."""
-    config = ScalingConfig().check().prepare()
+    config = ScalingConfig().prepare()
     config.run(1)
     assert not hasattr(config, 'released_')
     config.run(1, final=True)
@@ -69,7 +90,7 @@ def test_final_run_releases():
 def test_verbs_return_the_object():
     """Test that checking, preparing, and running return the object, as in scikit-learn."""
     config = ScalingConfig()
-    assert config.check() is config
+    assert config.prepare() is config
     assert config.prepare() is config
     assert config.run(1) is config
 
@@ -125,4 +146,4 @@ def test_a_spec_without_hooks_checks_prepares_and_runs():
         end: float
 
     span = SpanSpec(0.0, 1.0)
-    assert span.check().prepare().run() is span
+    assert span.prepare().run() is span

@@ -31,7 +31,7 @@ class AxisSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import AxisSpec
-        >>> AxisSpec('v', 128, -6.0, 6.0).check().name
+        >>> AxisSpec('v', 128, -6.0, 6.0).name
         'v'
     """
 

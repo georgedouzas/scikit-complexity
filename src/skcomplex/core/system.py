@@ -40,7 +40,7 @@ class System(BasePart[BaseSpace, SimpleNamespace]):
         ...
         ...     def _get_laws(self, namespace):
         ...         return [RateLaw(namespace.x, -namespace.x)]
-        >>> system = System(elements=[DecayElement('decay')]).check().prepare()
+        >>> system = System(elements=[DecayElement('decay')]).prepare()
         >>> namespace = SimpleNamespace(decay=SimpleNamespace(x=var('x')))
         >>> [type(law).__name__ for law in system.run(namespace).laws_]
         ['RateLaw']
@@ -95,7 +95,7 @@ class System(BasePart[BaseSpace, SimpleNamespace]):
     def _check(self) -> None:
         """Check every part of the system."""
         for part in self._get_parts():
-            part.check()
+            part._validated()
 
     def _prepare(self, context: BaseSpace | None = None) -> None:
         """Prepare the space and the time, then the elements and the nested systems on the space, then the interactions.

@@ -63,7 +63,7 @@ def _variables():
 
 def _simulate(system, until=1.0):
     """Return the trajectory of a system."""
-    return Simulation(system, dt=0.01).check().prepare().run(until=until).trajectory_
+    return Simulation(system, dt=0.01).prepare().run(until=until).trajectory_
 
 
 def _generated_classes(root):
@@ -133,7 +133,7 @@ def test_declared_element_runs_a_map_on_its_lags():
     element = DeclaredElement('cell', variables=specs)
     fibonacci = MapInteraction('next', target='cell', state='x', mode='increment', function=lambda s: s.target.x_lag1)
     trajectory = Simulation(System(elements=[element], interactions=[fibonacci], time=DiscreteTime()), dt=1)
-    assert trajectory.check().prepare().run(until=5).trajectory_.values('cell.x')[-1] == pytest.approx(8.0)
+    assert trajectory.prepare().run(until=5).trajectory_.values('cell.x')[-1] == pytest.approx(8.0)
 
 
 def test_declared_element_in_a_group_takes_values_per_member():
@@ -173,13 +173,13 @@ def test_declared_element_takes_a_rate_of_an_interaction():
 def test_declared_element_rejects_a_name_a_law_cannot_read(name):
     """Test that a declared name must be an identifier that no argument of the constructor takes."""
     with pytest.raises(ValidationError, match='declares'):
-        DeclaredElement('cell', variables={name: DeclaredVariableSpec(1.0, StateSpec())}).check()
+        DeclaredElement('cell', variables={name: DeclaredVariableSpec(1.0, StateSpec())}).prepare()
 
 
 def test_declared_element_rejects_a_role():
     """Test that a role is not a variable an element declares from data."""
     with pytest.raises(ValidationError, match='StateSpec or a ParameterSpec'):
-        DeclaredElement('cell', variables={'x': DeclaredVariableSpec(1.0, RoleSpec())}).check()
+        DeclaredElement('cell', variables={'x': DeclaredVariableSpec(1.0, RoleSpec())}).prepare()
 
 
 def test_declared_element_rejects_an_unknown_name_to_set():

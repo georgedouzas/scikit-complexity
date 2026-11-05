@@ -21,7 +21,7 @@ def test_complexity_entropy_plane():
     series = np.column_stack(
         [np.random.default_rng(5).standard_normal(200_000), _logistic(4.0, 200_000), np.sin(np.arange(200_000) * 0.05)],
     )
-    plane = ComplexityAnalysis(dimension=6).check().prepare(series).run()
+    plane = ComplexityAnalysis(dimension=6).prepare(series).run()
     complexity = plane.complexity_
     assert plane.entropy_[0] > 0.99
     assert complexity[0] < 0.02
@@ -35,6 +35,6 @@ def test_complexity_entropy_plane():
 def test_complexity_entropy_plane_of_a_field_and_its_checks():
     """Test that a window reads the frames of a field, and that a pattern length below 1 is rejected."""
     field = np.random.default_rng(0).standard_normal((2, 64, 64))
-    assert ComplexityAnalysis(dimension=(2, 2)).check().prepare(field).run().entropy_.shape == (2,)
+    assert ComplexityAnalysis(dimension=(2, 2)).prepare(field).run().entropy_.shape == (2,)
     with pytest.raises(AnalysisError, match='Use 1 or more'):
-        ComplexityAnalysis(dimension=0).check()
+        ComplexityAnalysis(dimension=0).prepare()

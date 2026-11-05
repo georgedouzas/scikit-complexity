@@ -68,20 +68,16 @@ class TopologyFunctionsPass(BasePass):
         """Return the kernel of the probability or the weight of a request for every row of its spec."""
         states, parameters = LayoutSpec(tuple(declarations.states)), LayoutSpec(tuple(declarations.parameters))
         expression = SR(value)
-        return (
-            LawKernel(
-                spec.owner,
-                declarations.time,
-                spec.references,
-                spec.rows,
-                states,
-                layout_parameters=parameters,
-                pairs=spec.pairs,
-                outputs=[OutputSpec(None, expression)],
-            )
-            .check()
-            .prepare()
-        )
+        return LawKernel(
+            spec.owner,
+            declarations.time,
+            spec.references,
+            spec.rows,
+            states,
+            layout_parameters=parameters,
+            pairs=spec.pairs,
+            outputs=[OutputSpec(None, expression)],
+        ).prepare()
 
     @staticmethod
     def _compiled_request(
@@ -170,7 +166,7 @@ class TopologyFunctionsPass(BasePass):
                 if found is not None:
                     channels[index] = TopologyFunctionsPass._compiled_request(*found, networks, weights, declarations)
                 index += 1
-        return TopologyKernel(tuple(networks.values()), tuple(requests), channels, reductions).check().prepare()
+        return TopologyKernel(tuple(networks.values()), tuple(requests), channels, reductions).prepare()
 
     @staticmethod
     def _capacity_rows(block: BlockSpec, declarations: DeclarationsSpec) -> CapacityRowsSpec:

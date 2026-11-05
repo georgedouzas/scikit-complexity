@@ -33,9 +33,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=4)
-simulation = (
-    Simulation(system, dt=0.5, solver=solver, observers=[observer], random_state=0).check().prepare().run(until=500)
-)
+simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer], random_state=0).prepare().run(until=500)
 
 # %%
 # Critical slowing down and the lag of tipping
@@ -46,11 +44,7 @@ simulation = (
 
 times = simulation.trajectory_.times
 quiet = (
-    Simulation(create(MODEL, sigma=0.0), dt=0.5, solver=solver)
-    .check()
-    .prepare()
-    .run(until=500)
-    .trajectory_.values('system.x')
+    Simulation(create(MODEL, sigma=0.0), dt=0.5, solver=solver).prepare().run(until=500).trajectory_.values('system.x')
 )
 residual = simulation.trajectory_.values('system.x') - quiet
 windows = [(start, start + 40.0) for start in np.arange(0.0, 320.0, 20.0)]
@@ -59,12 +53,7 @@ centres = [-1 + 0.004 * (start + end) / 2 for start, end in windows]
 rates = np.array([0.002, 0.004, 0.01, 0.02, 0.05, 0.1])
 tipped = []
 for rate in rates:
-    run = (
-        Simulation(create(MODEL, rate=rate), dt=0.1, solver=solver, random_state=0)
-        .check()
-        .prepare()
-        .run(until=2.0 / rate)
-    )
+    run = Simulation(create(MODEL, rate=rate), dt=0.1, solver=solver, random_state=0).prepare().run(until=2.0 / rate)
     tipped.append(-1 + rate * run.trajectory_.times[np.argmax(run.trajectory_.values('system.x') > 0)])
 fig, (slowing, lags) = plt.subplots(1, 2, figsize=(10, 4))
 slowing.semilogy(centres, variances, 'o-')

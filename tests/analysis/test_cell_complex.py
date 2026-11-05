@@ -27,16 +27,16 @@ class AngleLinkElement(Element):
 
 def _square(size=8):
     """Return the prepared complex of a periodic square lattice."""
-    return CellComplexSpace(LatticeSpace((size, size))).check().prepare()
+    return CellComplexSpace(LatticeSpace((size, size))).prepare()
 
 
 def test_consistent_exchange_rates_are_a_gradient():
     """Test that the logarithms of consistent rates among 6 currencies recover `log p` up to a constant."""
-    space = CellComplexSpace(NetworkSpace(nx.complete_graph(6)), faces='cliques').check().prepare()
+    space = CellComplexSpace(NetworkSpace(nx.complete_graph(6)), faces='cliques').prepare()
     prices = np.random.default_rng(0).uniform(0.5, 2.0, 6)
     sources, targets = space.edges_[None]
     flows = np.log(prices[targets] / prices[sources])
-    hodge = CellComplexAnalysis('hodge', space=space).check().prepare(flows).run()
+    hodge = CellComplexAnalysis('hodge', space=space).prepare(flows).run()
     assert np.abs(hodge.curl_).max() < 1e-12
     assert np.abs(hodge.harmonic_).max() < 1e-12
     assert np.allclose(hodge.gradient_[0], flows, atol=1e-12)
@@ -47,18 +47,18 @@ def test_uniform_flow_around_a_torus_is_harmonic_with_the_betti_numbers_of_a_tor
     """Test that a uniform flow along the first axis of a periodic 8 by 8 complex is harmonic, with Betti 1, 2, 1."""
     space = _square()
     flow = np.where(space.link_axes_ == 0, 1.0, 0.0)
-    hodge = CellComplexAnalysis('hodge', space=space).check().prepare(flow).run()
+    hodge = CellComplexAnalysis('hodge', space=space).prepare(flow).run()
     assert np.allclose(hodge.harmonic_[0], flow, atol=1e-12)
     assert np.abs(hodge.gradient_).max() < 1e-12
     assert np.abs(hodge.curl_).max() < 1e-12
-    assert CellComplexAnalysis('betti', space=space).check().prepare().run().betti_ == (1, 2, 1)
+    assert CellComplexAnalysis('betti', space=space).prepare().run().betti_ == (1, 2, 1)
 
 
 def test_parts_of_a_random_flow_are_orthogonal_and_sum_to_it():
     """Test the three parts of a random flow on a lattice with one frame per row."""
     space = _square(5)
     flows = np.random.default_rng(1).normal(size=(3, 50))
-    hodge = CellComplexAnalysis('hodge', space=space).check().prepare(flows).run()
+    hodge = CellComplexAnalysis('hodge', space=space).prepare(flows).run()
     assert np.allclose(hodge.gradient_ + hodge.curl_ + hodge.harmonic_, flows)
     for first, second in (
         (hodge.gradient_, hodge.curl_),
@@ -70,10 +70,10 @@ def test_parts_of_a_random_flow_are_orthogonal_and_sum_to_it():
 
 def test_decomposition_of_a_complex_without_faces_has_no_curl():
     """Test that a ring without faces has a harmonic flow around it."""
-    space = CellComplexSpace(NetworkSpace(nx.cycle_graph(4)), faces=[]).check().prepare()
-    hodge = CellComplexAnalysis('hodge', space=space).check().prepare(np.array([1.0, -1.0, -1.0, 1.0])).run()
+    space = CellComplexSpace(NetworkSpace(nx.cycle_graph(4)), faces=[]).prepare()
+    hodge = CellComplexAnalysis('hodge', space=space).prepare(np.array([1.0, -1.0, -1.0, 1.0])).run()
     assert np.abs(hodge.curl_).max() == 0.0
-    assert CellComplexAnalysis('betti', space=space).check().prepare().run().betti_ == (1, 1, 0)
+    assert CellComplexAnalysis('betti', space=space).prepare().run().betti_ == (1, 1, 0)
 
 
 def test_flat_and_curved_connections_are_told_apart():
@@ -82,14 +82,14 @@ def test_flat_and_curved_connections_are_told_apart():
     sources, targets = space.edges_[None]
     potential = np.random.default_rng(2).uniform(-3.0, 3.0, 64)
     flat = potential[targets] - potential[sources]
-    curvature = CellComplexAnalysis('curvature', space=space).check().prepare(flat).run()
+    curvature = CellComplexAnalysis('curvature', space=space).prepare(flat).run()
     assert curvature.share_[0] == 0.0
     assert curvature.energy_[0] == pytest.approx(0.0, abs=1e-12)
-    boundary = CellComplexSpace(LatticeSpace((8, 8), boundary='fixed')).check().prepare()
+    boundary = CellComplexSpace(LatticeSpace((8, 8), boundary='fixed')).prepare()
     corner = np.flatnonzero(np.diff(boundary.incidences_[1].T.tocsr().indptr) == 1)[0]
     theta = np.zeros(boundary.incidences_[0].shape[0])
     theta[corner] = np.pi
-    state = CellComplexAnalysis('curvature', space=boundary).check().prepare(theta).run()
+    state = CellComplexAnalysis('curvature', space=boundary).prepare(theta).run()
     assert state.share_[0] * boundary.incidences_[1].shape[0] == pytest.approx(1.0)
     assert state.energy_[0] == pytest.approx(2.0)
 
@@ -99,10 +99,8 @@ def test_curvature_of_a_trajectory_reads_the_group_and_its_period():
     space = _square(4)
     links = GroupElement('links', element=AngleLinkElement, space=space, on='edges')
     rate = RateInteraction('rate', target='links', state='theta', rate=0.5)
-    trajectory = (
-        Simulation(System(elements=[links], interactions=[rate]), dt=0.1).check().prepare().run(until=1.0).trajectory_
-    )
-    curvature = CellComplexAnalysis('curvature', variables='links.theta').check().prepare(trajectory).run()
+    trajectory = Simulation(System(elements=[links], interactions=[rate]), dt=0.1).prepare().run(until=1.0).trajectory_
+    curvature = CellComplexAnalysis('curvature', variables='links.theta').prepare(trajectory).run()
     assert curvature.share_.shape == trajectory.times.shape
     assert np.all(curvature.share_ == 0.0)
 
@@ -117,12 +115,12 @@ def test_curvature_of_a_trajectory_reads_the_group_and_its_period():
 def test_prepare_rejects_a_source_without_a_complex_or_of_another_size(analysis, source, message):
     """Test that values need a complex of as many edges."""
     with pytest.raises(AnalysisError, match=message):
-        analysis.check().prepare(source)
+        analysis.prepare(source)
 
 
 def test_check_rejects_an_unknown_kind_and_a_space_that_is_no_complex():
     """Test that an unknown kind or another space raise an error."""
     with pytest.raises(AnalysisError, match='kind'):
-        CellComplexAnalysis('volume').check()
+        CellComplexAnalysis('volume').prepare()
     with pytest.raises(AnalysisError, match='CellComplexSpace'):
-        CellComplexAnalysis('betti', space=LatticeSpace((3, 3))).check()
+        CellComplexAnalysis('betti', space=LatticeSpace((3, 3))).prepare()

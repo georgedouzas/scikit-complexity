@@ -40,7 +40,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(model_system),
     )
-    .check()
     .prepare()
     .run(until=STEPS)
 )
@@ -59,7 +58,6 @@ def final_wealth(**options):
     model_system = create(MODEL, n_agents=500, **options)
     trajectory = (
         Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system))
-        .check()
         .prepare()
         .run(until=STEPS)
         .trajectory_

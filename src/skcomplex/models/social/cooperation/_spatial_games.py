@@ -71,7 +71,7 @@ def spatial_prisoners_dilemma(
 
     Examples:
         >>> from skcomplex.models.social.cooperation import spatial_prisoners_dilemma
-        >>> spatial_prisoners_dilemma((10, 10)).elements[0].check().prepare().size_
+        >>> spatial_prisoners_dilemma((10, 10)).elements[0].prepare().size_
         100
     """
     players = LatticeElement(
@@ -132,7 +132,7 @@ def public_goods_game(
 
     Examples:
         >>> from skcomplex.models.social.cooperation import public_goods_game
-        >>> public_goods_game((10, 10)).elements[0].check().prepare().size_
+        >>> public_goods_game((10, 10)).elements[0].prepare().size_
         100
     """
     strategies = _random_strategies(shape, share, random_state)

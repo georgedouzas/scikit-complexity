@@ -174,7 +174,7 @@ def noisy_automata(
 
     Examples:
         >>> from skcomplex.models.computer_science.automata import noisy_automata
-        >>> noisy_automata(184, size=11).elements[0].check().prepare().size_
+        >>> noisy_automata(184, size=11).elements[0].prepare().size_
         11
     """
     values = _random_cells((size,), density, random_state)

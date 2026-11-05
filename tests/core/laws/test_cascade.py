@@ -14,7 +14,7 @@ def test_cascade_targets_the_states_of_the_laws_that_relax():
     topple = LocalRuleLaw((height, grains), VonNeumannNeighborhood(center=True), lambda z, *n: (z, z))
     settle = LocalRuleLaw(height, VonNeumannNeighborhood(center=True), lambda z, *n: z)
     drop = DriveLaw(height, lambda values, *, random: values + 1)
-    law = CascadeLaw([drop], [topple, settle], lambda *values: True).check().prepare()
+    law = CascadeLaw([drop], [topple, settle], lambda *values: True).prepare()
     assert law.targets_ == (height, grains)
 
 
@@ -23,6 +23,6 @@ def test_cascade_checks_every_law_it_holds():
     height = var('height')
     settle = LocalRuleLaw(height, VonNeumannNeighborhood(center=True), lambda z, *n: z, schedule='parallel')
     with pytest.raises(ValidationError, match='Unknown schedule'):
-        CascadeLaw([], [settle], lambda *values: True).check()
+        CascadeLaw([], [settle], lambda *values: True).prepare()
     with pytest.raises(ValidationError, match='callable'):
-        CascadeLaw([DriveLaw(height, None)], [], lambda *values: True).check()
+        CascadeLaw([DriveLaw(height, None)], [], lambda *values: True).prepare()

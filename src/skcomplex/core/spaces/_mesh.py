@@ -41,7 +41,7 @@ class MeshSpace(BaseSpace):
         >>> import skfem
         >>> from skcomplex.core.spaces import MeshSpace
         >>> grid = skfem.MeshTri.init_tensor(np.linspace(0, 1, 5), np.linspace(0, 1, 4))
-        >>> mesh = MeshSpace(grid.p, grid.t).check().prepare()
+        >>> mesh = MeshSpace(grid.p, grid.t).prepare()
         >>> mesh.size_, mesh.n_dim_, mesh.positions_.shape
         (20, 2, (20, 2))
     """

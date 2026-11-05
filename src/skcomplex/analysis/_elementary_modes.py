@@ -101,7 +101,7 @@ class ElementaryModeAnalysis(BaseAnalysis):
         >>> import numpy as np
         >>> from skcomplex.analysis import ElementaryModeAnalysis
         >>> matrix = np.array([[1.0, -1.0, 0.0], [0.0, 1.0, -1.0]])
-        >>> analysis = ElementaryModeAnalysis(normalize='v0').check().prepare(matrix).run()
+        >>> analysis = ElementaryModeAnalysis(normalize='v0').prepare(matrix).run()
         >>> analysis.modes_.tolist()
         [[Fraction(1, 1), Fraction(1, 1), Fraction(1, 1)]]
     """

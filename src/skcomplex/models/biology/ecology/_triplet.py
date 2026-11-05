@@ -34,7 +34,7 @@ class TripletInteraction(RateInteraction):
 
     Examples:
         >>> from skcomplex.models.biology.ecology import TripletInteraction
-        >>> TripletInteraction('triplets', target='species', a=0.0, state='n').check().state
+        >>> TripletInteraction('triplets', target='species', a=0.0, state='n').state
         'n'
     """
 

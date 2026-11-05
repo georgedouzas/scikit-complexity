@@ -66,7 +66,7 @@ def generalized_lotka_volterra(
 
     Examples:
         >>> from skcomplex.models.biology.ecology import generalized_lotka_volterra
-        >>> generalized_lotka_volterra().elements[0].check().prepare().size_
+        >>> generalized_lotka_volterra().elements[0].prepare().size_
         3
     """
     size = len(b)

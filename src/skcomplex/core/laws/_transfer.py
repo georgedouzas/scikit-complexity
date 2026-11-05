@@ -85,7 +85,7 @@ class TransferLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import Source, TransferLaw
         >>> level = var('level')
-        >>> TransferLaw(Source(), level, 5, label='faucet').check().prepare().targets_
+        >>> TransferLaw(Source(), level, 5, label='faucet').prepare().targets_
         (level,)
     """
 

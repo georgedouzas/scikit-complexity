@@ -67,7 +67,7 @@ class MichaelisMentenInteraction(ReactionInteraction):
         ...     'uptake', target='cell', reactants={'n': 1}, substrate='n', vmax=1.0, km=100.0
         ... )
         >>> system = System(elements=[CompartmentElement('cell', n=500.0)], interactions=[uptake])
-        >>> trajectory = Simulation(system, dt=1.0).check().prepare().run(until=10.0).trajectory_
+        >>> trajectory = Simulation(system, dt=1.0).prepare().run(until=10.0).trajectory_
         >>> round(float(trajectory.values('cell.n')[-1]), 3)
         491.679
     """

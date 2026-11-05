@@ -20,7 +20,7 @@ MODEL = 'watts_cascades'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=30)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=30)
 
 # %%
 # The cascade window
@@ -36,7 +36,6 @@ for threshold in thresholds:
     for seed in range(30):
         run = (
             Simulation(create(MODEL, threshold=float(threshold), random_state=seed), dt=1)
-            .check()
             .prepare()
             .run(until=30)
             .trajectory_

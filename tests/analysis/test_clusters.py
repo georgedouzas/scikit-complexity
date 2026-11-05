@@ -12,7 +12,7 @@ THRESHOLD = 0.5927
 
 def _clusters(kind: str, source: object, **settings: object) -> ClusterAnalysis:
     """Return the run cluster analysis of a source for one kind."""
-    return ClusterAnalysis(kind, **settings).check().prepare(source).run()
+    return ClusterAnalysis(kind, **settings).prepare(source).run()
 
 
 def _burnt_forest(rng: np.random.Generator, density: float, side: int) -> np.ndarray:
@@ -27,12 +27,12 @@ def test_cluster_sizes_at_the_threshold_on_two_kinds_of_data():
     rng = np.random.default_rng(0)
     grids = [rng.random((1024, 1024)) < THRESHOLD for _ in range(6)]
     sizes = np.concatenate([_clusters('sizes', grid, periodic=True).sizes_[1:] for grid in grids])
-    fit = FitAnalysis(minimum=100, maximum=100_000, discrete=True, bootstrap=0).check().prepare(sizes).run()
+    fit = FitAnalysis(minimum=100, maximum=100_000, discrete=True, bootstrap=0).prepare(sizes).run()
     assert fit.exponent_ == pytest.approx(187 / 91, abs=0.1)
     components = np.concatenate(
         [_clusters('sizes', nx.fast_gnp_random_graph(100_000, 1 / 100_000, seed=seed)).sizes_ for seed in range(5)],
     )
-    fit = FitAnalysis(minimum=5, discrete=True, bootstrap=0).check().prepare(components).run()
+    fit = FitAnalysis(minimum=5, discrete=True, bootstrap=0).prepare(components).run()
     assert fit.exponent_ == pytest.approx(2.5, abs=0.1)
 
 
@@ -114,9 +114,9 @@ def test_periodic_clusters_merge_through_faces_in_three_dimensions():
 def test_invalid_settings_and_sources_are_rejected():
     """Test an unknown kind, an ignored setting, and a graph for labels."""
     with pytest.raises(AnalysisError, match='labels, sizes'):
-        ClusterAnalysis('domains').check()
+        ClusterAnalysis('domains').prepare()
     with pytest.raises(AnalysisError, match='does not read periodic'):
-        ClusterAnalysis('percolation', periodic=True).check()
+        ClusterAnalysis('percolation', periodic=True).prepare()
     with pytest.raises(AnalysisError, match='not graphs'):
         _clusters('labels', nx.path_graph(3))
 
@@ -131,7 +131,6 @@ def test_run_spanning_probability_of_disks() -> None:
     """Test that disks of radius 1 span a square of side 60 at filling 1.25 but rarely at filling 1.0."""
     shares = {
         filling: ClusterAnalysis('spanning', radius=1.0)
-        .check()
         .prepare(np.stack([_disks(filling, seed) for seed in range(50)]))
         .run()
         .probability_
@@ -144,14 +143,14 @@ def test_run_spanning_probability_of_disks() -> None:
 def test_run_isolated_points() -> None:
     """Test that points on a grid of spacing 1 with radius 0.1 are clusters of size 1."""
     points = np.stack(np.meshgrid(np.arange(5.0), np.arange(5.0)), axis=-1).reshape(-1, 2)
-    sizes = ClusterAnalysis(kind='sizes', radius=0.1).check().prepare(points).run().sizes_
+    sizes = ClusterAnalysis(kind='sizes', radius=0.1).prepare(points).run().sizes_
     assert sizes.tolist() == [1] * 25
 
 
 def test_run_percolation_of_points() -> None:
     """Test the strength, mean size, and spanning of a chain of points and one point apart."""
     points = np.asarray([[0.0, 0.0], [1.0, 0.0], [2.0, 0.0], [2.0, 5.0]])
-    result = ClusterAnalysis('percolation', axis=0, radius=0.6).check().prepare(points).run()
+    result = ClusterAnalysis('percolation', axis=0, radius=0.6).prepare(points).run()
     assert result.sizes_.tolist() == [3, 1]
     assert result.strength_ == 0.75
     assert result.mean_size_ == 1.0
@@ -161,4 +160,4 @@ def test_run_percolation_of_points() -> None:
 def test_check_radius_rejects_grid_settings() -> None:
     """Test that a radius takes neither a periodic nor a diagonal setting."""
     with pytest.raises(AnalysisError, match='radius'):
-        ClusterAnalysis('sizes', radius=1.0, diagonal=True).check()
+        ClusterAnalysis('sizes', radius=1.0, diagonal=True).prepare()

@@ -10,7 +10,7 @@ from skcomplex.specs import ModuleSpec
 def test_invalid_fields_raise_rewriting_errors(spec):
     """Test that a module rejects invalid fields with a rewriting error."""
     with pytest.raises(RewritingError):
-        spec.check()
+        spec.prepare()
 
 
 def test_parse_word_reads_strings_modules_and_declared_names():

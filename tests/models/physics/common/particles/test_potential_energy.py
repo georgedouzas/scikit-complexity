@@ -22,5 +22,5 @@ def test_potential_energy_changes_the_velocity_by_the_force_over_the_mass():
         space=ContinuousSpace(n_dim=1),
     )
     solver = ScipyODESolver(rtol=1e-10, atol=1e-12)
-    trajectory = Simulation(system, solver=solver, dt=0.1).check().prepare().run(until=4.0).trajectory_
+    trajectory = Simulation(system, solver=solver, dt=0.1).prepare().run(until=4.0).trajectory_
     np.testing.assert_allclose(trajectory.values('ball.x')[:, 0], np.cos(trajectory.times), atol=1e-7)

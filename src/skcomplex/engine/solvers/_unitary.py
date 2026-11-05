@@ -52,7 +52,7 @@ class UnitarySolver(OperatorSolver):
         >>> from skcomplex.engine.compile import OperatorCompiler
         >>> compiler = OperatorCompiler()
         >>> simulation = Simulation(system, compiler=compiler, solver=UnitarySolver(), dt=np.pi, observables=z)
-        >>> simulation = simulation.check().prepare()
+        >>> simulation = simulation.prepare()
         >>> float(round(simulation.run(until=np.pi).trajectory_.values('q.z')[-1], 6))
         -1.0
     """

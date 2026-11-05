@@ -52,7 +52,7 @@ def _living(fates: object) -> float:
 
 def _money_gini(money: object) -> float:
     """Return the Gini coefficient of the money of people."""
-    return DistributionAnalysis('gini').check().prepare(np.asarray(money, dtype=float)).run().gini_
+    return DistributionAnalysis('gini').prepare(np.asarray(money, dtype=float)).run().gini_
 
 
 def _metaphoria_observables(system: System) -> list[ObservableSpec]:

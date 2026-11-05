@@ -42,7 +42,7 @@ def test_element_stores_its_states_parameters_and_visual():
 
 def test_element_prepares_the_plain_visual():
     """Test that preparing an element sets the plain visual as its default visual, whatever its own visual."""
-    element = PopulationElement('rabbits').check().prepare()
+    element = PopulationElement('rabbits').prepare()
     assert element.default_visual_ == VisualSpec()
     assert element.run(SimpleNamespace()).laws_ == []
 

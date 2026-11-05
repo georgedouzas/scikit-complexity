@@ -9,7 +9,7 @@ from skcomplex.core.spaces import MeshSpace
 def _square():
     """Return the mesh space of a unit square split into eight triangles."""
     grid = skfem.MeshTri.init_tensor(np.linspace(0, 1, 3), np.linspace(0, 1, 3))
-    return MeshSpace(grid.p, grid.t).check().prepare()
+    return MeshSpace(grid.p, grid.t).prepare()
 
 
 def test_mesh_space_prepares_its_nodes_and_boundary():

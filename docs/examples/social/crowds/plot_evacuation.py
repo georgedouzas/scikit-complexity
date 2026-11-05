@@ -32,7 +32,7 @@ blueprint = rrb.Blueprint(
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL)
 observables = describe(MODEL).observables_of(system)
-simulation = Simulation(system, observers=[observer], dt=0.2, observables=observables).check().prepare().run(until=20)
+simulation = Simulation(system, observers=[observer], dt=0.2, observables=observables).prepare().run(until=20)
 
 # %%
 # Particles against the gain and loss equations
@@ -42,14 +42,11 @@ simulation = Simulation(system, observers=[observer], dt=0.2, observables=observ
 # down more in encounters should take longer to leave.
 
 times = simulation.trajectory_.times
-sampled = (
-    Simulation(system, dt=0.2, observables=observables, solver=KineticSolver(n=5000), random_state=0).check().prepare()
-)
+sampled = Simulation(system, dt=0.2, observables=observables, solver=KineticSolver(n=5000), random_state=0).prepare()
 particles = sampled.run(until=20).trajectory_.values('evacuated')
 crowded_system = create(MODEL, crowding=8.0)
 crowded = (
     Simulation(crowded_system, dt=0.2, observables=describe(MODEL).observables_of(crowded_system))
-    .check()
     .prepare()
     .run(until=20)
 )

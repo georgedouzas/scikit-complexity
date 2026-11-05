@@ -19,7 +19,7 @@ def test_koch_curve():
     assert trajectory.values('koch.F')[-1] == 1024
     assert curve.length() == pytest.approx((4 / 3) ** 5, abs=1e-12)
     grid = curve.raster(2048)
-    dimension = ScalingAnalysis('box-counting', scales=[16, 32, 64, 128, 256]).check().prepare(grid).run().exponent_
+    dimension = ScalingAnalysis('box-counting', scales=[16, 32, 64, 128, 256]).prepare(grid).run().exponent_
     assert dimension == pytest.approx(np.log(4) / np.log(3), abs=0.05)
     assert describe('koch_curve').formalism == 'rewriting system'
 
@@ -107,7 +107,7 @@ def test_sierpinski_substitution_reference_values():
 def test_koch_curve_in_rerun(tmp_path):
     """Test that the Koch curve logs one frame per generation and that its view is the primary view."""
     observer = RerunObserver('koch', save_path=tmp_path / 'koch.rrd', blueprint='default')
-    Simulation(create('koch_curve'), observers=[observer], compiler=RewritingCompiler()).check().prepare().run(until=5)
+    Simulation(create('koch_curve'), observers=[observer], compiler=RewritingCompiler()).prepare().run(until=5)
     assert observer.logged_frames_ == 6
     view = observer.views_[0]
     assert isinstance(view, rrb.Spatial2DView)
@@ -118,7 +118,7 @@ def test_filled_and_outlined_visuals(tmp_path):
     """Test that a filled patch and its outlines are logged."""
     for name, options in [('sierpinski_substitution', {}), ('sierpinski_substitution', {'filled': False})]:
         observer = RerunObserver(name, save_path=tmp_path / f'{name}.rrd', blueprint='default')
-        Simulation(create(name, **options), observers=[observer], compiler=RewritingCompiler()).check().prepare().run(
+        Simulation(create(name, **options), observers=[observer], compiler=RewritingCompiler()).prepare().run(
             until=3,
         )
         assert observer.logged_frames_ == 4

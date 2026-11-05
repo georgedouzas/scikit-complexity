@@ -32,7 +32,7 @@ def _matrix_on(shape):
     """Return the matrix laws read of a symmetric traceless state and the size of the field."""
     _NematicElement.seen.clear()
     field = FieldElement('film', element=_NematicElement, space=LatticeSpace(shape))
-    compiler = PassCompiler().check().prepare(System(elements=[field]))
+    compiler = PassCompiler().prepare(System(elements=[field]))
     compiler.run(None)
     return _NematicElement.seen[-1], compiler.problem_.states
 
@@ -40,13 +40,13 @@ def _matrix_on(shape):
 def test_check_rejects_vector_and_tensor_together():
     """A state that is both a vector and a tensor names both settings."""
     with pytest.raises(ValidationError, match=r'vector=True or tensor=.symmetric'):
-        StateSpec(vector=True, tensor='symmetric').check()
+        StateSpec(vector=True, tensor='symmetric').prepare()
 
 
 def test_check_rejects_unknown_symmetry():
     """An unknown tensor symmetry raises an error."""
     with pytest.raises(ValidationError, match='tensor symmetry'):
-        StateSpec(tensor='skew').check()
+        StateSpec(tensor='skew').prepare()
 
 
 def test_tensor_traceless_stores_two_components_in_two_dimensions():
@@ -66,8 +66,8 @@ def test_tensor_traceless_stores_five_components_in_three_dimensions():
 
 def test_algebraic_state_has_order_one_and_no_lags():
     """Test that an algebraic state rejects an order other than 1 and lags, which its equations leave no room for."""
-    assert StateSpec(algebraic=True).check().algebraic
+    assert StateSpec(algebraic=True).algebraic
     with pytest.raises(ValidationError, match='An algebraic state has order 1 and no lags'):
-        StateSpec(algebraic=True, order=2).check()
+        StateSpec(algebraic=True, order=2).prepare()
     with pytest.raises(ValidationError, match='An algebraic state has order 1 and no lags'):
-        StateSpec(algebraic=True, lags=1).check()
+        StateSpec(algebraic=True, lags=1).prepare()

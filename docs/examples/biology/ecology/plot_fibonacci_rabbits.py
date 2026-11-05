@@ -20,7 +20,7 @@ MODEL = 'fibonacci_rabbits'
 
 system = create(MODEL, pairs=1.0, previous=0.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=20)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=20)
 
 # %%
 # The golden ratio

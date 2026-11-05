@@ -38,7 +38,7 @@ def _assert_uniform(points):
 def test_skew_tent_map_invariant_density_is_uniform(a):
     """Test that 10000 points iterated 200 steps fill every one of 20 bins within four binomial deviations."""
     system = skew_tent_map(ENSEMBLE_SIZE, a=a, random_state=1)
-    points = Simulation(system, dt=1).check().prepare().run(until=STEPS).trajectory_.values('points.x')
+    points = Simulation(system, dt=1).prepare().run(until=STEPS).trajectory_.values('points.x')
     assert np.ptp(points[0]) <= 0.01
     _assert_uniform(points[-1])
 
@@ -47,7 +47,7 @@ def test_doubling_map_iterates_fractions_exactly():
     """Test that the doubling map follows `k' = 2k mod q` exactly well beyond the floating-point collapse."""
     system = doubling_map(ENSEMBLE_SIZE, random_state=2)
     denominator = int(system.elements[0].values['q'])
-    points = Simulation(system, dt=1).check().prepare().run(until=STEPS).trajectory_.values('points.x')
+    points = Simulation(system, dt=1).prepare().run(until=STEPS).trajectory_.values('points.x')
     numerators = [round(value * denominator) for value in points[0]]
     for _ in range(STEPS):
         numerators = [2 * numerator % denominator for numerator in numerators]
@@ -64,7 +64,6 @@ def test_cubic_chaotic_map_walk_diffuses():
             dt=1,
             observables=describe('cubic_chaotic_map').observables_of(built),
         )
-        .check()
         .prepare()
         .run(until=1000)
         .trajectory_
@@ -82,7 +81,7 @@ def test_cubic_chaotic_map_walk_diffuses():
 def test_cubic_chaotic_map_displacement_reads_the_walker():
     """Test that the displacement of the model reads the walker `y`, not the map value `x`, and spreads."""
     trajectory = run('cubic_chaotic_map', settings={'until': 500}).trajectory_
-    analysis = DisplacementAnalysis().check().prepare(trajectory).run()
+    analysis = DisplacementAnalysis().prepare(trajectory).run()
     np.testing.assert_array_equal(analysis.positions_[..., 0], trajectory.values('walkers.y'))
     assert analysis.exponent_ > 0.8
 
@@ -95,7 +94,6 @@ def test_cubic_chaotic_map_settles_below_chaos():
             dt=1,
             observables=describe('cubic_chaotic_map').observables_of(built),
         )
-        .check()
         .prepare()
         .run(until=400)
         .trajectory_.values('walkers.x')
@@ -106,7 +104,6 @@ def test_cubic_chaotic_map_settles_below_chaos():
             dt=1,
             observables=describe('cubic_chaotic_map').observables_of(built),
         )
-        .check()
         .prepare()
         .run(until=400)
         .trajectory_.values('walkers.x')

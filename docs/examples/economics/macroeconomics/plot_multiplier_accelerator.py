@@ -23,7 +23,7 @@ G, UNTIL = 20.0, 40
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 system = create(MODEL, income=110.0, previous=100.0, c=0.8, v=0.9, G=G)
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=UNTIL)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=UNTIL)
 
 # %%
 # Samuelson's regions
@@ -38,11 +38,7 @@ cases[(0.9, 4.0)] = 'monotone, explosive'
 fig, (paths, regions) = plt.subplots(1, 2, figsize=(10, 4))
 for index, ((c, v), name) in enumerate(cases.items()):
     trajectory = (
-        Simulation(create(MODEL, income=110.0, previous=100.0, c=c, v=v, G=G), dt=1)
-        .check()
-        .prepare()
-        .run(until=25)
-        .trajectory_
+        Simulation(create(MODEL, income=110.0, previous=100.0, c=c, v=v, G=G), dt=1).prepare().run(until=25).trajectory_
     )
     deviation = trajectory.values('economy.Y') - G / (1 - c)
     root = np.roots([1, -c * (1 + v), c * v])[0]

@@ -21,7 +21,7 @@ MODEL = 'exponential_growth'
 
 system = create(MODEL, n=10.0, r=0.2)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=20)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
 
 # %%
 # A straight line on a logarithmic scale

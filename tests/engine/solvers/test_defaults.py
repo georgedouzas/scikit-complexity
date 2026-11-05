@@ -20,7 +20,7 @@ def test_simulation_without_a_solver_runs_the_default_solver():
         elements=[PopulationElement('a', n=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
-    simulation = Simulation(system).check().prepare().run(until=0.1)
+    simulation = Simulation(system).prepare().run(until=0.1)
     assert type(simulation.stepper_) is DEFAULT_SOLVERS[FormKind.ODE] is ScipyODESolver
 
 
@@ -31,7 +31,7 @@ def test_simulation_runs_the_solver_instance_passed():
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
     solver = ScipyODESolver(method='RK45')
-    assert Simulation(system, solver=solver).check().prepare().run(until=0.1).stepper_ is solver
+    assert Simulation(system, solver=solver).prepare().run(until=0.1).stepper_ is solver
 
 
 def test_rewriting_form_runs_the_rewriting_solver():

@@ -24,6 +24,6 @@ def test_confidence_coupling_takes_the_mean_of_the_trusted_neighbours():
         interactions=[ConfidenceCouplingInteraction('compromise', target='people')],
         time=DiscreteTime(),
     )
-    values = Simulation(system).check().prepare().run(until=1).trajectory_.values('people.opinion')[-1]
+    values = Simulation(system).prepare().run(until=1).trajectory_.values('people.opinion')[-1]
     close = np.abs(opinions[None, :] - opinions[:, None]) < 0.2
     np.testing.assert_allclose(values, (close * opinions).sum(1) / close.sum(1), atol=1e-12)

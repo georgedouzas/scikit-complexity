@@ -23,7 +23,7 @@ MODEL = 'lq_cell_survival'
 
 system = create(MODEL, dose=60.0, fractions=30.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer]).check().prepare().run(until=1.0)
+simulation = Simulation(system, observers=[observer]).prepare().run(until=1.0)
 
 # %%
 # Survival against the dose
@@ -36,7 +36,7 @@ def survival(fractions: float) -> tuple[np.ndarray, np.ndarray]:
     """Return the doses and the surviving fractions of a number of fractions."""
     bounds = {'dose': np.linspace(0.0, 20.0, 21).tolist(), 'fractions': [fractions]}
     experiment = Experiment(lq_cell_survival, GridDesign(), bounds, until=1.0, outputs=['cells.survival'])
-    result = experiment.check().prepare().run().result_
+    result = experiment.prepare().run().result_
     return result.column('dose'), result.series('cells.survival')[:, 0]
 
 

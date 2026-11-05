@@ -22,7 +22,7 @@ MODEL = 'random_energy_model'
 
 system = create(MODEL, n_spins=12, temperature=1.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer]).check().prepare().run(until=1.0)
+simulation = Simulation(system, observers=[observer]).prepare().run(until=1.0)
 
 # %%
 # Entropy against temperature
@@ -34,7 +34,7 @@ temperatures = np.array([0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0, 1.5, 2.0])
 seeds = list(range(5))
 bounds = {'n_spins': [16], 'temperature': temperatures.tolist(), 'random_state': seeds}
 experiment = Experiment(random_energy_model, GridDesign(), bounds, until=1.0, outputs=['ensemble.entropy'])
-entropies = experiment.check().prepare().run().result_.series('ensemble.entropy')[:, 0]
+entropies = experiment.prepare().run().result_.series('ensemble.entropy')[:, 0]
 grid = np.linspace(1 / (2 * np.sqrt(np.log(2))), 2.1, 100)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(temperatures, entropies.reshape(len(temperatures), len(seeds)).mean(axis=1), 'o', label='N = 16, 5 draws')

@@ -145,11 +145,11 @@ class RerunObserver(BaseObserver):
         ... )
         >>> path = Path(tempfile.mkdtemp()) / 'growth.rrd'
         >>> simulation = Simulation(system, dt=0.1, observers=[RerunObserver('growth', save_path=path)])
-        >>> _ = simulation.check().prepare().run(until=1)
+        >>> _ = simulation.prepare().run(until=1)
         >>> path.exists()
         True
         >>> observer = RerunObserver('growth', save_path=path, blueprint='default')
-        >>> _ = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=1)
+        >>> _ = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=1)
         >>> path.with_suffix('.rbl').exists()
         True
 
@@ -158,7 +158,7 @@ class RerunObserver(BaseObserver):
         >>> from skcomplex.engine.compile import compile_system
         >>> from skcomplex.models import create
         >>> problem = compile_system(create('gray_scott', shape=(16, 16)))
-        >>> observer = RerunObserver(blueprint='default', primary='cells/v').check().prepare(problem)
+        >>> observer = RerunObserver(blueprint='default', primary='cells/v').prepare(problem)
         >>> [str(view.origin) for view in observer.blueprint_.root_container.contents]
         ['cells/v', 'cells/u']
     """
@@ -223,8 +223,8 @@ class RerunObserver(BaseObserver):
         self.recording_ = rr.RecordingStream(self.application_id)
         agents = problem.agents
         self.visuals_: list[BaseVisual] = [
-            *(self._visual_of(element).check().prepare(problem) for element in problem.elements),
-            *(self._agents_visual_of(group, problem).check().prepare(problem) for group in agents),
+            *(self._visual_of(element).prepare(problem) for element in problem.elements),
+            *(self._agents_visual_of(group, problem).prepare(problem) for group in agents),
             *self._matrix_visuals(problem),
         ]
         spatial, series = self._ordered_views(problem)
@@ -345,9 +345,9 @@ class RerunObserver(BaseObserver):
             return []
         matrices = [entry.name for entry in problem.states.entries if len(entry.shape) == MATRIX_RANK]
         return [
-            MatrixVisual(name.rpartition('.')[2], path=name.rpartition('.')[0], recording=self.recording_)
-            .check()
-            .prepare(problem)
+            MatrixVisual(name.rpartition('.')[2], path=name.rpartition('.')[0], recording=self.recording_).prepare(
+                problem,
+            )
             for name in matrices
         ]
 

@@ -9,12 +9,12 @@ from skcomplex.errors import AnalysisError
 
 def _local(kind: str, source: object, **settings: object) -> np.ndarray:
     """Return the local information of a source for one kind."""
-    return LocalInformationAnalysis(kind, **settings).check().prepare(source).run().information_
+    return LocalInformationAnalysis(kind, **settings).prepare(source).run().information_
 
 
 def _global(kind: str, source: object, **settings: object) -> np.ndarray | float:
     """Return the global information of a source for one kind."""
-    return InformationAnalysis(kind, **settings).check().prepare(source).run().information_
+    return InformationAnalysis(kind, **settings).prepare(source).run().information_
 
 
 def test_local_mutual_information_gaussian_mean_is_global():
@@ -40,7 +40,7 @@ def test_local_mutual_information_plugin_mean_is_global():
 def test_local_entropy_mean_is_shannon_entropy():
     """Test that the mean local entropy of symbols equals their Shannon entropy."""
     symbols = np.random.default_rng(2).integers(0, 5, 3000)
-    shannon = EntropyAnalysis().check().prepare(symbols).run().entropy_[0]
+    shannon = EntropyAnalysis().prepare(symbols).run().entropy_[0]
     assert _local('entropy', symbols)[0].mean() == pytest.approx(shannon, abs=1e-9)
 
 
@@ -79,10 +79,10 @@ def test_local_transfer_entropy_gaussian_detects_coupling():
 def test_local_entropy_unknown_estimator():
     """Test that an unknown estimator raises an error naming the known ones."""
     with pytest.raises(AnalysisError, match='plugin, gaussian'):
-        LocalInformationAnalysis(estimator='knn').check()
+        LocalInformationAnalysis(estimator='knn').prepare()
 
 
 def test_local_entropy_ignores_lag():
     """Test that the local entropy rejects a changed lag, which only the transfer entropy reads."""
     with pytest.raises(AnalysisError, match='does not read lag'):
-        LocalInformationAnalysis('entropy', lag=2).check()
+        LocalInformationAnalysis('entropy', lag=2).prepare()

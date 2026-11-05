@@ -64,7 +64,7 @@ def test_higher_order_random_lotka_volterra_tensor_changes_by_an_experiment():
     system = higher_order_random_lotka_volterra(8)
     rows = [{'triplets.a': np.zeros((8, 8, 8))}, {'triplets.a': -np.ones((8, 8, 8))}]
     experiment = Experiment(system, RowsDesign(rows), until=20.0, dt=20.0, outputs=['species.n'])
-    final = experiment.check().prepare().run().result_.series('species.n')[:, -1]
+    final = experiment.prepare().run().result_.series('species.n')[:, -1]
     np.testing.assert_allclose(final[0], 1.0, atol=1e-3)
     assert np.all(final[1] < final[0])
 
@@ -76,7 +76,7 @@ def test_higher_order_random_lotka_volterra_random_community_matches_the_paper()
     rows = [{'triplets.a': system.interactions[1].a, 'species.n': system.elements[0].values['n']} for system in drawn]
     solver = ScipyODESolver('RK45', rtol=1e-6, atol=1e-9)
     experiment = Experiment(drawn[0], RowsDesign(rows), until=1000.0, dt=1000.0, solver=solver, outputs=['species.n'])
-    final = experiment.check().prepare().run().result_.series('species.n')[:, -1]
+    final = experiment.prepare().run().result_.series('species.n')[:, -1]
     assert np.all(np.isfinite(final))
     assert np.all(final >= 0)
     assert np.mean(final > EXTINCT) == pytest.approx(SURVIVING_FRACTION, abs=FRACTION_PRECISION)

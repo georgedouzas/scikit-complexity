@@ -14,7 +14,7 @@ from skcomplex.models.physics.pattern_formation import (
 
 def _mean_domain_size(field):
     """Return the domain size `2 pi / <k>` of a field from the mean wavenumber of its structure factor."""
-    factor = SpectrumAnalysis('structure-factor').check().prepare(field - field.mean()).run()
+    factor = SpectrumAnalysis('structure-factor').prepare(field - field.mean()).run()
     return 2 * np.pi * factor.power_.sum() / (factor.wavenumbers_ * factor.power_).sum()
 
 
@@ -23,7 +23,6 @@ def test_allen_cahn_does_not_conserve_the_order_parameter():
     system = allen_cahn((32, 32), length=32.0, mean=0.1)
     phi = (
         Simulation(system, dt=20.0, solver=ETDRK4Solver(dt=0.2))
-        .check()
         .prepare()
         .run(until=100)
         .trajectory_.lattice('mixture.phi')
@@ -34,9 +33,7 @@ def test_allen_cahn_does_not_conserve_the_order_parameter():
 def test_cahn_hilliard_conserves_the_mean_and_coarsens_as_t_one_third():
     """Test that Model B keeps the mean of the order parameter and its domains grow as t^(1/3)."""
     system = cahn_hilliard((64, 64), length=64.0, mean=0.1)
-    trajectory = (
-        Simulation(system, dt=100.0, solver=ETDRK4Solver(dt=0.25)).check().prepare().run(until=1000).trajectory_
-    )
+    trajectory = Simulation(system, dt=100.0, solver=ETDRK4Solver(dt=0.25)).prepare().run(until=1000).trajectory_
     phi = trajectory.lattice('mixture.phi')
     np.testing.assert_allclose(phi.mean(axis=(1, 2)), phi[0].mean(), atol=1e-10)
     assert np.abs(phi[-1]).max() > 0.9
@@ -50,7 +47,6 @@ def test_cahn_hilliard_with_temperature_keeps_the_mean_under_conserved_noise():
     system = cahn_hilliard((16, 16), length=16.0, mean=0.2, temperature=0.05)
     trajectory = (
         Simulation(system, dt=5.0, solver=EulerMaruyamaSolver(dt=0.02), random_state=0)
-        .check()
         .prepare()
         .run(until=20)
         .trajectory_

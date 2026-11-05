@@ -47,12 +47,12 @@ class ExchangeInteraction(Interaction):
 def test_match_needs_a_positive_whole_capacity(capacity):
     """Test that a match rejects a capacity that is not a positive integer."""
     with pytest.raises(ValidationError, match='Give a positive integer'):
-        MatchLaw('buyers', capacity=capacity).check()
+        MatchLaw('buyers', capacity=capacity).prepare()
 
 
 def test_match_changes_no_state():
     """Test that a match targets no state, since it stores pairs for the rules of the step."""
-    assert MatchLaw('buyers', 'sellers', label='trades').check().prepare().targets_ == ()
+    assert MatchLaw('buyers', 'sellers', label='trades').prepare().targets_ == ()
 
 
 def test_random_matching_pairs_every_member_at_most_once():
@@ -64,7 +64,7 @@ def test_random_matching_pairs_every_member_at_most_once():
         ],
         interactions=[ExchangeInteraction('market')],
     )
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
     sellers = np.asarray(trajectory.agents('sellers', 1).values['paired'])
     buyers = np.asarray(trajectory.agents('buyers', 1).values['paired'])
     assert sellers.tolist() == [1.0] * 30
@@ -92,7 +92,7 @@ def test_run_stores_the_pairs_of_a_partner_spec_for_the_rules_of_the_step():
     """Test that a match law lowers a partner spec, whose score sends every member to the one with the most pairs."""
     traders = GroupElement('traders', element=TraderElement, size=3, values={'paired': [0.0, 5.0, 0.0]})
     system = System(elements=[traders], interactions=[PairedInteraction('market')])
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
     assert trajectory.agents('traders', 1).values['paired'].sum() == pytest.approx(8.0)
     assert trajectory.agents('traders', 1).values['paired'][1] == pytest.approx(7.0)
 
@@ -100,4 +100,4 @@ def test_run_stores_the_pairs_of_a_partner_spec_for_the_rules_of_the_step():
 def test_check_validates_a_partner_spec():
     """Test that the check of a match law checks its partner spec."""
     with pytest.raises(ValidationError, match='Unknown choice'):
-        MatchLaw('traders', pairing=PartnerSpec(choice='best')).check()
+        MatchLaw('traders', pairing=PartnerSpec(choice='best')).prepare()

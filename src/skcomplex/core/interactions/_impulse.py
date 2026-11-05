@@ -57,7 +57,7 @@ class ImpulseInteraction(Interaction):
         >>> from skcomplex.core.interactions import ImpulseInteraction
         >>> reset = {'c': lambda s: s.target.c + 1.0}
         >>> dose = ImpulseInteraction('dose', target='body', reset=reset, period=8.0, count=3)
-        >>> dose.check().start
+        >>> dose.start
         0.0
     """
 

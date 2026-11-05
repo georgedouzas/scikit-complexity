@@ -18,7 +18,7 @@ class CovarianceAdaptationSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import CovarianceAdaptationSpec
-        >>> CovarianceAdaptationSpec().check().sigma
+        >>> CovarianceAdaptationSpec().sigma
         0.1
     """
 

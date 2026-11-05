@@ -111,7 +111,7 @@ def hopfield(
 
     Examples:
         >>> from skcomplex.models.computer_science.neural_networks import hopfield
-        >>> hopfield(n_neurons=16, n_patterns=2).elements[0].check().prepare().size_
+        >>> hopfield(n_neurons=16, n_patterns=2).elements[0].prepare().size_
         16
     """
     rng = np.random.default_rng(random_state)

@@ -24,7 +24,7 @@ MU = 0.01215
 
 system = create(MODEL, x=0.5, y=0.0, vx=0.0, vy=1.0, mu=MU)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=8)
-simulation = Simulation(system, dt=0.02, observers=[observer]).check().prepare().run(until=40)
+simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=40)
 
 # %%
 # Jacobi constant and the forbidden region

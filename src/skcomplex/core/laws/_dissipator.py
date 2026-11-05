@@ -33,7 +33,7 @@ class DissipatorLaw(BaseLaw):
         >>> from skcomplex.core.laws import DissipatorLaw
         >>> from skcomplex.core.laws.utils import local_operator
         >>> minus = local_operator(SR.symbol('q'), SR.symbol('minus'))
-        >>> DissipatorLaw(minus, 2 * var('gamma')).check().prepare().run({'gamma': 0.05}).value_
+        >>> DissipatorLaw(minus, 2 * var('gamma')).prepare().run({'gamma': 0.05}).value_
         (local_operator(q, minus), 0.1)
     """
 

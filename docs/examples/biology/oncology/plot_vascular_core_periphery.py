@@ -23,7 +23,7 @@ MODEL = 'vascular_core_periphery'
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-8)
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer]).check().prepare().run(until=60)
+simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer]).prepare().run(until=60)
 
 # %%
 # Treated and untreated tumours
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer]).che
 # cells should stay orders of magnitude lower and the radius close to its initial 13 mm.
 
 treated = simulation.trajectory_
-untreated = Simulation(create(MODEL, dose=0.0), dt=0.5, solver=solver).check().prepare().run(until=60).trajectory_
+untreated = Simulation(create(MODEL, dose=0.0), dt=0.5, solver=solver).prepare().run(until=60).trajectory_
 fig, (cells, vessels) = plt.subplots(1, 2, figsize=(10, 4))
 for trajectory, name in ((untreated, 'untreated'), (treated, 'treated')):
     cells.semilogy(

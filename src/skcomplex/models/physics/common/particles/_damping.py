@@ -41,7 +41,7 @@ class DampingInteraction(RateInteraction):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.models.physics.common.particles import DampingInteraction
         >>> target = SimpleNamespace(x=var('x'), m=2)
-        >>> damping = DampingInteraction('air', target='ball', gamma=0.1).check().prepare()
+        >>> damping = DampingInteraction('air', target='ball', gamma=0.1).prepare()
         >>> [law.value for law in damping.run(SimpleNamespace(target=target, gamma=var('gamma'))).laws_]
         [-1/2*gamma*derivative(x, 1)]
     """

@@ -12,7 +12,7 @@ from skcomplex.errors import AnalysisError
 
 def _motifs(kind: str, source: object, **settings: object) -> MotifAnalysis:
     """Return the motif analysis of a source for one kind, run."""
-    return MotifAnalysis(kind, **settings).check().prepare(source).run()
+    return MotifAnalysis(kind, **settings).prepare(source).run()
 
 
 def _feed_forward_graph(rng: np.random.Generator) -> nx.DiGraph:
@@ -62,8 +62,8 @@ def test_motif_counts_of_four_nodes():
     directed = nx.DiGraph(nx.cycle_graph(4, create_using=nx.DiGraph))
     assert sum(_motifs('counts', directed, size=4).counts_[0].values()) == 1
     with pytest.raises(AnalysisError, match='size=5'):
-        MotifAnalysis(size=5).check()
+        MotifAnalysis(size=5).prepare()
     with pytest.raises(AnalysisError, match="null='shuffle'"):
-        MotifAnalysis('z-scores', null='shuffle').check()
+        MotifAnalysis('z-scores', null='shuffle').prepare()
     with pytest.raises(AnalysisError, match='does not read samples'):
-        MotifAnalysis('counts', samples=10).check()
+        MotifAnalysis('counts', samples=10).prepare()

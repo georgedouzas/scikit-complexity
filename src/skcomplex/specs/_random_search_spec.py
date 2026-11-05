@@ -28,11 +28,11 @@ class RandomSearchSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The clearing rule is unknown, raised by `check`.
+            The clearing rule is unknown, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.specs import RandomSearchSpec
-        >>> RandomSearchSpec(tries=3).check().tries
+        >>> RandomSearchSpec(tries=3).tries
         3
     """
 

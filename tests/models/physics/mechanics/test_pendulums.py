@@ -83,7 +83,7 @@ def test_ballistic_pendulum_rises_to_the_height_of_momentum_conservation():
 
 def test_huygens_clocks_synchronize_in_antiphase():
     """Test that the default clocks run quickly past the escapement switch and lock in antiphase."""
-    trajectory = Simulation(huygens_clocks(), dt=0.05).check().prepare().run(until=80.0).trajectory_
+    trajectory = Simulation(huygens_clocks(), dt=0.05).prepare().run(until=80.0).trajectory_
     late = trajectory.times >= 60.0
     first, second = trajectory.values('clock_0.theta')[late], trajectory.values('clock_1.theta')[late]
     assert np.corrcoef(first, second)[0, 1] < -0.95

@@ -22,9 +22,7 @@ MODEL = 'brusselator'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='cells/u')
-simulation = (
-    Simulation(system, dt=1.0, solver=RK4Solver(dt=0.01), observers=[observer]).check().prepare().run(until=100)
-)
+simulation = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.01), observers=[observer]).prepare().run(until=100)
 
 # %%
 # Pattern wavelength against the linear instability
@@ -36,7 +34,7 @@ simulation = (
 
 a, b, Du, Dv = 1.0, 3.0, 1.0, 8.0
 u = simulation.trajectory_.lattice('cells.u')[-1]
-factor = SpectrumAnalysis('structure-factor').check().prepare(u).run()
+factor = SpectrumAnalysis('structure-factor').prepare(u).run()
 q = np.linspace(0.01, 2.0, 300)
 growth = [np.linalg.eigvals([[b - 1 - Du * k**2, a**2], [-b, -(a**2) - Dv * k**2]]).real.max() for k in q]
 fig, (field, spectrum) = plt.subplots(1, 2, figsize=(10, 4))

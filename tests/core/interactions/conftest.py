@@ -93,7 +93,7 @@ def _clear(
             ),
         ],
     )
-    Simulation(system, random_state=0).check().prepare().run(until=steps)
+    Simulation(system, random_state=0).prepare().run(until=steps)
     return records
 
 

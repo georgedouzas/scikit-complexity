@@ -13,7 +13,7 @@ from skcomplex.models.biology.common.populations import PopulationElement
 def test_recorder_builds_the_trajectory_of_its_frames():
     """Test that a recorder keeps every frame of a run and reads them as a trajectory."""
     recorder = RecorderObserver()
-    Simulation(System(elements=[PopulationElement('a', n=2)]), dt=1, observers=[recorder]).check().prepare().run(
+    Simulation(System(elements=[PopulationElement('a', n=2)]), dt=1, observers=[recorder]).prepare().run(
         until=2,
     )
     assert len(recorder.frames_) == 3
@@ -24,7 +24,7 @@ def test_recorder_builds_the_trajectory_of_its_frames():
 def test_recorder_keeps_one_row_of_parameters_that_stay_the_same():
     """Test that frames share unchanged parameters, so large constant parameters take no memory per frame."""
     recorder = RecorderObserver()
-    Simulation(create('sir'), dt=1, observers=[recorder]).check().prepare().run(until=2)
+    Simulation(create('sir'), dt=1, observers=[recorder]).prepare().run(until=2)
     parameters = recorder.trajectory_.parameters
     assert parameters.shape[0] == 3
     assert parameters.shape[1] > 0

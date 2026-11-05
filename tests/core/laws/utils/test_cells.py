@@ -125,7 +125,7 @@ def _rates(system, backend, name):
 
 def _cube():
     """Return the prepared complex of a periodic 3D lattice."""
-    return CellComplexSpace(LatticeSpace((4, 3, 5))).check().prepare()
+    return CellComplexSpace(LatticeSpace((4, 3, 5))).prepare()
 
 
 def test_operations_are_held_symbolically():
@@ -177,7 +177,7 @@ def test_divergence_of_a_curl_is_zero(backend):
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_operations_are_the_incidence_products(backend):
     """Test the values of every operation against the products of the matrices of the complex."""
-    space = CellComplexSpace(LatticeSpace((4, 5))).check().prepare()
+    space = CellComplexSpace(LatticeSpace((4, 5))).prepare()
     rng = np.random.default_rng(2)
     links = {'a': rng.normal(size=40)}
     sites = {'u': rng.normal(size=20)}
@@ -225,7 +225,7 @@ def test_operations_are_the_incidence_products(backend):
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_codifferential_reads_the_spacings_of_a_lattice(backend):
     """Test the Hodge star of a lattice of spacing 2 inside the codifferential of a link state."""
-    space = CellComplexSpace(LatticeSpace((4, 5), spacing=2.0)).check().prepare()
+    space = CellComplexSpace(LatticeSpace((4, 5), spacing=2.0)).prepare()
     links = {'a': np.random.default_rng(3).normal(size=40)}
     rate = RateInteraction(
         'c1',
@@ -242,7 +242,7 @@ def test_codifferential_reads_the_spacings_of_a_lattice(backend):
 def test_codifferential_reads_the_weights_of_the_groups_of_a_network(backend):
     """Test the Hodge star of a network complex from the parameter `weight` of its edge group."""
     graph = nx.cycle_graph(4)
-    space = CellComplexSpace(NetworkSpace(graph), faces=[(0, 1, 2, 3)]).check().prepare()
+    space = CellComplexSpace(NetworkSpace(graph), faces=[(0, 1, 2, 3)]).prepare()
     weights = np.array([1.0, 2.0, 3.0, 4.0])
     links = {'a': np.array([1.0, -1.0, 2.0, 0.5]), 'weight': weights}
     rate = RateInteraction(
@@ -259,7 +259,7 @@ def test_codifferential_reads_the_weights_of_the_groups_of_a_network(backend):
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_operations_compose_with_functions_of_their_values(backend):
     """Test the codifferential of the sine of an exterior derivative against the matrices of the complex."""
-    space = CellComplexSpace(LatticeSpace((4, 5))).check().prepare()
+    space = CellComplexSpace(LatticeSpace((4, 5))).prepare()
     links = {'a': np.random.default_rng(4).normal(size=40)}
     rate = RateInteraction(
         'c',
@@ -275,7 +275,7 @@ def test_operations_compose_with_functions_of_their_values(backend):
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_coface_reduction_reads_the_oriented_sum_of_the_one_face(backend):
     """Test the sum of the cosines of the plaquette sums of the faces of every link."""
-    space = CellComplexSpace(LatticeSpace((4, 5))).check().prepare()
+    space = CellComplexSpace(LatticeSpace((4, 5))).prepare()
     links = {'a': np.random.default_rng(5).uniform(-3, 3, size=40)}
     rate = RateInteraction(
         'c',
@@ -291,7 +291,7 @@ def test_coface_reduction_reads_the_oriented_sum_of_the_one_face(backend):
 @pytest.mark.parametrize('backend', BACKENDS)
 def test_abelian_plaquette_is_the_exterior_derivative_at_the_faces(backend):
     """Test that a coface reduction of the plaquette sums equals the exterior derivative at the same plaquettes."""
-    space = CellComplexSpace(LatticeSpace((4, 5), boundary='fixed')).check().prepare()
+    space = CellComplexSpace(LatticeSpace((4, 5), boundary='fixed')).prepare()
     size = int(space.edges_[None][0].size)
     links = {'a': np.random.default_rng(6).uniform(-3, 3, size=size)}
     interactions = [
@@ -320,7 +320,7 @@ def test_abelian_plaquette_is_the_exterior_derivative_at_the_faces(backend):
 
 def test_coface_reduction_of_a_site_runs_over_its_edges():
     """Test that a reduction over the cofaces of a site reads the difference along each of its edges."""
-    space = CellComplexSpace(NetworkSpace(nx.path_graph(3))).check().prepare()
+    space = CellComplexSpace(NetworkSpace(nx.path_graph(3))).prepare()
     sites = {'u': np.array([1.0, 3.0, 7.0])}
     rate = RateInteraction(
         'sum',
@@ -335,7 +335,7 @@ def test_coface_reduction_of_a_site_runs_over_its_edges():
 
 def _maxwell(size, charges):
     """Return the links of a lattice with a potential and an electric field from static charges, and its charges."""
-    space = CellComplexSpace(LatticeSpace((size, size))).check().prepare()
+    space = CellComplexSpace(LatticeSpace((size, size))).prepare()
     density = np.zeros(size * size)
     for site, charge in charges.items():
         density[site] = charge
@@ -362,7 +362,7 @@ def test_gauss_law_holds_for_rate_laws_of_a_first_order_pair():
         ),
     ]
     system = System(elements=[links], interactions=interactions)
-    trajectory = Simulation(system, solver=RK4Solver(dt=0.02)).check().prepare().run(until=2.0).trajectory_
+    trajectory = Simulation(system, solver=RK4Solver(dt=0.02)).prepare().run(until=2.0).trajectory_
     residual = -space.incidences_[0].T @ trajectory.values('links.e').T - density[:, None]
     assert np.abs(residual).max() < GAUSS_LIMIT
 
@@ -379,7 +379,7 @@ def test_gauss_law_holds_for_velocity_verlet():
         rate=lambda n: -codifferential(exterior_derivative(n.target.a)),
     )
     system = System(elements=[links], interactions=[rate])
-    trajectory = Simulation(system, solver=VelocityVerletSolver(dt=0.05)).check().prepare().run(until=50.0).trajectory_
+    trajectory = Simulation(system, solver=VelocityVerletSolver(dt=0.05)).prepare().run(until=50.0).trajectory_
     electric = -trajectory.values('links.a_d1')
     residual = -space.incidences_[0].T @ electric.T - density[:, None]
     assert np.abs(residual).max() < GAUSS_LIMIT
@@ -389,7 +389,7 @@ def test_gauss_law_holds_for_velocity_verlet():
 def test_lattice_dispersion_follows_the_lattice_laplacian(spacing):
     """Test the angular frequency of a plane wave of wave number k against `(2 / a) sin(k a / 2)`."""
     size, mode = 32, 3
-    space = CellComplexSpace(LatticeSpace((size, size), spacing=spacing)).check().prepare()
+    space = CellComplexSpace(LatticeSpace((size, size), spacing=spacing)).prepare()
     wave_number = 2 * np.pi * mode / (size * spacing)
     sources, _ = space.edges_[None]
     along_second = np.arange(sources.size) >= size * size
@@ -408,7 +408,7 @@ def test_lattice_dispersion_follows_the_lattice_laplacian(spacing):
     until = 4 * period
     step = period / 200
     simulation = Simulation(system, solver=VelocityVerletSolver(dt=step / 4), dt=step)
-    trajectory = simulation.check().prepare().run(until=until).trajectory_
+    trajectory = simulation.prepare().run(until=until).trajectory_
     series = trajectory.values('links.a')[:, size * size]
     crossings = np.flatnonzero(np.diff(np.sign(series)) != 0)
     measured = np.pi * (crossings.size - 1) / (trajectory.times[crossings[-1]] - trajectory.times[crossings[0]])

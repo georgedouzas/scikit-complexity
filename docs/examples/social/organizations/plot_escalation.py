@@ -34,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=0.5, observers=[observer]).check().prepare().run(100)
+simulation = Simulation(create(MODEL), dt=0.5, observers=[observer]).prepare().run(100)
 
 # %%
 # The growth rate of the race

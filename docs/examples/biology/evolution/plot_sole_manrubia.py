@@ -22,7 +22,7 @@ MODEL = 'sole_manrubia'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).check().prepare().run(until=299)
+simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).prepare().run(until=299)
 
 # %%
 # Sizes of the extinction avalanches

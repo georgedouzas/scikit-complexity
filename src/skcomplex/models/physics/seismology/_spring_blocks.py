@@ -161,7 +161,7 @@ def burridge_knopoff(
 
     Examples:
         >>> from skcomplex.models.physics.seismology import burridge_knopoff
-        >>> burridge_knopoff(5).elements[0].check().prepare().size_
+        >>> burridge_knopoff(5).elements[0].prepare().size_
         5
     """
     offsets = np.random.default_rng(random_state).uniform(-0.5, 0.5, n_blocks)

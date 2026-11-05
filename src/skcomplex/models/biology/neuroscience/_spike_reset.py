@@ -54,7 +54,7 @@ class SpikeResetInteraction(CrossingInteraction):
         >>> drive = RateInteraction('drive', target='neuron', state='n', rate=1.0)
         >>> spike = SpikeResetInteraction('spike', target='neuron', state='n', threshold=1.0, after=0.0)
         >>> system = System(elements=[CompartmentElement('neuron')], interactions=[drive, spike])
-        >>> trajectory = Simulation(system, dt=0.25).check().prepare().run(until=2.1).trajectory_
+        >>> trajectory = Simulation(system, dt=0.25).prepare().run(until=2.1).trajectory_
         >>> [round(event.time, 6) for event in trajectory.events]
         [1.0, 2.0]
     """

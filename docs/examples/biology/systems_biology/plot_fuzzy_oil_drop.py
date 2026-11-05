@@ -30,7 +30,7 @@ simulation = Simulation(
     observables=describe(MODEL).observables_of(system),
     random_state=0,
 )
-trajectory = simulation.check().prepare().run(until=37).trajectory_
+trajectory = simulation.prepare().run(until=37).trajectory_
 
 # %%
 # Distributions of one model
@@ -42,7 +42,7 @@ trajectory = simulation.check().prepare().run(until=37).trajectory_
 # its values.
 
 structure = read_structure('1L2Y')
-profile = FuzzyOilDropAnalysis(structure, 'profile').check().prepare().run()
+profile = FuzzyOilDropAnalysis(structure, 'profile').prepare().run()
 residues = np.arange(1, 21)
 fig, (distributions, ensemble) = plt.subplots(1, 2, figsize=(11, 4))
 distributions.plot(residues, profile.theoretical_[0], marker='o', label='T')
@@ -67,11 +67,11 @@ plt.show()
 # NMR model.
 
 folding = create(MODEL, dynamics='folding')
-folded = Simulation(folding, random_state=0).check().prepare().run(until=200).trajectory_
-geometry = BackboneGeometry(structure).check().prepare()
+folded = Simulation(folding, random_state=0).prepare().run(until=200).trajectory_
+geometry = BackboneGeometry(structure).prepare()
 angles = folded.lattice('chain.angle').astype(float)[:, 0]
 chains = np.array([geometry.run(row).read_effective_atoms() for row in angles[::20]])
-radii = ShapeAnalysis().check().prepare(chains).run().values_
+radii = ShapeAnalysis().prepare(chains).run().values_
 
 fig, (score, size) = plt.subplots(1, 2, figsize=(11, 4))
 score.plot(folded.times, folded.values('folding.score')[:, 0])

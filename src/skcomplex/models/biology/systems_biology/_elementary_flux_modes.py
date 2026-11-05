@@ -35,7 +35,7 @@ def elementary_flux_modes(knockouts: Sequence[str] = ()) -> System:
     Examples:
         >>> from skcomplex.analysis import ElementaryModeAnalysis
         >>> from skcomplex.models.biology.systems_biology import elementary_flux_modes
-        >>> analysis = ElementaryModeAnalysis(normalize='cell.v_b1').check().prepare(elementary_flux_modes()).run()
+        >>> analysis = ElementaryModeAnalysis(normalize='cell.v_b1').prepare(elementary_flux_modes()).run()
         >>> analysis.modes_.shape[0]
         2
     """

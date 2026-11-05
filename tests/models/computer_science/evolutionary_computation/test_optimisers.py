@@ -19,7 +19,7 @@ def _best(algorithm: str, landscape: str = 'rastrigin') -> np.ndarray:
     """Return the best value of a run of 100 generations after the initial frame."""
     system = evolutionary_optimisers(algorithm=algorithm, landscape=landscape, random_state=1)
     observables = describe('evolutionary_optimisers').observables_of(system)
-    simulation = Simulation(system, random_state=1, observables=observables).check().prepare()
+    simulation = Simulation(system, random_state=1, observables=observables).prepare()
     return simulation.run(until=100).trajectory_.values(PATHS.get(algorithm, 'search.best'))[1:]
 
 

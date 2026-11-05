@@ -71,7 +71,7 @@ class LocalInformationAnalysis(BaseAnalysis):
 
     Examples:
         >>> from skcomplex.analysis import LocalInformationAnalysis
-        >>> local = LocalInformationAnalysis('mutual').check().prepare([[0, 0], [0, 0], [1, 1], [1, 0]]).run()
+        >>> local = LocalInformationAnalysis('mutual').prepare([[0, 0], [0, 0], [1, 1], [1, 0]]).run()
         >>> local.information_[0, 1].round(3).tolist()
         [0.415, 0.415, 1.0, -0.585]
     """

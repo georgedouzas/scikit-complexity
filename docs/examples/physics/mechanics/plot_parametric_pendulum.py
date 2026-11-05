@@ -28,7 +28,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, theta=0.1, omega=0.0, epsilon=0.2)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=6)
-simulation = Simulation(system, dt=0.02, observers=[observer]).check().prepare().run(until=30)
+simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=30)
 
 # %%
 # Exponential growth at resonance
@@ -41,7 +41,7 @@ simulation = Simulation(system, dt=0.02, observers=[observer]).check().prepare()
 natural = np.sqrt(9.81)
 fig, ax = plt.subplots(figsize=(6, 4))
 for epsilon in [0.2, 0.0]:
-    run = Simulation(create(MODEL, theta=0.01, omega=0.0, epsilon=epsilon), dt=0.01).check().prepare().run(until=40)
+    run = Simulation(create(MODEL, theta=0.01, omega=0.0, epsilon=epsilon), dt=0.01).prepare().run(until=40)
     times = np.asarray(run.trajectory_.times)
     angle = np.abs(np.ravel(run.trajectory_.values('swing.theta')))
     peaks = (angle[1:-1] > angle[:-2]) & (angle[1:-1] >= angle[2:])

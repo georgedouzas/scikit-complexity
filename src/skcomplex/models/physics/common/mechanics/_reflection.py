@@ -66,7 +66,7 @@ class ReflectionInteraction(CrossingInteraction):
         >>> wall = ReflectionInteraction('wall', target='ball', guard=lambda s: s.target.x[0] - 1, direction=1)
         >>> ball = PointElement('ball', x=[0.0, 0.0], x_d1=[1.0, 1.0])
         >>> system = System(elements=[ball], interactions=[wall], space=ContinuousSpace(n_dim=2))
-        >>> trajectory = Simulation(system, dt=0.5).check().prepare().run(until=2.0).trajectory_
+        >>> trajectory = Simulation(system, dt=0.5).prepare().run(until=2.0).trajectory_
         >>> trajectory.values('ball.x')[-1].tolist()
         [0.0, 2.0]
     """

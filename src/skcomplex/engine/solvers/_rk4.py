@@ -59,7 +59,7 @@ class RK4Solver(Solver):
         ...         interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ...     ),
         ... )
-        >>> stepper = RK4Solver(dt=0.001, random_state=0).check().prepare(problem)
+        >>> stepper = RK4Solver(dt=0.001, random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> round(float(stepper.run(step).state_[0]), 10)
         2.7182818285

@@ -42,7 +42,6 @@ simulation = (
         dt=0.5,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(
         until=60,
@@ -62,7 +61,6 @@ def final_distribution(confidence, repulsion):
     model_system = create(MODEL, confidence=confidence, repulsion=repulsion)
     run = (
         Simulation(model_system, dt=60.0, observables=describe(MODEL).observables_of(model_system))
-        .check()
         .prepare()
         .run(until=60)
     )

@@ -30,7 +30,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=1000)
 )
@@ -52,7 +51,6 @@ for temperature in temperatures:
     right, down = (values[name].reshape(32, 32) for name in ('J_right', 'J_down'))
     trajectory = (
         Simulation(sample, dt=10, random_state=0, observables=describe(MODEL).observables_of(sample))
-        .check()
         .prepare()
         .run(until=2000)
         .trajectory_

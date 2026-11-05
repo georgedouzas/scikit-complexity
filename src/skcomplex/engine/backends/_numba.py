@@ -216,7 +216,7 @@ class NumbaBackend(BaseBackend):
             for kind in needed
             if compiled[kind]
         ]
-        printer = NumbaPrinter(parallel=self.parallel and form not in _EVENT_FORMS).check()
+        printer = NumbaPrinter(parallel=self.parallel and form not in _EVENT_FORMS)._validated()
         lines = printer.prepare(reductions if reduced and fused else None).run(parts).code_
         accelerated_loop = {
             FormKind.ODE: 'rk4',
@@ -464,9 +464,9 @@ class NumbaBackend(BaseBackend):
         try:
             for reduction in reductions.reductions:
                 condition = reduction.condition if reduction.condition is not None else 1
-                ExpressionPrinter('scalar').check().prepare().run([reduction.argument, condition])
+                ExpressionPrinter('scalar').prepare().run([reduction.argument, condition])
             for neighbourhood in reductions.neighbourhoods:
-                ExpressionPrinter('scalar').check().prepare().run([neighbourhood.argument, neighbourhood.weight])
+                ExpressionPrinter('scalar').prepare().run([neighbourhood.argument, neighbourhood.weight])
         except ValidationError:
             return False
         return True
@@ -510,12 +510,12 @@ class NumbaBackend(BaseBackend):
                 return f'the function reduction {reduction.argument}'
             try:
                 condition = reduction.condition if reduction.condition is not None else 1
-                ExpressionPrinter('scalar').check().prepare().run([reduction.argument, condition])
+                ExpressionPrinter('scalar').prepare().run([reduction.argument, condition])
             except ValidationError:
                 return f'the {reduction.kind} reduction {reduction.argument}'
         for neighbourhood in reductions.neighbourhoods:
             try:
-                ExpressionPrinter('scalar').check().prepare().run([neighbourhood.argument, neighbourhood.weight])
+                ExpressionPrinter('scalar').prepare().run([neighbourhood.argument, neighbourhood.weight])
             except ValidationError:
                 return f'the neighbourhood {neighbourhood.kind} reduction {neighbourhood.argument}'
         return None
@@ -595,7 +595,7 @@ class NumbaBackend(BaseBackend):
         """
         cached = text.replace('cache=CACHE', f'cache={not functions}')
         source = f'# Compiled helpers: {HELPERS_FINGERPRINT}\n{cached}'
-        return SourceLoader('skcomplex_kernels', functions).check().prepare(cache_dir).run(source).module_
+        return SourceLoader('skcomplex_kernels', functions).prepare(cache_dir).run(source).module_
 
 
 HELPERS_FINGERPRINT = NumbaBackend._helpers_fingerprint()

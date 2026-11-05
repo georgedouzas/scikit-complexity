@@ -86,7 +86,7 @@ class CalibrationExperiment(BaseExperiment):
         >>> values = 100 / (1 + 9 * np.exp(-0.5 * times))
         >>> bounds = {'growth.r': (0.1, 2.0), 'growth.K': (50, 200)}
         >>> calibration = CalibrationExperiment(logistic_growth, {'population.n': (times, values)}, bounds)
-        >>> estimates = calibration.check().prepare().run().estimates_
+        >>> estimates = calibration.prepare().run().estimates_
         >>> round(estimates['growth.r'], 2), round(estimates['growth.K'])
         (0.5, 100)
     """
@@ -143,7 +143,7 @@ class CalibrationExperiment(BaseExperiment):
         until = max(float(times.max()) for times, _ in self.series_.values())
         runs = []
         for seed in self.seeds_:
-            simulation = Simulation(candidate, dt=self.dt, random_state=np.random.default_rng(seed)).check().prepare()
+            simulation = Simulation(candidate, dt=self.dt, random_state=np.random.default_rng(seed)).prepare()
             trajectory = simulation.run(until).trajectory_
             runs.append(
                 {

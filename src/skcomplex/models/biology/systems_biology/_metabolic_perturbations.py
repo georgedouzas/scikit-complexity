@@ -40,7 +40,7 @@ def metabolic_perturbations(genes: Sequence[str] = ()) -> System:
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.biology.systems_biology import metabolic_perturbations
         >>> system = metabolic_perturbations(genes=('b4025',))
-        >>> trajectory = Simulation(system).check().prepare().run(0.0).trajectory_
+        >>> trajectory = Simulation(system).prepare().run(0.0).trajectory_
         >>> round(float(trajectory.values('cell.objective_0')[0]), 3)
         0.863
     """

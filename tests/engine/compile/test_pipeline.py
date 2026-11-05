@@ -87,7 +87,7 @@ def test_passes_run_only_what_a_field_needs():
         _pass('Layout', ('system',), ('layout',), log),
         _pass('OtherElement', ('system',), ('census',), log),
     ]
-    compiler = PassCompiler(passes=passes).check()
+    compiler = PassCompiler(passes=passes)
     compiler.passes_ = tuple(passes)
     compilation = compiler._new_compilation(System())
     compiler._run_passes(compilation, until='lowered')
@@ -99,7 +99,7 @@ def test_passes_run_only_what_a_field_needs():
 def test_pass_is_prepared_on_its_compilation_and_runs_on_it():
     """Test that a pass takes its compilation in `prepare` and changes it in `run`."""
     compilation = Compilation(create('lotka_volterra'))
-    flatten = FlattenPass().check().prepare(compilation)
+    flatten = FlattenPass().prepare(compilation)
     assert flatten.compilation_ is compilation
     assert flatten.run() is flatten
     assert compilation.nodes

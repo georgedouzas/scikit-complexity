@@ -52,7 +52,7 @@ class DelayedCouplingInteraction(RateInteraction):
         >>> from types import SimpleNamespace
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.models.physics.synchronization import DelayedCouplingInteraction
-        >>> coupling = DelayedCouplingInteraction('coupling', source='a', target='b').check().prepare()
+        >>> coupling = DelayedCouplingInteraction('coupling', source='a', target='b').prepare()
         >>> namespace = SimpleNamespace(source=SimpleNamespace(theta=var('a')), target=SimpleNamespace(theta=var('b')))
         >>> [law.value for law in coupling.run(SimpleNamespace(**vars(namespace), K=var('K'), tau=1)).laws_]
         [K*sin(-b + delayed(a, 1))]

@@ -26,7 +26,7 @@ def test_logistic_coupling_mixes_the_map_with_the_mean_map_of_the_neighbours():
         interactions=[LogisticCouplingInteraction('coupling', target='maps')],
         time=DiscreteTime(),
     )
-    values = Simulation(system).check().prepare().run(until=1).trajectory_.values('maps.x')[-1]
+    values = Simulation(system).prepare().run(until=1).trajectory_.values('maps.x')[-1]
     f = 3.7 * x * (1 - x)
     neighbours = np.array([f[1], (f[0] + f[2]) / 2, f[1], 0.0])
     np.testing.assert_allclose(values, 0.7 * f + 0.3 * neighbours, atol=1e-12)

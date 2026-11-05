@@ -37,7 +37,7 @@ def mandelbrot_least_effort(n_words: int = 200) -> System:
     Examples:
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.social.language import mandelbrot_least_effort
-        >>> trajectory = Simulation(mandelbrot_least_effort(50)).check().prepare().run(1.0).trajectory_
+        >>> trajectory = Simulation(mandelbrot_least_effort(50)).prepare().run(1.0).trajectory_
         >>> round(float(trajectory.values('words.probability')[0].sum()), 6)
         1.0
     """

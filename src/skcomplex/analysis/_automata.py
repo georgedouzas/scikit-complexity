@@ -277,10 +277,10 @@ class AutomatonAnalysis(BaseAnalysis):
         ...     )
         ...     return System(elements=[cells], interactions=[interaction])
         >>> shift = automaton(8, TableSpec({(1,): 1}), LatticeNeighborhood(((1,),)))
-        >>> AutomatonAnalysis().check().prepare(shift).run().injective_
+        >>> AutomatonAnalysis().prepare(shift).run().injective_
         True
         >>> majority = automaton(5, TotalisticSpec(lambda total: total >= 2), BoxNeighborhood())
-        >>> AutomatonAnalysis('garden-of-eden').check().prepare(majority).run().pattern_.tolist()
+        >>> AutomatonAnalysis('garden-of-eden').prepare(majority).run().pattern_.tolist()
         [0, 0, 1, 0, 1]
         >>> class GoldenCellElement(Element):
         ...     def __init__(
@@ -294,10 +294,10 @@ class AutomatonAnalysis(BaseAnalysis):
         ...         self.alive = alive
         >>> window = LatticeSpace(6, boundary='fixed')
         >>> golden = System(elements=[LatticeElement('cells', element=GoldenCellElement, space=window)])
-        >>> AutomatonAnalysis('count').check().prepare(golden).run().count_
+        >>> AutomatonAnalysis('count').prepare(golden).run().count_
         21
         >>> analysis = AutomatonAnalysis('entropy', windows=[LatticeSpace(20, boundary='fixed')])
-        >>> analysis.check().prepare(golden).run().entropy_.round(3).tolist()
+        >>> analysis.prepare(golden).run().entropy_.round(3).tolist()
         [0.706]
     """
 
@@ -385,7 +385,7 @@ class AutomatonAnalysis(BaseAnalysis):
                 continue
             for spec in element.get_states().values():
                 if isinstance(spec.domain, SubshiftSpec):
-                    return element, spec.domain.check()
+                    return element, spec.domain._validated()
         return None
 
     @staticmethod
@@ -451,12 +451,12 @@ class AutomatonAnalysis(BaseAnalysis):
             )
             raise AnalysisError(error_msg)
         namespace = SimpleNamespace(**{rule._get_role('target'): SimpleNamespace(**{rule.state: SR.var(rule.state)})})
-        law = rule.check().prepare().run(namespace).laws_[0]
+        law = rule.prepare().run(namespace).laws_[0]
         if not isinstance(law, LocalRuleLaw):
             error_msg = f'The local rule {rule.label!r} returns {law!r}, not a local rule law.'
             raise AnalysisError(error_msg)
         self._rule = rule
-        self._law = law.check().prepare()
+        self._law = law.prepare()
         self._state = rule.state
         self._space = self._get_space(system, element)
         self._size = int(self._space.size_ or 0)
@@ -585,7 +585,7 @@ class AutomatonAnalysis(BaseAnalysis):
     def _fitted(space: BaseSpace) -> BaseSpace:
         """Return a space of sites, preparing it on its first use."""
         if not hasattr(space, 'size_'):
-            space.check().prepare()
+            space.prepare()
         return space
 
     @staticmethod
@@ -827,8 +827,8 @@ class AutomatonAnalysis(BaseAnalysis):
             error_msg = 'Composed automata share their space and their number of states.'
             raise AnalysisError(error_msg)
         inner, outer = self._get_reach(), other._get_reach()
-        inner_items = inner.elements if isinstance(inner, MemoryNeighborhood) else inner.check().prepare().offsets_
-        outer_items = outer.elements if isinstance(outer, MemoryNeighborhood) else outer.check().prepare().offsets_
+        inner_items = inner.elements if isinstance(inner, MemoryNeighborhood) else inner.prepare().offsets_
+        outer_items = outer.elements if isinstance(outer, MemoryNeighborhood) else outer.prepare().offsets_
         composite: list[Item] = []
         columns = []
         for base in outer_items:
@@ -913,7 +913,7 @@ class AutomatonAnalysis(BaseAnalysis):
             error_msg = 'A Laurent polynomial describes a linear automaton on a lattice, with offsets.'
             raise AnalysisError(error_msg)
         field = rule.sage_field
-        offsets = self._law.over.check().prepare().offsets_
+        offsets = self._law.over.prepare().offsets_
         ring = LaurentPolynomialRing(field, [f'x{axis}' for axis in range(len(offsets[0]))])
         terms = (
             field(QQ(coefficient))

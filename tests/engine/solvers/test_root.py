@@ -197,12 +197,12 @@ class TermInteraction(Interaction):
 
 def _simulated(system: System, **settings: object) -> Simulation:
     """Return the simulation of a static system after its run."""
-    return Simulation(system, **settings).check().prepare().run(1.0)
+    return Simulation(system, **settings).prepare().run(1.0)
 
 
 def _issues(system: System, code: str) -> list[IssueSpec]:
     """Return the issues of a system with a code."""
-    return [item for item in PassCompiler().check().prepare(system).report_.issues if item.code == code]
+    return [item for item in PassCompiler().prepare(system).report_.issues if item.code == code]
 
 
 def test_run_survival_at_dose() -> None:
@@ -276,7 +276,7 @@ def test_run_group_coupled_through_log_sum_exp() -> None:
 
 def test_run_no_solution() -> None:
     """Test that a solve that does not converge names the equation and the residual."""
-    simulation = Simulation(System(elements=[NoSolutionElement('a')], time=StaticTime())).check().prepare()
+    simulation = Simulation(System(elements=[NoSolutionElement('a')], time=StaticTime())).prepare()
     with pytest.raises(SolverError, match=r'x.*largest residual'):
         simulation.run(1.0)
 

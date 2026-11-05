@@ -28,7 +28,7 @@ MODEL = 'early_stage_folding_intermediate'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-trajectory = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=299).trajectory_
+trajectory = Simulation(system, observers=[observer], random_state=0).prepare().run(until=299).trajectory_
 
 # %%
 # Projection and sampled cells
@@ -39,7 +39,7 @@ trajectory = Simulation(system, observers=[observer], random_state=0).check().pr
 
 structure = read_structure('5PTI')
 names, native = read_native_pairs(structure)
-path = EllipsePath().check().prepare()
+path = EllipsePath().prepare()
 projected = path.run(native).angles_
 curve = path.read_points(np.linspace(0, 2 * np.pi, 400))
 probabilities = read_cell_probabilities()

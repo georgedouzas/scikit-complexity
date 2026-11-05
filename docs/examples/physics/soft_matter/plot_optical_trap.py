@@ -26,9 +26,7 @@ MODEL = 'optical_trap'
 system = create(MODEL, n_particles=500, k=(1.0, 0.25))
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = (
-    Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).check().prepare().run(until=25)
-)
+simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).prepare().run(until=25)
 
 # %%
 # Equipartition calibrates the trap
@@ -42,7 +40,7 @@ positions = simulation.trajectory_.values('beads.x')[150:]
 fig, ax = plt.subplots(figsize=(7, 4))
 for axis, (stiffness, color) in enumerate(((1.0, 'tab:blue'), (0.25, 'tab:orange'))):
     values = positions[..., axis].ravel()
-    histogram = DistributionAnalysis('histogram', bins=40).check().prepare(values).run()
+    histogram = DistributionAnalysis('histogram', bins=40).prepare(values).run()
     edges, density = histogram.edges_, histogram.density_
     grid = np.linspace(edges[0], edges[-1], 200)
     ax.stairs(density, edges, color=color, label=f'axis {axis}, measured k = {1 / values.var():.2f}')

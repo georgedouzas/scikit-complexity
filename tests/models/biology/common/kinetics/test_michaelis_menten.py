@@ -34,7 +34,7 @@ class CellElement(Element):
 def _run(interaction, until=1.0, dt=0.1, **values):
     """Return the times and the substrate of one cell under one reaction."""
     system = System(elements=[CellElement('cell', **values)], interactions=[interaction])
-    trajectory = Simulation(system, dt=dt).check().prepare().run(until=until).trajectory_
+    trajectory = Simulation(system, dt=dt).prepare().run(until=until).trajectory_
     return np.asarray(trajectory.times), np.asarray(trajectory.values('cell.S'))
 
 
@@ -94,4 +94,4 @@ def test_michaelis_menten_reads_a_substrate_function_and_the_target_parameters()
 def test_michaelis_menten_rejects_invalid_arguments(arguments, message):
     """Test that the reaction rejects a substrate that is no name or function, and rates that are no numbers."""
     with pytest.raises(ValidationError, match=message):
-        MichaelisMentenInteraction('uptake', target='cell', reactants={'S': 1}, **arguments).check()
+        MichaelisMentenInteraction('uptake', target='cell', reactants={'S': 1}, **arguments).prepare()

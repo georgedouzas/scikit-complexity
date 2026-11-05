@@ -102,7 +102,7 @@ class LinearizationAnalysis(BaseAnalysis):
         ...
         ...     def _get_laws(self, namespace):
         ...         return [RateLaw(namespace.x, namespace.v), RateLaw(namespace.v, namespace.force)]
-        >>> analysis = LinearizationAnalysis().check().prepare(System(elements=[CartElement('cart')])).run()
+        >>> analysis = LinearizationAnalysis().prepare(System(elements=[CartElement('cart')])).run()
         >>> analysis.B_.tolist(), analysis.controllability_
         ([[0.0], [1.0]], 2)
     """

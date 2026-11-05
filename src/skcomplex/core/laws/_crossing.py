@@ -43,7 +43,7 @@ class CrossingLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import CrossingLaw
         >>> y, z = var('y'), var('z')
-        >>> law = CrossingLaw(y, {z: -0.8 * z}, direction=-1).check().prepare()
+        >>> law = CrossingLaw(y, {z: -0.8 * z}, direction=-1).prepare()
         >>> law.run({'z': -2.0}).value_
         {z: 1.6}
     """

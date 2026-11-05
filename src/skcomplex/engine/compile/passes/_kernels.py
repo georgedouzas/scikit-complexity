@@ -89,7 +89,7 @@ class KernelsPass(BasePass):
     def _outputs_of(value: object, targets: Sequence[ReferenceSpec | None], owner: str) -> list[OutputSpec]:
         """Return the outputs of one law value for its target components, with the law and component as owner."""
         if isinstance(value, CallSpec):
-            return KernelsPass._call_outputs(value.check(), targets, owner)
+            return KernelsPass._call_outputs(value._validated(), targets, owner)
         expressions = KernelsPass._symbolic_components(value, len(targets), owner)
         if expressions is None:
             if not callable(value):
@@ -285,9 +285,7 @@ class KernelsPass(BasePass):
                         outputs=kind_outputs,
                         names=spec._relative_names(names),
                         stream=stream,
-                    )
-                    .check()
-                    .prepare(),
+                    ).prepare(),
                 )
         return LoweredKernelsSpec(kernels, jump_changes, laws_of, stream=stream)
 

@@ -27,7 +27,7 @@ class LatticeNeighborhood(BaseNeighborhood):
 
     Examples:
         >>> from skcomplex.core.spaces import LatticeNeighborhood
-        >>> LatticeNeighborhood([(0, 1), (1, 0)]).check().prepare().offsets_
+        >>> LatticeNeighborhood([(0, 1), (1, 0)]).prepare().offsets_
         ((0, 1), (1, 0))
     """
 

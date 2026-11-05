@@ -97,7 +97,7 @@ def employment_takeover(size: int = 32, *, random_state: int | np.random.Generat
 
     Examples:
         >>> from skcomplex.models.social.organizations import employment_takeover
-        >>> employment_takeover(4).elements[0].check().prepare().size_
+        >>> employment_takeover(4).elements[0].prepare().size_
         16
     """
     rng = np.random.default_rng(random_state)

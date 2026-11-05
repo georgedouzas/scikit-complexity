@@ -49,7 +49,7 @@ class EdgeDrawInteraction(NeighborInteraction):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.models.biology.common.networks import EdgeDrawInteraction
         >>> edge = SimpleNamespace(w=var('w'), fresh=var('fresh'))
-        >>> draw = EdgeDrawInteraction('draw', target='species', edges='links').check().prepare()
+        >>> draw = EdgeDrawInteraction('draw', target='species', edges='links').prepare()
         >>> [str(law.value) for law in draw.run(SimpleNamespace(edge=edge, noise=var('noise'))).laws_][1]
         '0'
     """

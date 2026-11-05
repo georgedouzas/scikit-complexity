@@ -191,7 +191,7 @@ def _gauss_residual(edges: scipy.sparse.csr_array, t: float, values: Mapping[str
 
 def _market_observables(system: System) -> list[ObservableSpec]:
     """Return the total of the good and the Gauss residual against its excess density."""
-    space = system.elements[0].space.check().prepare()
+    space = system.elements[0].space.prepare()
     return [
         ObservableSpec('total_good', function=_total_good),
         ObservableSpec('gauss_residual', function=partial(_gauss_residual, space.incidences_[0])),
@@ -263,7 +263,7 @@ def gauge_arbitrage_market(
         >>> [element.label for element in gauge_arbitrage_market(4).elements]
         ['sites', 'links']
     """
-    space = CellComplexSpace(LatticeSpace((size, size))).check().prepare()
+    space = CellComplexSpace(LatticeSpace((size, size))).prepare()
     density = 1.0 + bump * np.random.default_rng(seed).random(size * size)
     field = _initial_field(space.incidences_[0], density - density.mean())
     sites = GroupElement('sites', element=GoodSiteElement, space=space, on='sites', values={'rho': density})

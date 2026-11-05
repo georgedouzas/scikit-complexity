@@ -29,9 +29,7 @@ def _pair(interaction, distance):
 def test_lennard_jones_force_vanishes_at_minimum(solver):
     """Test that two particles at `2 ** (1 / 6)` stay at rest."""
     system = _pair(LennardJonesInteraction('lj', first='pair', second='pair', cutoff=2.5), 2 ** (1 / 6))
-    velocities = (
-        Simulation(system, solver=solver, dt=0.1).check().prepare().run(until=1).trajectory_.values('pair.x_d1')
-    )
+    velocities = Simulation(system, solver=solver, dt=0.1).prepare().run(until=1).trajectory_.values('pair.x_d1')
     assert np.allclose(velocities, 0.0, atol=1e-10)
 
 

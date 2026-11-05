@@ -51,7 +51,7 @@ class LoggedPaths:
 
 def _run(system, observer, until=1.0, dt=0.1):
     """Run a system with a Rerun observer whose visuals log to a stand-in."""
-    simulation = Simulation(system, dt=dt, observers=[observer]).check().prepare()
+    simulation = Simulation(system, dt=dt, observers=[observer]).prepare()
     simulation.run(until=until)
     return simulation
 
@@ -88,10 +88,10 @@ def test_scalars_visual_logs_nested_paths():
     """Test that scalar states are logged under the element path."""
     recording = LoggedPaths()
     system = System(systems=[System('meadow', elements=[PopulationElement('rabbits')])])
-    simulation = Simulation(system).check().prepare().run(until=0.0)
+    simulation = Simulation(system).prepare().run(until=0.0)
     element = simulation.problem_.elements[0]
     frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
-    ScalarsVisual(path=element.path, recording=recording).check().prepare(frame.problem).run(frame)
+    ScalarsVisual(path=element.path, recording=recording).prepare(frame.problem).run(frame)
     assert recording.logs == [('meadow/rabbits/n', 'Scalars')]
 
 
@@ -103,12 +103,11 @@ def test_points_visual_logs_positions(n_dim, archetype):
         interactions=[ConstantForceInteraction('push', target='ball', F=1.0)],
         space=ContinuousSpace(n_dim=n_dim),
     )
-    simulation = Simulation(system).check().prepare().run(until=0.0)
+    simulation = Simulation(system).prepare().run(until=0.0)
     recording = LoggedPaths()
     frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
     (
         PointsVisual(position='x', path=simulation.problem_.elements[0].path, recording=recording)
-        .check()
         .prepare(simulation.problem_)
         .run(frame)
     )
@@ -216,27 +215,27 @@ def test_rerun_observer_waits_for_a_file_without_limit(monkeypatch, tmp_path):
 def _gas(visual):
     """Return a compiled gas of two particles drawn with a visual spec."""
     gas = GroupElement('gas', element=MassPointElement, size=2, visual=visual)
-    return Simulation(System(elements=[gas], space=ContinuousSpace(n_dim=2))).check().prepare().problem_
+    return Simulation(System(elements=[gas], space=ContinuousSpace(n_dim=2))).prepare().problem_
 
 
 def test_rerun_observer_builds_the_visuals_the_specs_name():
     """Test that the observer builds the visual a spec names with its options, its path, and its recording."""
-    observer = RerunObserver().check().prepare(_gas(VisualSpec('points', {'position': 'x', 'radius': 0.2})))
+    observer = RerunObserver().prepare(_gas(VisualSpec('points', {'position': 'x', 'radius': 0.2})))
     visual = observer.visuals_[0]
     assert isinstance(visual, PointsVisual)
     assert (visual.radius, visual.path, visual.recording_) == (0.2, 'gas', observer.recording_)
     with pytest.raises(KeyError, match='unknown'):
-        RerunObserver().check().prepare(_gas(VisualSpec('unknown')))
+        RerunObserver().prepare(_gas(VisualSpec('unknown')))
 
 
 def test_visual_base_log_is_abstract():
     """Test that the base visual must be subclassed."""
-    simulation = Simulation(create('lotka_volterra')).check().prepare().run(until=0.0)
+    simulation = Simulation(create('lotka_volterra')).prepare().run(until=0.0)
     problem = simulation.problem_
     frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, problem)
     recording = rr.RecordingStream('test_visual_base_log_is_abstract')
     with pytest.raises(NotImplementedError):
-        BaseVisual(path=problem.elements[0].path, recording=recording).check().prepare(problem).run(frame)
+        BaseVisual(path=problem.elements[0].path, recording=recording).prepare(problem).run(frame)
 
 
 def test_group_is_logged_as_one_batch(monkeypatch, tmp_path):
@@ -250,7 +249,7 @@ def test_group_is_logged_as_one_batch(monkeypatch, tmp_path):
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     observer = RerunObserver('test', save_path=tmp_path / 'gas.rrd')
-    Simulation(ideal_gas(10_000, random_state=0), dt=0.01, observers=[observer]).check().prepare().run(until=0.02)
+    Simulation(ideal_gas(10_000, random_state=0), dt=0.01, observers=[observer]).prepare().run(until=0.02)
     batches = [entry for entry in logged if entry[0] == 'gas']
     assert len(batches) == 3
     assert all(name == 'Points2D' and len(positions) == 10_000 for _, name, positions in batches)
@@ -270,7 +269,7 @@ def test_points_colored_by_speed_follow_the_color_scale():
         ],
         space=ContinuousSpace(n_dim=2),
     )
-    simulation = Simulation(system).check().prepare().run(until=0.0)
+    simulation = Simulation(system).prepare().run(until=0.0)
     frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
     recording = LoggedPaths()
     visual = PointsVisual(
@@ -281,7 +280,7 @@ def test_points_colored_by_speed_follow_the_color_scale():
         path='gas',
         recording=recording,
     )
-    visual.check().prepare(simulation.problem_)
+    visual.prepare(simulation.problem_)
     colors = []
     recording.log = lambda path, archetype: colors.append(archetype.colors.as_arrow_array().to_pylist())
     visual.run(frame)
@@ -305,7 +304,7 @@ def _agent_logs(monkeypatch, tmp_path, system, until=2):
         system,
         observers=[RerunObserver('agents', save_path=tmp_path / 'agents.rrd')],
         random_state=0,
-    ).check().prepare().run(
+    ).prepare().run(
         until=until,
     )
     return logged
@@ -389,7 +388,7 @@ def _logged(monkeypatch, tmp_path, system):
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
-    Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=1.0)
+    Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=1.0)
     return logged
 
 
@@ -417,7 +416,7 @@ def test_complex_field_has_modulus_and_phase_views():
     problem = compile_system(
         System(elements=[FieldElement('medium', element=TurningElement, space=LatticeSpace((4, 4)))]),
     )
-    views = ImageVisual(path=problem.elements[0].path).check().prepare(problem).views_
+    views = ImageVisual(path=problem.elements[0].path).prepare(problem).views_
     assert [str(view.origin) for view in views] == ['medium/z/modulus', 'medium/z/phase']
 
 
@@ -433,7 +432,7 @@ def _logged_paths(monkeypatch, tmp_path, system, until, **settings):
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     observer = RerunObserver('paths', save_path=tmp_path / 'paths.rrd')
-    Simulation(system, observers=[observer], **settings).check().prepare().run(until=until)
+    Simulation(system, observers=[observer], **settings).prepare().run(until=until)
     return logged, observer
 
 
@@ -503,11 +502,11 @@ def test_changing_network_logs_present_nodes_and_changed_edges():
         ],
         time=DiscreteTime(),
     )
-    simulation = Simulation(system, dt=1.0, random_state=0, record=True).check().prepare().run(until=3)
+    simulation = Simulation(system, dt=1.0, random_state=0, record=True).prepare().run(until=3)
     trajectory, problem = simulation.trajectory_, simulation.problem_
     element = next(item for item in problem.elements if item.path == 'nodes')
     recording = _AllLogs()
-    visual = SiteVisual(path=element.path, recording=recording).check().prepare(problem)
+    visual = SiteVisual(path=element.path, recording=recording).prepare(problem)
     for index in range(len(trajectory.times)):
         frame = FrameSpec(
             index,
@@ -528,17 +527,13 @@ def test_changing_network_logs_present_nodes_and_changed_edges():
 def test_large_game_of_life_runs_in_real_time(tmp_path):
     """Test that a 1000 x 1000 Game of Life on Numba sustains 30 steps per second while streaming images."""
     observer = RerunObserver('life', save_path=tmp_path / 'life.rrd')
-    simulation = (
-        Simulation(
-            game_of_life((1000, 1000)),
-            dt=1,
-            backend=NumbaBackend(),
-            record=False,
-            observers=[observer],
-        )
-        .check()
-        .prepare()
-    )
+    simulation = Simulation(
+        game_of_life((1000, 1000)),
+        dt=1,
+        backend=NumbaBackend(),
+        record=False,
+        observers=[observer],
+    ).prepare()
     simulation.run(until=2)
     simulation.observers = [RerunObserver('life', save_path=tmp_path / 'paced.rrd')]
     simulation.clock = RealTimeClock(30.0)

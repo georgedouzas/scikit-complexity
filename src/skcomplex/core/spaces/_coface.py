@@ -20,7 +20,7 @@ class CofaceNeighborhood(BaseNeighborhood):
 
     Examples:
         >>> from skcomplex.core.spaces import CofaceNeighborhood
-        >>> CofaceNeighborhood().check().prepare().label
+        >>> CofaceNeighborhood().prepare().label
         'neighborhood'
     """
 

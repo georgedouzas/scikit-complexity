@@ -13,7 +13,7 @@ def _run(**parameters):
     """Return the trajectory of one Van der Pol oscillator over a long run."""
     system = System(elements=[VanDerPolElement('oscillator', **parameters)])
     solver = ScipyODESolver(rtol=1e-9, atol=1e-11)
-    return Simulation(system, dt=0.05, solver=solver).check().prepare().run(until=100.0).trajectory_
+    return Simulation(system, dt=0.05, solver=solver).prepare().run(until=100.0).trajectory_
 
 
 def test_unforced_oscillator_reaches_its_limit_cycle():

@@ -21,7 +21,7 @@ MODEL = 'adaptrode'
 
 system = create(MODEL, period=10.0, stop=150.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=400)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=400)
 
 # %%
 # Three memories

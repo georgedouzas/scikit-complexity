@@ -30,7 +30,6 @@ simulation = (
         observers=[observer],
         random_state=0,
     )
-    .check()
     .prepare()
     .run(
         until=100,
@@ -46,19 +45,18 @@ simulation = (
 lam, sigma = 0.5, 0.3
 run = (
     Simulation(create(MODEL), dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), random_state=1)
-    .check()
     .prepare()
     .run(until=2000)
     .trajectory_
 )
 anomaly = run.values('ocean.T')[100:]
 lags = np.arange(80) * 0.1
-histogram = DistributionAnalysis('histogram', bins=40).check().prepare(anomaly).run()
+histogram = DistributionAnalysis('histogram', bins=40).prepare(anomaly).run()
 edges, density = histogram.edges_, histogram.density_
 variance = sigma**2 / (2 * lam)
 grid = np.linspace(edges[0], edges[-1], 200)
 fig, (memory, distribution) = plt.subplots(1, 2, figsize=(10, 4))
-correlation = CorrelationAnalysis(max_lag=79).check().prepare(anomaly).run().correlation_[0]
+correlation = CorrelationAnalysis(max_lag=79).prepare(anomaly).run().correlation_[0]
 memory.plot(lags, correlation, label='simulation')
 memory.plot(lags, np.exp(-lam * lags), color='black', linestyle='--', label='exp(-lam t)')
 memory.set_xlabel('lag')

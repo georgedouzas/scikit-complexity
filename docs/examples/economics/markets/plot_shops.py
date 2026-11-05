@@ -49,7 +49,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=100)
 )
@@ -67,10 +66,7 @@ survivors, leaders, prices = [], [], []
 for share in shares:
     system = create(MODEL, online=share, random_state=0)
     run = (
-        Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system))
-        .check()
-        .prepare()
-        .run(until=100)
+        Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system)).prepare().run(until=100)
     )
     survivors.append(run.trajectory_.values('open_shops')[-1])
     leaders.append(run.trajectory_.values('concentration')[-1])

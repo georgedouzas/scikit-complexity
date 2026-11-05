@@ -22,7 +22,7 @@ MODEL = 'earthquakes'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=250, observers=[observer]).check().prepare().run(until=50000)
+simulation = Simulation(system, dt=250, observers=[observer]).prepare().run(until=50000)
 
 # %%
 # Gutenberg-Richter law
@@ -32,8 +32,8 @@ simulation = Simulation(system, dt=250, observers=[observer]).check().prepare().
 # sizes of a few hundred slips, and fall off beyond them, where earthquakes reach the size of the grid.
 
 sizes = np.array([event.size for event in simulation.trajectory_.events if event.time > 20000], dtype=float)
-fit = FitAnalysis(maximum=300, discrete=True, bootstrap=0, random_state=0).check().prepare(sizes).run()
-ccdf = DistributionAnalysis('ccdf').check().prepare(sizes).run()
+fit = FitAnalysis(maximum=300, discrete=True, bootstrap=0, random_state=0).prepare(sizes).run()
+ccdf = DistributionAnalysis('ccdf').prepare(sizes).run()
 values, survival = ccdf.support_, ccdf.survival_
 tail = (values >= fit.minimum_) & (values <= 300)
 fig, ax = plt.subplots(figsize=(6, 4.5))

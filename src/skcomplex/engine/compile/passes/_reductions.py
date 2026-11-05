@@ -27,7 +27,7 @@ class ReductionsPass(BasePass):
         """Lower the reductions of the drawn laws, the laws set apart, and the events."""
         compilation = self.compilation_
         declarations = Compilation._required(compilation.layout, 'layout')
-        reductions = ReductionLowering().check().prepare(compilation)
+        reductions = ReductionLowering().prepare(compilation)
         specs = Compilation._required(compilation.drawn, 'drawn')
         apart = Compilation._required(compilation.drawn_apart, 'drawn_apart')
         crossings = Compilation._required(compilation.events, 'events')

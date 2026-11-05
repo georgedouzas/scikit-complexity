@@ -19,9 +19,7 @@ MODEL = 'quarter_car'
 system = create(MODEL, height=0.05)
 observables = describe(MODEL).observables_of(system)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = (
-    Simulation(system, dt=0.005, observers=[observer], observables=observables).check().prepare().run(until=3.0)
-)
+simulation = Simulation(system, dt=0.005, observers=[observer], observables=observables).prepare().run(until=3.0)
 
 # %%
 # The step response

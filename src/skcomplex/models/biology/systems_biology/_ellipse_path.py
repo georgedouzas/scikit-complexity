@@ -55,7 +55,7 @@ class EllipsePath(BaseConfig[None, Array]):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.models.biology.systems_biology import EllipsePath
-        >>> path = EllipsePath().check().prepare()
+        >>> path = EllipsePath().prepare()
         >>> path.read_points(np.array([0.0])).shape
         (1, 2)
         >>> path.run(np.array([[1.0, -1.0]])).cells_.tolist()

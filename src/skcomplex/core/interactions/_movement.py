@@ -114,7 +114,7 @@ class MovementInteraction(Interaction):
     Raises:
         ValidationError:
             The step, the schedule, or the ties are unknown, the rate is not positive, a function is not callable, or
-            the step `'best'` has no score, raised by `check`.
+            the step `'best'` has no score, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.core.elements import Element, GroupElement
@@ -126,7 +126,7 @@ class MovementInteraction(Interaction):
         >>> walk = MovementInteraction('walk', target='walkers', step='neighbor')
         >>> space = LatticeSpace((5, 5), neighborhood='von_neumann')
         >>> system = System(elements=[walkers], interactions=[walk], space=space)
-        >>> trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
         >>> [bool(abs(cell - 2).sum() == 1) for cell in trajectory.agents('walkers', 1).locations]
         [True, True]
     """
@@ -178,7 +178,7 @@ class MovementInteraction(Interaction):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function, or None.'
                 raise ValidationError(error_msg)
         if isinstance(self.cost, TransferInteraction):
-            self.cost.check()
+            self.cost._validated()
         elif self.cost is not None and not callable(self.cost):
             error_msg = f'The cost of {self.label!r} is {self.cost!r}. Give a TransferInteraction, a function, or None.'
             raise ValidationError(error_msg)

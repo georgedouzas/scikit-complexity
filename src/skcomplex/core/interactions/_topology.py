@@ -85,7 +85,7 @@ class TopologyInteraction(NeighborInteraction):
         ValidationError:
             The action or the kept end is unknown, both a rate and a probability are given, the number of edges is
             not a whole number, an action other than `'add-node'` has no target, or a hyperedge is given to an action
-            other than `'add-node'` or has fewer than two members, raised by `check`.
+            other than `'add-node'` or has fewer than two members, raised by `prepare`.
 
     Examples:
         >>> import networkx as nx
@@ -98,7 +98,7 @@ class TopologyInteraction(NeighborInteraction):
         >>> links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
         >>> expiry = TopologyInteraction('expiry', target='nodes', action='remove-edge')
         >>> system = System(elements=[nodes, links], interactions=[expiry], space=NetworkSpace(nx.cycle_graph(5)))
-        >>> trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
         >>> len(trajectory.network(0).sources), len(trajectory.network(1).sources)
         (5, 0)
 
@@ -112,7 +112,7 @@ class TopologyInteraction(NeighborInteraction):
         >>> system = System(
         ...     elements=[nodes, links, triangles], interactions=[growth], space=space, time=DiscreteTime()
         ... )
-        >>> trajectory = Simulation(system, random_state=0).check().prepare().run(until=5).trajectory_
+        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=5).trajectory_
         >>> trajectory.network(-1).hyperedges.shape
         (6, 3)
     """
@@ -173,7 +173,7 @@ class TopologyInteraction(NeighborInteraction):
                 error_msg = f'The {name} of {self.label!r} is {value!r}. Give a function of the namespace, or None.'
                 raise ValidationError(error_msg)
         for request in self._get_requests():
-            request.check()
+            request._validated()
 
     def _get_requests(self) -> list[TopologyRequestSpec]:
         """Return the requests of the action, two for a replacement of a node."""

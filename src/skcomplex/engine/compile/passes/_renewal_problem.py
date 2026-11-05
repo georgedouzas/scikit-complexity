@@ -146,7 +146,7 @@ class RenewalProblemPass(BasePass):
                 )
                 raise ValidationError(error_msg)
             readers.append(reference)
-        printer = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments)
+        printer = ExpressionPrinter(time=time, compiled=True).prepare(arguments)
         function = printer.run(list(expressions)).code_
         if not callable(function):
             error_msg = f'The printer returns no function of the renewal laws of {owner}.'
@@ -337,21 +337,17 @@ class RenewalProblemPass(BasePass):
             )
 
         lowered = [item.subs(calls) for item in values]
-        return (
-            RenewalKernel(
-                label=label,
-                members=rows,
-                counts=counts,
-                states=RenewalProblemPass._recorded_states(group, references, rows)[0],
-                names=RenewalProblemPass._recorded_states(group, references, rows)[1],
-                targets=RenewalProblemPass._target_places(owner, targets, references, rows),
-                reset=RenewalProblemPass._member_function(owner, lowered, references, names, time) if lowered else None,
-                waiting=RenewalProblemPass._member_function(owner, [waiting.subs(calls)], references, names, time),
-                before=samplers(first),
-                after=samplers(later),
-                sampler=sampler,
-                reads=RenewalProblemPass._named_reads(group, references, sampler),
-            )
-            .check()
-            .prepare()
-        )
+        return RenewalKernel(
+            label=label,
+            members=rows,
+            counts=counts,
+            states=RenewalProblemPass._recorded_states(group, references, rows)[0],
+            names=RenewalProblemPass._recorded_states(group, references, rows)[1],
+            targets=RenewalProblemPass._target_places(owner, targets, references, rows),
+            reset=RenewalProblemPass._member_function(owner, lowered, references, names, time) if lowered else None,
+            waiting=RenewalProblemPass._member_function(owner, [waiting.subs(calls)], references, names, time),
+            before=samplers(first),
+            after=samplers(later),
+            sampler=sampler,
+            reads=RenewalProblemPass._named_reads(group, references, sampler),
+        ).prepare()

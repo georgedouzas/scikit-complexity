@@ -12,6 +12,6 @@ from skcomplex.models.physics.common.oscillators import SitedOscillatorElement
 def test_sited_oscillator_keeps_its_place_and_turns():
     """Test that a sited oscillator turns at its natural frequency and stays where it is without interactions."""
     system = System(elements=[SitedOscillatorElement('unit', x=[1.0, 2.0], omega=2.0)], space=ContinuousSpace(n_dim=2))
-    trajectory = Simulation(system, dt=0.5).check().prepare().run(until=1.0).trajectory_
+    trajectory = Simulation(system, dt=0.5).prepare().run(until=1.0).trajectory_
     assert trajectory.values('unit.theta')[-1] == pytest.approx(2.0)
     np.testing.assert_allclose(trajectory.values('unit.x')[-1], [1.0, 2.0])

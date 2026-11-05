@@ -49,11 +49,9 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, x=focus(-0.1) + 0.02, y=0.0, beta1=-0.1)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=8)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=200)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=200)
 saddle = (1 + np.sqrt(1 + 0.4)) / 2
-outside = (
-    Simulation(create(MODEL, x=saddle - 0.01, y=0.0, beta1=-0.1), dt=0.1).check().prepare().run(until=60).trajectory_
-)
+outside = Simulation(create(MODEL, x=saddle - 0.01, y=0.0, beta1=-0.1), dt=0.1).prepare().run(until=60).trajectory_
 strips = [
     np.column_stack([100 * run.values('form.x'), -100 * run.values('form.y')])
     for run in (simulation.trajectory_, outside)
@@ -83,7 +81,6 @@ amplitudes, periods = [], []
 for beta1 in values:
     run = (
         Simulation(create(MODEL, x=focus(beta1) + 0.02, y=0.0, beta1=beta1), dt=0.05)
-        .check()
         .prepare()
         .run(until=600)
         .trajectory_

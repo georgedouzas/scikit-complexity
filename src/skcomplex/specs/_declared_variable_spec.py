@@ -24,11 +24,11 @@ class DeclaredVariableSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The spec is neither a `StateSpec` nor a `ParameterSpec`, raised by `check`.
+            The spec is neither a `StateSpec` nor a `ParameterSpec`, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.specs import DeclaredVariableSpec, StateSpec
-        >>> DeclaredVariableSpec(1.5, StateSpec(algebraic=True)).check().value
+        >>> DeclaredVariableSpec(1.5, StateSpec(algebraic=True)).value
         1.5
     """
 
@@ -45,4 +45,4 @@ class DeclaredVariableSpec(BaseSpec):
         if not isinstance(self.spec, StateSpec | ParameterSpec):
             error_msg = f'A declared variable takes a StateSpec or a ParameterSpec, but its spec is {self.spec!r}.'
             raise ValidationError(error_msg)
-        self.spec.check()
+        self.spec._validated()

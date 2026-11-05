@@ -40,5 +40,5 @@ def _run(interaction: BaseInteraction, state: str, values: dict[str, object]) ->
     """Return the values of a state of a 12 by 12 lattice of sites after 100 sweeps of a sampling interaction."""
     sites = LatticeElement('sites', element=SiteElement, space=LatticeSpace((12, 12)), values=values)
     system = System(elements=[sites], interactions=[interaction], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=100).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=100).trajectory_
     return np.asarray(trajectory.values(f'sites.{state}'))

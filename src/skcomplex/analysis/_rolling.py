@@ -61,7 +61,7 @@ class RollingAnalysis(BaseAnalysis):
         >>> x = np.zeros(2000)
         >>> for t in range(1, 2000):
         ...     x[t] = (0.2 + 0.79 * t / 2000) * x[t - 1] + rng.standard_normal()
-        >>> rolling = RollingAnalysis('autocorrelation', window=200, detrend=True).check().prepare(x).run()
+        >>> rolling = RollingAnalysis('autocorrelation', window=200, detrend=True).prepare(x).run()
         >>> bool(rolling.trend_[0] > 0.5)
         True
     """

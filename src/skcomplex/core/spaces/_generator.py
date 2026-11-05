@@ -28,7 +28,7 @@ class GeneratorNeighborhood(MemoryNeighborhood):
 
     Examples:
         >>> from skcomplex.core.spaces import GeneratorNeighborhood
-        >>> GeneratorNeighborhood(['a', 'b']).check().prepare().elements_
+        >>> GeneratorNeighborhood(['a', 'b']).prepare().elements_
         ('1', 'a', 'a^-1', 'b', 'b^-1')
     """
 

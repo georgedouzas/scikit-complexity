@@ -15,5 +15,5 @@ def test_particle_constant_acceleration():
         interactions=[ConstantForceInteraction('push', target='p', F=[4.0, 0.0, -2.0])],
         space=ContinuousSpace(n_dim=3),
     )
-    position = Simulation(system, dt=0.5).check().prepare().run(until=2).trajectory_.values('p.x')[-1]
+    position = Simulation(system, dt=0.5).prepare().run(until=2).trajectory_.values('p.x')[-1]
     assert np.allclose(position, [4.0, 0.0, -2.0])

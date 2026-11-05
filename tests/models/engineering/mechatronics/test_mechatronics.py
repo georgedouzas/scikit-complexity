@@ -11,7 +11,7 @@ from skcomplex.models.engineering.mechatronics import dc_motor, quarter_car
 def test_dc_motor_settles_at_its_closed_form_speed():
     """Test that the angular velocity settles within 1% of `k V / (R b + k^2)`."""
     V, R, k, b = 12.0, 1.0, 0.5, 0.2
-    trajectory = Simulation(dc_motor(V, R=R, k=k, b=b), dt=0.05).check().prepare().run(until=40.0).trajectory_
+    trajectory = Simulation(dc_motor(V, R=R, k=k, b=b), dt=0.05).prepare().run(until=40.0).trajectory_
     speed = k * V / (R * b + k**2)
     assert trajectory.values('rotor.phi_d1')[-1] == pytest.approx(speed, rel=0.01)
     assert trajectory.values('winding.p_i')[-1] == pytest.approx(b * speed / k, rel=0.01)
@@ -27,7 +27,7 @@ def test_dc_motor_records_its_observables():
 
 def test_quarter_car_settles_at_the_step_height():
     """Test that the body and the wheel settle at the step height and the energy of the springs decays."""
-    trajectory = Simulation(quarter_car(height=0.05), dt=0.01).check().prepare().run(until=10.0).trajectory_
+    trajectory = Simulation(quarter_car(height=0.05), dt=0.01).prepare().run(until=10.0).trajectory_
     assert trajectory.values('car.y1')[-1] == pytest.approx(0.05, abs=1e-4)
     assert trajectory.values('car.y2')[-1] == pytest.approx(0.05, abs=1e-4)
     settled = trajectory.times > 0.5

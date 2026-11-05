@@ -79,7 +79,7 @@ class ModelEntry:
     initial_state: Callable[..., Mapping[str, object] | None] | None = dataclasses.field(default=None, repr=False)
     settings: Callable[..., Mapping[str, object]] | None = dataclasses.field(default=None, repr=False)
 
-    def check(self) -> 'ModelEntry':
+    def _validated(self) -> 'ModelEntry':
         """Validate that the default run settings are known and every argument of the factory has a default.
 
         Returns:

@@ -102,13 +102,13 @@ class PassageAnalysis(BaseAnalysis):
 
     Examples:
         >>> from skcomplex.analysis import PassageAnalysis
-        >>> passage = PassageAnalysis(threshold=2).check().prepare([[0, 1, 2, 3], [0, 0, 0, 0]]).run()
+        >>> passage = PassageAnalysis(threshold=2).prepare([[0, 1, 2, 3], [0, 0, 0, 0]]).run()
         >>> passage.passage_times_.tolist()
         [2.0, nan]
-        >>> PassageAnalysis('return-times').check().prepare([0, 1, 0, -1, -2, -1, 0]).run().return_times_.tolist()
+        >>> PassageAnalysis('return-times').prepare([0, 1, 0, -1, -2, -1, 0]).run().return_times_.tolist()
         [2.0, 4.0]
         >>> walk = [[0.5, 0.5, 0.0], [0.25, 0.5, 0.25], [0.0, 0.5, 0.5]]
-        >>> PassageAnalysis('committor', origin=[0], target=[2]).check().prepare(walk).run().committor_.tolist()
+        >>> PassageAnalysis('committor', origin=[0], target=[2]).prepare(walk).run().committor_.tolist()
         [0.0, 0.5, 1.0]
     """
 

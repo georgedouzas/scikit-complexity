@@ -11,4 +11,4 @@ from skcomplex.specs import AffineSpec
 def test_invalid_fields_raise_rewriting_errors(spec):
     """Test that an affine map rejects invalid fields with a rewriting error."""
     with pytest.raises(RewritingError):
-        spec.check()
+        spec.prepare()

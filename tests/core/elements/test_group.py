@@ -61,47 +61,47 @@ def test_group_stores_arguments():
 
 def test_group_prepares_its_size_values_and_visual():
     """Test that a prepared group has its size, its values, and the visual of its element type."""
-    group = GroupElement('herds', element=PopulationElement, size=3, values={'n': [1.0, 2.0, 3.0]}).check().prepare()
+    group = GroupElement('herds', element=PopulationElement, size=3, values={'n': [1.0, 2.0, 3.0]}).prepare()
     assert group.size_ == 3
     assert group.values_ == {'n': [1.0, 2.0, 3.0]}
     assert group.default_visual_ == VisualSpec('line')
-    plain = GroupElement('cells', element=CellElement, size=2).check().prepare()
+    plain = GroupElement('cells', element=CellElement, size=2).prepare()
     assert plain.default_visual_ == VisualSpec()
 
 
 def test_group_runs_into_the_laws_of_one_member():
     """Test that a group runs into the laws of its element type, written for one member."""
     n = var('n')
-    (law,) = GroupElement('herds', element=PopulationElement, size=3).check().prepare().run(SimpleNamespace(n=n)).laws_
+    (law,) = GroupElement('herds', element=PopulationElement, size=3).prepare().run(SimpleNamespace(n=n)).laws_
     assert law.value == n
 
 
 def test_group_shared_and_lattice_values_are_accepted():
     """Test that shared values, per-member arrays, and values on the sites of a space pass the checks of a group."""
-    assert GroupElement('gas', element=PointElement, size=3, values={'x': [0.5, 0.5]}).check().prepare().size_ == 3
+    assert GroupElement('gas', element=PointElement, size=3, values={'x': [0.5, 0.5]}).prepare().size_ == 3
     sites = GroupElement('cells', element=PopulationElement, space=LatticeSpace((2, 3)), on='sites')
-    assert sites.check().prepare().size_ == 6
+    assert sites.prepare().size_ == 6
 
 
 def test_group_sizes_itself_from_the_parts_of_its_space():
     """Test that a group on the edges of a network or a layer without a size has one member per edge."""
     space = NetworkSpace(nx.cycle_graph(4), layers=[LayerSpec('work', nx.complete_graph(4))])
-    assert GroupElement('wages', element=PopulationElement, space=space, on='edges').check().prepare().size_ == 4
+    assert GroupElement('wages', element=PopulationElement, space=space, on='edges').prepare().size_ == 4
     work = GroupElement('wages', element=PopulationElement, space=space, on='edges', layer='work')
-    assert work.check().prepare().size_ == 6
-    inherited = GroupElement('weights', element=PopulationElement, on='edges').check()
+    assert work.prepare().size_ == 6
+    inherited = GroupElement('weights', element=PopulationElement, on='edges')
     assert inherited.prepare(NetworkSpace(nx.cycle_graph(30))).size_ == 30
 
 
 def test_group_on_parts_without_a_space_raises_error():
     """Test that a group on parts with neither a size nor a space cannot be prepared."""
     with pytest.raises(SpaceError, match='neither a size nor a space'):
-        GroupElement('weights', element=PopulationElement, on='edges').check().prepare()
+        GroupElement('weights', element=PopulationElement, on='edges').prepare()
 
 
 def test_group_wrong_number_of_values_raises_error():
     """Test that preparing a group with the wrong number of values names the group, the variable, and both sizes."""
-    group = GroupElement('gas', element=PointElement, size=1000, values={'x': np.zeros((999, 2))}).check()
+    group = GroupElement('gas', element=PointElement, size=1000, values={'x': np.zeros((999, 2))})
     with pytest.raises(ValidationError, match=r"'gas' has 999 values of x for 1000 members"):
         group.prepare()
 
@@ -110,37 +110,37 @@ def test_group_wrong_number_of_values_raises_error():
 def test_group_invalid_size_raises_error(size):
     """Test that checking a group rejects a size that is not a positive integer."""
     with pytest.raises(ValidationError, match='not a positive integer'):
-        GroupElement('herds', element=PopulationElement, size=size).check()
+        GroupElement('herds', element=PopulationElement, size=size).prepare()
 
 
 def test_empty_variable_group_on_sites_is_accepted():
     """Test that a variable group on sites may start empty."""
     group = GroupElement('agents', element=PopulationElement, size=0, variable=True, on='sites')
-    assert group.check() is group
+    assert group.prepare() is group
 
 
 def test_group_unknown_value_raises_error():
     """Test that checking a group with a value its element type does not take names the value."""
     with pytest.raises(ValueError, match="'foo'"):
-        GroupElement('herds', element=PopulationElement, size=3, values={'foo': 1}).check()
+        GroupElement('herds', element=PopulationElement, size=3, values={'foo': 1}).prepare()
 
 
 def test_group_non_element_type_raises_error():
     """Test that checking a group rejects an element that is not an element class."""
     with pytest.raises(ValidationError, match='not an element class'):
-        GroupElement('herds', element=int, size=3).check()
+        GroupElement('herds', element=int, size=3).prepare()
 
 
 def test_unknown_part_is_rejected():
     """Test that checking a group on a part other than sites, edges, and hyperedges raises an error."""
     with pytest.raises(SpaceError, match='faces'):
-        GroupElement('cells', element=PopulationElement, on='faces', space=LatticeSpace(4)).check()
+        GroupElement('cells', element=PopulationElement, on='faces', space=LatticeSpace(4)).prepare()
 
 
 def test_group_with_invalid_size_is_reported_with_its_path():
     """Test that a group built with an invalid size is reported by validating the system, with the path of the group."""
     system = System(systems=[System('meadow', elements=[GroupElement('herds', element=PopulationElement, size=0)])])
-    (issue,) = PassCompiler().check().prepare(system).report_.errors
+    (issue,) = PassCompiler().prepare(system).report_.errors
     assert issue.message.startswith("meadow/herds: Group 'herds' has size 0")
 
 

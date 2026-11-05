@@ -35,7 +35,7 @@ class FeedbackInteraction[ModelT: ModelViewProtocol](Interaction):
 
     Examples:
         >>> from skcomplex.core.interactions import FeedbackInteraction
-        >>> FeedbackInteraction('controller', rule=lambda model: None).check().phase is None
+        >>> FeedbackInteraction('controller', rule=lambda model: None).phase is None
         True
     """
 

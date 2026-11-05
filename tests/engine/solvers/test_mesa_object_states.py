@@ -45,7 +45,7 @@ def _queue_run(until=3):
     """Return the trajectory of two queues."""
     group = GroupElement('queues', element=QueueElement, size=2, values={'orders': [(), (7,)]})
     system = System(elements=[group], time=DiscreteTime())
-    return Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
+    return Simulation(system, random_state=0).prepare().run(until=until).trajectory_
 
 
 def test_snapshots_keep_tuples_as_they_were():
@@ -71,7 +71,7 @@ def test_composition_counts_agents_by_tuple():
             super()._step(agent, model)
 
     group = GroupElement('queues', element=CountingElement, size=2, values={'orders': [(), (7,)]})
-    Simulation(System(elements=[group], time=DiscreteTime()), random_state=0).check().prepare().run(until=1)
+    Simulation(System(elements=[group], time=DiscreteTime()), random_state=0).prepare().run(until=1)
     assert seen[0] == {(): 1, (7,): 1}
     assert sum(seen[1].values()) == 2
 
@@ -114,11 +114,7 @@ def test_snapshots_read_headings_from_roles_alone():
     """Test that a state named `phase` stays a state, and the state with the role is the heading."""
     group = GroupElement('walkers', element=PhasedElement, size=3)
     trajectory = (
-        Simulation(System(elements=[group], time=DiscreteTime()), random_state=0)
-        .check()
-        .prepare()
-        .run(until=2)
-        .trajectory_
+        Simulation(System(elements=[group], time=DiscreteTime()), random_state=0).prepare().run(until=2).trajectory_
     )
     snapshots = AlignmentAnalysis(group='walkers')._read_snapshots(trajectory, 'walkers')
     assert np.all(snapshots.directions == 0.5)
@@ -128,7 +124,7 @@ def test_snapshots_read_headings_from_roles_alone():
 def test_state_spec_rejects_an_unknown_role():
     """Test that a role is one of the names analyses read."""
     with pytest.raises(ValidationError, match='The role of a state'):
-        StateSpec(role='spin').check()
+        StateSpec(role='spin').prepare()
 
 
 def test_observable_keeps_a_hashable_value():
@@ -136,7 +132,7 @@ def test_observable_keeps_a_hashable_value():
     observables = [ObservableSpec('lengths', group='queues', variable='orders', reduce=_lengths)]
     group = GroupElement('queues', element=QueueElement, size=2, values={'orders': [(), (7,)]})
     system = System(elements=[group], time=DiscreteTime())
-    trajectory = Simulation(system, observables=observables, random_state=0).check().prepare().run(until=2).trajectory_
+    trajectory = Simulation(system, observables=observables, random_state=0).prepare().run(until=2).trajectory_
     assert trajectory.values('lengths')[0] == pytest.approx([0, 1])
 
 

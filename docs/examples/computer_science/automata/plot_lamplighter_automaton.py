@@ -26,7 +26,7 @@ MODEL = 'lamplighter_automaton'
 
 system = create(MODEL, radius=7, density=0.1, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).check().prepare().run(until=20)
+simulation = Simulation(system, observers=[observer]).prepare().run(until=20)
 
 # %%
 # Ones over time and invertibility on a quotient
@@ -37,7 +37,7 @@ simulation = Simulation(system, observers=[observer]).check().prepare().run(unti
 # there.
 
 alive = simulation.trajectory_.values('cells.alive')
-quotient = CayleySpace(lamplighter().PermGroupOnLevel(3)).check().prepare()
+quotient = CayleySpace(lamplighter().PermGroupOnLevel(3)).prepare()
 parity = System(
     elements=[LatticeElement('cells', element=BinaryCellElement, space=quotient)],
     interactions=[
@@ -50,7 +50,7 @@ parity = System(
         ),
     ],
 )
-invertible = AutomatonAnalysis('injective').check().prepare(parity).run().injective_
+invertible = AutomatonAnalysis('injective').prepare(parity).run().injective_
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(simulation.trajectory_.times, alive.sum(axis=1), 'o-')
 ax.set_xlabel('step')

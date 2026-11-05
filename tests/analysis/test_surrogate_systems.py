@@ -11,7 +11,7 @@ def _fit(labels, dt=0.1):
     """Return the mode decomposition of decaying series of the given variables, sampled every `dt`."""
     times = np.arange(30) * dt
     values = np.exp(-np.outer(times, np.arange(1, len(labels) + 1)))
-    return ModeDecompositionAnalysis(labels, dt=dt).check().prepare(values).run()
+    return ModeDecompositionAnalysis(labels, dt=dt).prepare(values).run()
 
 
 @pytest.mark.parametrize(
@@ -43,14 +43,14 @@ def _damped_rotation():
 
 def _last_values(analysis, states, until, dt):
     """Return the last values of states of the surrogate of an analysis."""
-    trajectory = Simulation(analysis.system_, dt=dt).check().prepare().run(until=until).trajectory_
+    trajectory = Simulation(analysis.system_, dt=dt).prepare().run(until=until).trajectory_
     return [float(np.ravel(trajectory.values(f'surrogate.{state}'))[-1]) for state in states]
 
 
 def test_sparse_identification_keeps_its_reference_values():
     """Test the run of the sparse surrogate against the values recorded before it moved to declared states."""
     analysis = SparseIdentificationAnalysis(['x', 'y'], degree=1, threshold=0.01, dt=0.05)
-    analysis = analysis.check().prepare(_damped_rotation()).run()
+    analysis = analysis.prepare(_damped_rotation()).run()
     assert _last_values(analysis, ['x', 'y'], 1.0, 0.01) == pytest.approx(
         [-0.25163852889586635, 0.5533559045838776],
         rel=1e-9,
@@ -59,7 +59,7 @@ def test_sparse_identification_keeps_its_reference_values():
 
 def test_mode_decomposition_keeps_its_reference_values():
     """Test the run of the linear surrogate against the values recorded before it moved to declared states."""
-    analysis = ModeDecompositionAnalysis(['x', 'y'], dt=0.05).check().prepare(_damped_rotation()).run()
+    analysis = ModeDecompositionAnalysis(['x', 'y'], dt=0.05).prepare(_damped_rotation()).run()
     assert _last_values(analysis, ['x', 'y'], 1.0, 0.01) == pytest.approx(
         [-0.25240559441454513, 0.5515162392689774],
         rel=1e-9,
@@ -77,7 +77,7 @@ def test_reservoir_keeps_its_reference_values():
         validation=0.0,
         dt=0.05,
     )
-    analysis = analysis.check().prepare(_damped_rotation()).run()
+    analysis = analysis.prepare(_damped_rotation()).run()
     assert _last_values(analysis, ['x', 'y'], 10, 1) == pytest.approx(
         [-0.0024828568048470227, 0.004773226924693426],
         rel=1e-9,

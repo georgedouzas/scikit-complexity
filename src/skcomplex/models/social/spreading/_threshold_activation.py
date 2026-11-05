@@ -27,7 +27,7 @@ class ThresholdActivationInteraction(MapInteraction):
 
     Examples:
         >>> from skcomplex.models.social.spreading import ThresholdActivationInteraction
-        >>> ThresholdActivationInteraction('activation', target='nodes').check().state
+        >>> ThresholdActivationInteraction('activation', target='nodes').state
         'active'
     """
 

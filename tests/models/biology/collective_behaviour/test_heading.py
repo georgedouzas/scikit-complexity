@@ -19,7 +19,7 @@ def _velocities(values, locations, interactions, until=1):
     flock = GroupElement('flock', element=SpatialBoidElement, size=len(locations), values=values, location=locations)
     space = ContinuousSpace(extent=(10.0, 10.0, 10.0), boundary='periodic')
     simulation = Simulation(System(elements=[flock], interactions=interactions, space=space), random_state=0)
-    return simulation.check().prepare().run(until=until).trajectory_.agents('flock', until)
+    return simulation.prepare().run(until=until).trajectory_.agents('flock', until)
 
 
 def test_spatial_flight_moves_boids_by_velocity_across_the_depth_boundary():

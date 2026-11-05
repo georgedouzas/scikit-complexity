@@ -52,7 +52,7 @@ class MatrixVisual(BaseVisual):
         >>> from skcomplex.engine.viz import MatrixVisual
         >>> from skcomplex.models.computer_science.neural_networks import elman_network
         >>> problem = compile_system(elman_network(n_bits=30))
-        >>> MatrixVisual('A', path='net/recurrence').check().prepare(problem).name_
+        >>> MatrixVisual('A', path='net/recurrence').prepare(problem).name_
         'net/recurrence.A'
     """
 

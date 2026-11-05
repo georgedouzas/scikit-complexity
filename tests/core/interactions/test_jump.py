@@ -37,7 +37,7 @@ def _final(interactions, until, *, time=None, size=MEMBERS, dt=1.0, state='x'):
     """Return the final values of a state of every member of a group of counters."""
     group = GroupElement('counters', element=CounterElement, size=size)
     system = System(elements=[group], interactions=interactions, time=time)
-    simulation = Simulation(system, dt=dt, random_state=0).check().prepare().run(until=until)
+    simulation = Simulation(system, dt=dt, random_state=0).prepare().run(until=until)
     return np.atleast_1d(simulation.trajectory_.values(f'counters.{state}')[-1])
 
 
@@ -109,7 +109,7 @@ def test_jumps_after_fixed_waits_reset_states():
 def test_check_rejects_clocks_and_changes_it_cannot_take(arguments, match):
     """Test that a jump without one clock, without changes, or with a reset it cannot take raises an error."""
     with pytest.raises(ValidationError, match=match):
-        JumpInteraction('jump', target='counters', **arguments).check()
+        JumpInteraction('jump', target='counters', **arguments).prepare()
 
 
 class PositionElement(Element):
@@ -133,6 +133,6 @@ def test_jumps_after_waits_reset_every_component_of_a_vector_state():
         interactions=[steps],
         space=ContinuousSpace(n_dim=2),
     )
-    simulation = Simulation(system, dt=1.0, random_state=0).check().prepare()
+    simulation = Simulation(system, dt=1.0, random_state=0).prepare()
     trajectory = simulation.run(until=3.5).trajectory_
     np.testing.assert_allclose(trajectory.values('walker.x')[-1], [3.0, 3.0])

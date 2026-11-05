@@ -46,5 +46,5 @@ def test_generalized_lotka_volterra_matrix_swept_by_an_experiment():
     second[0, 1] = 0.3
     bounds = {'glv.a': [first, second]}
     experiment = Experiment(generalized_lotka_volterra(), GridDesign(), bounds, until=30.0, outputs=['species.x'])
-    final = experiment.check().prepare().run().result_.series('species.x')[:, -1]
+    final = experiment.prepare().run().result_.series('species.x')[:, -1]
     assert not np.allclose(final[0], final[1])

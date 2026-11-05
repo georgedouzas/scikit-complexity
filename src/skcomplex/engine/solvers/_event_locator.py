@@ -50,7 +50,7 @@ class EventLocator:
         def apply(t: float, x: Array, p: Array) -> Array:
             return x.copy() if reset is None else reset(t, x, p, member)
 
-        return EventKernel(event.label, guard, apply, event.direction, event.terminal).check().prepare()
+        return EventKernel(event.label, guard, apply, event.direction, event.terminal).prepare()
 
     @staticmethod
     def _crossed(direction: int, g0: Array, g1: Array) -> Array:

@@ -143,7 +143,7 @@ def test_valid_system_has_no_issues():
         elements=[StockElement('rabbits')],
         interactions=[GrowthInteraction('growth', target='rabbits')],
     )
-    report = PassCompiler().check().prepare(system).report_
+    report = PassCompiler().prepare(system).report_
     assert report.ok
     assert report.issues == ()
 
@@ -154,7 +154,7 @@ def test_several_errors_are_reported_at_once():
         elements=[StockElement('rabbits'), WalkerElement('walker')],
         interactions=[GrowthInteraction('growth', target='foxes')],
     )
-    report = PassCompiler().check().prepare(system).report_
+    report = PassCompiler().prepare(system).report_
     assert sorted(_codes(report)) == ['role', 'space-missing']
     assert {issue.path for issue in report.errors} == {'growth', 'walker'}
     assert all(issue.fix for issue in report.issues)
@@ -163,7 +163,7 @@ def test_several_errors_are_reported_at_once():
 def test_unsupported_solver_lists_capable_solvers():
     """Test that a variable group validated with RK4 reports the unsupported components and capable solvers."""
     system = System(elements=[GroupElement('ants', element=AntElement, size=3, variable=True)])
-    report = PassCompiler(solver=RK4Solver()).check().prepare(system).report_
+    report = PassCompiler(solver=RK4Solver()).prepare(system).report_
     issue = next(issue for issue in report.errors if 'laws' in issue.message)
     assert issue.code == 'solver-unsupported'
     assert 'RuleLaw' in issue.message
@@ -176,7 +176,7 @@ def test_mixed_laws_suggest_partitions():
         elements=[StockElement('rabbits'), CounterElement('clock')],
         interactions=[GrowthInteraction('growth', target='rabbits')],
     )
-    (issue,) = PassCompiler().check().prepare(system).report_.errors
+    (issue,) = PassCompiler().prepare(system).report_.errors
     assert issue.code == 'laws-mixed'
     assert 'RateLaw: rabbits' in issue.message
     assert 'UpdateLaw: clock' in issue.message
@@ -195,7 +195,7 @@ def test_mixed_laws_in_nested_systems_are_valid():
             System('clock', elements=[CounterElement('counter')]),
         ],
     )
-    assert PassCompiler().check().prepare(system).report_.ok
+    assert PassCompiler().prepare(system).report_.ok
 
 
 def test_report_raises_every_error():
@@ -208,7 +208,7 @@ def test_report_raises_every_error():
         ),
     )
     with pytest.warns(ValidationWarning, match='Something to know'), pytest.raises(ValidationError) as error:
-        report.check()
+        report.prepare()
     assert '2 error(s)' in str(error.value)
     assert 'growth: The role is unbound. Bind it. [role]' in str(error.value)
     assert '[law-domain]' in str(error.value)
@@ -244,7 +244,7 @@ class NoisyPlantElement(PlantElement):
 
 def test_validate_control_outside_bounds():
     """Test that an adaptive parameter starting outside its bounds is one error at the parameter, naming its bounds."""
-    (issue,) = PassCompiler().check().prepare(System(elements=[PlantElement('plant', u=2.0)])).report_.errors
+    (issue,) = PassCompiler().prepare(System(elements=[PlantElement('plant', u=2.0)])).report_.errors
     assert issue.path == 'plant.u'
     assert issue.code == 'parameter-bounds'
     # typing caches equal annotations, so the bounds print as those of the first equal spec: (0, 1) or (0.0, 1.0)
@@ -254,14 +254,14 @@ def test_validate_control_outside_bounds():
 def test_validate_controls_with_an_optimal_control_solver():
     """Test that a system with bounded controls is valid for an optimal control solver and for a stepper."""
     solver = PontryaginSolver(objective=lambda s: s.plant.x**2)
-    assert PassCompiler(solver=solver).check().prepare(System(elements=[PlantElement('plant')])).report_.ok
-    assert PassCompiler(solver=RK4Solver()).check().prepare(System(elements=[PlantElement('plant')])).report_.ok
+    assert PassCompiler(solver=solver).prepare(System(elements=[PlantElement('plant')])).report_.ok
+    assert PassCompiler(solver=RK4Solver()).prepare(System(elements=[PlantElement('plant')])).report_.ok
 
 
 def test_validate_noise_with_an_optimal_control_solver():
     """Test that a system with a noise law validated with Pontryagin reports that the solver lacks noise laws."""
     solver = PontryaginSolver(objective=lambda s: s.plant.x**2)
-    issues = PassCompiler(solver=solver).check().prepare(System(elements=[NoisyPlantElement('plant')])).report_.errors
+    issues = PassCompiler(solver=solver).prepare(System(elements=[NoisyPlantElement('plant')])).report_.errors
     issue = next(issue for issue in issues if issue.code == 'solver-unsupported')
     assert 'PontryaginSolver does not support the laws NoiseLaw' in issue.message
 
@@ -290,7 +290,7 @@ def test_group_space_reports_the_checkerboard_schedule():
     """Test that a sample with the checkerboard schedule on a group space is one issue naming the other schedules."""
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=2)
     system = System(elements=[LatticeElement('spins', element=GroupSpinElement, space=space)])
-    report = PassCompiler().check().prepare(system).report_
+    report = PassCompiler().prepare(system).report_
     issues = report.issues
     (issue,) = [issue for issue in issues if issue.code == 'schedule-unsupported']
     assert issue.path == 'spins'
@@ -303,7 +303,7 @@ def test_group_space_reports_an_image_visual():
     space = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=2)
     group = LatticeElement('spins', element=GroupSpinElement, space=space, visual=VisualSpec('image'))
     system = System(elements=[group])
-    report = PassCompiler().check().prepare(system).report_
+    report = PassCompiler().prepare(system).report_
     issue = next(issue for issue in report.issues if issue.code == 'visual-unsupported')
     assert "'cayley'" in issue.fix
 
@@ -311,7 +311,7 @@ def test_group_space_reports_an_image_visual():
 def test_group_space_reports_a_ball_above_the_site_limit():
     """Test that a ball of the free group of rank 3 with more sites than the limit is reported."""
     space = CayleySpace(libgap.FreeGroup(['a', 'b', 'c']), ball=12, max_sites=100)
-    issues = PassCompiler().check().prepare(System(space=space)).report_.issues
+    issues = PassCompiler().prepare(System(space=space)).report_.issues
     assert [issue.code for issue in issues] == ['space-too-large']
     assert 'more than 100 sites' in issues[0].message
 
@@ -319,7 +319,7 @@ def test_group_space_reports_a_ball_above_the_site_limit():
 def test_lattice_with_a_bad_boundary_is_reported():
     """Test that a lattice whose boundary is not supported is a space-invalid error that lists the boundaries."""
     space = LatticeSpace((4, 4), boundary='spherical')
-    (issue,) = PassCompiler().check().prepare(System(elements=[StockElement('rabbits')], space=space)).report_.errors
+    (issue,) = PassCompiler().prepare(System(elements=[StockElement('rabbits')], space=space)).report_.errors
     assert issue.code == 'space-invalid'
     assert "'spherical'" in issue.message
     assert 'periodic, fixed, reflecting' in issue.message
@@ -332,7 +332,7 @@ def test_invalid_space_among_other_errors_is_reported():
         interactions=[GrowthInteraction('growth', target='hares')],
         space=LatticeSpace((4, 4), boundary='spherical'),
     )
-    assert {issue.code for issue in PassCompiler().check().prepare(system).report_.errors} == {'space-invalid', 'role'}
+    assert {issue.code for issue in PassCompiler().prepare(system).report_.errors} == {'space-invalid', 'role'}
     with pytest.raises(ValidationError, match='space-invalid'):
         compile_system(system)
 
@@ -343,7 +343,7 @@ def test_validation_keeps_the_planned_compilation():
         elements=[StockElement('rabbits')],
         interactions=[GrowthInteraction('growth', target='rabbits')],
     )
-    compilation = PassCompiler().check().prepare(system).compilation_
+    compilation = PassCompiler().prepare(system).compilation_
     assert [node.path for node in compilation.nodes] == ['rabbits', 'growth']
     assert [partition.name for partition in compilation.plan.partitions] == [system.label]
 
@@ -410,7 +410,7 @@ class SingleInteraction(Interaction):
 def test_validate_reports_mixed_conventions():
     """Test that laws of different conventions on one process are reported with both laws and the process."""
     system = System(elements=[PairElement('pair', conventions=('ito', 'stratonovich'))])
-    report = PassCompiler().check().prepare(system).report_
+    report = PassCompiler().prepare(system).report_
     issues = report.issues
     (issue,) = [issue for issue in issues if issue.code == 'noise-convention-mixed']
     assert 'ito NoiseLaw of pair' in issue.message
@@ -428,7 +428,7 @@ def test_validate_reports_correction_out_of_scope():
             SingleInteraction('single', target='b', noise=WienerProcessSpec('market')),
         ],
     )
-    report = PassCompiler().check().prepare(system).report_
+    report = PassCompiler().prepare(system).report_
     (issue,) = [issue for issue in report.issues if issue.code == 'noise-correction-scope']
     assert 'NoiseLaw of coupled' in issue.message
     assert 'NoiseLaw of single' in issue.message
@@ -437,7 +437,7 @@ def test_validate_reports_correction_out_of_scope():
 
 def test_validate_reports_invalid_covariance():
     """Test that a covariance with a negative eigenvalue is reported with the element and the eigenvalue."""
-    (issue,) = PassCompiler().check().prepare(_correlated([[1.0, 2.0], [2.0, 1.0]])).report_.issues
+    (issue,) = PassCompiler().prepare(_correlated([[1.0, 2.0], [2.0, 1.0]])).report_.issues
     assert issue.code == 'wiener-covariance'
     assert issue.path == 'market'
     assert '-1' in issue.message
@@ -450,7 +450,7 @@ def test_validate_reports_invalid_covariance():
 def test_validate_reports_covariance_shape_and_symmetry(covariance):
     """Test that a covariance that is not square of the dimension or not symmetric is reported."""
     system = _correlated(covariance)
-    report = PassCompiler().check().prepare(system).report_
+    report = PassCompiler().prepare(system).report_
     assert [issue.code for issue in report.issues] == ['wiener-covariance']
 
 
@@ -460,7 +460,7 @@ def test_validate_reports_handle_as_value():
         elements=[HoldingElement('a')],
         interactions=[MisuseInteraction('misuse', target='a', noise=WienerProcessSpec('market'))],
     )
-    report = PassCompiler().check().prepare(system).report_
+    report = PassCompiler().prepare(system).report_
     (issue,) = [issue for issue in report.issues if issue.code == 'wiener-handle']
     assert 'RateLaw of misuse' in issue.message
     assert 'only the process of a noise law' in issue.message
@@ -491,7 +491,7 @@ def test_validate_reports_wiener_under_discrete_time():
         interactions=[SingleInteraction('single', target='counter', noise=WienerProcessSpec('market'))],
         time=DiscreteTime(),
     )
-    (issue,) = [issue for issue in PassCompiler().check().prepare(system).report_.issues if issue.code == 'wiener-time']
+    (issue,) = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'wiener-time']
     assert issue.path == 'market'
     assert 'continuous time' in issue.fix
 
@@ -499,7 +499,7 @@ def test_validate_reports_wiener_under_discrete_time():
 def test_validate_reports_milstein_with_shared_process():
     """Test that Milstein with a shared process gives one error that names the law and suggests other solvers."""
     system = System(elements=[PairElement('pair')])
-    report = PassCompiler(solver=MilsteinSolver()).check().prepare(system).report_
+    report = PassCompiler(solver=MilsteinSolver()).prepare(system).report_
     (issue,) = report.issues
     assert issue.code == 'noise-unsupported'
     assert 'NoiseLaw of pair' in issue.message
@@ -509,7 +509,7 @@ def test_validate_reports_milstein_with_shared_process():
 
 def test_validate_reports_lammps_with_shared_process():
     """Test that the LAMMPS backend with a shared process is reported with the backends that support it."""
-    issues = PassCompiler(solver=LammpsSolver()).check().prepare(System(elements=[PairElement('pair')])).report_.issues
+    issues = PassCompiler(solver=LammpsSolver()).prepare(System(elements=[PairElement('pair')])).report_.issues
     (issue,) = [issue for issue in issues if issue.code == 'noise-unsupported']
     assert 'NoiseLaw of pair' in issue.message
     assert 'LammpsSolver' in issue.message
@@ -517,7 +517,7 @@ def test_validate_reports_lammps_with_shared_process():
 
 def test_validate_accepts_correlated_noise_with_automatic_solver():
     """Test that the automatic SDE solver declares correlated noise, so validation accepts it."""
-    assert PassCompiler().check().prepare(_correlated([[1.0, 0.5], [0.5, 1.0]])).report_.ok
+    assert PassCompiler().prepare(_correlated([[1.0, 0.5], [0.5, 1.0]])).report_.ok
     assert NoiseKind.CORRELATED in DEFAULT_SOLVERS[FormKind.SDE]._get_support().noise
 
 
@@ -541,7 +541,7 @@ def test_observable_among_the_laws_is_rejected():
             """Return the laws of the mixed element."""
             return [RateLaw(s.a, -s.a), ObservableSpec('level', s.a)]
 
-    (issue,) = PassCompiler().check().prepare(System(elements=[MixedElement('tank')])).report_.errors
+    (issue,) = PassCompiler().prepare(System(elements=[MixedElement('tank')])).report_.errors
     assert issue.path == 'tank'
     assert '`_get_laws` of tank must return a list of' in issue.message
     with pytest.raises(ValidationError, match='tank'):
@@ -587,7 +587,7 @@ def _bindings(interaction, space):
     """Return the binding issues of a group of four nodes on a space, coupled by an interaction."""
     nodes = GroupElement('nodes', element=NodeElement, size=4)
     system = System(elements=[nodes], interactions=[interaction], space=space)
-    report = PassCompiler().check().prepare(system).report_
+    report = PassCompiler().prepare(system).report_
     issues = report.issues
     return [issue for issue in issues if issue.code == 'binding']
 
@@ -626,7 +626,7 @@ def test_hyperedge_interaction_on_hyperedges_is_valid():
 
 def test_validate_shaped_parameter_on_an_element():
     """Test that a parameter shaped by a role bound to a single element is one issue at the parameter."""
-    report = PassCompiler().check().prepare(_weighted(np.ones((4, 2)), [1.0, 2.0], source='single')).report_
+    report = PassCompiler().prepare(_weighted(np.ones((4, 2)), [1.0, 2.0], source='single')).report_
     (issue,) = report.errors
     assert (issue.code, issue.path) == ('parameter-shape', 'input.W')
     assert 'group' in issue.fix
@@ -673,7 +673,7 @@ class TankElement(Element):
 
 def _role_issues(system: System) -> list[IssueSpec]:
     """Return the `role-element` issues of a system."""
-    return [issue for issue in PassCompiler().check().prepare(system).report_.issues if issue.code == 'role-element']
+    return [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'role-element']
 
 
 def test_role_element_reports_a_missing_state_a_role_declares():
@@ -746,7 +746,7 @@ def test_role_element_comes_with_the_other_problems():
             RateInteraction('unbound', target='nowhere', state='n', rate=1.0),
         ],
     )
-    issues = PassCompiler().check().prepare(system).report_.issues
+    issues = PassCompiler().prepare(system).report_.issues
     assert {issue.path for issue in issues if issue.code == 'role-element'} == {'read', 'growth'}
     assert any(issue.path == 'unbound' and issue.code == 'role' for issue in issues)
 
@@ -763,7 +763,7 @@ def test_role_element_keeps_a_missing_name_of_the_namespace():
 
     system = System(elements=[TankElement('tank')], interactions=[WrongNameInteraction('read', target='tank')])
     with pytest.raises(AttributeError, match='undeclared'):
-        PassCompiler().check().prepare(system)
+        PassCompiler().prepare(system)
 
 
 @pytest.mark.parametrize('error', [ValueError('own error'), AttributeError('own error'), KeyError('own error')])
@@ -779,7 +779,7 @@ def test_role_element_keeps_the_other_errors_of_a_law(error):
 
     system = System(elements=[TankElement('tank')], interactions=[FailingInteraction('read', target='tank')])
     with pytest.raises(type(error), match='own error') as caught:
-        PassCompiler().check().prepare(system)
+        PassCompiler().prepare(system)
     assert caught.value is error
 
 

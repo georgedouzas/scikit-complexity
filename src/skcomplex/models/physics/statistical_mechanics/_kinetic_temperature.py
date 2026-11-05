@@ -35,7 +35,7 @@ class KineticTemperatureAnalysis(DistributionAnalysis):
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import KineticTemperatureAnalysis
-        >>> KineticTemperatureAnalysis().check().prepare([[1.0, 0.0], [0.0, 1.0]]).run().temperature_
+        >>> KineticTemperatureAnalysis().prepare([[1.0, 0.0], [0.0, 1.0]]).run().temperature_
         array([0.5])
     """
 

@@ -78,7 +78,7 @@ class DiffusingElement(Element):
 def test_field_checks_its_discretization_and_boundaries(field, message):
     """Test that an unknown discretization or boundary condition is rejected by the check."""
     with pytest.raises(ValidationError, match=message):
-        field.check()
+        field.prepare()
 
 
 def test_field_takes_the_boundaries_of_its_space():
@@ -96,7 +96,7 @@ def test_field_draws_an_image_on_a_lattice_and_a_mesh_on_a_mesh():
     grid = skfem.MeshTri.init_tensor(np.linspace(0, 1, 3), np.linspace(0, 1, 3))
     spaces = {'image': LatticeSpace((3, 3)), 'mesh': MeshSpace(grid.p, grid.t), 'sites': NetworkSpace(nx.path_graph(3))}
     for kind, space in spaces.items():
-        field = FieldElement('f', element=ConservedElement, space=space.check().prepare()).check().prepare()
+        field = FieldElement('f', element=ConservedElement, space=space.prepare()).prepare()
         assert field.default_visual_.kind == kind
 
 
@@ -115,7 +115,6 @@ def test_conserved_noise_keeps_total(backend, stepper, boundary):
     )
     trajectory = (
         Simulation(System(elements=[field]), backend=backend, solver=stepper(dt=0.01), random_state=0, dt=1.0)
-        .check()
         .prepare()
         .run(until=10)
         .trajectory_
@@ -128,16 +127,12 @@ def test_conserved_noise_keeps_total(backend, stepper, boundary):
 def test_conserved_noise_has_site_variance_of_links():
     """Test that every site of a periodic lattice gains the variance `2 d (a / h)^2` per unit time."""
     field = FieldElement('f', element=ConservedElement, space=LatticeSpace((16, 16), spacing=0.5))
-    trajectory = (
-        Simulation(
-            System(elements=[field]),
-            solver=EulerMaruyamaSolver(dt=0.05),
-            random_state=0,
-            dt=4.0,
-        )
-        .check()
-        .prepare()
-    )
+    trajectory = Simulation(
+        System(elements=[field]),
+        solver=EulerMaruyamaSolver(dt=0.05),
+        random_state=0,
+        dt=4.0,
+    ).prepare()
     sites = trajectory.run(until=4).trajectory_.values('f.rho')[-1]
     assert sites.var() == pytest.approx(4 * (0.5 / 0.5) ** 2 * 4, rel=0.15)
 
@@ -148,13 +143,12 @@ def test_conserved_noise_gives_flat_structure_factor():
     field = FieldElement('f', element=DiffusingElement, space=LatticeSpace((16, 16)))
     trajectory = (
         Simulation(System(elements=[field]), solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0)
-        .check()
         .prepare()
         .run(until=1000)
         .trajectory_
     )
     frames = trajectory.values('f.rho')[50:].reshape(-1, 16, 16)
-    factor = SpectrumAnalysis('structure-factor', frames=True).check().prepare(frames).run()
+    factor = SpectrumAnalysis('structure-factor', frames=True).prepare(frames).run()
     np.testing.assert_allclose(factor.power_, 0.5, rtol=0.1)
     np.testing.assert_allclose(np.abs(np.fft.fftn(frames, axes=(1, 2))[:, 0, 0]) ** 2, 0.0, atol=1e-18)
 
@@ -192,7 +186,7 @@ def test_rate_law_relaxes_a_tensor_state(backend):
         space=LatticeSpace((3, 3)),
         values={'Q': np.tile([1.0, 0.5], (9, 1))},
     )
-    simulation = Simulation(System(elements=[field]), dt=0.01, backend=backend()).check().prepare().run(until=1.0)
+    simulation = Simulation(System(elements=[field]), dt=0.01, backend=backend()).prepare().run(until=1.0)
     final = simulation.trajectory_.values('film.Q')[-1]
     assert np.allclose(final, np.tile([1.0, 0.5], (9, 1)) * np.exp(-1.0), rtol=1e-4)
 
@@ -206,10 +200,10 @@ def test_boundary_relaxes_a_tensor_to_its_fixed_matrix():
         space=LatticeSpace((5, 5), boundary='fixed'),
         boundary={'Q': ('fixed', anchor)},
     )
-    field.check()
+    field.prepare()
     assert field._get_boundary('Q', 0) == ('fixed', 0.4)
     assert field._get_boundary('Q', 1) == ('fixed', 0.3)
-    simulation = Simulation(System(elements=[field]), dt=0.05).check().prepare().run(until=60.0)
+    simulation = Simulation(System(elements=[field]), dt=0.05).prepare().run(until=60.0)
     final = simulation.trajectory_.values('film.Q')[-1]
     assert np.allclose(final, np.tile([0.4, 0.3], (25, 1)), atol=1e-6)
 
@@ -223,4 +217,4 @@ def test_boundary_rejects_an_asymmetric_matrix():
         boundary={'Q': ('fixed', [[0.0, 1.0], [2.0, 0.0]])},
     )
     with pytest.raises(ValidationError, match=r'film\.Q'):
-        field.check()
+        field.prepare()

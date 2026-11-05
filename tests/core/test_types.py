@@ -85,5 +85,5 @@ def test_views_of_the_agent_stepper_offer_every_member_of_the_protocols() -> Non
     walkers = GroupElement('walkers', element=Element, size=2, location=[(0, 0), (1, 1)])
     census = FeedbackInteraction[ModelViewProtocol]('census', rule=read)
     system = System(elements=[walkers], interactions=[census], space=LatticeSpace((3, 3)), time=DiscreteTime())
-    Simulation(system, random_state=0).check().prepare().run(until=1)
+    Simulation(system, random_state=0).prepare().run(until=1)
     assert readings == [(True, True, 0, 2, 'walkers', [0.0, 0.0], {}, {}, True)]

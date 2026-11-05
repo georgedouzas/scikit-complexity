@@ -24,7 +24,7 @@ MODEL = 'oligopoly_equilibria'
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 observables = describe(MODEL).observables_of(system)
-simulation = Simulation(system, observers=[observer], observables=observables).check().prepare().run(until=1.0)
+simulation = Simulation(system, observers=[observer], observables=observables).prepare().run(until=1.0)
 
 # %%
 # The distribution of prices
@@ -40,12 +40,11 @@ experiment = Experiment(
     until=1.0,
     outputs=['prices.price', 'prices.distribution'],
 )
-result = experiment.check().prepare().run().result_
+result = experiment.prepare().run().result_
 prices, distributions = result.series('prices.price')[:, 0], result.series('prices.distribution')[:, 0]
 learning = oligopoly_equilibria(dynamics='fictitious-play')
 played = (
     Simulation(learning, random_state=0, observables=describe(MODEL).observables_of(learning))
-    .check()
     .prepare()
     .run(until=2000)
     .trajectory_

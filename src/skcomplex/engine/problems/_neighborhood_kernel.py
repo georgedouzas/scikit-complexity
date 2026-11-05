@@ -122,7 +122,7 @@ class NeighborhoodKernel(BaseKernel):
     @functools.cached_property
     def _function(self) -> Callable[..., object]:
         """NumPy function of the argument and the weight, compiled once."""
-        printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(self._symbols)
+        printer = ExpressionPrinter(time=self.time, compiled=True).prepare(self._symbols)
         return ExpressionPrinter._function_of(printer.run([self.argument, self.weight]).code_)
 
     @property
@@ -327,7 +327,7 @@ class NeighborhoodKernel(BaseKernel):
             >>> import networkx as nx
             >>> from skcomplex.engine.problems._neighborhood_kernel import NeighborhoodKernel
             >>> from skcomplex.core.spaces import AdjacencyNeighborhood, NetworkSpace
-            >>> space = NetworkSpace(nx.path_graph(3)).check().prepare()
+            >>> space = NetworkSpace(nx.path_graph(3)).prepare()
             >>> [item.tolist() for item in NeighborhoodKernel._network_rows(space, AdjacencyNeighborhood())]
             [[0, 1, 3, 4], [1, 0, 2, 1], [0, 0, 1, 1]]
         """
@@ -362,7 +362,7 @@ class NeighborhoodKernel(BaseKernel):
         Examples:
             >>> from skcomplex.engine.problems._neighborhood_kernel import NeighborhoodKernel
             >>> from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
-            >>> space = LatticeSpace(3, boundary='fixed').check().prepare()
+            >>> space = LatticeSpace(3, boundary='fixed').prepare()
             >>> rows = NeighborhoodKernel._lattice_rows(space, LatticeNeighborhood(((-1,), (1,))))
             >>> [item.tolist() for item in rows]
             [[0, 1, 3, 4], [1, 0, 2, 1]]
@@ -390,10 +390,10 @@ class NeighborhoodKernel(BaseKernel):
             >>> from skcomplex.engine.problems._neighborhood_kernel import NeighborhoodKernel
             >>> from sage.all__sagemath_gap import libgap
             >>> from skcomplex.core.spaces import CayleySpace, LatticeSpace
-            >>> lattice = LatticeSpace((4, 4)).check().prepare()
-            >>> len(NeighborhoodKernel._default_neighborhood(lattice).check().prepare().offsets_)
+            >>> lattice = LatticeSpace((4, 4)).prepare()
+            >>> len(NeighborhoodKernel._default_neighborhood(lattice).prepare().offsets_)
             8
-            >>> cayley = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=1).check().prepare()
+            >>> cayley = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=1).prepare()
             >>> NeighborhoodKernel._default_neighborhood(cayley).elements
             ('a', 'a^-1', 'b', 'b^-1')
         """
@@ -559,12 +559,12 @@ class NeighborhoodKernel(BaseKernel):
             if changing is not None and over.layer in changing:
                 source, target, active = changing[over.layer]
                 directed = space.graphs_[over.layer].is_directed()
-                return EdgeRowSearch(source, target, active, rows, directed, center=over.center).check().prepare()
+                return EdgeRowSearch(source, target, active, rows, directed, center=over.center).prepare()
             NeighborhoodKernel._check_rows(space, rows)
-            return StaticSearch(*NeighborhoodKernel._network_rows(space, over)).check().prepare()
+            return StaticSearch(*NeighborhoodKernel._network_rows(space, over)).prepare()
         if isinstance(over, LatticeNeighborhood | MemoryNeighborhood) and isinstance(space, BaseSpace):
             NeighborhoodKernel._check_rows(space, rows)
-            return StaticSearch(*NeighborhoodKernel._lattice_rows(space, over)).check().prepare()
+            return StaticSearch(*NeighborhoodKernel._lattice_rows(space, over)).prepare()
         position = NeighborhoodKernel._position_state(states)
         if position is None or not isinstance(space, ContinuousSpace):
             error_msg = (
@@ -581,7 +581,7 @@ class NeighborhoodKernel(BaseKernel):
             if direction is None:
                 error_msg = f'The cone reads the direction {name!r}, which the members do not hold.'
                 raise ValidationError(error_msg)
-        return MetricSearch(over, entries[position], periods, direction).check().prepare()
+        return MetricSearch(over, entries[position], periods, direction).prepare()
 
     @staticmethod
     def _spaces_of(neighborhood: BaseNeighborhood) -> tuple[type, ...]:

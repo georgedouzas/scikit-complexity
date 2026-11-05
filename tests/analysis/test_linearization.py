@@ -125,7 +125,7 @@ class CartElement(Element):
 
 def _linearization(system, **settings):
     """Return the linearization analysis of a system, run."""
-    return LinearizationAnalysis(**settings).check().prepare(system).run()
+    return LinearizationAnalysis(**settings).prepare(system).run()
 
 
 def test_linearize_uncontrollable_mode():
@@ -177,4 +177,4 @@ def test_lqr_stabilises_a_double_integrator():
 def test_regulator_needs_both_weights():
     """Test that state weights without control weights are rejected at check."""
     with pytest.raises(AnalysisError, match='both state_weights and control_weights'):
-        LinearizationAnalysis(state_weights=np.eye(2)).check()
+        LinearizationAnalysis(state_weights=np.eye(2)).prepare()

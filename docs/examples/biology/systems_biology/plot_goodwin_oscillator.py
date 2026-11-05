@@ -21,7 +21,7 @@ MODEL = 'goodwin_oscillator'
 
 system = create(MODEL, n=12.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=3)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=60)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=60)
 
 # %%
 # The threshold of the Hill coefficient
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().
 coefficients = np.arange(4.0, 15.0)
 amplitudes = []
 for n in coefficients:
-    late = Simulation(create(MODEL, n=float(n)), dt=0.1).check().prepare().run(until=200).trajectory_
+    late = Simulation(create(MODEL, n=float(n)), dt=0.1).prepare().run(until=200).trajectory_
     product = late.values('x3.x')[late.times >= 150.0]
     amplitudes.append(product.max() - product.min())
 trajectory = simulation.trajectory_

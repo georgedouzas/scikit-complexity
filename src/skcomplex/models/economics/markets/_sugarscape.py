@@ -146,7 +146,7 @@ def _get_foraging() -> list[MovementInteraction | TransferInteraction | LifeCycl
 
 def _gini(wealth: object) -> float:
     """Return the Gini coefficient of the wealth of the foragers."""
-    return float(DistributionAnalysis('gini').check().prepare(np.asarray(wealth, dtype=float)).run().gini_)
+    return float(DistributionAnalysis('gini').prepare(np.asarray(wealth, dtype=float)).run().gini_)
 
 
 @register_model(

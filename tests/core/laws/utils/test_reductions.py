@@ -510,7 +510,7 @@ def test_validate_reports_a_metric_neighbourhood_on_a_network():
         space=NetworkSpace(nx.cycle_graph(5)),
         time=DiscreteTime(),
     )
-    issues = [issue for issue in PassCompiler().check().prepare(system).report_.issues if issue.code == 'law-space']
+    issues = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'law-space']
     assert len(issues) == 1
     assert 'continuous space' in issues[0].fix
     assert 'over=None' in issues[0].fix
@@ -523,7 +523,7 @@ def test_validate_reports_a_network_neighbourhood_in_a_continuous_space():
         space=ContinuousSpace(extent=(2.0, 2.0)),
         time=DiscreteTime(),
     )
-    assert [issue.code for issue in PassCompiler().check().prepare(system).report_.issues] == ['law-space']
+    assert [issue.code for issue in PassCompiler().prepare(system).report_.issues] == ['law-space']
 
 
 def test_validate_reports_a_cone_without_a_heading():
@@ -534,7 +534,7 @@ def test_validate_reports_a_cone_without_a_heading():
         space=ContinuousSpace(extent=(2.0, 2.0)),
         time=DiscreteTime(),
     )
-    issues = PassCompiler().check().prepare(system).report_.issues
+    issues = PassCompiler().prepare(system).report_.issues
     assert [issue.code for issue in issues] == ['law-domain']
     assert 'order=2' in issues[0].fix
 
@@ -567,7 +567,7 @@ def test_validate_accepts_a_cone_along_the_velocity():
 
     moving = MovingElement
     system = System(elements=[GroupElement('g', element=moving, size=5)], space=ContinuousSpace(extent=(2.0, 2.0)))
-    assert PassCompiler().check().prepare(system).report_.ok
+    assert PassCompiler().prepare(system).report_.ok
 
 
 class OscillatorElement(Element):
@@ -616,13 +616,11 @@ def test_kuramoto_synchronizes_above_the_critical_coupling():
     """Test that 1000 oscillators on a complete graph stay incoherent below `2 gamma` and synchronize above it."""
     below = (
         Simulation(_kuramoto(0.5 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend())
-        .check()
         .prepare()
         .run(10.0)
     )
     above = (
         Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=NumbaBackend())
-        .check()
         .prepare()
         .run(10.0)
     )
@@ -639,7 +637,6 @@ def test_kuramoto_agrees_across_backends():
     runs = [
         (
             Simulation(_kuramoto(3 * CRITICAL), dt=0.5, solver=RK4Solver(dt=0.1), backend=backend)
-            .check()
             .prepare()
             .run(2.0)
             .trajectory_
@@ -704,9 +701,7 @@ def _vicsek(size=400, side=5.0):
 
 def test_vicsek_flocks_at_low_noise_and_high_density():
     """Test that the polar order parameter of the Vicsek model exceeds 0.9 at low noise and high density."""
-    trajectory = (
-        Simulation(_vicsek(), dt=1.0, random_state=0, backend=NumbaBackend()).check().prepare().run(100).trajectory_
-    )
+    trajectory = Simulation(_vicsek(), dt=1.0, random_state=0, backend=NumbaBackend()).prepare().run(100).trajectory_
     order = _order(trajectory.values('movers.theta'))
     assert order[0] < 0.2
     assert order[-1] > 0.9
@@ -721,7 +716,6 @@ def test_vicsek_agrees_across_backends():
             random_state=0,
             backend=backend,
         )
-        .check()
         .prepare()
         .run(50)
         .trajectory_
@@ -1102,7 +1096,7 @@ def test_validate_reports_a_hyperedge_reduction_of_a_missing_size():
     """Test that a reduction over hyperedges of a size the network does not have gives a binding issue."""
     space = NetworkSpace(nx.complete_graph(6), hyperedges=HYPEREDGES)
     system = System(elements=[LatticeElement('nodes', element=AroundElement, space=space, values={'term': 'missing'})])
-    (issue,) = [issue for issue in PassCompiler().check().prepare(system).report_.issues if issue.code == 'binding']
+    (issue,) = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'binding']
     assert 'size 6' in issue.message
 
 
@@ -1110,7 +1104,7 @@ def test_validate_reports_a_hyperedge_reduction_in_a_lattice():
     """Test that a reduction over hyperedges in a lattice space has a law-space issue."""
     space = LatticeSpace((3, 3))
     system = System(elements=[LatticeElement('sites', element=AroundElement, space=space, values={'term': 'count'})])
-    issues = PassCompiler().check().prepare(system).report_.issues
+    issues = PassCompiler().prepare(system).report_.issues
     assert [issue.code for issue in issues] == ['law-space']
     assert 'hyperedges' in issues[0].message
 
@@ -1157,7 +1151,7 @@ def test_log_sum_exp_large_values(backend: type) -> None:
     group = GroupElement('energies', element=QuenchedEnergyElement, size=1000, values={'energy': values})
     reader = LogPartitionInteraction('reader', target='reduced', energies='energies')
     system = System(elements=[group, LogPartitionElement('reduced')], interactions=[reader], time=StaticTime())
-    trajectory = Simulation(system, backend=backend()).check().prepare().run(1.0).trajectory_
+    trajectory = Simulation(system, backend=backend()).prepare().run(1.0).trajectory_
     result = trajectory.values('reduced.value')[0]
     assert np.isfinite(result)
     assert values.max() <= result <= values.max() + math.log(1000)
@@ -1225,7 +1219,7 @@ def test_log_sum_exp_random_energy_model_entropy() -> None:
     """Test that the entropy of random levels over 10 seeds follows the theory above the glass temperature."""
     bounds = {'temperature': [1.0, 2.0, 0.3], 'random_state': list(range(10))}
     experiment = Experiment(_random_levels, GridDesign(), bounds, until=1.0, outputs=['sums.entropy'])
-    result = experiment.check().prepare().run().result_
+    result = experiment.prepare().run().result_
     entropies = result.series('sums.entropy')[:, 0].reshape(3, 10).mean(axis=1)
     assert entropies[0] == pytest.approx(math.log(2) - 1 / 4, abs=0.02)
     assert entropies[1] == pytest.approx(math.log(2) - 1 / 16, abs=0.02)

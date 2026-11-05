@@ -64,7 +64,7 @@ def el_farol(
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import el_farol
-        >>> el_farol(10).elements[0].check().prepare().size_
+        >>> el_farol(10).elements[0].prepare().size_
         10
     """
     rng = np.random.default_rng(random_state)

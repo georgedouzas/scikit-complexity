@@ -51,7 +51,7 @@ class CyclicElement(Element):
 
 def _volume(system):
     """Return the compiled problem and the finite-volume kernel of its only field."""
-    problem = PassCompiler().check().prepare(system).run().problem_
+    problem = PassCompiler().prepare(system).run().problem_
     return problem, problem.volumes[0]
 
 
@@ -72,7 +72,7 @@ def test_max_speed_matches_numerical_eigenvalues():
 
 def _timed_dam_break(closed):
     """Return the time and the final state of the dam break on 1600 cells, with closed-form or numerical speeds."""
-    simulation = Simulation(shallow_water(1600), dt=0.5, solver=SSPRKSolver()).check().prepare()
+    simulation = Simulation(shallow_water(1600), dt=0.5, solver=SSPRKSolver()).prepare()
     if not closed:
         simulation.problem_.volumes[0].set_params(speeds=())
     start = time.perf_counter()
@@ -95,7 +95,7 @@ def test_run_keeps_burgers_shock_conservative_and_monotone():
     system = burgers(400)
     initial = np.asarray(system.elements[0].values['u'])
     _, volume = _volume(system)
-    values = Simulation(system, dt=2.0, solver=SSPRKSolver()).check().prepare().run(until=2.0).state_
+    values = Simulation(system, dt=2.0, solver=SSPRKSolver()).prepare().run(until=2.0).state_
     assert volume.closed_form is True
     assert values.sum() == pytest.approx(initial.sum(), rel=1e-12)
     assert initial.min() - 1e-12 <= values.min() <= values.max() <= initial.max() + 1e-12
@@ -115,7 +115,7 @@ def test_run_falls_back_to_numerical_eigenvalues_without_closed_form():
     )
     system = System(elements=[field])
     _, volume = _volume(system)
-    trajectory = Simulation(system, dt=0.5, solver=SSPRKSolver()).check().prepare().run(until=0.5).trajectory_
+    trajectory = Simulation(system, dt=0.5, solver=SSPRKSolver()).prepare().run(until=0.5).trajectory_
     assert volume.closed_form is False
     for index in range(N_STATES):
         total = values[f'u{index}'].sum()

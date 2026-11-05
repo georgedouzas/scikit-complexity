@@ -38,7 +38,6 @@ simulation = (
         dt=0.1,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(
         until=10,
@@ -58,7 +57,6 @@ def final_density(activation):
     model_system = create(MODEL, activation=activation)
     run = (
         Simulation(model_system, dt=20.0, observables=describe(MODEL).observables_of(model_system))
-        .check()
         .prepare()
         .run(until=20)
     )

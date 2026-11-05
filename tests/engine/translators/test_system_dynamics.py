@@ -51,7 +51,7 @@ def _simulate(module):
         dt=module.DT,
         observables=module.observables(system),
     )
-    return simulation.check().prepare().run(until=module.UNTIL).trajectory_
+    return simulation.prepare().run(until=module.UNTIL).trajectory_
 
 
 def _at_saved_times(trajectory, values, module, reference):
@@ -64,7 +64,7 @@ def _translate_text(tmp_path, text, name='model.mdl'):
     """Return the translator of a model file with the given text and a control section."""
     path = tmp_path / name
     path.write_text(text + CONTROL)
-    return SystemDynamicsTranslator(path).check().prepare()
+    return SystemDynamicsTranslator(path).prepare()
 
 
 def _total(s):
@@ -108,7 +108,7 @@ def test_run_teacup_runs_like_pysd(fixtures_folder, translate, file_name):
 
 def test_run_keeps_settings_of_the_file(fixtures_folder):
     """Test that the settings hold the control section, whose length runs from the initial time."""
-    translator = SystemDynamicsTranslator(fixtures_folder / 'signals.mdl').check().prepare().run()
+    translator = SystemDynamicsTranslator(fixtures_folder / 'signals.mdl').prepare().run()
     assert translator.settings_ == RunSettingsSpec(start=10.0, until=20.0, dt=0.125, save_every=0.25)
     assert 'START = 10.0' in translator.source_
     assert 'UNTIL = 20.0' in translator.source_
@@ -117,22 +117,22 @@ def test_run_keeps_settings_of_the_file(fixtures_folder):
 
 def test_run_reads_saving_interval_from_the_time_step(fixtures_folder):
     """Test that a saving interval written as the time step takes its value."""
-    translator = SystemDynamicsTranslator(fixtures_folder / 'teacup.mdl').check().prepare().run()
+    translator = SystemDynamicsTranslator(fixtures_folder / 'teacup.mdl').prepare().run()
     assert translator.settings_.save_every == translator.settings_.dt
 
 
 def test_run_default_solver_finds_the_exact_solution(translate):
     """Test that the adaptive default solver follows the exact teacup and not the Euler error of the file's step."""
     module = translate('teacup.mdl')
-    trajectory = Simulation(module.create_system(), dt=module.DT).check().prepare().run(until=module.UNTIL).trajectory_
+    trajectory = Simulation(module.create_system(), dt=module.DT).prepare().run(until=module.UNTIL).trajectory_
     exact = 70.0 + 110.0 * np.exp(-np.asarray(trajectory.times) / 10.0)
     assert np.max(np.abs(trajectory.values('teacup.teacup_temperature') - exact)) < 1e-3
 
 
 def test_run_xmile_reads_like_vensim(fixtures_folder, translate):
     """Test that the same model from a Vensim and an XMILE file has the same states, parameters, and interactions."""
-    vensim = SystemDynamicsTranslator(fixtures_folder / 'sir.mdl').check().prepare().run().source_
-    xmile = SystemDynamicsTranslator(fixtures_folder / 'sir.xmile').check().prepare().run().source_
+    vensim = SystemDynamicsTranslator(fixtures_folder / 'sir.mdl').prepare().run().source_
+    xmile = SystemDynamicsTranslator(fixtures_folder / 'sir.xmile').prepare().run().source_
     assert vensim == xmile
     first, second = translate('sir.mdl').create_system(), translate('sir.xmile').create_system()
     assert first.elements[0].get_params().keys() == second.elements[0].get_params().keys()
@@ -179,7 +179,7 @@ def test_run_sir_flows_are_named_transfers(translate):
         observables=[total],
         invariants={'sir.people': 1e-6},
     )
-    trajectory = simulation.check().prepare().run(until=module.UNTIL).trajectory_
+    trajectory = simulation.prepare().run(until=module.UNTIL).trajectory_
     assert np.max(trajectory.values('sir.infection')) > 0
 
 
@@ -194,12 +194,12 @@ def test_run_invariant_catches_a_total_that_changes(translate):
         invariants={'population.people': 1e-6},
     )
     with pytest.raises(ConservationError, match=r'population\.people'):
-        simulation.check().prepare().run(until=module.UNTIL)
+        simulation.prepare().run(until=module.UNTIL)
 
 
 def test_run_loops_of_a_translated_model(translate):
     """Test that a population holds one reinforcing loop through births and one balancing loop through deaths."""
-    analysis = LoopAnalysis().check().prepare(translate('population.mdl').create_system()).run()
+    analysis = LoopAnalysis().prepare(translate('population.mdl').create_system()).run()
     loops = dict(zip(analysis.loops_, analysis.polarities_, strict=True))
     assert loops == {
         ('population.population', 'population.births'): 'reinforcing',
@@ -291,7 +291,7 @@ def test_run_built_in_functions_run_like_pysd(fixtures_folder, translate, file_n
 
 def test_run_maps_min_of_max_to_clip(fixtures_folder):
     """Test that the source writes the built-in functions with the law utilities."""
-    source = SystemDynamicsTranslator(fixtures_folder / 'signals.mdl').check().prepare().run().source_
+    source = SystemDynamicsTranslator(fixtures_folder / 'signals.mdl').prepare().run().source_
     assert 'clip(s.level, 1.0, 3.0)' in source
     for name in ('lookup', 'where', 'step', 'ramp', 'pulse', 'pulse_train', 'delay1', 'smooth'):
         assert f'{name}(' in source
@@ -315,7 +315,7 @@ def test_run_random_functions_become_draws_that_rate_laws_reject(tmp_path, monke
     monkeypatch.syspath_prepend(tmp_path)
     module = importlib.import_module('translated_noisy')
     with pytest.raises(IncompatibleLawsError, match='random draw'):
-        Simulation(module.create_system(), dt=0.25).check().prepare()
+        Simulation(module.create_system(), dt=0.25).prepare()
 
 
 def test_run_regional_populations(fixtures_folder, translate):
@@ -345,14 +345,14 @@ def test_run_group_records_flows_and_auxiliaries(fixtures_folder, translate):
 
 def test_run_sum_becomes_total(fixtures_folder):
     """Test that a sum over the range is a total, and a read of one region a reduction over that member."""
-    source = SystemDynamicsTranslator(fixtures_folder / 'regions.mdl').check().prepare().run().source_
+    source = SystemDynamicsTranslator(fixtures_folder / 'regions.mdl').prepare().run().source_
     assert 'return total(s.population)' in source
     assert 'total(s.population, where=s.member == 0)' in source
 
 
 def test_run_unsupported_functions(fixtures_folder):
     """Test that one error names both variables and both functions."""
-    translator = SystemDynamicsTranslator(fixtures_folder / 'unsupported.mdl').check().prepare()
+    translator = SystemDynamicsTranslator(fixtures_folder / 'unsupported.mdl').prepare()
     with pytest.raises(ValidationError) as error:
         translator.run()
     message = str(error.value)
@@ -415,7 +415,7 @@ def test_run_reports_a_file_name_that_is_no_identifier(tmp_path):
     translator = _translate_text(tmp_path, 'Level = INTEG(1, 0) ~ ~ |\n', '2 model.mdl')
     with pytest.raises(ValidationError, match='Give `name`'):
         translator.run()
-    named = SystemDynamicsTranslator(tmp_path / '2 model.mdl', name='renamed').check().prepare().run()
+    named = SystemDynamicsTranslator(tmp_path / '2 model.mdl', name='renamed').prepare().run()
     assert 'class RenamedElement(Element):' in named.source_
 
 
@@ -473,16 +473,16 @@ def test_check_rejects_a_path_without_a_model_file(tmp_path, path):
     """Test that a path of an unknown format or without a file raises an error."""
     (tmp_path / 'model.txt').write_text('text')
     with pytest.raises(ValidationError, match=r'model\.txt|missing\.mdl'):
-        SystemDynamicsTranslator(tmp_path / path).check()
+        SystemDynamicsTranslator(tmp_path / path).prepare()
 
 
 def test_check_rejects_a_name_that_is_no_identifier(fixtures_folder):
     """Test that a name that is no identifier raises an error."""
     with pytest.raises(ValidationError, match='not an identifier'):
-        SystemDynamicsTranslator(fixtures_folder / 'teacup.mdl', name='not valid').check()
+        SystemDynamicsTranslator(fixtures_folder / 'teacup.mdl', name='not valid').prepare()
 
 
 def test_prepare_reads_the_abstract_model(fixtures_folder):
     """Test that preparing keeps the abstract model PySD reads from the file."""
-    translator = SystemDynamicsTranslator(fixtures_folder / 'teacup.xmile').check().prepare()
+    translator = SystemDynamicsTranslator(fixtures_folder / 'teacup.xmile').prepare()
     assert [section.type for section in translator.model_.sections] == ['main']

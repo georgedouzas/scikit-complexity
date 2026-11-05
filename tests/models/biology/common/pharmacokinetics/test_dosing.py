@@ -13,7 +13,7 @@ from skcomplex.models.biology.common.pharmacokinetics import DosingInteraction
 def _run(interaction, until=40.0, dt=0.5):
     """Return the times and the drug of one compartment under one dosing."""
     system = System(elements=[CompartmentElement('patient', n=0.0)], interactions=[interaction])
-    trajectory = Simulation(system, dt=dt).check().prepare().run(until=until).trajectory_
+    trajectory = Simulation(system, dt=dt).prepare().run(until=until).trajectory_
     return np.asarray(trajectory.times), np.asarray(trajectory.values('patient.n'))
 
 
@@ -51,4 +51,4 @@ def test_dosing_without_count_never_ends():
 def test_dosing_rejects_invalid_arguments(arguments, message):
     """Test that the dosing rejects a dose that is no number or function, and a schedule that is not positive."""
     with pytest.raises(ValidationError, match=message):
-        DosingInteraction('dosing', target='patient', state='n', **arguments).check()
+        DosingInteraction('dosing', target='patient', state='n', **arguments).prepare()

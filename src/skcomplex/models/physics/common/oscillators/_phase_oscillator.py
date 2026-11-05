@@ -38,7 +38,7 @@ class PhaseOscillatorElement(Element):
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.physics.common.oscillators import PhaseOscillatorElement
         >>> system = System(elements=[PhaseOscillatorElement('clock', omega=2.0)])
-        >>> float(Simulation(system, dt=0.5).check().prepare().run(until=1.0).trajectory_.values('clock.theta')[-1])
+        >>> float(Simulation(system, dt=0.5).prepare().run(until=1.0).trajectory_.values('clock.theta')[-1])
         2.0
     """
 

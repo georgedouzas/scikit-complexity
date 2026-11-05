@@ -26,13 +26,13 @@ LORENZ_TERMS = {
 
 def _fit(source, **settings):
     """Return the sparse identification analysis fitted to a source."""
-    return SparseIdentificationAnalysis(**settings).check().prepare(source).run()
+    return SparseIdentificationAnalysis(**settings).prepare(source).run()
 
 
 def _lorenz_trajectory():
     """Return a noise-free trajectory of the Lorenz model, sampled every 0.002 for 10 time units."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-    return Simulation(create('lorenz'), solver=solver, dt=0.002).check().prepare().run(until=10.0).trajectory_
+    return Simulation(create('lorenz'), solver=solver, dt=0.002).prepare().run(until=10.0).trajectory_
 
 
 def test_sparse_identification_rediscovers_lorenz():
@@ -51,7 +51,7 @@ def test_sparse_identification_rediscovers_lorenz():
 def test_sparse_identification_system_validates_with_ode_solver():
     """Test that a SINDy surrogate of Lorenz validates, declares continuous time, and gets an ODE solver."""
     model = _fit(_lorenz_trajectory())
-    report = PassCompiler().check().prepare(model.system_).report_
+    report = PassCompiler().prepare(model.system_).report_
     assert not report.errors
     assert isinstance(model.system_.time, ContinuousTime)
     assert DEFAULT_SOLVERS[compile_system(model.system_).form] is ScipyODESolver
@@ -61,7 +61,7 @@ def test_sparse_identification_system_follows_trajectory():
     """Test that the surrogate run from the first sample follows the trajectory for a short time."""
     trajectory = _lorenz_trajectory()
     model = _fit(trajectory)
-    run = Simulation(model.system_, dt=0.002).check().prepare().run(until=0.5).trajectory_
+    run = Simulation(model.system_, dt=0.002).prepare().run(until=0.5).trajectory_
     assert np.allclose(run.values('surrogate.x'), trajectory.values('lorenz.x')[:251], atol=0.05)
     assert model.training_error_ < 1e-3
 
@@ -77,9 +77,7 @@ def test_sparse_identification_fits_series_of_measured_data():
 def test_sparse_identification_run_continues_lotka_volterra():
     """Test that a SINDy surrogate of a Lotka-Volterra run forecasts 50 steps that continue the run."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-    trajectory = (
-        Simulation(create('lotka_volterra'), solver=solver, dt=0.01).check().prepare().run(until=20.0).trajectory_
-    )
+    trajectory = Simulation(create('lotka_volterra'), solver=solver, dt=0.01).prepare().run(until=20.0).trajectory_
     names = ['prey.n', 'predators.n']
     values = np.column_stack([trajectory.values(name) for name in names])
     model = _fit(values[:1001], variables=names, degree=2, threshold=0.01, horizon=50, dt=0.01)
@@ -92,4 +90,4 @@ def test_sparse_identification_run_continues_lotka_volterra():
 def test_sparse_identification_rejects_a_negative_horizon():
     """Test that a negative horizon raises an error naming it."""
     with pytest.raises(AnalysisError, match='horizon'):
-        SparseIdentificationAnalysis(horizon=-1).check()
+        SparseIdentificationAnalysis(horizon=-1).prepare()

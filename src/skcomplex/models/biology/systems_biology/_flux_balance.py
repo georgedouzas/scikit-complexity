@@ -139,7 +139,7 @@ def flux_balance(
     Examples:
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.biology.systems_biology import flux_balance
-        >>> trajectory = Simulation(flux_balance()).check().prepare().run(0.0).trajectory_
+        >>> trajectory = Simulation(flux_balance()).prepare().run(0.0).trajectory_
         >>> round(float(trajectory.values('cell.v_vbio')[0]), 6)
         50.0
     """

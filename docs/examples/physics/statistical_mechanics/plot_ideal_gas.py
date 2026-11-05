@@ -36,7 +36,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, n_molecules=800, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=0.01, observers=[observer]).check().prepare().run(until=2.0)
+simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(until=2.0)
 
 # %%
 # Speeds against the Maxwell-Boltzmann distribution
@@ -49,7 +49,7 @@ simulation = Simulation(system, dt=0.01, observers=[observer]).check().prepare()
 velocities = simulation.trajectory_.values('gas.x_d1')[-1]
 speeds = np.linalg.norm(velocities, axis=1)
 kt = float(np.mean(np.sum(velocities**2, axis=1))) / 2
-histogram = DistributionAnalysis('histogram', bins=25).check().prepare(speeds).run()
+histogram = DistributionAnalysis('histogram', bins=25).prepare(speeds).run()
 edges, density = histogram.edges_, histogram.density_
 grid = np.linspace(0.0, speeds.max(), 200)
 fig, ax = plt.subplots(figsize=(6, 4))

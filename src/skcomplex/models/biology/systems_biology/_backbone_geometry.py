@@ -46,7 +46,7 @@ class BackboneGeometry(BaseConfig[None, Array]):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.models.biology.systems_biology import BackboneGeometry, read_structure
-        >>> geometry = BackboneGeometry(read_structure('1L2Y')).check().prepare()
+        >>> geometry = BackboneGeometry(read_structure('1L2Y')).prepare()
         >>> geometry.angles_.shape
         (38,)
         >>> geometry.run(geometry.angles_).positions_.shape
@@ -104,7 +104,7 @@ class BackboneGeometry(BaseConfig[None, Array]):
 
         Examples:
             >>> from skcomplex.models.biology.systems_biology import BackboneGeometry, read_structure
-            >>> geometry = BackboneGeometry(read_structure('1L2Y')).check().prepare()
+            >>> geometry = BackboneGeometry(read_structure('1L2Y')).prepare()
             >>> geometry.run(geometry.angles_).read_effective_atoms().shape
             (20, 3)
         """

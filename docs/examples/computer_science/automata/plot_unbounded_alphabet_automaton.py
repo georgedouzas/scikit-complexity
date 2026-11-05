@@ -36,7 +36,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().prepare().run(until=50)
+simulation = Simulation(create(MODEL), dt=1, observers=[observer]).prepare().run(until=50)
 values = simulation.trajectory_.lattice('cells.value')
 logarithm = np.where(values > 0, np.log10(np.maximum(values, 1)) + 1, 0)
 start, steps_run = values.shape[1] // 2, values.shape[0] - 1

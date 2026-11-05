@@ -66,7 +66,7 @@ class JumpTrajectoriesSolver(OperatorSolver):
         >>> from skcomplex.engine.compile import OperatorCompiler
         >>> simulation = Simulation(
         ...     system, compiler=OperatorCompiler(), solver=solver, dt=1.0, random_state=0, observables=z,
-        ... ).check().prepare().run(until=20.0)
+        ... ).prepare().run(until=20.0)
         >>> float(simulation.trajectory_.values('q.z')[-1])
         -1.0
     """

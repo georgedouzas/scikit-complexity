@@ -77,7 +77,7 @@ def _auction(size, rng):
 def test_match_settles_transfers_and_realises_the_surplus():
     """Test that random quotes within budgets realise most of the surplus and the transfers conserve the money."""
     values, costs, system = _auction(50, np.random.default_rng(1))
-    simulation = Simulation(system, random_state=0).check().prepare().run(until=30)
+    simulation = Simulation(system, random_state=0).prepare().run(until=30)
     requesters = simulation.trajectory_.agents('buyers', 30).values
     providers = simulation.trajectory_.agents('sellers', 30).values
     bought, sold = requesters['goods'] > 0, providers['goods'] < 0
@@ -106,7 +106,7 @@ def test_match_reads_the_states_named_by_a_pair():
             ),
         ],
     )
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
     assert trajectory.values('matching.value')[-1] == 7.0
     assert trajectory.values('matching.unmatched')[-1] == 0.0
 
@@ -311,7 +311,7 @@ def test_match_partners_considers_local_cells_and_distances_only():
         )
         space = LatticeSpace((5, 5), neighborhood='moore', boundary='fixed')
         system = System(elements=[requesters, providers], interactions=[matching], space=space)
-        trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+        trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
         assert trajectory.values('matching.volume')[-1] == pytest.approx(expected)
 
 
@@ -319,7 +319,7 @@ def test_check_rejects_a_transfer_without_a_sign():
     """Test that a transfer whose sign is neither -1 nor 1 raises an error."""
     matching = MatchingInteraction('matching', requesters='a', providers='b', transfers=(('money', 2),))
     with pytest.raises(ValidationError, match='sign'):
-        matching.check()
+        matching.prepare()
 
 
 @pytest.mark.parametrize(
@@ -330,7 +330,7 @@ def test_check_rejects_a_rule_that_is_not_a_valid_matching_spec(rule, message):
     """Test that a rule that is not a matching spec, or an invalid one, raises an error."""
     matching = MatchingInteraction('matching', requesters='a', providers='b', rule=rule)
     with pytest.raises(ValidationError, match=message):
-        matching.check()
+        matching.prepare()
 
 
 def _reversed_pairs(requesters, providers, rng, capacity):
@@ -348,7 +348,7 @@ def test_match_custom_rule_settles_the_pairs_of_a_function_at_the_midpoint(clear
 def test_check_rejects_an_unknown_rule_naming_the_specs_and_functions():
     """Test that a rule that is neither a matching spec nor a function raises an error naming both."""
     with pytest.raises(ValidationError, match=r'RandomSearchSpec.*StableMatchingSpec, a function'):
-        MatchingInteraction('matching', requesters='a', providers='b', rule='greedy').check()
+        MatchingInteraction('matching', requesters='a', providers='b', rule='greedy').prepare()
 
 
 def test_match_rejects_a_misspelled_state_instead_of_defaulting_it():
@@ -356,7 +356,7 @@ def test_match_rejects_a_misspelled_state_instead_of_defaulting_it():
     _, _, system = _auction(5, np.random.default_rng(1))
     system.interactions[0].set_params(allowance='mony')
     with pytest.raises(ValidationError, match="no state 'mony'"):
-        Simulation(system, random_state=0).check().prepare().run(until=1)
+        Simulation(system, random_state=0).prepare().run(until=1)
 
 
 def test_match_partner_spec_settles_the_pairs_at_the_midpoint(clear):

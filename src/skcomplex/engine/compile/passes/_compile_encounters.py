@@ -226,22 +226,18 @@ class CompileEncountersPass(BasePass):
             CompileEncountersPass._parameter_indices(table, references, owner),
             time,
         )
-        return (
-            EncounterKernel(
-                owner,
-                'bilinear' if bilinear else 'transition',
-                candidate,
-                field_indices,
-                test,
-                rate=rate,
-                entries=entries,
-                probabilities=probabilities,
-                fused=fused,
-                positions=positions,
-            )
-            .check()
-            .prepare()
-        )
+        return EncounterKernel(
+            owner,
+            'bilinear' if bilinear else 'transition',
+            candidate,
+            field_indices,
+            test,
+            rate=rate,
+            entries=entries,
+            probabilities=probabilities,
+            fused=fused,
+            positions=positions,
+        ).prepare()
 
     @staticmethod
     def _compile_encounters(

@@ -11,7 +11,6 @@ def test_axelrod_order_disorder_transition():
         system = axelrod(8, 8, features=3, traits=traits, random_state=0)
         trajectory = (
             Simulation(system, random_state=0, observables=culture_observables(8, 8))
-            .check()
             .prepare()
             .run(until=300)
             .trajectory_

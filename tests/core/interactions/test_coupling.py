@@ -133,7 +133,7 @@ def _oscillators(space, theta, omega, **arguments):
 
 def _phases(system, until, backend=None):
     """Return the phases of the oscillators at every unit of time."""
-    simulation = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.05), backend=backend).check().prepare()
+    simulation = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.05), backend=backend).prepare()
     return simulation.run(until).trajectory_.values('oscillators.theta')
 
 
@@ -273,7 +273,7 @@ def test_coupling_over_the_group_reads_a_shaped_parameter_pair_by_pair(backend, 
 def test_check_shaped_weights_that_leave_out_the_member():
     """Test that weights naming a shaped parameter over the own group without the member raise an error."""
     with pytest.raises(ValidationError, match='include_self=True'):
-        MatrixCouplingInteraction('coupling', target='oscillators', include_self=False).check()
+        MatrixCouplingInteraction('coupling', target='oscillators', include_self=False).prepare()
 
 
 def test_run_shaped_weights_that_name_no_parameter():
@@ -364,7 +364,7 @@ def test_coupling_map_form_combines_with_parameters_and_time():
         combine=lambda s, reduction: (1 - s.lag) * s.member.u + s.lag * reduction + s.t,
     )
     system = System(elements=[cells], interactions=[coupling], time=DiscreteTime())
-    levels = Simulation(system, dt=1).check().prepare().run(1).trajectory_.values('cells.u')[-1]
+    levels = Simulation(system, dt=1).prepare().run(1).trajectory_.values('cells.u')[-1]
     np.testing.assert_allclose(levels, 0.5 * u + 0.25 * (np.roll(u, 1) + np.roll(u, -1)))
 
 
@@ -391,7 +391,7 @@ def test_coupling_weights_edges_by_a_state_of_the_edge_group(backend):
         interactions=[WeightedCouplingInteraction('coupling', target='oscillators', links='links')],
     )
     matrix = np.zeros((12, 12))
-    sources, targets = space.check().prepare().edges_[None]
+    sources, targets = space.prepare().edges_[None]
     matrix[sources, targets] = matrix[targets, sources] = weights
     expected = (matrix * np.sin(theta[None, :] - theta[:, None])).sum(axis=1)
     np.testing.assert_allclose(_drift(system, backend=backend), expected, atol=1e-12)
@@ -439,7 +439,7 @@ def test_coupling_map_form_combines_the_state_with_the_reduction():
         combine=lambda s, reduction: s.member.u + reduction,
     )
     system = System(elements=[cells], interactions=[coupling], time=DiscreteTime())
-    levels = Simulation(system, dt=1).check().prepare().run(1).trajectory_.values('cells.u')[-1]
+    levels = Simulation(system, dt=1).prepare().run(1).trajectory_.values('cells.u')[-1]
     np.testing.assert_allclose(levels, (np.roll(u, 1) + np.roll(u, -1) + u) / 3)
 
 
@@ -479,7 +479,7 @@ def test_coupling_map_form_aligns_a_vicsek_flock_at_low_noise():
         ObservableSpec('mean_heading', _heading, group='flock'),
         ObservableSpec('polarization', _polarization),
     ]
-    simulation = Simulation(system, dt=1.0, random_state=0, observables=observables).check().prepare()
+    simulation = Simulation(system, dt=1.0, random_state=0, observables=observables).prepare()
     polarization = np.asarray(simulation.run(until=150.0).trajectory_.values('polarization'), dtype=float)
     assert polarization[0] < 0.2
     assert polarization[-1] > 0.9
@@ -515,7 +515,7 @@ def test_coupling_over_edges_needs_edges_for_its_rates():
 def test_check_rejects_unknown_variants_and_mismatched_structures(arguments, match):
     """Test that unknown variants, functions that cannot be called, and weights that do not suit the mode fail."""
     with pytest.raises(ValidationError, match=match):
-        CouplingInteraction('coupling', target='oscillators', **arguments).check()
+        CouplingInteraction('coupling', target='oscillators', **arguments).prepare()
 
 
 def test_coupling_separate_elements_to_each_other():
@@ -531,7 +531,7 @@ def test_coupling_separate_elements_to_each_other():
         mode='group',
     )
     system = System(elements=oscillators, interactions=[sine])
-    trajectory = Simulation(system, dt=0.01).check().prepare().run(until=1.0).trajectory_
+    trajectory = Simulation(system, dt=0.01).prepare().run(until=1.0).trajectory_
     found = [trajectory.values(f'o{index}.theta')[-1] for index in range(3)]
     expected = scipy.integrate.solve_ivp(
         lambda _, theta: np.sin(theta[None, :] - theta[:, None]).sum(axis=1),
@@ -557,7 +557,7 @@ def test_coupling_hub_by_largest_value_of_group():
         mode='group',
     )
     system = System(elements=[cells, CellElement('hub')], interactions=[drive])
-    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=1.0).trajectory_
+    trajectory = Simulation(system, dt=0.1).prepare().run(until=1.0).trajectory_
     assert trajectory.values('hub.u')[-1] == pytest.approx(3.0)
 
 
@@ -574,14 +574,14 @@ def test_coupling_group_to_hub_element():
         mode='group',
     )
     system = System(elements=[cells, CellElement('hub', u=2.0)], interactions=[inhibition])
-    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=1.0).trajectory_
+    trajectory = Simulation(system, dt=0.1).prepare().run(until=1.0).trajectory_
     np.testing.assert_allclose(trajectory.values('cells.u')[-1], [-2.0, -1.0])
 
 
 def test_check_separate_elements_need_group_mode():
     """Test that a coupling of separate elements outside the mode group is rejected."""
     with pytest.raises(ValidationError, match='separate elements'):
-        CouplingInteraction('sine', target=['a', 'b'], mode='next').check()
+        CouplingInteraction('sine', target=['a', 'b'], mode='next').prepare()
 
 
 class HeadingElement(Element):
@@ -612,7 +612,7 @@ def _velocities(locations, velocities, **arguments):
     coupling = CouplingInteraction('coupling', target='agents', write=('vx', 'vy'), form='agent', **arguments)
     space = ContinuousSpace(extent=(10.0, 10.0))
     system = System(elements=[agents], interactions=[coupling], space=space, time=DiscreteTime())
-    snapshot = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_.agents('agents', 1)
+    snapshot = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.agents('agents', 1)
     return np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
 
 
@@ -656,20 +656,20 @@ def test_coupling_agents_combine_reduction_and_priority():
 def test_check_agent_form_needs_radii_and_takes_them_alone(arguments, match):
     """Test that the agent form needs radii, and that the other forms take no radii, clamp, or phase."""
     with pytest.raises(ValidationError, match=match):
-        CouplingInteraction('coupling', target='agents', **arguments).check()
+        CouplingInteraction('coupling', target='agents', **arguments).prepare()
 
 
 def test_check_rejects_a_phase_of_the_rate_form():
     """Test that the rate form takes no phase, which only the agent and the map forms run in."""
     with pytest.raises(ValidationError, match='agent and the map forms'):
-        CouplingInteraction('coupling', target='agents', phase='play').check()
+        CouplingInteraction('coupling', target='agents', phase='play').prepare()
 
 
 def test_coupling_map_form_runs_in_its_phase():
     """Test that the next value of the map form is an update law in the phase of the coupling."""
     source, target = SimpleNamespace(x=SR.var('a')), SimpleNamespace(x=SR.var('b'))
     coupling = CouplingInteraction('coupling', target='cells', form='map', mode='group', phase='play')
-    laws = coupling.check().prepare().run(SimpleNamespace(source=source, target=target)).laws_
+    laws = coupling.prepare().run(SimpleNamespace(source=source, target=target)).laws_
     assert [law.phase for law in laws] == ['play']
 
 

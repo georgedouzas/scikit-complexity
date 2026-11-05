@@ -47,7 +47,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(
         until=250,
@@ -73,7 +72,6 @@ def headings(coupling):
             random_state=0,
             observables=describe(MODEL).observables_of(model_system),
         )
-        .check()
         .prepare()
         .run(until=300)
     )

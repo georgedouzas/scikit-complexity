@@ -444,7 +444,7 @@ def network_sir(
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.models.biology.epidemiology import network_sir
-        >>> network_sir(nx.cycle_graph(5), residents=3).elements[0].check().prepare().size_
+        >>> network_sir(nx.cycle_graph(5), residents=3).elements[0].prepare().size_
         15
     """
     rng = np.random.default_rng(random_state)

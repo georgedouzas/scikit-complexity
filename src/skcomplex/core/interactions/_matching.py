@@ -103,7 +103,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
     Raises:
         ValidationError:
             A transfer has a sign other than `-1` or `1`, or the rule is neither a matching spec nor a function, or
-            it is invalid, raised by `check`, or an agent lacks a state other than a default one that names its
+            it is invalid, raised by `prepare`, or an agent lacks a state other than a default one that names its
             limit, quantity, or allowance, raised by `run`.
 
     Examples:
@@ -116,7 +116,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
         ...     rule=ContinuousMatchingSpec(),
         ...     limit=('bid', 'ask'),
         ... )
-        >>> matching.check().reports
+        >>> matching.reports
         ('value', 'volume', 'unmatched')
     """
 
@@ -694,7 +694,7 @@ class MatchingInteraction[ModelT: ModelViewProtocol](Interaction):
                 raise ValidationError(error_msg)
         self._check_variant('rule', self.rule, (), RULES, functions=True)
         if isinstance(self.rule, RULES):
-            self.rule.check()
+            self.rule._validated()
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the rule that matches the members in the matching's phase.

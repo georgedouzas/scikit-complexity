@@ -19,5 +19,5 @@ def test_security_forces_respond_to_criminality():
 
 def test_criminality_needs_an_ode_solver():
     """Test that the macro-scale recruitment, a rate law, rules out the particle solver."""
-    issues = PassCompiler(solver=KineticSolver()).check().prepare(create('criminality')).report_.errors
+    issues = PassCompiler(solver=KineticSolver()).prepare(create('criminality')).report_.errors
     assert [issue.code for issue in issues] == ['solver-unsupported']

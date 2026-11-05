@@ -15,7 +15,7 @@ def _satisfiable_shares(n_weights: int) -> np.ndarray:
     bounds = {'n_weights': [n_weights], 'random_state': list(range(20))}
     outputs = ['decide.satisfiable']
     experiment = Experiment(perceptron_satisfiability, GridDesign(), bounds, until=STEPS, outputs=outputs)
-    return experiment.check().prepare().run().result_.series('decide.satisfiable').mean(axis=0)
+    return experiment.prepare().run().result_.series('decide.satisfiable').mean(axis=0)
 
 
 @pytest.mark.parametrize('n_weights', [15, 21])

@@ -73,7 +73,7 @@ class OperatorCompiler(BaseCompiler):
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.compile import OperatorCompiler
         >>> from skcomplex.models.biology.common.populations import PopulationElement
-        >>> OperatorCompiler().check().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
+        >>> OperatorCompiler().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
         False
     """
 
@@ -176,7 +176,7 @@ class OperatorCompiler(BaseCompiler):
                 'Declare its state as `StateSpec(domain=CC)`.'
             )
             raise ValidationError(error_msg)
-        space.check()
+        space._validated()
         domain = declarations_of(element, VariableKind.STATE)[state].domain
         dimension = domain.dimension() if isinstance(domain, FreeModule_generic) else space.dimension
         if dimension != space.dimension:
@@ -315,7 +315,7 @@ class OperatorCompiler(BaseCompiler):
                 name: OperatorCompiler._member_value(value, member, size)
                 for name, value in (component.values or {}).items()
             }
-            element = component.element(f'{component.label}_{member}').set_params(**values).check()
+            element = component.element(f'{component.label}_{member}').set_params(**values)._validated()
             members.append((f'{node.path}[{member}]', OperatorCompiler._view_of(element)))
         return members
 
@@ -403,9 +403,9 @@ class OperatorCompiler(BaseCompiler):
             raise TypeError(error_msg)
         for law in items:
             if isinstance(law, GeneratorLaw):
-                generators.append((owner, law.check().operator))
+                generators.append((owner, law.operator))
             elif isinstance(law, DissipatorLaw):
-                dissipators.append((owner, law.check().operator, law.rate))
+                dissipators.append((owner, law.operator, law.rate))
             else:
                 error_msg = (
                     f'{owner} returns the law {type(law).__name__}, which an operator system cannot hold. Operator '
@@ -442,7 +442,7 @@ class OperatorCompiler(BaseCompiler):
             if space is None:
                 error_msg = f'Neighbour interaction {node.path} binds {path}, which lives in no space.'
                 raise ValidationError(error_msg)
-            for source, target in space.check().prepare()._neighbor_pairs(interaction.layer):
+            for source, target in space.prepare()._neighbor_pairs(interaction.layer):
                 namespace = SimpleNamespace(source=members[path][source], target=members[path][target], **parameters)
                 OperatorCompiler._collect_laws(
                     generators,
@@ -628,7 +628,7 @@ class OperatorCompiler(BaseCompiler):
                     generators,
                     dissipators,
                     key,
-                    element.element.check().prepare().run(SimpleNamespace(**vars(namespace), t=time)).laws_,
+                    element.element.prepare().run(SimpleNamespace(**vars(namespace), t=time)).laws_,
                 )
             members[node.path] = tuple(namespaces)
         return members
@@ -721,7 +721,7 @@ class OperatorCompiler(BaseCompiler):
         entries, values, symbols = OperatorCompiler._parameters(nodes)
         p = np.concatenate(values) if values else np.zeros(0)
         arguments = OperatorCompiler._arguments_of(entries, symbols)
-        lowering = OperatorLowering(time, subsystems, dimensions, arguments).check().prepare()
+        lowering = OperatorLowering(time, subsystems, dimensions, arguments).prepare()
         groups = {node.path: node for node in operator_nodes if isinstance(node.component, GroupElement)}
         generators: Generators = []
         dissipators: Dissipators = []

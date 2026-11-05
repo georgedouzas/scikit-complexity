@@ -125,9 +125,9 @@ class PumpElement(Element):
 def test_update_runs_into_its_value_and_targets_a_topology_request():
     """Test that an update runs into its new value, and targets a topology request that it fires with a probability."""
     x = var('x')
-    assert UpdateLaw(x, 2 * x).check().prepare().run({'x': 1.5}).value_ == 3.0
+    assert UpdateLaw(x, 2 * x).prepare().run({'x': 1.5}).value_ == 3.0
     request = TopologyRequestSpec('rewire', keep='target')
-    law = UpdateLaw(request, 0.1).check().prepare()
+    law = UpdateLaw(request, 0.1).prepare()
     assert law.targets_ == (request,)
 
 
@@ -137,7 +137,7 @@ def test_adaptive_parameter_changes_only_when_the_policy_fires():
         elements=[EconomyElement('economy', rate=0.03)],
         interactions=[PolicyInteraction('bank', target='economy')],
     )
-    trajectory = Simulation(system).check().prepare().run(until=4).trajectory_
+    trajectory = Simulation(system).prepare().run(until=4).trajectory_
     rates, prices = trajectory.values('economy.rate'), trajectory.values('economy.price')
     assert rates[0] == pytest.approx(0.03)
     np.testing.assert_array_equal(np.diff(rates) > 0, prices[:-1] > 1.05)
@@ -145,7 +145,7 @@ def test_adaptive_parameter_changes_only_when_the_policy_fires():
 
 def test_fibonacci_recurrence():
     """Test that `x_{t+1} = x_t + x_{t-1}` from 1 and 1 gives the Fibonacci sequence."""
-    trajectory = Simulation(System(elements=[FibonacciElement('f')])).check().prepare().run(until=8).trajectory_
+    trajectory = Simulation(System(elements=[FibonacciElement('f')])).prepare().run(until=8).trajectory_
     assert trajectory.values('f.x').tolist() == [1, 2, 3, 5, 8, 13, 21, 34, 55]
     assert trajectory.values('f.x_lag1').tolist()[:3] == [1, 1, 2]
 
@@ -153,11 +153,7 @@ def test_fibonacci_recurrence():
 def test_multiplier_accelerator_oscillates_with_growing_amplitude():
     """Test that Samuelson's model with c v > 1 oscillates around G / (1 - c) with growing amplitude."""
     income = (
-        Simulation(System(elements=[IncomeElement('economy')]))
-        .check()
-        .prepare()
-        .run(until=40)
-        .trajectory_.values('economy.Y')
+        Simulation(System(elements=[IncomeElement('economy')])).prepare().run(until=40).trajectory_.values('economy.Y')
     )
     deviation = income - 20.0 / (1 - 0.8)
     assert np.any(deviation[1:] * deviation[:-1] < 0)
@@ -203,7 +199,7 @@ def _counters(laws, initial, until=1):
     """Return the values of the members of a group under the laws of one interaction."""
     group = GroupElement('counters', element=CounterElement, size=len(initial), values={'x': initial})
     system = System(elements=[group], interactions=[LawsInteraction('laws', target='counters', laws=laws)])
-    return Simulation(system).check().prepare().run(until=until).trajectory_.values('counters.x')
+    return Simulation(system).prepare().run(until=until).trajectory_.values('counters.x')
 
 
 def _increments(s):
@@ -267,4 +263,4 @@ def test_update_check_rejects_an_increment_with_a_source():
     """Test that an increment law with a source raises an error."""
     x = var('x')
     with pytest.raises(ValidationError, match='no source'):
-        UpdateLaw(x, x + 1, increment=True, source=0).check()
+        UpdateLaw(x, x + 1, increment=True, source=0).prepare()

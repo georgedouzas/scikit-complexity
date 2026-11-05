@@ -30,9 +30,9 @@ class MooreNeighborhood(LatticeNeighborhood):
 
     Examples:
         >>> from skcomplex.core.spaces import MooreNeighborhood
-        >>> len(MooreNeighborhood().check().prepare().offsets_)
+        >>> len(MooreNeighborhood().prepare().offsets_)
         8
-        >>> len(MooreNeighborhood(center=True).check().prepare().offsets_)
+        >>> len(MooreNeighborhood(center=True).prepare().offsets_)
         9
     """
 

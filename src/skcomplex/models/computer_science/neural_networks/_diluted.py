@@ -132,7 +132,7 @@ def diluted_hopfield(
 
     Examples:
         >>> from skcomplex.models.computer_science.neural_networks import diluted_hopfield
-        >>> diluted_hopfield(200, connectivity=10).elements[0].check().prepare().size_
+        >>> diluted_hopfield(200, connectivity=10).elements[0].prepare().size_
         200
     """
     rng = np.random.default_rng(random_state)

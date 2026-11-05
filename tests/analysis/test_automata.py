@@ -77,13 +77,13 @@ def _subshift_system(space, neighborhood, forbidden, states=2):
 
 def _automaton(kind, source, **settings):
     """Return the automaton analysis of a system for one kind, run."""
-    return AutomatonAnalysis(kind, **settings).check().prepare(source).run()
+    return AutomatonAnalysis(kind, **settings).prepare(source).run()
 
 
 def _law(system):
     """Return the law of the local rule of a system."""
     interaction = system.interactions[0]
-    return LocalRuleLaw(var('alive'), interaction.neighborhood, interaction.rule).check().prepare()
+    return LocalRuleLaw(var('alive'), interaction.neighborhood, interaction.rule).prepare()
 
 
 def _step(system, configuration):
@@ -159,7 +159,7 @@ def test_laplacian_over_gf2_matches_its_circulant():
     assert _automaton('injective', laplacian).injective_ == expected
     assert _automaton('surjective', laplacian).surjective_ == expected
     configuration = np.array([1, 0, 0, 1, 0])
-    neighbours = space.check().prepare()._index_table(MemoryNeighborhood(('a^-1', 'a')))
+    neighbours = space.prepare()._index_table(MemoryNeighborhood(('a^-1', 'a')))
     np.testing.assert_array_equal(_step(laplacian, configuration), configuration[neighbours].sum(axis=1) % 2)
 
 
@@ -201,7 +201,7 @@ def test_spatial_entropy_rate_does_not_increase():
     rows = [np.random.default_rng(0).integers(2, size=20000)]
     for _ in range(20):
         rows.append(_step(rule, rows[-1]))
-    rates = EntropyAnalysis('rate', dimension=6).check().prepare(np.stack(rows).T).run().entropy_
+    rates = EntropyAnalysis('rate', dimension=6).prepare(np.stack(rows).T).run().entropy_
     assert np.diff(rates).max() < 0.03
     assert rates[-1] < rates[0] - 0.2
 
@@ -220,13 +220,13 @@ def test_kind_reads_its_model():
     """Test that a subshift is rejected by a decision, and a setting another kind reads by the check."""
     golden = _subshift_system(LatticeSpace(5), GOLDEN_PAIR, ((1, 1),))
     with pytest.raises(AnalysisError, match='reads a system with an automaton or a linear automaton'):
-        AutomatonAnalysis().check().prepare(golden)
+        AutomatonAnalysis().prepare(golden)
     with pytest.raises(AnalysisError, match='does not read tries'):
-        AutomatonAnalysis(tries=3).check()
+        AutomatonAnalysis(tries=3).prepare()
     with pytest.raises(AnalysisError, match='reads a system with a subshift, not ndarray'):
-        AutomatonAnalysis('count').check().prepare(np.zeros(3))
+        AutomatonAnalysis('count').prepare(np.zeros(3))
     with pytest.raises(AnalysisError, match='needs configuration'):
-        AutomatonAnalysis('admissible').check()
+        AutomatonAnalysis('admissible').prepare()
 
 
 def test_reference_values_on_a_lattice():
@@ -255,7 +255,7 @@ def test_reference_values_on_a_lattice():
     shift = _automaton_system(LatticeSpace(8), LatticeNeighborhood(((1,),)), TableSpec({(1,): 1}))
     assert _automaton('inverse', _elementary(30, 8)).inverse_ is None
     back = _automaton('inverse', shift).inverse_
-    assert back.interactions[0].neighborhood.check().prepare().offsets_ == ((-1,), (0,), (1,))
+    assert back.interactions[0].neighborhood.prepare().offsets_ == ((-1,), (0,), (1,))
     assert back.interactions[0].rule.n_states == 2
     assert sorted(pattern for pattern, value in back.interactions[0].rule.mapping.items() if value) == [
         (1, 0, 0),
@@ -264,7 +264,7 @@ def test_reference_values_on_a_lattice():
         (1, 1, 1),
     ]
     composition = _automaton('compose', shift, second=back).composition_
-    assert composition.interactions[0].neighborhood.check().prepare().offsets_ == ((0,), (1,), (2,))
+    assert composition.interactions[0].neighborhood.prepare().offsets_ == ((0,), (1,), (2,))
     configurations = np.zeros((8, 8), dtype=int)
     configurations[:, :3] = list(itertools.product((0, 1), repeat=3))
     assert _step(composition, configurations)[:, 0].tolist() == [0, 0, 0, 0, 1, 1, 1, 1]
@@ -276,7 +276,7 @@ def test_reference_values_on_a_group():
     space = _cycle(6)
     rotation = _automaton_system(space, MemoryNeighborhood(('a',)), TableSpec({(1,): 1}))
     assert _step(rotation, [1, 0, 0, 1, 1, 0]).tolist() == [0, 1, 1, 0, 0, 1]
-    assert space.check().prepare()._index_table(MemoryNeighborhood(('a',))).ravel().tolist() == [1, 3, 0, 5, 2, 4]
+    assert space.prepare()._index_table(MemoryNeighborhood(('a',))).ravel().tolist() == [1, 3, 0, 5, 2, 4]
     assert _automaton('injective', rotation).injective_
     assert _automaton('surjective', rotation).surjective_
     assert _automaton('pre-injective', rotation, window=[1, 2]).pre_injective_
@@ -377,7 +377,7 @@ def test_matrix_on_a_ball_and_polynomial_without_offsets_raise():
 
 def test_local_map_is_read_by_the_decisions():
     """Test that Life keeps the hash of its recorded local map, read from the run on a torus of 3 x 3 cells."""
-    neighbors = MooreNeighborhood().check().prepare().offsets_
+    neighbors = MooreNeighborhood().prepare().offsets_
     positions = [4, *[(1 + first) * 3 + (1 + second) for first, second in neighbors]]
     configurations = np.zeros((512, 9), dtype=int)
     configurations[:, positions] = list(itertools.product((0, 1), repeat=9))
@@ -392,7 +392,7 @@ def test_rule_values_outside_the_states_raise():
     """Test that a rule returning a value outside 0 to states - 1 is rejected."""
     wrong = _automaton_system(LatticeSpace(5), BoxNeighborhood(), TotalisticSpec(lambda total: total))
     with pytest.raises(AnalysisError, match='outside the integers 0 to 1'):
-        AutomatonAnalysis().check().prepare(wrong)
+        AutomatonAnalysis().prepare(wrong)
 
 
 def test_rules_that_are_no_map_of_configurations_raise():
@@ -400,7 +400,7 @@ def test_rules_that_are_no_map_of_configurations_raise():
     rule = TotalisticSpec({1: 1})
     space = LatticeSpace(5)
     with pytest.raises(AnalysisError, match='synchronous'):
-        AutomatonAnalysis().check().prepare(
+        AutomatonAnalysis().prepare(
             _automaton_system(space, BoxNeighborhood(), rule, schedule='random-sequential'),
         )
 
@@ -409,11 +409,11 @@ def test_rules_that_are_no_map_of_configurations_raise():
         return sum(values) // degree
 
     with pytest.raises(AnalysisError, match='of the cells alone'):
-        AutomatonAnalysis().check().prepare(_automaton_system(space, BoxNeighborhood(), needs_degree))
+        AutomatonAnalysis().prepare(_automaton_system(space, BoxNeighborhood(), needs_degree))
     double = _automaton_system(space, BoxNeighborhood(), rule)
     double.interactions = [*double.interactions, *double.interactions]
     with pytest.raises(AnalysisError, match='one local rule'):
-        AutomatonAnalysis().check().prepare(double)
+        AutomatonAnalysis().prepare(double)
 
 
 def test_composition_runs_in_a_simulation():
@@ -424,7 +424,7 @@ def test_composition_runs_in_a_simulation():
     start = np.array([1, 0, 1, 1, 0, 0, 0, 1])
     cells = LatticeElement('cells', element=CellElement, space=shift.elements[0].space, values={'alive': start})
     system = System(elements=[cells], interactions=composition.interactions)
-    trajectory = Simulation(system, dt=1).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, dt=1).prepare().run(until=1).trajectory_
     np.testing.assert_array_equal(trajectory.values('cells.alive')[-1].astype(int), start)
 
 

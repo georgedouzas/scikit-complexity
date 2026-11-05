@@ -30,8 +30,8 @@ simulation = run(MODEL, random_state=0, settings={'observers': [observer], 'rand
 
 field = simulation.trajectory_.lattice('cells.u')[-1]
 spacing = 16 * np.pi / field.shape[0]
-factor = SpectrumAnalysis('structure-factor', spacing=spacing).check().prepare(field).run()
-wavelength = DomainAnalysis('wavelength', spacing=spacing).check().prepare(field).run().wavelength_[0]
+factor = SpectrumAnalysis('structure-factor', spacing=spacing).prepare(field).run()
+wavelength = DomainAnalysis('wavelength', spacing=spacing).prepare(field).run().wavelength_[0]
 fig, (image, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
 image.imshow(field, cmap='viridis', extent=(0, 16 * np.pi, 0, 16 * np.pi))
 image.set_xlabel('x')

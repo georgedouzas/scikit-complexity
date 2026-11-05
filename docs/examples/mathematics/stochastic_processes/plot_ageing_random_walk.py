@@ -36,9 +36,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(create(MODEL, n_walkers=6), dt=1, observers=[observer], random_state=0).check().prepare().run(until=299)
-)
+simulation = Simulation(create(MODEL, n_walkers=6), dt=1, observers=[observer], random_state=0).prepare().run(until=299)
 positions = states(simulation.trajectory_, 'x')
 for walker in range(6):
     observer.recording_.send_columns(
@@ -57,13 +55,7 @@ observer.recording_.flush()
 
 fig, ax = plt.subplots(figsize=(6.5, 4.5))
 for nu in (0.5, 1.0, 2.0):
-    run = (
-        Simulation(create(MODEL, n_walkers=500, nu=nu), dt=1, random_state=1)
-        .check()
-        .prepare()
-        .run(until=1000)
-        .trajectory_
-    )
+    run = Simulation(create(MODEL, n_walkers=500, nu=nu), dt=1, random_state=1).prepare().run(until=1000).trajectory_
     ups = states(run, 'ups').mean(axis=1)
     (line,) = ax.loglog(run.times[1:], ups[1:], label=f'nu = {nu}')
     ax.loglog(

@@ -27,7 +27,7 @@ def bobs(theta1, theta2):
 
 system = create(MODEL, theta1=2.0, theta2=2.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=10)
-simulation = Simulation(system, dt=0.005, observers=[observer]).check().prepare().run(until=12)
+simulation = Simulation(system, dt=0.005, observers=[observer]).prepare().run(until=12)
 
 # %%
 # Sensitive dependence on the initial angle
@@ -37,7 +37,7 @@ simulation = Simulation(system, dt=0.005, observers=[observer]).check().prepare(
 # pendulum itself.
 
 runs = [
-    Simulation(create(MODEL, theta1=np.pi / 2 + shift, theta2=np.pi / 2), dt=0.005).check().prepare().run(until=20)
+    Simulation(create(MODEL, theta1=np.pi / 2 + shift, theta2=np.pi / 2), dt=0.005).prepare().run(until=20)
     for shift in [0.0, 1e-8]
 ]
 lower = [

@@ -25,6 +25,6 @@ class AlgebraicLaw(BoundaryLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.engine.compile._algebraic_law import AlgebraicLaw
         >>> v, r = var('v r')
-        >>> AlgebraicLaw(v, 2 * r).check().prepare().run({'r': 1.5}).value_
+        >>> AlgebraicLaw(v, 2 * r).prepare().run({'r': 1.5}).value_
         3.0
     """

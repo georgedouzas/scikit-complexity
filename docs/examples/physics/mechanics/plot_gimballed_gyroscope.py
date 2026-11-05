@@ -35,7 +35,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=4)
-simulation = Simulation(system, dt=0.01, observers=[observer]).check().prepare().run(until=10)
+simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(until=10)
 
 # %%
 # Precession and nutation
@@ -48,12 +48,7 @@ trajectory = simulation.trajectory_
 early = trajectory.times <= 0.5
 spins = np.array([25.0, 50.0, 100.0, 200.0])
 rates = [
-    Simulation(create(MODEL, spin=spin), dt=0.01)
-    .check()
-    .prepare()
-    .run(until=10)
-    .trajectory_.values('gyroscope.alpha')[-1]
-    / 10
+    Simulation(create(MODEL, spin=spin), dt=0.01).prepare().run(until=10).trajectory_.values('gyroscope.alpha')[-1] / 10
     for spin in spins
 ]
 grid = np.linspace(20.0, 220.0, 100)

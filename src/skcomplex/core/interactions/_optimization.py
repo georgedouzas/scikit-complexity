@@ -68,13 +68,13 @@ class OptimizationInteraction(Interaction):
 
     Raises:
         ValidationError:
-            The algorithm is not an algorithm spec, or the objective is not callable, raised by `check`.
+            The algorithm is not an algorithm spec, or the objective is not callable, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.core.interactions import OptimizationInteraction
         >>> objective = lambda values: (values**2).sum(axis=1)
         >>> search = OptimizationInteraction('search', target='swarm', state='x', objective=objective, bounds=(-1, 1))
-        >>> search.check().label
+        >>> search.label
         'search'
     """
 

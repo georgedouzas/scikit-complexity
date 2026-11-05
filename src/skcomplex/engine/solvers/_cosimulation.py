@@ -109,7 +109,7 @@ class CoSimulationSolver(Solver):
         ...     ],
         ... )
         >>> simulation = Simulation(system, solver=CoSimulationSolver(split=True), dt=0.5)
-        >>> simulation = simulation.check().prepare().run(until=1)
+        >>> simulation = simulation.prepare().run(until=1)
         >>> sorted(simulation.stepper_.steppers_)
         ['a', 'b']
     """
@@ -206,7 +206,7 @@ class CoSimulationSolver(Solver):
                 raise SolverError(error_msg)
             backend = NumbaBackend() if problem.backend == NumbaBackend._get_name() else NumpyBackend()
             compiler = PassCompiler(backend=backend, partition='subsystems')
-            partitioned = compiler.check().prepare(problem.system).run().problem_
+            partitioned = compiler.prepare(problem.system).run().problem_
             if not isinstance(partitioned, ProblemSpec):
                 error_msg = f'The compiler returned a {type(partitioned).__name__}, not a ProblemSpec.'
                 raise TypeError(error_msg)
@@ -222,7 +222,7 @@ class CoSimulationSolver(Solver):
                 error_msg = f'Partition {partition.name} has the {form} form, which has no default solver. Give one.'
                 raise ValidationError(error_msg)
             stepper = clone(solver) if solver is not None else DEFAULT_SOLVERS[FormKind(form)]()
-            stepper.set_params(random_state=generator, until=self.until).check().prepare(partition.problem)
+            stepper.set_params(random_state=generator, until=self.until).prepare(partition.problem)
             self.steppers_[partition.name] = stepper
         self._held = [
             (path, reduction, self._reducer(reduction, problem.time))
@@ -262,7 +262,7 @@ class CoSimulationSolver(Solver):
 
             return reduce_values_of
         condition = SR(1) if reduction.condition is None else reduction.condition
-        printer = ExpressionPrinter(time=time, compiled=True).check().prepare(list(reduction.symbols))
+        printer = ExpressionPrinter(time=time, compiled=True).prepare(list(reduction.symbols))
         function = printer.run([reduction.argument, condition]).code_
         if not callable(function):
             error_msg = f'The printer returned a {type(function).__name__}, not a compiled function.'

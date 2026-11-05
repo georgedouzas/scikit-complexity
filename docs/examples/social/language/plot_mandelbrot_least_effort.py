@@ -21,7 +21,7 @@ MODEL = 'mandelbrot_least_effort'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer]).check().prepare().run(until=1.0)
+simulation = Simulation(system, observers=[observer]).prepare().run(until=1.0)
 probabilities = simulation.trajectory_.values('words.probability')[0]
 
 # %%
@@ -38,7 +38,7 @@ experiment = Experiment(
     until=1.0,
     outputs=['language.exponent'],
 )
-exponents = experiment.check().prepare().run().result_.series('language.exponent')[:, 0]
+exponents = experiment.prepare().run().result_.series('language.exponent')[:, 0]
 ranks = np.arange(1, probabilities.size + 1)
 fig, (law, trend) = plt.subplots(1, 2, figsize=(10, 4))
 law.loglog(ranks + 1, probabilities, '.')

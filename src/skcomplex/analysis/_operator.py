@@ -124,14 +124,14 @@ class OperatorAnalysis(BaseAnalysis):
         ...     def _get_laws(self, s):
         ...         return [GeneratorLaw(local_operator(s.psi, SR.symbol('z')))]
         >>> system = System(elements=[TwoLevelElement('q')])
-        >>> OperatorAnalysis(n_states=2).check().prepare(system).run().energies_.round(6).tolist()
+        >>> OperatorAnalysis(n_states=2).prepare(system).run().energies_.round(6).tolist()
         [-1.0, 1.0]
         >>> singlet = np.array([0, 1, -1, 0]) / np.sqrt(2)
         >>> pair = System(elements=[GroupElement('pair', element=TwoLevelElement, size=2)])
         >>> trajectory = Simulation(
         ...     pair, compiler=OperatorCompiler(), dt=1.0, initial_state={'system.state': singlet},
-        ... ).check().prepare().run(until=1.0).trajectory_
-        >>> analysis = OperatorAnalysis('entanglement', subsystems=['pair[0]']).check().prepare(trajectory).run()
+        ... ).prepare().run(until=1.0).trajectory_
+        >>> analysis = OperatorAnalysis('entanglement', subsystems=['pair[0]']).prepare(trajectory).run()
         >>> bool(np.allclose(analysis.entropy_, np.log(2)))
         True
     """

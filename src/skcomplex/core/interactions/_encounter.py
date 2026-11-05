@@ -86,10 +86,10 @@ class EncounterInteraction(Interaction):
         >>> mixing = EncounterInteraction(
         ...     'mixing', candidate='population', field='population', rate=lambda s: 1.0, kernel=lambda s: kernel
         ... )
-        >>> mixing.check().outcome
+        >>> mixing.outcome
         'conservative'
         >>> collide = EncounterInteraction('collide', candidate='gas', cross_section=lambda speed, cosine: 1.0)
-        >>> collide.check().rate is None
+        >>> collide.rate is None
         True
     """
 

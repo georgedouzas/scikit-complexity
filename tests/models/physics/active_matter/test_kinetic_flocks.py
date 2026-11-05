@@ -15,7 +15,7 @@ def polarization_change(density: float, transition: float) -> float:
     """Return the ratio of the final and initial polarization moments of a homogeneous flock."""
     angles = 32
     system = bertin_droz_gregoire(1, angles, density=density * transition, interaction_range=0.5, noise=0.5)
-    trajectory = Simulation(system, dt=2.0, solver=RK4Solver(dt=0.05)).check().prepare().run(until=2.0).trajectory_
+    trajectory = Simulation(system, dt=2.0, solver=RK4Solver(dt=0.05)).prepare().run(until=2.0).trajectory_
     values = np.asarray(trajectory.values('flock.f'))
     theta = 2 * np.pi * (np.arange(angles) + 0.5) / angles
     return float((values[-1] @ np.cos(theta)) / (values[0] @ np.cos(theta)))

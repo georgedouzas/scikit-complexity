@@ -30,7 +30,7 @@ class VonNeumannNeighborhood(LatticeNeighborhood):
 
     Examples:
         >>> from skcomplex.core.spaces import VonNeumannNeighborhood
-        >>> VonNeumannNeighborhood().check().prepare().offsets_
+        >>> VonNeumannNeighborhood().prepare().offsets_
         ((-1, 0), (0, -1), (0, 1), (1, 0))
     """
 

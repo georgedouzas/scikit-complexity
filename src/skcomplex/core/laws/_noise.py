@@ -57,7 +57,7 @@ class NoiseLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import NoiseLaw
         >>> x = var('x')
-        >>> NoiseLaw(x, 0.2 * x, process='shared').check().prepare().run({'x': 10.0}).value_
+        >>> NoiseLaw(x, 0.2 * x, process='shared').prepare().run({'x': 10.0}).value_
         2.0
     """
 

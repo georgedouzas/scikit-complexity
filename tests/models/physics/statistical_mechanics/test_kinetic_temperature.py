@@ -26,16 +26,16 @@ def test_kinetic_temperature_of_an_ideal_gas_is_the_second_moment_of_its_speeds(
     """Test that an ideal gas keeps its kinetic temperature, the mass times the second moment of speeds over d."""
     for dimension in (2, 3):
         trajectory = run('ideal_gas', n_dim=dimension, random_state=0, settings={'until': 1.0}).trajectory_
-        temperatures = KineticTemperatureAnalysis(mass=2.0).check().prepare(trajectory).run().temperature_
+        temperatures = KineticTemperatureAnalysis(mass=2.0).prepare(trajectory).run().temperature_
         assert np.ptp(temperatures) < 1e-10
-        speeds = DistributionAnalysis('moments').check().prepare(trajectory).run()
+        speeds = DistributionAnalysis('moments').prepare(trajectory).run()
         np.testing.assert_allclose(temperatures, 2.0 * (speeds.variance_ + speeds.mean_**2) / dimension)
 
 
 def test_kinetic_temperature_of_langevin_particles():
     """Test that 2000 underdamped Langevin particles reach the bath temperature 1.5."""
     velocities = _langevin_velocities(np.random.default_rng(3), 2000, 1.5)
-    temperature = KineticTemperatureAnalysis().check().prepare(velocities).run().temperature_
+    temperature = KineticTemperatureAnalysis().prepare(velocities).run().temperature_
     assert temperature[0] == pytest.approx(1.5, rel=0.03)
     with pytest.raises(AnalysisError, match='positive mass'):
-        KineticTemperatureAnalysis(mass=-1.0).check()
+        KineticTemperatureAnalysis(mass=-1.0).prepare()

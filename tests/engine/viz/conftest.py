@@ -31,7 +31,7 @@ def log_agents() -> Callable[..., BaseVisual]:
         values = dict(snapshots[0].values)
         agents = replace(problem.agents[0], path=path, states=tuple(values), values=values)
         prepared = replace(problem, agent_space=space, agents=(agents,))
-        visual.set_params(path=path, recording=recording).check().prepare(prepared)
+        visual.set_params(path=path, recording=recording).prepare(prepared)
         for step, snapshot in enumerate(snapshots):
             frame = FrameSpec(
                 step,

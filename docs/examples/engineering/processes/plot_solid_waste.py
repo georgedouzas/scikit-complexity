@@ -30,7 +30,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=5)
-simulation = Simulation(create(MODEL), dt=0.1, observers=[observer]).check().prepare().run(40)
+simulation = Simulation(create(MODEL), dt=0.1, observers=[observer]).prepare().run(40)
 
 # %%
 # Filling the landfill
@@ -39,7 +39,7 @@ simulation = Simulation(create(MODEL), dt=0.1, observers=[observer]).check().pre
 # and compost, and the capacity adjustment are balancing loops. The growth makes the landfilling rise until the
 # acceptance table closes the landfill, and the residual waste then turns to dumping.
 
-polarities = LoopAnalysis().check().prepare(create(MODEL)).run().polarities_
+polarities = LoopAnalysis().prepare(create(MODEL)).run().polarities_
 reinforcing, balancing = polarities.count('reinforcing'), polarities.count('balancing')
 trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)

@@ -37,8 +37,8 @@ def test_thermal_sampling_gives_the_core_one_over_the_temperature():
     """A temperature gives the sweeps of the core at the intensity one over it, up to rounding."""
     thermal = ThermalSamplingInteraction('sampling', target='spins', state='s', energy=_energy, temperature=2.0)
     core = SamplingInteraction('sampling', target='spins', state='s', objective=_energy, intensity=0.5)
-    first = Simulation(_system(thermal), random_state=0).check().prepare().run(until=20).trajectory_.states
-    second = Simulation(_system(core), random_state=0).check().prepare().run(until=20).trajectory_.states
+    first = Simulation(_system(thermal), random_state=0).prepare().run(until=20).trajectory_.states
+    second = Simulation(_system(core), random_state=0).prepare().run(until=20).trajectory_.states
     np.testing.assert_array_equal(first, second)
 
 
@@ -50,6 +50,6 @@ def test_thermal_sampling_temperature_sweeps_live():
         random_state=0,
         schedule={'sampling.temperature': lambda time: 0.5 if time < 30 else 20.0},
     )
-    states = simulation.check().prepare().run(until=60).trajectory_.states
+    states = simulation.prepare().run(until=60).trajectory_.states
     assert abs(states[29].mean()) > 0.9
     assert abs(states[-1].mean()) < 0.3

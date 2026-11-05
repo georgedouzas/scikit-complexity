@@ -23,7 +23,7 @@ class RowsDesign(BaseDesign):
 
     Examples:
         >>> from skcomplex.experiments import RowsDesign
-        >>> RowsDesign([{'growth.r': 0.5}, {'growth.r': 1.0}]).check().check().prepare().run().rows_
+        >>> RowsDesign([{'growth.r': 0.5}, {'growth.r': 1.0}]).prepare().run().rows_
         [{'growth.r': 0.5}, {'growth.r': 1.0}]
     """
 

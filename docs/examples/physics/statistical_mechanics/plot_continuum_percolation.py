@@ -22,7 +22,7 @@ MODEL = 'continuum_percolation'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer]).check().prepare().run(until=1.0)
+simulation = Simulation(system, observers=[observer]).prepare().run(until=1.0)
 
 # %%
 # Spanning probability against the filling factor
@@ -42,7 +42,7 @@ for side in (20.0, 50.0):
         analyses=[ClusterAnalysis('percolation', radius=1.0)],
         outputs=[],
     )
-    spans = experiment.check().prepare().run().result_.column('clusteranalysis.spanning').astype(float)
+    spans = experiment.prepare().run().result_.column('clusteranalysis.spanning').astype(float)
     ax.plot(fillings, spans.reshape(len(fillings), len(seeds)).mean(axis=1), 'o-', label=f'side {side:.0f}')
 ax.axvline(1.128, color='black', linestyle='--', label='threshold 1.128')
 ax.set_xlabel('filling factor')

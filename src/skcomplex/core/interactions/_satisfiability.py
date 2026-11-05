@@ -51,13 +51,13 @@ class SatisfiabilityInteraction(Interaction):
 
     Raises:
         ValidationError:
-            A constraint is not a spec or the number revealed per step is not positive, raised by `check`.
+            A constraint is not a spec or the number revealed per step is not positive, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.core.interactions import SatisfiabilityInteraction
         >>> from skcomplex.specs import ClauseSpec
         >>> interaction = SatisfiabilityInteraction('sat', target='bits', state='on', constraints=[ClauseSpec((1, -2))])
-        >>> interaction.check().reveal
+        >>> interaction.reveal
         1
     """
 
@@ -99,7 +99,7 @@ class SatisfiabilityInteraction(Interaction):
             if not isinstance(constraint, ClauseSpec | CardinalitySpec):
                 error_msg = f'The constraint {constraint!r} of {self.label!r} is no ClauseSpec or CardinalitySpec.'
                 raise ValidationError(error_msg)
-            constraint.check()
+            constraint._validated()
 
     def _add(self, constraint: ClauseSpec | CardinalitySpec, solver: Solver, pool: IDPool) -> None:
         """Add one constraint to the solver, encoding a cardinality constraint with variables of the shared pool."""

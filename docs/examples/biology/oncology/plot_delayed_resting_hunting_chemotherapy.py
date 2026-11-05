@@ -20,7 +20,7 @@ MODEL = 'delayed_resting_hunting_chemotherapy'
 
 system = create(MODEL, u=0.03)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=5.0, observers=[observer]).check().prepare().run(until=1000)
+simulation = Simulation(system, dt=5.0, observers=[observer]).prepare().run(until=1000)
 
 # %%
 # Oscillations and clearance
@@ -28,7 +28,7 @@ simulation = Simulation(system, dt=5.0, observers=[observer]).check().prepare().
 # Untreated, the tumour and the hunting cells should keep oscillating out of phase, with the tumour repeatedly nearly
 # cleared and regrowing. With the infusion, the drug should finish the tumour off in its first deep trough.
 
-untreated = Simulation(create(MODEL), dt=5.0).check().prepare().run(until=1000).trajectory_
+untreated = Simulation(create(MODEL), dt=5.0).prepare().run(until=1000).trajectory_
 treated = simulation.trajectory_
 fig, (tumour, phase) = plt.subplots(1, 2, figsize=(10, 4))
 tumour.plot(untreated.times, untreated.values('patient.A'), label='untreated')

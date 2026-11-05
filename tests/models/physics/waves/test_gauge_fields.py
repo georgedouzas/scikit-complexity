@@ -19,7 +19,7 @@ SIDE = 32
 
 def _space(size=SIDE, dimension=2):
     """Return the prepared complex of a periodic lattice."""
-    return CellComplexSpace(LatticeSpace((size,) * dimension)).check().prepare()
+    return CellComplexSpace(LatticeSpace((size,) * dimension)).prepare()
 
 
 def _gauge_transform(angles, space, seed=4):
@@ -53,7 +53,7 @@ def test_gauge_transformation_of_the_initial_links_keeps_the_plaquette_series():
     for initial in (angles, _gauge_transform(angles, space)):
         system = lattice_gauge_fields(16, angles=initial)
         observables = describe('lattice_gauge_fields').observables_of(system)
-        simulation = Simulation(system, dt=1, observables=observables, random_state=2).check().prepare().run(until=200)
+        simulation = Simulation(system, dt=1, observables=observables, random_state=2).prepare().run(until=200)
         series.append(simulation.trajectory_.values('mean_plaquette'))
     assert np.abs(series[0] - series[1]).max() < 1e-12
 
@@ -61,7 +61,7 @@ def test_gauge_transformation_of_the_initial_links_keeps_the_plaquette_series():
 def test_z_n_links_stay_on_the_angles_of_the_group():
     """Test that Z_3 links sampled by heat bath keep the angles of the group."""
     system = lattice_gauge_fields(6, n=3)
-    states = Simulation(system, dt=1, random_state=0).check().prepare().run(until=5).trajectory_.values('links.theta')
+    states = Simulation(system, dt=1, random_state=0).prepare().run(until=5).trajectory_.values('links.theta')
     assert set(np.round(np.mod(states[-1], 2 * np.pi) / (2 * np.pi / 3), 6)) <= {0.0, 1.0, 2.0}
 
 
@@ -93,7 +93,7 @@ def test_loops_are_invariant_under_a_gauge_transformation(extents):
     space = _space(8)
     angles = _random_angles(space)
     loops = [
-        GaugeAnalysis('wilson', space, extents=extents).check().prepare(item).run().value_[0]
+        GaugeAnalysis('wilson', space, extents=extents).prepare(item).run().value_[0]
         for item in (angles, _gauge_transform(angles, space))
     ]
     assert abs(loops[0] - loops[1]) < 1e-12
@@ -104,17 +104,17 @@ def test_plaquette_loop_is_the_mean_cosine_of_the_plaquettes():
     space = _space(6)
     angles = _random_angles(space)
     sums = space.incidences_[1] @ angles
-    assert GaugeAnalysis('wilson', space).check().prepare(angles).run().value_[0] == pytest.approx(np.cos(sums).mean())
+    assert GaugeAnalysis('wilson', space).prepare(angles).run().value_[0] == pytest.approx(np.cos(sums).mean())
 
 
 def test_polyakov_loop_is_invariant_and_winds_along_the_last_axis():
     """Test the Polyakov loop of a uniform link angle along the last axis, and its gauge invariance."""
     space = _space(4)
     angles = np.where(space.link_axes_ == 1, np.pi / 4, 0.0)
-    assert GaugeAnalysis('polyakov', space).check().prepare(angles).run().value_[0] == pytest.approx(-1.0)
+    assert GaugeAnalysis('polyakov', space).prepare(angles).run().value_[0] == pytest.approx(-1.0)
     random = _random_angles(space)
     values = [
-        GaugeAnalysis('polyakov', space).check().prepare(item).run().value_[0]
+        GaugeAnalysis('polyakov', space).prepare(item).run().value_[0]
         for item in (random, _gauge_transform(random, space))
     ]
     assert values[0] == pytest.approx(values[1], abs=1e-12)
@@ -123,7 +123,7 @@ def test_polyakov_loop_is_invariant_and_winds_along_the_last_axis():
 def test_topological_charge_is_an_integer():
     """Test that the charge of random configurations of a periodic 2D lattice is an integer within 1e-9."""
     space = _space(8)
-    charges = GaugeAnalysis('charge', space).check().prepare(np.stack([_random_angles(space, s) for s in range(5)]))
+    charges = GaugeAnalysis('charge', space).prepare(np.stack([_random_angles(space, s) for s in range(5)]))
     values = charges.run().value_
     assert np.abs(values - np.round(values)).max() < 1e-9
     assert np.any(np.round(values) != 0)
@@ -135,15 +135,15 @@ def test_gauss_residual_reads_the_charges():
     field = np.zeros(32)
     field[0] = 1.0
     charges = -space.incidences_[0].T @ field
-    assert GaugeAnalysis('gauss', space, charges=charges).check().prepare(field).run().value_[0] == 0.0
-    assert GaugeAnalysis('gauss', space).check().prepare(field).run().value_[0] == 1.0
+    assert GaugeAnalysis('gauss', space, charges=charges).prepare(field).run().value_[0] == 0.0
+    assert GaugeAnalysis('gauss', space).prepare(field).run().value_[0] == 1.0
 
 
 def test_analysis_reads_a_trajectory():
     """Test that a trajectory gives one value per frame."""
     system = lattice_gauge_fields(4)
-    trajectory = Simulation(system, dt=1, random_state=0).check().prepare().run(until=3).trajectory_
-    analysis = GaugeAnalysis('wilson', _space(4), variables='links.theta').check().prepare(trajectory).run()
+    trajectory = Simulation(system, dt=1, random_state=0).prepare().run(until=3).trajectory_
+    analysis = GaugeAnalysis('wilson', _space(4), variables='links.theta').prepare(trajectory).run()
     assert analysis.value_.shape == (4,)
 
 
@@ -151,11 +151,11 @@ def test_analysis_rejects_a_space_or_a_kind_it_cannot_read():
     """Test that a lattice that is not periodic, an unknown kind, and a charge in 3D raise an error."""
     closed = CellComplexSpace(LatticeSpace((4, 4), boundary='fixed'))
     with pytest.raises(AnalysisError, match='periodic'):
-        GaugeAnalysis('wilson', closed).check()
+        GaugeAnalysis('wilson', closed).prepare()
     with pytest.raises(AnalysisError, match='kind'):
-        GaugeAnalysis('volume', _space(4)).check()
+        GaugeAnalysis('volume', _space(4)).prepare()
     with pytest.raises(AnalysisError, match='two-dimensional'):
-        GaugeAnalysis('charge', CellComplexSpace(LatticeSpace((3, 3, 3)))).check()
+        GaugeAnalysis('charge', CellComplexSpace(LatticeSpace((3, 3, 3)))).prepare()
 
 
 def test_core_holds_no_field_terms_of_gauge_theory():

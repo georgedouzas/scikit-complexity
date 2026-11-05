@@ -141,7 +141,7 @@ class BaseNetworkAnalysis(BaseAnalysis):
             for reaction, weight in weights.items():
                 column = list(self.network_.reactions).index(reaction)
                 costs[0, column] = sense * float(weight)
-            kernel = LinearProgramKernel(replace(program, costs=costs, signs=(sense, *program.signs[1:]))).check()
+            kernel = LinearProgramKernel(replace(program, costs=costs, signs=(sense, *program.signs[1:])))._validated()
             kernel.prepare()
         state = RunStateSpec(0.0, problem.initial_state, self._parameter_values(bounds or {}))
         solved = kernel.run(state).values_
@@ -184,7 +184,7 @@ class FluxVariabilityAnalysis(BaseNetworkAnalysis):
         ... }
         >>> network = metabolic_network_type('TwoWaysElement', reactions, {'in': 1.0})('net')
         >>> system = System(elements=[network], time=StaticTime())
-        >>> FluxVariabilityAnalysis().check().prepare(system).run().ranges_.loc['one'].tolist()
+        >>> FluxVariabilityAnalysis().prepare(system).run().ranges_.loc['one'].tolist()
         [0.0, 4.0]
     """
 
@@ -256,7 +256,7 @@ class ProductionScanAnalysis(BaseNetworkAnalysis):
         ... }
         >>> network = metabolic_network_type('ScanElement', reactions, {'grow': 1.0})('net')
         >>> system = System(elements=[network], time=StaticTime())
-        >>> ProductionScanAnalysis('out', steps=2).check().prepare(system).run().reactions_
+        >>> ProductionScanAnalysis('out', steps=2).prepare(system).run().reactions_
         ['make', 'out']
     """
 
@@ -346,17 +346,17 @@ class CobraAnalysis(BaseNetworkAnalysis):
 
     Raises:
         AnalysisError:
-            The kind is unknown, raised by `check`.
+            The kind is unknown, raised by `prepare`.
 
         MissingExtraError:
-            The extra is not installed, raised by `check`.
+            The extra is not installed, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.core.spaces import StaticTime
         >>> from skcomplex.core.system import System
         >>> from skcomplex.models.biology.common.metabolism import CobraAnalysis, load_network
         >>> system = System(elements=[load_network('textbook', 'cell')], time=StaticTime())
-        >>> analysis = CobraAnalysis('parsimonious').check().prepare(system).run()
+        >>> analysis = CobraAnalysis('parsimonious').prepare(system).run()
         >>> round(float(analysis.total_), 3)
         518.422
     """
@@ -518,14 +518,14 @@ class StrainDesignAnalysis(BaseNetworkAnalysis):
 
     Raises:
         AnalysisError:
-            The kind is unknown, raised by `check`.
+            The kind is unknown, raised by `prepare`.
 
         MissingExtraError:
-            The extra is not installed, raised by `check`.
+            The extra is not installed, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.models.biology.common.metabolism import StrainDesignAnalysis
-        >>> StrainDesignAnalysis('optknock', product='EX_succ_e').check().interventions
+        >>> StrainDesignAnalysis('optknock', product='EX_succ_e').interventions
         3
     """
 

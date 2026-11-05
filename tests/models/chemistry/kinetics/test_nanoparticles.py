@@ -12,9 +12,7 @@ PROTEINS = ('albumin', 'lipoprotein', 'fibrinogen')
 def test_nanoparticle_corona_shows_the_vroman_effect():
     """Test that albumin covers the nanoparticles first and that lipoprotein replaces it, conserving every species."""
     solver = ScipyODESolver(method='LSODA', rtol=1e-10, atol=1e-14)
-    trajectory = (
-        Simulation(nanoparticle_corona(), dt=60.0, solver=solver).check().prepare().run(until=36000.0).trajectory_
-    )
+    trajectory = Simulation(nanoparticle_corona(), dt=60.0, solver=solver).prepare().run(until=36000.0).trajectory_
     free = trajectory.values('nanoparticle.n')
     bound = {name: trajectory.values(f'{name}_corona.n') for name in PROTEINS}
     assert np.allclose(free + sum(bound.values()), 36.0, rtol=1e-8)

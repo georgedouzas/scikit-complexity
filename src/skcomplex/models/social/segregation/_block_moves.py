@@ -48,7 +48,7 @@ class BlockMovesInteraction(MovementInteraction):
 
     Examples:
         >>> from skcomplex.models.social.segregation import BlockMovesInteraction
-        >>> BlockMovesInteraction('moves', target='dwellers', side=4).check().schedule
+        >>> BlockMovesInteraction('moves', target='dwellers', side=4).schedule
         'member'
     """
 

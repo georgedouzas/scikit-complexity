@@ -11,13 +11,12 @@ def test_sugarscape_carrying_capacity_and_inequality():
     system = sugarscape(30, 30, n_foragers=200)
     trajectory = (
         Simulation(system, random_state=0, observables=describe('sugarscape').observables_of(system))
-        .check()
         .prepare()
         .run(until=80)
         .trajectory_
     )
     population, inequality = trajectory.values('population'), trajectory.values('gini')
-    initial = DistributionAnalysis('gini').check().prepare(trajectory.agents('foragers', 0).values['sugar']).run()
+    initial = DistributionAnalysis('gini').prepare(trajectory.agents('foragers', 0).values['sugar']).run()
     assert population[-1] < 200
     assert abs(population[-1] - population[-20]) <= 0.05 * population[-1]
     assert inequality[-1] > 0.3

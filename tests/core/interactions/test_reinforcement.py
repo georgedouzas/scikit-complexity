@@ -67,7 +67,7 @@ def _run(interactions: list, values: dict, size: int, until: int) -> Trajectory:
     """Return the trajectory of a group of learners bound to interactions."""
     group = GroupElement('learners', element=LearnerElement, size=size, values=values)
     system = System(elements=[group], interactions=interactions, time=DiscreteTime())
-    return Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
+    return Simulation(system, random_state=0).prepare().run(until=until).trajectory_
 
 
 def _agent_payoff(agent: LearnerView, model: ModelView, index: int) -> float:
@@ -140,7 +140,7 @@ def test_reinforcement_interaction_reinforces_the_components_of_a_vector_state()
     )
     group = GroupElement('pool', element=PoolElement, size=1, values={'scores': np.zeros((1, 4))})
     system = System(elements=[group], interactions=[reinforcement], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=2).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=2).trajectory_
     scores = np.array(trajectory.agents('pool', 2).values['scores'].tolist(), dtype=float)
     assert scores.ravel().tolist() == pytest.approx([0.0, 0.75, 1.5, 2.25])
 
@@ -161,7 +161,7 @@ def test_check_rejects_invalid_arguments(arguments, message):
     """Test that an unknown form, missing scores, or a payoff that is not callable is rejected."""
     values = {'target': 'learners', 'scores': ('first', 'second'), 'payoff': lambda s, k: k, **arguments}
     with pytest.raises(ValidationError, match=message):
-        ReinforcementInteraction('reinforcement', **values).check()
+        ReinforcementInteraction('reinforcement', **values).prepare()
 
 
 def test_reinforcement_interaction_moves_only_the_score_of_the_chosen_option():

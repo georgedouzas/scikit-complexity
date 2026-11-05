@@ -15,7 +15,7 @@ from ._issue_spec import _ERROR, _WARNING, IssueSpec
 class ValidationReportSpec(BaseSpec):
     """Every issue that a compiler found in a system, its solver, and its backend.
 
-    `check()` emits the warnings of the report and raises one error that lists its errors, so a valid report passes
+    `prepare` emits the warnings of the report and raises one error that lists its errors, so a valid report passes
     its check.
 
     Args:
@@ -25,7 +25,7 @@ class ValidationReportSpec(BaseSpec):
     Examples:
         >>> from skcomplex.engine.compile import PassCompiler
         >>> from skcomplex.core.system import System
-        >>> PassCompiler().check().prepare(System()).report_.ok
+        >>> PassCompiler().prepare(System()).report_.ok
         True
     """
 

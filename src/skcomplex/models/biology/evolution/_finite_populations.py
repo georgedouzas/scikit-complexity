@@ -133,7 +133,7 @@ def tangled_nature(
 
     Examples:
         >>> from skcomplex.models.biology.evolution import tangled_nature
-        >>> tangled_nature(20).elements[0].check().prepare().size_
+        >>> tangled_nature(20).elements[0].prepare().size_
         20
     """
     genome = float(np.random.default_rng(random_state).integers(2**length))
@@ -204,7 +204,7 @@ def adaptive_climbing(
 
     Examples:
         >>> from skcomplex.models.biology.evolution import adaptive_climbing
-        >>> adaptive_climbing(5).elements[0].check().prepare().size_
+        >>> adaptive_climbing(5).elements[0].prepare().size_
         5
     """
     fitness = AdaptiveClimbingInteraction._random_fitness(0, seed)
@@ -266,7 +266,7 @@ def nk_landscape(
 
     Examples:
         >>> from skcomplex.models.biology.evolution import nk_landscape
-        >>> nk_landscape(5).elements[0].check().prepare().size_
+        >>> nk_landscape(5).elements[0].prepare().size_
         5
     """
     genomes = np.random.default_rng(random_state).integers(0, 2**n, size=climbers)

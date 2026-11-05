@@ -54,7 +54,7 @@ def deffuant(
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import deffuant
-        >>> deffuant(20, random_state=0).elements[0].check().prepare().size_
+        >>> deffuant(20, random_state=0).elements[0].prepare().size_
         20
     """
     opinions = np.random.default_rng(random_state).random(n_agents)
@@ -110,11 +110,11 @@ def hegselmann_krause(
         >>> from skcomplex.models.social.opinion_dynamics import hegselmann_krause
         >>> trajectory = Simulation(
         ...     hegselmann_krause(50, confidence=0.3), random_state=0,
-        ... ).check().prepare().run(until=20).trajectory_
+        ... ).prepare().run(until=20).trajectory_
         >>> len(np.unique(np.round(trajectory.values('people.opinion')[-1], 6))) <= 3
         True
     """
-    space = NetworkSpace(graph if graph is not None else nx.complete_graph(n_agents)).check().prepare()
+    space = NetworkSpace(graph if graph is not None else nx.complete_graph(n_agents)).prepare()
     opinions = np.random.default_rng(random_state).random(space.size_)
     people = LatticeElement(
         'people',

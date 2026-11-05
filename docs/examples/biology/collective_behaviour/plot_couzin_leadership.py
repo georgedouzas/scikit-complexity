@@ -53,10 +53,7 @@ system = create(MODEL, n_fish=50, informed=0.1, size=SIZE, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
 heading_x = ObservableSpec('heading_x', group='shoal', variable='vx')
 simulation = (
-    Simulation(system, dt=1, observers=[observer], observables=[heading_x], random_state=0)
-    .check()
-    .prepare()
-    .run(until=150)
+    Simulation(system, dt=1, observers=[observer], observables=[heading_x], random_state=0).prepare().run(until=150)
 )
 
 # %%
@@ -73,15 +70,11 @@ accuracy = []
 for fraction in fractions:
     cosines = []
     for seed in range(3):
-        run = (
-            Simulation(
-                create(MODEL, n_fish=20, informed=fraction, random_state=seed),
-                dt=1,
-                random_state=seed,
-            )
-            .check()
-            .prepare()
-        )
+        run = Simulation(
+            create(MODEL, n_fish=20, informed=fraction, random_state=seed),
+            dt=1,
+            random_state=seed,
+        ).prepare()
         trajectory = run.run(until=120).trajectory_
         cosines.extend(np.cos(mean_heading(trajectory, frame)) for frame in range(80, 121))
     accuracy.append(np.mean(cosines))

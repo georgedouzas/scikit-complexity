@@ -137,7 +137,7 @@ class LawKernel(BaseKernel):
         expressions = self._plan[1]
         if not expressions:
             return None
-        printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(self._arguments)
+        printer = ExpressionPrinter(time=self.time, compiled=True).prepare(self._arguments)
         return ExpressionPrinter._function_of(printer.run(expressions).code_)
 
     @functools.cached_property

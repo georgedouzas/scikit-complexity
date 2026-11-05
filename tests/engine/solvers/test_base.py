@@ -24,7 +24,7 @@ def test_solver_rejects_a_problem_of_another_form():
 
     problem = BaseProblemSpec(FormKind.DISCRETE, LayoutSpec(()), LayoutSpec(()), None, None, symbol('t'))
     with pytest.raises(SolverError, match='discrete map'):
-        OdeSolver().check().prepare(problem)
+        OdeSolver().prepare(problem)
 
 
 class _DoublingSolver(BaseSolver[BaseProblemSpec]):
@@ -64,7 +64,7 @@ def _discrete_problem():
 def test_solver_fit_sets_the_fitted_attributes():
     """Test that preparing a solver stores the problem, the generator, and the initial state, with nothing run yet."""
     problem, rng = _discrete_problem(), np.random.default_rng(0)
-    solver = _DoublingSolver().set_params(random_state=rng, until=3.0).check().prepare(problem)
+    solver = _DoublingSolver().set_params(random_state=rng, until=3.0).prepare(problem)
     assert solver.problem_ is problem
     assert solver.rng_ is rng
     assert solver.initial_state_.tolist() == [1.0]
@@ -75,7 +75,7 @@ def test_solver_fit_sets_the_fitted_attributes():
 def test_solver_run_advances_and_releases_on_the_final_run():
     """Test that `run` keeps the advanced state in `state_` and releases only on the final run."""
     problem = _discrete_problem()
-    solver = _DoublingSolver(random_state=0).check().prepare(problem)
+    solver = _DoublingSolver(random_state=0).prepare(problem)
     state = solver.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 2.0)).state_
     assert state.tolist() == [4.0]
     assert solver.releases_ == 0
@@ -87,7 +87,7 @@ def test_solver_run_advances_and_releases_on_the_final_run():
 def test_solver_run_of_no_length_returns_the_state():
     """Test that a run that does not go forward in time keeps the state without advancing it."""
     problem = _discrete_problem()
-    solver = _DoublingSolver(random_state=0).check().prepare(problem)
+    solver = _DoublingSolver(random_state=0).prepare(problem)
     state = np.array([5.0])
     assert solver.run(StepSpec(1.0, state, problem.initial_parameters, 1.0), final=True).state_ is state
     assert solver.releases_ == 1

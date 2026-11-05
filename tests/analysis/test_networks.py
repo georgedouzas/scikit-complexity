@@ -11,7 +11,7 @@ from skcomplex.models import run
 
 def _network(kind: str, source: object, **settings: object) -> NetworkAnalysis:
     """Return the network analysis of a source for one kind, run."""
-    return NetworkAnalysis(kind, **settings).check().prepare(source).run()
+    return NetworkAnalysis(kind, **settings).prepare(source).run()
 
 
 def _schelling_contacts() -> nx.Graph:
@@ -121,7 +121,7 @@ def test_communities_planted_partition():
     assert propagation.agreement_[0] > 0.5
     assert _network('communities', graph, random_state=0).agreement_ is None
     with pytest.raises(AnalysisError, match='louvain, label_propagation'):
-        NetworkAnalysis('communities', method='spectral').check()
+        NetworkAnalysis('communities', method='spectral').prepare()
 
 
 @pytest.mark.slow
@@ -158,7 +158,7 @@ def test_centralities():
         values = _network('centrality', star, measure=measure).centrality_[0]
         assert max(values, key=values.get) == 0
     with pytest.raises(AnalysisError, match='Use one of degree'):
-        NetworkAnalysis('centrality', measure='fame').check()
+        NetworkAnalysis('centrality', measure='fame').prepare()
 
 
 def test_network_analysis_of_every_frame_of_a_trajectory():
@@ -167,4 +167,4 @@ def test_network_analysis_of_every_frame_of_a_trajectory():
     summary = _network('summary', trajectory)
     assert summary.nodes_.tolist() == [34] * len(trajectory.times)
     with pytest.raises(AnalysisError, match='does not read measure'):
-        NetworkAnalysis('summary', measure='pagerank').check()
+        NetworkAnalysis('summary', measure='pagerank').prepare()

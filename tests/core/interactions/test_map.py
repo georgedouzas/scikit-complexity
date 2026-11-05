@@ -35,14 +35,14 @@ class ValueElement(Element):
 def _values(elements, interactions, until, path='value.x'):
     """Return the values of a state at every step of a discrete-time system."""
     system = System(elements=elements, interactions=interactions, time=DiscreteTime())
-    simulation = Simulation(system, random_state=0).check().prepare()
+    simulation = Simulation(system, random_state=0).prepare()
     return simulation.run(until=until).trajectory_.values(path)
 
 
 def _agent_values(group, interaction, until):
     """Return the values of the agents of a group at the last step."""
     system = System(elements=[group], interactions=[interaction], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=until).trajectory_
     return trajectory.agents(group.label, until).values['x']
 
 
@@ -109,7 +109,7 @@ def _hopfield(schedule, backend, start, patterns, until):
         schedule=schedule,
     )
     system = System(elements=[group], interactions=[network], time=DiscreteTime())
-    simulation = Simulation(system, random_state=0, backend=backend).check().prepare()
+    simulation = Simulation(system, random_state=0, backend=backend).prepare()
     return simulation.run(until=until).trajectory_.values('neurons.x')
 
 
@@ -202,7 +202,7 @@ def test_agent_map_reads_a_whole_group_bound_to_its_sources():
         form='agent',
     )
     system = System(elements=[group, others], interactions=[agents], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
     assert trajectory.agents('value', 1).values['x'].tolist() == [6.0, 6.0]
 
 
@@ -236,7 +236,7 @@ def test_agent_map_sets_a_vector_state(mode, expected):
         form='agent',
     )
     system = System(elements=[group], interactions=[doubling], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
     assert trajectory.agents('vectors', 1).values['w'].tolist() == expected
 
 
@@ -246,7 +246,7 @@ def test_agent_map_rejects_a_vector_of_another_shape():
     stretching = MapInteraction('map', target='vectors', state='w', function=lambda a, m: [1.0, 2.0, 3.0], form='agent')
     system = System(elements=[group], interactions=[stretching], time=DiscreteTime())
     with pytest.raises(ValidationError, match='shape of the state'):
-        Simulation(system, random_state=0).check().prepare().run(until=1)
+        Simulation(system, random_state=0).prepare().run(until=1)
 
 
 @pytest.mark.parametrize(
@@ -262,4 +262,4 @@ def test_agent_map_rejects_a_vector_of_another_shape():
 def test_check_rejects_unknown_variants_and_functions(arguments, match):
     """Test that an unknown mode, schedule, or form, or a function that is not callable raise errors."""
     with pytest.raises(ValidationError, match=match):
-        MapInteraction('map', target='value', state='x', **arguments).check()
+        MapInteraction('map', target='value', state='x', **arguments).prepare()

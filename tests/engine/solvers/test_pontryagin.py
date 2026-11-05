@@ -41,9 +41,7 @@ def _quartic_cost(s):
 
 def test_pontryagin_matches_riccati_solution(linear_quadratic, quadratic_cost, riccati_control):
     """Test that the Pontryagin control of the scalar linear-quadratic problem matches the Riccati solution."""
-    simulation = (
-        Simulation(linear_quadratic, solver=PontryaginSolver(quadratic_cost), dt=0.05).check().prepare().run(until=1.0)
-    )
+    simulation = Simulation(linear_quadratic, solver=PontryaginSolver(quadratic_cost), dt=0.05).prepare().run(until=1.0)
     trajectory = simulation.trajectory_
     np.testing.assert_allclose(trajectory.values('plant.u'), riccati_control(trajectory.times), atol=1e-3)
     solution = simulation.stepper_.solution_
@@ -53,11 +51,9 @@ def test_pontryagin_matches_riccati_solution(linear_quadratic, quadratic_cost, r
 
 def test_pontryagin_terminal_cost_pulls_the_state_to_zero(linear_quadratic, quadratic_cost):
     """Test that a terminal cost on the state lowers the state at the horizon and enters the cost of the solution."""
-    free = (
-        Simulation(linear_quadratic, solver=PontryaginSolver(quadratic_cost), dt=0.1).check().prepare().run(until=1.0)
-    )
+    free = Simulation(linear_quadratic, solver=PontryaginSolver(quadratic_cost), dt=0.1).prepare().run(until=1.0)
     solver = PontryaginSolver(quadratic_cost, terminal=lambda s: 10 * s.plant.x**2)
-    pinned = Simulation(linear_quadratic, solver=solver, dt=0.1).check().prepare().run(until=1.0)
+    pinned = Simulation(linear_quadratic, solver=solver, dt=0.1).prepare().run(until=1.0)
     final = pinned.trajectory_.values('plant.x')[-1]
     assert abs(final) < abs(free.trajectory_.values('plant.x')[-1])
     running = pinned.stepper_.solution_.cost - 10 * final**2
@@ -67,7 +63,7 @@ def test_pontryagin_terminal_cost_pulls_the_state_to_zero(linear_quadratic, quad
 def test_pontryagin_projects_the_control_onto_its_bounds(linear_quadratic, quadratic_cost):
     """Test that a control whose optimum leaves its bounds is held at the bound."""
     solver = PontryaginSolver(quadratic_cost)
-    simulation = Simulation(linear_quadratic, solver=solver, dt=0.1, initial_state={'plant.x': 30.0}).check().prepare()
+    simulation = Simulation(linear_quadratic, solver=solver, dt=0.1, initial_state={'plant.x': 30.0}).prepare()
     controls = simulation.run(until=1.0).trajectory_.values('plant.u')
     assert controls.min() == pytest.approx(-10.0)
 
@@ -78,7 +74,7 @@ def test_pontryagin_rejects_stationarity_without_unique_solution():
         Simulation(
             System(elements=[QuarticElement('plant')]),
             solver=PontryaginSolver(_quartic_cost),
-        ).check().prepare().run(
+        ).prepare().run(
             until=1.0,
         )
 
@@ -86,6 +82,6 @@ def test_pontryagin_rejects_stationarity_without_unique_solution():
 def test_pontryagin_reports_a_sweep_that_does_not_converge(linear_quadratic, quadratic_cost):
     """Test that a sweep that does not converge within its sweeps raises an error naming collocation."""
     with pytest.raises(SolverError, match='did not converge'):
-        Simulation(linear_quadratic, solver=PontryaginSolver(quadratic_cost, max_iterations=1)).check().prepare().run(
+        Simulation(linear_quadratic, solver=PontryaginSolver(quadratic_cost, max_iterations=1)).prepare().run(
             until=1.0,
         )

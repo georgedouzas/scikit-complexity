@@ -70,7 +70,7 @@ class ConnectionInteraction(Interaction):
         ...     elements=[ConductanceElement('first', e=1.0), ConductanceElement('second', e=3.0)],
         ...     interactions=[ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])],
         ... )
-        >>> trajectory = Simulation(system, dt=1.0).check().prepare().run(until=1.0).trajectory_
+        >>> trajectory = Simulation(system, dt=1.0).prepare().run(until=1.0).trajectory_
         >>> float(trajectory.values('first.a_v')[-1])
         2.0
     """

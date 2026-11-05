@@ -28,7 +28,7 @@ def test_lammps_fixes_match_the_native_force_and_damping():
         space=ContinuousSpace(n_dim=2),
     )
     trajectories = [
-        Simulation(system, solver=solver, dt=0.1).check().prepare().run(until=1).trajectory_.values('gas.x_d1')
+        Simulation(system, solver=solver, dt=0.1).prepare().run(until=1).trajectory_.values('gas.x_d1')
         for solver in (VelocityVerletSolver(dt=0.001), LammpsSolver(dt=0.001, pairs=LAMMPS_PAIRS, fixes=LAMMPS_FIXES))
     ]
     np.testing.assert_allclose(trajectories[1], trajectories[0], atol=1e-3)

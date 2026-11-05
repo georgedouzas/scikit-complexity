@@ -18,7 +18,7 @@ def _amplitude(r):
     field = FieldElement('cells', element=PhaseFieldElement, space=space, values=values, discretization='spectral')
     energy = SwiftHohenbergEnergyInteraction('energy', target='cells', state='phi', r=r)
     simulation = Simulation(System(elements=[field], interactions=[energy]), dt=1.0, solver=ETDRK4Solver(dt=0.1))
-    return np.abs(simulation.check().prepare().run(until=60.0).trajectory_.values('cells.phi')[-1]).max()
+    return np.abs(simulation.prepare().run(until=60.0).trajectory_.values('cells.phi')[-1]).max()
 
 
 def test_rolls_grow_above_onset_and_decay_below():

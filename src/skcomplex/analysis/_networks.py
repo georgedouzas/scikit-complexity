@@ -119,12 +119,12 @@ class NetworkAnalysis(BaseAnalysis):
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.analysis import NetworkAnalysis
-        >>> summary = NetworkAnalysis().check().prepare(nx.cycle_graph(10)).run()
+        >>> summary = NetworkAnalysis().prepare(nx.cycle_graph(10)).run()
         >>> summary.mean_degree_.tolist(), summary.clustering_.tolist(), summary.diameter_.tolist()
         ([2.0], [0.0], [5])
-        >>> NetworkAnalysis('degrees').check().prepare(nx.star_graph(3)).run().moments_.tolist()
+        >>> NetworkAnalysis('degrees').prepare(nx.star_graph(3)).run().moments_.tolist()
         [[1.5, 3.0]]
-        >>> centrality = NetworkAnalysis('centrality', measure='betweenness').check().prepare(nx.star_graph(3)).run()
+        >>> centrality = NetworkAnalysis('centrality', measure='betweenness').prepare(nx.star_graph(3)).run()
         >>> centrality.centrality_[0][0]
         1.0
     """
@@ -216,7 +216,7 @@ class NetworkAnalysis(BaseAnalysis):
         if values.size < MIN_FIT_NODES or values.max() < HEAVY_TAIL * max(values.mean(), 1.0):
             return float('nan')
         fit = FitAnalysis(discrete=True, bootstrap=0, candidates=FIT_CANDIDATES, compare_with=())
-        return fit.check().prepare(values[values > 0]).run().exponent_
+        return fit.prepare(values[values > 0]).run().exponent_
 
     @staticmethod
     def _summary(graph: nx.Graph) -> dict[str, float | int | list[int]]:

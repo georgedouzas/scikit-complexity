@@ -103,7 +103,7 @@ class EncounterKernel(BaseKernel):
             return np.asarray(selected, dtype=float)
         symbols = sorted(table.parameters, key=str)
         if id(table) not in self._functions:
-            printer = ExpressionPrinter(time=table.time, compiled=True).check().prepare(symbols)
+            printer = ExpressionPrinter(time=table.time, compiled=True).prepare(symbols)
             self._functions[id(table)] = ExpressionPrinter._function_of(printer.run(list(selected)).code_)
         indices = np.asarray([table.parameters[item] for item in symbols], dtype=np.intp)
         computed = self._functions[id(table)](0.0, *(float(value) for value in p[indices]))

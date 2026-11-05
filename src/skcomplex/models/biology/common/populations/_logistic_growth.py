@@ -47,7 +47,7 @@ class LogisticGrowthInteraction(GrowthInteraction):
         ...     elements=[CompartmentElement('rabbits', n=1.0)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=50.0)],
         ... )
-        >>> trajectory = Simulation(system, dt=0.1).check().prepare().run(until=30.0).trajectory_
+        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=30.0).trajectory_
         >>> round(float(trajectory.values('rabbits.n')[-1]), 3)
         50.0
     """

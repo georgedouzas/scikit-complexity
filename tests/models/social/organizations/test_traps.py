@@ -11,7 +11,7 @@ from ...conftest import _run_seeded
 
 def _polarities(system):
     """Return the polarities of the feedback loops of a system at its initial state."""
-    return sorted(LoopAnalysis().check().prepare(system).run().polarities_)
+    return sorted(LoopAnalysis().prepare(system).run().polarities_)
 
 
 def test_success_to_the_successful_gives_everything_to_the_initially_larger():

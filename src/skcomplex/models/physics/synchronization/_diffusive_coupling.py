@@ -36,7 +36,7 @@ class DiffusiveCouplingInteraction(RateInteraction):
         >>> from types import SimpleNamespace
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.models.physics.synchronization import DiffusiveCouplingInteraction
-        >>> coupling = DiffusiveCouplingInteraction('coupling', source='a', target='b').check().prepare()
+        >>> coupling = DiffusiveCouplingInteraction('coupling', source='a', target='b').prepare()
         >>> source, target = SimpleNamespace(x2=var('u')), SimpleNamespace(x2=var('v'))
         >>> [law.value for law in coupling.run(SimpleNamespace(source=source, target=target, k=var('k'))).laws_]
         [k*(u - v)]

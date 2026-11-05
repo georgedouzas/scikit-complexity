@@ -13,7 +13,6 @@ def test_absorbing_birth_death_metastable_and_absorbed():
     """Test that the active state fluctuates around `rho_0` with the width of Bertin and that below `nu` it dies out."""
     active = (
         Simulation(absorbing_birth_death(kappa=2.0), dt=0.5, random_state=0, backend=NumbaBackend())
-        .check()
         .prepare()
         .run(
             until=1000,
@@ -24,7 +23,6 @@ def test_absorbing_birth_death_metastable_and_absorbed():
     assert abs(density.std() / density.mean() - np.sqrt(2.0 / 100)) < 0.02
     absorbed = (
         Simulation(absorbing_birth_death(kappa=0.5), dt=0.5, random_state=0, backend=NumbaBackend())
-        .check()
         .prepare()
         .run(
             until=100,

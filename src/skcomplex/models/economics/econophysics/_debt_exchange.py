@@ -42,7 +42,7 @@ class DebtExchangeInteraction(TransferInteraction):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import DebtExchangeInteraction
-        >>> DebtExchangeInteraction('trades', source='traders', target='traders', debt=5.0).check().debt
+        >>> DebtExchangeInteraction('trades', source='traders', target='traders', debt=5.0).debt
         5.0
     """
 

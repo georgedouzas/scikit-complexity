@@ -50,7 +50,7 @@ def random_energy_model(
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.physics.statistical_mechanics import random_energy_model
         >>> system = random_energy_model(12, temperature=2.0)
-        >>> trajectory = Simulation(system).check().prepare().run(1.0).trajectory_
+        >>> trajectory = Simulation(system).prepare().run(1.0).trajectory_
         >>> bool(abs(trajectory.values('ensemble.entropy')[0] - (np.log(2) - 1 / 16)) < 0.05)
         True
     """

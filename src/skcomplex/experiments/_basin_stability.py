@@ -72,7 +72,7 @@ class BasinStabilityExperiment(BaseExperiment):
         >>> experiment = BasinStabilityExperiment(
         ...     logistic_growth, {'population.n': (0.1, 10)}, lambda trajectory: 'capacity', n=5, until=5
         ... )
-        >>> experiment.check().prepare().run().fractions_
+        >>> experiment.prepare().run().fractions_
         {'capacity': 1.0}
     """
 
@@ -111,7 +111,7 @@ class BasinStabilityExperiment(BaseExperiment):
 
     def _prepare(self, context: None = None) -> None:
         """Draw the initial states within the bounds."""
-        self.rows_ = RandomDesign(n=self.n, random_state=self.random_state).check().prepare(self.bounds).rows_
+        self.rows_ = RandomDesign(n=self.n, random_state=self.random_state).prepare(self.bounds).rows_
 
     def _run(self, inputs: None = None) -> None:
         """Run every initial state, label its trajectory, and set the fraction and error of every attractor."""
@@ -139,7 +139,7 @@ class BasinStabilityExperiment(BaseExperiment):
             random_state=self.random_state,
             executor=self.executor,
         )
-        experiment.check().prepare().run()
+        experiment.prepare().run()
         return [row['attractor'] for row in experiment.result_.rows]
 
     def _label_members(self) -> list[object]:

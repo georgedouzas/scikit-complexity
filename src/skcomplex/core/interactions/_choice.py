@@ -106,17 +106,17 @@ class ChoiceInteraction(Interaction):
         >>> choice = ChoiceInteraction(
         ...     'choice', target='spins', state='spin', options=(-1, 1), utility=lambda s, o: o * mean(s.target.spin)
         ... )
-        >>> choice.check().rule
+        >>> choice.rule
         'logit'
         >>> agents = ChoiceInteraction(
         ...     'choice', target='traders', state='plan', options=(0, 1), utility=lambda a, m, o: o, form='agent'
         ... )
-        >>> type(agents.check().prepare().run(SimpleNamespace()).laws_[0]).__name__
+        >>> type(agents.prepare().run(SimpleNamespace()).laws_[0]).__name__
         'RuleLaw'
         >>> ChoiceInteraction(
         ...     'heat-bath', target='spins', state='spin', options=(-1, 0, 1), utility=lambda s, o: o, rule='fermi',
         ...     proposal='all'
-        ... ).check().proposal
+        ... ).proposal
         'all'
     """
 

@@ -18,7 +18,7 @@ def test_flocking_interaction_steers_by_cohesion_and_separation_with_bounded_spe
         interactions=[FlockingInteraction('flocking', target='flock')],
         space=ContinuousSpace(extent=(30.0, 30.0), boundary='periodic'),
     )
-    snapshot = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_.agents('flock', 1)
+    snapshot = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.agents('flock', 1)
     found = np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
     pull = (0.1 - 0.5) * np.array([0.8, 0.0])
     steered = [np.array([0.5, 0.0]) + pull, np.array([0.0, 0.5]) - pull]

@@ -48,7 +48,7 @@ def test_run_conserves_the_total_and_spreads_as_the_heat_kernel():
     field = FieldElement('rod', element=CellElement, space=space, values={'u': _gaussian(positions, WIDTH**2)})
     heat = DiffusionInteraction('heat', target='rod', state='u', coefficient=lambda s: COEFFICIENT)
     simulation = Simulation(System(elements=[field], interactions=[heat]), dt=0.5)
-    values = simulation.check().prepare().run(until=UNTIL).trajectory_.values('rod.u')
+    values = simulation.prepare().run(until=UNTIL).trajectory_.values('rod.u')
     np.testing.assert_allclose(values.sum(axis=1), values[0].sum(), rtol=1e-10)
     expected = _gaussian(positions, WIDTH**2 + 2 * COEFFICIENT * UNTIL)
     np.testing.assert_allclose(values[-1], expected, atol=1e-4)
@@ -57,7 +57,7 @@ def test_run_conserves_the_total_and_spreads_as_the_heat_kernel():
 def test_check_rejects_a_coefficient_that_is_not_a_function():
     """Test that `check` rejects a coefficient that is neither callable nor a number."""
     with pytest.raises(ValidationError, match='coefficient'):
-        DiffusionInteraction('heat', target='rod', coefficient='fast').check()
+        DiffusionInteraction('heat', target='rod', coefficient='fast').prepare()
 
 
 def test_get_laws_reads_a_renamed_target():
@@ -71,5 +71,5 @@ def test_get_laws_reads_a_renamed_target():
         RodDiffusionInteraction('heat', rod='bar', state='u', coefficient=lambda s: COEFFICIENT),
     ):
         simulation = Simulation(System(elements=[field], interactions=[heat]), dt=0.5)
-        values.append(simulation.check().prepare().run(until=1.0).trajectory_.values('bar.u'))
+        values.append(simulation.prepare().run(until=1.0).trajectory_.values('bar.u'))
     np.testing.assert_allclose(values[1], values[0])

@@ -60,12 +60,12 @@ def test_density_lists_its_density_as_a_parameter():
 
 def test_density_runs_into_no_laws():
     """Test that a density contributes no laws."""
-    assert DensityElement('wealth').check().prepare().run(SimpleNamespace(f=var('f'))).laws_ == []
+    assert DensityElement('wealth').prepare().run(SimpleNamespace(f=var('f'))).laws_ == []
 
 
 def test_density_is_moved_by_an_encounter_law():
     """Test that an encounter law moves a distribution of densities to the middle classes and keeps its total."""
-    trajectory = Simulation(_system(), dt=0.5).check().prepare().run(until=2).trajectory_
+    trajectory = Simulation(_system(), dt=0.5).prepare().run(until=2).trajectory_
     densities = np.asarray(trajectory.values('population.f'))
     np.testing.assert_allclose(densities.sum(axis=1), 1.0)
     assert densities[-1, 2] > 0

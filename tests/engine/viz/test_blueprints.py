@@ -29,7 +29,7 @@ from skcomplex.specs import StateSpec, VisualSpec
 def _prepared(system, **settings):
     """Return a Rerun observer prepared on a system or a compiled problem."""
     problem = system if isinstance(system, BaseProblemSpec) else compile_system(system)
-    return RerunObserver(**settings).check().prepare(problem)
+    return RerunObserver(**settings).prepare(problem)
 
 
 def default_blueprint(system, **settings):
@@ -62,10 +62,10 @@ def test_views_of_builtin_visuals():
     gray = compile_system(create('gray_scott', shape=(16, 16)))
     voters = compile_system(create('voter_model'))
     views = [
-        ScalarsVisual(path=lotka.elements[0].path).check().prepare(lotka).views_[0],
-        PointsVisual(position='x', states=(), path=gas.elements[0].path).check().prepare(gas).views_[0],
-        ImageVisual(path=gray.elements[0].path).check().prepare(gray).views_[0],
-        AgentsVisual(path=voters.agents[0].path).check().prepare(voters).views_[0],
+        ScalarsVisual(path=lotka.elements[0].path).prepare(lotka).views_[0],
+        PointsVisual(position='x', states=(), path=gas.elements[0].path).prepare(gas).views_[0],
+        ImageVisual(path=gray.elements[0].path).prepare(gray).views_[0],
+        AgentsVisual(path=voters.agents[0].path).prepare(voters).views_[0],
     ]
     assert [type(view).__name__ for view in views] == ['TimeSeriesView', 'Spatial3DView', 'Spatial2DView', 'GraphView']
     assert [str(view.origin) for view in views] == ['prey', 'gas', 'cells/u', 'voters']
@@ -74,13 +74,13 @@ def test_views_of_builtin_visuals():
 def test_views_of_user_visual_are_empty_by_default():
     """Test that a visual that declares no views is left out of the layout."""
     problem = compile_system(create('lotka_volterra'))
-    assert BaseVisual(path=problem.elements[0].path).check().prepare(problem).views_ == []
+    assert BaseVisual(path=problem.elements[0].path).prepare(problem).views_ == []
 
 
 def test_views_of_points_log_other_states_as_series():
     """Test that the states other than the position get a time series view."""
     problem = compile_system(create('ideal_gas', n_molecules=10))
-    views = PointsVisual(position='x', path=problem.elements[0].path).check().prepare(problem).views_
+    views = PointsVisual(position='x', path=problem.elements[0].path).prepare(problem).views_
     assert [type(view).__name__ for view in views] == ['Spatial2DView', 'TimeSeriesView']
 
 
@@ -187,13 +187,13 @@ def test_views_are_empty_without_declared_views():
 def test_rerun_observer_check_rejects_settings_without_the_default_blueprint(settings):
     """Test that the settings of the default blueprint are rejected without it, as is an unknown blueprint name."""
     with pytest.raises(ValidationError, match='default'):
-        RerunObserver(**settings).check()
+        RerunObserver(**settings).prepare()
 
 
 def test_rerun_observer_saves_blueprint_next_to_recording(tmp_path):
     """Test that a saved recording gets its blueprint with the same stem."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint='default')
-    Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).check().prepare().run(until=1)
+    Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).prepare().run(until=1)
     assert (tmp_path / 'run.rrd').exists()
     assert (tmp_path / 'run.rbl').exists()
     assert isinstance(observer.blueprint_, rrb.Blueprint)
@@ -202,7 +202,7 @@ def test_rerun_observer_saves_blueprint_next_to_recording(tmp_path):
 def test_rerun_observer_without_blueprint_writes_recording_only(tmp_path):
     """Test that no blueprint is sent or saved when none is given."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
-    Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).check().prepare().run(until=1)
+    Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).prepare().run(until=1)
     assert observer.blueprint_ is None
     assert not (tmp_path / 'run.rbl').exists()
 
@@ -211,7 +211,7 @@ def test_rerun_observer_accepts_given_blueprint(tmp_path):
     """Test that a given blueprint is sent unchanged."""
     blueprint = rrb.Blueprint(rrb.TimeSeriesView(origin='/prey'))
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint=blueprint)
-    Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).check().prepare().run(until=1)
+    Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).prepare().run(until=1)
     assert observer.blueprint_ is blueprint
 
 
@@ -219,7 +219,7 @@ def test_rerun_observer_rejects_unknown_blueprint(tmp_path):
     """Test that an unknown blueprint name is rejected."""
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd', blueprint='grid')
     with pytest.raises(ValidationError, match='default'):
-        Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).check().prepare().run(until=1)
+        Simulation(create('lotka_volterra'), dt=0.1, observers=[observer]).prepare().run(until=1)
 
 
 def test_default_blueprint_puts_named_primary_view_first():
@@ -246,7 +246,7 @@ def test_primary_view_of_agents_without_space_is_a_trait_series():
     """Test that agents without a space show the statistics of their colored trait first, not the reporters."""
     problem = compile_system(create('moran_process'))
     assert problem.agent_space is None
-    assert AgentsVisual(path=problem.agents[0].path).check().prepare(problem).views_ == []
+    assert AgentsVisual(path=problem.agents[0].path).prepare(problem).views_ == []
     view = primary_view(problem)
     assert (type(view).__name__, str(view.name)) == ('TimeSeriesView', 'population trait')
 
@@ -254,7 +254,7 @@ def test_primary_view_of_agents_without_space_is_a_trait_series():
 def test_views_of_image_without_history_leave_out_space_time():
     """Test that a history of 0 rows declares no space-time view."""
     problem = compile_system(create('elementary_automaton'))
-    views = ImageVisual(history=0, path=problem.elements[0].path).check().prepare(problem).views_
+    views = ImageVisual(history=0, path=problem.elements[0].path).prepare(problem).views_
     assert [str(view.origin) for view in views] == ['cells/alive']
 
 

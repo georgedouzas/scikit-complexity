@@ -16,7 +16,7 @@ from ...conftest import CallableGrowthInteraction, HoldingElement, _correlated, 
 
 def _final(system, backend, until):
     """Return the last recorded state of a run of a system on a backend."""
-    trajectory = Simulation(system, backend=backend, random_state=0).check().prepare().run(until=until).trajectory_
+    trajectory = Simulation(system, backend=backend, random_state=0).prepare().run(until=until).trajectory_
     return np.array([trajectory.values(name)[-1] for name in trajectory.names])
 
 

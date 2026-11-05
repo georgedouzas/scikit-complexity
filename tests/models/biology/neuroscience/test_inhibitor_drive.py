@@ -16,5 +16,5 @@ def test_inhibitor_drive_interaction_follows_most_active_oscillator():
     oscillators = FieldElement('oscillators', element=TermanWangElement, space=LatticeSpace((1, 2)), values=values)
     drive = InhibitorDriveInteraction('drive', inhibitor='inhibitor', oscillators='oscillators')
     system = System(elements=[oscillators, InhibitorElement('inhibitor')], interactions=[drive])
-    trajectory = Simulation(system, dt=0.01).check().prepare().run(until=0.1).trajectory_
+    trajectory = Simulation(system, dt=0.01).prepare().run(until=0.1).trajectory_
     assert trajectory.values('inhibitor.z')[-1] == pytest.approx(1 - np.exp(-0.3), rel=1e-3)

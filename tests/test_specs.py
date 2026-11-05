@@ -307,7 +307,7 @@ def _two_populations():
 def _decaying_group(*observables):
     """Return a simulation of a decaying group of 4 members with observables."""
     system = System(elements=[GroupElement('u', element=DecayingElement, size=4, values={'x': np.arange(1.0, 5.0)})])
-    return Simulation(system, dt=0.5, observables=list(observables)).check().prepare()
+    return Simulation(system, dt=0.5, observables=list(observables)).prepare()
 
 
 @pytest.mark.parametrize(
@@ -328,13 +328,13 @@ def _decaying_group(*observables):
 def test_state_spec_rejects_invalid_orders_and_lags(spec, message):
     """Test that an order that is not positive or integral, negative lags, or too many initial values are rejected."""
     with pytest.raises(ValidationError, match=message):
-        spec.check()
+        spec.prepare()
 
 
 @pytest.mark.parametrize('spec', [StateSpec(order=0.6), StateSpec(order=2.0), StateSpec(lags=2, initial=(1.0, 2.0))])
 def test_state_spec_accepts_fractional_orders_and_lags(spec):
     """Test that a fractional order, an integral order given as a float, and lags with their initial values pass."""
-    assert spec.check() is spec
+    assert spec.prepare() is spec
 
 
 @pytest.mark.parametrize(
@@ -352,31 +352,31 @@ def test_state_spec_accepts_fractional_orders_and_lags(spec):
 def test_parameter_spec_rejects_invalid_declarations(spec, message):
     """Test that a parameter per role that is a vector or adaptive, invalid bounds, and bad shapes are rejected."""
     with pytest.raises(ValidationError, match=message):
-        spec.check()
+        spec.prepare()
 
 
 def test_parameter_spec_accepts_bounds_of_an_adaptive_parameter():
     """Test that an adaptive parameter takes bounds."""
     spec = ParameterSpec(adaptive=True, bounds=(0, 1))
-    assert spec.check() is spec
+    assert spec.prepare() is spec
 
 
 def test_parameter_spec_accepts_a_shape_of_role_names():
     """Test that a parameter takes the roles of its shape, a role repeated for a tensor."""
-    assert ParameterSpec(shape=('target',) * 3, adaptive=True).check().shape == ('target', 'target', 'target')
+    assert ParameterSpec(shape=('target',) * 3, adaptive=True).shape == ('target', 'target', 'target')
 
 
 def test_role_spec_is_variadic_or_a_noise_role():
     """Test that a role is either variadic or a noise role, not both."""
-    assert RoleSpec(noise=True).check().noise
+    assert RoleSpec(noise=True).noise
     with pytest.raises(ValidationError, match='not both'):
-        RoleSpec(variadic=True, noise=True).check()
+        RoleSpec(variadic=True, noise=True).prepare()
 
 
 def test_role_spec_may_be_optional():
     """Test that a role may be declared optional, so it may stay unbound."""
-    assert RoleSpec(optional=True).check().optional
-    assert not RoleSpec().check().optional
+    assert RoleSpec(optional=True).optional
+    assert not RoleSpec().optional
 
 
 def test_specs_are_frozen_records():
@@ -424,9 +424,9 @@ def test_requirement_and_visual_specs_hold_their_fields():
 
 def test_layer_spec_needs_a_string_label():
     """Test that a layer is labelled by a string."""
-    assert LayerSpec('work', nx.path_graph(3)).check().label == 'work'
+    assert LayerSpec('work', nx.path_graph(3)).label == 'work'
     with pytest.raises(ValidationError, match='string'):
-        LayerSpec(1, nx.path_graph(3)).check()
+        LayerSpec(1, nx.path_graph(3)).prepare()
 
 
 @pytest.mark.parametrize(
@@ -436,7 +436,7 @@ def test_layer_spec_needs_a_string_label():
 def test_wiener_process_spec_checks_its_label_and_dimension(spec, message):
     """Test that Wiener processes need a string label and a positive whole dimension."""
     with pytest.raises(ValidationError, match=message):
-        spec.check()
+        spec.prepare()
 
 
 @pytest.mark.parametrize(
@@ -452,30 +452,30 @@ def test_wiener_process_spec_checks_its_label_and_dimension(spec, message):
 def test_phases_schedule_spec_checks_its_phases(phases, message):
     """Test that phases need their own names, a known activation, and at least one round."""
     with pytest.raises(ValidationError, match=message):
-        PhasesScheduleSpec(phases).check()
+        PhasesScheduleSpec(phases).prepare()
 
 
 def test_schedule_spec_has_nothing_to_check():
     """Test that the base schedule spec checks into itself."""
     schedule = ScheduleSpec()
-    assert schedule.check() is schedule
+    assert schedule.prepare() is schedule
 
 
 def test_monte_carlo_specs_check_their_kinds():
     """Test that an energy has nothing to check, and that moves, samplers, and schedules must be known."""
     spin = var('spin')
-    assert ObjectiveSpec(-spin, VonNeumannNeighborhood()).check().expression == -spin
-    assert MoveSpec(spin, 'rotate', width=0.5).check().width == 0.5
-    assert MoveSpec(spin, 'gaussian', width=0.5).check().kind == 'gaussian'
-    assert MoveSpec(spin, 'function', function=lambda values, random: values).check().kind == 'function'
+    assert ObjectiveSpec(-spin, VonNeumannNeighborhood()).expression == -spin
+    assert MoveSpec(spin, 'rotate', width=0.5).width == 0.5
+    assert MoveSpec(spin, 'gaussian', width=0.5).kind == 'gaussian'
+    assert MoveSpec(spin, 'function', function=lambda values, random: values).kind == 'function'
     with pytest.raises(ValidationError, match='Unknown move'):
-        MoveSpec(spin, 'swap').check()
+        MoveSpec(spin, 'swap').prepare()
     with pytest.raises(ValidationError, match='callable function'):
-        MoveSpec(spin, 'function').check()
+        MoveSpec(spin, 'function').prepare()
     with pytest.raises(ValidationError, match='Unknown sampler'):
-        SamplerSpec('wolff').check()
+        SamplerSpec('wolff').prepare()
     with pytest.raises(ValidationError, match='Unknown Monte Carlo schedule'):
-        SamplerSpec(schedule='parallel').check()
+        SamplerSpec(schedule='parallel').prepare()
 
 
 @pytest.mark.parametrize(
@@ -491,7 +491,7 @@ def test_monte_carlo_specs_check_their_kinds():
 def test_hilbert_spec_checks_its_space(spec, message):
     """Test that a Hilbert space needs a positive dimension, square operators, basis states, and its display."""
     with pytest.raises(ValidationError, match=message):
-        spec.check()
+        spec.prepare()
 
 
 @pytest.mark.parametrize(
@@ -508,7 +508,7 @@ def test_hilbert_spec_checks_its_space(spec, message):
 def test_topology_request_spec_checks_its_kind_end_and_edges(spec, message):
     """Test that a topology request needs a known kind and kept end, whole edges, and a hyperedge of a new node."""
     with pytest.raises(ValidationError, match=message):
-        spec.check()
+        spec.prepare()
 
 
 def test_categorical_values_round_trip_as_labels():
@@ -517,14 +517,14 @@ def test_categorical_values_round_trip_as_labels():
         elements=[PersonElement('ann', health='infected')],
         interactions=[ProgressionInteraction('p', target='ann')],
     )
-    trajectory = Simulation(system).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system).prepare().run(until=1).trajectory_
     assert trajectory.values('ann.health').tolist() == ['infected', 'recovered']
 
 
 def test_categorical_rejects_unknown_label():
     """Test that an initial value outside the alphabet is rejected."""
     with pytest.raises(ValidationError, match=r"ann\.health = 'dead' is not in its domain"):
-        Simulation(System(elements=[PersonElement('ann', health='dead')])).check().prepare().run(until=1)
+        Simulation(System(elements=[PersonElement('ann', health='dead')])).prepare().run(until=1)
 
 
 def test_checked_mode_catches_values_outside_alphabet():
@@ -534,15 +534,15 @@ def test_checked_mode_catches_values_outside_alphabet():
         interactions=[ProgressionInteraction('p', target='ann')],
     )
     with pytest.raises(ValidationError, match=r'ann\.health took the values 3\.0 at t = 1\.0, outside its domain'):
-        Simulation(system, checked=True).check().prepare().run(until=1)
-    unchecked = Simulation(system).check().prepare().run(until=1).trajectory_
+        Simulation(system, checked=True).prepare().run(until=1)
+    unchecked = Simulation(system).prepare().run(until=1).trajectory_
     assert unchecked.states[-1, 0] == 3.0
 
 
 def test_angle_wraps_into_one_turn():
     """Test that an angle growing past pi lies in (-pi, pi] after every step."""
     system = System(elements=[RotorElement('r', theta=6.0, omega=1.0)])
-    values = Simulation(system, dt=0.5).check().prepare().run(until=3).trajectory_.values('r.theta')
+    values = Simulation(system, dt=0.5).prepare().run(until=3).trajectory_.values('r.theta')
     assert np.all((values[1:] > -np.pi) & (values[1:] <= np.pi))
     assert values[-1] == pytest.approx(9.0 - 2 * np.pi, abs=1e-6)
 
@@ -550,14 +550,14 @@ def test_angle_wraps_into_one_turn():
 def test_angle_swings_around_zero_without_jumping():
     """Test that an angle decreasing through zero stays near zero instead of jumping a full turn."""
     system = System(elements=[RotorElement('r', theta=0.1, omega=-1.0)])
-    values = Simulation(system, dt=0.1).check().prepare().run(until=1).trajectory_.values('r.theta')
+    values = Simulation(system, dt=0.1).prepare().run(until=1).trajectory_.values('r.theta')
     assert np.all((values > -np.pi) & (values <= np.pi))
     assert values[-1] == pytest.approx(-0.9, abs=1e-6)
 
 
 def test_order_parameter_every_frame():
     """Test that the modulus of the mean of exp(i theta) is recorded at every frame between 0 and 1."""
-    trajectory = Simulation(_oscillators(), dt=0.5, observables=ORDER).check().prepare().run(until=10).trajectory_
+    trajectory = Simulation(_oscillators(), dt=0.5, observables=ORDER).prepare().run(until=10).trajectory_
     order = trajectory.values('order')
     assert order.shape == (21,)
     assert np.all((order >= 0) & (order <= 1))
@@ -568,9 +568,7 @@ def test_order_parameter_every_frame():
 def test_expression_observable_of_elements():
     """Test that a system observable combines symbols of single elements and earlier observables."""
     observables = [ObservableSpec('total', _total), ObservableSpec('share', _share)]
-    trajectory = (
-        Simulation(_two_populations(), dt=0.5, observables=observables).check().prepare().run(until=1).trajectory_
-    )
+    trajectory = Simulation(_two_populations(), dt=0.5, observables=observables).prepare().run(until=1).trajectory_
     assert np.allclose(trajectory.values('total'), trajectory.values('a.n') + trajectory.values('b.n'))
     assert np.allclose(trajectory.values('share'), trajectory.values('a.n') / trajectory.values('total'))
 
@@ -578,7 +576,7 @@ def test_expression_observable_of_elements():
 def test_observable_by_subsystem_path():
     """Test that an observable of a subsystem is recorded under the subsystem's path."""
     system = System(systems=[System('market', elements=[PopulationElement('a', n=3.0)])])
-    simulation = Simulation(system, dt=1, observables=[ObservableSpec('market/volume', _volume)]).check().prepare()
+    simulation = Simulation(system, dt=1, observables=[ObservableSpec('market/volume', _volume)]).prepare()
     assert simulation.run(until=2).trajectory_.values('market/volume').tolist() == [6.0, 6.0, 6.0]
 
 
@@ -592,7 +590,7 @@ def test_agent_reduction_read_by_other_partition():
         interactions=[InflowInteraction('inflow', target='land/soil', source='village/mean_wealth')],
     )
     observables = [ObservableSpec('village/mean_wealth', group='savers', variable='wealth')]
-    trajectory = Simulation(system, dt=1, observables=observables).check().prepare().run(until=2).trajectory_
+    trajectory = Simulation(system, dt=1, observables=observables).prepare().run(until=2).trajectory_
     assert trajectory.values('village/mean_wealth').tolist() == [1.0, 2.0, 3.0]
     assert trajectory.values('land/soil.n')[-1] == pytest.approx(2.0 + 3.0)
 
@@ -607,7 +605,7 @@ def test_observable_read_in_one_form_is_lowered():
         interactions=[InflowInteraction('inflow', target='soil', source='mean_n')],
     )
     observables = [ObservableSpec('mean_n', group='herd', variable='n')]
-    trajectory = Simulation(system, dt=1.0, observables=observables).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, dt=1.0, observables=observables).prepare().run(until=1).trajectory_
     assert trajectory.values('soil.n')[-1] == pytest.approx(trajectory.values('soil.n')[0] + 3.0)
 
 
@@ -615,22 +613,22 @@ def test_observable_of_a_member_symbol_outside_a_reduction_is_rejected():
     """Test that an observable using a group member's symbol outside a reduction is rejected."""
     system = System(elements=[GroupElement('herd', element=PopulationElement, size=3)])
     with pytest.raises(AttributeError, match='herd'):
-        Simulation(system, observables=[ObservableSpec('bad', _herd)]).check().prepare().run(until=1)
+        Simulation(system, observables=[ObservableSpec('bad', _herd)]).prepare().run(until=1)
 
 
 def test_observable_lambda_is_rejected():
     """Test that checking an observable whose expression or reduction is a lambda raises a named error."""
     with pytest.raises(ValidationError, match="expression of the observable 'total'"):
-        ObservableSpec('total', lambda s: s.a.n + s.b.n).check()
+        ObservableSpec('total', lambda s: s.a.n + s.b.n).prepare()
     with pytest.raises(ValidationError, match='reduction'):
-        ObservableSpec('spread', group='herd', variable='n', reduce=lambda values: values.ptp()).check()
+        ObservableSpec('spread', group='herd', variable='n', reduce=lambda values: values.ptp()).prepare()
 
 
 def test_simulation_checks_its_observables():
     """Test that a run rejects an observable whose expression is a lambda before compiling."""
     system = System(elements=[PopulationElement('a')])
     with pytest.raises(ValidationError, match="'total'"):
-        Simulation(system, observables=[ObservableSpec('total', lambda s: s.a.n)]).check().prepare().run(until=1)
+        Simulation(system, observables=[ObservableSpec('total', lambda s: s.a.n)]).prepare().run(until=1)
 
 
 def test_observable_module_function_pickles():
@@ -639,17 +637,12 @@ def test_observable_module_function_pickles():
     restored = ForkingPickler.loads(ForkingPickler.dumps(observables))
     expected = (
         Simulation(_two_populations(), dt=0.5, observables=observables)
-        .check()
         .prepare()
         .run(until=1)
         .trajectory_.values('total')
     )
     values = (
-        Simulation(_two_populations(), dt=0.5, observables=restored)
-        .check()
-        .prepare()
-        .run(until=1)
-        .trajectory_.values('total')
+        Simulation(_two_populations(), dt=0.5, observables=restored).prepare().run(until=1).trajectory_.values('total')
     )
     assert np.allclose(values, expected)
 
@@ -663,7 +656,7 @@ def test_observables_read_time():
         ],
     )
     observables = [ObservableSpec('timed', _timed), ObservableSpec('member_timed', _member_timed, group='herd')]
-    trajectory = Simulation(system, dt=1.0, observables=observables).check().prepare().run(until=2).trajectory_
+    trajectory = Simulation(system, dt=1.0, observables=observables).prepare().run(until=2).trajectory_
     assert trajectory.values('timed').tolist() == [0.0, 2.0, 4.0]
     assert trajectory.values('member_timed').tolist() == [2.0, 3.0, 4.0]
 
@@ -696,9 +689,7 @@ def test_observable_rejects_reduction_over_another_group():
 def test_observable_of_an_element_records_its_expression_with_delays():
     """Test that an observable of an element's expression records it under the element and reads its delays."""
     observed = ObservableSpec('perceived', _perceived, element='tank')
-    trajectory = (
-        Simulation(System(elements=[SmoothedElement('tank')]), dt=0.5, observables=[observed]).check().prepare()
-    )
+    trajectory = Simulation(System(elements=[SmoothedElement('tank')]), dt=0.5, observables=[observed]).prepare()
     perceived = trajectory.run(until=4).trajectory_.values('tank.perceived')
     np.testing.assert_allclose(perceived, trajectory.trajectory_.values('tank.smoothing_delay1_0')[:, 0])
     assert perceived[0] == pytest.approx(1.0)
@@ -712,14 +703,14 @@ def test_observable_of_an_element_rejects_a_delay_no_law_uses():
         Simulation(
             System(elements=[PopulationElement('rabbits', n=2.0)]),
             observables=[observed],
-        ).check().prepare().run(until=1)
+        ).prepare().run(until=1)
 
 
 def test_scenario_spec_changes_a_parameter_at_its_scheduled_time():
     """Test that halving the effort at time 50 changes the stock only after time 50, with the same seeds."""
     scenarios = [ScenarioSpec('baseline'), ScenarioSpec('quota', schedule=[(50.0, 'harvest.effort', 0.025)])]
     experiment = Experiment(harvesting, scenarios=scenarios, until=80, outputs=['land/stock.n'], random_state=0)
-    result = experiment.check().prepare().run().result_
+    result = experiment.prepare().run().result_
     baseline, quota = result.series('land/stock.n')
     times = result.runs[0].times
     assert np.array_equal(baseline[times <= 50], quota[times <= 50])
@@ -732,7 +723,7 @@ def test_scenario_spec_keeps_the_initial_value_before_its_first_change():
     schedule = [(50.0, 'harvest.effort', 0.025), (20.0, 'harvest.effort', 0.04)]
     scenarios = [ScenarioSpec('baseline'), ScenarioSpec('late', schedule=schedule)]
     experiment = Experiment(harvesting, scenarios=scenarios, until=80, outputs=['land/stock.n'], random_state=0)
-    result = experiment.check().prepare().run().result_
+    result = experiment.prepare().run().result_
     baseline, late = result.series('land/stock.n')
     times = result.runs[0].times
     assert np.array_equal(baseline[times <= 20], late[times <= 20])
@@ -743,14 +734,14 @@ def test_scenario_spec_is_a_frozen_spec():
     """Test that a scenario is a frozen spec whose default is the baseline."""
     scenario = ScenarioSpec()
     assert isinstance(scenario, BaseSpec)
-    assert scenario.check().name == 'baseline'
+    assert scenario.name == 'baseline'
     with pytest.raises(dataclasses.FrozenInstanceError):
         scenario.name = 'quota'
 
 
 def test_match_spec_is_a_frozen_spec():
     """Test that a match is a frozen spec of a requester, a provider, a quantity, and a price."""
-    match = MatchSpec('requester', 'provider', 2.0, 5.0).check()
+    match = MatchSpec('requester', 'provider', 2.0, 5.0)
     assert (match.requester, match.provider, match.quantity * match.value) == ('requester', 'provider', 10.0)
     with pytest.raises(dataclasses.FrozenInstanceError):
         match.value = 1.0
@@ -770,7 +761,7 @@ def test_match_spec_is_a_frozen_spec():
 )
 def test_matching_rule_specs_hold_their_settings(spec, name, value):
     """Test that a matching rule is a frozen spec that keeps the setting it was given."""
-    checked = spec.check()
+    checked = spec
     assert getattr(checked, name) == value
     with pytest.raises(dataclasses.FrozenInstanceError):
         setattr(checked, name, value)
@@ -778,7 +769,7 @@ def test_matching_rule_specs_hold_their_settings(spec, name, value):
 
 def test_batch_matching_spec_has_no_settings():
     """Test that batch matching is a spec without settings."""
-    assert dataclasses.fields(BatchMatchingSpec().check()) == ()
+    assert dataclasses.fields(BatchMatchingSpec().prepare()) == ()
 
 
 @pytest.mark.parametrize(
@@ -797,7 +788,7 @@ def test_batch_matching_spec_has_no_settings():
 def test_matching_rule_specs_reject_invalid_settings(spec, message):
     """Test that an unknown option, a distance that is not positive, and a bad score raise an error naming them."""
     with pytest.raises(ValidationError, match=message):
-        spec.check()
+        spec.prepare()
 
 
 @pytest.mark.parametrize(
@@ -812,7 +803,7 @@ def test_matching_rule_specs_reject_invalid_settings(spec, message):
 def test_check_agent_coupling_specs_reject_invalid_settings(spec, message):
     """Test that a radius or a clamp with an invalid setting raises an error naming it."""
     with pytest.raises(ValidationError, match=message):
-        spec.check()
+        spec.prepare()
 
 
 @pytest.mark.parametrize(
@@ -822,12 +813,12 @@ def test_check_agent_coupling_specs_reject_invalid_settings(spec, message):
 def test_check_symmetry_spec_rejects_invalid_settings(spec, message):
     """Test that a symmetry with an empty label or a generator that is not callable raises an error naming it."""
     with pytest.raises(ValidationError, match=message):
-        spec.check()
+        spec.prepare()
 
 
 def test_dataset_spec_counts_sequences_and_steps():
     """Test that a dataset counts the sequences and steps of its first array."""
-    data = DatasetSpec({'inputs.x': np.zeros((5, 12, 1)), 'outputs.target': np.zeros((5, 12, 1))}).check()
+    data = DatasetSpec({'inputs.x': np.zeros((5, 12, 1)), 'outputs.target': np.zeros((5, 12, 1))})
     assert (data.sequences, data.steps) == (5, 12)
 
 
@@ -835,7 +826,7 @@ def test_dataset_spec_counts_sequences_and_steps():
 def test_dataset_spec_rejects_values_it_cannot_take(values):
     """Test that empty values, an array of one dimension, or a path that is not a string raise an error."""
     with pytest.raises(ValidationError):
-        DatasetSpec(values).check()
+        DatasetSpec(values).prepare()
 
 
 @pytest.mark.parametrize(
@@ -853,19 +844,19 @@ def test_dataset_spec_rejects_values_it_cannot_take(values):
 def test_partner_spec_check_rejects_unusable_settings(arguments):
     """Test that the check of a partner spec names a choice, fallback, distance, capacity, or score it cannot take."""
     with pytest.raises(ValidationError):
-        PartnerSpec(**arguments).check()
+        PartnerSpec(**arguments).prepare()
 
 
 def test_role_spec_defaults_to_any_element_and_no_states():
     """Test that a role that declares nothing accepts every kind of element and reads no state."""
-    role = RoleSpec().check()
+    role = RoleSpec()
     assert role.states == ()
     assert all(role.accepts(kind) for kind in ElementKind)
 
 
 def test_role_spec_accepts_only_the_kinds_it_names():
     """Test that a role accepts the kinds it names, or every kind when it names any."""
-    role = RoleSpec(elements=(ElementKind.GROUP,), states=('state',)).check()
+    role = RoleSpec(elements=(ElementKind.GROUP,), states=('state',))
     assert role.accepts(ElementKind.GROUP)
     assert not role.accepts(ElementKind.ELEMENT)
     assert RoleSpec(elements=(ElementKind.ANY,)).accepts(ElementKind.ELEMENT)

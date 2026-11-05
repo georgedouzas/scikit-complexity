@@ -23,7 +23,7 @@ MODEL = 'legion'
 
 system = create(MODEL, epsilon=0.1, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=290)
+simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=290)
 
 # %%
 # Synchrony within, alternation between

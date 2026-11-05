@@ -28,7 +28,7 @@ class RowScoreSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import RowScoreSpec
-        >>> RowScoreSpec(sum, proposals=2).check().proposals
+        >>> RowScoreSpec(sum, proposals=2).proposals
         2
     """
 

@@ -37,7 +37,7 @@ class CompartmentElement(Element):
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
         >>> system = System(elements=[CompartmentElement('A', n=990), CompartmentElement('B', n=10)])
-        >>> Simulation(system, dt=1.0).check().prepare().run(until=2).trajectory_.values('A.n').tolist()
+        >>> Simulation(system, dt=1.0).prepare().run(until=2).trajectory_.values('A.n').tolist()
         [990.0, 990.0, 990.0]
     """
 

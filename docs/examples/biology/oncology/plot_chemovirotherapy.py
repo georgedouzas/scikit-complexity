@@ -21,7 +21,7 @@ MODEL = 'chemovirotherapy'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer]).check().prepare().run(until=32)
+simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=32)
 
 # %%
 # Each therapy alone and both together
@@ -34,7 +34,7 @@ arms = {'chemotherapy alone': create(MODEL, V=0.0), 'virus alone': create(MODEL,
 fig, (curves, bars) = plt.subplots(1, 2, figsize=(10, 4))
 finals = {}
 for name, arm in arms.items():
-    trajectory = Simulation(arm, dt=0.2).check().prepare().run(until=32).trajectory_
+    trajectory = Simulation(arm, dt=0.2).prepare().run(until=32).trajectory_
     total = trajectory.values('tumour.AU') + trajectory.values('tumour.AV')
     curves.semilogy(2 * trajectory.times, total, label=name)
     finals[name] = total[-1]

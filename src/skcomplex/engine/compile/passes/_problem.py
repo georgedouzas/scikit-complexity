@@ -293,7 +293,7 @@ class ProblemPass(BasePass):
                 'Events and delays read states and parameters of single elements and interactions.'
             )
             raise ValidationError(error_msg)
-        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(values).code_
+        function = ExpressionPrinter(time=time, compiled=True).prepare(arguments).run(values).code_
         if not callable(function):
             error_msg = f'The printer returns no function of the events or delays of {owner}.'
             raise TypeError(error_msg)
@@ -362,7 +362,7 @@ class ProblemPass(BasePass):
         reads = [
             (spec.references[item].is_state, ProblemPass._reset_indices(spec.references[item])) for item in arguments
         ]
-        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(values).code_
+        function = ExpressionPrinter(time=time, compiled=True).prepare(arguments).run(values).code_
         if not callable(function):
             error_msg = f'The printer returns no function of the resets of an event of {spec.owner}.'
             raise TypeError(error_msg)
@@ -408,7 +408,7 @@ class ProblemPass(BasePass):
         reads = [
             (spec.references[item].is_state, ProblemPass._reset_indices(spec.references[item])) for item in arguments
         ]
-        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run([guard]).code_
+        function = ExpressionPrinter(time=time, compiled=True).prepare(arguments).run([guard]).code_
         if not callable(function):
             error_msg = f'The printer returns no function of the guard of an event of {spec.owner}.'
             raise TypeError(error_msg)
@@ -571,7 +571,7 @@ class ProblemPass(BasePass):
         """Return the function of time and both vectors of a symbolic guard or reset next to a function."""
         expression = SR(value)
         arguments = sorted(symbols_of([expression]) - {time}, key=str)
-        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run([expression]).code_
+        function = ExpressionPrinter(time=time, compiled=True).prepare(arguments).run([expression]).code_
         if not callable(function):
             error_msg = f'The printer returns no function of an event of {spec.owner}.'
             raise TypeError(error_msg)
@@ -649,18 +649,14 @@ class ProblemPass(BasePass):
                     state[place[member]] = found[member]
             return state
 
-        return (
-            EventKernel(
-                label,
-                guard_values,
-                apply if targets else None,
-                int(event.direction),
-                bool(event.terminal),
-                members=rows,
-            )
-            .check()
-            .prepare()
-        )
+        return EventKernel(
+            label,
+            guard_values,
+            apply if targets else None,
+            int(event.direction),
+            bool(event.terminal),
+            members=rows,
+        ).prepare()
 
     @staticmethod
     def _compile_events(
@@ -707,9 +703,7 @@ class ProblemPass(BasePass):
                         int(event.direction),
                         bool(event.terminal),
                         members=spec.rows,
-                    )
-                    .check()
-                    .prepare(),
+                    ).prepare(),
                 )
                 continue
             sources = ProblemPass._flat_sources(spec.references, spec.owner)
@@ -721,9 +715,7 @@ class ProblemPass(BasePass):
                     ProblemPass._reset_function(spec, event, time, reductions),
                     int(event.direction),
                     bool(event.terminal),
-                )
-                .check()
-                .prepare(),
+                ).prepare(),
             )
         return tuple(compiled)
 
@@ -772,9 +764,7 @@ class ProblemPass(BasePass):
                         0,
                         False,
                         hidden=True,
-                    )
-                    .check()
-                    .prepare(),
+                    ).prepare(),
                 )
         return tuple(compiled)
 
@@ -799,5 +789,5 @@ class ProblemPass(BasePass):
         if element.visual is not None:
             return element.visual
         prepared = 'default_visual_' in vars(element)
-        default: VisualSpec = (element if prepared else element.check().prepare(node.space)).default_visual_
+        default: VisualSpec = (element if prepared else element.prepare(node.space)).default_visual_
         return default

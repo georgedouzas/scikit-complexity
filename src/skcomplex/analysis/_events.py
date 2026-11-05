@@ -109,15 +109,15 @@ class EventAnalysis(BaseAnalysis):
 
     Examples:
         >>> from skcomplex.analysis import EventAnalysis
-        >>> events = EventAnalysis().check().prepare([0, 3, 1, 0, 0, 2, 0]).run()
+        >>> events = EventAnalysis().prepare([0, 3, 1, 0, 0, 2, 0]).run()
         >>> events.sizes_.tolist(), events.durations_.tolist(), events.waiting_times_.tolist()
         ([4.0, 2.0], [2.0, 1.0], [2.0])
-        >>> EventAnalysis('counts', window=1.0, end=3.0).check().prepare([0.1, 0.2, 1.5, 2.2]).run().counts_.tolist()
+        >>> EventAnalysis('counts', window=1.0, end=3.0).prepare([0.1, 0.2, 1.5, 2.2]).run().counts_.tolist()
         [2.0, 1.0, 1.0]
         >>> laminar = EventAnalysis('laminar-durations', threshold=0.5)
-        >>> laminar.check().prepare([1, 0, 0, 1, 0, 1]).run().durations_.tolist()
+        >>> laminar.prepare([1, 0, 0, 1, 0, 1]).run().durations_.tolist()
         [2.0, 1.0]
-        >>> excursions = EventAnalysis('excursions').check().prepare([0, 1, 2, 1, 0, 3, 0]).run()
+        >>> excursions = EventAnalysis('excursions').prepare([0, 1, 2, 1, 0, 3, 0]).run()
         >>> excursions.sizes_.tolist(), excursions.durations_.tolist()
         ([4.0, 3.0], [3.0, 1.0])
         >>> import numpy as np
@@ -126,7 +126,7 @@ class EventAnalysis(BaseAnalysis):
         >>> activity[0] = 100
         >>> for t in range(1, activity.size):
         ...     activity[t] = rng.poisson(0.9 * activity[t - 1] + 10)
-        >>> round(EventAnalysis('branching').check().prepare(activity).run().branching_ratio_, 1)
+        >>> round(EventAnalysis('branching').prepare(activity).run().branching_ratio_, 1)
         0.9
     """
 

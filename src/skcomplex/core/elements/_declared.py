@@ -38,13 +38,13 @@ class DeclaredElement(Element):
 
     Raises:
         ValidationError:
-            A name is not an identifier or is an argument of the constructor, raised by `check`.
+            A name is not an identifier or is an argument of the constructor, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.core.elements import DeclaredElement
         >>> from skcomplex.specs import DeclaredVariableSpec, ParameterSpec, StateSpec
         >>> variables = {'x': DeclaredVariableSpec(1.0, StateSpec()), 'r': DeclaredVariableSpec(0.5, ParameterSpec())}
-        >>> element = DeclaredElement('cell', variables=variables).check()
+        >>> element = DeclaredElement('cell', variables=variables)
         >>> element.get_value('x'), element.set_params(r=0.25).get_value('r')
         (1.0, 0.25)
     """

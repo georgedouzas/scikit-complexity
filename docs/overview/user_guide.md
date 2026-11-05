@@ -28,10 +28,10 @@ together.
     - A **group** holds many identical elements of one type as arrays.
     - An **interaction** couples elements through **roles** and describes its effect with **laws**.
     - A **system** holds elements, interactions, nested systems, an optional space, and an optional time.
-- Every part speaks three verbs. `check()` validates it, `prepare(...)` prepares it against what it works on, and
+- Every part speaks two verbs. `prepare(...)` validates it and prepares it against what it works on, and
   `run(...)` sets what it contributes: an element, an interaction, or a system sets its laws in `laws_`, and a law sets
-  in `value_` its value at given values of the symbols it reads, such as the rate of a `RateLaw`. The three verbs
-  return the part itself, and a part must be checked before it is prepared or run.
+  in `value_` its value at given values of the symbols it reads, such as the rate of a `RateLaw`. Both verbs
+  return the part itself, and a part must be prepared before it runs.
 - A run records **observables**, named values computed from the states at every frame, and checks the
   **invariants** it is given.
 - A **law** says how a state changes. Every law is a class, and the four most common laws are these.
@@ -138,7 +138,7 @@ assert not walk.accepts(ElementKind.ELEMENT)
 ### When a part does not fit
 
 Validation reports a role filled by an unsuitable element as the issue `role-element`, with the other problems of the
-system, each with a path, a message, and a fix. `PassCompiler(...).check().prepare(system).report_` holds the report
+system, each with a path, a message, and a fix. `PassCompiler(...).prepare(system).report_` holds the report
 before you run. Here the rate reads the state `n` of a tank that carries `level`.
 
 ```python continuation
@@ -149,7 +149,7 @@ class TankElement(Element):
 
 
 wrong = System(elements=[TankElement('tank')], interactions=[RateInteraction('growth', target='tank', state='n', rate=1.0)])
-issue = PassCompiler().check().prepare(wrong).report_.issues[0]
+issue = PassCompiler().prepare(wrong).report_.issues[0]
 print(issue.code, issue.path)
 print(issue.message)
 print(issue.fix)
@@ -169,13 +169,13 @@ A role that rejects the kind of its element gets the same issue, and a law in th
 
 ```python continuation
 kinds = System(elements=[TankElement('tank')], interactions=[MovementInteraction('walk', target='tank')])
-print(PassCompiler().check().prepare(kinds).report_.issues[0].message)
+print(PassCompiler().prepare(kinds).report_.issues[0].message)
 times = System(
     elements=[TankElement('tank')],
     interactions=[RateInteraction('grow', target='tank', state='level', rate=1.0)],
     time=DiscreteTime(),
 )
-print(PassCompiler().check().prepare(times).report_.issues[0].message)
+print(PassCompiler().prepare(times).report_.issues[0].message)
 ```
 
 This prints the following.
@@ -192,7 +192,7 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.errors import RoleElementError
 
 try:
-    Simulation(wrong, dt=0.1).check().prepare()
+    Simulation(wrong, dt=0.1).prepare()
 except RoleElementError as error:
     print(error)
 ```
@@ -221,9 +221,9 @@ from skcomplex.engine.solvers import IterationSolver, RK4Solver
 
 system = System(elements=[rabbits], interactions=[growth])
 print(compile_system(system).form.value)
-assert PassCompiler(solver=RK4Solver()).check().prepare(system).report_.ok
-assert not PassCompiler(solver=IterationSolver()).check().prepare(system).report_.ok
-print(Simulation(system, dt=0.1).check().prepare().run(until=1).trajectory_.values('rabbits.n')[-1].round(1))
+assert PassCompiler(solver=RK4Solver()).prepare(system).report_.ok
+assert not PassCompiler(solver=IterationSolver()).prepare(system).report_.ok
+print(Simulation(system, dt=0.1).prepare().run(until=1).trajectory_.values('rabbits.n')[-1].round(1))
 ```
 
 ## Defining elements
@@ -348,7 +348,7 @@ decay = DecayElement('decay', variables=declared)
 faster = clone(decay).set_params(k=1.0)
 print(decay.get_value('k'), faster.get_value('k'))
 system = System(elements=[decay], time=ContinuousTime())
-print(Simulation(system, dt=0.1).check().prepare().run(until=1.0).trajectory_.values('decay.b')[-1])
+print(Simulation(system, dt=0.1).prepare().run(until=1.0).trajectory_.values('decay.b')[-1])
 ```
 
 ### Laws
@@ -356,9 +356,9 @@ print(Simulation(system, dt=0.1).check().prepare().run(until=1.0).trajectory_.va
 Every law class derives from `BaseLaw`. A law takes the states it changes and the expressions it reads as arguments of
 its `__init__`, and an optional `label` by keyword.
 
-- `check()` validates the arguments, such as a value that is a NumPy array instead of an expression.
-- `prepare(owner)` sets `targets_`, the states the law changes, `reads_`, the symbols it reads, and `owner_`, the path
-  of the element or interaction that returns it.
+- `prepare(owner)` validates the arguments, such as a value that is a NumPy array instead of an expression, and sets
+  `targets_`, the states the law changes, `reads_`, the symbols it reads, and `owner_`, the path of the element or
+  interaction that returns it.
 - `run(values)` sets `value_`, the value of the law at the values of the symbols it reads, given by name.
 - Every law states what it requires of a system, such as continuous time for `RateLaw` and discrete time for
   `UpdateLaw`, and validation reports a system whose laws require different times.
@@ -379,7 +379,7 @@ from sage.all__sagemath_symbolics import var
 from skcomplex.core.laws import BaseLaw, RateLaw
 
 x, k = var('x k')
-law = RateLaw(x, -k * x).check().prepare('decay')
+law = RateLaw(x, -k * x).prepare('decay')
 print(issubclass(RateLaw, BaseLaw), law.targets_, sorted(map(str, law.reads_)), law.owner_)
 print(law.run({'x': 2.0, 'k': 0.5}).value_)
 ```
@@ -418,7 +418,7 @@ culled = System(
     elements=[PopulationElement('deer', n=60.0)],
     interactions=[CullInteraction('cull', target='deer')],
 )
-print(round(float(Simulation(culled, dt=1.0).check().prepare().run(until=20).trajectory_.values('deer.n')[-1])))
+print(round(float(Simulation(culled, dt=1.0).prepare().run(until=20).trajectory_.values('deer.n')[-1])))
 ```
 
 ### Functions as laws
@@ -483,7 +483,7 @@ class TankElement(Element):
 
 
 tanks = System(elements=[TankElement('a')], systems=[System('plant', elements=[TankElement('b')])])
-trajectory = Simulation(tanks, dt=0.01).check().prepare().run(until=2).trajectory_
+trajectory = Simulation(tanks, dt=0.01).prepare().run(until=2).trajectory_
 print(len(trajectory.events) > 0, trajectory.values('a.level')[-1] == trajectory.values('plant/b.level')[-1])
 
 
@@ -494,7 +494,7 @@ class WalkerElement(TankElement):
 
 def walk(seed):
     system = System(elements=[WalkerElement('a')], time=DiscreteTime())
-    return Simulation(system, random_state=seed).check().prepare().run(until=5).trajectory_.values('a.level')
+    return Simulation(system, random_state=seed).prepare().run(until=5).trajectory_.values('a.level')
 
 
 print(np.array_equal(walk(1), walk(1)))
@@ -512,7 +512,7 @@ class MedianElement(TankElement):
 
 for element in (HerdElement, MedianElement):
     herd = System(elements=[GroupElement('herd', element=element, size=3, values={'level': [1.0, 2.0, 4.0]})])
-    print(Simulation(herd, dt=0.01).check().prepare().run(until=1).trajectory_.values('herd.level').shape)
+    print(Simulation(herd, dt=0.01).prepare().run(until=1).trajectory_.values('herd.level').shape)
 
 
 class DoublerElement(TankElement):
@@ -520,7 +520,7 @@ class DoublerElement(TankElement):
         return [JumpLaw(s.rate, {s.level: CallSpec(lambda t, values: values['level'], relative=True)})]
 
 
-doubling = Simulation(System(elements=[DoublerElement('a')]), random_state=0).check().prepare().run(until=10)
+doubling = Simulation(System(elements=[DoublerElement('a')]), random_state=0).prepare().run(until=10)
 print(float(np.log2(doubling.trajectory_.values('a.level')[-1])).is_integer())
 
 
@@ -529,7 +529,7 @@ def total_level(t, values):
 
 
 observed = Simulation(System(elements=[TankElement('a')]), dt=0.5, observables=[ObservableSpec('sum', function=total_level)])
-print(observed.check().prepare().run(until=1).trajectory_.values('sum').shape)
+print(observed.prepare().run(until=1).trajectory_.values('sum').shape)
 ```
 
 Some laws need symbols by nature, and each says so when given a function. `EquationLaw` is solved symbolically, so a
@@ -619,7 +619,7 @@ class RotorElement(Element):
         self.theta = theta
 
 
-print(PersonElement('ada').check().health, RotorElement('rotor').check().theta)
+print(PersonElement('ada').health, RotorElement('rotor').theta)
 ```
 
 ### Complex states
@@ -660,7 +660,7 @@ class PhaseElement(Element):
         return [RateLaw(s.z, I * s.omega * s.z)]
 
 
-z = Simulation(System(elements=[PhaseElement('osc')]), dt=0.5).check().prepare().run(until=10).trajectory_.values('osc.z')
+z = Simulation(System(elements=[PhaseElement('osc')]), dt=0.5).prepare().run(until=10).trajectory_.values('osc.z')
 print(z.dtype == np.complex128, bool(np.allclose(np.abs(z), 1.0, atol=1e-4)))
 ```
 
@@ -709,7 +709,7 @@ class PendulumElement(Element):
         return [EquationLaw(s.m * s.l * derivative(s.theta, 2) == -s.m * s.g * sin(s.theta))]
 
 
-bob = PendulumElement('bob', theta_d1=0.5).check()
+bob = PendulumElement('bob', theta_d1=0.5)
 print(list(bob.get_params()), bob.theta_d1)
 ```
 
@@ -794,7 +794,7 @@ system = System(
     elements=[ReservoirElement('first', level=1.0), ReservoirElement('second', level=3.0)],
     interactions=[ConnectionInteraction('node', members=['first', 'second'], ports=['a', 'a'])],
 )
-trajectory = Simulation(system, dt=0.5).check().prepare().run(until=1.0).trajectory_
+trajectory = Simulation(system, dt=0.5).prepare().run(until=1.0).trajectory_
 assert trajectory.values('first.a_mu')[-1] == 2.0
 assert trajectory.values('second.a_n')[-1] == -1.0
 ```
@@ -904,7 +904,7 @@ circuit = System(
         ConnectionInteraction('bottom', members=['tank', 'load', 'ground'], ports=['n', 'n', 'p']),
     ],
 )
-trajectory = Simulation(circuit, dt=0.1).check().prepare().run(until=1.0).trajectory_
+trajectory = Simulation(circuit, dt=0.1).prepare().run(until=1.0).trajectory_
 assert np.isclose(trajectory.values('tank.u')[-1], np.exp(-1.0), rtol=1e-3)
 assert np.allclose(trajectory.values('load.p_i').ravel(), trajectory.values('tank.u').ravel() / 2.0)
 ```
@@ -979,7 +979,7 @@ class RoutesElement(Element):
 
 
 system = System(elements=[RoutesElement('flows')], time=StaticTime())
-trajectory = Simulation(system).check().prepare().run(0.0).trajectory_
+trajectory = Simulation(system).prepare().run(0.0).trajectory_
 assert trajectory.values('flows.objective_0')[0] == 7.0
 ```
 
@@ -1123,10 +1123,10 @@ system is stiff, so stiff systems also run with the default solver.
 ```python continuation
 from skcomplex.engine.runtime import Simulation
 
-trajectory = Simulation(landscape, dt=0.1).check().prepare().run(until=10).trajectory_
+trajectory = Simulation(landscape, dt=0.1).prepare().run(until=10).trajectory_
 print(round(float(trajectory.values('meadow/rabbits.n')[-1]), 3))
 
-simulation = Simulation(landscape, dt=0.1).check().prepare().run(until=10)
+simulation = Simulation(landscape, dt=0.1).prepare().run(until=10)
 simulation.update_parameters({'hunt.a': 0.0})
 print(len(simulation.extend(until=20).trajectory_.times))
 ```
@@ -1198,7 +1198,7 @@ class MackeyGlassElement(Element):
 
 
 cells = System(elements=[MackeyGlassElement('cells')])
-print(round(float(Simulation(cells, dt=0.5).check().prepare().run(until=300).trajectory_.values('cells.x')[-1]), 3))
+print(round(float(Simulation(cells, dt=0.5).prepare().run(until=300).trajectory_.values('cells.x')[-1]), 3))
 ```
 
 **Events.** `CrossingLaw(guard, reset, direction, terminal, label='')` fires when the guard crosses zero, upward for
@@ -1238,7 +1238,7 @@ class BallElement(Element):
         return [RateLaw(s.h, -s.g), CrossingLaw(s.h, bounce, direction=-1, label='impact')]
 
 
-trajectory = Simulation(System(elements=[BallElement('ball')]), dt=0.01).check().prepare().run(until=3).trajectory_
+trajectory = Simulation(System(elements=[BallElement('ball')]), dt=0.01).prepare().run(until=3).trajectory_
 print([round(event.time, 6) for event in trajectory.events])
 ```
 
@@ -1274,7 +1274,7 @@ class FilterElement(Element):
         return [RateLaw(s.y, -s.k * s.y + step(s.t, 5.0))]
 
 
-filtered = Simulation(System(elements=[FilterElement('filter')]), dt=0.5).check().prepare().run(until=10).trajectory_
+filtered = Simulation(System(elements=[FilterElement('filter')]), dt=0.5).prepare().run(until=10).trajectory_
 print(round(float(filtered.values('filter.y')[-1]), 4))
 ```
 
@@ -1313,7 +1313,7 @@ class GrowthElement(Element):
 
 
 growth = System(elements=[GrowthElement('asset')])
-print(round(float(Simulation(growth, solver=MilsteinSolver(dt=0.01), random_state=0).check().prepare().run(until=1).state_[0]), 3))
+print(round(float(Simulation(growth, solver=MilsteinSolver(dt=0.01), random_state=0).prepare().run(until=1).state_[0]), 3))
 ```
 
 **Shared and correlated noise.** `NoiseLaw(..., process=...)` names the Wiener process a law draws. Without a process,
@@ -1370,7 +1370,7 @@ market = System(
     interactions=[CorrelatedNoiseInteraction('drive', first='a', second='b', noise=processes)],
 )
 solver = EulerMaruyamaSolver(dt=1.0)
-trajectory = Simulation(market, solver=solver, dt=1.0, random_state=0).check().prepare().run(until=2000).trajectory_
+trajectory = Simulation(market, solver=solver, dt=1.0, random_state=0).prepare().run(until=2000).trajectory_
 print(round(float(np.corrcoef(np.diff(trajectory.values('a.n')), np.diff(trajectory.values('b.n')))[0, 1]), 1))
 ```
 
@@ -1424,7 +1424,7 @@ class DensityElement(Element):
 
 gas = System(elements=[FieldElement('gas', element=DensityElement, space=LatticeSpace((16, 16)))])
 solver = EulerMaruyamaSolver(dt=0.01)
-density = Simulation(gas, solver=solver, random_state=0).check().prepare().run(until=5).trajectory_.values('gas.rho')
+density = Simulation(gas, solver=solver, random_state=0).prepare().run(until=5).trajectory_.values('gas.rho')
 print(round(float(density[-1].sum()), 6), bool(density[-1].std() > 0))
 ```
 
@@ -1493,7 +1493,7 @@ class PersistentElement(Element):
 
 
 walkers = System(elements=[GroupElement('walkers', element=PersistentElement, size=500)])
-final = Simulation(walkers, dt=1.0, random_state=0).check().prepare().run(until=200).trajectory_.values('walkers.x')[-1]
+final = Simulation(walkers, dt=1.0, random_state=0).prepare().run(until=200).trajectory_.values('walkers.x')[-1]
 print(round(float(final.var() / 200), 1))
 ```
 
@@ -1546,7 +1546,7 @@ class SourceElement(Element):
         ]
 
 
-simulation = Simulation(System(elements=[SourceElement('source')]), dt=1.0, random_state=0).check().prepare().run(until=10000)
+simulation = Simulation(System(elements=[SourceElement('source')]), dt=1.0, random_state=0).prepare().run(until=10000)
 print(round(float((simulation.trajectory_.values('source.hidden') == 'calm').mean()), 1))
 simulation.update_parameters({'source.stay': 0.5})
 ```
@@ -1590,7 +1590,7 @@ class FlierElement(Element):
 
 
 fliers = System(elements=[GroupElement('fliers', element=FlierElement, size=100)])
-flight = Simulation(fliers, dt=1.0, random_state=0).check().prepare().run(until=20)
+flight = Simulation(fliers, dt=1.0, random_state=0).prepare().run(until=20)
 print(flight.trajectory_.values('fliers.x').shape)
 ```
 
@@ -1637,7 +1637,7 @@ class WalkerElement(Element):
 
 
 walkers = System(elements=[GroupElement('walkers', element=WalkerElement, size=1000)])
-walk = Simulation(walkers, dt=100.0, random_state=0).check().prepare().run(until=1000)
+walk = Simulation(walkers, dt=100.0, random_state=0).prepare().run(until=1000)
 print(walk.problem_.form.value, bool(walk.trajectory_.values('jumps.renewals')[-1] > 1000))
 ```
 
@@ -1682,7 +1682,7 @@ rough = Simulation(
     solver=FractionalEulerMaruyamaSolver(dt=0.01),
     dt=0.1,
     random_state=0,
-).check().prepare().run(until=1)
+).prepare().run(until=1)
 print(round(float(rough.trajectory_.values('walkers.x')[-1].var()), 1))
 ```
 
@@ -1735,8 +1735,8 @@ class RelaxingElement(Element):
 
 
 system = System(elements=[RelaxingElement('a')])
-relaxing = Simulation(system, solver=L1Solver(dt=0.01, memory=10.0), dt=1.0).check().prepare().run(until=20)
-solution = SymbolicAnalysis('solve', use_initial_state=True).check().prepare(system).run().solutions_['a.x'].rhs()
+relaxing = Simulation(system, solver=L1Solver(dt=0.01, memory=10.0), dt=1.0).prepare().run(until=20)
+solution = SymbolicAnalysis('solve', use_initial_state=True).prepare(system).run().solutions_['a.x'].rhs()
 exact = solution.subs({solution.variables()[0]: 20.0})
 print(relaxing.problem_.form.value, abs(float(relaxing.trajectory_.values('a.x')[-1]) - float(exact)) < 1e-3)
 ```
@@ -1769,7 +1769,7 @@ import numpy as np
 from skcomplex.analysis import ShapeAnalysis
 
 chain = np.array([[[0.0, 0.0, 0.0], [3.0, 4.0, 0.0]]])
-assert ShapeAnalysis('end-to-end').check().prepare(chain).run().values_.tolist() == [5.0]
+assert ShapeAnalysis('end-to-end').prepare(chain).run().values_.tolist() == [5.0]
 ```
 
 ## Observables
@@ -1820,7 +1820,7 @@ def order_parameter(s):
 values = {'theta': np.linspace(0, 1, 100), 'omega': np.linspace(0.9, 1.1, 100)}
 oscillators = System(elements=[GroupElement('phases', element=OscillatorElement, size=100, values=values)])
 observables = [ObservableSpec('z', phase_vector, group='phases'), ObservableSpec('order', order_parameter)]
-order = Simulation(oscillators, dt=1.0, observables=observables).check().prepare().run(until=50).trajectory_.values('order')
+order = Simulation(oscillators, dt=1.0, observables=observables).prepare().run(until=50).trajectory_.values('order')
 print(round(float(order[0]), 3), round(float(order[-1]), 3))
 ```
 
@@ -1872,7 +1872,7 @@ coupled = System(
     interactions=[MeanFieldInteraction('coupling', target='phases', X='X', Y='Y', K=2.0)],
 )
 observables = [ObservableSpec('X', cosine, group='phases'), ObservableSpec('Y', sine, group='phases')]
-print(round(float(Simulation(coupled, dt=1.0, observables=observables).check().prepare().run(until=20).trajectory_.values('X')[-1]), 2))
+print(round(float(Simulation(coupled, dt=1.0, observables=observables).prepare().run(until=20).trajectory_.values('X')[-1]), 2))
 ```
 
 ## Stocks and flows
@@ -1924,7 +1924,7 @@ class PeopleElement(Element):
 
 crowd = System(elements=[PeopleElement('crowd')])
 observed = [ObservableSpec('birth_rate', birth_rate, element='crowd')]
-trajectory = Simulation(crowd, dt=1.0, observables=observed).check().prepare().run(until=10).trajectory_
+trajectory = Simulation(crowd, dt=1.0, observables=observed).prepare().run(until=10).trajectory_
 print(round(float(trajectory.values('crowd.births')[-1]), 3), round(float(trajectory.values('crowd.deaths')[-1]), 3))
 print(round(float(trajectory.values('crowd.birth_rate')[-1]), 3))
 ```
@@ -1940,9 +1940,9 @@ flow and one column per holder, whose rows sum to zero.
 from skcomplex.analysis import LoopAnalysis, SymbolicAnalysis
 from skcomplex.engine.runtime import ConservationObserver
 
-print(SymbolicAnalysis('conservation').check().prepare(crowd).run().inflows_)
-monitored = Simulation(crowd, dt=1.0, observers=[ConservationObserver()]).check().prepare().run(until=10).trajectory_
-print(LoopAnalysis('flow-matrix').check().prepare(monitored).run().matrix_.sum(axis=1).tolist())
+print(SymbolicAnalysis('conservation').prepare(crowd).run().inflows_)
+monitored = Simulation(crowd, dt=1.0, observers=[ConservationObserver()]).prepare().run(until=10).trajectory_
+print(LoopAnalysis('flow-matrix').prepare(monitored).run().matrix_.sum(axis=1).tolist())
 ```
 
 `distributed_delay(value, time, order, conserved=True)` is a material delay of any order, hidden stocks in series whose
@@ -1960,10 +1960,10 @@ flow to its sink, `+`, and its source, `-`.
 ```python continuation
 from skcomplex.analysis import LoopAnalysis
 
-analysis = LoopAnalysis().check().prepare(crowd).run()
+analysis = LoopAnalysis().prepare(crowd).run()
 for nodes, polarity in zip(analysis.loops_, analysis.polarities_, strict=True):
     print(polarity, ' -> '.join(nodes))
-dominance = LoopAnalysis('dominance').check().prepare(trajectory).run()
+dominance = LoopAnalysis('dominance').prepare(trajectory).run()
 print(dominance.polarities_[int(dominance.dominant_[-1])])
 ```
 
@@ -1973,7 +1973,7 @@ reinforcing self-loop, predator death a balancing one, and predation a balancing
 ```python continuation
 from skcomplex.models import create
 
-predation = LoopAnalysis(at=[1.0, 1.0]).check().prepare(create('lotka_volterra')).run()
+predation = LoopAnalysis(at=[1.0, 1.0]).prepare(create('lotka_volterra')).run()
 print(dict(zip(predation.loops_, predation.polarities_, strict=True)))
 ```
 
@@ -2026,7 +2026,7 @@ class TraderElement(Element):
 
 balance = ObservableSpec('net_worth', net_worth, group='traders', reduce='sum')
 market = System(elements=[GroupElement('traders', element=TraderElement, size=3)])
-traders = Simulation(market, observables=[balance], invariants={'net_worth': 1e-9}).check().prepare().run(until=3).trajectory_
+traders = Simulation(market, observables=[balance], invariants={'net_worth': 1e-9}).prepare().run(until=3).trajectory_
 print(float(traders.agents('traders', 3).values['cash'].sum()))
 ```
 
@@ -2064,7 +2064,7 @@ SAVEPER = 1 ~ Years ~ |
 """
 folder = Path(tempfile.mkdtemp())
 (folder / 'people.mdl').write_text(text)
-translator = SystemDynamicsTranslator(folder / 'people.mdl').check().prepare().run()
+translator = SystemDynamicsTranslator(folder / 'people.mdl').prepare().run()
 (folder / 'translated_people.py').write_text(translator.source_)
 sys.path.insert(0, str(folder))
 module = importlib.import_module('translated_people')
@@ -2072,9 +2072,9 @@ print(translator.settings_.until, module.DT)
 
 system = module.create_system()
 simulation = Simulation(system, dt=module.SAVE_EVERY, observables=module.observables(system))
-trajectory = simulation.check().prepare().run(until=module.UNTIL).trajectory_
+trajectory = simulation.prepare().run(until=module.UNTIL).trajectory_
 print(trajectory.values('people.births')[0], trajectory.values('people.doubling_share')[0])
-print(LoopAnalysis().check().prepare(system).run().polarities_)
+print(LoopAnalysis().prepare(system).run().polarities_)
 ```
 
 The parts of the file become these:
@@ -2096,7 +2096,7 @@ solver differs from it by the Euler error of the file's time step.
 
 ```python continuation
 stepped = Simulation(system, solver=EulerSolver(dt=module.DT), dt=module.DT)
-final = stepped.check().prepare().run(until=module.UNTIL).trajectory_.values('people.population')[-1]
+final = stepped.prepare().run(until=module.UNTIL).trajectory_.values('people.population')[-1]
 print(round(float(final), 3))
 ```
 
@@ -2152,10 +2152,10 @@ class HeaterElement(Element):
 
 
 room = System(elements=[HeaterElement('heater')])
-report = PassCompiler().check().prepare(System(elements=[HeaterElement('heater', power=2.0)])).report_
+report = PassCompiler().prepare(System(elements=[HeaterElement('heater', power=2.0)])).report_
 print([issue.path for issue in report.errors])
 schedule = {'heater.power': lambda t: 1.0 if t >= 1.0 else 0.0}
-heated = Simulation(room, dt=0.5, schedule=schedule).check().prepare().run(until=3).trajectory_
+heated = Simulation(room, dt=0.5, schedule=schedule).prepare().run(until=3).trajectory_
 print(heated.values('heater.power').tolist())
 ```
 
@@ -2211,9 +2211,9 @@ def cost(s):
     return (s.plant.x**2 + s.plant.u**2) / 2
 
 
-optimal = Simulation(plant, solver=PontryaginSolver(cost), dt=0.1).check().prepare().run(until=1.0)
+optimal = Simulation(plant, solver=PontryaginSolver(cost), dt=0.1).prepare().run(until=1.0)
 print(round(float(optimal.trajectory_.values('plant.u')[0]), 3), round(float(optimal.stepper_.solution_.cost), 4))
-transcribed = Simulation(plant, solver=CollocationSolver(cost, nodes=21), dt=0.1).check().prepare().run(until=1.0)
+transcribed = Simulation(plant, solver=CollocationSolver(cost, nodes=21), dt=0.1).prepare().run(until=1.0)
 print(round(float(transcribed.trajectory_.values('plant.u')[0]), 3))
 ```
 
@@ -2231,7 +2231,7 @@ system under discrete time, since an objective needs static or continuous time, 
 ```python continuation
 from skcomplex.engine.compile import PassCompiler
 
-print([issue.code for issue in PassCompiler(solver=PontryaginSolver()).check().prepare(plant).report_.errors])
+print([issue.code for issue in PassCompiler(solver=PontryaginSolver()).prepare(plant).report_.errors])
 ```
 
 ### Feedback controllers
@@ -2280,7 +2280,7 @@ class CartElement(Element):
 
 
 model = LinearizationAnalysis(outputs=['cart.x'], state_weights=[[1, 0], [0, 1]], control_weights=[[1]])
-model.check().prepare(System(elements=[CartElement('cart')])).run()
+model.prepare(System(elements=[CartElement('cart')])).run()
 print(model.controllability_, model.observability_)
 print(model.gain_.round(3).tolist())
 ```
@@ -2301,7 +2301,7 @@ library of ready-made models built from the other four, and none of them imports
 order, so a module imports only the modules above it.
 
 - `types`: the types that annotations share.
-- `base`: `BasePart`, the base of every part, with the verbs `check`, `prepare`, and `run`.
+- `base`: `BasePart`, the base of every part, with the verbs `prepare` and `run`.
 - `spaces`: the continuous, lattice, network, mesh, and Cayley spaces, their neighbourhoods, and the kinds of time.
 - `laws`: the `BaseLaw` base and every law, and in `laws.utils` what laws are written with besides Sage, such as
   `where`, reductions, draws, delays, and drivers.
@@ -2353,7 +2353,7 @@ visuals are parts of the engine, beside those of every other kind.
 | particles | `PointElement`, `GradientInteraction`, `PairCouplingInteraction` | `VelocityVerletSolver`, `Yoshida4Solver`, `LammpsSolver` |
 | control | `ParameterSpec(adaptive=True, bounds=...)` | `PontryaginSolver`, `CollocationSolver` |
 
-Every compiler derives from `BaseCompiler`: `check()` validates its settings, `prepare(system)` validates the system and
+Every compiler derives from `BaseCompiler`: `prepare(system)` validates its settings and the system and
 sets `report_`, the issues it found, and `run(initial_state)` raises the errors of the report, sets `problem_`, the problem, and
 sets `solver_`, the solver it names for the problem. `Simulation` and `compile_system` take the compiler as the
 `compiler` setting. The default `PassCompiler` compiles every system but operator ones through its passes, which lower
@@ -2403,7 +2403,7 @@ class DecayLaw(BaseLaw):
 
 
 n, k = var('n k')
-law = DecayLaw(n, k).check().prepare('atom')
+law = DecayLaw(n, k).prepare('atom')
 print(law.targets_, sorted(map(str, law.reads_)), law.owner_, law.run({'n': 2.0, 'k': 0.5}).value_)
 
 
@@ -2417,7 +2417,7 @@ class NucleusElement(Element):
         return [DecayLaw(s.n, s.k)]
 
 
-report = PassCompiler().check().prepare(System(elements=[NucleusElement('atom')])).report_
+report = PassCompiler().prepare(System(elements=[NucleusElement('atom')])).report_
 print([issue.code for issue in report.errors])
 ```
 
@@ -2480,7 +2480,7 @@ system = System(
     elements=[CompartmentElement('stock', n=5.0), PointElement('point', x_d1=[1.0, 0.0])],
     space=ContinuousSpace(n_dim=2),
 )
-trajectory = Simulation(system, dt=1.0).check().prepare().run(until=2.0).trajectory_
+trajectory = Simulation(system, dt=1.0).prepare().run(until=2.0).trajectory_
 print(trajectory.values('stock.n')[-1], trajectory.values('point.x')[-1].tolist())
 ```
 
@@ -2497,7 +2497,7 @@ from skcomplex.engine.runtime import Simulation
 
 decay = RateInteraction('decay', target='stock', state='n', rate=lambda s: -0.5 * s.target.n)
 system = System(elements=[CompartmentElement('stock', n=8.0)], interactions=[decay])
-print(round(float(Simulation(system, dt=0.01).check().prepare().run(until=2.0).trajectory_.values('stock.n')[-1]), 3))
+print(round(float(Simulation(system, dt=0.01).prepare().run(until=2.0).trajectory_.values('stock.n')[-1]), 3))
 ```
 
 `RelaxationInteraction(target, state, goal, time, noise=None)` relaxes a state towards a goal, `(goal - x) / time`,
@@ -2511,7 +2511,7 @@ from skcomplex.engine.runtime import Simulation
 
 smoothing = RelaxationInteraction('smoothing', target='belief', state='n', goal=10.0, time=0.5)
 system = System(elements=[CompartmentElement('belief', n=0.0)], interactions=[smoothing])
-print(round(float(Simulation(system, dt=0.01).check().prepare().run(until=5.0).trajectory_.values('belief.n')[-1]), 3))
+print(round(float(Simulation(system, dt=0.01).prepare().run(until=5.0).trajectory_.values('belief.n')[-1]), 3))
 ```
 
 `GradientInteraction(target, states, potential, sources=(), divisor=None, variational=False, conserved=False)` moves
@@ -2528,11 +2528,11 @@ from skcomplex.engine.runtime import Simulation
 
 well = GradientInteraction('well', target='walker', states='n', potential=lambda s: s.target.n**2 / 2)
 flow = System(elements=[CompartmentElement('walker', n=1.0)], interactions=[well])
-print(round(float(Simulation(flow, dt=0.01).check().prepare().run(until=1.0).trajectory_.values('walker.n')[-1]), 4))
+print(round(float(Simulation(flow, dt=0.01).prepare().run(until=1.0).trajectory_.values('walker.n')[-1]), 4))
 
 spring = GradientInteraction('spring', target='point', states='x', potential=lambda s: s.target.x * s.target.x / 2)
 newton = System(elements=[PointElement('point', x=[1.0])], interactions=[spring], space=ContinuousSpace(n_dim=1))
-print(round(float(Simulation(newton, dt=0.01).check().prepare().run(until=3.1416).trajectory_.values('point.x')[-1][0]), 3))
+print(round(float(Simulation(newton, dt=0.01).prepare().run(until=3.1416).trajectory_.values('point.x')[-1][0]), 3))
 ```
 
 `EulerLagrangeInteraction(target, states, lagrangian, dissipation=None, forcing=None)` writes the equations of motion
@@ -2562,7 +2562,7 @@ class AngleElement(Element):
 lagrangian = lambda s: derivative(s.target.q, 1) ** 2 / 2 + cos(s.target.q)
 swing = EulerLagrangeInteraction('swing', target='bob', states='q', lagrangian=lagrangian)
 system = System(elements=[AngleElement('bob')], interactions=[swing])
-print(round(float(Simulation(system, dt=0.01).check().prepare().run(until=3.2).trajectory_.values('bob.q')[-1]), 2))
+print(round(float(Simulation(system, dt=0.01).prepare().run(until=3.2).trajectory_.values('bob.q')[-1]), 2))
 ```
 
 `HamiltonianInteraction(target, coordinates='q', momenta='p', hamiltonian=None)` writes Hamilton's equations
@@ -2611,12 +2611,12 @@ def kepler(s):
 coordinates, momenta = ('x', 'y'), ('px', 'py')
 gravity = HamiltonianInteraction('gravity', target='sun', coordinates=coordinates, momenta=momenta, hamiltonian=kepler)
 system = System(elements=[PlanetElement('sun')], interactions=[gravity])
-trajectory = Simulation(system, solver=Yoshida4Solver(dt=0.01), dt=1.0).check().prepare().run(until=6.2832).trajectory_
+trajectory = Simulation(system, solver=Yoshida4Solver(dt=0.01), dt=1.0).prepare().run(until=6.2832).trajectory_
 print(round(float(trajectory.values('sun.x')[-1]), 6))
 momentum = ObservableSpec('angular_momentum', lambda s: s.sun.x * s.sun.py - s.sun.y * s.sun.px)
-print(InvariantAnalysis(expressions=[momentum]).check().prepare(system).run().conserved_)
+print(InvariantAnalysis(expressions=[momentum]).prepare(system).run().conserved_)
 rotation = SymmetrySpec('rotation', lambda s: {'sun.x': -s.sun.y, 'sun.y': s.sun.x})
-print(InvariantAnalysis('symmetry', symmetry=rotation).check().prepare(system).run().charge_)
+print(InvariantAnalysis('symmetry', symmetry=rotation).prepare(system).run().charge_)
 ```
 
 `ConservationInteraction(target, state, flux, source=None, limiter='minmod', riemann='rusanov')` conserves a state of
@@ -2654,7 +2654,7 @@ interactions = {
 for label, interaction in interactions.items():
     field = FieldElement('wave', element=CellElement, space=space, values=values, discretization='finite-volume')
     system = System(elements=[field], interactions=[interaction])
-    total = Simulation(system, dt=0.01).check().prepare().run(until=0.5).trajectory_.values('wave.u')[-1].sum()
+    total = Simulation(system, dt=0.01).prepare().run(until=0.5).trajectory_.values('wave.u')[-1].sum()
     print(label, round(float(total), 6))
 ```
 
@@ -2684,7 +2684,7 @@ class ValueElement(Element):
 
 logistic = MapInteraction('map', target='value', state='x', function=lambda s: 3 * s.target.x * (1 - s.target.x))
 system = System(elements=[ValueElement('value')], interactions=[logistic], time=DiscreteTime())
-print(Simulation(system).check().prepare().run(until=2).trajectory_.values('value.x').tolist())
+print(Simulation(system).prepare().run(until=2).trajectory_.values('value.x').tolist())
 ```
 
 `SignAdjustmentInteraction(target, state, signal, step=0.1, mode='multiplicative', lower=None, upper=None)` searches
@@ -2711,7 +2711,7 @@ class QuoteElement(Element):
 signal = lambda s: 2 - s.target.x
 search = SignAdjustmentInteraction('search', target='quote', state='x', signal=signal, step=0.5, upper=2.0)
 system = System(elements=[QuoteElement('quote')], interactions=[search], time=DiscreteTime())
-print(Simulation(system).check().prepare().run(until=3).trajectory_.values('quote.x').tolist())
+print(Simulation(system).prepare().run(until=3).trajectory_.values('quote.x').tolist())
 ```
 
 `LocalRuleInteraction(target, state, rule, neighborhood)` runs a cellular automaton from a rule table, a totalistic
@@ -2741,7 +2741,7 @@ class CellElement(Element):
 def run(interaction, values, until):
     cells = LatticeElement('cells', element=CellElement, space=LatticeSpace(5), values={'c': values})
     system = System(elements=[cells], interactions=[interaction], time=DiscreteTime())
-    return Simulation(system, dt=until, random_state=0).check().prepare().run(until=until)
+    return Simulation(system, dt=until, random_state=0).prepare().run(until=until)
 
 
 parity = LocalRuleInteraction(
@@ -2806,7 +2806,7 @@ kuramoto = CouplingInteraction(
     mode='group',
 )
 system = System(elements=[oscillators], interactions=[kuramoto])
-phases = Simulation(system, dt=1.0).check().prepare().run(until=10).trajectory_.values('oscillators.theta')[-1]
+phases = Simulation(system, dt=1.0).prepare().run(until=10).trajectory_.values('oscillators.theta')[-1]
 print(round(float(np.abs(np.exp(1j * phases).mean())), 2))
 ```
 
@@ -2827,7 +2827,7 @@ from skcomplex.engine.runtime import Simulation
 morse = PairCouplingInteraction('morse', 'pair', 'pair', cutoff=3.0, potential=lambda s, r: 2 * (1 - exp(1 - r)) ** 2)
 pair = GroupElement('pair', element=PointElement, size=2, values={'x': [[0.0, 0.0], [1.5, 0.0]]})
 system = System(elements=[pair], interactions=[morse], space=ContinuousSpace(n_dim=2))
-positions = Simulation(system, dt=0.1).check().prepare().run(until=5).trajectory_.values('pair.x')
+positions = Simulation(system, dt=0.1).prepare().run(until=5).trajectory_.values('pair.x')
 distances = np.linalg.norm(positions[:, 1] - positions[:, 0], axis=1)
 print(round(float(distances.min()), 2), round(float(distances.max()), 2))
 ```
@@ -2848,7 +2848,7 @@ from skcomplex.engine.runtime import Simulation
 
 arrivals = JumpInteraction('arrivals', target='queue', changes={'n': 1}, rate=lambda s: 2.0)
 queue = System(elements=[CompartmentElement('queue')], interactions=[arrivals])
-counts = Simulation(queue, dt=1.0, random_state=0).check().prepare().run(until=5).trajectory_.values('queue.n')
+counts = Simulation(queue, dt=1.0, random_state=0).prepare().run(until=5).trajectory_.values('queue.n')
 print(all(count == round(count) for count in counts))
 
 infection = ReactionInteraction('infection', reactants={('S', 'n'): 1, ('I', 'n'): 1}, products={('I', 'n'): 2}, k=5e-4)
@@ -2857,7 +2857,7 @@ sir = System(
     elements=[CompartmentElement('S', n=990), CompartmentElement('I', n=10), CompartmentElement('R')],
     interactions=[infection, recovery],
 )
-print(round(float(Simulation(sir, dt=1.0).check().prepare().run(until=50).trajectory_.states[-1].sum()), 6))
+print(round(float(Simulation(sir, dt=1.0).prepare().run(until=50).trajectory_.states[-1].sum()), 6))
 ```
 
 `TransitionInteraction(target, state, source, destination, rate=None, probability=None, condition=None, matrix=None,
@@ -2890,7 +2890,7 @@ class HolderElement(Element):
 move = TransitionInteraction('move', target='holders', state='state', source=1, destination=2, probability=lambda s: 0.2)
 holders = GroupElement('holders', element=HolderElement, size=1000)
 system = System(elements=[holders], interactions=[move], time=DiscreteTime())
-values = Simulation(system, random_state=0).check().prepare().run(until=3).trajectory_.values('holders.state')
+values = Simulation(system, random_state=0).prepare().run(until=3).trajectory_.values('holders.state')
 print(round(float((values[-1] == 1).mean()), 1))
 
 contact = TransitionInteraction(
@@ -2904,7 +2904,7 @@ contact = TransitionInteraction(
 recovery = TransitionInteraction('recovery', target='sites', state='state', source=1, destination=0, rate=lambda s: 1.0)
 sites = LatticeElement('sites', element=HolderElement, space=LatticeSpace((20, 20)))
 system = System(elements=[sites], interactions=[contact, recovery])
-values = Simulation(system, dt=1.0, random_state=0).check().prepare().run(until=10).trajectory_.values('sites.state')
+values = Simulation(system, dt=1.0, random_state=0).prepare().run(until=10).trajectory_.values('sites.state')
 print(values[-1].mean() > 0.3)
 ```
 
@@ -2931,7 +2931,7 @@ system = System(
     interactions=[gather],
     space=LatticeSpace(3, boundary='fixed'),
 )
-densities = Simulation(system, dt=0.5).check().prepare().run(until=4.0).trajectory_.values('candidates.f')
+densities = Simulation(system, dt=0.5).prepare().run(until=4.0).trajectory_.values('candidates.f')
 print(np.round(densities[-1], 2).tolist())
 ```
 
@@ -2962,7 +2962,7 @@ class ClockElement(Element):
 wrap = CrossingInteraction('wrap', target='clock', guard=lambda s: s.target.x - 1, reset={'x': lambda s: 0}, direction=1)
 kick = ImpulseInteraction('kick', target='clock', reset={'x': lambda s: s.target.x + 0.25}, times=(1.5,))
 system = System(elements=[ClockElement('clock')], interactions=[wrap, kick])
-events = Simulation(system, dt=0.5).check().prepare().run(until=2.2).trajectory_.events
+events = Simulation(system, dt=0.5).prepare().run(until=2.2).trajectory_.events
 print([(event.label, round(event.time, 3)) for event in events])
 ```
 
@@ -2993,7 +2993,7 @@ objective = lambda n: -n.target.s * neighbors(n.target.other.s)
 ising = SamplingInteraction('ising', target='spins', state='s', objective=objective, intensity=1.0)
 spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((8, 8)))
 system = System(elements=[spins], interactions=[ising], time=DiscreteTime())
-print(abs(Simulation(system, random_state=0).check().prepare().run(until=20).trajectory_.states[-1].mean()) > 0.9)
+print(abs(Simulation(system, random_state=0).prepare().run(until=20).trajectory_.states[-1].mean()) > 0.9)
 ```
 
 ### Row scores and zero temperature
@@ -3038,7 +3038,7 @@ walk = SamplingInteraction(
 )
 bits = LatticeElement('bits', element=BitElement, space=LatticeSpace((3, 20)))
 system = System(elements=[bits], interactions=[walk], time=DiscreteTime())
-scores = Simulation(system, random_state=0).check().prepare().run(until=50).trajectory_.values('walk.score')
+scores = Simulation(system, random_state=0).prepare().run(until=50).trajectory_.values('walk.score')
 assert np.all(np.diff(scores, axis=0) <= 0)
 ```
 
@@ -3056,7 +3056,7 @@ from skcomplex.core.laws import DriveLaw
 
 ensemble = np.zeros((38, 20, 3))
 replay = DriveLaw(var('x'), lambda values, *, time: ensemble[min(int(time), 37)])
-assert replay.check().prepare().targets_ == (var('x'),)
+assert replay.prepare().targets_ == (var('x'),)
 ```
 
 ### Agent and symbolic forms
@@ -3074,7 +3074,7 @@ from skcomplex.core.interactions import MapInteraction
 
 symbolic = MapInteraction('map', target='walkers', state='x', function=lambda s: s.target.x + 1)
 agent = MapInteraction('map', target='walkers', state='x', function=lambda agent, model: agent.x + 1, form='agent')
-print(type(agent.check().prepare().run(SimpleNamespace()).laws_[0]).__name__, symbolic.check().form)
+print(type(agent.prepare().run(SimpleNamespace()).laws_[0]).__name__, symbolic.form)
 ```
 
 **The member schedule.** An agent rule may name the role whose members run it, `RuleLaw(function,
@@ -3107,7 +3107,7 @@ count = MapInteraction(
 )
 walkers = GroupElement('walkers', element=WalkerElement, size=3)
 system = System(elements=[walkers], interactions=[walk, count], space=LatticeSpace((5, 5)))
-print(Simulation(system, random_state=0).check().prepare().run(until=4).trajectory_.agents('walkers', 4).values['steps'].tolist())
+print(Simulation(system, random_state=0).prepare().run(until=4).trajectory_.agents('walkers', 4).values['steps'].tolist())
 ```
 
 ### Choice and learning
@@ -3140,7 +3140,7 @@ utility = lambda s, option: 2.0 * option * mean(s.target.option)
 choice = ChoiceInteraction('choice', target='members', state='option', options=(-1, 1), utility=utility)
 members = GroupElement('members', element=ChooserElement, size=500)
 system = System(elements=[members], interactions=[choice], time=DiscreteTime())
-values = Simulation(system, random_state=0).check().prepare().run(until=10).trajectory_.values('members.option')
+values = Simulation(system, random_state=0).prepare().run(until=10).trajectory_.values('members.option')
 print(round(float(np.mean(values[-1])), 1))
 ```
 
@@ -3171,7 +3171,7 @@ initial = np.array([1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 0], dtype=float)
 majority = ImitationInteraction('majority', target='voters', rule='majority', form='probability')
 voters = LatticeElement('voters', element=VoterElement, space=LatticeSpace(12), values={'state': initial})
 system = System(elements=[voters], interactions=[majority], time=DiscreteTime())
-print(Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_.values('voters.state')[-1].tolist())
+print(Simulation(system, random_state=0).prepare().run(until=1).trajectory_.values('voters.state')[-1].tolist())
 ```
 
 `ReinforcementInteraction(target, scores, payoff, rate=0.1, rule='average')` moves the score of every option towards
@@ -3206,7 +3206,7 @@ learning = ReinforcementInteraction(
 )
 learners = GroupElement('learners', element=LearnerElement, size=2)
 system = System(elements=[learners], interactions=[learning], time=DiscreteTime())
-trajectory = Simulation(system, random_state=0).check().prepare().run(until=10).trajectory_
+trajectory = Simulation(system, random_state=0).prepare().run(until=10).trajectory_
 print(round(float(trajectory.values('learners.first')[-1][0]), 2), round(float(trajectory.values('learners.second')[-1][0]), 2))
 ```
 
@@ -3253,7 +3253,7 @@ agents = GroupElement('agents', element=BitStringElement, size=40, values={'stra
 evolution = EvolutionInteraction('evolution', target='agents', phase='evolution')
 schedule = PhasesScheduleSpec([PhaseSpec('scoring'), PhaseSpec('evolution')])
 system = System(elements=[agents], interactions=[evolution], time=DiscreteTime(schedule=schedule))
-trajectory = Simulation(system, random_state=0).check().prepare().run(until=30).trajectory_
+trajectory = Simulation(system, random_state=0).prepare().run(until=30).trajectory_
 final = np.array(trajectory.agents('agents', 30).values['strategy'].tolist())
 print(final.sum(axis=1).mean() > initial.sum(axis=1).mean() + 4)
 ```
@@ -3273,7 +3273,7 @@ from skcomplex.engine.runtime import Simulation
 walkers = GroupElement('walkers', element=Element, size=2, location=[(2, 2), (2, 2)])
 walk = MovementInteraction('walk', target='walkers', step='neighbor')
 system = System(elements=[walkers], interactions=[walk], space=LatticeSpace((5, 5), neighborhood='von_neumann'))
-trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
 print([int(abs(cell - 2).sum()) for cell in trajectory.agents('walkers', 1).locations])
 ```
 
@@ -3299,7 +3299,7 @@ class TankElement(Element):
 
 flow = TransferInteraction('flow', source='upper', target='lower', state='level', amount=lambda s: s.source.level / 2)
 system = System(elements=[TankElement('upper', level=4.0), TankElement('lower')], interactions=[flow])
-trajectory = Simulation(system).check().prepare().run(until=1.0).trajectory_
+trajectory = Simulation(system).prepare().run(until=1.0).trajectory_
 print(round(float(trajectory.values('upper.level')[-1] + trajectory.values('lower.level')[-1]), 6))
 ```
 
@@ -3341,7 +3341,7 @@ hops = TransferInteraction(
 )
 lane = GroupElement('lane', element=SiteElement, size=20, values={'occupied': np.tile([1.0, 0.0], 10)})
 system = System(elements=[lane], interactions=[hops], time=DiscreteTime())
-trajectory = Simulation(system, dt=1, random_state=0).check().prepare().run(until=10).trajectory_
+trajectory = Simulation(system, dt=1, random_state=0).prepare().run(until=10).trajectory_
 print(set(trajectory.values('lane.occupied').sum(axis=1)))
 ```
 
@@ -3369,7 +3369,7 @@ class CellElement(Element):
 cells = GroupElement('cells', element=CellElement, size=1, values={'size': 8.0}, variable=True)
 division = LifeCycleInteraction('division', target='cells', birth=1.0, split=('size',))
 system = System(elements=[cells], interactions=[division], space=LatticeSpace((3, 3)))
-print(Simulation(system, random_state=0).check().prepare().run(until=2).trajectory_.agents('cells', 2).values['size'].tolist())
+print(Simulation(system, random_state=0).prepare().run(until=2).trajectory_.agents('cells', 2).values['size'].tolist())
 ```
 
 `GroupingInteraction(target, groups='pairs', act, size=2)` draws pairs, a random partition, neighbourhoods, or groups
@@ -3399,7 +3399,7 @@ def adopt_majority(members, model):
 
 voters = GroupElement('voters', element=VoterElement, size=3, values={'s': [1.0, 1.0, 0.0]})
 galam = GroupingInteraction('galam', target='voters', groups='partition', size=3, act=adopt_majority)
-trajectory = Simulation(System(elements=[voters], interactions=[galam])).check().prepare().run(until=1).trajectory_
+trajectory = Simulation(System(elements=[voters], interactions=[galam])).prepare().run(until=1).trajectory_
 print(trajectory.agents('voters', 1).values['s'].tolist())
 ```
 
@@ -3420,7 +3420,7 @@ from skcomplex.specs import QueueSpec, StableMatchingSpec
 queue = MatchingInteraction('queue', requesters='buyers', providers='sellers', rule=QueueSpec())
 stable = MatchingInteraction('stable', requesters='buyers', providers='sellers', rule=StableMatchingSpec())
 controller = FeedbackInteraction('controller', rule=lambda model: None, phase='policy')
-print(queue.check().reports, type(stable.check().rule).__name__, controller.check().phase)
+print(queue.reports, type(stable.rule).__name__, controller.phase)
 ```
 
 `TopologyInteraction(target=None, action='add-edge', rate=None, probability=None, toward=None, ...)` adds or removes
@@ -3440,7 +3440,7 @@ nodes = GroupElement('nodes', element=Element, on='sites', variable=True, capaci
 links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
 expiry = TopologyInteraction('expiry', target='nodes', action='remove-edge')
 system = System(elements=[nodes, links], interactions=[expiry], space=NetworkSpace(nx.cycle_graph(5)))
-trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
 print(len(trajectory.network(0).sources), len(trajectory.network(1).sources))
 ```
 
@@ -3468,7 +3468,7 @@ divers = GroupElement('divers', element=Element, size=4)
 swim = MovementInteraction('swim', target='divers', step='gaussian', scale=0.1)
 space = ContinuousSpace(extent=(10.0, 5.0, 2.0), boundary='periodic')
 system = System(elements=[divers], interactions=[swim], space=space)
-trajectory = Simulation(system, random_state=0).check().prepare().run(until=5).trajectory_
+trajectory = Simulation(system, random_state=0).prepare().run(until=5).trajectory_
 print(trajectory.agents('divers', 5).locations.shape)
 ```
 
@@ -3498,7 +3498,7 @@ people = GroupElement('people', element=Element, size=3, location=[census[0], ce
 outing = MovementInteraction('outing', target='people', step=lambda agent, model: model.region('places', 0))
 space = ContinuousSpace(extent=(10.0, 10.0), regions={'census': census, 'places': places})
 system = System(elements=[people], interactions=[outing], space=space)
-trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
 print(all(places[0].contains(Point(point)) for point in trajectory.agents('people', 1).locations))
 ```
 
@@ -3625,7 +3625,7 @@ film = FieldElement(
     values={'Q': start},
     discretization='spectral',
 )
-trajectory = Simulation(System(elements=[film]), dt=0.01).check().prepare().run(until=0.2).trajectory_
+trajectory = Simulation(System(elements=[film]), dt=0.01).prepare().run(until=0.2).trajectory_
 print(bool(np.max(np.abs(trajectory.values('film.Q')[-1])) < np.max(np.abs(start))))
 ```
 
@@ -3666,7 +3666,7 @@ class InflowInteraction(RateInteraction):
 
 
 inflow = System(elements=[StockElement('tank')], interactions=[InflowInteraction('fill', stock='tank')])
-print(round(float(Simulation(inflow, dt=0.1).check().prepare().run(until=1).trajectory_.values('tank.level')[-1]), 3))
+print(round(float(Simulation(inflow, dt=0.1).prepare().run(until=1).trajectory_.values('tank.level')[-1]), 3))
 
 
 class BoldWalkInteraction(MovementInteraction):
@@ -3690,7 +3690,7 @@ walk = System(
     space=LatticeSpace((5, 5)),
     time=DiscreteTime(),
 )
-print(len(Simulation(walk, random_state=0).check().prepare().run(until=2).trajectory_.agent_locations('walkers')))
+print(len(Simulation(walk, random_state=0).prepare().run(until=2).trajectory_.agent_locations('walkers')))
 ```
 
 ### Variants
@@ -3759,7 +3759,7 @@ meal = TransferInteraction(
     settlement=settle,
 )
 system = System(elements=[eaters, providers], interactions=[meal], time=DiscreteTime())
-trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
 print(trajectory.agents('eaters', 1).values['level'].tolist())
 ```
 
@@ -3804,7 +3804,7 @@ class QueueElement(Element):
 
 
 group = GroupElement('queues', element=QueueElement, size=2, values={'orders': [(), (7,)]})
-trajectory = Simulation(System(elements=[group], time=DiscreteTime()), random_state=0).check().prepare().run(until=1).trajectory_
+trajectory = Simulation(System(elements=[group], time=DiscreteTime()), random_state=0).prepare().run(until=1).trajectory_
 print(trajectory.agents('queues', 1).values['orders'].tolist())
 ```
 
@@ -3902,7 +3902,7 @@ gas = System(
     elements=[GroupElement('gas', element=PointElement, size=1_000, values=values)],
     space=ContinuousSpace(extent=(1.0, 1.0), boundary='reflecting'),
 )
-trajectory = Simulation(gas, dt=0.01).check().prepare().run(until=0.5).trajectory_
+trajectory = Simulation(gas, dt=0.01).prepare().run(until=0.5).trajectory_
 print(trajectory.values('gas.x').shape)
 ```
 
@@ -3963,7 +3963,7 @@ class UnitElement(Element):
 
 
 units = System(elements=[GroupElement('units', element=UnitElement, size=50, values={'x': np.linspace(-1, 1, 50)})])
-print(Simulation(units, dt=0.5).check().prepare().run(until=2).trajectory_.values('units.x')[-1, :3].round(3).tolist())
+print(Simulation(units, dt=0.5).prepare().run(until=2).trajectory_.values('units.x')[-1, :3].round(3).tolist())
 
 payoff = np.array([[-0.5, 2.0], [0.0, 1.0]])
 
@@ -3988,7 +3988,7 @@ game = System(
     elements=[GroupElement('population', element=StrategyElement, size=2, values={'x': [0.1, 0.9]})],
     interactions=[ReplicationInteraction('replication', population='population')],
 )
-print(Simulation(game, dt=1.0).check().prepare().run(until=40).trajectory_.values('population.x')[-1].round(3).tolist())
+print(Simulation(game, dt=1.0).prepare().run(until=40).trajectory_.values('population.x')[-1].round(3).tolist())
 ```
 
 A role also binds to an element set, a list of single elements of one type. The interaction's laws apply to each
@@ -4027,7 +4027,7 @@ network = System(
     elements=[ActivityElement(f'unit_{index}', x=0.1 * (index + 1)) for index in range(3)],
     interactions=[InhibitionInteraction('inhibition', units=['unit_0', 'unit_1', 'unit_2'])],
 )
-print((Simulation(network, dt=1.0).check().prepare().run(until=30).state_.round(3) + 0.0).tolist())
+print((Simulation(network, dt=1.0).prepare().run(until=30).state_.round(3) + 0.0).tolist())
 ```
 
 ### Variadic roles
@@ -4082,7 +4082,7 @@ summed = System(
     ],
     interactions=[WeightedSumInteraction('sum', target='out', inputs=['a', 'b', 'nodes[3]'], weights=[1.0, 1.0, 10.0])],
 )
-simulation = Simulation(summed, dt=1).check().prepare().run(until=1)
+simulation = Simulation(summed, dt=1).prepare().run(until=1)
 simulation.update_parameters({'sum.weights[2]': 0.0})
 print(simulation.trajectory_.values('out.x').tolist(), simulation.parameters_.tolist())
 ```
@@ -4147,7 +4147,7 @@ ring = System(
     elements=[GroupElement('cars', element=CarElement, size=20, values={'x': positions})],
     interactions=[FollowingInteraction('following', cars='cars', length=40.0)],
 )
-print(bool(Simulation(ring, dt=1.0).check().prepare().run(until=50).trajectory_.values('cars.v')[-1].std() > 0.1))
+print(bool(Simulation(ring, dt=1.0).prepare().run(until=50).trajectory_.values('cars.v')[-1].std() > 0.1))
 ```
 
 ### Jacobians of reductions
@@ -4223,7 +4223,7 @@ liquid = System(
     interactions=[PairCouplingInteraction('lj', 'atoms', 'atoms', cutoff=2.5, potential=lennard_jones)],
     space=ContinuousSpace(n_dim=2),
 )
-print(Simulation(liquid, dt=0.05).check().prepare().run(until=1).trajectory_.values('atoms.x').shape)
+print(Simulation(liquid, dt=0.05).prepare().run(until=1).trajectory_.values('atoms.x').shape)
 ```
 
 `period` gives the side of a periodic box, so pair distances use the nearest periodic image.
@@ -4244,7 +4244,7 @@ with `'periodic'`, `'fixed'`, or `'reflecting'` edges, and `LatticeElement(label
 values={...})` puts one member of an element type on every site, with values given as arrays of the lattice shape.
 Laws are written for one cell.
 
-A space is a part of its system and speaks the same verbs. `space.check().prepare()` checks its arguments and derives
+A space is a part of its system and speaks the same verbs. `space.prepare()` checks its arguments and derives
 its facts, which end in `_`: the number of sites `size_`, the dimension `n_dim_`, the shape of the arrays of its sites
 `shape_`, the position of every site `positions_`, whether it wraps `periodic_`, and the visual of its groups
 `default_visual_`. Compiling a system prepares its spaces, so a space needs `prepare()` only when its facts are read
@@ -4253,7 +4253,7 @@ before.
 ```python
 from skcomplex.core.spaces import LatticeSpace
 
-space = LatticeSpace((4, 3)).check().prepare()
+space = LatticeSpace((4, 3)).prepare()
 print(space.size_, space.shape_, space.periodic_, space.positions_[4].tolist())
 ```
 
@@ -4292,7 +4292,7 @@ glider = np.zeros((20, 20))
 glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
 space = LatticeSpace((20, 20))
 cells = System(elements=[LatticeElement('cells', element=LifeElement, space=space, values={'alive': glider})])
-trajectory = Simulation(cells, dt=1).check().prepare().run(until=4).trajectory_
+trajectory = Simulation(cells, dt=1).prepare().run(until=4).trajectory_
 print(np.array_equal(trajectory.lattice('cells.alive')[-1], np.roll(glider, (1, 1), axis=(0, 1))))
 ```
 
@@ -4312,7 +4312,7 @@ from skcomplex.engine.runtime import Simulation
 
 from skcomplex.models import create
 
-trajectory = Simulation(create('sandpile', shape=(20, 20)), dt=100, random_state=0).check().prepare().run(until=2000).trajectory_
+trajectory = Simulation(create('sandpile', shape=(20, 20)), dt=100, random_state=0).prepare().run(until=2000).trajectory_
 print(max(event.size for event in trajectory.events))
 ```
 
@@ -4360,7 +4360,7 @@ class SpinElement(Element):
 
 
 spins = System(elements=[LatticeElement('spins', element=SpinElement, space=LatticeSpace((32, 32)))])
-print(abs(Simulation(spins, dt=50, random_state=0).check().prepare().run(until=200).state_.mean()) > 0.9)
+print(abs(Simulation(spins, dt=50, random_state=0).prepare().run(until=200).state_.mean()) > 0.9)
 ```
 
 **Triangular lattices.** `LatticeSpace(shape, geometry='triangular')` keeps integer coordinates on a skewed grid, so
@@ -4399,7 +4399,7 @@ fire = np.zeros((40, 40))
 fire[20, 20] = 1
 space = LatticeSpace((40, 40), geometry='triangular')
 forest = System(elements=[LatticeElement('forest', element=BurnElement, space=space, values={'fire': fire})])
-burning = Simulation(forest, dt=1).check().prepare().run(until=3).trajectory_.lattice('forest.fire')
+burning = Simulation(forest, dt=1).prepare().run(until=3).trajectory_.lattice('forest.fire')
 print([int(item.sum()) for item in burning])
 ```
 
@@ -4454,7 +4454,7 @@ class GraphSpinElement(Element):
 
 graph = nx.random_regular_graph(4, 200, seed=0)
 spins = System(elements=[LatticeElement('spins', element=GraphSpinElement, space=NetworkSpace(graph))])
-print(abs(Simulation(spins, dt=50, random_state=0).check().prepare().run(until=200).state_.mean()) > 0.9)
+print(abs(Simulation(spins, dt=50, random_state=0).prepare().run(until=200).state_.mean()) > 0.9)
 ```
 
 **Extremal updates.** `ExtremalLaw(targets, over, rule, key=None, extremum='min', repeat=1)` finds the site with
@@ -4493,7 +4493,7 @@ class SpeciesElement(Element):
 fitness = np.random.default_rng(0).random(100)
 space = LatticeSpace(100)
 ring = System(elements=[LatticeElement('ring', element=SpeciesElement, space=space, values={'fitness': fitness})])
-trajectory = Simulation(ring, dt=10, random_state=0).check().prepare().run(until=100).trajectory_
+trajectory = Simulation(ring, dt=10, random_state=0).prepare().run(until=100).trajectory_
 print(len(trajectory.events), trajectory.events[0].label)
 ```
 
@@ -4530,7 +4530,7 @@ first = NetworkSpace(nx.watts_strogatz_graph(100, 6, 0.1, seed=7))
 second = NetworkSpace(nx.watts_strogatz_graph(100, 6, 0.1, seed=7))
 print(sorted(first.graph.edges) == sorted(second.graph.edges))
 
-space = NetworkSpace(nx.path_graph(4), layers=[LayerSpec('work', nx.complete_graph(4))]).check().prepare()
+space = NetworkSpace(nx.path_graph(4), layers=[LayerSpec('work', nx.complete_graph(4))]).prepare()
 print(list(space.graphs_), [item.tolist() for item in space.edges_['work']])
 ```
 
@@ -4595,7 +4595,7 @@ system = System(
     ],
     interactions=[HebbianInteraction('hebb', neurons='neurons', synapses='synapses')],
 )
-trajectory = Simulation(system, dt=0.5).check().prepare().run(until=1.0).trajectory_
+trajectory = Simulation(system, dt=0.5).prepare().run(until=1.0).trajectory_
 print(np.round(trajectory.values('synapses.w')[-1], 3).tolist())
 ```
 
@@ -4659,7 +4659,7 @@ system = System(
 )
 problem = compile_system(system)
 drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
-print(len(space.check().prepare().hyperedges_), np.round(drift, 3).tolist())
+print(len(space.prepare().hyperedges_), np.round(drift, 3).tolist())
 ```
 
 The compiler reports an interaction whose size no hyperedge of the network has, and an edge group whose edge does not
@@ -4679,7 +4679,7 @@ group, `s.member`, the member it gives a value to, `s.others`, and `s.members`, 
 - `'state'` groups the members that share a value of the state `by`, and every reduction over `s.members` reads only
   them.
 
-`act` and `capacity` belong to the agent form, and `check()` rejects them in the symbolic form. The Galam majority
+`act` and `capacity` belong to the agent form, and `prepare` rejects them in the symbolic form. The Galam majority
 rule on random groups of three, and the public goods of the groups of a lattice summed into a payoff:
 
 ```python
@@ -4720,7 +4720,7 @@ galam = GroupingInteraction(
     write='s',
     function=lambda g: where(mean(g.members.s, over=g.members) > 1 / 2, 1, 0),
 )
-run = Simulation(System(elements=[voters], interactions=[galam]), random_state=0).check().prepare().run(until=5)
+run = Simulation(System(elements=[voters], interactions=[galam]), random_state=0).prepare().run(until=5)
 print(run.trajectory_.values('voters.s').mean(axis=1).round(2).tolist())
 
 players = LatticeElement(
@@ -4737,7 +4737,7 @@ goods = GroupingInteraction(
     write='payoff',
     function=lambda g: 4.5 * mean(g.members.s, over=g.members) - g.member.s,
 )
-run = Simulation(System(elements=[players], interactions=[goods])).check().prepare().run(until=1)
+run = Simulation(System(elements=[players], interactions=[goods])).prepare().run(until=1)
 print(run.trajectory_.values('players.payoff')[-1][:5].round(2).tolist())
 ```
 
@@ -4817,7 +4817,7 @@ goods = CouplingInteraction(
     write='payoff',
     function=lambda s: 3 * total(s.members.s, over=s.members) / count(over=s.members) - s.member.s,
 )
-run = Simulation(System(elements=[players], interactions=[goods])).check().prepare().run(until=1)
+run = Simulation(System(elements=[players], interactions=[goods])).prepare().run(until=1)
 print(run.trajectory_.values('players.payoff')[-1].round(2).tolist())
 ```
 
@@ -4879,7 +4879,7 @@ imitation = ImitationInteraction(
 )
 time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('play'), PhaseSpec('imitate'))))
 system = System(elements=[players], interactions=[play, imitation], time=time)
-run = Simulation(system, random_state=0).check().prepare().run(until=30)
+run = Simulation(system, random_state=0).prepare().run(until=30)
 print(round(float(run.trajectory_.values('players.s')[-1].mean()), 2) > 0.5)
 ```
 
@@ -5054,7 +5054,7 @@ system = System(
     space=NetworkSpace(nx.complete_graph(3)),
     time=DiscreteTime(),
 )
-trajectory = Simulation(system, dt=50.0, random_state=1).check().prepare().run(until=200).trajectory_
+trajectory = Simulation(system, dt=50.0, random_state=1).prepare().run(until=200).trajectory_
 snapshot = trajectory.network(-1)
 degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
 print(snapshot.nodes.size, snapshot.sources.size, int(degrees.max()) > 10)
@@ -5098,7 +5098,7 @@ growth = TopologyInteraction(
 )
 space = NetworkSpace(nx.empty_graph(80))
 system = System(elements=[nodes, links], interactions=[growth], space=space, time=DiscreteTime())
-trajectory = Simulation(system, random_state=0).check().prepare().run(until=50).trajectory_
+trajectory = Simulation(system, random_state=0).prepare().run(until=50).trajectory_
 network = trajectory.network(-1)
 placed = trajectory.values('nodes.angle')[-1]
 print(network.sources.size, bool((abs(placed[network.sources] - placed[network.targets]) <= 0.1).all()))
@@ -5137,7 +5137,7 @@ system = System(
     space=NetworkSpace(nx.complete_graph(3), hyperedges=[[0, 1, 2]]),
     time=DiscreteTime(),
 )
-trajectory = Simulation(system, random_state=0).check().prepare().run(until=20).trajectory_
+trajectory = Simulation(system, random_state=0).prepare().run(until=20).trajectory_
 print(trajectory.network(-1).hyperedges.shape, trajectory.network(-1).sources.size)
 ```
 
@@ -5237,9 +5237,9 @@ economy = System(
     space=LatticeSpace(9, boundary='fixed'),
     time=ContinuousTime(),
 )
-densities = Simulation(economy, dt=10.0).check().prepare().run(until=100).trajectory_.values('wealth.f')
+densities = Simulation(economy, dt=10.0).prepare().run(until=100).trajectory_.values('wealth.f')
 print(densities.sum(axis=1)[[0, -1]].round(12).tolist(), densities[-1].round(3).tolist())
-print(PassCompiler().check().prepare(economy).report_.ok)
+print(PassCompiler().prepare(economy).report_.ok)
 ```
 
 ### External actions
@@ -5284,7 +5284,7 @@ welfare = System(
     space=LatticeSpace(9, boundary='fixed'),
     time=ContinuousTime(),
 )
-print(Simulation(welfare, dt=10.0).check().prepare().run(until=100).trajectory_.values('wealth.f')[-1].round(3).tolist())
+print(Simulation(welfare, dt=10.0).prepare().run(until=100).trajectory_.values('wealth.f')[-1].round(3).tolist())
 ```
 
 ### Moments
@@ -5313,7 +5313,7 @@ observables = [
     ObservableSpec('mean_wealth', mean_wealth, group='wealth'),
     ObservableSpec('wealth_variance', wealth_variance, group='wealth'),
 ]
-trajectory = Simulation(economy, dt=10.0, observables=observables).check().prepare().run(until=100).trajectory_
+trajectory = Simulation(economy, dt=10.0, observables=observables).prepare().run(until=100).trajectory_
 variance = trajectory.values('wealth_variance')
 print(round(float(trajectory.values('mean_wealth')[-1]), 3), variance[[0, -1]].round(3).tolist())
 ```
@@ -5332,9 +5332,9 @@ solvers that run it.
 ```python continuation
 from skcomplex.engine.solvers import KineticSolver
 
-sampled = Simulation(economy, dt=10.0, solver=KineticSolver(n=20_000), random_state=0).check().prepare().run(until=100)
+sampled = Simulation(economy, dt=10.0, solver=KineticSolver(n=20_000), random_state=0).prepare().run(until=100)
 print(round(float(np.abs(sampled.trajectory_.values('wealth.f')[-1] - densities[-1]).sum()), 2))
-print(PassCompiler(solver=KineticSolver()).check().prepare(welfare).report_.ok)
+print(PassCompiler(solver=KineticSolver()).prepare(welfare).report_.ok)
 ```
 
 ### Levels
@@ -5358,7 +5358,7 @@ class TraderElement(Element):
 profile = densities[-1] / densities[-1].sum()
 wealths = classes[np.random.default_rng(0).choice(classes.size, size=1000, p=profile)]
 traders = GroupElement('traders', element=TraderElement, size=1000, values={'w': wealths}, variable=True)
-density = CoarseGrainAnalysis(over=classes).check().prepare(traders.values['w']).run().field_
+density = CoarseGrainAnalysis(over=classes).prepare(traders.values['w']).run().field_
 binned = GroupElement('wealth', element=WealthDensityElement, size=classes.size, on='sites', values={'f': density})
 print(round(float(density.sum()), 6), round(float(density @ classes), 3), round(float(traders.values['w'].mean()), 3))
 ```
@@ -5413,7 +5413,7 @@ from skcomplex.specs import StateSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 
-tree = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=4).check().prepare()
+tree = CayleySpace(libgap.FreeGroup(['a', 'b']), ball=4).prepare()
 memory = GeneratorNeighborhood(tree.generators_)
 
 
@@ -5428,8 +5428,8 @@ class MajorityElement(Element):
 
 cells = (np.random.default_rng(0).random(tree.size_) < 0.5).astype(float)
 majority = System(elements=[LatticeElement('cells', element=MajorityElement, space=tree, values={'alive': cells})])
-print(tree.ball_sizes_, Simulation(majority, dt=1).check().prepare().run(until=3).trajectory_.values('cells.alive').shape)
-print(CayleySpace(PermutationGroup([[(1, 2)], [(1, 2, 3)]])).check().prepare().words_)
+print(tree.ball_sizes_, Simulation(majority, dt=1).prepare().run(until=3).trajectory_.values('cells.alive').shape)
+print(CayleySpace(PermutationGroup([[(1, 2)], [(1, 2, 3)]])).prepare().words_)
 ```
 
 The core names no specific group, so you write a named group in one of these forms. The Grigorchuk group, which acts on
@@ -5444,8 +5444,8 @@ from skcomplex.core.spaces import CayleySpace
 
 libgap.LoadPackage('automgrp')
 grigorchuk = libgap.AutomatonGroup('a = (1, 1)(1, 2), b = (a, c), c = (a, d), d = (1, b)')
-ball = CayleySpace(grigorchuk, ball=6).check().prepare()
-quotient = CayleySpace(libgap.PermGroupOnLevel(grigorchuk, 3)).check().prepare()
+ball = CayleySpace(grigorchuk, ball=6).prepare()
+quotient = CayleySpace(libgap.PermGroupOnLevel(grigorchuk, 3)).prepare()
 print(ball.ball_sizes_, quotient.size_)
 ```
 
@@ -5491,22 +5491,22 @@ def automaton(space, neighborhood, rule):
 
 
 life = automaton(LatticeSpace((6, 6)), MooreNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))
-print(AutomatonAnalysis('surjective').check().prepare(life).run().surjective_)
-print(AutomatonAnalysis('garden-of-eden', random_state=0).check().prepare(life).run().pattern_ is not None)
+print(AutomatonAnalysis('surjective').prepare(life).run().surjective_)
+print(AutomatonAnalysis('garden-of-eden', random_state=0).prepare(life).run().pattern_ is not None)
 ring = LatticeSpace(8)
 shift = automaton(ring, LatticeNeighborhood(((1,),)), TableSpec({(1,): 1}))
-back = AutomatonAnalysis('inverse').check().prepare(shift).run().inverse_
-composition = AutomatonAnalysis('compose', second=back).check().prepare(shift).run().composition_.interactions[0]
-law = LocalRuleLaw(var('alive'), composition.neighborhood, composition.rule).check().prepare()
+back = AutomatonAnalysis('inverse').prepare(shift).run().inverse_
+composition = AutomatonAnalysis('compose', second=back).prepare(shift).run().composition_.interactions[0]
+law = LocalRuleLaw(var('alive'), composition.neighborhood, composition.rule).prepare()
 print(law.run({'space': ring, 'alive': [1, 0, 1, 1, 0, 0, 0, 1]}).value_.tolist())
 
-step = LocalRuleLaw(var('alive'), shift.interactions[0].neighborhood, shift.interactions[0].rule).check().prepare()
+step = LocalRuleLaw(var('alive'), shift.interactions[0].neighborhood, shift.interactions[0].rule).prepare()
 cells = [1, 0, 1, 1, 0, 0, 0, 0]
 for _ in range(2):
     cells = step.run({'space': ring, 'alive': cells}).value_
 start = LatticeElement('cells', element=CellElement, space=ring, values={'alive': [1, 0, 1, 1, 0, 0, 0, 0]})
 started = System(elements=[start], interactions=shift.interactions)
-frames = Simulation(started, dt=1).check().prepare().run(until=2).trajectory_.values('cells.alive')
+frames = Simulation(started, dt=1).prepare().run(until=2).trajectory_.values('cells.alive')
 print(cells.tolist(), frames[-1].astype(int).tolist())
 assert cells.tolist() == frames[-1].astype(int).tolist()
 ```
@@ -5571,17 +5571,17 @@ laplacian = System(
         ),
     ],
 )
-print(AutomatonAnalysis('injective').check().prepare(laplacian).run().injective_)
-print(AutomatonAnalysis('surjective', infinite=True).check().prepare(laplacian).run().surjective_)
+print(AutomatonAnalysis('injective').prepare(laplacian).run().injective_)
+print(AutomatonAnalysis('surjective', infinite=True).prepare(laplacian).run().surjective_)
 print(
     [
-        AutomatonAnalysis('count').check().prepare(golden(LatticeSpace(length, boundary='fixed'))).run().count_
+        AutomatonAnalysis('count').prepare(golden(LatticeSpace(length, boundary='fixed'))).run().count_
         for length in range(1, 8)
     ],
 )
 windows = [LatticeSpace(24, boundary='fixed')]
 system = golden(windows[0])
-print(AutomatonAnalysis('entropy', windows=windows).check().prepare(system).run().entropy_.round(3))
+print(AutomatonAnalysis('entropy', windows=windows).prepare(system).run().entropy_.round(3))
 
 forbidden = [1, 1, 0, 0, 0]
 cells = LatticeElement('cells', element=GoldenCellElement, space=LatticeSpace(5), values={'alive': forbidden})
@@ -5593,8 +5593,8 @@ keep = LocalRuleInteraction(
     neighborhood=LatticeNeighborhood(((0,),)),
 )
 held = System(elements=[cells], interactions=[keep])
-print(AutomatonAnalysis('admissible', configuration=forbidden).check().prepare(held).run().admissible_)
-print(Simulation(held, dt=1).check().prepare().run(until=2).trajectory_.values('cells.alive')[-1].astype(int).tolist())
+print(AutomatonAnalysis('admissible', configuration=forbidden).prepare(held).run().admissible_)
+print(Simulation(held, dt=1).prepare().run(until=2).trajectory_.values('cells.alive')[-1].astype(int).tolist())
 ```
 
 The library has `free_group_automaton`, `lamplighter_automaton`, `heisenberg_automaton`, `baumslag_solitar_automaton`,
@@ -5642,7 +5642,7 @@ initial = np.zeros(400)
 initial[200] = 20.0
 space = LatticeSpace(400, spacing=0.05)
 rod = FieldElement('rod', element=HeatElement, space=space, boundary={'u': 'zero-flux'}, values={'u': initial})
-trajectory = Simulation(System(elements=[rod]), dt=0.1).check().prepare().run(until=0.5).trajectory_
+trajectory = Simulation(System(elements=[rod]), dt=0.1).prepare().run(until=0.5).trajectory_
 heat = trajectory.values('rod.u')
 print(round(float(heat[-1].max()), 3), heat.sum(axis=1)[[0, -1]].round(6).tolist())
 ```
@@ -5716,7 +5716,7 @@ line = FieldElement(
     values={'u': np.cos(positions / 16) * (1 + np.sin(positions / 16))},
     discretization='spectral',
 )
-state = Simulation(System(elements=[line]), dt=10, solver=ETDRK4Solver(dt=0.25)).check().prepare().run(until=100).state_
+state = Simulation(System(elements=[line]), dt=10, solver=ETDRK4Solver(dt=0.25)).prepare().run(until=100).state_
 print(round(float(np.abs(state).max()), 1))
 ```
 
@@ -5738,7 +5738,7 @@ from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.models import create
 
 stiff = create('fisher_kpp', length=400, D=1.0, spacing=0.05)
-simulation = Simulation(stiff, dt=1.0, solver=ScipyODESolver(method='BDF')).check().prepare().run(until=5)
+simulation = Simulation(stiff, dt=1.0, solver=ScipyODESolver(method='BDF')).prepare().run(until=5)
 print(simulation.stepper_.jacobian_pattern_.nnz, simulation.state_.max().round(3))
 ```
 
@@ -5809,7 +5809,7 @@ def rate_of(rate):
     line = FieldElement('line', element=SiteElement, space=LatticeSpace(128, spacing=0.1), values=values)
     interaction = RateInteraction('rate', target='line', state='u', rate=rate)
     simulation = Simulation(System(elements=[line], interactions=[interaction]), dt=0.05)
-    return simulation.check().prepare().run(until=0.2).trajectory_.values('line.u')
+    return simulation.prepare().run(until=0.2).trajectory_.values('line.u')
 
 
 def smoothing(s):
@@ -5866,7 +5866,7 @@ exchange = CouplingInteraction(
     function=lambda s: 0.2 * (s.other.u - s.member.u),
 )
 system = System(elements=[cells], interactions=[exchange])
-trajectory = Simulation(system, dt=0.5).check().prepare().run(until=2.0).trajectory_
+trajectory = Simulation(system, dt=0.5).prepare().run(until=2.0).trajectory_
 print(trajectory.values('cells.u')[-1].sum().round(6))
 ```
 
@@ -5908,13 +5908,13 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.specs import AxisSpec
 
-space = PhaseSpace(LatticeSpace((32,), spacing=2 * np.pi / 32), [AxisSpec('v', 64, -6.0, 6.0)]).check().prepare()
+space = PhaseSpace(LatticeSpace((32,), spacing=2 * np.pi / 32), [AxisSpec('v', 64, -6.0, 6.0)]).prepare()
 x, v = np.arange(32) * 2 * np.pi / 32, space.coordinates_['v']
 start = np.outer(1.0 + 0.5 * np.sin(x), np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi))
 gas = FieldElement('gas', element=DensityElement, space=space, values={'f': start}, discretization='finite-volume')
 stream = AdvectionInteraction('stream', target='gas', state='f', drift=lambda s: [coordinate('v'), 0])
 system = System(elements=[gas], interactions=[stream])
-simulation = Simulation(system, dt=0.1, solver=RK4Solver(dt=0.01)).check().prepare()
+simulation = Simulation(system, dt=0.1, solver=RK4Solver(dt=0.01)).prepare()
 final = simulation.run(until=0.5).trajectory_.values('gas.f')[-1]
 assert abs(final.sum() / start.sum() - 1.0) < 1e-12
 ```
@@ -5959,7 +5959,7 @@ from skcomplex.core.interactions import RelaxationInteraction
 from skcomplex.core.laws.utils import maximum_entropy
 
 relax = RelaxationInteraction('r', target='gas', state='f', goal=lambda s: maximum_entropy(s.target.f, axes=('v',)))
-assert relax.check().state == 'f'
+assert relax.state == 'f'
 ```
 
 ### Collisions
@@ -5985,7 +5985,7 @@ frequency, such as a function of the density moment for the local Enskog equatio
 from skcomplex.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
 
 solver = StrangSplittingSolver(SemiLagrangianSolver(dt=0.1), RK4Solver(dt=0.01), dt=0.1)
-assert solver.check().dt == 0.1
+assert solver.dt == 0.1
 ```
 
 ### Visualizing
@@ -6009,7 +6009,7 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
 from skcomplex.models import create
 
-simulation = Simulation(create('ideal_gas', n_molecules=50_000, random_state=0), solver=RK4Solver(dt=0.01), backend=NumbaBackend(), dt=0.01).check().prepare()
+simulation = Simulation(create('ideal_gas', n_molecules=50_000, random_state=0), solver=RK4Solver(dt=0.01), backend=NumbaBackend(), dt=0.01).prepare()
 print(simulation.run(until=0.5).problem_.backend)
 ```
 
@@ -6063,7 +6063,7 @@ herds = System(
     elements=[GroupElement('herds', element=PopulationElement, size=2000, values={'n': 1.0})],
     interactions=[SaturationInteraction('growth', target='herds')],
 )
-print(round(float(Simulation(herds, dt=0.1).check().prepare().run(until=1).trajectory_.values('herds.n')[-1, 0]), 4))
+print(round(float(Simulation(herds, dt=0.1).prepare().run(until=1).trajectory_.values('herds.n')[-1, 0]), 4))
 ```
 
 A plain Python callable of the values, as in `RateLaw(s.target.n, lambda t, values: ...)`, also works with the Numba
@@ -6140,7 +6140,7 @@ atoms = System(
 pairs = {LennardJonesInteraction: ('lj/cut', get_pair_coefficients)}
 fixes = {DragInteraction: get_drag_fix}
 solver = LammpsSolver(dt=0.005, pairs=pairs, fixes=fixes)
-trajectory = Simulation(atoms, solver=solver, dt=0.05, random_state=0).check().prepare().run(until=1).trajectory_
+trajectory = Simulation(atoms, solver=solver, dt=0.05, random_state=0).prepare().run(until=1).trajectory_
 print(trajectory.values('atoms.x').shape)
 ```
 
@@ -6170,7 +6170,7 @@ every member of a variable group. In a system with rules, a group whose element 
 agents that rules read and change, unless an interaction whose laws are not rules binds it. A system with rules is
 agent-based, runs in discrete time, and runs on `MesaSolver`, one Mesa step per unit of time, with every agent
 activated in random order. `MesaSolver` declares what it runs like any solver, so
-`PassCompiler(solver=MesaSolver()).check().prepare(system).report_` holds the laws, spaces, and times it does not
+`PassCompiler(solver=MesaSolver()).prepare(system).report_` holds the laws, spaces, and times it does not
 support.
 
 ```python
@@ -6218,7 +6218,7 @@ foragers = System(
     elements=[GroupElement('foragers', element=ForagerElement, size=50, variable=True)],
     space=LatticeSpace((30, 30), boundary='periodic'),
 )
-trajectory = Simulation(foragers, random_state=0).check().prepare().run(until=20).trajectory_
+trajectory = Simulation(foragers, random_state=0).prepare().run(until=20).trajectory_
 print(int(trajectory.values('foragers.count')[-1]), len(trajectory.agents('foragers', 20).ids))
 ```
 
@@ -6293,7 +6293,7 @@ road = System(
     ],
     space=ContinuousSpace(extent=(50.0, 1.0), boundary='periodic'),
 )
-Simulation(road, random_state=0).check().prepare().run(until=5)
+Simulation(road, random_state=0).prepare().run(until=5)
 print(counts)
 ```
 
@@ -6435,7 +6435,7 @@ auction = System(
     ],
     time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('quote'), PhaseSpec('trade')])),
 )
-trajectory = Simulation(auction, random_state=0).check().prepare().run(until=5).trajectory_
+trajectory = Simulation(auction, random_state=0).prepare().run(until=5).trajectory_
 prices = [round(float(price), 3) for price in trajectory.values('auction.value')[1:]]
 print(prices, float(trajectory.values('clerk.traded')[-1]), round(float(trajectory.values('clerk.fee')[-1]), 3))
 print(trajectory.values('auction.volume').tolist())
@@ -6478,7 +6478,7 @@ class CoinElement(Element):
 
 
 coins = System('coins', elements=[GroupElement('coins', element=CoinElement, size=10)], time=DiscreteTime())
-print(int(Simulation(coins, random_state=0).check().prepare().run(until=10).trajectory_.agents('coins', 10).values['heads'].sum()))
+print(int(Simulation(coins, random_state=0).prepare().run(until=10).trajectory_.agents('coins', 10).values['heads'].sum()))
 ```
 
 ## Cell complexes and link fields
@@ -6501,11 +6501,11 @@ import networkx as nx
 
 from skcomplex.core.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
 
-torus = CellComplexSpace(LatticeSpace((8, 8))).check().prepare()
+torus = CellComplexSpace(LatticeSpace((8, 8))).prepare()
 assert [matrix.shape for matrix in torus.incidences_] == [(128, 64), (64, 128)]
 assert (torus.incidences_[1] @ torus.incidences_[0]).count_nonzero() == 0
 tetrahedron = NetworkSpace(nx.complete_graph(4))
-cliques = CellComplexSpace(tetrahedron, faces='cliques', dimension=3).check().prepare()
+cliques = CellComplexSpace(tetrahedron, faces='cliques', dimension=3).prepare()
 assert cliques.incidences_[2].shape == (1, 4)
 ```
 
@@ -6553,7 +6553,7 @@ class FieldLinkElement(Element):
         self.E = E
 
 
-space = CellComplexSpace(LatticeSpace((8, 8))).check().prepare()
+space = CellComplexSpace(LatticeSpace((8, 8))).prepare()
 potential = np.random.default_rng(0).normal(size=128)
 links = GroupElement('links', element=FieldLinkElement, space=space, on='edges', values={'A': potential})
 interactions = [
@@ -6561,7 +6561,7 @@ interactions = [
     RateInteraction('field', target='links', state='E', rate=lambda n: codifferential(exterior_derivative(n.target.A))),
 ]
 system = System(elements=[links], interactions=interactions)
-trajectory = Simulation(system, dt=0.1).check().prepare().run(until=2.0).trajectory_
+trajectory = Simulation(system, dt=0.1).prepare().run(until=2.0).trajectory_
 assert np.abs(space.incidences_[0].T @ trajectory.values('links.E').T).max() < 1e-10
 ```
 
@@ -6598,7 +6598,7 @@ class AngleLinkElement(Element):
         self.theta = theta
 
 
-space = CellComplexSpace(LatticeSpace((8, 8))).check().prepare()
+space = CellComplexSpace(LatticeSpace((8, 8))).prepare()
 links = GroupElement('links', element=AngleLinkElement, space=space, on='edges')
 sampling = SamplingInteraction(
     'wilson',
@@ -6610,7 +6610,7 @@ sampling = SamplingInteraction(
     schedule='colored',
 )
 system = System(elements=[links], interactions=[sampling], time=DiscreteTime())
-states = Simulation(system, random_state=0).check().prepare().run(until=200).trajectory_.values('links.theta')
+states = Simulation(system, random_state=0).prepare().run(until=200).trajectory_.values('links.theta')
 assert 0.6 < np.cos(space.incidences_[1] @ states[-50:].T).mean() < 0.8
 ```
 
@@ -6633,10 +6633,10 @@ import numpy as np
 from skcomplex.analysis import CellComplexAnalysis
 from skcomplex.core.spaces import CellComplexSpace, LatticeSpace
 
-torus = CellComplexSpace(LatticeSpace((8, 8))).check().prepare()
-assert CellComplexAnalysis('betti', space=torus).check().prepare().run().betti_ == (1, 2, 1)
+torus = CellComplexSpace(LatticeSpace((8, 8))).prepare()
+assert CellComplexAnalysis('betti', space=torus).prepare().run().betti_ == (1, 2, 1)
 uniform = np.where(torus.link_axes_ == 0, 1.0, 0.0)
-hodge = CellComplexAnalysis('hodge', space=torus).check().prepare(uniform).run()
+hodge = CellComplexAnalysis('hodge', space=torus).prepare(uniform).run()
 assert np.allclose(hodge.harmonic_[0], uniform)
 ```
 
@@ -6668,7 +6668,7 @@ class AlgaeElement(WordElement):
 
 
 algae = System(elements=[AlgaeElement('algae', axiom='A')])
-trajectory = Simulation(algae, compiler=RewritingCompiler()).check().prepare().run(until=5).trajectory_
+trajectory = Simulation(algae, compiler=RewritingCompiler()).prepare().run(until=5).trajectory_
 print(trajectory.values('algae.size').tolist(), trajectory.structure('algae', 5).text)
 ```
 
@@ -6707,7 +6707,7 @@ class ShrinkingElement(WordElement):
 
 
 plant = System(elements=[ShrinkingElement('plant', axiom=[ModuleSpec('A', (1.0,))], alphabet={'A': 1, 'F': 1})])
-print(Simulation(plant, compiler=RewritingCompiler()).check().prepare().run(until=5).trajectory_.structure('plant', 5).text)
+print(Simulation(plant, compiler=RewritingCompiler()).prepare().run(until=5).trajectory_.structure('plant', 5).text)
 ```
 
 A generation that would make a word longer than `max_size` raises `RewritingError` before allocating it, and the
@@ -6738,7 +6738,7 @@ class KochElement(WordElement):
 
 
 koch = System(elements=[KochElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))])
-curve = Simulation(koch, compiler=RewritingCompiler()).check().prepare().run(until=4).trajectory_.structure('koch', 4)
+curve = Simulation(koch, compiler=RewritingCompiler()).prepare().run(until=4).trajectory_.structure('koch', 4)
 print(len(curve.segments()), round(curve.length(), 6))
 
 interval = PrototileSpec('interval', [(0, 0), (1, 0)])
@@ -6751,10 +6751,10 @@ class CantorElement(PatchElement):
 
 
 cantor = System(elements=[CantorElement('cantor', prototiles=[interval])])
-trajectory = Simulation(cantor, compiler=RewritingCompiler()).check().prepare().run(until=5).trajectory_
+trajectory = Simulation(cantor, compiler=RewritingCompiler()).prepare().run(until=5).trajectory_
 print(trajectory.values('cantor.size')[-1], round(trajectory.values('cantor.length')[-1], 6))
 grid = trajectory.structure('cantor', 5).raster(729)
-print(round(ScalingAnalysis('box-counting', scales=[3, 9, 27]).check().prepare(grid).run().exponent_, 2))
+print(round(ScalingAnalysis('box-counting', scales=[3, 9, 27]).prepare(grid).run().exponent_, 2))
 ```
 
 The `geometry` visual logs segments and outlines as line strips, a patch with `filled=True` as an image of its raster,
@@ -6841,7 +6841,7 @@ chain = System(
     interactions=[CouplingInteraction('coupling', target='chain')],
 )
 observables = [ObservableSpec('sz', sz, group='chain', reduce=sites)]
-trajectory = Simulation(chain, dt=0.5, observables=observables, compiler=OperatorCompiler()).check().prepare().run(until=2.0).trajectory_
+trajectory = Simulation(chain, dt=0.5, observables=observables, compiler=OperatorCompiler()).prepare().run(until=2.0).trajectory_
 print(trajectory.values('sz').shape, round(float(np.ptp(trajectory.values('energy'))), 8))
 ```
 
@@ -6861,7 +6861,7 @@ diagonalise the generator exactly, optionally in the sector of a conserved diago
 from skcomplex.analysis import OperatorAnalysis
 from skcomplex.models import create
 
-spectrum = OperatorAnalysis(n_states=2).check().prepare(create('quantum_heisenberg', n_sites=4)).run()
+spectrum = OperatorAnalysis(n_states=2).prepare(create('quantum_heisenberg', n_sites=4)).run()
 print(spectrum.energies_.round(6).tolist())
 ```
 
@@ -6880,7 +6880,7 @@ from skcomplex.models import create
 
 farming = create('harvesting', farmers=10, effort=0.05)
 print([(partition.name, partition.problem.form.value) for partition in compile_system(farming).partitions])
-trajectory = Simulation(farming, random_state=0).check().prepare().run(until=50).trajectory_
+trajectory = Simulation(farming, random_state=0).prepare().run(until=50).trajectory_
 print(round(trajectory.values('land/stock.n')[-1]), trajectory.agents('village/farmers', 50).values['wealth'].size)
 print(trajectory.values('village/farmers_count.value')[-1])
 ```
@@ -6929,7 +6929,7 @@ molecule = System(
     space=ContinuousSpace(n_dim=3),
 )
 path = Path(tempfile.mkdtemp()) / 'molecule.rrd'
-Simulation(molecule, dt=0.02, observers=[RerunObserver('molecule', save_path=path)]).check().prepare().run(until=5)
+Simulation(molecule, dt=0.02, observers=[RerunObserver('molecule', save_path=path)]).prepare().run(until=5)
 ```
 
 Particles appear as 3D points, populations as time series, agents on grids and in continuous spaces as points colored by
@@ -6945,7 +6945,7 @@ such as `GroupElement(..., visual=VisualSpec('points', {...}))`. A `VisualSpec(k
 visualization layer, such as `'points'`, `'image'`, or `'agents'`, and `RerunObserver` builds it with the path of the
 element and its recording. Every visual subclasses `BaseVisual` and implements the hook `_log` for elements or
 `_log_agents` for agents. Its settings `path` and `recording` name the element and the recording it logs to,
-`visual.check().prepare(problem)` finds the element in a compiled problem and sets its views `views_`, and
+`visual.prepare(problem)` finds the element in a compiled problem and sets its views `views_`, and
 `visual.run(frame)` logs the element at a frame.
 
 ### Layouts and blueprints
@@ -6974,12 +6974,12 @@ from skcomplex.models import create
 
 predation = create('lotka_volterra')
 observer = RerunObserver('lotka_volterra', save_path=path.with_name('lotka_volterra.rrd'), blueprint='default')
-Simulation(predation, dt=0.1, observers=[observer]).check().prepare().run(until=20)
+Simulation(predation, dt=0.1, observers=[observer]).prepare().run(until=20)
 print(type(observer.views_[0]).__name__)
 print(sorted(file.name for file in path.parent.glob('lotka_volterra.*')))
 custom = rrb.Blueprint(rrb.TimeSeriesView(origin='/prey', name='prey'), collapse_panels=True)
 observer = RerunObserver('lotka_volterra', save_path=path.with_name('prey.rrd'), blueprint=custom)
-Simulation(predation, dt=0.1, observers=[observer]).check().prepare().run(until=20)
+Simulation(predation, dt=0.1, observers=[observer]).prepare().run(until=20)
 print(path.with_name('prey.rbl').exists())
 ```
 
@@ -7039,7 +7039,7 @@ def dose_response(dose: float = 2.0) -> System:
 
 
 sweep = Experiment(dose_response, GridDesign(), {'dose': [0.0, 2.0]}, outputs=['cells.survival'])
-rows = sweep.check().prepare().run().result_.rows
+rows = sweep.prepare().run().result_.rows
 assert [round(float(row['cells.survival']), 4) for row in rows] == [1.0, 0.4868]
 ```
 
@@ -7056,7 +7056,7 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
 
 system = create('random_energy_model', n_spins=12, temperature=2.0)
-trajectory = Simulation(system).check().prepare().run(1.0).trajectory_
+trajectory = Simulation(system).prepare().run(1.0).trajectory_
 print(trajectory.values('ensemble.entropy')[0])
 ```
 
@@ -7069,7 +7069,7 @@ their clusters, and a cluster spans along `axis` when it holds points within the
 ```python
 from skcomplex.analysis import ClusterAnalysis
 
-print(ClusterAnalysis('sizes', radius=0.6).check().prepare([[0, 0], [1, 0], [5, 5]]).run().sizes_.tolist())
+print(ClusterAnalysis('sizes', radius=0.6).prepare([[0, 0], [1, 0], [5, 5]]).run().sizes_.tolist())
 ```
 
 ## Constraints and search
@@ -7101,7 +7101,7 @@ constraints = [CardinalitySpec((1, 2, 3), 2, 'at-least'), ClauseSpec((-1,)), Cla
 decide = SatisfiabilityInteraction('decide', target='bits', state='on', constraints=constraints)
 bits = GroupElement('bits', element=BitElement, size=3)
 system = System(elements=[bits], interactions=[decide], time=DiscreteTime())
-print(Simulation(system).check().prepare().run(until=3).trajectory_.values('decide.satisfiable')[1:])
+print(Simulation(system).prepare().run(until=3).trajectory_.values('decide.satisfiable')[1:])
 ```
 
 `OptimizationInteraction` moves a group of candidates, each a vector state in the box `bounds`, one generation per step
@@ -7114,7 +7114,7 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.models import create
 
 system = create('evolutionary_optimisers', algorithm='particle-swarm', random_state=1)
-print(Simulation(system, random_state=1).check().prepare().run(until=20).trajectory_.values('search.best')[-1] < 20)
+print(Simulation(system, random_state=1).prepare().run(until=20).trajectory_.values('search.best')[-1] < 20)
 ```
 
 `SamplingInteraction(cooling=)` takes a function of the time symbol that multiplies one over the intensity, so a
@@ -7129,7 +7129,7 @@ design of factory arguments and dotted paths, scenarios declared as `ScenarioSpe
 and replicate gets its own random stream spawned from `random_state` in a fixed order, so results are the same
 serially, on threads, or on processes, and every scenario of a row and replicate shares its stream. Parameter and
 initial-state overrides reuse one compiled problem, so sweeps of thousands of runs compile once. An experiment is an
-estimator: `check` validates its settings, `prepare` resolves the model and the runs, and `run` executes them and
+estimator: `prepare` validates its settings and resolves the model and the runs, and `run` executes them and
 keeps the results in `result_`.
 
 ```python
@@ -7138,11 +7138,11 @@ from skcomplex.models import describe
 from skcomplex.core.specs import ScenarioSpec
 
 bounds = {'stochastic': [True], 'gamma': [0.1, 0.2]}
-ensemble = Experiment(describe('sir').factory, GridDesign(), bounds, replicates=10, until=60, random_state=0).check().check().prepare().run()
+ensemble = Experiment(describe('sir').factory, GridDesign(), bounds, replicates=10, until=60, random_state=0).prepare().run()
 print(round(float(ensemble.result_.summary()[0]['I.n.mean']), 1))
 
 policies = [ScenarioSpec('baseline'), ScenarioSpec('quota', schedule=[(50.0, 'harvest.effort', 0.025)])]
-stocks = Experiment(describe('harvesting').factory, scenarios=policies, until=80, outputs=['land/stock.n']).check().check().prepare().run()
+stocks = Experiment(describe('harvesting').factory, scenarios=policies, until=80, outputs=['land/stock.n']).prepare().run()
 print([round(float(row['land/stock.n'])) for row in stocks.result_.rows])
 ```
 
@@ -7171,12 +7171,12 @@ logistic_growth = describe('logistic_growth').factory
 times = np.arange(0.0, 21.0)
 observed = 500 / (1 + 49 * np.exp(-0.8 * times))
 bounds = {'growth.r': (0.1, 2.0), 'growth.K': (100, 1000)}
-fit = CalibrationExperiment(logistic_growth, {'population.n': (times, observed)}, bounds).check().check().prepare().run()
+fit = CalibrationExperiment(logistic_growth, {'population.n': (times, observed)}, bounds).prepare().run()
 print(round(fit.estimates_['growth.r'], 2), round(fit.r2_, 4))
 
 sweep = Experiment(logistic_growth, OneAtATimeDesign(), bounds, until=20, outputs=['population.n'])
-sweep = sweep.check().prepare().run()
-print(SensitivityAnalysis('oat', 'population.n').check().prepare(sweep.result_).run().ranking_)
+sweep = sweep.prepare().run()
+print(SensitivityAnalysis('oat', 'population.n').prepare(sweep.result_).run().ranking_)
 ```
 
 ## Learning by gradient steps
@@ -7237,7 +7237,7 @@ training = TrainingInteraction(
     batch_size=1,
 )
 fitting = System('fitting', systems=[model], interactions=[training], time=DiscreteTime())
-trajectory = Simulation(fitting, random_state=0).check().prepare().run(until=300).trajectory_
+trajectory = Simulation(fitting, random_state=0).prepare().run(until=300).trajectory_
 print(round(float(trajectory.values('decay/unit.a')[-1]), 3), bool(trajectory.values('fit/loss')[-1] < 1e-6))
 ```
 
@@ -7336,7 +7336,7 @@ system = System(
     ],
     interactions=[DriveInteraction('drive', target='cells', source='inputs', W=W)],
 )
-simulation = Simulation(system, dt=0.1).check().prepare()
+simulation = Simulation(system, dt=0.1).prepare()
 print(simulation.run(until=20).trajectory_.values('cells.x')[-1].round(3).tolist())
 simulation.update_parameters({'drive.W': 2 * W})
 print(simulation.run(until=40).trajectory_.values('cells.x')[-1].round(3).tolist())
@@ -7362,7 +7362,7 @@ class TripletInteraction(Interaction):
 species = GroupElement('species', element=NodeElement, size=4, values={'x': 0.1})
 triplets = TripletInteraction('triplets', target='species', T=-np.ones((4, 4, 4)))
 community = System(elements=[species], interactions=[triplets])
-trajectory = Simulation(community, dt=0.1).check().prepare().run(until=50).trajectory_
+trajectory = Simulation(community, dt=0.1).prepare().run(until=50).trajectory_
 print(trajectory.values('species.x')[-1].round(3).tolist())
 ```
 
@@ -7385,8 +7385,8 @@ oscillator = System(
     interactions=[RateInteraction('trap', target='p', rate=lambda s: -4.0 * s.target.x)],
     space=ContinuousSpace(n_dim=1),
 )
-print(SymbolicAnalysis().check().prepare(oscillator).run().equations_['p.x[0]'])
-print(SymbolicAnalysis('solve', use_initial_state=True).check().prepare(oscillator).run().solutions_['p.x[0]'])
+print(SymbolicAnalysis().prepare(oscillator).run().equations_['p.x[0]'])
+print(SymbolicAnalysis('solve', use_initial_state=True).prepare(oscillator).run().solutions_['p.x[0]'])
 ```
 
 
@@ -7405,10 +7405,10 @@ from skcomplex.analysis import LyapunovAnalysis, StabilityAnalysis
 from skcomplex.experiments import OrbitDiagramExperiment
 from skcomplex.models import create, describe
 
-print(StabilityAnalysis().check().prepare(create('lotka_volterra')).run().classifications_)
-print(LyapunovAnalysis(until=200).check().prepare(create('lorenz')).run().exponents_.round(2).tolist())
+print(StabilityAnalysis().prepare(create('lotka_volterra')).run().classifications_)
+print(LyapunovAnalysis(until=200).prepare(create('lorenz')).run().exponents_.round(2).tolist())
 diagram = OrbitDiagramExperiment(describe('logistic_map').factory, 'map.r', [2.9, 3.2, 3.5], 'map.x', transient=500, keep=32, dt=1)
-print(diagram.check().prepare().run().periods_.tolist())
+print(diagram.prepare().run().periods_.tolist())
 ```
 
 **Sections.** `SectionAnalysis('poincare')` finds the states where a state crosses a value in a direction, located
@@ -7422,7 +7422,7 @@ import math
 from skcomplex.analysis import SectionAnalysis
 from skcomplex.models import create
 
-section = SectionAnalysis('stroboscopic', period=2 * math.pi / 1.2, n_points=200).check().prepare(create('duffing')).run()
+section = SectionAnalysis('stroboscopic', period=2 * math.pi / 1.2, n_points=200).prepare(create('duffing')).run()
 print(len(np.unique(np.round(section.states_, 4), axis=0)))
 ```
 
@@ -7439,10 +7439,10 @@ import numpy as np
 from skcomplex.analysis import DistributionAnalysis, EventAnalysis, FitAnalysis
 
 samples = (1 - np.random.default_rng(0).random(5000)) ** (-1 / 1.5)
-fit = FitAnalysis('power', bootstrap=20, random_state=0).check().prepare(samples).run()
-gini = DistributionAnalysis('gini').check().prepare(samples).run().gini_
+fit = FitAnalysis('power', bootstrap=20, random_state=0).prepare(samples).run()
+gini = DistributionAnalysis('gini').prepare(samples).run().gini_
 print(round(fit.exponent_, 2), fit.p_value_, round(gini, 2))
-print(EventAnalysis().check().prepare([0, 2, 3, 0, 0, 1, 0]).run().sizes_.tolist())
+print(EventAnalysis().prepare([0, 2, 3, 0, 0, 1, 0]).run().sizes_.tolist())
 ```
 
 **Time series and information.** `CorrelationAnalysis`, `SpectrumAnalysis`, `DisplacementAnalysis`,
@@ -7464,11 +7464,11 @@ import numpy as np
 from skcomplex.analysis import EntropyAnalysis, InformationAnalysis, ScalingAnalysis
 
 noise = np.random.default_rng(1).standard_normal(20_000)
-print(ScalingAnalysis().check().prepare(np.column_stack([noise, np.cumsum(noise)])).run().exponent_.round(2).tolist())
+print(ScalingAnalysis().prepare(np.column_stack([noise, np.cumsum(noise)])).run().exponent_.round(2).tolist())
 for kind in ('rate', 'excess'):
-    print(EntropyAnalysis(kind, dimension=4).check().prepare([0, 0, 1, 1] * 200).run().entropy_.round(3).tolist())
+    print(EntropyAnalysis(kind, dimension=4).prepare([0, 0, 1, 1] * 200).run().entropy_.round(3).tolist())
 driver = np.random.default_rng(2).integers(0, 2, 5000)
-transfer = InformationAnalysis('transfer').check().prepare(np.column_stack([driver, np.roll(driver, 1)])).run()
+transfer = InformationAnalysis('transfer').prepare(np.column_stack([driver, np.roll(driver, 1)])).run()
 print(round(transfer.information_[0, 1], 2))
 ```
 
@@ -7483,11 +7483,11 @@ import networkx as nx
 
 from skcomplex.analysis import ClusterAnalysis, NetworkAnalysis, ScalingAnalysis
 
-clusters = ClusterAnalysis('labels').check().prepare(np.random.default_rng(3).random((100, 100)) < 0.6).run()
+clusters = ClusterAnalysis('labels').prepare(np.random.default_rng(3).random((100, 100)) < 0.6).run()
 print(clusters.spanning_, clusters.sizes_.max())
 rows, columns = np.indices((512, 512))
-print(round(ScalingAnalysis('box-counting').check().prepare((rows & columns) == columns).run().exponent_, 2))
-print(NetworkAnalysis('summary').check().prepare(nx.watts_strogatz_graph(200, 6, 0.1, seed=0)).run().diameter_)
+print(round(ScalingAnalysis('box-counting').prepare((rows & columns) == columns).run().exponent_, 2))
+print(NetworkAnalysis('summary').prepare(nx.watts_strogatz_graph(200, 6, 0.1, seed=0)).run().diameter_)
 ```
 
 ### Kinds of data and signatures
@@ -7511,9 +7511,9 @@ from skcomplex.analysis import DiscoveryAnalysis, SpectrumAnalysis
 from skcomplex.models import run
 
 spins = run('ising', size=32, settings={'until': 20}).trajectory_
-print(DiscoveryAnalysis().check().prepare(spins).kinds_)
-print(SpectrumAnalysis('structure-factor').check().prepare(spins).run().wavenumbers_[:3].round(3).tolist())
-discovery = DiscoveryAnalysis().check().prepare(np.zeros((16, 16))).run()
+print(DiscoveryAnalysis().prepare(spins).kinds_)
+print(SpectrumAnalysis('structure-factor').prepare(spins).run().wavenumbers_[:3].round(3).tolist())
+discovery = DiscoveryAnalysis().prepare(np.zeros((16, 16))).run()
 print(discovery.readings_['series'], len(discovery.analyses_['field']) > 0)
 ```
 
@@ -7528,7 +7528,7 @@ from skcomplex.analysis import SignatureAnalysis
 from skcomplex.models import run
 
 predation = run('lotka_volterra', settings={'until': 20.0}).trajectory_
-for signature in SignatureAnalysis().check().prepare(predation).run().signatures_:
+for signature in SignatureAnalysis().prepare(predation).run().signatures_:
     print(signature.kind, signature.title, signature.xscale, list(signature.values))
 ```
 
@@ -7553,15 +7553,15 @@ import math
 from skcomplex.analysis import ComplexityAnalysis, EntropyAnalysis, InformationAnalysis
 
 rng = np.random.default_rng(0)
-renyi = EntropyAnalysis('renyi', order=2, probabilities=True).check().prepare(np.full(8, 1 / 8)).run()
+renyi = EntropyAnalysis('renyi', order=2, probabilities=True).prepare(np.full(8, 1 / 8)).run()
 print(renyi.entropy_.round(3).tolist())
-sample = EntropyAnalysis('sample', dimension=2).check().prepare(rng.standard_normal(2000)).run()
+sample = EntropyAnalysis('sample', dimension=2).prepare(rng.standard_normal(2000)).run()
 print(sample.entropy_.round(1).tolist())
-plane = ComplexityAnalysis(dimension=4).check().prepare(rng.standard_normal(20_000)).run()
+plane = ComplexityAnalysis(dimension=4).prepare(rng.standard_normal(20_000)).run()
 print(plane.entropy_.round(2).tolist(), plane.complexity_.round(2).tolist())
 x = rng.standard_normal(5000)
 y = np.concatenate([[0.0], 0.8 * x[:-1]]) + 0.6 * rng.standard_normal(5000)
-transfer = InformationAnalysis('transfer', estimator='knn', base=math.e).check().prepare(np.column_stack([x, y])).run()
+transfer = InformationAnalysis('transfer', estimator='knn', base=math.e).prepare(np.column_stack([x, y])).run()
 print(transfer.information_[0, 1] > transfer.information_[1, 0])
 ```
 
@@ -7585,13 +7585,13 @@ from skcomplex.analysis import InformationAnalysis, PartialInformationAnalysis, 
 
 bits = rng.integers(0, 2, (5000, 2))
 xor = np.column_stack([bits, bits[:, 0] ^ bits[:, 1]])
-print(round(InformationAnalysis('o-information').check().prepare(xor).run().information_, 2))
+print(round(InformationAnalysis('o-information').prepare(xor).run().information_, 2))
 gate = np.column_stack([bits, bits[:, 0] & bits[:, 1]])
-parts = PartialInformationAnalysis().check().prepare(gate).run()
+parts = PartialInformationAnalysis().prepare(gate).run()
 print(round(parts.redundancy_, 2), round(parts.synergy_, 2))
 measure = InformationAnalysis('o-information')
 test = SurrogateTestAnalysis(measure, 'information_', n=19, alternative='less', random_state=0)
-print(test.check().prepare(xor).run().p_value_)
+print(test.prepare(xor).run().p_value_)
 ```
 
 The kind `'criteria'` of `EmergenceAnalysis` computes the criteria of Rosas et al. (2020) for a macro feature of micro
@@ -7609,14 +7609,14 @@ from skcomplex.analysis import EmergenceAnalysis, EpsilonMachineAnalysis
 
 parity = rng.integers(0, 2, (5000, 4))
 parity[:, -1] = (parity[:, :-1].sum(axis=1) + np.arange(5000) // 100) % 2
-criteria = EmergenceAnalysis('criteria', partition=lambda micro: micro.sum(axis=1) % 2).check().prepare(parity).run()
+criteria = EmergenceAnalysis('criteria', partition=lambda micro: micro.sum(axis=1) % 2).prepare(parity).run()
 print(criteria.psi_ > 0.5)
-closure = EmergenceAnalysis('closure', partition=[0, 0, 1, 1]).check().prepare(rng.integers(0, 4, 5000)).run()
+closure = EmergenceAnalysis('closure', partition=[0, 0, 1, 1]).prepare(rng.integers(0, 4, 5000)).run()
 print(round(closure.gap_, 2))
 golden = [1]
 for _ in range(20_000):
     golden.append(1 if golden[-1] == 0 else int(rng.random() < 0.5))
-machine = EpsilonMachineAnalysis(max_length=4).check().prepare(golden).run()
+machine = EpsilonMachineAnalysis(max_length=4).prepare(golden).run()
 print(len(machine.histories_), round(machine.statistical_complexity_, 2))
 ```
 
@@ -7643,12 +7643,12 @@ from skcomplex.analysis import (
 )
 
 points = np.random.default_rng(1).random((3000, 2))
-print(round(ScalingAnalysis('correlation-dimension').check().prepare(points).run().exponent_, 1))
-print(round(LyapunovAnalysis().check().prepare([0.906, 0.0, -14.572]).run().kaplan_yorke_dimension_, 2))
+print(round(ScalingAnalysis('correlation-dimension').prepare(points).run().exponent_, 1))
+print(round(LyapunovAnalysis().prepare([0.906, 0.0, -14.572]).run().kaplan_yorke_dimension_, 2))
 chain = ErgodicityAnalysis('ulam', edges=np.linspace(0, 1, 21), samples=200)
-print(chain.check().prepare(lambda x: 4 * x * (1 - x)).run().density_.round(1)[:3].tolist())
-sine = EmbeddingAnalysis(delay=15, dimension=2).check().prepare(np.sin(np.arange(1000) * 0.1)).run().points_
-print(round(RecurrenceAnalysis().check().prepare(sine).run().determinism_, 2))
+print(chain.prepare(lambda x: 4 * x * (1 - x)).run().density_.round(1)[:3].tolist())
+sine = EmbeddingAnalysis(delay=15, dimension=2).prepare(np.sin(np.arange(1000) * 0.1)).run().points_
+print(round(RecurrenceAnalysis().prepare(sine).run().determinism_, 2))
 ```
 
 ### Surrogates fitted to data
@@ -7681,13 +7681,13 @@ from skcomplex.engine.compile import PassCompiler
 
 times = np.arange(0.0, 10.0, 0.01)
 spiral = np.exp(-0.1 * times)[:, None] * np.column_stack([np.cos(times), np.sin(times)])
-decomposition = ModeDecompositionAnalysis(['x', 'y'], dt=0.01).check().prepare(spiral).run()
-report = PassCompiler().check().prepare(decomposition.system_).report_
+decomposition = ModeDecompositionAnalysis(['x', 'y'], dt=0.01).prepare(spiral).run()
+report = PassCompiler().prepare(decomposition.system_).report_
 print(np.sort(decomposition.eigenvalues_.imag).round(3).tolist(), report.ok)
 sparse = SparseIdentificationAnalysis(['x', 'y'], degree=1, threshold=0.05, horizon=50, dt=0.01)
-sparse = sparse.check().prepare(spiral).run()
+sparse = sparse.prepare(spiral).run()
 print(sparse.features_, sparse.coefficients_.round(2).tolist(), sparse.forecast_.shape)
-reservoir = ReservoirAnalysis(['x', 'y'], horizon=50).check().prepare(spiral).run()
+reservoir = ReservoirAnalysis(['x', 'y'], horizon=50).prepare(spiral).run()
 print(type(reservoir.system_.time).__name__, reservoir.forecast_.shape)
 ```
 
@@ -7716,13 +7716,13 @@ import numpy as np
 from skcomplex.analysis import IrreversibilityAnalysis, LargeDeviationAnalysis, MarkovAnalysis
 
 ring = 2 * np.roll(np.eye(5), 1, axis=1) + np.roll(np.eye(5), -1, axis=1)
-stationary = MarkovAnalysis('stationary', matrix='rate').check().prepare(ring).run().stationary_
-production = IrreversibilityAnalysis().check().prepare(ring).run().entropy_production_
+stationary = MarkovAnalysis('stationary', matrix='rate').prepare(ring).run().stationary_
+production = IrreversibilityAnalysis().prepare(ring).run().entropy_production_
 print(stationary.round(2).tolist(), round(production, 4))
-gap = MarkovAnalysis('spectral-gap', matrix='transition').check().prepare([[0.9, 0.1], [0.2, 0.8]]).run()
+gap = MarkovAnalysis('spectral-gap', matrix='transition').prepare([[0.9, 0.1], [0.2, 0.8]]).run()
 print(round(gap.spectral_gap_, 2))
 tilted = LargeDeviationAnalysis(weights=[[1.0]], tilts=np.linspace(-3, 3, 601), values=3.0)
-print(round(float(tilted.check().prepare([[2.0]]).run().rate_function_[0]), 3))
+print(round(float(tilted.prepare([[2.0]]).run().rate_function_[0]), 3))
 ```
 
 Cloning advances every clone of a population by an interval, weights it by `exp(s A)` for the increment `A` of a
@@ -7755,10 +7755,10 @@ counter = System(elements=[CounterElement('counter')])
 cloning = LargeDeviationAnalysis(
     'cloning', observable='counter.n', tilts=0.5, population=200, until=10.0, random_state=0
 )
-print(cloning.check().prepare(counter).run().scgf_.round(2).tolist(), round(float(np.exp(0.5) - 1), 2))
+print(cloning.prepare(counter).run().scgf_.round(2).tolist(), round(float(np.exp(0.5) - 1), 2))
 currents = np.random.default_rng(0).normal(10.0, np.sqrt(30.0), 5000)
 relation = IrreversibilityAnalysis('uncertainty-relation', entropy=10.0, random_state=0)
-print(relation.check().prepare(currents).run().holds_)
+print(relation.prepare(currents).run().holds_)
 ```
 
 ### Emergence and ergodicity
@@ -7781,8 +7781,8 @@ from skcomplex.analysis import EmergenceAnalysis
 
 noisy = np.zeros((8, 8))
 noisy[:7, :7], noisy[7, 7] = 1 / 7, 1.0
-print(round(EmergenceAnalysis('effective-information').check().prepare(noisy).run().information_, 3))
-found = EmergenceAnalysis('causal').check().prepare(noisy).run()
+print(round(EmergenceAnalysis('effective-information').prepare(noisy).run().information_, 3))
+found = EmergenceAnalysis('causal').prepare(noisy).run()
 print(found.partition_.tolist(), round(found.macro_information_, 3), round(found.gain_, 3))
 print(found.macro_matrix_.tolist())
 ```
@@ -7804,9 +7804,9 @@ rng = np.random.default_rng(0)
 mixing = rng.standard_normal((100, 5000))
 frozen = rng.choice([-1.0, 1.0], size=(100, 1)) + 0.1 * rng.standard_normal((100, 5000))
 for runs in (mixing, frozen):
-    breaking = ErgodicityAnalysis('breaking').check().prepare(runs).run().ergodicity_breaking_
-    metric = ErgodicityAnalysis('metric').check().prepare(runs).run().exponent_
-    distance = ErgodicityAnalysis('distance').check().prepare(runs).run().ergodicity_distance_
+    breaking = ErgodicityAnalysis('breaking').prepare(runs).run().ergodicity_breaking_
+    metric = ErgodicityAnalysis('metric').prepare(runs).run().exponent_
+    distance = ErgodicityAnalysis('distance').prepare(runs).run().ergodicity_distance_
     print(round(breaking, 2), round(metric, 1), round(distance, 1))
 ```
 
@@ -7833,15 +7833,15 @@ import numpy as np
 from skcomplex.analysis import ClusterAnalysis, DistributionAnalysis, DomainAnalysis, StabilityAnalysis
 from skcomplex.models import create
 
-relation = StabilityAnalysis('dispersion').check().prepare(create('brusselator', shape=(128,), b=1.9)).run()
+relation = StabilityAnalysis('dispersion').prepare(create('brusselator', shape=(128,), b=1.9)).run()
 print(relation.band_.min().round(2), relation.band_.max().round(2))
 
 stripes = np.cos(2 * np.pi * np.arange(64) / 8)[:, None] * np.ones(64)
-print(DomainAnalysis('wavelength').check().prepare(stripes).run().wavelength_.tolist())
+print(DomainAnalysis('wavelength').prepare(stripes).run().wavelength_.tolist())
 grid = np.random.default_rng(2).random((128, 128)) < 0.7
-print(ClusterAnalysis('percolation').check().prepare(grid).run().spanning_)
+print(ClusterAnalysis('percolation').prepare(grid).run().spanning_)
 samples = np.random.default_rng(3).standard_normal(10_000)
-print(DistributionAnalysis('moment-ratio').check().prepare(samples).run().cumulant_.round(1).tolist())
+print(DistributionAnalysis('moment-ratio').prepare(samples).run().cumulant_.round(1).tolist())
 ```
 
 ### Agents
@@ -7865,10 +7865,10 @@ from skcomplex.models import run
 from skcomplex.analysis import AlignmentAnalysis, CoarseGrainAnalysis, NeighborAnalysis
 
 flock = run('boids', settings={'until': 5}).trajectory_
-print(AlignmentAnalysis('mean-vector').check().prepare(flock).run().order_.shape)
+print(AlignmentAnalysis('mean-vector').prepare(flock).run().order_.shape)
 positions = np.random.default_rng(4).random((1000, 2))
-ratio = NeighborAnalysis('clark-evans', box=[1.0, 1.0]).check().prepare(positions).run().ratio_
-field = CoarseGrainAnalysis([8, 8], box=[1.0, 1.0]).check().prepare(positions).run().field_
+ratio = NeighborAnalysis('clark-evans', box=[1.0, 1.0]).prepare(positions).run().ratio_
+field = CoarseGrainAnalysis([8, 8], box=[1.0, 1.0]).prepare(positions).run().field_
 print(ratio.round(1).tolist(), float(field.sum()))
 ```
 
@@ -7888,14 +7888,14 @@ import numpy as np
 
 from skcomplex.analysis import EventAnalysis
 
-found = EventAnalysis('excursions').check().prepare([0, 1, 3, 2, 0, 0, 4, 1, 0]).run()
+found = EventAnalysis('excursions').prepare([0, 1, 3, 2, 0, 0, 4, 1, 0]).run()
 print(found.sizes_.tolist(), found.durations_.tolist())
 rng = np.random.default_rng(5)
 activity = np.zeros(5000)
 activity[0] = 50
 for t in range(1, activity.size):
     activity[t] = rng.poisson(0.8 * activity[t - 1] + 10)
-print(round(EventAnalysis('branching').check().prepare(activity).run().branching_ratio_, 1))
+print(round(EventAnalysis('branching').prepare(activity).run().branching_ratio_, 1))
 ```
 
 ### Networks
@@ -7913,8 +7913,8 @@ import networkx as nx
 from skcomplex.analysis import MotifAnalysis, NetworkAnalysis
 
 club = nx.karate_club_graph()
-communities = NetworkAnalysis('communities', random_state=0).check().prepare(club).run()
-print(communities.modularity_.round(2).tolist(), MotifAnalysis().check().prepare(club).run().counts_[0]['triangle'])
+communities = NetworkAnalysis('communities', random_state=0).prepare(club).run()
+print(communities.modularity_.round(2).tolist(), MotifAnalysis().prepare(club).run().counts_[0]['triangle'])
 ```
 
 `RenormalizationAnalysis` coarse-grains a graph, or the network of the last frame of a trajectory with its node states
@@ -7931,7 +7931,7 @@ from skcomplex.analysis import RenormalizationAnalysis
 
 blocks = nx.disjoint_union(nx.complete_graph(20), nx.complete_graph(20))
 blocks.add_edge(0, 20)
-scale = RenormalizationAnalysis(steps=1).check().prepare(blocks).run().graphs_[1]
+scale = RenormalizationAnalysis(steps=1).prepare(blocks).run().graphs_[1]
 print(scale.number_of_nodes(), scale.number_of_edges())
 ```
 
@@ -7947,6 +7947,6 @@ from skcomplex.analysis import ScalingAnalysis
 
 rng = np.random.default_rng(0)
 samples = {size: size**1.15 * rng.lognormal(0.0, 0.3, 4) for size in np.geomspace(100, 1e5, 50)}
-fit = ScalingAnalysis('allometric').check().prepare(samples).run()
+fit = ScalingAnalysis('allometric').prepare(samples).run()
 print(round(fit.exponent_, 1), bool(fit.interval_[0] < 1.15 < fit.interval_[1]))
 ```

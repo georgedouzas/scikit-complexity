@@ -26,7 +26,7 @@ EPOCHS = 200
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 system = create(MODEL)
-trajectory = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=EPOCHS).trajectory_
+trajectory = Simulation(system, observers=[observer], random_state=0).prepare().run(until=EPOCHS).trajectory_
 
 # %%
 # Error at each position of the bit triple
@@ -51,7 +51,7 @@ def errors_by_position(frame, bits):
     schedule = {'inputs.x': lambda t: bits[round(t)], 'outputs.target': lambda t: bits[round(t)]}
     error = ObservableSpec('error', group='outputs', reduce='sum', expression=squared_error)
     simulation = Simulation(net, backend=NumpyBackend(), schedule=schedule, observables=[error])
-    values = simulation.check().prepare().run(until=len(bits) - 1).trajectory_.values('error')
+    values = simulation.prepare().run(until=len(bits) - 1).trajectory_.values('error')
     steps = np.arange(len(bits))
     return [values[(steps % 3 == position) & (steps > 3)].mean() for position in range(3)]
 

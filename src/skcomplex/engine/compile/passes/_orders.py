@@ -56,7 +56,7 @@ class OrdersPass(BasePass):
             compilation.ordered = self._solve_static(specs)
         elif orders.algebraic:
             relations, unknowns = self._unknowns_of(specs, blocks, orders)
-            lowering = EquationBlocksLowering(relations, unknowns).check().prepare(compilation)
+            lowering = EquationBlocksLowering(relations, unknowns).prepare(compilation)
             compilation.ordered = lowering.run(specs).lowered_
         else:
             compilation.ordered = self._solve_equations(specs)

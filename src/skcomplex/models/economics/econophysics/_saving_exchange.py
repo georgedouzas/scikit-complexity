@@ -41,7 +41,7 @@ class SavingExchangeInteraction(TransferInteraction):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import SavingExchangeInteraction
-        >>> SavingExchangeInteraction('trades', source='traders', target='traders').check().saving
+        >>> SavingExchangeInteraction('trades', source='traders', target='traders').saving
         0.0
     """
 

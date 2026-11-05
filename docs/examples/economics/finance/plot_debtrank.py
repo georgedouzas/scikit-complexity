@@ -29,7 +29,6 @@ def cascade(bank):
     system = create(MODEL, n_banks=N_BANKS, density=DENSITY, distressed=(bank,), random_state=0)
     return (
         Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system))
-        .check()
         .prepare()
         .run(until=ROUNDS)
         .trajectory_
@@ -58,7 +57,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=ROUNDS)
 )

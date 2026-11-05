@@ -39,7 +39,7 @@ class SelfPropulsionInteraction(RateInteraction):
         >>> from types import SimpleNamespace
         >>> from sage.all__sagemath_symbolics import var, vector
         >>> from skcomplex.models.physics.active_matter import SelfPropulsionInteraction
-        >>> propulsion = SelfPropulsionInteraction('propulsion', target='swimmers').check().prepare()
+        >>> propulsion = SelfPropulsionInteraction('propulsion', target='swimmers').prepare()
         >>> target = SimpleNamespace(x=vector([var('x1'), var('x2')]), theta=var('theta'))
         >>> [law.value for law in propulsion.run(SimpleNamespace(target=target, speed=var('v'))).laws_]
         [(v*cos(theta), v*sin(theta))]

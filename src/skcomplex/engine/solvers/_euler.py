@@ -47,7 +47,7 @@ class EulerSolver(Solver):
         ...         interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ...     ),
         ... )
-        >>> stepper = EulerSolver(dt=0.5, random_state=0).check().prepare(problem)
+        >>> stepper = EulerSolver(dt=0.5, random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> float(stepper.run(step).state_[0])
         2.25

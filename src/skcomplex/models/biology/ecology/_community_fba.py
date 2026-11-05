@@ -63,7 +63,7 @@ def community_fba(
     Examples:
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.biology.ecology import community_fba
-        >>> trajectory = Simulation(community_fba()).check().prepare().run(0.0).trajectory_
+        >>> trajectory = Simulation(community_fba()).prepare().run(0.0).trajectory_
         >>> round(float(trajectory.values('medium.objective_0')[0]), 3)
         0.862
     """

@@ -23,7 +23,7 @@ MODEL = 'jain_krishna'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=5.0, observers=[observer], random_state=1).check().prepare().run(until=1490)
+simulation = Simulation(system, dt=5.0, observers=[observer], random_state=1).prepare().run(until=1490)
 
 # %%
 # The rise of the autocatalytic set

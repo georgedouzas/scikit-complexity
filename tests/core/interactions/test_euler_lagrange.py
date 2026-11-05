@@ -60,7 +60,7 @@ class PairElement(Element):
 def _run(system, until):
     """Return the trajectory of a system solved to a tight tolerance."""
     solver = ScipyODESolver(rtol=1e-10, atol=1e-12)
-    return Simulation(system, solver=solver, dt=0.1).check().prepare().run(until=until).trajectory_
+    return Simulation(system, solver=solver, dt=0.1).prepare().run(until=until).trajectory_
 
 
 def test_run_matches_the_equation_of_a_damped_driven_pendulum():
@@ -110,13 +110,13 @@ def test_run_rejects_a_forcing_of_another_size():
         forcing=lambda s: [1, 2],
     )
     with pytest.raises(ValidationError, match='2 forces for 1 coordinates'):
-        interaction.check().prepare().run(SimpleNamespace(target=SimpleNamespace(q=q), t=t))
+        interaction.prepare().run(SimpleNamespace(target=SimpleNamespace(q=q), t=t))
 
 
 def test_check_rejects_a_lagrangian_that_is_not_callable():
     """Test that `check` rejects a Lagrangian that is not a function."""
     with pytest.raises(ValidationError, match='lagrangian'):
-        EulerLagrangeInteraction('swing', target='bob', lagrangian='kinetic').check()
+        EulerLagrangeInteraction('swing', target='bob', lagrangian='kinetic').prepare()
 
 
 class SpringInteraction(EulerLagrangeInteraction):
@@ -147,7 +147,7 @@ def test_run_adds_the_equations_of_one_coordinate_from_several_interactions():
         elements=[AngleElement('left', q=1.0), AngleElement('right', q=1.0)],
         interactions=[*free, SpringInteraction('spring', first='left', second='right')],
     )
-    simulation = Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=1.0).check().prepare()
+    simulation = Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=1.0).prepare()
     trajectory = simulation.run(until=1.0).trajectory_
     np.testing.assert_allclose(trajectory.values('left.q')[-1], np.cos(1.0), atol=1e-7)
     np.testing.assert_allclose(trajectory.values('right.q')[-1], np.cos(1.0), atol=1e-7)

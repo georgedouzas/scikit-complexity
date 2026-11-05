@@ -33,7 +33,7 @@ class PublicGoodsInteraction(GroupingInteraction):
 
     Examples:
         >>> from skcomplex.models.social.cooperation import PublicGoodsInteraction
-        >>> PublicGoodsInteraction('play', target='players').check().write
+        >>> PublicGoodsInteraction('play', target='players').write
         'payoff'
     """
 

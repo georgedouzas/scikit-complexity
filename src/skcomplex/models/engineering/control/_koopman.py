@@ -288,7 +288,6 @@ def _run_training(case: _PlantCase, duration: int, rng: np.random.Generator) -> 
     values = rng.choice((-1.0, 1.0), duration + 1)
     return (
         Simulation(system, dt=1.0, schedule={'input.u': functools.partial(_held_value, values=values)})
-        .check()
         .prepare()
         .run(until=float(duration))
         .trajectory_
@@ -429,7 +428,7 @@ def _fit_problem(
         dictionary=PolynomialFeatures(3, include_bias=False) if dictionary is None else dictionary,
         validation=0.0,
     )
-    surrogate.check().prepare([_run_training(case, duration, rng) for _ in range(n_runs)]).run()
+    surrogate.prepare([_run_training(case, duration, rng) for _ in range(n_runs)]).run()
     output = surrogate.labels_.index('plant.y')
     return _PredictiveProblem(
         surrogate,

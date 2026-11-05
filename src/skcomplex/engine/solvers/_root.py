@@ -57,7 +57,7 @@ class RootSolver(Solver):
         ...     def _get_laws(self, s):
         ...         return [EquationLaw(s.x == cos(s.x), target=s.x)]
         >>> system = System(elements=[FixedPointElement('a')], time=StaticTime())
-        >>> trajectory = Simulation(system).check().prepare().run(1.0).trajectory_
+        >>> trajectory = Simulation(system).prepare().run(1.0).trajectory_
         >>> round(float(trajectory.values('a.x')[0]), 7)
         0.7390851
     """

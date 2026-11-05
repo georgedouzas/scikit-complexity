@@ -132,7 +132,7 @@ class FunctionsPass(BasePass):
         requested = BaseCompiler._resolve_backend(compilation.backend, members)
         if not FunctionsPass._is_stepwise(form):
             return requested
-        chosen = NumpyBackend().check()
+        chosen = NumpyBackend()._validated()
         name, asked = chosen._get_name(), requested._get_name()
         if compilation.backend is not None and asked != name:
             message = (
@@ -272,7 +272,7 @@ class FunctionsPass(BasePass):
             )
             raise ValidationError(error_msg)
         references = [spec.references[item] for item in arguments]
-        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run([expression]).code_
+        function = ExpressionPrinter(time=time, compiled=True).prepare(arguments).run([expression]).code_
         if not callable(function):
             error_msg = f'The printer returns no function of the order of an update law of {spec.owner}.'
             raise TypeError(error_msg)
@@ -405,7 +405,7 @@ class FunctionsPass(BasePass):
     def _declared_phases(system: System) -> list[PhaseSpec]:
         """Return the phases of the schedules of a system and its nested systems, the first of every name kept."""
         time = system.time
-        schedule = time.check().prepare().schedule_ if isinstance(time, DiscreteTime) else None
+        schedule = time.prepare().schedule_ if isinstance(time, DiscreteTime) else None
         phases = list(schedule.phases) if isinstance(schedule, PhasesScheduleSpec) else []
         for nested in system.systems:
             phases += FunctionsPass._declared_phases(nested)

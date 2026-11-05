@@ -62,7 +62,7 @@ class CracklingNoiseAnalysis(EventAnalysis):
     Examples:
         >>> from skcomplex.models.physics.criticality import CracklingNoiseAnalysis
         >>> activity = [0, 1, 0, 1, 2, 1, 0, 1, 0, 2, 3, 2, 0]
-        >>> crackling = CracklingNoiseAnalysis(min_count=1).check().prepare(activity).run()
+        >>> crackling = CracklingNoiseAnalysis(min_count=1).prepare(activity).run()
         >>> round(crackling.exponent_, 2)
         1.55
     """

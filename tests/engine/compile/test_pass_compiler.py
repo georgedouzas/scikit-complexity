@@ -32,7 +32,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.compile import OperatorCompiler, PassCompiler, RewritingCompiler
 from skcomplex.engine.problems import ProblemSpec
 from skcomplex.engine.solvers import GillespieSolver
-from skcomplex.errors import NotCheckedError, SolverError, ValidationError
+from skcomplex.errors import SolverError, ValidationError
 from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.models.physics.common.quantum import QubitElement
 from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, ValidationReportSpec, VisualSpec
@@ -48,7 +48,7 @@ def _growth():
 
 def test_compiler_prepares_its_report_and_runs_to_the_problem():
     """Test that `prepare` sets the report of a system and `run` sets its problem."""
-    compiler = PassCompiler().check().prepare(_growth())
+    compiler = PassCompiler().prepare(_growth())
     assert isinstance(compiler.report_, ValidationReportSpec)
     assert compiler.report_.ok
     problem = compiler.run({'rabbits.n': 20}).problem_
@@ -58,16 +58,10 @@ def test_compiler_prepares_its_report_and_runs_to_the_problem():
 
 def test_compiler_run_raises_the_errors_of_its_report():
     """Test that `run` raises the errors that `prepare` found, after `prepare` reported them."""
-    compiler = PassCompiler(solver=GillespieSolver()).check().prepare(_growth())
+    compiler = PassCompiler(solver=GillespieSolver()).prepare(_growth())
     assert [issue.code for issue in compiler.report_.errors] == ['solver-unsupported']
     with pytest.raises(SolverError, match='solver-unsupported'):
         compiler.run()
-
-
-def test_compiler_needs_a_check_before_prepare():
-    """Test that a compiler that was not checked refuses to prepare."""
-    with pytest.raises(NotCheckedError):
-        PassCompiler().prepare(_growth())
 
 
 @pytest.mark.parametrize(
@@ -77,21 +71,21 @@ def test_compiler_needs_a_check_before_prepare():
 def test_compiler_check_rejects_invalid_settings(settings):
     """Test that `check` rejects a partition, passes, a backend, or observables of the wrong kind."""
     with pytest.raises(ValidationError):
-        PassCompiler(**settings).check()
+        PassCompiler(**settings).prepare()
 
 
 def test_compiler_rejects_a_target_that_is_not_a_system():
     """Test that a compiler prepares only on a system."""
     with pytest.raises(ValidationError, match='prepares on a system'):
-        PassCompiler().check().prepare(object())
+        PassCompiler().prepare(object())
 
 
 def test_general_compiler_names_the_compiler_of_a_operator_system():
     """Test that the general compiler reports an operator system with the compiler it needs, which compiles it."""
     system = System(elements=[QubitElement('q')])
-    assert OperatorCompiler().check().prepare(system).report_.ok
-    assert not RewritingCompiler().check().prepare(system).report_.ok
-    compiler = PassCompiler().check().prepare(system)
+    assert OperatorCompiler().prepare(system).report_.ok
+    assert not RewritingCompiler().prepare(system).report_.ok
+    compiler = PassCompiler().prepare(system)
     assert not compiler.report_.ok
     with pytest.raises(ValidationError, match=r'compiler=OperatorCompiler\(\)'):
         compiler.run()
@@ -100,7 +94,7 @@ def test_general_compiler_names_the_compiler_of_a_operator_system():
 def test_compiler_reports_an_observable_of_a_missing_system():
     """Test that an observable labelled with a nested system that does not exist is an issue of the report."""
     observable = ObservableSpec('village/size', lambda s: s.rabbits.n)
-    report = PassCompiler(observables=[observable]).check().prepare(_growth()).report_
+    report = PassCompiler(observables=[observable]).prepare(_growth()).report_
     assert [issue.code for issue in report.errors] == ['observable-path']
 
 
@@ -137,7 +131,7 @@ def test_compiler_reports_a_negative_screening():
             lambda s, screening=screening: inverse_helmholtz(s.u, screening(s)),
             LatticeSpace(8),
         )
-        report = PassCompiler().check().prepare(System(elements=[field])).report_
+        report = PassCompiler().prepare(System(elements=[field])).report_
         assert [(issue.code, issue.path) for issue in report.errors] == [('screening', 'm')]
         assert 'screening' in report.errors[0].message
 
@@ -145,7 +139,7 @@ def test_compiler_reports_a_negative_screening():
 def test_compiler_reports_a_kernel_that_reads_a_state():
     """Test that a convolution kernel that reads a state is a `kernel-state` issue naming the state."""
     field = _nonlocal_field('m', lambda s: convolve(s.u, s.u * displacement(0)), LatticeSpace(8))
-    report = PassCompiler().check().prepare(System(elements=[field])).report_
+    report = PassCompiler().prepare(System(elements=[field])).report_
     assert [(issue.code, issue.path) for issue in report.errors] == [('kernel-state', 'm')]
     assert 'u_m' in report.errors[0].message
 
@@ -153,7 +147,7 @@ def test_compiler_reports_a_kernel_that_reads_a_state():
 def test_compiler_reports_a_convolution_on_a_network():
     """Test that a convolution on a network is a `law-space` issue saying it needs a lattice space."""
     field = _nonlocal_field('net', lambda s: convolve(s.u, displacement(0)), NetworkSpace(nx.path_graph(4)))
-    report = PassCompiler().check().prepare(System(elements=[field])).report_
+    report = PassCompiler().prepare(System(elements=[field])).report_
     assert [(issue.code, issue.path) for issue in report.errors] == [('law-space', 'net')]
     assert 'lattice space' in report.errors[0].message
 
@@ -166,7 +160,7 @@ def test_compiler_reports_spectral_operators_on_edges_that_are_not_periodic():
         LatticeSpace(8, boundary='fixed'),
         discretization='spectral',
     )
-    report = PassCompiler().check().prepare(System(elements=[field])).report_
+    report = PassCompiler().prepare(System(elements=[field])).report_
     assert [issue.code for issue in report.errors] == ['law-space']
 
 
@@ -194,7 +188,7 @@ def test_compiler_reports_an_operand_over_two_spaces():
     other = _nonlocal_field('b', lambda s: 0 * s.u, LatticeSpace(8))
     field = _nonlocal_field('a', lambda s: 0 * s.u, LatticeSpace(8))
     system = System(elements=[field, other], interactions=[_CrossInteraction('cross', first='a', second='b')])
-    report = PassCompiler().check().prepare(system).report_
+    report = PassCompiler().prepare(system).report_
     assert [issue.code for issue in report.errors] == ['operator-spaces']
 
 
@@ -202,7 +196,7 @@ def test_compiler_raises_every_nonlocal_issue_at_once():
     """Test that a convolution on a network and a negative screening raise one error that lists both laws."""
     network = _nonlocal_field('net', lambda s: convolve(s.u, displacement(0)), NetworkSpace(nx.path_graph(4)))
     lattice = _nonlocal_field('grid', lambda s: inverse_helmholtz(s.u, sqrt(s.k)), LatticeSpace(8))
-    compiler = PassCompiler().check().prepare(System(elements=[network, lattice]))
+    compiler = PassCompiler().prepare(System(elements=[network, lattice]))
     with pytest.raises(ValidationError, match=r'(?s)net: .*law-space.*grid: .*screening'):
         compiler.run()
 
@@ -229,7 +223,7 @@ def _tensor_issues(rate):
 
     RatedElement.rate = staticmethod(rate)
     field = FieldElement('film', element=RatedElement, space=LatticeSpace((4, 4)))
-    return PassCompiler().check().prepare(System(elements=[field])).report_.issues
+    return PassCompiler().prepare(System(elements=[field])).report_.issues
 
 
 def test_prepare_reports_a_rate_with_a_trace_on_a_traceless_state():
@@ -264,7 +258,7 @@ def test_prepare_reports_the_tensor_divergence_of_a_scalar():
             return [RateLaw(namespace.u, tensor_divergence(namespace.u)[0])]
 
     field = FieldElement('film', element=ScalarElement, space=LatticeSpace((4, 4)))
-    issues = PassCompiler().check().prepare(System(elements=[field])).report_.issues
+    issues = PassCompiler().prepare(System(elements=[field])).report_.issues
     assert [issue.code for issue in issues] == ['law-domain']
     assert 'tensor_divergence' in issues[0].message
     assert 'u_film' in issues[0].message
@@ -306,7 +300,7 @@ def _cell_groups():
 
 def _report_of(system):
     """Return the report of a system."""
-    return PassCompiler().check().prepare(system).report_
+    return PassCompiler().prepare(system).report_
 
 
 def test_report_holds_one_degree_issue_per_law_with_its_own_path_and_fix():
@@ -409,3 +403,9 @@ def test_report_holds_a_space_issue_for_the_exterior_calculus_outside_a_cell_com
     rate = RateInteraction('rate', target='sites', state='u', rate=lambda n: exterior_derivative(n.target.u))
     issues = _report_of(System(elements=[sites], interactions=[rate])).issues
     assert [issue.code for issue in issues if issue.path == 'rate'] == ['law-space']
+
+
+def test_compiler_reports_a_bad_setting_before_a_missing_system():
+    """Test that preparing a compiler without a system names its invalid setting, not the missing system."""
+    with pytest.raises(ValidationError, match='backend'):
+        PassCompiler(backend='numba').prepare()

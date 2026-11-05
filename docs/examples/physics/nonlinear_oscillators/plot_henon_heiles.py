@@ -28,7 +28,7 @@ def start(y, py, energy=ENERGY):
 
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=8)
-simulation = Simulation(start(-0.1, 0.0), dt=0.05, observers=[observer]).check().prepare().run(until=100)
+simulation = Simulation(start(-0.1, 0.0), dt=0.05, observers=[observer]).prepare().run(until=100)
 
 # %%
 # Poincaré section
@@ -38,7 +38,7 @@ simulation = Simulation(start(-0.1, 0.0), dt=0.05, observers=[observer]).check()
 
 fig, ax = plt.subplots(figsize=(6, 5))
 for y in np.linspace(-0.3, 0.45, 12):
-    section = SectionAnalysis(state='star.x', value=0.0, until=2000).check().prepare(start(y, 0.0)).run()
+    section = SectionAnalysis(state='star.x', value=0.0, until=2000).prepare(start(y, 0.0)).run()
     ax.plot(section.values_['star.y'], section.values_['star.py'], '.', markersize=1.5)
 ax.set_xlabel('y')
 ax.set_ylabel('p_y')

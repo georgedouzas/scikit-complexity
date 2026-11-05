@@ -19,7 +19,7 @@ MODEL = 'brusselator_ode'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=50)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=50)
 
 # %%
 # One limit cycle from every initial state
@@ -29,7 +29,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().
 
 fig, ax = plt.subplots(figsize=(6, 5))
 for u0, v0 in [(1.0, 3.2), (0.5, 0.5), (4.0, 1.0), (3.0, 5.0)]:
-    run = Simulation(create(MODEL, u=u0, v=v0), dt=0.05).check().prepare().run(until=100).trajectory_
+    run = Simulation(create(MODEL, u=u0, v=v0), dt=0.05).prepare().run(until=100).trajectory_
     ax.plot(run.values('reactor.u'), run.values('reactor.v'), linewidth=0.8, alpha=0.7)
     ax.plot(u0, v0, 'o', color='gray', markersize=4)
 trajectory = simulation.trajectory_

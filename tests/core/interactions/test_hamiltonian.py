@@ -86,7 +86,7 @@ def test_run_returns_the_rate_laws_of_an_oscillator():
         target='mass',
         hamiltonian=lambda s: s.target.p**2 / (2 * m) + k * s.target.q**2 / 2,
     )
-    laws = interaction.check().prepare().run(SimpleNamespace(target=SimpleNamespace(q=q, p=p), t=t)).laws_
+    laws = interaction.prepare().run(SimpleNamespace(target=SimpleNamespace(q=q, p=p), t=t)).laws_
     assert [type(law) for law in laws] == [RateLaw, RateLaw]
     assert laws[0].target is q
     assert bool(laws[0].value == p / m)
@@ -103,7 +103,7 @@ def test_run_differentiates_every_component_of_a_vector_state():
         hamiltonian=lambda s: s.target.p.dot_product(s.target.p) / 2 + s.target.q[0] * s.target.q[1],
     )
     namespace = SimpleNamespace(target=SimpleNamespace(q=vector([q1, q2]), p=vector([p1, p2])), t=t)
-    laws = interaction.check().prepare().run(namespace).laws_
+    laws = interaction.prepare().run(namespace).laws_
     assert list(laws[0].value) == [p1, p2]
     assert list(laws[1].value) == [-q2, -q1]
 
@@ -122,7 +122,7 @@ def test_run_sums_the_hamiltonians_of_a_coupling():
         elements=[OscillatorElement('left', q=1.0), OscillatorElement('right', q=1.0)],
         interactions=[*free, CouplingInteraction('spring', first='left', second='right')],
     )
-    simulation = Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=1.0).check().prepare()
+    simulation = Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=1.0).prepare()
     trajectory = simulation.run(until=1.0).trajectory_
     np.testing.assert_allclose(trajectory.values('left.q')[-1], np.cos(1.0), atol=1e-7)
     np.testing.assert_allclose(trajectory.values('left.p')[-1], -np.sin(1.0), atol=1e-7)
@@ -132,7 +132,7 @@ def test_run_wraps_an_angle_coordinate():
     """Test that an angle coordinate of a rotor wraps around its period."""
     rotor = HamiltonianInteraction('rotor', target='wheel', hamiltonian=lambda s: s.target.p**2 / 2 - cos(s.target.q))
     system = System(elements=[RotorElement('wheel')], interactions=[rotor])
-    trajectory = Simulation(system, dt=0.01).check().prepare().run(until=20.0).trajectory_
+    trajectory = Simulation(system, dt=0.01).prepare().run(until=20.0).trajectory_
     values = trajectory.values('wheel.q')
     assert np.abs(values).max() <= np.pi
     assert np.abs(np.diff(values)).max() > np.pi
@@ -142,13 +142,13 @@ def test_check_rejects_a_coordinate_without_a_momentum():
     """Test that two coordinates with one momentum name the unpaired coordinate."""
     interaction = HamiltonianInteraction('pairs', target='mass', coordinates=('x', 'y'), momenta='px')
     with pytest.raises(ValidationError, match='y has no partner'):
-        interaction.check()
+        interaction.prepare()
 
 
 def test_check_rejects_a_hamiltonian_that_is_not_callable():
     """Test that `check` rejects a Hamiltonian that is not a function."""
     with pytest.raises(ValidationError, match='hamiltonian'):
-        HamiltonianInteraction('energy', target='mass', hamiltonian='kinetic').check()
+        HamiltonianInteraction('energy', target='mass', hamiltonian='kinetic').prepare()
 
 
 def test_run_rejects_a_momentum_of_another_size():
@@ -157,14 +157,14 @@ def test_run_rejects_a_momentum_of_another_size():
     interaction = HamiltonianInteraction('energy', target='mass', hamiltonian=lambda s: q)
     namespace = SimpleNamespace(target=SimpleNamespace(q=q, p=vector([p1, p2])), t=t)
     with pytest.raises(ValidationError, match='differ in size'):
-        interaction.check().prepare().run(namespace)
+        interaction.prepare().run(namespace)
 
 
 def test_prepare_reports_a_coordinate_of_order_2():
     """Test that a coordinate of order 2 is one error at the path of the interaction with the fixes."""
     energy = HamiltonianInteraction('energy', target='mass', hamiltonian=lambda s: s.target.p**2 + s.target.q**2)
     system = System(elements=[SecondOrderElement('mass')], interactions=[energy])
-    errors = [issue for issue in PassCompiler().check().prepare(system).report_.issues if issue.severity == 'error']
+    errors = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.severity == 'error']
     assert len(errors) == 1
     assert errors[0].path == 'energy'
     assert 'StateSpec(order=1)' in errors[0].message

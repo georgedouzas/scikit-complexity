@@ -43,7 +43,7 @@ class ParameterSpec(BaseSpec):
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
         >>> from skcomplex.specs import ParameterSpec
-        >>> 0.5 in ParameterSpec(domain=RealSet.open(0, oo)).check().domain
+        >>> 0.5 in ParameterSpec(domain=RealSet.open(0, oo)).domain
         True
     """
 

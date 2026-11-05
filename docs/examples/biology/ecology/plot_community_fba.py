@@ -23,7 +23,7 @@ GROWTH = 'v_Biomass_Ecoli_core'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-trajectory = Simulation(system, observers=[observer]).check().prepare().run(until=0.0).trajectory_
+trajectory = Simulation(system, observers=[observer]).prepare().run(until=0.0).trajectory_
 
 # %%
 # Alone and together
@@ -35,7 +35,6 @@ trajectory = Simulation(system, observers=[observer]).check().prepare().run(unti
 alone = [
     float(
         Simulation(create(MODEL, knockouts=(name,), abundances=(1.0,)))
-        .check()
         .prepare()
         .run(until=0.0)
         .trajectory_.values('medium.objective_0')[0],
@@ -44,10 +43,10 @@ alone = [
 ]
 together = [float(trajectory.values(f'member_{index}.{GROWTH}')[0]) for index in range(2)]
 community = float(trajectory.values('medium.objective_0')[0])
-balanced = Simulation(create(MODEL, common_rate=True)).check().prepare().run(until=0.0).trajectory_
+balanced = Simulation(create(MODEL, common_rate=True)).prepare().run(until=0.0).trajectory_
 balanced_rate = float(balanced.values('medium.objective_0')[0])
-steadycom = CommunityAnalysis(medium={'EX_akg_e': 0.0, 'EX_glu__L_e': 0.0}).check().prepare(system).run()
-tradeoff = CommunityAnalysis('tradeoff', fraction=1.0).check().prepare(create(MODEL, knockouts=('', ''))).run()
+steadycom = CommunityAnalysis(medium={'EX_akg_e': 0.0, 'EX_glu__L_e': 0.0}).prepare(system).run()
+tradeoff = CommunityAnalysis('tradeoff', fraction=1.0).prepare(create(MODEL, knockouts=('', ''))).run()
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 axes[0].bar(['ΔICDHyr alone', 'ΔNH4t alone', 'ΔICDHyr together', 'ΔNH4t together'], [*alone, *together])
 axes[0].tick_params(axis='x', rotation=20)

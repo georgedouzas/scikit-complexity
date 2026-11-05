@@ -129,7 +129,7 @@ class InvariantAnalysis(BaseAnalysis):
         ...     ObservableSpec('energy', lambda s: s.mass.q**2 + s.mass.p**2),
         ...     ObservableSpec('position', lambda s: s.mass.q),
         ... ]
-        >>> analysis = InvariantAnalysis(expressions=expressions).check().prepare(system).run()
+        >>> analysis = InvariantAnalysis(expressions=expressions).prepare(system).run()
         >>> analysis.conserved_
         {'energy': True, 'position': False}
         >>> analysis.rates_['position']
@@ -163,7 +163,7 @@ class InvariantAnalysis(BaseAnalysis):
             error_msg = f'The symmetry is {self.symmetry!r}. Give a SymmetrySpec to check.'
             raise AnalysisError(error_msg)
         if self.kind == 'symmetry' and isinstance(self.symmetry, SymmetrySpec):
-            self.symmetry.check()
+            self.symmetry._validated()
         if not isinstance(self.samples, int) or self.samples < 1:
             error_msg = f'samples = {self.samples!r} must be a positive integer.'
             raise AnalysisError(error_msg)

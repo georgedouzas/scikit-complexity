@@ -43,12 +43,12 @@ class BidRentInteraction(Interaction):
 
     Raises:
         ValidationError:
-            The four sequences do not have one value per crop, raised by `check`.
+            The four sequences do not have one value per crop, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.models.economics.resources import BidRentInteraction
         >>> bid = BidRentInteraction('bid', target='plain', yields=(2.0,), prices=(3.0,), costs=(1.0,), rates=(0.1,))
-        >>> bid.check().rates
+        >>> bid.rates
         (0.1,)
     """
 

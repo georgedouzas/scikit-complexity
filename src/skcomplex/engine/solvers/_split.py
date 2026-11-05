@@ -279,7 +279,7 @@ class SplitSolver(Solver):
         shape = space.shape_
 
         def shift(offset: tuple[int, ...]) -> csr_matrix:
-            lattice = LatticeSpace(shape, boundary=LATTICE_BOUNDARIES[kind]).check().prepare()
+            lattice = LatticeSpace(shape, boundary=LATTICE_BOUNDARIES[kind]).prepare()
             table = lattice._index_table(LatticeNeighborhood((offset,)))[:, 0]
             inside = table < size
             return csr_matrix((np.ones(inside.sum()), (np.flatnonzero(inside), table[inside])), shape=(size, size))
@@ -377,7 +377,7 @@ class SplitSolver(Solver):
             reference = term.references[item]
             column = reference.entry.view(p)[:, reference.column]
             values.append(float(column[0]) if reference.entry.members is None else column)
-        function = ExpressionPrinter(time=TIME, compiled=True).check().prepare(symbols).run([term.coefficient]).code_
+        function = ExpressionPrinter(time=TIME, compiled=True).prepare(symbols).run([term.coefficient]).code_
         if not callable(function):
             error_msg = f'The printer returned a {type(function).__name__}, not a compiled function.'
             raise TypeError(error_msg)

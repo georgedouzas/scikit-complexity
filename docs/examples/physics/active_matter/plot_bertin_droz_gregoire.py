@@ -42,10 +42,7 @@ system = create(MODEL, positions=1, angles=ANGLES, density=2 * TRANSITION)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='observables', interval=1)
 solver = RK4Solver(dt=0.2)
 simulation = (
-    Simulation(system, solver=solver, dt=1.0, observers=[observer], observables=observables)
-    .check()
-    .prepare()
-    .run(until=60)
+    Simulation(system, solver=solver, dt=1.0, observers=[observer], observables=observables).prepare().run(until=60)
 )
 
 # %%
@@ -62,14 +59,14 @@ ratios = np.array([0.5, 0.8, 1.2, 1.5, 2.0, 3.0, 4.0])
 rates = []
 for ratio in ratios:
     gas = create(MODEL, positions=1, angles=ANGLES, density=ratio * TRANSITION)
-    run = Simulation(gas, solver=solver, dt=10.0, observables=observables).check().prepare().run(until=10)
+    run = Simulation(gas, solver=solver, dt=10.0, observables=observables).prepare().run(until=10)
     order = run.trajectory_.values('polar_order')
     rates.append(np.log(order[-1] / order[0]) / 10)
 above = ratios[ratios > 1]
 orders = []
 for ratio in above:
     gas = create(MODEL, positions=1, angles=ANGLES, density=ratio * TRANSITION, perturbation=0.5)
-    run = Simulation(gas, solver=solver, dt=150.0, observables=observables).check().prepare().run(until=150)
+    run = Simulation(gas, solver=solver, dt=150.0, observables=observables).prepare().run(until=150)
     orders.append(run.trajectory_.values('polar_order')[-1])
 grid = np.linspace(ratios[0], ratios[-1], 100)
 theory = 8 * 0.5 * (SURVIVAL - 2 / 3) * (grid - 1) * TRANSITION / np.pi

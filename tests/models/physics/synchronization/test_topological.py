@@ -14,7 +14,7 @@ def _final_order(coupling):
     """Return the mean over the last frames of the order parameter of the link phases of a run at a coupling."""
     system = topological_kuramoto(coupling=coupling)
     observables = describe('topological_kuramoto').observables_of(system)
-    simulation = Simulation(system, dt=0.2, observables=observables).check().prepare().run(until=40.0)
+    simulation = Simulation(system, dt=0.2, observables=observables).prepare().run(until=40.0)
     return float(np.mean(simulation.trajectory_.values('link_order')[-20:]))
 
 

@@ -44,7 +44,7 @@ class BilinearLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import BilinearLaw
         >>> f, g = var('f'), var('g')
-        >>> BilinearLaw(f, f, g, -0.5).check().prepare().run({}).value_
+        >>> BilinearLaw(f, f, g, -0.5).prepare().run({}).value_
         (-0.5, None)
     """
 

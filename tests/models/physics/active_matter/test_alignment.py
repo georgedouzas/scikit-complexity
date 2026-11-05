@@ -21,7 +21,6 @@ def test_aligning_active_brownian_particles_alignment_transition() -> None:
                 random_state=0,
                 observables=describe('aligning_active_brownian_particles').observables_of(system),
             )
-            .check()
             .prepare()
             .run(until=200)
         )

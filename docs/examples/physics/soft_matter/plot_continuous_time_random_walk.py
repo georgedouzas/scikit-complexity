@@ -21,7 +21,7 @@ MODEL = 'continuous_time_random_walk'
 
 system = create(MODEL, n_walkers=500, alpha=0.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=5, observers=[observer], random_state=0).check().prepare().run(until=1000)
+simulation = Simulation(system, dt=5, observers=[observer], random_state=0).prepare().run(until=1000)
 
 # %%
 # Subdiffusion from waiting times without a mean

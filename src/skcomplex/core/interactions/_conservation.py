@@ -83,7 +83,7 @@ class ConservationInteraction(Interaction):
         >>> field = FieldElement('wave', element=CellElement, space=space, values=values, discretization=volumes)
         >>> burgers = ConservationInteraction('burgers', target='wave', state='u', flux=lambda s: s.target.u**2 / 2)
         >>> system = System(elements=[field], interactions=[burgers])
-        >>> trajectory = Simulation(system, dt=0.01).check().prepare().run(until=0.5).trajectory_
+        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=0.5).trajectory_
         >>> round(float(trajectory.values('wave.u')[-1].sum()), 6)
         50.0
     """

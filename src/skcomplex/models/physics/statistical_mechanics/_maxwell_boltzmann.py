@@ -51,7 +51,7 @@ class MaxwellBoltzmannAnalysis(FitAnalysis):
         >>> import numpy as np
         >>> from skcomplex.models.physics.statistical_mechanics import MaxwellBoltzmannAnalysis
         >>> velocities = np.random.default_rng(0).standard_normal((2000, 3))
-        >>> bool(MaxwellBoltzmannAnalysis().check().prepare(velocities).run().p_value_[0] > 0.05)
+        >>> bool(MaxwellBoltzmannAnalysis().prepare(velocities).run().p_value_[0] > 0.05)
         True
     """
 

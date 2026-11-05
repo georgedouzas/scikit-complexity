@@ -162,15 +162,15 @@ class EmergenceAnalysis(BaseAnalysis):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.analysis import EmergenceAnalysis
-        >>> EmergenceAnalysis('effective-information').check().prepare(np.eye(4)).run().information_
+        >>> EmergenceAnalysis('effective-information').prepare(np.eye(4)).run().information_
         2.0
         >>> matrix = np.zeros((4, 4))
         >>> matrix[:3, :3], matrix[3, 3] = 1 / 3, 1.0
-        >>> found = EmergenceAnalysis('causal').check().prepare(matrix).run()
+        >>> found = EmergenceAnalysis('causal').prepare(matrix).run()
         >>> found.partition_.tolist(), round(found.gain_, 3)
         ([0, 0, 0, 1], 0.189)
         >>> micro = np.random.default_rng(0).integers(0, 4, 5000)
-        >>> round(EmergenceAnalysis('closure', partition=[0, 0, 1, 1]).check().prepare(micro).run().gap_, 2)
+        >>> round(EmergenceAnalysis('closure', partition=[0, 0, 1, 1]).prepare(micro).run().gap_, 2)
         0.0
     """
 

@@ -33,13 +33,13 @@ def _core_system(**values):
 
 def _objective(system):
     """Return the objective of the only program of a static system."""
-    trajectory = Simulation(system).check().prepare().run(0.0).trajectory_
+    trajectory = Simulation(system).prepare().run(0.0).trajectory_
     return float(trajectory.values('cell.objective_0')[0])
 
 
 def test_cobra_variability_fixes_growth_at_the_optimum():
     """Test that flux variability at the optimum fixes the biomass flux at both ends."""
-    ranges = CobraAnalysis('variability').check().prepare(_core_system()).run().ranges_
+    ranges = CobraAnalysis('variability').prepare(_core_system()).run().ranges_
     assert ranges.loc[GROWTH].tolist() == pytest.approx([AEROBIC, AEROBIC], abs=1e-4)
 
 
@@ -50,13 +50,13 @@ def test_cobra_parity_with_the_core_solve():
     solved = problem.programs[0].run(RunStateSpec(0.0, problem.initial_state, problem.initial_parameters)).values_
     model = to_cobra(system.elements[0])
     assert problem.states.read(solved, 'cell.objective_0') == pytest.approx(model.slim_optimize(), abs=1e-7)
-    total = CobraAnalysis('parsimonious').check().prepare(system).run().total_
+    total = CobraAnalysis('parsimonious').prepare(system).run().total_
     assert problem.states.read(solved, 'cell.objective_1') == pytest.approx(total, abs=1e-6)
 
 
 def test_cobra_deletions_find_the_essential_genes():
     """Test that deleting every gene in turn leaves 7 with no growth."""
-    growth = CobraAnalysis('deletions').check().prepare(_core_system()).run().growth_
+    growth = CobraAnalysis('deletions').prepare(_core_system()).run().growth_
     assert int((growth < 1e-6).sum()) == 7
     assert growth['b1779'] < 1e-6
 
@@ -70,13 +70,13 @@ def test_cobra_adjustment_grows_below_the_optimum_of_the_knock_out(kind, linear)
     knocked = _core_system(g_b4025=0.0)
     optimum = _objective(knocked)
     assert optimum == pytest.approx(0.8632, abs=1e-3)
-    analysis = CobraAnalysis(kind, knockouts=('b4025',), linear=linear).check().prepare(_core_system()).run()
+    analysis = CobraAnalysis(kind, knockouts=('b4025',), linear=linear).prepare(_core_system()).run()
     assert 0 < analysis.growth_ < optimum
 
 
 def test_cobra_finds_synthetic_lethal_reactions():
     """Test that double deletions of reactions find lethal pairs, neither lethal alone."""
-    pairs = CobraAnalysis('synthetic-lethals', target='reaction').check().prepare(_core_system()).run().pairs_
+    pairs = CobraAnalysis('synthetic-lethals', target='reaction').prepare(_core_system()).run().pairs_
     assert pairs
     assert ('ENO', 'PGK') not in pairs
 
@@ -89,7 +89,7 @@ def test_strain_design_couples_succinate_to_growth():
         constraints=f'{GROWTH} >= 0.1',
         interventions=3,
     )
-    designs = analysis.check().prepare(_core_system()).run().designs_
+    designs = analysis.prepare(_core_system()).run().designs_
     assert designs
     model = to_cobra(_core_system().elements[0])
     cobra = pytest.importorskip('cobra')
@@ -109,7 +109,7 @@ def test_strain_design_couples_succinate_to_growth():
 
 def test_production_scan_reports_rising_fluxes_and_falling_growth():
     """Test that scanning the succinate exchange in 10 steps reports rising fluxes while growth falls."""
-    analysis = ProductionScanAnalysis('EX_succ_e', steps=10).check().prepare(_core_system()).run()
+    analysis = ProductionScanAnalysis('EX_succ_e', steps=10).prepare(_core_system()).run()
     assert analysis.reactions_
     amounts = analysis.fluxes_.loc[analysis.reactions_].abs().to_numpy()
     assert np.all(np.diff(amounts, axis=1) > 0)
@@ -125,7 +125,7 @@ def test_flux_variability_reports_ranges_without_the_extra():
         'two': ReactionSpec({'A': -1.0}),
     }
     system = System(elements=[metabolic_network_type('Parallel', reactions, {'in': 1.0})('net')], time=StaticTime())
-    ranges = FluxVariabilityAnalysis().check().prepare(system).run().ranges_
+    ranges = FluxVariabilityAnalysis().prepare(system).run().ranges_
     assert ranges.loc['one'].tolist() == [0.0, 4.0]
     assert ranges.loc['in'].tolist() == [4.0, 4.0]
 
@@ -137,7 +137,7 @@ def test_missing_extra_names_the_class_and_the_command(monkeypatch):
         MissingExtraError,
         match=r"CobraAnalysis.*metabolism.*pip install 'scikit-complexity\[metabolism\]'",
     ):
-        CobraAnalysis('variability').check()
+        CobraAnalysis('variability').prepare()
 
 
 @pytest.mark.parametrize(
@@ -150,7 +150,7 @@ def test_missing_extra_names_the_class_and_the_command(monkeypatch):
 )
 def test_strain_design_computes_every_kind(kind, settings):
     """Test that the other kinds of strain design return their designs as sets of reaction names."""
-    analysis = StrainDesignAnalysis(kind, interventions=2, **settings).check().prepare(_core_system()).run()
+    analysis = StrainDesignAnalysis(kind, interventions=2, **settings).prepare(_core_system()).run()
     assert all(isinstance(design, set) for design in analysis.designs_)
     names = set(_core_system().elements[0].reactions)
     assert all(design <= names for design in analysis.designs_)
@@ -165,7 +165,7 @@ def test_flux_variability_keeps_an_objective_of_several_reactions():
     }
     element_type = metabolic_network_type('TwoGoalsElement', reactions, {'one': 1.0, 'two': 1.0})
     system = System(elements=[element_type('net')], time=StaticTime())
-    analysis = FluxVariabilityAnalysis().check().prepare(system).run()
+    analysis = FluxVariabilityAnalysis().prepare(system).run()
     assert analysis.optimum_ == pytest.approx(4.0)
     assert analysis.ranges_.loc['in'].tolist() == pytest.approx([4.0, 4.0])
     assert analysis.ranges_.loc['one'].tolist() == pytest.approx([0.0, 4.0])

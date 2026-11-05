@@ -21,7 +21,7 @@ MODEL = 'tcr_gene_therapy'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=5.0, observers=[observer]).check().prepare().run(until=1500)
+simulation = Simulation(system, dt=5.0, observers=[observer]).prepare().run(until=1500)
 
 # %%
 # Spiral into the dormant state

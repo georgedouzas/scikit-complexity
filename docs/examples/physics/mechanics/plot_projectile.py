@@ -31,7 +31,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, speed=10.0, angle=45.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=0.01, observers=[observer]).check().prepare().run(until=1.44)
+simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(until=1.44)
 
 # %%
 # Parabola and drag
@@ -45,7 +45,7 @@ fig, ax = plt.subplots(figsize=(6, 4))
 grid = np.linspace(0, speed**2 / g, 200)
 ax.plot(grid, grid - g * grid**2 / speed**2, color='black', linewidth=3, alpha=0.3, label='parabola')
 for drag in [0.0, 0.3, 1.0]:
-    run = Simulation(create(MODEL, speed=speed, angle=45.0, drag=drag), dt=0.005).check().prepare().run(until=1.5)
+    run = Simulation(create(MODEL, speed=speed, angle=45.0, drag=drag), dt=0.005).prepare().run(until=1.5)
     position = np.asarray(run.trajectory_.values('ball.x'))
     above = position[:, 1] >= 0
     ax.plot(position[above, 0], position[above, 1], label=f'drag = {drag}')

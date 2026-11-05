@@ -23,7 +23,7 @@ WINDOW = (-2.2, 0.8, -1.2, 1.2)
 
 system = create(MODEL, shape=(240, 300), window=WINDOW)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=5)
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=100)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=100)
 
 # %%
 # Escape times and the area of the set

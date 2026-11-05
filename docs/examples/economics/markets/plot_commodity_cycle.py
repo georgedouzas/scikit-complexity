@@ -40,7 +40,7 @@ simulation = run(MODEL, settings={'until': 60, 'dt': 0.25, 'observers': [observe
 # completions to the capacity, and its delay drives the cycle. The price peaks first, the capacity orders follow, and
 # the capacity peaks years later.
 
-polarities = LoopAnalysis().check().prepare(create(MODEL)).run().polarities_
+polarities = LoopAnalysis().prepare(create(MODEL)).run().polarities_
 summary = ', '.join(f'{polarities.count(kind)} {kind}' for kind in ('reinforcing', 'balancing'))
 
 trajectory = simulation.trajectory_

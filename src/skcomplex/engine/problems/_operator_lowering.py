@@ -95,18 +95,14 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
                 grouped.setdefault(coefficient, []).append(matrix)
             else:
                 constant.append(complex(coefficient) * matrix)
-        terms = (
-            [OperatorKernel(OperatorKernel._sum_matrices(constant, size), SR(1)).check().prepare()] if constant else []
-        )
+        terms = [OperatorKernel(OperatorKernel._sum_matrices(constant, size), SR(1)).prepare()] if constant else []
         for coefficient, matrices in grouped.items():
             terms.append(
                 OperatorKernel(
                     OperatorKernel._sum_matrices(matrices, size),
                     coefficient,
                     self._function(coefficient, owner),
-                )
-                .check()
-                .prepare(),
+                ).prepare(),
             )
         self.kernels_ = tuple(terms)
 
@@ -202,7 +198,7 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
                 'parameter of the operator system. Coefficients may read parameters and time only.'
             )
             raise ValidationError(error_msg)
-        printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(variables)
+        printer = ExpressionPrinter(time=self.time, compiled=True).prepare(variables)
         lowered = ExpressionPrinter._function_of(printer.run([coefficient]).code_)
         indices = np.asarray([self.arguments[item] for item in variables], dtype=np.intp)
 

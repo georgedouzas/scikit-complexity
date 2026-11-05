@@ -88,16 +88,16 @@ class GroupElement(BaseElement):
         ...     def __init__(self, label, n: Annotated[float, StateSpec()] = 1.0, visual=VisualSpec('line')):
         ...         super().__init__(label, visual=visual)
         ...         self.n = n
-        >>> GroupElement('herds', element=PopulationElement, size=3).check().prepare().size_
+        >>> GroupElement('herds', element=PopulationElement, size=3).prepare().size_
         3
         >>> ring = NetworkSpace(nx.cycle_graph(30))
-        >>> GroupElement('weights', element=PopulationElement, space=ring, on='edges').check().prepare().size_
+        >>> GroupElement('weights', element=PopulationElement, space=ring, on='edges').prepare().size_
         30
         >>> space = NetworkSpace(nx.cycle_graph(4), layers=[LayerSpec('work', nx.complete_graph(4))])
         >>> wages = GroupElement('wages', element=PopulationElement, space=space, on='edges', layer='work')
-        >>> wages.check().prepare().size_
+        >>> wages.prepare().size_
         6
-        >>> herds = GroupElement('herds', element=PopulationElement, size=3).check().prepare()
+        >>> herds = GroupElement('herds', element=PopulationElement, size=3).prepare()
         >>> herds.default_visual_
         VisualSpec(kind='line', options={})
     """
@@ -136,7 +136,7 @@ class GroupElement(BaseElement):
         if place is None:
             error_msg = f'Group {self.label!r} lives on {self.on} but has neither a size nor a space.'
             raise SpaceError(error_msg)
-        return place.check().prepare()._count_parts(self.on or 'sites', self.layer)
+        return place.prepare()._count_parts(self.on or 'sites', self.layer)
 
     def _get_member(self) -> BaseElement:
         """Return a member of the group, with the values the group gives."""

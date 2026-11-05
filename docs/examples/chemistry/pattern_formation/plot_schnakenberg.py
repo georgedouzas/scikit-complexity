@@ -22,9 +22,7 @@ MODEL = 'schnakenberg'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='cells/u')
-simulation = (
-    Simulation(system, dt=2.0, solver=RK4Solver(dt=0.005), observers=[observer]).check().prepare().run(until=200)
-)
+simulation = Simulation(system, dt=2.0, solver=RK4Solver(dt=0.005), observers=[observer]).prepare().run(until=200)
 
 # %%
 # Pattern wavelength against the linear instability
@@ -36,7 +34,7 @@ simulation = (
 a, b, Du, Dv = 0.1, 0.9, 1.0, 40.0
 u0, v0 = a + b, b / (a + b) ** 2
 u = simulation.trajectory_.lattice('cells.u')[-1]
-factor = SpectrumAnalysis('structure-factor').check().prepare(u).run()
+factor = SpectrumAnalysis('structure-factor').prepare(u).run()
 q = np.linspace(0.01, 1.5, 300)
 growth = np.array(
     [

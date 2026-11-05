@@ -35,4 +35,4 @@ class FieldJacobianPass(BasePass):
                 'symmetries': compilation.symmetries,
                 'constrained': compilation.constrained[0],
             },
-        ).check()
+        )._validated()

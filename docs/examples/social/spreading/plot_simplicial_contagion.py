@@ -25,10 +25,7 @@ system = create(MODEL, share=0.4, seed=0)
 observables = describe(MODEL).observables_of(system)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='observables', interval=1)
 simulation = (
-    Simulation(system, dt=0.5, observers=[observer], observables=observables, random_state=0)
-    .check()
-    .prepare()
-    .run(until=30)
+    Simulation(system, dt=0.5, observers=[observer], observables=observables, random_state=0).prepare().run(until=30)
 )
 
 # %%
@@ -43,7 +40,7 @@ simulation = (
 def prevalence(infectivity, share):
     """Return the mean share of infected nodes over the last ten time units of a run."""
     model_system = create(MODEL, infectivity=infectivity, share=share, seed=0)
-    run = Simulation(model_system, dt=0.5, random_state=0).check().prepare().run(until=30)
+    run = Simulation(model_system, dt=0.5, random_state=0).prepare().run(until=30)
     infected = run.trajectory_.values('nodes.infected')
     return infected.reshape(len(infected), -1).mean(axis=1)[-20:].mean()
 

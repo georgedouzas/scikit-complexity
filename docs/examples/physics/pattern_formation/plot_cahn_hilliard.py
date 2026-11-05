@@ -33,7 +33,6 @@ simulation = (
         observers=[observer],
         random_state=0,
     )
-    .check()
     .prepare()
     .run(
         until=1000,
@@ -51,7 +50,7 @@ phi = simulation.trajectory_.lattice('mixture.phi')
 times = simulation.trajectory_.times
 sizes = []
 for field in phi[1:]:
-    factor = SpectrumAnalysis('structure-factor').check().prepare(field - field.mean()).run()
+    factor = SpectrumAnalysis('structure-factor').prepare(field - field.mean()).run()
     sizes.append(2 * np.pi * factor.power_.sum() / (factor.wavenumbers_ * factor.power_).sum())
 late = times[1:] >= 100
 slope = np.polyfit(np.log(times[1:][late]), np.log(np.array(sizes)[late]), 1)[0]

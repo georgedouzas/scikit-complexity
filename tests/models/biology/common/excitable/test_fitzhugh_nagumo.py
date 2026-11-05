@@ -33,7 +33,7 @@ def _run(current: float) -> np.ndarray:
     """Return the potential of a membrane under a current."""
     kinetics = FitzHughNagumoInteraction('kinetics', target='membrane', fast='u', slow='r', I=current)
     system = System(elements=[MembraneElement('membrane')], interactions=[kinetics])
-    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=200.0).trajectory_
+    trajectory = Simulation(system, dt=0.1).prepare().run(until=200.0).trajectory_
     return trajectory.values('membrane.u')[trajectory.times > 100.0]
 
 
@@ -48,4 +48,4 @@ def test_fitzhugh_nagumo_interaction_rejects_one_state_for_both_variables():
     """Test that the fast and the slow state must differ."""
     kinetics = FitzHughNagumoInteraction('kinetics', target='membrane', fast='u', slow='u')
     with pytest.raises(ValidationError, match='two different names'):
-        kinetics.check()
+        kinetics.prepare()

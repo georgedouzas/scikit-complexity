@@ -23,7 +23,7 @@ MODEL = 'von_thunen'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer]).check().prepare().run(until=1.0)
+simulation = Simulation(system, observers=[observer]).prepare().run(until=1.0)
 
 # %%
 # Rings against the transport rate of the inner crop
@@ -33,7 +33,7 @@ simulation = Simulation(system, observers=[observer]).check().prepare().run(unti
 
 rates = [(0.2, 0.2, 0.2), (0.25, 0.2, 0.2), (0.3, 0.2, 0.2)]
 experiment = Experiment(von_thunen, GridDesign(), {'rates': rates}, until=1.0, outputs=['plain.crop'])
-crops = experiment.check().prepare().run().result_.series('plain.crop')[:, 0]
+crops = experiment.prepare().run().result_.series('plain.crop')[:, 0]
 fig, axes = plt.subplots(1, 3, figsize=(10, 3.5))
 for ax, rate, crop in zip(axes, rates, crops, strict=True):
     ax.imshow(crop.reshape(41, 41), cmap='viridis', vmin=0, vmax=3)

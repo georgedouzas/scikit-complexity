@@ -41,7 +41,7 @@ class RateLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import RateLaw
         >>> n = var('n')
-        >>> RateLaw(n, 2 * n).check().prepare().run({'n': 3.0}).value_
+        >>> RateLaw(n, 2 * n).prepare().run({'n': 3.0}).value_
         6.0
     """
 

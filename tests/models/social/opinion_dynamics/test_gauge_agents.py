@@ -27,9 +27,9 @@ def test_curvature_and_betti_numbers_read_the_connection():
         system = create('gauge_network_agents', flux=flux)
         links = system.elements[1]
         space = links.space
-        curvature = CellComplexAnalysis('curvature', space=space).check().prepare(links.values['A']).run()
+        curvature = CellComplexAnalysis('curvature', space=space).prepare(links.values['A']).run()
         assert curvature.share_[0] == curved
-    assert CellComplexAnalysis('betti', space=space).check().prepare().run().betti_ == (1, 0, 0)
+    assert CellComplexAnalysis('betti', space=space).prepare().run().betti_ == (1, 0, 0)
 
 
 def test_flux_needs_a_loop():

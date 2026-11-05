@@ -58,7 +58,7 @@ def _coevolving(
         element=element,
         on='sites',
         variable=True,
-        capacity=space.check().prepare().size_,
+        capacity=space.prepare().size_,
         values={'opinion': opinions, **values},
         visual=OPINION_VISUAL,
     )
@@ -118,7 +118,7 @@ def coevolving_voter(
     Examples:
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.social.opinion_dynamics import coevolving_voter
-        >>> trajectory = Simulation(coevolving_voter(30), random_state=0).check().prepare().run(until=5).trajectory_
+        >>> trajectory = Simulation(coevolving_voter(30), random_state=0).prepare().run(until=5).trajectory_
         >>> int(trajectory.network(-1).sources.size) == int(trajectory.network(0).sources.size)
         True
     """

@@ -76,7 +76,7 @@ class BackboneVisual(PointsVisual):
 
     def _prepare(self, context: BaseProblemSpec | None) -> None:
         """Keep the chain that the angles rebuild, and prepare the visual."""
-        self.geometry_ = None if self.structure is None else BackboneGeometry(self.structure).check().prepare()
+        self.geometry_ = None if self.structure is None else BackboneGeometry(self.structure).prepare()
         super()._prepare(context)
 
     def _read_points(self, element: CompiledElementSpec, frame: FrameSpec) -> npt.NDArray[np.float64]:

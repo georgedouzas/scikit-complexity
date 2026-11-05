@@ -24,17 +24,13 @@ MODEL = 'shaken_spring_block'
 
 system = create(MODEL, n_blocks=60, amplitude=2.0, shake_time=2.0, relax_time=20.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=1.0,
-        solver=EulerMaruyamaSolver(dt=0.01),
-        observers=[observer],
-        random_state=0,
-    )
-    .check()
-    .prepare()
-)
+simulation = Simulation(
+    system,
+    dt=1.0,
+    solver=EulerMaruyamaSolver(dt=0.01),
+    observers=[observer],
+    random_state=0,
+).prepare()
 simulation.run(until=286)
 
 # %%
@@ -52,16 +48,12 @@ moving = np.mean(np.abs(simulation.trajectory_.values('chain.v')) > 0.02, axis=1
 
 def blocked_statistics(amplitude, relax_time):
     period = 2.0 + relax_time
-    run = (
-        Simulation(
-            create(MODEL, n_blocks=100, amplitude=amplitude, relax_time=relax_time),
-            dt=period,
-            solver=EulerMaruyamaSolver(dt=0.01),
-            random_state=1,
-        )
-        .check()
-        .prepare()
-    )
+    run = Simulation(
+        create(MODEL, n_blocks=100, amplitude=amplitude, relax_time=relax_time),
+        dt=period,
+        solver=EulerMaruyamaSolver(dt=0.01),
+        random_state=1,
+    ).prepare()
     elongations = np.diff(run.run(until=12 * period).trajectory_.values('chain.x')[1:], axis=1)
     correlations = np.array([np.mean(elongations[:, : 99 - lag] * elongations[:, lag:]) for lag in range(40)])
     correlations /= correlations[0]

@@ -36,7 +36,7 @@ class GeneralizedLotkaVolterraInteraction(CouplingInteraction):
     Examples:
         >>> from skcomplex.models.biology.ecology import GeneralizedLotkaVolterraInteraction
         >>> matrix = ((-1.0, 0.5), (0.5, -1.0))
-        >>> GeneralizedLotkaVolterraInteraction('glv', target='species', a=matrix).check().a
+        >>> GeneralizedLotkaVolterraInteraction('glv', target='species', a=matrix).a
         ((-1.0, 0.5), (0.5, -1.0))
     """
 

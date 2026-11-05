@@ -48,12 +48,12 @@ def _views(blueprint):
 
 def _agents_visual(problem):
     """Return the visual a Rerun observer gives the first agent group of a problem."""
-    return RerunObserver().check().prepare(problem).visuals_[len(problem.elements)]
+    return RerunObserver().prepare(problem).visuals_[len(problem.elements)]
 
 
 def default_blueprint(problem):
     """Return the default blueprint of a compiled problem."""
-    return RerunObserver(blueprint='default').check().prepare(problem).blueprint_
+    return RerunObserver(blueprint='default').prepare(problem).blueprint_
 
 
 def test_traits_visual_is_the_default_of_agents_without_space():
@@ -98,7 +98,7 @@ def test_default_blueprint_of_moran_process_shows_trait_statistics_and_histogram
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     observer = RerunObserver('moran', save_path=tmp_path / 'moran.rrd')
-    Simulation(create('moran_process'), observers=[observer], random_state=0).check().prepare().run(until=10)
+    Simulation(create('moran_process'), observers=[observer], random_state=0).prepare().run(until=10)
     assert 'population/trait/mean' in logged
     assert 'population/fitness/mean' in logged
 
@@ -124,10 +124,7 @@ def test_traits_visual_shows_chosen_statistics_first():
     """Test that the first view shows the chosen statistics of the colored trait."""
     problem = compile_system(create('tangled_nature', organisms=20))
     view = (
-        HistogramVisual(color_by='trait', shown=('distinct',), path=problem.agents[0].path)
-        .check()
-        .prepare(problem)
-        .views_[0]
+        HistogramVisual(color_by='trait', shown=('distinct',), path=problem.agents[0].path).prepare(problem).views_[0]
     )
     assert view.contents == ['+ /organisms/trait/distinct']
 
@@ -136,10 +133,7 @@ def test_traits_visual_can_show_the_histogram_first():
     """Test that a traits visual can put the histogram of its trait before its time series."""
     problem = compile_system(create('deffuant'))
     views = (
-        HistogramVisual(color_by='opinion', histogram_first=True, path=problem.agents[0].path)
-        .check()
-        .prepare(problem)
-        .views_
+        HistogramVisual(color_by='opinion', histogram_first=True, path=problem.agents[0].path).prepare(problem).views_
     )
     assert [type(view).__name__ for view in views] == ['BarChartView', 'TimeSeriesView', 'TimeSeriesView']
 
@@ -203,6 +197,6 @@ def test_traits_visual_logs_the_states_of_a_group(monkeypatch, tmp_path):
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     observer = RerunObserver('walkers', save_path=tmp_path / 'walkers.rrd')
-    Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=3)
+    Simulation(system, observers=[observer], random_state=0).prepare().run(until=3)
     assert 'walkers/x/histogram' in logged
     assert 'walkers/x/mean' in logged

@@ -58,7 +58,7 @@ class HyperedgeInteraction(BaseInteraction):
         ...
         ...     def _get_laws(self, s):
         ...         return [RateLaw(s.member.x, mean(s.members.x, over=s.members) - s.member.x)]
-        >>> ConsensusInteraction('consensus', voters='voters', size=3).check().size
+        >>> ConsensusInteraction('consensus', voters='voters', size=3).size
         3
     """
 

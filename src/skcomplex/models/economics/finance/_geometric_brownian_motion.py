@@ -44,7 +44,7 @@ class GeometricBrownianMotionInteraction(RateInteraction):
         >>> GeometricBrownianMotionInteraction('gbm', target='stock', sigma=0.3).sigma
         0.3
         >>> market = WienerProcessSpec('market', dimension=2)
-        >>> GeometricBrownianMotionInteraction('gbm', target='stock', process=market, index=1).check().index
+        >>> GeometricBrownianMotionInteraction('gbm', target='stock', process=market, index=1).index
         1
     """
 

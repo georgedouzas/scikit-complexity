@@ -25,6 +25,6 @@ class MemberShiftPass(BasePass):
         compilation = self.compilation_
         compilation.shifted = []
         for spec, laws in Compilation._required(compilation.corrected, 'corrected'):
-            lowering = MemberLowering(spec).check().prepare(compilation)
+            lowering = MemberLowering(spec).prepare(compilation)
             compilation.shifted.append((spec, lowering.run(laws).lowered_))
             lowering._apply_references()

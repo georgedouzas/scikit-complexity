@@ -12,9 +12,9 @@ N, K = var('n k')
 
 def test_jump_targets_its_changes_or_its_reset():
     """Test that a jump at a rate targets and runs into its changes, and one after a waiting time its reset."""
-    law = JumpLaw(2 * N, {N: -1}).check().prepare()
+    law = JumpLaw(2 * N, {N: -1}).prepare()
     assert (law.targets_, law.run({'n': 3.0}).value_) == ((N,), {N: -1})
-    waiting = JumpLaw(waiting=draw('wait', 'expon'), reset={N: K}, label='fires').check().prepare()
+    waiting = JumpLaw(waiting=draw('wait', 'expon'), reset={N: K}, label='fires').prepare()
     assert (waiting.targets_, waiting.run({'k': 4.0}).value_) == ((N,), {N: 4.0})
 
 
@@ -32,4 +32,4 @@ def test_jump_targets_its_changes_or_its_reset():
 def test_jump_rejects_invalid_clocks_and_increments(arguments, message):
     """Test that a jump rejects both or no clock, an option of the clock it does not use, and a symbolic increment."""
     with pytest.raises(ValidationError, match=message):
-        JumpLaw(**arguments).check()
+        JumpLaw(**arguments).prepare()

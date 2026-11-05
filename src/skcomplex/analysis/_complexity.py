@@ -61,7 +61,7 @@ class ComplexityAnalysis(BaseAnalysis):
         >>> import numpy as np
         >>> from skcomplex.analysis import ComplexityAnalysis
         >>> noise = np.random.default_rng(0).standard_normal(50_000)
-        >>> plane = ComplexityAnalysis(dimension=4).check().prepare(noise).run()
+        >>> plane = ComplexityAnalysis(dimension=4).prepare(noise).run()
         >>> plane.entropy_.round(2).tolist(), plane.complexity_.round(2).tolist()
         ([1.0], [0.0])
     """

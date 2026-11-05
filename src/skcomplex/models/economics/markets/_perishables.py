@@ -77,7 +77,7 @@ def perishable_goods_duopoly(
 
     Examples:
         >>> from skcomplex.models.economics.markets import perishable_goods_duopoly
-        >>> perishable_goods_duopoly(20).elements[0].check().prepare().size_
+        >>> perishable_goods_duopoly(20).elements[0].prepare().size_
         20
     """
     rng = np.random.default_rng(random_state)

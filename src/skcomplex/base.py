@@ -8,21 +8,20 @@ from typing import Self
 
 from sklearn.base import BaseEstimator
 
-from .errors import NotCheckedError, NotPreparedError
+from .errors import NotPreparedError
 
 
 class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
-    """Root of every configurable class of the library: it stores its settings and speaks three verbs.
+    """Root of every configurable class of the library: it stores its settings and speaks two verbs.
 
     The constructor of a child stores every setting unmodified under its own name, as in scikit-learn, so
-    `get_params`, `set_params`, and `clone` work on every class. The three verbs call the abstract hooks `_check`,
+    `get_params`, `set_params`, and `clone` work on every class. The verbs call the abstract hooks `_check`,
     `_prepare`, and `_run`, which every child implements, itself or through the base of its family, and every verb
     returns the object, as in scikit-learn:
 
-    - `check()` validates the settings through `_check()` and marks the object as checked.
-    - `prepare(context)` prepares the checked object against the one thing it serves through `_prepare(context)`, and
-      sets the attributes that end in `_`.
-    - `run(inputs, final=False)` performs the one action of the checked and prepared object on its one input through
+    - `prepare(context)` validates the settings through `_check()`, prepares the object against the one thing it serves
+      through `_prepare(context)`, and sets the attributes that end in `_`.
+    - `run(inputs, final=False)` performs the one action of the prepared object on its one input through
       `_run(inputs)`, and keeps what the action produces in attributes that end in `_`; a last call with `final=True`
       also releases what preparing acquired through `_release()`, an optional hook that releases nothing by default.
 
@@ -40,7 +39,7 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
         ...
         ...     def _run(self, inputs):
         ...         self.doubled_ = self.factor * inputs
-        >>> DoublingConfig().check().prepare().run(3).doubled_
+        >>> DoublingConfig().prepare().run(3).doubled_
         6
     """
 
@@ -74,16 +73,6 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
     def _release(self) -> None:
         """Release what preparing acquired, such as a viewer or a process; release nothing here."""
 
-    def _is_checked(self) -> None:
-        """Raise an error for an object that was not checked.
-
-        Raises:
-            NotCheckedError:
-                The object was not checked with `check`.
-        """
-        if not getattr(self, '_checked', False):
-            raise NotCheckedError()
-
     def _is_prepared(self) -> None:
         """Raise an error for an object that was not prepared.
 
@@ -95,8 +84,8 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
             error_msg = f'{type(self).__name__} must be prepared before it runs. Call `prepare(...)` first.'
             raise NotPreparedError(error_msg)
 
-    def check(self) -> Self:
-        """Validate the settings of the object and mark it as checked.
+    def _validated(self) -> Self:
+        """Validate the settings of the object.
 
         Returns:
             self:
@@ -107,11 +96,10 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
                 A setting is invalid, named in the message.
         """
         self._check()
-        self._checked = True
         return self
 
     def prepare(self, context: ContextT | None = None) -> Self:
-        """Prepare the checked object against the one thing it serves, setting its attributes that end in `_`.
+        """Validate the object and prepare it against the one thing it serves, setting its attributes that end in `_`.
 
         Args:
             context:
@@ -123,16 +111,16 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
                 The prepared object.
 
         Raises:
-            NotCheckedError:
-                The object was not checked with `check`.
+            ValidationError:
+                A setting is invalid, named in the message.
         """
-        self._is_checked()
+        self._validated()
         self._prepare(context)
         self._prepared = True
         return self
 
     def run(self, inputs: InputT | None = None, final: bool = False) -> Self:
-        """Perform the one action of the checked object on its one input, keeping its results in attributes.
+        """Perform the one action of the prepared object on its one input, keeping its results in attributes.
 
         Args:
             inputs:
@@ -146,12 +134,9 @@ class BaseConfig[ContextT, InputT](BaseEstimator, ABC):
                 The object, with the results of the action in its attributes that end in `_`.
 
         Raises:
-            NotCheckedError:
-                The object was not checked with `check`.
             NotPreparedError:
                 The object was not prepared with `prepare`.
         """
-        self._is_checked()
         self._is_prepared()
         self._run(inputs)
         if final:

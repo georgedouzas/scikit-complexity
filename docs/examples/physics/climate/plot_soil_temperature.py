@@ -21,7 +21,7 @@ MODEL = 'soil_temperature'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=200)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=200)
 
 # %%
 # Route to chaos
@@ -40,7 +40,6 @@ diagram = (
         transient=300,
         keep=80,
     )
-    .check()
     .prepare()
     .run()
 )

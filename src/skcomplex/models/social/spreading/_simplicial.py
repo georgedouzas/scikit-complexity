@@ -91,7 +91,7 @@ def simplicial_contagion(
     Examples:
         >>> from skcomplex.models.social.spreading import simplicial_contagion
         >>> system = simplicial_contagion(30, mean_degree=6.0, mean_triangles=2.0)
-        >>> system.elements[0].check().prepare().size_
+        >>> system.elements[0].prepare().size_
         30
     """
     pairs = math.comb(n_nodes - 1, PAIR - 1)

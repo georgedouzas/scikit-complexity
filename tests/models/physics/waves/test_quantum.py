@@ -17,7 +17,7 @@ from ..conftest import _relative_spread, _series
 
 def test_schrodinger_packet_moves_at_the_group_velocity_and_keeps_its_norm():
     """Test that a free wave packet keeps its norm and its center moves at `2 D k`."""
-    trajectory = Simulation(schrodinger(), dt=0.5).check().prepare().run(until=4.0).trajectory_
+    trajectory = Simulation(schrodinger(), dt=0.5).prepare().run(until=4.0).trajectory_
     u, w = _series(trajectory, 'packet.u', 'packet.w')
     density = u**2 + w**2
     positions = 40.0 / 256 * np.arange(256) - 20.0
@@ -30,13 +30,10 @@ def test_schrodinger_formulations_agree():
     """Test that the field and operator formulations give the same probability of every site."""
     spacing = 40.0 / 128
     fields = (
-        Simulation(create('schrodinger', n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01))
-        .check()
-        .prepare()
-        .run(until=4.0)
+        Simulation(create('schrodinger', n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01)).prepare().run(until=4.0)
     )
     operators = create('schrodinger', n_sites=128, formulation='operators')
-    operators = Simulation(operators, compiler=OperatorCompiler(), dt=0.5).check().prepare().run(until=4.0)
+    operators = Simulation(operators, compiler=OperatorCompiler(), dt=0.5).prepare().run(until=4.0)
     density = fields.trajectory_.values('packet.u') ** 2 + fields.trajectory_.values('packet.w') ** 2
     probability = np.abs(operators.trajectory_.values('schrodinger.state')) ** 2
     assert np.allclose(density * spacing, probability, atol=1e-6)
@@ -47,9 +44,9 @@ def test_schrodinger_dephased_packet_keeps_its_trace(tmp_path):
     system = create('schrodinger', n_sites=32, length=20.0, formulation='operators', gamma=0.5)
     observer = RerunObserver('dephased', save_path=tmp_path / 'run.rrd')
     simulation = Simulation(system, compiler=OperatorCompiler(), dt=0.5, observers=[observer])
-    trajectory = simulation.check().prepare().run(until=2.0).trajectory_
+    trajectory = simulation.prepare().run(until=2.0).trajectory_
     traces = np.trace(trajectory.values('schrodinger.state'), axis1=1, axis2=2)
     assert np.allclose(traces, 1, atol=1e-10)
-    assert np.all(np.diff(OperatorAnalysis('purity').check().prepare(trajectory).run().purity_) <= 1e-10)
+    assert np.all(np.diff(OperatorAnalysis('purity').prepare(trajectory).run().purity_) <= 1e-10)
     with pytest.raises(ValidationError, match='formulation'):
         create('schrodinger', gamma=0.5)

@@ -33,7 +33,7 @@ class HyperedgeGoodsInteraction(CouplingInteraction):
 
     Examples:
         >>> from skcomplex.models.social.cooperation import HyperedgeGoodsInteraction
-        >>> HyperedgeGoodsInteraction('play', target='players').check().write
+        >>> HyperedgeGoodsInteraction('play', target='players').write
         'payoff'
     """
 

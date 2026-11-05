@@ -43,7 +43,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, r=3.7), dt=1, observers=[observer]).check().prepare().run(until=200)
+simulation = Simulation(create(MODEL, r=3.7), dt=1, observers=[observer]).prepare().run(until=200)
 rates = np.linspace(2.8, 4.0, 400)
 diagram = (
     OrbitDiagramExperiment(
@@ -55,7 +55,6 @@ diagram = (
         keep=100,
         dt=1,
     )
-    .check()
     .prepare()
     .run()
 )
@@ -73,8 +72,7 @@ observer.recording_.flush()
 
 sample = np.linspace(2.8, 4.0, 41)
 exponents = [
-    LyapunovAnalysis(until=1000, parameters={'map.r': r}).check().prepare(simulation.system).run().exponents_[0]
-    for r in sample
+    LyapunovAnalysis(until=1000, parameters={'map.r': r}).prepare(simulation.system).run().exponents_[0] for r in sample
 ]
 fig, (orbits, lyapunov) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 orbits.plot(points[:, 0] / 100, -points[:, 1] / 100, ',', color='C0')

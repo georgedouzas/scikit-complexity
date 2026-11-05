@@ -50,7 +50,7 @@ def _oscillator() -> System:
 def _final_error(backend: type, dt: float) -> float:
     """Return the error of the oscillator at time 10 for an internal step."""
     simulation = Simulation(_oscillator(), backend=backend(), solver=Yoshida4Solver(dt=dt), dt=10.0)
-    trajectory = simulation.check().prepare().run(until=10.0).trajectory_
+    trajectory = simulation.prepare().run(until=10.0).trajectory_
     return float(abs(trajectory.values('mass.x')[-1] - np.cos(10.0)))
 
 
@@ -64,7 +64,7 @@ def test_run_converges_at_fourth_order(backend):
 def test_run_bounds_the_energy_of_a_long_run():
     """Test that the energy of the oscillator drifts by less than 1e-6 over a thousand periods."""
     simulation = Simulation(_oscillator(), solver=Yoshida4Solver(dt=0.05), dt=100.0)
-    trajectory = simulation.check().prepare().run(until=6000.0).trajectory_
+    trajectory = simulation.prepare().run(until=6000.0).trajectory_
     energy = sum(trajectory.values(f'mass.{name}') ** 2 for name in ('x', 'y', 'px', 'py')) / 2
     assert np.ptp(energy) < 1e-6
 
@@ -86,7 +86,7 @@ def test_prepare_rejects_a_hamiltonian_that_couples_momenta():
     )
     system = System(elements=[PlaneElement('mass')], interactions=[rotating])
     with pytest.raises(SolverError, match=r'rate of mass\.p[xy] reads .*mass\.p[xy].*RK4Solver'):
-        Yoshida4Solver(dt=0.1).check().prepare(compile_system(system))
+        Yoshida4Solver(dt=0.1).prepare(compile_system(system))
 
 
 def test_prepare_rejects_a_state_that_reads_itself():
@@ -95,4 +95,4 @@ def test_prepare_rejects_a_state_that_reads_itself():
     system = _oscillator()
     system = System(elements=system.elements, interactions=[*system.interactions, damping])
     with pytest.raises(SolverError, match=r'rate of mass\.px reads mass\.px'):
-        Yoshida4Solver(dt=0.1).check().prepare(compile_system(system))
+        Yoshida4Solver(dt=0.1).prepare(compile_system(system))

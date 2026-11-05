@@ -33,7 +33,7 @@ class SampleLaw(BaseLaw):
         >>> from skcomplex.specs import ObjectiveSpec, MoveSpec, SamplerSpec
         >>> spin = var('spin')
         >>> law = SampleLaw(ObjectiveSpec(-spin, VonNeumannNeighborhood()), MoveSpec(spin), SamplerSpec('glauber', 2.0))
-        >>> law.check().prepare().targets_
+        >>> law.prepare().targets_
         (spin,)
     """
 
@@ -63,4 +63,4 @@ class SampleLaw(BaseLaw):
         """Check the objective, the move, and the sampler."""
         for spec in (self.objective, self.move, self.sampler):
             if spec is not None:
-                spec.check()
+                spec._validated()

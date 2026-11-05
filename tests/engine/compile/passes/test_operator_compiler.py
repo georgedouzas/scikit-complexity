@@ -269,7 +269,7 @@ def test_observable_evaluator_rejects_non_operators():
 
 def test_operator_compiler_reports_a_classical_system():
     """Test that the operator compiler accepts an operator system and reports a classical one."""
-    compiler = OperatorCompiler().check()
+    compiler = OperatorCompiler()
     assert compiler.prepare(System(elements=[GroupElement('chain', element=SpinElement, size=2)])).report_.ok
     assert not compiler.prepare(System(elements=[PopulationElement('rabbits', n=10)])).report_.ok
 

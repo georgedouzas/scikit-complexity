@@ -8,10 +8,6 @@ class SkcomplexError(Exception):
     """Base exception of the library."""
 
 
-class NotCheckedError(SkcomplexError):
-    """A configurable object is prepared or run before it is checked."""
-
-
 class NotPreparedError(SkcomplexError):
     """A configurable object is run before it is prepared."""
 

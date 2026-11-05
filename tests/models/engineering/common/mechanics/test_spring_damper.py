@@ -52,7 +52,7 @@ def test_run_keeps_the_momentum_and_damps_the_relative_motion():
         divisor={'a': 'ma', 'b': 'mb'},
     )
     system = System(elements=[TwoMassElement('body')], interactions=[joint])
-    simulation = Simulation(system, solver=ScipyODESolver(rtol=1e-9, atol=1e-11), dt=1.0).check().prepare()
+    simulation = Simulation(system, solver=ScipyODESolver(rtol=1e-9, atol=1e-11), dt=1.0).prepare()
     trajectory = simulation.run(until=30.0).trajectory_
     momentum = trajectory.values('body.a_d1') + 2.0 * trajectory.values('body.b_d1')
     np.testing.assert_allclose(momentum, 0.0, atol=1e-7)
@@ -63,4 +63,4 @@ def test_run_keeps_the_momentum_and_damps_the_relative_motion():
 def test_check_rejects_states_that_are_not_two():
     """Test that `check` rejects a spring and damper on one state."""
     with pytest.raises(ValidationError, match='two states'):
-        SpringDamperInteraction('joint', target='body', states=('a',)).check()
+        SpringDamperInteraction('joint', target='body', states=('a',)).prepare()

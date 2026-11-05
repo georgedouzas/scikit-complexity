@@ -188,7 +188,7 @@ def nonreciprocal_vicsek(
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import nonreciprocal_vicsek
-        >>> nonreciprocal_vicsek(20).elements[0].check().prepare().size_
+        >>> nonreciprocal_vicsek(20).elements[0].prepare().size_
         20
     """
     rng = np.random.default_rng(random_state)

@@ -37,7 +37,7 @@ class DensityElement(Element):
         >>> from skcomplex.core.spaces import LatticeSpace
         >>> classes = LatticeSpace(5, boundary='fixed')
         >>> group = GroupElement('distribution', element=DensityElement, space=classes, on='sites', values={'f': 0.2})
-        >>> group.check().prepare().size_
+        >>> group.prepare().size_
         5
     """
 

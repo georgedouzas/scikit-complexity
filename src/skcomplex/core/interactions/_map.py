@@ -94,10 +94,10 @@ class MapInteraction(Interaction):
         ...     'map', target='value', state='x', function=lambda s: 3 * s.target.x * (1 - s.target.x)
         ... )
         >>> system = System(elements=[ValueElement('value')], interactions=[logistic], time=DiscreteTime())
-        >>> Simulation(system).check().prepare().run(until=2).trajectory_.values('value.x').tolist()
+        >>> Simulation(system).prepare().run(until=2).trajectory_.values('value.x').tolist()
         [0.5, 0.75, 0.5625]
         >>> agents = MapInteraction('map', target='walkers', state='x', function=lambda a, m: a.x + 1, form='agent')
-        >>> type(agents.check().prepare().run(SimpleNamespace()).laws_[0]).__name__
+        >>> type(agents.prepare().run(SimpleNamespace()).laws_[0]).__name__
         'RuleLaw'
         >>> from skcomplex.core.elements import GroupElement
         >>> class WeightsElement(Element):
@@ -108,7 +108,7 @@ class MapInteraction(Interaction):
         >>> doubling = MapInteraction(
         ...     'double', target='weights', state='w', function=lambda a, m: [2 * x for x in a.w], form='agent'
         ... )
-        >>> trajectory = Simulation(System(elements=[group], interactions=[doubling])).check().prepare().run(until=2)
+        >>> trajectory = Simulation(System(elements=[group], interactions=[doubling])).prepare().run(until=2)
         >>> trajectory.trajectory_.agents('weights', 2).values['w'].tolist()
         [[4.0, 8.0]]
     """

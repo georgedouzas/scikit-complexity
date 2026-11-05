@@ -79,16 +79,16 @@ class BatchElement(BaseCountElement):
 def test_call_rejects_relative_names_next_to_arguments():
     """Test that a relative call takes no arguments."""
     with pytest.raises(ValidationError, match='remove the arguments'):
-        CallSpec(lambda t, n: n, (SR(1),), relative=True).check()
+        CallSpec(lambda t, n: n, (SR(1),), relative=True).prepare()
 
 
 def test_relative_call_reads_its_own_values_under_every_label():
     """Test that one function reads its own states under two labels and in a nested system."""
-    reference = Simulation(System(elements=[SymbolicElement('a')]), dt=0.01).check().prepare().run(until=1.0)
+    reference = Simulation(System(elements=[SymbolicElement('a')]), dt=0.01).prepare().run(until=1.0)
     expected = reference.trajectory_.values('a.n')[-1]
     inner = System('inner', elements=[RelativeElement('c')])
     system = System(elements=[RelativeElement('a'), RelativeElement('b', n=1.0)], systems=[inner])
-    trajectory = Simulation(system, dt=0.01).check().prepare().run(until=1.0).trajectory_
+    trajectory = Simulation(system, dt=0.01).prepare().run(until=1.0).trajectory_
     for name in ('a.n', 'b.n', 'inner/c.n'):
         assert trajectory.values(name)[-1] == pytest.approx(expected, rel=1e-6)
 
@@ -98,7 +98,7 @@ def test_random_call_repeats_with_one_seed():
 
     def run(seed):
         system = System(elements=[PolicyElement('a')], time=DiscreteTime())
-        simulation = Simulation(system, random_state=seed).check().prepare().run(until=50)
+        simulation = Simulation(system, random_state=seed).prepare().run(until=50)
         return simulation.trajectory_.values('a.n')
 
     first, second, other = run(1), run(1), run(2)
@@ -110,7 +110,7 @@ def test_vectorized_call_runs_once_over_the_group():
     """Test that a function declared to run over the whole group gets arrays of all members in one call."""
     BatchElement.shapes.clear()
     group = GroupElement('herd', element=BatchElement, size=1000)
-    trajectory = Simulation(System(elements=[group]), dt=0.01).check().prepare().run(until=0.03).trajectory_
+    trajectory = Simulation(System(elements=[group]), dt=0.01).prepare().run(until=0.03).trajectory_
     assert set(BatchElement.shapes) == {(1000,)}
     assert np.asarray(trajectory.values('herd.n'))[-1] == pytest.approx(np.full(1000, np.exp(0.015)), rel=1e-4)
 
@@ -160,7 +160,6 @@ def _final_counts(change, backend, seeds=40):
     return np.mean(
         [
             Simulation(system, backend=backend, random_state=seed)
-            .check()
             .prepare()
             .run(until=20.0)
             .trajectory_.values('a.n')[-1]
@@ -174,7 +173,7 @@ def test_jump_change_function_equals_the_number_on_numpy():
     system = System(elements=[ChangeElement('a', change=lambda t, values: 2.0)])
     reference = System(elements=[ChangeElement('a', change=2.0)])
     runs = [
-        Simulation(item, backend=NumpyBackend(), random_state=3).check().prepare().run(until=20.0).trajectory_
+        Simulation(item, backend=NumpyBackend(), random_state=3).prepare().run(until=20.0).trajectory_
         for item in (system, reference)
     ]
     assert np.array_equal(runs[0].values('a.n'), runs[1].values('a.n'))
@@ -184,7 +183,7 @@ def test_jump_change_function_reads_the_state_at_each_firing():
     """Test that each firing applies the change the function returns at the state of that firing."""
     change = CallSpec(lambda t, values: values['n'], relative=True)
     system = System(elements=[ChangeElement('a', change=change)])
-    values = Simulation(system, backend=NumpyBackend(), random_state=0).check().prepare().run(until=20.0)
+    values = Simulation(system, backend=NumpyBackend(), random_state=0).prepare().run(until=20.0)
     counts = np.unique(values.trajectory_.values('a.n'))
     assert set(np.log2(counts)) <= set(range(64))
     assert counts.size > 1
@@ -194,9 +193,7 @@ def test_jump_change_function_on_numba_runs_in_python():
     """Test that a jump whose change is a function falls back with the warning on the Numba backend."""
     system = System(elements=[ChangeElement('a', change=lambda t, values: 2.0)])
     with pytest.warns(BackendWarning, match='JumpLaw laws in Python'):
-        trajectory = (
-            Simulation(system, backend=NumbaBackend(), random_state=3).check().prepare().run(until=20.0).trajectory_
-        )
+        trajectory = Simulation(system, backend=NumbaBackend(), random_state=3).prepare().run(until=20.0).trajectory_
     assert np.all(np.asarray(trajectory.values('a.n')) % 2 == 1)
 
 
@@ -224,7 +221,7 @@ def _chain(matrix, backend=None):
     """Return the states of a long run of a chain."""
     system = System(elements=[ChainElement('a', matrix=matrix)], time=DiscreteTime())
     simulation = Simulation(system, backend=backend or NumpyBackend(), random_state=7)
-    return np.asarray(simulation.check().prepare().run(until=STEPS).trajectory_.values('a.x'), dtype=int)
+    return np.asarray(simulation.prepare().run(until=STEPS).trajectory_.values('a.x'), dtype=int)
 
 
 MATRIX = [[0.9, 0.1], [0.4, 0.6]]
@@ -282,16 +279,14 @@ def test_renewal_sampler_counts_like_its_constant_waiting_time(backend):
     """Test that a waiting time given as a function renews like the constant it returns."""
     system = System(elements=[WaitingElement('a', waiting=_waiting_sampler)])
     solver = RK4Solver(dt=0.01)
-    with_backend = (
-        Simulation(system, solver=solver, backend=backend(), random_state=0).check().prepare().run(until=10.2)
-    )
+    with_backend = Simulation(system, solver=solver, backend=backend(), random_state=0).prepare().run(until=10.2)
     assert with_backend.trajectory_.values('a.n')[-1] == pytest.approx(20.0)
 
 
 def test_jump_rejects_a_function_in_the_reset_of_a_renewal():
     """Test that a renewal says that its reset is symbolic."""
     with pytest.raises(ValidationError, match='takes symbolic values'):
-        JumpLaw(waiting=_waiting_sampler, reset={SR.var('n'): lambda t, values: 0.0}).check()
+        JumpLaw(waiting=_waiting_sampler, reset={SR.var('n'): lambda t, values: 0.0}).prepare()
 
 
 class SumElement(BaseCountElement):
@@ -313,7 +308,7 @@ class ReducedElement(BaseCountElement):
 def _reduced(element, backend):
     """Return the final values of a group that grows by a reduction over it."""
     group = GroupElement('herd', element=element, size=3, values={'n': [1.0, 2.0, 4.0]})
-    simulation = Simulation(System(elements=[group]), dt=0.01, backend=backend).check().prepare().run(until=0.5)
+    simulation = Simulation(System(elements=[group]), dt=0.01, backend=backend).prepare().run(until=0.5)
     return np.asarray(simulation.trajectory_.values('herd.n'))[-1]
 
 
@@ -340,11 +335,7 @@ def test_observable_function_records_its_value_at_every_frame():
     for backend in (NumpyBackend(), NumbaBackend()):
         system = System(elements=[SymbolicElement('a')])
         trajectory = (
-            Simulation(system, dt=0.1, observables=observables, backend=backend)
-            .check()
-            .prepare()
-            .run(until=1.0)
-            .trajectory_
+            Simulation(system, dt=0.1, observables=observables, backend=backend).prepare().run(until=1.0).trajectory_
         )
         expected = 2.0 * np.asarray(trajectory.values('a.n')) + np.asarray(trajectory.times)
         assert np.asarray(trajectory.values('learned')) == pytest.approx(expected)
@@ -393,7 +384,7 @@ def _burgers(element):
         discretization='finite-volume',
     )
     simulation = Simulation(System(elements=[field]), dt=0.5, solver=SSPRKSolver())
-    return np.asarray(simulation.check().prepare().run(until=0.5).trajectory_.values('line.u'))[-1]
+    return np.asarray(simulation.prepare().run(until=0.5).trajectory_.values('line.u'))[-1]
 
 
 def test_flux_law_speed_function_equals_the_eigenvalues():
@@ -405,6 +396,6 @@ def test_flux_law_rejects_a_function_as_a_flux_or_a_speed_of_godunov():
     """Test that a flux says it is symbolic only and names the callable alternative."""
     u = SR.var('u')
     with pytest.raises(ValidationError, match=r'symbolic only.*speed='):
-        FluxLaw(u, lambda t, values: values['u'], riemann='godunov').check()
+        FluxLaw(u, lambda t, values: values['u'], riemann='godunov').prepare()
     with pytest.raises(ValidationError, match='takes no `speed`'):
-        FluxLaw(u, u**2 / 2, riemann='godunov', speed=lambda t, values: values['u']).check()
+        FluxLaw(u, u**2 / 2, riemann='godunov', speed=lambda t, values: values['u']).prepare()

@@ -157,7 +157,7 @@ class CouplingInteraction(NeighborInteraction):
         ValidationError:
             A variant is unknown, the function or the combination is not callable, the weights, the source, the
             reduction, or the neighbourhood do not suit the mode and the form, or the radii, the clamp, the phase, or
-            the written states do not suit the form, raised by `check`.
+            the written states do not suit the form, raised by `prepare`.
 
     Examples:
         >>> from types import SimpleNamespace
@@ -166,7 +166,7 @@ class CouplingInteraction(NeighborInteraction):
         >>> source, target = SimpleNamespace(theta=var('a')), SimpleNamespace(theta=var('b'))
         >>> sine = lambda s: sin(s.other.theta - s.member.theta)
         >>> coupling = CouplingInteraction('coupling', target='oscillators', read='theta', write='theta', function=sine)
-        >>> [law.value for law in coupling.check().prepare().run(SimpleNamespace(source=source, target=target)).laws_]
+        >>> [law.value for law in coupling.prepare().run(SimpleNamespace(source=source, target=target)).laws_]
         [sin(a - b), sin(-a + b)]
     """
 
@@ -318,9 +318,9 @@ class CouplingInteraction(NeighborInteraction):
             error_msg = f'The agent form of coupling {self.label!r} needs one group of agents and at least one radius.'
             raise ValidationError(error_msg)
         for spec in self.radii:
-            spec.check()
+            spec._validated()
         if self.clamp is not None:
-            self.clamp.check()
+            self.clamp._validated()
 
     def _check(self) -> None:
         """Raise an error for unknown variants, functions that cannot be called, or weights that do not suit the mode.

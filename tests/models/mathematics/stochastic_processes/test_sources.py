@@ -13,7 +13,7 @@ TWO_STATE = ((0.9, 0.1), (0.4, 0.6))
 def test_markov_source_has_the_entropy_rate_of_its_chain():
     """Test that the entropy rate estimated from block entropies is 0.569 bits."""
     symbols = _series('markov_source', 100000, transition=TWO_STATE).values('source.symbol')
-    rate = EntropyAnalysis('rate', dimension=8).check().prepare(symbols.astype(int)).run().entropy_[0]
+    rate = EntropyAnalysis('rate', dimension=8).prepare(symbols.astype(int)).run().entropy_[0]
     assert rate == pytest.approx(0.569, abs=0.01)
 
 

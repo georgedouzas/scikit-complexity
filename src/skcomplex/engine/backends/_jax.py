@@ -101,7 +101,7 @@ class JaxBackend(BaseBackend):
             raise BackendError(error_msg)
         arguments = kernel.arguments
         readers = [JaxBackend._reader(kernel.references[item], kernel.owner) for item in arguments]
-        printer = ExpressionPrinter('jax', time=kernel.time, compiled=True).check().prepare(arguments)
+        printer = ExpressionPrinter('jax', time=kernel.time, compiled=True).prepare(arguments)
         function = ExpressionPrinter._function_of(printer.run([item.expression for item in kernel.outputs]).code_)
         rows = kernel.rows
 
@@ -209,7 +209,7 @@ class JaxBackend(BaseBackend):
             raise BackendError(error_msg)
         symbols = reduction.symbols
         reads = [(reduction.reads[item].is_state, reduction.reads[item].index) for item in symbols]
-        printer = ExpressionPrinter('jax', time=reduction.time, compiled=True).check().prepare(symbols)
+        printer = ExpressionPrinter('jax', time=reduction.time, compiled=True).prepare(symbols)
         condition = reduction.condition if reduction.condition is not None else 1
         function = ExpressionPrinter._function_of(printer.run([reduction.argument, condition]).code_)
         kind, size, entry = reduction.kind, reduction.size, reduction.entry

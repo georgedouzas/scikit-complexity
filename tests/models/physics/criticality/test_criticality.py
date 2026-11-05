@@ -19,15 +19,13 @@ def test_sandpile_avalanches_follow_power_law():
     8,000 grains, more than twice the grains that fill the pile to its critical density, between sizes 1 and 100.
     """
     observer = EventsObserver(lambda frame: (frame.lattice('pile.height') < 4).all())
-    simulation = (
-        Simulation(sandpile((40, 40)), dt=1000, record=False, random_state=0, observers=[observer]).check().prepare()
-    )
+    simulation = Simulation(sandpile((40, 40)), dt=1000, record=False, random_state=0, observers=[observer]).prepare()
     simulation.run(until=30_000)
     sizes = np.asarray([event.size for event in observer.events_ if event.time > 8_000])
     assert observer.passed_
     assert sizes.max() > 1000
     assert {event.label for event in observer.events_} == {'avalanche'}
-    histogram = DistributionAnalysis('histogram', bins=20, log=True).check().prepare(sizes).run()
+    histogram = DistributionAnalysis('histogram', bins=20, log=True).prepare(sizes).run()
     edges, density = histogram.edges_, histogram.density_
     centers = np.sqrt(edges[1:] * edges[:-1])
     decades = (centers >= 1) & (centers <= 100) & (density > 0)
@@ -41,7 +39,7 @@ def test_forest_fire_burns_graph_by_distance():
     cover = np.ones(500)
     cover[0] = 2
     system = hexagonal_forest_fire(graph=graph, growth=0.0, lightning=0.0, cover=cover)
-    covers = Simulation(system, dt=1).check().prepare().run(until=40).trajectory_.values('forest.cover')
+    covers = Simulation(system, dt=1).prepare().run(until=40).trajectory_.values('forest.cover')
     distances = nx.single_source_shortest_path_length(graph, 0)
     assert (covers == 2).any(axis=0).all()
     assert np.array_equal(np.argmax(covers == 2, axis=0), [distances[node] for node in graph.nodes])
@@ -49,9 +47,7 @@ def test_forest_fire_burns_graph_by_distance():
 
 def test_manna_sandpile_settles_below_two_grains():
     """Test that the Manna pile records avalanches, stays stable between grains, and fills to a critical density."""
-    trajectory = (
-        Simulation(manna_sandpile((16, 16)), dt=100, random_state=0).check().prepare().run(until=3000).trajectory_
-    )
+    trajectory = Simulation(manna_sandpile((16, 16)), dt=100, random_state=0).prepare().run(until=3000).trajectory_
     heights = trajectory.lattice('pile.height')
     assert heights.max() < 2
     assert trajectory.events

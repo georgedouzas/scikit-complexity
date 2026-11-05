@@ -28,7 +28,7 @@ def equilibrium(namespace: SimpleNamespace) -> object:
 def bgk_final(step: float) -> npt.NDArray[np.float64]:
     """Return the final state of a BGK field run with split steps of a length."""
     size, length = 16, 2 * np.pi
-    space = PhaseSpace(LatticeSpace((size,), spacing=length / size), [AxisSpec('v', 32, -8.0, 8.0)]).check().prepare()
+    space = PhaseSpace(LatticeSpace((size,), spacing=length / size), [AxisSpec('v', 32, -8.0, 8.0)]).prepare()
     v, x = space.coordinates_['v'], np.arange(size) * length / size
     start = np.outer(1.0 + 0.5 * np.sin(x), np.exp(-(v**2) / 2)) + np.outer(
         1.0 + 0.5 * np.cos(x),
@@ -39,7 +39,7 @@ def bgk_final(step: float) -> npt.NDArray[np.float64]:
     relax = RelaxationInteraction('r', target='gas', state='f', goal=equilibrium, time=0.5)
     solver = StrangSplittingSolver(SemiLagrangianSolver(dt=step), RK4Solver(dt=step), dt=step)
     system = System(elements=[gas], interactions=[stream, relax])
-    return Simulation(system, dt=1.0, solver=solver).check().prepare().run(until=1.0).trajectory_.values('gas.f')[-1]
+    return Simulation(system, dt=1.0, solver=solver).prepare().run(until=1.0).trajectory_.values('gas.f')[-1]
 
 
 def test_splitting_is_second_order_in_the_time_step() -> None:
@@ -56,7 +56,7 @@ def test_prepare_rejects_a_problem_without_fluxes() -> None:
     space = PhaseSpace(LatticeSpace((2,)), [AxisSpec('v', 4, -1.0, 1.0)])
     gas = FieldElement('gas', element=DensityElement, space=space, values={'f': 1.0})
     relax = RelaxationInteraction('r', target='gas', state='f', goal=equilibrium, time=0.5)
-    simulation = Simulation(System(elements=[gas], interactions=[relax]), solver=StrangSplittingSolver(dt=0.1)).check()
+    simulation = Simulation(System(elements=[gas], interactions=[relax]), solver=StrangSplittingSolver(dt=0.1))
     with pytest.raises(SolverError, match='no flux'):
         simulation.prepare().run(until=0.1)
 
@@ -67,6 +67,6 @@ def test_prepare_rejects_an_inner_solver_that_lacks_its_part() -> None:
     gas = FieldElement('gas', element=DensityElement, space=space, values={'f': 1.0}, discretization='finite-volume')
     stream = AdvectionInteraction('s', target='gas', state='f', drift=lambda _: [coordinate('v'), 0])
     solver = StrangSplittingSolver(EulerMaruyamaSolver(dt=0.1), RK4Solver(dt=0.1), dt=0.1)
-    simulation = Simulation(System(elements=[gas], interactions=[stream]), solver=solver).check()
+    simulation = Simulation(System(elements=[gas], interactions=[stream]), solver=solver)
     with pytest.raises(SolverError):
         simulation.prepare().run(until=0.1)

@@ -58,12 +58,12 @@ def test_coordinate_rejects_a_name_that_is_no_identifier() -> None:
 
 def test_coordinate_lowering_gives_maxwellian_start_unit_density() -> None:
     """Give a Maxwellian start the density 1 at every position within the quadrature error of the grid."""
-    space = PhaseSpace(LatticeSpace((4,)), [AxisSpec('v', 128, -6.0, 6.0)]).check().prepare()
+    space = PhaseSpace(LatticeSpace((4,)), [AxisSpec('v', 128, -6.0, 6.0)]).prepare()
     v = space.coordinates_['v']
     start = np.tile(np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi), (4, 1))
     field = FieldElement('gas', element=DensityElement, space=space, values={'f': start})
     observables = [ObservableSpec('rho', density, group='gas')]
-    simulation = Simulation(System(elements=[field]), dt=0.1, observables=observables).check().prepare()
+    simulation = Simulation(System(elements=[field]), dt=0.1, observables=observables).prepare()
     values = np.asarray(simulation.run(until=0.1).trajectory_.values('rho'))
     assert np.abs(values - 1.0).max() < 1e-6
 
@@ -71,13 +71,13 @@ def test_coordinate_lowering_gives_maxwellian_start_unit_density() -> None:
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 def test_coordinate_lowers_on_numpy_and_numba(backend: object) -> None:
     """Stream by the same stencils and rates that read a coordinate on the NumPy and the Numba backends."""
-    space = PhaseSpace(LatticeSpace((8,), spacing=0.5), [AxisSpec('v', 4, -1.0, 1.0)]).check().prepare()
+    space = PhaseSpace(LatticeSpace((8,), spacing=0.5), [AxisSpec('v', 4, -1.0, 1.0)]).prepare()
     start = np.outer(2.0 + np.sin(np.arange(8)), np.ones(4))
     gas = FieldElement('gas', element=DensityElement, space=space, values={'f': start})
     stream = AdvectionInteraction('s', target='gas', state='f', drift=lambda _: [coordinate('v'), 0], riemann=None)
     grow = RateInteraction('g', target='gas', state='f', rate=lambda s: coordinate('v') * s.target.f)
     system = System(elements=[gas], interactions=[stream, grow])
-    simulation = Simulation(system, backend=backend, solver=RK4Solver(dt=0.01)).check().prepare()
+    simulation = Simulation(system, backend=backend, solver=RK4Solver(dt=0.01)).prepare()
     final = simulation.run(until=0.1).trajectory_.values('gas.f')[-1].reshape(8, 4)
     grown = np.exp(0.1 * space.coordinates_['v'])
     assert final.sum(axis=0) == pytest.approx(start.sum(axis=0) * grown, rel=1e-3)
@@ -87,7 +87,7 @@ def test_coordinate_outside_phase_space_is_a_law_space_issue() -> None:
     """Report a coordinate read by a law whose group lives on a lattice without class axes."""
     field = FieldElement('gas', element=DensityElement, space=LatticeSpace((4,)))
     rate = RateInteraction('rate', target='gas', state='f', rate=lambda _: coordinate('v'))
-    report = PassCompiler().check().prepare(System(elements=[field], interactions=[rate])).report_
+    report = PassCompiler().prepare(System(elements=[field], interactions=[rate])).report_
     assert any(issue.code == 'law-space' and 'class axes v' in issue.message for issue in report.issues)
 
 
@@ -96,7 +96,7 @@ def test_coordinate_of_missing_axis_names_axes_held() -> None:
     space = PhaseSpace(LatticeSpace((4,)), [AxisSpec('v', 4, -1.0, 1.0)])
     field = FieldElement('gas', element=DensityElement, space=space)
     rate = RateInteraction('rate', target='gas', state='f', rate=lambda _: coordinate('w'))
-    report = PassCompiler().check().prepare(System(elements=[field], interactions=[rate])).report_
+    report = PassCompiler().prepare(System(elements=[field], interactions=[rate])).report_
     issues = [issue for issue in report.issues if issue.code == 'law-space']
     assert issues
     assert "['v']" in issues[0].message
@@ -106,7 +106,7 @@ def test_moment_outside_phase_space_is_a_law_space_issue() -> None:
     """Report a moment over axes in a law whose group lives on a lattice without class axes."""
     field = FieldElement('gas', element=DensityElement, space=LatticeSpace((4,)))
     rate = RateInteraction('rate', target='gas', state='f', rate=lambda s: moment(s.target.f, 0, axes=('v',)))
-    report = PassCompiler().check().prepare(System(elements=[field], interactions=[rate])).report_
+    report = PassCompiler().prepare(System(elements=[field], interactions=[rate])).report_
     assert any(issue.code == 'law-space' for issue in report.issues)
 
 
@@ -127,7 +127,7 @@ def test_moment_with_axes_is_reduce_axes_of_coordinates() -> None:
 def test_moments_of_a_shifted_maxwellian_return_density_mean_and_temperature() -> None:
     """Return the density 2, the mean velocity 0.5, and the temperature 1.5 at every position within 1e-8."""
     size = 3
-    space = PhaseSpace(LatticeSpace((size,)), [AxisSpec('v', 256, -16.0, 16.0)]).check().prepare()
+    space = PhaseSpace(LatticeSpace((size,)), [AxisSpec('v', 256, -16.0, 16.0)]).prepare()
     v = space.coordinates_['v']
     start = 2.0 * np.exp(-((v - 0.5) ** 2) / 3.0) / np.sqrt(3.0 * np.pi)
     field = FieldElement('gas', element=DensityElement, space=space, values={'f': np.tile(start, (size, 1))})
@@ -136,7 +136,7 @@ def test_moments_of_a_shifted_maxwellian_return_density_mean_and_temperature() -
         ObservableSpec('mean', mean_at, group='gas'),
         ObservableSpec('temperature', temperature_at, group='gas'),
     ]
-    simulation = Simulation(System(elements=[field]), dt=0.1, observables=observables).check().prepare()
+    simulation = Simulation(System(elements=[field]), dt=0.1, observables=observables).prepare()
     trajectory = simulation.run(until=0.1).trajectory_
     assert np.abs(np.asarray(trajectory.values('rho'))[-1] - 2.0).max() < 1e-8
     assert np.abs(np.asarray(trajectory.values('mean'))[-1] - 0.5).max() < 1e-8
@@ -155,7 +155,7 @@ def temperature_at(namespace: SimpleNamespace) -> object:
 
 def test_rate_over_position_reads_moment_of_phase_field_through_operators() -> None:
     """Lower a drift that reads the gradient of the potential of its own density moment."""
-    space = PhaseSpace(LatticeSpace((16,), spacing=4 * np.pi / 16), [AxisSpec('v', 32, -6.0, 6.0)]).check().prepare()
+    space = PhaseSpace(LatticeSpace((16,), spacing=4 * np.pi / 16), [AxisSpec('v', 32, -6.0, 6.0)]).prepare()
     v = space.coordinates_['v']
     x = np.arange(16) * 4 * np.pi / 16
     start = np.outer(1.0 + 0.01 * np.cos(0.5 * x), np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi))
@@ -168,16 +168,14 @@ def test_rate_over_position_reads_moment_of_phase_field_through_operators() -> N
     )
     drift = AdvectionInteraction('vlasov', target='gas', state='f', drift=potential_force)
     system = System(elements=[field], interactions=[drift])
-    final = (
-        Simulation(system, solver=RK4Solver(dt=0.05)).check().prepare().run(until=0.5).trajectory_.values('gas.f')[-1]
-    )
+    final = Simulation(system, solver=RK4Solver(dt=0.05)).prepare().run(until=0.5).trajectory_.values('gas.f')[-1]
     assert abs(final.sum() / start.sum() - 1.0) < 1e-12
 
 
 def test_drift_reads_field_over_position_through_sources() -> None:
     """Accelerate only the classes at the positions where a field over the position lattice is nonzero."""
     lattice = LatticeSpace((2,))
-    space = PhaseSpace(lattice, [AxisSpec('v', 32, -4.0, 4.0)]).check().prepare()
+    space = PhaseSpace(lattice, [AxisSpec('v', 32, -4.0, 4.0)]).prepare()
     start = np.tile(np.exp(-(space.coordinates_['v'] ** 2)), (2, 1))
     gas = FieldElement('gas', element=DensityElement, space=space, values={'f': start}, discretization='finite-volume')
     force = FieldElement('force', element=DensityElement, space=lattice, values={'f': [1.0, 0.0]})
@@ -189,7 +187,7 @@ def test_drift_reads_field_over_position_through_sources() -> None:
         sources=['force'],
     )
     system = System(elements=[gas, force], interactions=[drift])
-    final = Simulation(system, solver=RK4Solver(dt=0.01)).check().prepare().run(until=0.5).trajectory_
+    final = Simulation(system, solver=RK4Solver(dt=0.01)).prepare().run(until=0.5).trajectory_
     values = final.values('gas.f')[-1].reshape(2, 32)
     assert np.array_equal(values[1], start[1])
     assert np.average(space.coordinates_['v'], weights=values[0]) == pytest.approx(0.5, abs=0.01)
@@ -198,7 +196,7 @@ def test_drift_reads_field_over_position_through_sources() -> None:
 def test_rate_over_position_reads_moment_through_sources() -> None:
     """Grow a field over the position lattice at the rate of the density moment of a phase-space field."""
     lattice = LatticeSpace((3,))
-    space = PhaseSpace(lattice, [AxisSpec('v', 8, -1.0, 1.0)]).check().prepare()
+    space = PhaseSpace(lattice, [AxisSpec('v', 8, -1.0, 1.0)]).prepare()
     start = np.ones((3, 8)) * np.array([[1.0], [2.0], [3.0]])
     gas = FieldElement('gas', element=DensityElement, space=space, values={'f': start})
     level = FieldElement('level', element=DensityElement, space=lattice)
@@ -210,7 +208,7 @@ def test_rate_over_position_reads_moment_through_sources() -> None:
         sources=['gas'],
     )
     system = System(elements=[gas, level], interactions=[rate])
-    final = Simulation(system, solver=RK4Solver(dt=0.1)).check().prepare().run(until=1.0).trajectory_
+    final = Simulation(system, solver=RK4Solver(dt=0.1)).prepare().run(until=1.0).trajectory_
     assert final.values('level.f')[-1] == pytest.approx([2.0, 4.0, 6.0])
 
 
@@ -222,7 +220,7 @@ def test_maximum_entropy_rejects_an_order_above_two() -> None:
 
 def test_relaxation_to_maximum_entropy_conserves_moments_and_raises_entropy() -> None:
     """Keep density, momentum, and energy within 1e-12, converge to a Maxwellian, and never lower the entropy."""
-    space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('v', 128, -16.0, 16.0)]).check().prepare()
+    space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('v', 128, -16.0, 16.0)]).prepare()
     v = space.coordinates_['v']
     width = space.spacings_[1]
     start = np.exp(-((v - 2.0) ** 2) / 2) + 0.5 * np.exp(-((v + 2.0) ** 2) / 2)
@@ -235,7 +233,7 @@ def test_relaxation_to_maximum_entropy_conserves_moments_and_raises_entropy() ->
         time=1.0,
     )
     system = System(elements=[gas], interactions=[relax])
-    simulation = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.1)).check().prepare()
+    simulation = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.1)).prepare()
     values = np.asarray(simulation.run(until=50.0).trajectory_.values('gas.f'))
     moments = values @ np.stack([np.ones(v.size), v, v**2], axis=1) * width
     assert np.abs(moments[-1] / moments[0] - 1.0).max() < 1e-12
@@ -250,7 +248,7 @@ def test_relaxation_to_maximum_entropy_conserves_moments_and_raises_entropy() ->
 def test_maximum_entropy_of_two_axes_keeps_every_moment_at_every_position() -> None:
     """Keep the moments of a density over two class axes at two positions in the equilibrium."""
     axes = [AxisSpec('a', 24, -6.0, 6.0), AxisSpec('b', 24, -6.0, 6.0)]
-    space = PhaseSpace(LatticeSpace((2,)), axes).check().prepare()
+    space = PhaseSpace(LatticeSpace((2,)), axes).prepare()
     a, b = np.meshgrid(space.coordinates_['a'], space.coordinates_['b'], indexing='ij')
     first = np.exp(-((a - 1.0) ** 2) - b**2) + np.exp(-((a + 1.0) ** 2) - (b - 1.0) ** 2)
     start = np.stack([first, 2.0 * first[::-1]])
@@ -262,7 +260,7 @@ def test_maximum_entropy_of_two_axes_keeps_every_moment_at_every_position() -> N
         goal=lambda s: maximum_entropy(s.target.f, axes=('a', 'b')),
         time=1.0,
     )
-    simulation = Simulation(System(elements=[gas], interactions=[relax]), solver=RK4Solver(dt=0.2)).check().prepare()
+    simulation = Simulation(System(elements=[gas], interactions=[relax]), solver=RK4Solver(dt=0.2)).prepare()
     final = simulation.run(until=1.0).trajectory_.values('gas.f')[-1].reshape(start.shape)
     for basis in (np.ones(a.shape), a, b, a**2 + b**2):
         assert np.sum(final * basis, axis=(1, 2)) == pytest.approx(np.sum(start * basis, axis=(1, 2)), rel=1e-11)
@@ -272,7 +270,7 @@ def test_landau_damping_decays_at_the_linear_rate() -> None:
     """Damp the electric energy at the linear Landau rate 0.1533 within 5 percent up to time 30."""
     positions, velocities, length = 64, 128, 4 * np.pi
     axis = AxisSpec('v', velocities, -6.0, 6.0)
-    space = PhaseSpace(LatticeSpace((positions,), spacing=length / positions), [axis]).check().prepare()
+    space = PhaseSpace(LatticeSpace((positions,), spacing=length / positions), [axis]).prepare()
     v = space.coordinates_['v']
     x = np.arange(positions) * length / positions
     start = np.outer(1.0 + 0.01 * np.cos(0.5 * x), np.exp(-(v**2) / 2) / np.sqrt(2 * np.pi))
@@ -286,7 +284,7 @@ def test_landau_damping_decays_at_the_linear_rate() -> None:
     drift = AdvectionInteraction('vlasov', target='gas', state='f', drift=potential_force, riemann=None)
     observables = [ObservableSpec('energy', electric_energy, group='gas')]
     system = System(elements=[field], interactions=[drift])
-    simulation = Simulation(system, dt=0.1, solver=RK4Solver(dt=0.05), observables=observables).check().prepare()
+    simulation = Simulation(system, dt=0.1, solver=RK4Solver(dt=0.05), observables=observables).prepare()
     trajectory = simulation.run(until=30.0).trajectory_
     energy = np.asarray(trajectory.values('energy'), dtype=float)
     times = np.asarray(trajectory.times)

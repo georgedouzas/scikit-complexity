@@ -17,23 +17,19 @@ from skcomplex.specs import PhaseSpec, PhasesScheduleSpec, ScheduleSpec, StateSp
 
 def test_ordered_phases_are_a_schedule():
     """Test that a discrete time with phases lists them in order, and rejects repeated names."""
-    time = (
-        DiscreteTime(
-            schedule=PhasesScheduleSpec([PhaseSpec('produce'), PhaseSpec('trade'), PhaseSpec('consume')]),
-        )
-        .check()
-        .prepare()
-    )
+    time = DiscreteTime(
+        schedule=PhasesScheduleSpec([PhaseSpec('produce'), PhaseSpec('trade'), PhaseSpec('consume')]),
+    ).prepare()
     assert isinstance(time.schedule_, ScheduleSpec)
     assert [phase.name for phase in time.schedule_.phases] == ['produce', 'trade', 'consume']
     with pytest.raises(ValidationError, match='repeat a name'):
-        DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('trade'), PhaseSpec('trade')])).check().prepare()
+        DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('trade'), PhaseSpec('trade')])).prepare()
 
 
 def test_phase_rejects_unknown_activation():
     """Test that a phase rejects an activation policy it does not know."""
     with pytest.raises(ValidationError, match='Unknown activation'):
-        PhasesScheduleSpec([PhaseSpec('trade', activation='parallel')]).check()
+        PhasesScheduleSpec([PhaseSpec('trade', activation='parallel')]).prepare()
 
 
 class EmployerElement(Element):
@@ -93,7 +89,7 @@ def test_offer_before_acceptance():
         ],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('offers'), PhaseSpec('acceptance')])),
     )
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=10).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=10).trajectory_
     workers = trajectory.agents('workers', 10)
     assert np.all(workers.values['stale'] == 0)
     assert np.all(workers.values['accepted'] == trajectory.agents('employers', 10).values['offer'].max())
@@ -103,7 +99,7 @@ def test_undeclared_phase_raises():
     """A rule in a phase that the system does not declare raises an error."""
     system = System(elements=[GroupElement('employers', element=EmployerElement, size=2)])
     with pytest.raises(SimulationError, match='offers'):
-        Simulation(system).check().prepare().run(until=1)
+        Simulation(system).prepare().run(until=1)
 
 
 def test_run_reads_the_phases_of_a_nested_system():
@@ -113,7 +109,7 @@ def test_run_reads_the_phases_of_a_nested_system():
         elements=[GroupElement('employers', element=EmployerElement, size=2)],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('offers')])),
     )
-    trajectory = Simulation(System(systems=[nested]), random_state=0).check().prepare().run(until=3).trajectory_
+    trajectory = Simulation(System(systems=[nested]), random_state=0).prepare().run(until=3).trajectory_
     assert np.all(trajectory.agents('market/employers', 3).values['offer'] == 4.0)
 
 
@@ -141,7 +137,7 @@ def test_phases_keep_unphased_models():
         elements=[GroupElement('counters', element=CounterElement, size=3)],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('extra', repeat=2)])),
     )
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=4).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=4).trajectory_
     assert trajectory.agents('counters', 4).values['count'].tolist() == [4.0, 4.0, 4.0]
 
 
@@ -166,7 +162,7 @@ def test_sequential_and_by_type_order():
             schedule=PhasesScheduleSpec([PhaseSpec('go', activation='by-type', groups=['second', 'first'])]),
         ),
     )
-    Simulation(system, random_state=0).check().prepare().run(until=1)
+    Simulation(system, random_state=0).prepare().run(until=1)
     assert [group for group, _ in seen] == ['second'] * 3 + ['first'] * 3
     seen.clear()
     sequential = System(
@@ -176,13 +172,13 @@ def test_sequential_and_by_type_order():
         ],
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('go', 'sequential')])),
     )
-    Simulation(sequential, random_state=0).check().prepare().run(until=1)
+    Simulation(sequential, random_state=0).prepare().run(until=1)
     assert [identity for _, identity in seen] == sorted(identity for _, identity in seen)
 
 
 def test_phase_checks_arguments():
     """A schedule rejects a phase with an unknown activation or fewer than one round."""
     with pytest.raises(ValidationError, match='activation'):
-        PhasesScheduleSpec([PhaseSpec('x', activation='parallel')]).check()
+        PhasesScheduleSpec([PhaseSpec('x', activation='parallel')]).prepare()
     with pytest.raises(ValidationError, match='round'):
-        PhasesScheduleSpec([PhaseSpec('x', repeat=0)]).check()
+        PhasesScheduleSpec([PhaseSpec('x', repeat=0)]).prepare()

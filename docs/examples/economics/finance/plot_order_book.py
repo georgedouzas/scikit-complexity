@@ -45,7 +45,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=STEPS)
 )
@@ -63,7 +62,6 @@ volatility, deviation = [], []
 for share in shares:
     run = (
         Simulation(create(MODEL, chartists=share, imitation=0.0, random_state=0), random_state=0)
-        .check()
         .prepare()
         .run(until=STEPS)
     )

@@ -22,7 +22,7 @@ def _training(**arguments):
 def test_check_unknown_optimizer():
     """Test that an unknown optimizer raises an error naming it and the supported ones."""
     with pytest.raises(ValidationError, match="'lbfgs-b'") as error:
-        _training(optimizer='lbfgs-b').check()
+        _training(optimizer='lbfgs-b').prepare()
     assert all(repr(name) in str(error.value) for name in OPTIMIZERS)
 
 
@@ -30,7 +30,7 @@ def test_check_unknown_optimizer():
 def test_check_counts_that_are_not_positive_integers(name, value):
     """Test that a batch size or a truncation that is not a positive integer raises an error."""
     with pytest.raises(ValidationError, match=name):
-        _training(**{name: value}).check()
+        _training(**{name: value}).prepare()
 
 
 @pytest.mark.parametrize(
@@ -45,12 +45,12 @@ def test_check_trained_data_and_metrics(arguments):
         **{'trained': ['readout.W'], 'loss': LOSS, 'data': DATA, **arguments},
     )
     with pytest.raises(ValidationError):
-        training.check()
+        training.prepare()
 
 
 def test_run_returns_the_gradient_step_law():
     """Test that the training returns one gradient-step law with its arguments."""
-    laws = _training(truncation=1).check().prepare().run(SimpleNamespace()).laws_
+    laws = _training(truncation=1).prepare().run(SimpleNamespace()).laws_
     assert len(laws) == 1
     assert isinstance(laws[0], GradientStepLaw)
     assert (laws[0].trained, laws[0].truncation, laws[0].optimizer) == (['readout.W'], 1, 'adam')

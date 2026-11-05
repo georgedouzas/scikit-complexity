@@ -67,7 +67,7 @@ def _link_order(
 
 def _topological_observables(system: System) -> list[ObservableSpec]:
     """Return the order parameters of the node phases and of the projections of the link phases."""
-    space = system.elements[0].space.check().prepare()
+    space = system.elements[0].space.prepare()
     return [
         ObservableSpec('node_order', function=_node_order),
         ObservableSpec('link_order', function=partial(_link_order, *space.incidences_[:2])),
@@ -121,12 +121,12 @@ def topological_kuramoto(
 
     Examples:
         >>> from skcomplex.models.physics.synchronization import topological_kuramoto
-        >>> [element.size_ for element in topological_kuramoto(6, density=0.8).check().prepare().elements]
+        >>> [element.size_ for element in topological_kuramoto(6, density=0.8).prepare().elements]
         [6, 13]
     """
     rng = np.random.default_rng(seed)
     graph = nx.gnp_random_graph(n_nodes, density, seed=seed)
-    space = CellComplexSpace(NetworkSpace(graph), faces='cliques').check().prepare()
+    space = CellComplexSpace(NetworkSpace(graph), faces='cliques').prepare()
     n_links = space.incidences_[0].shape[0]
     nodes = GroupElement(
         'nodes',

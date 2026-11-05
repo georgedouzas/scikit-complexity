@@ -24,7 +24,7 @@ MODEL = 'sandpile'
 
 system = create(MODEL, shape=(48, 48), random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=50, observers=[observer], random_state=0).check().prepare().run(until=14950)
+simulation = Simulation(system, dt=50, observers=[observer], random_state=0).prepare().run(until=14950)
 
 # %%
 # Self-organized criticality
@@ -37,11 +37,10 @@ simulation = Simulation(system, dt=50, observers=[observer], random_state=0).che
 heights = simulation.trajectory_.values('pile.height').mean(axis=1)
 found = (
     EventAnalysis('excursions')
-    .check()
     .prepare([record for record in simulation.trajectory_.events if record.time > 5000 and record.size > 0])
     .run()
 )
-histogram = DistributionAnalysis('histogram', bins=20, log=True).check().prepare(found.sizes_).run()
+histogram = DistributionAnalysis('histogram', bins=20, log=True).prepare(found.sizes_).run()
 edges, density = histogram.edges_, histogram.density_
 centers = np.sqrt(edges[1:] * edges[:-1])
 shown = density > 0

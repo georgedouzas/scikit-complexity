@@ -117,7 +117,6 @@ def _heat_kernel(backend):
     rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(n, spacing=spacing), values={'u': initial})
     values = (
         Simulation(System(elements=[rod]), dt=0.5, solver=RK4Solver(dt=0.001), backend=backend)
-        .check()
         .prepare()
         .run(until=0.5)
         .state_
@@ -133,9 +132,7 @@ def test_uniform_decay():
             Simulation(
                 System(elements=[FieldElement('grid', element=DecayElement, space=LatticeSpace((50, 50)))]),
                 dt=0.5,
-            )
-            .check()
-            .prepare()
+            ).prepare()
         )
         .run(2)
         .trajectory_
@@ -158,7 +155,7 @@ def test_diffusion_on_network():
     system = System(
         elements=[FieldElement('net', element=HeatElement, space=NetworkSpace(graph), values={'u': initial})],
     )
-    values = Simulation(system, dt=1).check().prepare().run(until=60).trajectory_.values('net.u')
+    values = Simulation(system, dt=1).prepare().run(until=60).trajectory_.values('net.u')
     assert values.sum(axis=1) == pytest.approx(np.full(len(values), initial.sum()))
     assert np.abs(values[-1] - initial.mean()).max() < 1e-4
 
@@ -171,7 +168,7 @@ def test_diffusion_on_network_without_edges():
             FieldElement('net', element=HeatElement, space=NetworkSpace(nx.empty_graph(2)), values={'u': initial}),
         ],
     )
-    values = Simulation(system, dt=1).check().prepare().run(until=3).trajectory_.values('net.u')
+    values = Simulation(system, dt=1).prepare().run(until=3).trajectory_.values('net.u')
     assert values[-1] == pytest.approx(initial)
 
 
@@ -188,7 +185,6 @@ def test_zero_flux_conserves_mass(backend):
     )
     totals = (
         Simulation(System(elements=[plate]), dt=1, backend=backend())
-        .check()
         .prepare()
         .run(until=30)
         .trajectory_.values('plate.u')
@@ -201,7 +197,7 @@ def test_zero_flux_conserves_mass(backend):
 def test_fixed_boundary_holds_edge_value():
     """Test that a fixed boundary drives a line towards the linear profile between its two edge values."""
     rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(20), boundary={'u': ('fixed', 1.0)})
-    values = Simulation(System(elements=[rod]), dt=50).check().prepare().run(until=500).state_
+    values = Simulation(System(elements=[rod]), dt=50).prepare().run(until=500).state_
     assert values == pytest.approx(np.ones(20), abs=1e-3)
 
 
@@ -215,9 +211,7 @@ def test_advection_and_divergence():
             Simulation(
                 System(elements=[FieldElement('a', element=DriftElement, space=space, values={'u': profile})]),
                 dt=1,
-            )
-            .check()
-            .prepare()
+            ).prepare()
         )
         .run(2)
         .state_
@@ -229,7 +223,6 @@ def test_advection_and_divergence():
             System(elements=[FieldElement('d', element=SpreadElement, space=space, values={'u': profile})]),
             dt=1,
         )
-        .check()
         .prepare()
         .run(1)
         .state_
@@ -264,10 +257,10 @@ def test_too_large_step_warns():
     )
     assert problem.stable_step == pytest.approx(0.25)
     with pytest.warns(UserWarning, match='stability limit 0.25'):
-        Simulation(problem, dt=1.0, solver=RK4Solver(dt=1.0)).check().prepare().run(until=0)
+        Simulation(problem, dt=1.0, solver=RK4Solver(dt=1.0)).prepare().run(until=0)
     with warnings.catch_warnings():
         warnings.simplefilter('error')
-        Simulation(problem, dt=1.0, solver=RK4Solver(dt=0.2)).check().prepare().run(until=1)
+        Simulation(problem, dt=1.0, solver=RK4Solver(dt=0.2)).prepare().run(until=1)
 
 
 class MarkerElement(Element):
@@ -323,7 +316,7 @@ def test_agents_read_and_deposit_fields():
             System('ground', elements=[FieldElement('level', element=StillElement, space=LatticeSpace((4, 3)))]),
         ],
     )
-    simulation = Simulation(system, dt=1).check().prepare().run(until=5)
+    simulation = Simulation(system, dt=1).prepare().run(until=5)
     level = simulation.trajectory_.lattice('ground/level.u')[-1]
     assert level[1, 2] == pytest.approx(5.0)
     assert level.sum() == pytest.approx(5.0)
@@ -365,7 +358,6 @@ def test_laplacian_damps_the_checkerboard_mode(discretization):
             System(elements=[field]),
             dt=0.01,
         )
-        .check()
         .prepare()
         .run(until=0.5)
         .trajectory_.values('m.u'),

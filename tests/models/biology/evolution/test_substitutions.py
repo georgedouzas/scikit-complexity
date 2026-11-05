@@ -21,9 +21,7 @@ def test_origin_fixation_walk_samples_fitness_to_the_power_n_minus_one():
                 dt=1.0,
                 random_state=0,
                 observables=describe('origin_fixation_walk').observables_of(system),
-            )
-            .check()
-            .prepare()
+            ).prepare()
         )
         .run(until=5000)
         .trajectory_
@@ -47,9 +45,7 @@ def test_origin_fixation_walk_climbs_the_landscape():
                 dt=10.0,
                 random_state=0,
                 observables=describe('origin_fixation_walk').observables_of(system),
-            )
-            .check()
-            .prepare()
+            ).prepare()
         )
         .run(until=1000)
         .trajectory_

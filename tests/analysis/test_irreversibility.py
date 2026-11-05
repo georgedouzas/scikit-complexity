@@ -21,7 +21,7 @@ STEP = 0.1
 
 def _irreversibility(kind: str, source: object, **settings: object) -> IrreversibilityAnalysis:
     """Return the irreversibility analysis of a source for one kind, run."""
-    return IrreversibilityAnalysis(kind, **settings).check().prepare(source).run()
+    return IrreversibilityAnalysis(kind, **settings).prepare(source).run()
 
 
 def _chain(matrix: np.ndarray, steps: int, rng: np.random.Generator) -> np.ndarray:
@@ -118,9 +118,9 @@ def test_entropy_production_rejects_one_way_jumps():
     with pytest.raises(AnalysisError, match='Fewer than 3 bins'):
         _irreversibility('fluctuation-theorem', [1.0, 2.0])
     with pytest.raises(AnalysisError, match='needs rates'):
-        IrreversibilityAnalysis('jump-entropy-production').check()
+        IrreversibilityAnalysis('jump-entropy-production').prepare()
     with pytest.raises(AnalysisError, match='does not read bins'):
-        IrreversibilityAnalysis('entropy-production', bins=10).check()
+        IrreversibilityAnalysis('entropy-production', bins=10).prepare()
     with pytest.raises(AnalysisError, match='duration'):
         _irreversibility('jump-entropy-production', [0, 1, 0], rates=[[0, 2], [1, 0]])
 
@@ -151,7 +151,7 @@ def _walker_currents(forward, backward, duration, paths, seed):
     currents = []
     for index in range(paths):
         trajectory = (
-            Simulation(system, dt=duration, random_state=seed + index).check().prepare().run(until=duration).trajectory_
+            Simulation(system, dt=duration, random_state=seed + index).prepare().run(until=duration).trajectory_
         )
         currents.append(trajectory.values('walker.ahead')[-1] - trajectory.values('walker.behind')[-1])
     return np.asarray(currents)
@@ -202,7 +202,7 @@ def test_fluctuation_dissipation_ratio_in_equilibrium():
     lags = np.arange(31)
     unperturbed = _ornstein_uhlenbeck(rng, 1031, 0.0, 1000)
     two_time = CorrelationAnalysis('two-time', waiting=[100, 1000], lags=lags)
-    correlation = two_time.check().prepare(unperturbed).run().correlation_
+    correlation = two_time.prepare(unperturbed).run().correlation_
     perturbed = _ornstein_uhlenbeck(np.random.default_rng(0), 1031, 0.1, 1000)
     ratio = _irreversibility(
         'fluctuation-dissipation',

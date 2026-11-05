@@ -33,7 +33,7 @@ def test_body_cools_through_a_conductor_and_convection_in_closed_form():
             ConnectionInteraction('outer', members=['wall', 'surface'], ports=['b', 'a']),
         ],
     )
-    trajectory = Simulation(system, dt=0.5).check().prepare().run(until=5.0).trajectory_
+    trajectory = Simulation(system, dt=0.5).prepare().run(until=5.0).trajectory_
     expected = 20.0 + 60.0 * np.exp(-trajectory.times * (2.0 * 2.0 / (2.0 + 2.0)) / 4.0)
     assert np.allclose(trajectory.values('body.T').ravel(), expected, rtol=1e-4)
     assert np.allclose(trajectory.values('wall.b_T').ravel(), (expected + 20.0) / 2, rtol=1e-4)

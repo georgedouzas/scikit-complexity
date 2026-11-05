@@ -191,13 +191,13 @@ def _firm_leverage(s):
 
 def test_element_has_no_laws_by_default():
     """Test that an element that returns no laws of its own runs into none."""
-    assert TallyElement('t').check().prepare().run(SimpleNamespace()).laws_ == []
+    assert TallyElement('t').prepare().run(SimpleNamespace()).laws_ == []
 
 
 def test_element_runs_into_its_laws():
     """Test that an element runs into the laws it writes for a namespace of symbols."""
     n, k = var('n k')
-    (law,) = DecayingElement('a').check().prepare().run(SimpleNamespace(n=n, k=k)).laws_
+    (law,) = DecayingElement('a').prepare().run(SimpleNamespace(n=n, k=k)).laws_
     assert isinstance(law, RateLaw)
     assert law.value == -k * n
 
@@ -234,7 +234,7 @@ def test_element_clones_and_pickles_with_its_values():
 def test_validation_reports_an_element_with_an_invalid_label_by_its_path():
     """Test that validating a system reports a nested element whose label is not a string."""
     system = System(systems=[System('meadow', elements=[TallyElement(1)])])
-    report = PassCompiler().check().prepare(system).report_
+    report = PassCompiler().prepare(system).report_
     (issue,) = report.errors
     assert issue.code == 'label'
     assert issue.message.startswith('Label 1 in meadow/ is not valid')
@@ -242,9 +242,7 @@ def test_validation_reports_an_element_with_an_invalid_label_by_its_path():
 
 def test_element_decays_at_its_own_rate():
     """Test that the laws of an element run with its own parameters."""
-    trajectory = (
-        Simulation(System(elements=[DecayingElement('a', n=1.0)]), dt=1).check().prepare().run(until=1).trajectory_
-    )
+    trajectory = Simulation(System(elements=[DecayingElement('a', n=1.0)]), dt=1).prepare().run(until=1).trajectory_
     assert np.isclose(trajectory.values('a.n')[-1], np.exp(-0.2), rtol=1e-3)
 
 
@@ -253,7 +251,7 @@ def test_expression_of_states_is_an_observable_of_the_laws():
     system = System(elements=[FirmElement('firm')])
     assert str(compile_system(system).equations['firm.debt']) == '-debt_firm*r_firm*(debt_firm/equity_firm - 1)'
     leverage = ObservableSpec('leverage', _firm_leverage)
-    trajectory = Simulation(system, dt=0.5, observables=[leverage]).check().prepare().run(until=2).trajectory_
+    trajectory = Simulation(system, dt=0.5, observables=[leverage]).prepare().run(until=2).trajectory_
     debt, equity = trajectory.values('firm.debt'), trajectory.values('firm.equity')
     np.testing.assert_allclose(trajectory.values('leverage'), debt / equity)
 
@@ -274,7 +272,7 @@ def test_numpy_scalar_times_vector_is_rejected():
 def test_numpy_scalar_values_match_floats():
     """Test that NumPy scalar law values run like the same laws written with Python floats."""
     first, second = (
-        Simulation(System(elements=[element('d')]), dt=0.5).check().prepare().run(until=2).trajectory_.values('d.x')
+        Simulation(System(elements=[element('d')]), dt=0.5).prepare().run(until=2).trajectory_.values('d.x')
         for element in (NumpyDecayElement, FloatDecayElement)
     )
     assert np.array_equal(first, second)

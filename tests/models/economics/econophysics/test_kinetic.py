@@ -18,7 +18,6 @@ def _final_wealth(until, **options):
             random_state=0,
             observables=describe('kinetic_wealth_exchange').observables_of(built),
         )
-        .check()
         .prepare()
         .run(until=until)
         .trajectory_

@@ -17,7 +17,7 @@ SAMPLES = 20_000
 
 def _analysis(kind: str, source: object, **settings: object) -> InformationAnalysis:
     """Return the run information analysis of a source for one kind."""
-    return InformationAnalysis(kind, **settings).check().prepare(source).run()
+    return InformationAnalysis(kind, **settings).prepare(source).run()
 
 
 def _information(kind: str, source: object, **settings: object) -> np.ndarray | float:
@@ -102,7 +102,7 @@ def test_symbolisation_and_permutations():
     symbols = _analysis('mutual', noise, symbols='quantiles', bins=4).symbols_[:, 0]
     assert np.bincount(symbols).tolist() == [250] * 4
     with pytest.raises(AnalysisError, match=r"symbols='words'"):
-        InformationAnalysis(symbols='words').check()
+        InformationAnalysis(symbols='words').prepare()
 
 
 def test_symbolize_long_ordinal_patterns():
@@ -173,9 +173,9 @@ def test_transfer_entropy_directed_coupling_of_two_domains():
 def test_transfer_entropy_rejects_unknown_estimators():
     """Test that an unknown estimator raises an error naming the known ones."""
     with pytest.raises(AnalysisError, match='plugin, knn'):
-        InformationAnalysis('transfer', estimator='kernel').check()
+        InformationAnalysis('transfer', estimator='kernel').prepare()
     with pytest.raises(AnalysisError, match='plugin, knn'):
-        InformationAnalysis('transfer', estimator='gaussian').check()
+        InformationAnalysis('transfer', estimator='gaussian').prepare()
 
 
 def test_o_information_xor_is_synergistic():
@@ -235,29 +235,29 @@ def test_o_information_gaussian_sum_is_synergistic():
 def test_total_correlation_unknown_estimator():
     """Test that an unknown estimator raises an error naming the known ones."""
     with pytest.raises(AnalysisError, match='plugin, gaussian, knn'):
-        InformationAnalysis('total-correlation', estimator='binned').check()
+        InformationAnalysis('total-correlation', estimator='binned').prepare()
 
 
 def test_unknown_kind_lists_the_kinds():
     """Test that an unknown kind names the kinds of the class."""
     with pytest.raises(AnalysisError, match='mutual, auto-mutual, transfer'):
-        InformationAnalysis('unknown').check()
+        InformationAnalysis('unknown').prepare()
 
 
 def test_ignored_settings_are_rejected():
     """Test that a setting the kind or the symbolization does not read raises an error naming it."""
     with pytest.raises(AnalysisError, match='does not read lag'):
-        InformationAnalysis('mutual', lag=2).check()
+        InformationAnalysis('mutual', lag=2).prepare()
     with pytest.raises(AnalysisError, match='does not read bins'):
-        InformationAnalysis('mutual', bins=4).check()
+        InformationAnalysis('mutual', bins=4).prepare()
     with pytest.raises(AnalysisError, match='does not read symbols'):
-        InformationAnalysis('kl-divergence', symbols='bins').check()
+        InformationAnalysis('kl-divergence', symbols='bins').prepare()
 
 
 def test_negative_history_is_rejected():
     """Test that a history below 1 raises an error naming it."""
     with pytest.raises(AnalysisError, match='history=0'):
-        InformationAnalysis('transfer', history=0).check()
+        InformationAnalysis('transfer', history=0).prepare()
 
 
 def test_clone_drops_the_results():

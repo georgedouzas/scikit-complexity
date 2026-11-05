@@ -146,7 +146,7 @@ def evacuation(
 
     Examples:
         >>> from skcomplex.models.social.crowds import evacuation
-        >>> evacuation().elements[0].check().prepare().size_
+        >>> evacuation().elements[0].prepare().size_
         24
     """
     rooms = building_of(branching, depth).number_of_nodes()

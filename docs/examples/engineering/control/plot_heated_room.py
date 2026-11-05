@@ -21,9 +21,7 @@ MODEL = 'heated_room'
 system = create(MODEL)
 observables = describe(MODEL).observables_of(system)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=5)
-simulation = (
-    Simulation(system, dt=10.0, observers=[observer], observables=observables).check().prepare().run(until=14400.0)
-)
+simulation = Simulation(system, dt=10.0, observers=[observer], observables=observables).prepare().run(until=14400.0)
 
 # %%
 # Temperature inside the band

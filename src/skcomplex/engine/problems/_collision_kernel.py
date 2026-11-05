@@ -60,7 +60,7 @@ class CollisionKernel(BaseKernel):
         >>> import numpy as np
         >>> from skcomplex.engine.problems import CollisionKernel
         >>> from skcomplex.specs import RunStateSpec
-        >>> kernel = CollisionKernel((8, 8), (1.0, 1.0), lambda speed, cosine: 1 / (2 * np.pi)).check().prepare()
+        >>> kernel = CollisionKernel((8, 8), (1.0, 1.0), lambda speed, cosine: 1 / (2 * np.pi)).prepare()
         >>> f = np.exp(-(np.indices((8, 8)) - 3.5) ** 2).prod(axis=0)
         >>> rates = kernel.run(RunStateSpec(0.0, f.ravel(), np.zeros(0))).values_
         >>> abs(float(rates.sum())) < 1e-12

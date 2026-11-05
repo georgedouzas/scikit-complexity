@@ -27,7 +27,7 @@ INOCULUM_PER_LEVEL = 3.0
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=INTERVAL)
 simulation = Simulation(create(MODEL, shape=SHAPE), solver=IMEXEulerSolver(dt=STEP), dt=STEP, observers=[observer])
-trajectory = simulation.check().prepare().run(until=14.0).trajectory_
+trajectory = simulation.prepare().run(until=14.0).trajectory_
 
 # %%
 # The speed of the colony

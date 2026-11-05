@@ -19,16 +19,14 @@ def test_encounter_needs_continuous_time_on_activity_lattices():
 
 def test_encounter_runs_into_its_tables():
     """Test that an encounter runs into its rate and transition tables as nested lists of numbers."""
-    rate, transition = (
-        EncounterLaw(F, G, [[1.0, 2.0], [3.0, 4.0]], np.full((2, 2, 2), 0.5)).check().prepare().run({}).value_
-    )
+    rate, transition = EncounterLaw(F, G, [[1.0, 2.0], [3.0, 4.0]], np.full((2, 2, 2), 0.5)).prepare().run({}).value_
     assert rate == [[1.0, 2.0], [3.0, 4.0]]
     assert np.shape(transition) == (2, 2, 2)
 
 
 def test_encounter_evaluates_parameter_tables():
     """Test that a table with a parameter is evaluated at the value of the parameter, which the law reads."""
-    law = EncounterLaw(F, F, Q, [[[Q, 1 - Q]], [[0.5, 0.5]]]).check()
+    law = EncounterLaw(F, F, Q, [[[Q, 1 - Q]], [[0.5, 0.5]]])
     rate, transition = law.prepare().run({'q': 0.25}).value_
     assert rate == 0.25
     assert transition[0][0] == [0.25, 0.75]
@@ -46,11 +44,11 @@ def test_encounter_evaluates_parameter_tables():
 def test_encounter_rejects_tables_of_wrong_shape(rate, transition, message):
     """Test that an encounter rejects tables of the wrong number of dimensions or of disagreeing activities."""
     with pytest.raises(ValidationError, match=message):
-        EncounterLaw(F, F, rate, transition).check()
+        EncounterLaw(F, F, rate, transition).prepare()
 
 
 def test_encounter_targets_the_candidate_and_the_test():
     """Test that an encounter targets the candidate, and a test density other than it."""
     h = var('h')
-    assert EncounterLaw(F, G, 1.0, np.full((2, 2, 2), 0.5), test=F).check().prepare().targets_ == (F,)
-    assert EncounterLaw(F, G, 1.0, np.full((2, 2, 2), 0.5), test=h).check().prepare().targets_ == (F, h)
+    assert EncounterLaw(F, G, 1.0, np.full((2, 2, 2), 0.5), test=F).prepare().targets_ == (F,)
+    assert EncounterLaw(F, G, 1.0, np.full((2, 2, 2), 0.5), test=h).prepare().targets_ == (F, h)

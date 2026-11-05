@@ -23,7 +23,7 @@ from .conftest import GRIGORCHUK_BALLS
 
 def _run(system, until):
     """Return a simulation of a system."""
-    return Simulation(system, dt=1, random_state=0).check().prepare().run(until=until)
+    return Simulation(system, dt=1, random_state=0).prepare().run(until=until)
 
 
 def _majority_holds(space, memory, before, after):
@@ -61,7 +61,7 @@ def test_grigorchuk_automaton_in_the_viewer():
             """Keep a logged entity."""
             logged.append((static, archetype))
 
-    visual = CayleyVisual(low=0, high=1, path=problem.elements[0].path, recording=Recording()).check().prepare(problem)
+    visual = CayleyVisual(low=0, high=1, path=problem.elements[0].path, recording=Recording()).prepare(problem)
     trajectory = simulation.trajectory_
     for index in (0, len(trajectory.times) - 1):
         frame = FrameSpec(index, trajectory.times[index], trajectory.states[index], simulation.parameters_, problem)
@@ -119,8 +119,7 @@ def test_subshifts_stay_admissible():
     simulation = _run(subshifts(100), 30)
     alive = simulation.trajectory_.values('cells.alive')
     analyses = (
-        AutomatonAnalysis('admissible', configuration=row.astype(int)).check().prepare(simulation.system).run()
-        for row in alive
+        AutomatonAnalysis('admissible', configuration=row.astype(int)).prepare(simulation.system).run() for row in alive
     )
     assert all(analysis.admissible_ for analysis in analyses)
     assert 0.1 < alive[-10:].mean() < 0.4

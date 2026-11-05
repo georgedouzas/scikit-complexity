@@ -48,7 +48,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(system, observers=[observer], random_state=0, observables=observables).check().prepare().run(until=STEPS)
+    Simulation(system, observers=[observer], random_state=0, observables=observables).prepare().run(until=STEPS)
 )
 
 # %%
@@ -61,8 +61,8 @@ simulation = (
 
 trajectory = simulation.trajectory_
 capital = trajectory.agents('firms', STEPS).values['K']
-fit = FitAnalysis().check().prepare(capital).run()
-ccdf = DistributionAnalysis('ccdf').check().prepare(capital).run()
+fit = FitAnalysis().prepare(capital).run()
+ccdf = DistributionAnalysis('ccdf').prepare(capital).run()
 values, probabilities = ccdf.support_, ccdf.survival_
 tail = values >= fit.minimum_
 anchor = probabilities[tail][0]

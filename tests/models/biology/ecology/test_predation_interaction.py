@@ -20,7 +20,7 @@ def test_lotka_volterra_oscillates():
             MortalityInteraction('death', target='foxes', d=0.4),
         ],
     )
-    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=50).trajectory_
+    trajectory = Simulation(system, dt=0.1).prepare().run(until=50).trajectory_
     rabbits = trajectory.values('rabbits.n')
     assert rabbits.min() > 0
     assert rabbits.max() > 2 * rabbits.min()

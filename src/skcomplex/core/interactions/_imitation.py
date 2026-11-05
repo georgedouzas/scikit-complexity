@@ -100,11 +100,11 @@ class ImitationInteraction(NeighborInteraction):
 
     Examples:
         >>> from skcomplex.core.interactions import ImitationInteraction
-        >>> ImitationInteraction('imitation', target='voters', rule='majority').check().options
+        >>> ImitationInteraction('imitation', target='voters', rule='majority').options
         (0.0, 1.0)
-        >>> ImitationInteraction('imitation', target='players', rule='fermi', form='probability').check().form
+        >>> ImitationInteraction('imitation', target='players', rule='fermi', form='probability').form
         'probability'
-        >>> ImitationInteraction('imitation', target='traders', rule='better', form='agent', phase='learn').check().rule
+        >>> ImitationInteraction('imitation', target='traders', rule='better', form='agent', phase='learn').rule
         'better'
     """
 

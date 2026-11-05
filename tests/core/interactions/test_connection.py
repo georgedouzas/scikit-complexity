@@ -68,7 +68,7 @@ class ReservoirElement(Element):
 
 def _run(system):
     """Return the trajectory of a system over one time unit."""
-    return Simulation(system, dt=0.5).check().prepare().run(until=1.0).trajectory_
+    return Simulation(system, dt=0.5).prepare().run(until=1.0).trajectory_
 
 
 def test_connection_balances_the_currents_of_three_resistors():
@@ -106,4 +106,4 @@ def test_connection_reads_a_connector_the_user_defines():
 def test_connection_rejects_members_and_ports_of_different_lengths():
     """Test that a connection names one port per member."""
     with pytest.raises(ValidationError, match='Name one port per member'):
-        ConnectionInteraction('node', members=['first', 'second'], ports=['a']).check()
+        ConnectionInteraction('node', members=['first', 'second'], ports=['a']).prepare()

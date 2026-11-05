@@ -48,7 +48,7 @@ class EquationLaw(BaseLaw):
         >>> from skcomplex.core.laws import EquationLaw
         >>> t, g, l = var('t g l')
         >>> theta = function('theta')(t)
-        >>> EquationLaw(l * theta.diff(t, 2) == -g * sin(theta)).check().prepare().rhs_
+        >>> EquationLaw(l * theta.diff(t, 2) == -g * sin(theta)).prepare().rhs_
         -g*sin(theta(t))
     """
 

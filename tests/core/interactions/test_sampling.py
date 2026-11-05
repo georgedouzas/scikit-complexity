@@ -65,7 +65,7 @@ def _wilson(namespace):
 
 def _link_system(shape, sampling, values):
     """Return a system of a group on the edges of the complex of a lattice, sampled by an interaction."""
-    space = CellComplexSpace(LatticeSpace(shape)).check().prepare()
+    space = CellComplexSpace(LatticeSpace(shape)).prepare()
     links = GroupElement('links', element=AngleLinkElement, space=space, on='edges', values=values)
     return space, System(elements=[links], interactions=[sampling], time=DiscreteTime())
 
@@ -79,7 +79,7 @@ def _final(sampling, until, initial, seed=0):
     """Return the values of the sites after some sweeps."""
     sites = LatticeElement('sites', element=SiteElement, space=LatticeSpace((SIDE, SIDE)), values={'s': initial})
     system = System(elements=[sites], interactions=[sampling], time=DiscreteTime())
-    return Simulation(system, random_state=seed).check().prepare().run(until=until).state_
+    return Simulation(system, random_state=seed).prepare().run(until=until).state_
 
 
 def _spins(seed=1):
@@ -159,7 +159,7 @@ def _magnetization(move, temperature, seed):
     )
     sites = LatticeElement('sites', element=SiteElement, space=LatticeSpace((SIDE, SIDE)), values={'s': _spins(seed)})
     system = System(elements=[sites], interactions=[sampling], time=DiscreteTime())
-    states = Simulation(system, random_state=seed).check().prepare().run(until=300).trajectory_.states
+    states = Simulation(system, random_state=seed).prepare().run(until=300).trajectory_.states
     return float(np.abs(states[100:].mean(axis=1)).mean())
 
 
@@ -196,7 +196,7 @@ def test_cluster_moves_reject_an_energy_that_the_flip_changes():
 def test_check_rejects_moves_rules_and_energies_it_cannot_take(arguments, match):
     """Test that an unknown move, rule, or schedule, or an objective that is not a function, raise errors."""
     with pytest.raises(ValidationError, match=match):
-        SamplingInteraction('sampling', target='sites', state='s', **arguments).check()
+        SamplingInteraction('sampling', target='sites', state='s', **arguments).prepare()
 
 
 class CandidateElement(Element):
@@ -233,7 +233,7 @@ def test_run_cooling_reduces_accepted_moves() -> None:
     )
     candidates = LatticeElement('candidates', element=CandidateElement, space=LatticeSpace((200,)))
     system = System(elements=[candidates], interactions=[anneal], time=DiscreteTime())
-    frames = Simulation(system, random_state=0).check().prepare().run(until=500).trajectory_.values('candidates.x')
+    frames = Simulation(system, random_state=0).prepare().run(until=500).trajectory_.values('candidates.x')
     accepted = np.mean(frames[1:] != frames[:-1], axis=1)
     assert accepted[:50].mean() > 0.8
     assert accepted[-50:].mean() < 0.2
@@ -243,7 +243,7 @@ def test_run_cooling_reduces_accepted_moves() -> None:
 def test_check_cooling_not_callable() -> None:
     """Test that a cooling that is no function is refused."""
     with pytest.raises(ValidationError, match='cooling'):
-        SamplingInteraction('a', target='g', state='x', objective=_quadratic_energy, cooling=0.5).check()
+        SamplingInteraction('a', target='g', state='x', objective=_quadratic_energy, cooling=0.5).prepare()
 
 
 def test_two_dimensional_u1_reproduces_the_exact_plaquette():
@@ -259,7 +259,7 @@ def test_two_dimensional_u1_reproduces_the_exact_plaquette():
     )
     initial = np.random.default_rng(0).uniform(-np.pi, np.pi, 2048)
     space, system = _link_system((32, 32), sampling, {'theta': initial})
-    trajectory = Simulation(system, random_state=3).check().prepare().run(until=5000).trajectory_
+    trajectory = Simulation(system, random_state=3).prepare().run(until=5000).trajectory_
     states = trajectory.values('links.theta')
     plaquettes = np.cos(space.incidences_[1] @ states.T).mean(axis=0)
     assert abs(plaquettes[1001:].mean() - iv(1, 2) / iv(0, 2)) < 0.01
@@ -282,7 +282,7 @@ def test_z3_heat_bath_is_reproducible_with_a_seed():
     first = Simulation(_link_system((6, 6), sampling, {'theta': initial})[1], random_state=5)
     second = Simulation(_link_system((6, 6), sampling, {'theta': initial})[1], random_state=5)
     other = Simulation(_link_system((6, 6), sampling, {'theta': initial})[1], random_state=6)
-    frames = [item.check().prepare().run(until=20).trajectory_.values('links.theta') for item in (first, second, other)]
+    frames = [item.prepare().run(until=20).trajectory_.values('links.theta') for item in (first, second, other)]
     assert np.array_equal(frames[0], frames[1])
     assert not np.array_equal(frames[0], frames[2])
     assert set(np.round(np.mod(frames[0][-1], 2 * np.pi), 6)) <= set(np.round(values, 6))

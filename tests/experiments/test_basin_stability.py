@@ -17,7 +17,7 @@ def side(trajectory):
 def test_double_well_basins_are_symmetric():
     """Test that the damped double-well oscillator's two basins hold about half of the initial states each."""
     experiment = BasinStabilityExperiment(duffing(gamma=0.0), BOUNDS, side, n=80, until=40, dt=0.5, random_state=0)
-    experiment.check().prepare().run()
+    experiment.prepare().run()
     assert set(experiment.fractions_) == {'left', 'right'}
     assert experiment.fractions_['left'] == pytest.approx(0.5, abs=3 * experiment.errors_['left'] + 0.05)
     assert len(experiment.labels_) == 80
@@ -27,12 +27,12 @@ def test_double_well_basins_are_symmetric():
 def test_vectorised_basins_match_the_serial_runs():
     """Test that basin stability over 200 initial states run as one ensemble equals the serial runs."""
     settings = {'n': 200, 'until': 40, 'dt': 0.5, 'random_state': 0}
-    serial = BasinStabilityExperiment(duffing(gamma=0.0), BOUNDS, side, **settings).check().check().prepare().run()
+    serial = BasinStabilityExperiment(duffing(gamma=0.0), BOUNDS, side, **settings).prepare().run()
     vectorised = BasinStabilityExperiment(duffing(gamma=0.0), BOUNDS, side, vectorized=True, **settings)
-    assert vectorised.check().prepare().run().fractions_ == serial.fractions_
+    assert vectorised.prepare().run().fractions_ == serial.fractions_
 
 
 def test_invalid_number_of_initial_states():
     """Test that zero initial states raise an error naming n."""
     with pytest.raises(ValidationError, match='n = 0'):
-        BasinStabilityExperiment(duffing(gamma=0.0), BOUNDS, side, n=0).check()
+        BasinStabilityExperiment(duffing(gamma=0.0), BOUNDS, side, n=0).prepare()

@@ -80,7 +80,7 @@ class SignAdjustmentInteraction(Interaction):
     Raises:
         ValidationError:
             The mode, the form, or the schedule is unknown, the symbolic form is not synchronous, or the signal is not
-            callable, raised by `check`.
+            callable, raised by `prepare`.
 
     Examples:
         >>> from typing import Annotated
@@ -98,7 +98,7 @@ class SignAdjustmentInteraction(Interaction):
         ...     'search', target='quote', state='x', signal=lambda s: 2 - s.target.x, step=0.5, upper=2.0
         ... )
         >>> system = System(elements=[QuoteElement('quote')], interactions=[search], time=DiscreteTime())
-        >>> Simulation(system).check().prepare().run(until=3).trajectory_.values('quote.x').tolist()
+        >>> Simulation(system).prepare().run(until=3).trajectory_.values('quote.x').tolist()
         [1.0, 1.5, 2.0, 2.0]
     """
 

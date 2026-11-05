@@ -20,7 +20,6 @@ def test_brownian_motion_is_ballistic_then_diffusive():
     model = brownian_motion(4000)
     trajectory = (
         Simulation(model, dt=0.05, solver=EulerMaruyamaSolver(dt=0.001), random_state=0)
-        .check()
         .prepare()
         .run(until=1)
         .trajectory_
@@ -30,7 +29,6 @@ def test_brownian_motion_is_ballistic_then_diffusive():
     overdamped = brownian_motion(4000, inertial=False)
     trajectory = (
         Simulation(overdamped, dt=0.5, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
-        .check()
         .prepare()
         .run(until=10)
         .trajectory_
@@ -42,7 +40,6 @@ def test_optical_trap_holds_particles_with_the_thermal_variance():
     """Test that trapped particles have the variance `kT / k` along each axis, and that moving traps run."""
     trajectory = (
         Simulation(optical_trap(1000), dt=1, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
-        .check()
         .prepare()
         .run(until=30)
     )
@@ -52,7 +49,6 @@ def test_optical_trap_holds_particles_with_the_thermal_variance():
     blinking = optical_trap(100, blink_period=4.0, amplitude=(1.0, 0.0), frequency=0.1)
     moving = (
         Simulation(blinking, dt=1, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
-        .check()
         .prepare()
         .run(until=10)
         .trajectory_
@@ -66,7 +62,6 @@ def test_kramers_escape_rate():
     solver = EulerMaruyamaSolver(dt=0.01)
     trajectory = (
         Simulation(kramers_escape(size, D=D), dt=0.1, solver=solver, random_state=0)
-        .check()
         .prepare()
         .run(until=until)
         .trajectory_
@@ -88,7 +83,6 @@ def test_multiplicative_noise_conventions_give_their_stationary_densities(noise,
     model = multiplicative_noise(500, s0=1.0, ds=1.0, L=10.0, convention=noise)
     trajectory = (
         Simulation(model, dt=0.05, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
-        .check()
         .prepare()
         .run(until=400)
         .trajectory_
@@ -102,7 +96,6 @@ def test_scaled_brownian_motion_has_the_anomalous_exponent():
     model = scaled_brownian_motion(4000, alpha=0.5)
     trajectory = (
         Simulation(model, dt=0.1, solver=EulerMaruyamaSolver(dt=0.001), random_state=0)
-        .check()
         .prepare()
         .run(until=10)
         .trajectory_
@@ -118,7 +111,7 @@ def test_speckle_field_traps_particles():
     for strength in (0.0, 1000.0):
         model = diffusion_in_a_speckle_field(200, strength=strength)
         solver = EulerMaruyamaSolver(dt=0.01)
-        trajectory = Simulation(model, dt=1, solver=solver, random_state=0).check().prepare().run(until=50).trajectory_
+        trajectory = Simulation(model, dt=1, solver=solver, random_state=0).prepare().run(until=50).trajectory_
         positions = trajectory.values('beads.x')
         coefficients[strength] = ((positions[-1] - positions[20]) ** 2).sum(axis=-1).mean() / (4 * 30)
     assert coefficients[0.0] == pytest.approx(1.0, rel=0.15)
@@ -129,10 +122,7 @@ def test_speckle_field_defaults_give_anomalous_diffusion():
     """Test that the default field draws the particles in over several frames and lets them escape slowly."""
     solver = EulerMaruyamaSolver(dt=0.01)
     simulation = (
-        Simulation(diffusion_in_a_speckle_field(), dt=0.5, solver=solver, random_state=0)
-        .check()
-        .prepare()
-        .run(until=60)
+        Simulation(diffusion_in_a_speckle_field(), dt=0.5, solver=solver, random_state=0).prepare().run(until=60)
     )
     positions = np.asarray(simulation.trajectory_.values('beads.x'))
     times = simulation.trajectory_.times[21:] - simulation.trajectory_.times[20]

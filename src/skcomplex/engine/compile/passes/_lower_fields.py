@@ -92,7 +92,7 @@ class LowerFieldsPass(BasePass):
         linear += LowerFieldsPass._linear_terms_of(spec, laws, places)
         if not any(FieldLowering._law_has_operators(law) for law in laws):
             return laws
-        lowering = FieldLowering(spec).check().prepare(compilation)
+        lowering = FieldLowering(spec).prepare(compilation)
         result = lowering.run(laws).lowered_
         lowering._apply_references()
         for key, items in lowering.written_.items():

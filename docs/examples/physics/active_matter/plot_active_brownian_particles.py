@@ -41,9 +41,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = (
-    Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).check().prepare().run(until=20)
-)
+simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).prepare().run(until=20)
 
 # %%
 # From ballistic swimming to enhanced diffusion
@@ -56,7 +54,7 @@ simulation = (
 fig, ax = plt.subplots(figsize=(7, 4))
 for rotation, color in ((1.0, 'tab:blue'), (0.1, 'tab:orange')):
     system_r = create(MODEL, n_particles=500, D_r=rotation, size=1e5, random_state=1)
-    run = Simulation(system_r, solver=solver, dt=0.1, random_state=1).check().prepare().run(until=40)
+    run = Simulation(system_r, solver=solver, dt=0.1, random_state=1).prepare().run(until=40)
     positions = run.trajectory_.values('swimmers.x')
     times = run.trajectory_.times[1:]
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)

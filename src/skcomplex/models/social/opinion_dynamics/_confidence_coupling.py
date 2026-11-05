@@ -47,7 +47,7 @@ class ConfidenceCouplingInteraction(CouplingInteraction):
         ... )
         >>> coupling = ConfidenceCouplingInteraction('compromise', target='people')
         >>> system = System(elements=[people], interactions=[coupling], time=DiscreteTime())
-        >>> opinions = Simulation(system).check().prepare().run(until=1).trajectory_.values('people.opinion')
+        >>> opinions = Simulation(system).prepare().run(until=1).trajectory_.values('people.opinion')
         >>> np.round(opinions[-1], 6).tolist()
         [0.15, 0.15, 0.9]
     """

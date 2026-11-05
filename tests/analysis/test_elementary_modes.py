@@ -85,7 +85,7 @@ def _column(analysis, name):
 
 def test_run_finds_the_two_modes_of_the_toy_network():
     """Test the 2 modes of the toy network, normalised to the uptake, each with its exact balances."""
-    analysis = ElementaryModeAnalysis(normalize='net.b1').check().prepare(_toy()).run()
+    analysis = ElementaryModeAnalysis(normalize='net.b1').prepare(_toy()).run()
     assert analysis.modes_.shape[0] == 2
     assert set(_column(analysis, 'vbio')) == {Fraction(1, 12)}
     assert set(_column(analysis, 'v6')) == {Fraction(5, 3)}
@@ -101,7 +101,7 @@ def test_run_finds_the_two_modes_of_the_toy_network():
 
 def test_run_decomposes_the_optimum_over_the_modes():
     """Test that the FBA optimum is a non-negative combination of the modes, with growth 1000 over their ratio 20."""
-    analysis = ElementaryModeAnalysis(normalize='net.b1').check().prepare(_toy()).run()
+    analysis = ElementaryModeAnalysis(normalize='net.b1').prepare(_toy()).run()
     optimum = np.array([600, 0, 0, 550, 50, 1000, 100, 600, 1000, 50], dtype=float)
     modes = np.asarray(analysis.modes_, dtype=float)
     _, residual = nnls(modes.T, optimum)
@@ -119,7 +119,7 @@ def test_run_finds_the_simple_cycles_of_a_circulation():
     for column, (tail, head) in enumerate(arcs):
         matrix[tail, column] -= 1
         matrix[head, column] += 1
-    analysis = ElementaryModeAnalysis().check().prepare(matrix).run()
+    analysis = ElementaryModeAnalysis().prepare(matrix).run()
     found = {frozenset(np.flatnonzero(row).tolist()) for row in analysis.modes_}
     cycles = {
         frozenset(arcs.index((cycle[index], cycle[(index + 1) % len(cycle)])) for index in range(len(cycle)))
@@ -131,7 +131,7 @@ def test_run_finds_the_simple_cycles_of_a_circulation():
 
 def test_prepare_removes_a_variable_that_a_switch_fixes_at_zero():
     """Test that with the switch of `v1` off only the mode through `v2` and `v3` remains."""
-    analysis = ElementaryModeAnalysis(normalize='net.b1').check().prepare(_toy(switch=0.0)).run()
+    analysis = ElementaryModeAnalysis(normalize='net.b1').prepare(_toy(switch=0.0)).run()
     assert analysis.modes_.shape[0] == 1
     assert 'net.v1' not in analysis.labels_
     assert _column(analysis, 'v2')[0] == Fraction(1)
@@ -141,21 +141,21 @@ def test_prepare_removes_a_variable_that_a_switch_fixes_at_zero():
 def test_prepare_names_a_balance_with_a_right_side():
     """Test that a balance with the right side 5 raises an error that names it and says why."""
     with pytest.raises(AnalysisError, match=r'balance .*b1_net.*modes are defined at steady state'):
-        ElementaryModeAnalysis().check().prepare(_toy(side=5.0))
+        ElementaryModeAnalysis().prepare(_toy(side=5.0))
 
 
 def test_run_gives_the_same_vectors_as_pathways_and_modes():
     """Test that the pathways and the modes of the toy network hold the same 2 vectors."""
-    modes = ElementaryModeAnalysis(kind='modes', normalize='net.b1').check().prepare(_toy()).run().modes_
-    pathways = ElementaryModeAnalysis(kind='pathways', normalize='net.b1').check().prepare(_toy()).run().modes_
+    modes = ElementaryModeAnalysis(kind='modes', normalize='net.b1').prepare(_toy()).run().modes_
+    pathways = ElementaryModeAnalysis(kind='pathways', normalize='net.b1').prepare(_toy()).run().modes_
     assert {tuple(row) for row in modes} == {tuple(row) for row in pathways}
 
 
 def test_run_keeps_the_lines_of_a_cone_that_is_not_pointed():
     """Test that a reversible internal cycle is a line of the pathways and two modes."""
     matrix = np.array([[1.0, -1.0], [-1.0, 1.0]])
-    modes = ElementaryModeAnalysis(irreversible=(), kind='modes').check().prepare(matrix).run()
-    pathways = ElementaryModeAnalysis(irreversible=(), kind='pathways').check().prepare(matrix).run()
+    modes = ElementaryModeAnalysis(irreversible=(), kind='modes').prepare(matrix).run()
+    pathways = ElementaryModeAnalysis(irreversible=(), kind='pathways').prepare(matrix).run()
     assert modes.modes_.shape[0] == 2
     assert pathways.modes_.shape[0] == 0
     assert pathways.lines_.tolist() == [[Fraction(1), Fraction(1)]]
@@ -164,14 +164,14 @@ def test_run_keeps_the_lines_of_a_cone_that_is_not_pointed():
 def test_check_rejects_an_unknown_kind():
     """Test that an unknown kind raises an error that names the kinds."""
     with pytest.raises(AnalysisError, match='modes, pathways'):
-        ElementaryModeAnalysis(kind='rays').check()
+        ElementaryModeAnalysis(kind='rays').prepare()
 
 
 def test_prepare_rejects_a_coefficient_far_from_a_fraction():
     """Test that a coefficient that a fraction moves too far raises an error that names the variable."""
     matrix = np.array([[np.pi * 1e-7, -1.0]])
     with pytest.raises(AnalysisError, match='v0'):
-        ElementaryModeAnalysis().check().prepare(matrix)
+        ElementaryModeAnalysis().prepare(matrix)
 
 
 def test_run_stops_at_the_time_limit():
@@ -183,7 +183,7 @@ def test_run_stops_at_the_time_limit():
         matrix[tail, column] -= 1
         matrix[head, column] += 1
     with pytest.raises(EnumerationLimitError, match=f'{len(arcs)} variables.*0.5 s'):
-        ElementaryModeAnalysis(timeout=0.5).check().prepare(matrix).run()
+        ElementaryModeAnalysis(timeout=0.5).prepare(matrix).run()
 
 
 def test_run_finds_the_modes_and_pathways_of_figure_9_2_of_raman():
@@ -201,8 +201,8 @@ def test_run_finds_the_modes_and_pathways_of_figure_9_2_of_raman():
     matrix = np.array([[float(row.get(name, 0)) for name in names] for row in rows.values()])
     irreversible = [position for position, name in enumerate(names) if not name.endswith('r')]
     settings = {'labels': names, 'irreversible': irreversible}
-    modes = ElementaryModeAnalysis('modes', **settings).check().prepare(matrix).run().modes_
-    pathways = ElementaryModeAnalysis('pathways', **settings).check().prepare(matrix).run().modes_
+    modes = ElementaryModeAnalysis('modes', **settings).prepare(matrix).run().modes_
+    pathways = ElementaryModeAnalysis('pathways', **settings).prepare(matrix).run().modes_
     assert modes.shape[0] == 7
     assert pathways.shape[0] == 4
     assert {tuple(row) for row in pathways} <= {tuple(row) for row in modes}
@@ -214,6 +214,6 @@ def test_run_finds_the_modes_and_pathways_of_figure_9_2_of_raman():
 def test_run_orders_the_rows_by_a_variable():
     """Test that the rows follow a variable, largest first."""
     matrix = np.array([[1.0, -1.0, -2.0, 0.0, 0.0], [0.0, 1.0, 0.0, -1.0, 0.0], [0.0, 0.0, 1.0, 0.0, -1.0]])
-    analysis = ElementaryModeAnalysis(normalize='v0', sort='v4').check().prepare(matrix).run()
+    analysis = ElementaryModeAnalysis(normalize='v0', sort='v4').prepare(matrix).run()
     assert analysis.modes_[:, 4].tolist() == sorted(analysis.modes_[:, 4].tolist(), reverse=True)
     assert analysis.modes_[0, 4] == Fraction(1, 2)

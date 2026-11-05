@@ -31,7 +31,7 @@ class DiscussionsInteraction(GroupingInteraction):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import DiscussionsInteraction
-        >>> DiscussionsInteraction('talks', target='citizens', size=4).check().write
+        >>> DiscussionsInteraction('talks', target='citizens', size=4).write
         'opinion'
     """
 

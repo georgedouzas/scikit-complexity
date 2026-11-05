@@ -28,7 +28,7 @@ class HopfieldUpdateInteraction(MapInteraction):
 
     Examples:
         >>> from skcomplex.models.computer_science.neural_networks import HopfieldUpdateInteraction
-        >>> HopfieldUpdateInteraction('update', target='neurons').check().schedule
+        >>> HopfieldUpdateInteraction('update', target='neurons').schedule
         'random-sequential'
     """
 

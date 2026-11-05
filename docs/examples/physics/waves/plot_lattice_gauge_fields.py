@@ -23,7 +23,7 @@ MODEL = 'lattice_gauge_fields'
 system = create(MODEL, size=16)
 observables = describe(MODEL).observables_of(system)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=10)
-simulation = Simulation(system, dt=1, observers=[observer], observables=observables, random_state=0).check().prepare()
+simulation = Simulation(system, dt=1, observers=[observer], observables=observables, random_state=0).prepare()
 series = simulation.run(until=400).trajectory_.values('mean_plaquette')
 
 # %%

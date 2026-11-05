@@ -38,7 +38,7 @@ def _run(until=10.0, dt=0.05, **arguments):
         elements=[CompartmentElement('population', n=N0)],
         interactions=[GrowthInteraction('growth', target='population', **arguments)],
     )
-    trajectory = Simulation(system, dt=dt).check().prepare().run(until=until).trajectory_
+    trajectory = Simulation(system, dt=dt).prepare().run(until=until).trajectory_
     return np.asarray(trajectory.times), np.asarray(trajectory.values('population.n'))
 
 
@@ -75,7 +75,7 @@ def test_growth_logistic_inflects_at_half_the_capacity():
         elements=[CompartmentElement('population', n=1.0)],
         interactions=[GrowthInteraction('growth', target='population', r=1.0, K=100.0, form='logistic')],
     )
-    trajectory = Simulation(system, dt=0.01).check().prepare().run(until=20).trajectory_
+    trajectory = Simulation(system, dt=0.01).prepare().run(until=20).trajectory_
     population = np.asarray(trajectory.values('population.n'))
     assert population[-1] == pytest.approx(100.0, rel=1e-6)
     inflection = population[np.argmax(np.diff(population))]
@@ -107,7 +107,7 @@ def test_growth_reads_the_named_state():
         elements=[BiomassElement('cells', x=1.0)],
         interactions=[GrowthInteraction('growth', target='cells', r=0.5, state='x')],
     )
-    trajectory = Simulation(system, dt=1.0).check().prepare().run(until=2).trajectory_
+    trajectory = Simulation(system, dt=1.0).prepare().run(until=2).trajectory_
     assert trajectory.values('cells.x')[-1] == pytest.approx(np.exp(1.0), rel=1e-4)
 
 
@@ -123,4 +123,4 @@ def test_growth_reads_the_named_state():
 def test_growth_rejects_invalid_arguments(arguments, message):
     """Test that growth rejects an unknown form, a bad state, a delay without limit, and a Bertalanffy exponent 1."""
     with pytest.raises(ValidationError, match=message):
-        GrowthInteraction('growth', target='population', **arguments).check()
+        GrowthInteraction('growth', target='population', **arguments).prepare()

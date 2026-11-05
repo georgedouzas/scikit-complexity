@@ -27,7 +27,7 @@ def _headings(locations):
         space=ContinuousSpace(extent=(100.0, 100.0), boundary='periodic'),
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('turn', activation='simultaneous')])),
     )
-    snapshot = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_.agents('shoal', 1)
+    snapshot = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.agents('shoal', 1)
     return np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
 
 

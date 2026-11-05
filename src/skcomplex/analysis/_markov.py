@@ -116,13 +116,13 @@ class MarkovAnalysis(BaseAnalysis):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.analysis import MarkovAnalysis
-        >>> MarkovAnalysis().check().prepare([0, 1, 0, 1, 1]).run().transition_matrix_.tolist()
+        >>> MarkovAnalysis().prepare([0, 1, 0, 1, 1]).run().transition_matrix_.tolist()
         [[0.0, 1.0], [0.5, 0.5]]
         >>> stationary = MarkovAnalysis('stationary', matrix='transition')
-        >>> stationary.check().prepare([[0.5, 0.5], [0.25, 0.75]]).run().stationary_.round(3).tolist()
+        >>> stationary.prepare([[0.5, 0.5], [0.25, 0.75]]).run().stationary_.round(3).tolist()
         [0.333, 0.667]
         >>> path = np.random.default_rng(0).integers(0, 2, 10_000)
-        >>> MarkovAnalysis('state-model').check().prepare(path).run().transition_matrix_.round(1).tolist()
+        >>> MarkovAnalysis('state-model').prepare(path).run().transition_matrix_.round(1).tolist()
         [[0.5, 0.5], [0.5, 0.5]]
     """
 

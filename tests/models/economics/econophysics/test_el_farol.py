@@ -14,7 +14,6 @@ def test_el_farol_attendance_near_capacity():
     system = el_farol(100, capacity=60, random_state=0)
     attendance = (
         Simulation(system, random_state=0, observables=describe('el_farol').observables_of(system))
-        .check()
         .prepare()
         .run(500)
         .trajectory_

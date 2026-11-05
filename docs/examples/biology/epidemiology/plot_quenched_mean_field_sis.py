@@ -25,7 +25,7 @@ graph = create(MODEL).elements[0].space.graph
 threshold = 1 / max(np.linalg.eigvalsh(nx.to_numpy_array(graph)))
 system = create(MODEL, lam=2 * threshold)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=40)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=40)
 
 # %%
 # Infection probability by degree
@@ -36,13 +36,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().
 final = simulation.trajectory_.values('nodes.p')[-1]
 adjacency = nx.to_numpy_array(graph)
 pressure = 2 * threshold * adjacency @ final
-below = (
-    Simulation(create(MODEL, lam=0.5 * threshold), dt=0.5)
-    .check()
-    .prepare()
-    .run(until=40)
-    .trajectory_.values('nodes.p')[-1]
-)
+below = Simulation(create(MODEL, lam=0.5 * threshold), dt=0.5).prepare().run(until=40).trajectory_.values('nodes.p')[-1]
 degrees = adjacency.sum(axis=1)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(degrees, final, 'o', alpha=0.6, label='simulated')

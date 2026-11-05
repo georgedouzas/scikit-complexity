@@ -20,7 +20,7 @@ MODEL = 'stem_cell_differentiation'
 
 system = create(MODEL, seed=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=10.0, observers=[observer]).check().prepare().run(until=2000)
+simulation = Simulation(system, dt=10.0, observers=[observer]).prepare().run(until=2000)
 
 # %%
 # Mutation feeds the malignant lineage
@@ -41,7 +41,7 @@ rates, finals = [], []
 for seed in range(8):
     run = create(MODEL, seed=seed)
     rates.append(run.elements[0].m1)
-    finals.append(Simulation(run, dt=10.0).check().prepare().run(until=2000).trajectory_.values('tissue.AD')[-1])
+    finals.append(Simulation(run, dt=10.0).prepare().run(until=2000).trajectory_.values('tissue.AD')[-1])
 mutation.plot(rates, finals, 'o')
 mutation.set_xlabel('mutation rate m1')
 mutation.set_ylabel('final malignant differentiated cells')

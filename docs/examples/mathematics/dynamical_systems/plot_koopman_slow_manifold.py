@@ -44,10 +44,10 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(create(MODEL), dt=0.1, observers=[observer]).check().prepare().run(until=40)
+simulation = Simulation(create(MODEL), dt=0.1, observers=[observer]).prepare().run(until=40)
 starts = [(-1.0, -1.0), (1.5, 0.0), (-1.5, 0.0), (0.5, 1.5), (-0.5, 1.5), (1.2, 1.5)]
 orbits = [simulation.trajectory_] + [
-    Simulation(create(MODEL, x1=x1, x2=x2), dt=0.1).check().prepare().run(until=40).trajectory_ for x1, x2 in starts
+    Simulation(create(MODEL, x1=x1, x2=x2), dt=0.1).prepare().run(until=40).trajectory_ for x1, x2 in starts
 ]
 b = LAM / (LAM - 2 * MU)
 parabola = np.linspace(-1.6, 1.6, 101)

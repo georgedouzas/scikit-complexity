@@ -43,7 +43,7 @@ class CrowdAvoidanceInteraction(ChoiceInteraction):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import CrowdAvoidanceInteraction
-        >>> CrowdAvoidanceInteraction('choice', target='diners', options=(0.0, 1.0)).check().rule
+        >>> CrowdAvoidanceInteraction('choice', target='diners', options=(0.0, 1.0)).rule
         'metropolis'
     """
 

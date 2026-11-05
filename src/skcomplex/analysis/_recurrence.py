@@ -80,10 +80,10 @@ class RecurrenceAnalysis(BaseAnalysis):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.analysis import EmbeddingAnalysis, RecurrenceAnalysis
-        >>> sine = EmbeddingAnalysis(delay=15, dimension=2).check().prepare(np.sin(np.arange(2000) * 0.1)).run()
-        >>> bool(RecurrenceAnalysis().check().prepare(sine.points_).run().determinism_ > 0.95)
+        >>> sine = EmbeddingAnalysis(delay=15, dimension=2).prepare(np.sin(np.arange(2000) * 0.1)).run()
+        >>> bool(RecurrenceAnalysis().prepare(sine.points_).run().determinism_ > 0.95)
         True
-        >>> recurrence = RecurrenceAnalysis(radius=0.5).check().prepare([0.0, 0.1, 5.0, 5.1]).run()
+        >>> recurrence = RecurrenceAnalysis(radius=0.5).prepare([0.0, 0.1, 5.0, 5.1]).run()
         >>> recurrence.matrix_.toarray().astype(int).tolist()
         [[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 1, 1], [0, 0, 1, 1]]
     """

@@ -23,7 +23,7 @@ MODEL = 'trap_model'
 
 system = create(MODEL, n_walkers=500, T=0.5, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=50, observers=[observer], random_state=0).check().prepare().run(until=10000)
+simulation = Simulation(system, dt=50, observers=[observer], random_state=0).prepare().run(until=10000)
 
 # %%
 # Aging below the glass temperature

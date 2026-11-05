@@ -37,7 +37,7 @@ class EulerMaruyamaSolver(SDESolver):
         ...         interactions=[GeometricBrownianMotionInteraction('gbm', target='stock', mu=0.05, sigma=0.2)],
         ...     ),
         ... )
-        >>> stepper = EulerMaruyamaSolver(dt=1e-3, random_state=0).check().prepare(problem)
+        >>> stepper = EulerMaruyamaSolver(dt=1e-3, random_state=0).prepare(problem)
         >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_[0] > 0)
         True
     """

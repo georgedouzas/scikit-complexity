@@ -56,7 +56,7 @@ def von_thunen(
     Examples:
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.economics.resources import von_thunen
-        >>> trajectory = Simulation(von_thunen()).check().prepare().run(1.0).trajectory_
+        >>> trajectory = Simulation(von_thunen()).prepare().run(1.0).trajectory_
         >>> sorted(set(trajectory.values('plain.crop')[0].ravel().tolist()))
         [0.0, 1.0, 2.0, 3.0]
     """

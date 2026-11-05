@@ -21,7 +21,7 @@ MODEL = 'enso'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=200)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=200)
 
 # %%
 # A limit cycle with one period
@@ -34,7 +34,7 @@ trajectory = simulation.trajectory_
 anomaly = trajectory.values('pacific.T')
 shift = int(6.0 / 0.5)
 settled = slice(len(anomaly) // 2, None)
-spectrum = SpectrumAnalysis(dt=0.5).check().prepare(anomaly[settled]).run()
+spectrum = SpectrumAnalysis(dt=0.5).prepare(anomaly[settled]).run()
 frequencies, density = spectrum.frequencies_, spectrum.power_[0]
 peak = frequencies[1:][np.argmax(density[1:])]
 fig, (loop, spectrum) = plt.subplots(1, 2, figsize=(10, 4))

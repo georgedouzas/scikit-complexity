@@ -27,10 +27,7 @@ def successes(trajectory):
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(create(MODEL, n_sequences=6), dt=1, observers=[observer], random_state=0)
-    .check()
-    .prepare()
-    .run(until=100)
+    Simulation(create(MODEL, n_sequences=6), dt=1, observers=[observer], random_state=0).prepare().run(until=100)
 )
 
 # %%
@@ -48,7 +45,6 @@ for p, color in ((0.2, 'C1'), (0.5, 'C0')):
             dt=1,
             random_state=1,
         )
-        .check()
         .prepare()
         .run(until=100)
         .trajectory_,

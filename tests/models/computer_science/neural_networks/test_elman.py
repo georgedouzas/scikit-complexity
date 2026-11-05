@@ -16,7 +16,7 @@ def test_elman_network_learns_the_temporal_xor():
 
 def test_elman_network_with_elman_original_rule():
     """Test that a truncation of one step, Elman's original rule, still predicts the XOR bits better."""
-    simulation = Simulation(elman_network(truncation=1), random_state=0).check().prepare()
+    simulation = Simulation(elman_network(truncation=1), random_state=0).prepare()
     trajectory = simulation.run(until=500).trajectory_
     assert trajectory.values('training/xor_error')[-1] < trajectory.values('training/random_error')[-1]
 

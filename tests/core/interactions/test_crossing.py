@@ -38,7 +38,7 @@ class LeakyElement(Element):
 def _events(crossing, until, **values):
     """Return the times and labels of the events of a leaky integrator with a crossing."""
     system = System(elements=[LeakyElement('cell', **values)], interactions=[crossing])
-    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=until).trajectory_
+    trajectory = Simulation(system, dt=0.1).prepare().run(until=until).trajectory_
     return trajectory, [event.time for event in trajectory.events]
 
 
@@ -70,7 +70,7 @@ def test_integrate_and_fire_group_fires_every_member_with_its_own_period():
         reset={'v': lambda s: 0.0},
         direction=1,
     )
-    trajectory = Simulation(System(elements=[cells], interactions=[fire]), dt=0.05).check().prepare().run(until=8.0)
+    trajectory = Simulation(System(elements=[cells], interactions=[fire]), dt=0.05).prepare().run(until=8.0)
     events = trajectory.trajectory_.events
     for member, drive in enumerate(drives):
         times = [event.time for event in events if event.member == member]
@@ -99,4 +99,4 @@ def test_terminal_crossing_ends_the_run():
 def test_check_rejects_directions_and_functions_it_cannot_take(arguments, match):
     """Test that an unknown direction, or a guard or a new value that is not a function, raise errors."""
     with pytest.raises(ValidationError, match=match):
-        CrossingInteraction('crossing', target='cell', **arguments).check()
+        CrossingInteraction('crossing', target='cell', **arguments).prepare()

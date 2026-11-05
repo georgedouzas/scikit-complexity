@@ -117,7 +117,7 @@ def barabasi_albert(n_nodes: int = 303, *, edges: int = 2, seed_nodes: int = 3) 
     Examples:
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.mathematics.networks import barabasi_albert
-        >>> trajectory = Simulation(barabasi_albert(13), random_state=0).check().prepare().run(until=10).trajectory_
+        >>> trajectory = Simulation(barabasi_albert(13), random_state=0).prepare().run(until=10).trajectory_
         >>> int(trajectory.network(-1).sources.size)
         23
     """
@@ -305,7 +305,7 @@ def popularity_similarity_network(
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.mathematics.networks import popularity_similarity_network
         >>> system = popularity_similarity_network(13)
-        >>> trajectory = Simulation(system, random_state=0).check().prepare().run(until=10).trajectory_
+        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=10).trajectory_
         >>> int(trajectory.network(-1).sources.size)
         23
     """

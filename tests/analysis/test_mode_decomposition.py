@@ -93,7 +93,6 @@ def _driven_runs():
             dt=STEP,
             schedule={'driven.u': _held_input(seed)},
         )
-        .check()
         .prepare()
         .run(until=20.0)
         .trajectory_
@@ -115,7 +114,6 @@ def _linear_trajectory():
     solver = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-12)
     return (
         Simulation(System(elements=[LinearElement('linear')]), solver=solver, dt=0.05)
-        .check()
         .prepare()
         .run(until=10.0)
         .trajectory_
@@ -127,7 +125,7 @@ NAMES = ['linear.x', 'linear.y', 'linear.z']
 
 def _fit(source, **settings):
     """Return the mode decomposition analysis fitted to a source."""
-    return ModeDecompositionAnalysis(**settings).check().prepare(source).run()
+    return ModeDecompositionAnalysis(**settings).prepare(source).run()
 
 
 def _linear_values(trajectory, samples):
@@ -147,11 +145,11 @@ def test_mode_decomposition_system_validates_under_continuous_time():
     """Test that the surrogate passes validation, declares continuous time, and runs with an ODE solver."""
     trajectory = _linear_trajectory()
     decomposition = _fit(trajectory)
-    assert PassCompiler().check().prepare(decomposition.system_).report_.ok
+    assert PassCompiler().prepare(decomposition.system_).report_.ok
     assert isinstance(decomposition.system_.time, ContinuousTime)
     assert DEFAULT_SOLVERS[compile_system(decomposition.system_).form] is ScipyODESolver
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-    run = Simulation(decomposition.system_, solver=solver, dt=0.05).check().prepare().run(until=10.0).trajectory_
+    run = Simulation(decomposition.system_, solver=solver, dt=0.05).prepare().run(until=10.0).trajectory_
     assert np.allclose(run.values('surrogate.y'), trajectory.values('linear.y'), atol=1e-6)
 
 
@@ -170,13 +168,7 @@ def test_mode_decomposition_run_matches_simulated_system():
     decomposition = _fit(_linear_values(_linear_trajectory(), 101), variables=NAMES, horizon=20, dt=0.05)
     names = [f'surrogate.{name}' for name in decomposition.states_]
     initial_state = dict(zip(names, decomposition.last_state_, strict=True))
-    run = (
-        Simulation(decomposition.system_, dt=0.05, initial_state=initial_state)
-        .check()
-        .prepare()
-        .run(until=1.0)
-        .trajectory_
-    )
+    run = Simulation(decomposition.system_, dt=0.05, initial_state=initial_state).prepare().run(until=1.0).trajectory_
     simulated = np.column_stack([run.values(name) for name in names])[1:21]
     assert np.allclose(decomposition.forecast_, simulated, atol=1e-4)
 
@@ -186,7 +178,7 @@ def test_mode_decomposition_builds_without_checking():
     surrogate = ModeDecompositionAnalysis(validation=1.0)
     assert surrogate.get_params()['validation'] == 1.0
     with pytest.raises(AnalysisError, match='validation share'):
-        surrogate.check()
+        surrogate.prepare()
 
 
 def test_mode_decomposition_reports_small_errors_on_linear_data():
@@ -218,7 +210,7 @@ def test_mode_decomposition_dictionary_lifts_observables():
     )
     assert decomposition.labels_ == ['linear.x', 'linear.y', 'linear.x^2', 'linear.x linear.y', 'linear.y^2']
     assert decomposition.states_ == ['x', 'y', 'x_2', 'x_y', 'y_2']
-    assert PassCompiler().check().prepare(decomposition.system_).report_.ok
+    assert PassCompiler().prepare(decomposition.system_).report_.ok
 
 
 def test_mode_decomposition_fits_several_series():
@@ -234,7 +226,7 @@ def test_mode_decomposition_fits_several_series():
 def test_mode_decomposition_rejects_series_of_other_variables():
     """Test that series of different variables raise an error."""
     trajectory = _linear_trajectory()
-    analysis = ModeDecompositionAnalysis().check()
+    analysis = ModeDecompositionAnalysis()
     with pytest.raises(AnalysisError, match='same variables'):
         analysis.prepare([trajectory, np.zeros((10, 3))])
 
@@ -242,13 +234,13 @@ def test_mode_decomposition_rejects_series_of_other_variables():
 def test_mode_decomposition_rejects_no_series():
     """Test that an empty sequence of series raises an error."""
     with pytest.raises(AnalysisError, match='No series'):
-        ModeDecompositionAnalysis().check().prepare([])
+        ModeDecompositionAnalysis().prepare([])
 
 
 def test_mode_decomposition_rejects_validation_share_of_one():
     """Test that a validation share outside `[0, 1)` raises an error."""
     with pytest.raises(AnalysisError, match='validation share'):
-        ModeDecompositionAnalysis(validation=1.0).check()
+        ModeDecompositionAnalysis(validation=1.0).prepare()
 
 
 def test_mode_decomposition_recovers_map_with_input():
@@ -268,7 +260,6 @@ def test_mode_decomposition_system_with_input_follows_schedule():
     solver = ScipyODESolver(method='DOP853', rtol=1e-11, atol=1e-11)
     run = (
         Simulation(decomposition.system_, solver=solver, dt=STEP, schedule={'surrogate.u': schedule})
-        .check()
         .prepare()
         .run(until=5.0)
         .trajectory_
@@ -314,7 +305,7 @@ def test_mode_decomposition_input_with_dictionary_excludes_input():
     )
     assert decomposition.states_ == ['x', 'y', 'x_2', 'x_y', 'y_2']
     assert decomposition.input_matrix_.shape == (5, 1)
-    assert PassCompiler().check().prepare(decomposition.system_).report_.ok
+    assert PassCompiler().prepare(decomposition.system_).report_.ok
 
 
 def test_mode_decomposition_input_rank_truncates_modes():
@@ -327,7 +318,7 @@ def test_mode_decomposition_rejects_input_outside_variables():
     """Test that an input that the series lacks raises an error naming it."""
     trajectory = _linear_trajectory()
     with pytest.raises(AnalysisError, match=r'linear\.q'):
-        ModeDecompositionAnalysis(inputs=['linear.q']).check().prepare(trajectory).run()
+        ModeDecompositionAnalysis(inputs=['linear.q']).prepare(trajectory).run()
 
 
 def test_mode_decomposition_input_name_differs_from_states():

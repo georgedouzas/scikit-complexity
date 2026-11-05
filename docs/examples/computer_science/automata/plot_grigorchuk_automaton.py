@@ -23,7 +23,7 @@ MODEL = 'grigorchuk_automaton'
 
 system = create(MODEL, radius=8, density=0.5, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).check().prepare().run(until=20)
+simulation = Simulation(system, observers=[observer]).prepare().run(until=20)
 
 # %%
 # Growth of the balls
@@ -33,7 +33,7 @@ simulation = Simulation(system, observers=[observer]).check().prepare().run(unti
 # which no exponential does. The ball sizes are 1, 5, 11, 23, 40, 68, 108, 176, 271, 427, and 643 for radii 0 to 10,
 # far below the free group of rank 2 and the exponential `5^n`.
 
-sizes = np.asarray(CayleySpace(grigorchuk_group(), ball=10).check().prepare().ball_sizes_, dtype=float)
+sizes = np.asarray(CayleySpace(grigorchuk_group(), ball=10).prepare().ball_sizes_, dtype=float)
 radii = np.arange(sizes.size)
 slopes = np.diff(np.log(sizes[1:])) / np.diff(np.log(radii[1:]))
 rates = np.log(sizes[1:]) / radii[1:]

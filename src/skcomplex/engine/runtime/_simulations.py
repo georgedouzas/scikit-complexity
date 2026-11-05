@@ -48,8 +48,8 @@ class Simulation(BaseConfig[None, float]):
     between runs stay in force for the later runs of the simulation, and `extend` continues a run from its last
     frame.
 
-    A simulation composes the pipeline of the engine and follows its common API: `check()` validates the system,
-    `prepare()` compiles it and chooses the solver, and `run(until)` prepares and runs from time 0 until a time. A run
+    A simulation composes the pipeline of the engine and follows its common API: `prepare()` validates the system,
+    compiles it and chooses the solver, and `run(until)` prepares and runs from time 0 until a time. A run
     prepares the solver for its end time and every observer on the problem before the first frame, runs every observer
     at every frame, and runs it with `final=True` at the end.
 
@@ -139,7 +139,7 @@ class Simulation(BaseConfig[None, float]):
         ...     elements=[PopulationElement('rabbits', n=10)],
         ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
         ... )
-        >>> simulation = Simulation(system, dt=1.0).check().prepare().run(until=20)
+        >>> simulation = Simulation(system, dt=1.0).prepare().run(until=20)
         >>> round(simulation.trajectory_.values('rabbits.n')[-1])
         100
     """
@@ -220,7 +220,7 @@ class Simulation(BaseConfig[None, float]):
             )
             raise ValidationError(error_msg)
         if not isinstance(self.system, BaseProblemSpec):
-            self._compiler().check().prepare(self.system).report_.check()
+            self._compiler().prepare(self.system).report_._validated()
 
     def _prepare(self, context: None) -> None:
         """Compile the system, choose the solver, and gather the clock and the observers of a run.
@@ -239,7 +239,7 @@ class Simulation(BaseConfig[None, float]):
         if isinstance(self.system, BaseProblemSpec):
             self.problem_ = PassCompiler._with_initial_state(self.system, initial)
         else:
-            compiler = self._compiler().check().prepare(self.system)
+            compiler = self._compiler().prepare(self.system)
             self.problem_ = compiler.run(initial).problem_
             named = compiler.solver_
         if named is not None and not isinstance(named, BaseSolver):
@@ -274,13 +274,13 @@ class Simulation(BaseConfig[None, float]):
                 The simulated time the run stops at.
         """
         self.dt_ = self._check_dt(self.problem_, until)
-        self.stepper_.set_params(random_state=self.random_state, until=until).check().prepare(self.problem_)
+        self.stepper_.set_params(random_state=self.random_state, until=until).prepare(self.problem_)
         self.time_ = 0.0
         self.state_ = self.stepper_.initial_state_.copy()
         self._step = 0
         self._frame_parameters: npt.NDArray[np.float64] | None = None
         for observer in self.observers_:
-            observer.check().prepare(self.problem_)
+            observer.prepare(self.problem_)
 
     def _get_frame_parameters(self) -> npt.NDArray[np.float64]:
         """Return a copy of the parameters for a frame, shared with the previous frame while they stay the same."""
@@ -329,7 +329,7 @@ class Simulation(BaseConfig[None, float]):
         such as an external process.
         """
         origin, first = self.time_, self._step
-        self.clock_.check().prepare()
+        self.clock_.prepare()
         self._apply_schedule()
         if first == 0:
             self._emit(0)
@@ -534,7 +534,7 @@ class Simulation(BaseConfig[None, float]):
             ...     elements=[PopulationElement('rabbits', n=10)],
             ...     interactions=[LogisticGrowthInteraction('growth', target='rabbits', r=1.0, K=100)],
             ... )
-            >>> simulation = Simulation(system, dt=1.0).check().prepare().run(until=5)
+            >>> simulation = Simulation(system, dt=1.0).prepare().run(until=5)
             >>> simulation.update_parameters({'growth.r': 0.0})
             >>> trajectory = simulation.extend(until=10).trajectory_
             >>> trajectory.times.tolist()

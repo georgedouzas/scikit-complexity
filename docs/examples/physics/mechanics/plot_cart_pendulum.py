@@ -21,7 +21,7 @@ MODEL = 'cart_pendulum'
 
 system = create(MODEL, theta=0.5, y=0.0, m1=1.0, m2=1.0, l=1.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.02, observers=[observer]).check().prepare().run(until=10)
+simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=10)
 
 # %%
 # Fixed centre of mass and a faster swing
@@ -36,7 +36,7 @@ bob = cart + np.sin(np.ravel(simulation.trajectory_.values('cart.theta')))
 ratios = np.linspace(0.25, 4.0, 10)
 frequencies = []
 for ratio in ratios:
-    run = Simulation(create(MODEL, theta=0.05, m1=ratio, m2=1.0, l=1.0), dt=0.01).check().prepare().run(until=20)
+    run = Simulation(create(MODEL, theta=0.05, m1=ratio, m2=1.0, l=1.0), dt=0.01).prepare().run(until=20)
     velocity, steps = np.ravel(run.trajectory_.values('cart.theta_d1')), np.asarray(run.trajectory_.times)
     crossings = steps[1:][(velocity[:-1] < 0) & (velocity[1:] >= 0)]
     frequencies.append(2 * np.pi / np.diff(crossings).mean())

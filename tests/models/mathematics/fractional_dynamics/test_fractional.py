@@ -21,15 +21,10 @@ from skcomplex.types import FormKind
 def test_fractional_relaxation_is_slower_than_exponential():
     """Test that relaxation of order 0.5 stays above the exponential decay of order 1 at long times."""
     exponential = (
-        Simulation(fractional_relaxation(order=1), dt=0.1)
-        .check()
-        .prepare()
-        .run(until=20.0)
-        .trajectory_.values('relaxation.x')
+        Simulation(fractional_relaxation(order=1), dt=0.1).prepare().run(until=20.0).trajectory_.values('relaxation.x')
     )
     fractional = (
         Simulation(fractional_relaxation(order=0.5), dt=0.1)
-        .check()
         .prepare()
         .run(until=20.0)
         .trajectory_.values('relaxation.x')
@@ -49,7 +44,6 @@ def test_fractional_oscillator_damps_without_friction():
     """Test that the fractional oscillator of order 0.8 loses amplitude through its memory alone."""
     trajectory = (
         Simulation(fractional_oscillator(order=0.8), dt=0.1)
-        .check()
         .prepare()
         .run(until=30.0)
         .trajectory_.values('oscillator.x')
@@ -62,7 +56,6 @@ def test_fractional_van_der_pol_keeps_oscillating():
     """Test that the fractional Van der Pol oscillator of order 0.95 keeps oscillating."""
     trajectory = (
         Simulation(fractional_van_der_pol(order=0.95), dt=0.1)
-        .check()
         .prepare()
         .run(until=40.0)
         .trajectory_.values('oscillator.x')
@@ -74,9 +67,7 @@ def test_fractional_van_der_pol_keeps_oscillating():
 
 def test_fractional_lorenz_stays_on_bounded_attractor():
     """Test that the fractional Lorenz flow of order 0.995 stays bounded and keeps switching between both wings."""
-    trajectory = (
-        Simulation(fractional_lorenz(), dt=0.05).check().prepare().run(until=40.0).trajectory_.values('lorenz.x')
-    )
+    trajectory = Simulation(fractional_lorenz(), dt=0.05).prepare().run(until=40.0).trajectory_.values('lorenz.x')
     late = trajectory[-200:]
     assert np.all(np.abs(trajectory) < 30)
     assert np.sum(np.diff(np.sign(late)) != 0) >= 2

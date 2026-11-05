@@ -46,7 +46,7 @@ class GlobalCouplingInteraction(CouplingInteraction):
         >>> from types import SimpleNamespace
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.models.physics.synchronization import GlobalCouplingInteraction
-        >>> coupling = GlobalCouplingInteraction('coupling', target='oscillators', state='y').check().prepare()
+        >>> coupling = GlobalCouplingInteraction('coupling', target='oscillators', state='y').prepare()
         >>> member, other = SimpleNamespace(y=var('y')), SimpleNamespace(y=var('z'))
         >>> coupling.function(SimpleNamespace(K=var('K'), member=member, other=other))
         -K*(y - z)
@@ -181,7 +181,7 @@ def oscillator_death(
 
     Examples:
         >>> from skcomplex.models.physics.synchronization import oscillator_death
-        >>> oscillator_death(4, distribution='quartic').elements[0].check().prepare().size_
+        >>> oscillator_death(4, distribution='quartic').elements[0].prepare().size_
         4
     """
     omegas = _frequency_quantiles(n_oscillators, width, distribution)

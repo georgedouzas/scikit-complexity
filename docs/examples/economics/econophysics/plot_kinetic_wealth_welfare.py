@@ -39,7 +39,6 @@ simulation = (
         dt=1.0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(
         until=100,
@@ -58,7 +57,6 @@ def stationary(tax):
     model_system = create(MODEL, tax=tax)
     run = (
         Simulation(model_system, dt=100.0, observables=describe(MODEL).observables_of(model_system))
-        .check()
         .prepare()
         .run(until=200)
     )

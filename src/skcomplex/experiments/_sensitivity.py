@@ -64,8 +64,8 @@ class SensitivityAnalysis(BaseAnalysis):
         >>> from skcomplex.models.biology.ecology import logistic_growth
         >>> bounds = {'growth.r': (0.1, 1.0), 'growth.K': (50, 150)}
         >>> experiment = Experiment(logistic_growth, OneAtATimeDesign(), bounds, until=20, outputs=['population.n'])
-        >>> result = experiment.check().prepare().run().result_
-        >>> SensitivityAnalysis('oat', 'population.n').check().prepare(result).run().ranking_[0]
+        >>> result = experiment.prepare().run().result_
+        >>> SensitivityAnalysis('oat', 'population.n').prepare(result).run().ranking_[0]
         'growth.K'
     """
 

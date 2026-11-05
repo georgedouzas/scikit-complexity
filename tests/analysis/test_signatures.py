@@ -10,7 +10,7 @@ from skcomplex.models import run
 
 def _signatures(trajectory: object) -> list:
     """Return the signatures of a trajectory."""
-    return SignatureAnalysis().check().prepare(trajectory).run().signatures_
+    return SignatureAnalysis().prepare(trajectory).run().signatures_
 
 
 def test_signature_analysis_of_a_series():
@@ -89,7 +89,7 @@ def test_signature_analysis_of_phases_of_particles():
 def test_signature_analysis_reads_a_trajectory():
     """Test that the signature analysis rejects a source that is not a trajectory."""
     with pytest.raises(AnalysisError, match='reads a trajectory'):
-        SignatureAnalysis().check().prepare(np.zeros(10))
+        SignatureAnalysis().prepare(np.zeros(10))
 
 
 def test_signature_analysis_of_a_model_with_several_kinds():

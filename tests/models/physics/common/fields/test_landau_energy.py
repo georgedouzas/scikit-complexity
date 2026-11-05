@@ -16,7 +16,7 @@ def _run(conserved):
     field = FieldElement('mixture', element=PhaseFieldElement, space=LatticeSpace((32,), spacing=0.5), values=values)
     energy = LandauEnergyInteraction('energy', target='mixture', kappa=0.5, conserved=conserved)
     system = System(elements=[field], interactions=[energy])
-    return Simulation(system, dt=1.0).check().prepare().run(until=40.0).trajectory_.values('mixture.phi')
+    return Simulation(system, dt=1.0).prepare().run(until=40.0).trajectory_.values('mixture.phi')
 
 
 def test_non_conserved_field_falls_into_the_nearer_well():

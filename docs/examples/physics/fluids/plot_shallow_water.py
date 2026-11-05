@@ -27,7 +27,7 @@ MODEL = 'shallow_water'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=SSPRKSolver(), dt=0.005, observers=[observer]).check().prepare().run(until=0.6)
+simulation = Simulation(system, solver=SSPRKSolver(), dt=0.005, observers=[observer]).prepare().run(until=0.6)
 
 # %%
 # Stoker's exact solution

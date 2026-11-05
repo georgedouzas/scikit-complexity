@@ -114,7 +114,7 @@ class FuzzyOilDropAnalysis(BaseAnalysis):
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import FuzzyOilDropAnalysis, read_structure
-        >>> values = FuzzyOilDropAnalysis(read_structure('1L2Y')).check().prepare().run().values_
+        >>> values = FuzzyOilDropAnalysis(read_structure('1L2Y')).prepare().run().values_
         >>> values.shape, bool(values.min() >= 0 and values.max() <= 1)
         ((38,), True)
     """

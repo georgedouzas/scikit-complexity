@@ -31,7 +31,6 @@ simulation = (
         observers=[observer],
         observables=entry.observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=50)
 )
@@ -42,9 +41,7 @@ simulation = (
 # With prohibitive weights on both treatments, the optimal treatment is nearly none and the tumour grows at nearly its
 # intrinsic rate 0.18 per day. With the optimal treatments the tumour should fall by orders of magnitude within weeks.
 
-untreated = (
-    Simulation(create(MODEL, w1=1e6, w2=1e6), dt=0.5, solver=entry.defaults['solver']).check().prepare().run(until=50)
-)
+untreated = Simulation(create(MODEL, w1=1e6, w2=1e6), dt=0.5, solver=entry.defaults['solver']).prepare().run(until=50)
 trajectory, free = simulation.trajectory_, untreated.trajectory_
 fig, (tumour, doses) = plt.subplots(1, 2, figsize=(10, 4))
 tumour.semilogy(free.times, free.values('site.y'), label='untreated')

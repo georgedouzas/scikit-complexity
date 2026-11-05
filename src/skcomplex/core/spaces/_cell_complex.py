@@ -85,14 +85,14 @@ class CellComplexSpace(NetworkSpace):
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
-        >>> square = CellComplexSpace(LatticeSpace((8, 8))).check().prepare()
+        >>> square = CellComplexSpace(LatticeSpace((8, 8))).prepare()
         >>> [matrix.shape for matrix in square.incidences_]
         [(128, 64), (64, 128)]
         >>> int((square.incidences_[1] @ square.incidences_[0]).count_nonzero())
         0
         >>> chorded = nx.cycle_graph(4)
         >>> chorded.add_edge(0, 2)
-        >>> CellComplexSpace(NetworkSpace(chorded)).check().prepare().hyperedges_
+        >>> CellComplexSpace(NetworkSpace(chorded)).prepare().hyperedges_
         ((0, 1, 2), (0, 2, 3))
     """
 
@@ -439,7 +439,7 @@ class CellComplexSpace(NetworkSpace):
         if not isinstance(self.space, LatticeSpace | NetworkSpace):
             error_msg = f'A cell complex derives from a lattice or a network space, not {self.space!r}.'
             raise SpaceError(error_msg)
-        self.space.check()
+        self.space._validated()
         if isinstance(self.space, LatticeSpace) and (self.space.geometry != 'square' or self.faces is not None):
             error_msg = 'A cell complex of a lattice takes a square lattice and no faces, which the lattice gives.'
             raise SpaceError(error_msg)
@@ -461,7 +461,7 @@ class CellComplexSpace(NetworkSpace):
             SpaceError:
                 A face uses a pair of nodes that the graph does not join, or the network has a loop.
         """
-        place = self.space.check().prepare()
+        place = self.space.prepare()
         if isinstance(place, LatticeSpace):
             self._prepare_lattice(place)
         else:

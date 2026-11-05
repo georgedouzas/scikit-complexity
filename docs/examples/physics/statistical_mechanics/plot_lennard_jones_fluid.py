@@ -24,9 +24,7 @@ MODEL = 'lennard_jones_fluid'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = (
-    Simulation(system, solver=VelocityVerletSolver(), dt=0.005, observers=[observer]).check().prepare().run(until=2.5)
-)
+simulation = Simulation(system, solver=VelocityVerletSolver(), dt=0.005, observers=[observer]).prepare().run(until=2.5)
 
 # %%
 # Structure of a gas and a liquid
@@ -40,14 +38,10 @@ simulation = (
 fig, ax = plt.subplots(figsize=(7, 4))
 for density in (0.2, 0.8):
     side = np.sqrt(400 / density)
-    run = (
-        Simulation(create(MODEL, density=density, temperature=1.0, random_state=1), dt=0.05, random_state=1)
-        .check()
-        .prepare()
-    )
+    run = Simulation(create(MODEL, density=density, temperature=1.0, random_state=1), dt=0.05, random_state=1).prepare()
     positions = np.mod(run.run(until=20).trajectory_.values('fluid.x')[100:], side)
     neighbors = NeighborAnalysis('radial-distribution', box=[side, side], bins=120, r_max=5.0)
-    neighbors.check().prepare(positions).run()
+    neighbors.prepare(positions).run()
     distances, g = neighbors.radii_, neighbors.distribution_
     ax.plot(distances, g, label=f'density {density}')
 ax.axvline(2 ** (1 / 6), color='gray', linestyle='--', label='potential minimum 2^(1/6)')

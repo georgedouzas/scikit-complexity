@@ -23,7 +23,7 @@ def _run_default(
 ) -> Trajectory:
     """Return the trajectory of a system under the default solver of its laws, unless a solver is given."""
     simulation = Simulation(system, dt=dt, solver=solver, random_state=0, observables=observables)
-    return simulation.check().prepare().run(until=until).trajectory_
+    return simulation.prepare().run(until=until).trajectory_
 
 
 def _run(
@@ -37,7 +37,7 @@ def _run(
 ) -> Trajectory:
     """Return the trajectory of a system run to a time."""
     simulation = Simulation(system, dt=dt, solver=solver, observables=observables, schedule=schedule)
-    return simulation.check().prepare().run(until=until).trajectory_
+    return simulation.prepare().run(until=until).trajectory_
 
 
 def _series(trajectory: Trajectory, *names: str) -> list[npt.NDArray[np.float64]]:
@@ -60,10 +60,4 @@ def _relative_spread(values: npt.NDArray[np.float64]) -> float:
 def _run_observed(name: str, system: System, until: float, dt: float) -> Trajectory:
     """Return the trajectory of a model's run with its observables."""
     observables = describe(name).observables_of(system)
-    return (
-        Simulation(system, dt=dt, random_state=0, observables=observables)
-        .check()
-        .prepare()
-        .run(until=until)
-        .trajectory_
-    )
+    return Simulation(system, dt=dt, random_state=0, observables=observables).prepare().run(until=until).trajectory_

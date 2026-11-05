@@ -40,7 +40,7 @@ class FractionalNoiseLaw(NoiseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import FractionalNoiseLaw
         >>> x, D = var('x'), var('D')
-        >>> FractionalNoiseLaw(x, 2 * D, hurst=0.7).check().hurst
+        >>> FractionalNoiseLaw(x, 2 * D, hurst=0.7).hurst
         0.7
     """
 

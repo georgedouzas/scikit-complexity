@@ -30,7 +30,6 @@ simulation = (
         observers=[observer],
         observables=describe(MODEL).observables_of(model_system),
     )
-    .check()
     .prepare()
     .run(until=1)
 )
@@ -44,11 +43,11 @@ trajectory = simulation.trajectory_
 # how far the triad counts lie from what the degrees alone give: the blocks pack edges together, so closed triangles
 # should be over-represented with a large positive z-score.
 
-network = NetworkAnalysis('degrees').check().prepare(trajectory).run()
+network = NetworkAnalysis('degrees').prepare(trajectory).run()
 graph, degrees = network.graphs_[-1], network.degrees_[-1]
-ccdf = DistributionAnalysis('ccdf').check().prepare(degrees).run()
+ccdf = DistributionAnalysis('ccdf').prepare(degrees).run()
 values, survival = ccdf.support_, ccdf.survival_
-scores = MotifAnalysis('z-scores', samples=10, random_state=0).check().prepare(graph).run().z_scores_[0]
+scores = MotifAnalysis('z-scores', samples=10, random_state=0).prepare(graph).run().z_scores_[0]
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))
 left.plot(values, survival, 'o-', markersize=3)
 left.axvline(np.mean(degrees), color='black', linestyle=':', label='mean degree')

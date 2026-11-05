@@ -63,7 +63,7 @@ class SusceptibilityAnalysis(DistributionAnalysis):
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import SusceptibilityAnalysis
-        >>> susceptibility = SusceptibilityAnalysis(size=4).check().prepare([0.5, -1.0, 0.5, -1.0]).run()
+        >>> susceptibility = SusceptibilityAnalysis(size=4).prepare([0.5, -1.0, 0.5, -1.0]).run()
         >>> susceptibility.susceptibility_.tolist()
         [0.25]
     """

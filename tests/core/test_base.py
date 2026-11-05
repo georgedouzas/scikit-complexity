@@ -18,7 +18,7 @@ from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.laws import BaseLaw
 from skcomplex.core.spaces import BaseNeighborhood, BaseSpace, BaseTime
 from skcomplex.core.system import System
-from skcomplex.errors import NotCheckedError, ValidationError
+from skcomplex.errors import ValidationError
 from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
 
 SOURCE = str(Path(str(files('skcomplex'))))
@@ -165,31 +165,23 @@ def _hand_written(cls):
 
 def test_verbs_check_prepare_and_run():
     """Test that checking marks the part, preparing derives its attributes from a context, and running acts."""
-    part = DoublingPart('doubling').check().prepare('context')
+    part = DoublingPart('doubling').prepare('context')
     assert (part.prepared_, part.context_) == (1, 'context')
     assert part.run(3).doubled_ == 6
-
-
-def test_part_must_be_checked_before_it_is_prepared_or_run():
-    """Test that preparing or running a part that was not checked raises an error."""
-    with pytest.raises(NotCheckedError):
-        DoublingPart('doubling').prepare()
-    with pytest.raises(NotCheckedError):
-        DoublingPart('doubling').run(3)
 
 
 def test_check_validates_the_label_and_the_arguments():
     """Test that checking rejects a label that is not a string and an argument the part cannot take."""
     with pytest.raises(ValidationError, match='label of DoublingPart must be a string'):
-        DoublingPart(1).check()
+        DoublingPart(1).prepare()
     with pytest.raises(ValidationError, match='not a number'):
-        DoublingPart('doubling', factor='two').check()
+        DoublingPart('doubling', factor='two').prepare()
 
 
 def test_check_validates_every_declared_spec():
     """Test that checking a part checks the spec of every annotated argument."""
     with pytest.raises(ValidationError, match='order'):
-        InvalidSpecPart('invalid').check()
+        InvalidSpecPart('invalid').prepare()
 
 
 def test_get_specs_returns_the_annotated_arguments_in_constructor_order():
@@ -223,7 +215,7 @@ def test_element_runs_into_its_laws():
         def _get_laws(self, namespace):
             return []
 
-    assert StillElement('a').check().prepare().run(SimpleNamespace()).laws_ == []
+    assert StillElement('a').prepare().run(SimpleNamespace()).laws_ == []
 
 
 def test_parts_derive_from_the_part_base():

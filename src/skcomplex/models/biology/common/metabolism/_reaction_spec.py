@@ -32,11 +32,11 @@ class ReactionSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The lower bound is above the upper bound, raised by `check`.
+            The lower bound is above the upper bound, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.models.biology.common.metabolism import ReactionSpec
-        >>> ReactionSpec({'A': -1.0, 'B': 1.0}, rule='g1 or g2').check().upper
+        >>> ReactionSpec({'A': -1.0, 'B': 1.0}, rule='g1 or g2').upper
         1000.0
     """
 

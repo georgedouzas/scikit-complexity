@@ -100,13 +100,13 @@ class DomainAnalysis(BaseAnalysis):
         >>> from skcomplex.analysis import DomainAnalysis
         >>> x = np.arange(256)
         >>> stripes = np.sign(np.cos(2 * np.pi * x / 16))
-        >>> DomainAnalysis(method='zero').check().prepare(stripes[:64]).run().size_.tolist()
+        >>> DomainAnalysis(method='zero').prepare(stripes[:64]).run().size_.tolist()
         [4.0]
         >>> stack = [np.sign(np.cos(2 * np.pi * x / (8 * t))) for t in (1, 2, 4)]
-        >>> growth = DomainAnalysis('growth', method='zero', times=[1, 2, 4]).check().prepare(stack).run()
+        >>> growth = DomainAnalysis('growth', method='zero', times=[1, 2, 4]).prepare(stack).run()
         >>> round(growth.exponent_, 2)
         1.0
-        >>> DomainAnalysis('interface-density').check().prepare([[1, 1, -1, -1]] * 4).run().density_.tolist()
+        >>> DomainAnalysis('interface-density').prepare([[1, 1, -1, -1]] * 4).run().density_.tolist()
         [0.25]
     """
 

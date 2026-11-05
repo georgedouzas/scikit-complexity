@@ -27,7 +27,7 @@ class ReducingJumpInteraction(MapInteraction):
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import ReducingJumpInteraction
-        >>> ReducingJumpInteraction('jump', target='balls').check().state
+        >>> ReducingJumpInteraction('jump', target='balls').state
         'level'
     """
 

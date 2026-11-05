@@ -9,7 +9,6 @@ def test_pendulum_without_control_falls():
     """Test that the pendulum without its controller falls away from upright."""
     trajectory = (
         Simulation(System(elements=[CartPendulumElement('cart', theta=0.1)]), dt=0.1)
-        .check()
         .prepare()
         .run(until=1.0)
         .trajectory_

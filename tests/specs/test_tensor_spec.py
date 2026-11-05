@@ -22,13 +22,13 @@ from skcomplex.specs import TensorSpec
 )
 def test_indices_count_the_independent_components(symmetry, n_dim, count):
     """Every symmetry has the number of independent components of its dimension."""
-    assert len(TensorSpec(symmetry, n_dim).check().indices) == count
+    assert len(TensorSpec(symmetry, n_dim).indices) == count
 
 
 def test_check_rejects_one_dimension():
     """A tensor in one dimension is not valid."""
     with pytest.raises(ValidationError, match='2 or 3 dimensions'):
-        TensorSpec('symmetric', 1).check()
+        TensorSpec('symmetric', 1).prepare()
 
 
 def test_array_of_gives_a_traceless_tensor():

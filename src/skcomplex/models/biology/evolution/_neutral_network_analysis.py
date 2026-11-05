@@ -68,7 +68,7 @@ class NeutralNetworkAnalysis(BaseAnalysis):
         >>> from skcomplex.models.biology.evolution import NeutralNetworkAnalysis
         >>> genotypes = [''.join(letters) for letters in itertools.product('01', repeat=4)]
         >>> analysis = NeutralNetworkAnalysis(lambda sequence: sequence[0], 'genotype-robustness', alphabet='01')
-        >>> set(analysis.check().prepare(genotypes).run().values_.tolist())
+        >>> set(analysis.prepare(genotypes).run().values_.tolist())
         {3.0}
     """
 

@@ -55,7 +55,7 @@ def test_bgk_sod_shock_tube_near_the_fluid_limit() -> None:
     positions, velocities = 200, 48
     system = create('bgk_equation', positions=positions, velocities=velocities, knudsen=1e-4)
     solver = StrangSplittingSolver(SSPRKSolver(dt=0.001), RK4Solver(dt=2e-4), dt=0.001)
-    trajectory = Simulation(system, dt=0.2, solver=solver).check().prepare().run(until=0.2).trajectory_
+    trajectory = Simulation(system, dt=0.2, solver=solver).prepare().run(until=0.2).trajectory_
     values = trajectory.values('gas.f')[-1].reshape(positions, velocities)
     width = 12.0 / velocities
     density = values.sum(axis=1) * width
@@ -69,9 +69,7 @@ def test_vlasov_default_model_damps_at_the_landau_rate() -> None:
     positions, velocities = 32, 64
     defaults = describe('vlasov_equation').defaults
     settings = {key: value for key, value in defaults.items() if key != 'until'}
-    trajectory = (
-        Simulation(create('vlasov_equation'), **settings).check().prepare().run(until=defaults['until']).trajectory_
-    )
+    trajectory = Simulation(create('vlasov_equation'), **settings).prepare().run(until=defaults['until']).trajectory_
     amplitude = amplitude_of(np.asarray(trajectory.values('gas.f')), positions, velocities)
     times = np.asarray(trajectory.times)
     peaks = [
@@ -88,7 +86,7 @@ def test_vlasov_two_stream_grows_and_unknown_setup_raises() -> None:
     defaults = describe('vlasov_equation').defaults
     settings = {key: value for key, value in defaults.items() if key != 'until'}
     system = vlasov_equation(positions, velocities, setup='two-stream', amplitude=0.001)
-    trajectory = Simulation(system, **settings).check().prepare().run(until=40.0).trajectory_
+    trajectory = Simulation(system, **settings).prepare().run(until=40.0).trajectory_
     amplitude = amplitude_of(np.asarray(trajectory.values('gas.f')), positions, velocities)
     assert amplitude.max() > 10 * amplitude[0]
     with pytest.raises(ValidationError, match='Unknown set-up'):
@@ -99,9 +97,7 @@ def test_boltzmann_conserves_density() -> None:
     """Keep the total of a Boltzmann gas within 1e-10 relative error under streaming and collisions."""
     defaults = describe('boltzmann_equation').defaults
     settings = {key: value for key, value in defaults.items() if key != 'until'}
-    trajectory = (
-        Simulation(create('boltzmann_equation'), **settings).check().prepare().run(until=defaults['until']).trajectory_
-    )
+    trajectory = Simulation(create('boltzmann_equation'), **settings).prepare().run(until=defaults['until']).trajectory_
     values = np.asarray(trajectory.values('gas.f'))
     assert abs(values[-1].sum() / values[0].sum() - 1.0) < 1e-10
     assert not np.array_equal(values[-1], values[0])
@@ -111,8 +107,8 @@ def test_enskog_contact_value_speeds_collisions_at_a_higher_density() -> None:
     """Relax faster than the Boltzmann equation at the same Knudsen number, by the contact value at the density."""
     defaults = describe('enskog').defaults
     settings = {key: value for key, value in defaults.items() if key != 'until'}
-    dilute = Simulation(enskog(diameter=1e-6), **settings).check().prepare().run(until=0.2).trajectory_
-    dense = Simulation(enskog(diameter=0.5), **settings).check().prepare().run(until=0.2).trajectory_
+    dilute = Simulation(enskog(diameter=1e-6), **settings).prepare().run(until=0.2).trajectory_
+    dense = Simulation(enskog(diameter=0.5), **settings).prepare().run(until=0.2).trajectory_
     start = np.asarray(dilute.values('gas.f'))[0]
     assert (
         np.abs(np.asarray(dense.values('gas.f'))[-1] - start).max()

@@ -23,9 +23,7 @@ MODEL = 'pendulum_swing_up'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = (
-    Simulation(system, dt=0.1, solver=RK4Solver(dt=0.01), observers=[observer]).check().prepare().run(until=100)
-)
+simulation = Simulation(system, dt=0.1, solver=RK4Solver(dt=0.01), observers=[observer]).prepare().run(until=100)
 
 # %%
 # Energy pumping

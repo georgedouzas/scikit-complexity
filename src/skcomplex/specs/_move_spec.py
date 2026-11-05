@@ -44,7 +44,7 @@ class MoveSpec(BaseSpec):
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.specs import MoveSpec
-        >>> MoveSpec(var('color'), 'random-value', values=(0.0, 1.0, 2.0)).check().values
+        >>> MoveSpec(var('color'), 'random-value', values=(0.0, 1.0, 2.0)).values
         (0.0, 1.0, 2.0)
     """
 

@@ -35,14 +35,10 @@ simulation = run(MODEL, settings={'observers': [observer], 'random_state': 0})
 
 spacing = 40.0 / 128
 fields = (
-    Simulation(create(MODEL, n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01))
-    .check()
-    .prepare()
-    .run(until=4.0)
-    .trajectory_
+    Simulation(create(MODEL, n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01)).prepare().run(until=4.0).trajectory_
 )
 operators = create(MODEL, n_sites=128, formulation='operators')
-operators = Simulation(operators, compiler=OperatorCompiler(), dt=0.5).check().prepare().run(until=4.0).trajectory_
+operators = Simulation(operators, compiler=OperatorCompiler(), dt=0.5).prepare().run(until=4.0).trajectory_
 density = (fields.values('packet.u') ** 2 + fields.values('packet.w') ** 2) * spacing
 probability = np.abs(operators.values('schrodinger.state')) ** 2
 positions = spacing * np.arange(128) - 20.0
@@ -55,8 +51,8 @@ agreement.set_title('The two formulations agree')
 agreement.legend()
 for gamma in (0.1, 0.5, 2.0):
     dephased = create(MODEL, n_sites=48, length=20.0, formulation='operators', gamma=gamma)
-    trajectory = Simulation(dephased, compiler=OperatorCompiler(), dt=0.1).check().prepare().run(until=4.0).trajectory_
-    purity = OperatorAnalysis('purity').check().prepare(trajectory).run().purity_
+    trajectory = Simulation(dephased, compiler=OperatorCompiler(), dt=0.1).prepare().run(until=4.0).trajectory_
+    purity = OperatorAnalysis('purity').prepare(trajectory).run().purity_
     coherence.plot(trajectory.times, purity, label=f'gamma = {gamma}')
 coherence.set_xlabel('time')
 coherence.set_ylabel('purity')

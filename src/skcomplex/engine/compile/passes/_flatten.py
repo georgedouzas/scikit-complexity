@@ -100,7 +100,7 @@ class FlattenPass(BasePass):
             return
         if isinstance(space, LatticeSpace):
             try:
-                space.check().prepare()
+                space.prepare()
             except ValidationError as error:
                 error_msg = f'{where} has a lattice that is not valid. {error}'
                 raise ValidationError(error_msg) from error
@@ -112,7 +112,7 @@ class FlattenPass(BasePass):
     def _check_part(part: Element | GroupElement | BaseInteraction, scope: str) -> None:
         """Check the arguments of an element, group, or interaction, raising its error with the path of the part."""
         try:
-            part.check()
+            part._validated()
         except SkcomplexError as error:
             error_msg = f'{scope}{part.label}: {error}'
             raise type(error)(error_msg) from error
@@ -203,7 +203,7 @@ class FlattenPass(BasePass):
                 return known
         try:
             if not hasattr(space, 'size_'):
-                space.check().prepare()
+                space.prepare()
         except ValidationError:
             seen.append(space)
             return space
@@ -224,7 +224,7 @@ class FlattenPass(BasePass):
             return element
         if element.size is None and element.space is None:
             return copy.copy(element).prepare(space)
-        return element.check().prepare(space)
+        return element.prepare(space)
 
     @staticmethod
     def _is_topology_group(component: object, space: BaseSpace | None) -> bool:
@@ -288,7 +288,7 @@ class FlattenPass(BasePass):
         FlattenPass._check_children(system, scope)
         nodes = []
         for element, place in zip(system.elements, places, strict=True):
-            element.check().prepare(place)
+            element.prepare(place)
             sized, active = FlattenPass._with_capacity(FlattenPass._sized(element, space), place)
             if isinstance(sized, GroupElement):
                 path, members = f'{scope}{element.label}', sized.size_
@@ -301,7 +301,7 @@ class FlattenPass(BasePass):
             NodeSpec(
                 f'{scope}{interaction.label}',
                 scope,
-                interaction.check().prepare(),
+                interaction.prepare(),
                 space,
                 type(interaction),
                 interaction=True,

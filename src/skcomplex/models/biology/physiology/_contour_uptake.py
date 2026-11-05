@@ -33,7 +33,7 @@ class ContourUptakeInteraction(CouplingInteraction):
         >>> cells = GroupElement('cells', element=ContourCellElement, size=2, values={'x': [0.25, 1.0], 'c': 0.5})
         >>> uptake = ContourUptakeInteraction('uptake', target='cells')
         >>> system = System(elements=[cells], interactions=[uptake], time=DiscreteTime())
-        >>> Simulation(system).check().prepare().run(until=1).trajectory_.values('cells.x')[-1].round(4).tolist()
+        >>> Simulation(system).prepare().run(until=1).trajectory_.values('cells.x')[-1].round(4).tolist()
         [0.7344, 0.25]
     """
 

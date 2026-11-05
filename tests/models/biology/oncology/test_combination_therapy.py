@@ -24,7 +24,6 @@ def _run(system, until, dt, solver=None, observables=()):
     """Return the trajectory of a system."""
     return (
         Simulation(system, dt=dt, random_state=0, solver=solver, observables=observables)
-        .check()
         .prepare()
         .run(until=until)
         .trajectory_

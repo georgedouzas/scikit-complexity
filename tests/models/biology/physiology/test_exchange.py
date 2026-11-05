@@ -46,12 +46,8 @@ class _PreviousCellElement(ExchangingCellElement):
 
 def test_closed_contour_cell_exchange_synchronizes_in_the_stability_domain():
     """Test that the contour cells synchronize at a stable equilibrium in its domain, and a chaotic one does not."""
-    stable = (
-        Simulation(closed_contour_cell_exchange(r=2.5), dt=1).check().prepare().run(200).trajectory_.values('cells.x')
-    )
-    chaotic = (
-        Simulation(closed_contour_cell_exchange(r=3.9), dt=1).check().prepare().run(200).trajectory_.values('cells.x')
-    )
+    stable = Simulation(closed_contour_cell_exchange(r=2.5), dt=1).prepare().run(200).trajectory_.values('cells.x')
+    chaotic = Simulation(closed_contour_cell_exchange(r=3.9), dt=1).prepare().run(200).trajectory_.values('cells.x')
     equilibrium = stable[-1]
     assert np.ptp(stable[-20:], axis=0).max() < 1e-9
     assert np.ptp(equilibrium) < 1e-9
@@ -67,7 +63,7 @@ def test_nanotube_gap_junction_exchange_destabilizes_past_the_threshold():
     final = {}
     for share in (0.8, 1.2):
         system = nanotube_gap_junction_exchange(graph, xi=share * critical, x=0.1)
-        final[share] = Simulation(system, dt=0.5).check().prepare().run(200).trajectory_.values('cells.x')[-1].mean()
+        final[share] = Simulation(system, dt=0.5).prepare().run(200).trajectory_.values('cells.x')[-1].mean()
     assert final[0.8] < 0.01
     assert final[1.2] > 10
 
@@ -86,6 +82,6 @@ def test_nanotube_gap_junction_exchange_keeps_the_trajectory_of_the_coupling_in_
         values={**field.values, 'degree': degrees},
     )
     previous = System(elements=[cells], time=ContinuousTime())
-    trajectory = Simulation(system, dt=0.5).check().prepare().run(until=100).trajectory_
-    expected = Simulation(previous, dt=0.5).check().prepare().run(until=100).trajectory_
+    trajectory = Simulation(system, dt=0.5).prepare().run(until=100).trajectory_
+    expected = Simulation(previous, dt=0.5).prepare().run(until=100).trajectory_
     assert np.abs(trajectory.values('cells.x') - expected.values('cells.x')).max() < 1e-10

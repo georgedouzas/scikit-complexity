@@ -20,7 +20,7 @@ MODEL = 'piecewise_linear_ias'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=5.0, observers=[observer]).check().prepare().run(until=1500)
+simulation = Simulation(system, dt=5.0, observers=[observer]).prepare().run(until=1500)
 
 # %%
 # Three patient types
@@ -31,11 +31,7 @@ simulation = Simulation(system, dt=5.0, observers=[observer]).check().prepare().
 
 fig, axes = plt.subplots(1, 3, figsize=(12, 4), sharey=True)
 for patient, axis in zip((1, 2, 3), axes, strict=True):
-    run = (
-        simulation
-        if patient == 1
-        else Simulation(create(MODEL, patient=patient), dt=5.0).check().prepare().run(until=1500)
-    )
+    run = simulation if patient == 1 else Simulation(create(MODEL, patient=patient), dt=5.0).prepare().run(until=1500)
     trajectory = run.trajectory_
     psa = trajectory.values('tumour.AD') + trajectory.values('tumour.AIR') + trajectory.values('tumour.AII')
     axis.plot(trajectory.times, psa)

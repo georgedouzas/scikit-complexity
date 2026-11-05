@@ -29,9 +29,7 @@ observer = RerunObserver(
     blueprint='default',
     primary='fault/space_time/v',
 )
-simulation = (
-    Simulation(system, dt=10.0, solver=RK4Solver(dt=0.05), observers=[observer]).check().prepare().run(until=2000)
-)
+simulation = Simulation(system, dt=10.0, solver=RK4Solver(dt=0.05), observers=[observer]).prepare().run(until=2000)
 
 # %%
 # Stick and slip

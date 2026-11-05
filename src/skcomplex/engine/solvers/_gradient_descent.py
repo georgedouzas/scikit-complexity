@@ -67,7 +67,7 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
 
     Examples:
         >>> from skcomplex.engine.solvers import GradientDescentSolver
-        >>> GradientDescentSolver(precision='float32').check().precision
+        >>> GradientDescentSolver(precision='float32').precision
         'float32'
     """
 

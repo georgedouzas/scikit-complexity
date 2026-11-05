@@ -94,7 +94,7 @@ def _run(graph: nx.Graph, change: TopologyInteraction, until: float, dt: float =
     nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=500, values=values)
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=500)
     system = System(elements=[nodes, links], interactions=[change], space=NetworkSpace(graph))
-    return Simulation(system, dt=dt, random_state=0).check().prepare().run(until=until).trajectory_
+    return Simulation(system, dt=dt, random_state=0).prepare().run(until=until).trajectory_
 
 
 def _sizes(trajectory: Trajectory, frame: int) -> tuple[int, int]:
@@ -196,7 +196,7 @@ def test_get_laws_add_node_with_a_hyperedge_attaches_a_triangle_per_step(backend
     """Test that 50 nodes added with triangles to one triangle give 51 triangles, each new node in one of them."""
     growth = TopologyInteraction('growth', action='add-node', hyperedge=3)
     ageing = AgeingInteraction('ageing', nodes='nodes', triangles='triangles')
-    simulation = Simulation(_triangles(growth, ageing), backend=backend, random_state=0).check().prepare()
+    simulation = Simulation(_triangles(growth, ageing), backend=backend, random_state=0).prepare()
     trajectory = simulation.run(until=50).trajectory_
     network = trajectory.network(-1)
     graph = network.graph()
@@ -219,7 +219,7 @@ def test_get_laws_remove_node_removes_the_hyperedges_that_hold_it():
     )
     system = _triangles(removal)
     system.elements[0].values = {'mark': [1.0, 0.0, 0.0]}
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
     assert trajectory.network(0).hyperedges.shape == (1, 3)
     assert trajectory.network(1).hyperedges.shape == (0, 3)
 
@@ -228,18 +228,18 @@ def test_get_laws_add_node_with_a_hyperedge_needs_a_hyperedge_group_of_its_size(
     """Test that growth by hyperedges of another size than the group, or without one, is reported."""
     growth = TopologyInteraction('growth', action='add-node', hyperedge=4)
     with pytest.raises(ValidationError, match='size 3'):
-        Simulation(_triangles(growth), random_state=0).check().prepare()
+        Simulation(_triangles(growth), random_state=0).prepare()
     nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=8)
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=24)
     system = System(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.complete_graph(3)))
     with pytest.raises(ValidationError, match='variable group on its hyperedges'):
-        Simulation(system, random_state=0).check().prepare()
+        Simulation(system, random_state=0).prepare()
 
 
 def test_check_rejects_an_edge_action_without_target():
     """Test that an action other than a node addition needs a target."""
     with pytest.raises(ValidationError):
-        TopologyInteraction('change', action='add-edge').check()
+        TopologyInteraction('change', action='add-edge').prepare()
 
 
 @pytest.mark.parametrize(
@@ -258,7 +258,7 @@ def test_check_rejects_an_edge_action_without_target():
 def test_check_rejects_invalid_arguments(arguments):
     """Test that an unknown action or end, a rate with a probability, bad functions, and bad edges are rejected."""
     with pytest.raises(ValidationError):
-        TopologyInteraction('change', target='nodes', **arguments).check()
+        TopologyInteraction('change', target='nodes', **arguments).prepare()
 
 
 def test_get_laws_reads_a_renamed_target_end():
@@ -303,7 +303,7 @@ def test_get_laws_refuses_a_callable_value_on_a_growing_hypergraph():
     system = _triangles(growth, marking)
     system.time = ContinuousTime()
     with pytest.raises(ValidationError, match='switches off only a symbolic value'):
-        Simulation(system, random_state=0).check().prepare()
+        Simulation(system, random_state=0).prepare()
 
 
 def _grown(change: TopologyInteraction, seeds: int = 80, capacity: int = 200, **arguments: object) -> Simulation:
@@ -314,7 +314,7 @@ def _grown(change: TopologyInteraction, seeds: int = 80, capacity: int = 200, **
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=3 * capacity)
     space = NetworkSpace(nx.empty_graph(seeds))
     system = System(elements=[nodes, links], interactions=[change], space=space, time=DiscreteTime())
-    return Simulation(system, random_state=0, **arguments).check().prepare()
+    return Simulation(system, random_state=0, **arguments).prepare()
 
 
 def _mark_gaps(trajectory: Trajectory) -> np.ndarray:
@@ -449,7 +449,7 @@ def test_get_laws_rate_cannot_read_the_new_node():
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
     system = System(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.empty_graph(2)))
     with pytest.raises(ValidationError, match=r'namespace\.source'):
-        Simulation(system, random_state=0).check().prepare().run(until=2)
+        Simulation(system, random_state=0).prepare().run(until=2)
 
 
 def test_get_laws_reduction_cannot_read_the_new_node():
@@ -464,7 +464,7 @@ def test_get_laws_reduction_cannot_read_the_new_node():
     edges = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
     system = System(elements=[nodes, edges], interactions=[growth], space=NetworkSpace(links), time=DiscreteTime())
     with pytest.raises(ValidationError, match=r'neighbourhood reduction of nodes reads mark_nodes__source'):
-        Simulation(system, random_state=0).check().prepare()
+        Simulation(system, random_state=0).prepare()
 
 
 def test_get_laws_add_node_runs_on_no_mesa_path():
@@ -474,4 +474,4 @@ def test_get_laws_add_node_runs_on_no_mesa_path():
     links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
     system = System(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.path_graph(4)))
     with pytest.raises(SolverError, match='does not support the laws UpdateLaw'):
-        Simulation(system, solver=MesaSolver(), random_state=0).check().prepare()
+        Simulation(system, solver=MesaSolver(), random_state=0).prepare()

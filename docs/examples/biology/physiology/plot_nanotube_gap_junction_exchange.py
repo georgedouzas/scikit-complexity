@@ -39,7 +39,7 @@ def leading_rate(xi):
 critical = brentq(leading_rate, 0.0, 1.0)
 system = create(MODEL, graph=graph, xi=1.2 * critical)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.5, observers=[observer], random_state=0).check().prepare().run(until=100)
+simulation = Simulation(system, dt=0.5, observers=[observer], random_state=0).prepare().run(until=100)
 
 # %%
 # Distance to instability
@@ -58,7 +58,7 @@ spectrum.set_ylabel('leading eigenvalue of the Jacobian')
 spectrum.set_title('Distance to instability')
 spectrum.legend()
 for share in (0.0, 0.8, 1.0, 1.2):
-    run = Simulation(create(MODEL, graph=graph, xi=share * critical, x=0.01), dt=0.5).check().prepare().run(until=100)
+    run = Simulation(create(MODEL, graph=graph, xi=share * critical, x=0.01), dt=0.5).prepare().run(until=100)
     totals.semilogy(run.trajectory_.times, run.trajectory_.values('cells.x').sum(axis=1), label=f'xi = {share} xi_crit')
 totals.set_xlabel('time')
 totals.set_ylabel('total substance')

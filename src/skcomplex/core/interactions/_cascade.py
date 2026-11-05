@@ -70,7 +70,7 @@ class CascadeInteraction(NeighborInteraction):
     Examples:
         >>> from skcomplex.core.interactions import CascadeInteraction
         >>> cascade = CascadeInteraction('cascade', target='sites', state='height', threshold=4, share=1)
-        >>> cascade.check().mode
+        >>> cascade.mode
         'redistribute'
     """
 
@@ -152,7 +152,7 @@ class CascadeInteraction(NeighborInteraction):
 
     def _scatter(self, neighborhood: LatticeNeighborhood, threshold: float, share: float) -> Callable[..., Array]:
         """Return the drive that passes the parcels of every relaxing member to neighbours drawn at random."""
-        steps = np.array([offset for offset in neighborhood.check().prepare().offsets_ if any(offset)])
+        steps = np.array([offset for offset in neighborhood.prepare().offsets_ if any(offset)])
         parcels = round(threshold / share)
 
         def scatter(values: Array, *, random: np.random.Generator) -> Array:

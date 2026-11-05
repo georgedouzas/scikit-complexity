@@ -95,7 +95,7 @@ class PredatorPreyEventsInteraction(Interaction):
             if self.stochastic
             else RateInteraction(self.label, target='member', state='n', rate=lambda _: step * propensity)
         )
-        return change.check().prepare().run(SimpleNamespace(target=member)).laws_
+        return change.prepare().run(SimpleNamespace(target=member)).laws_
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the five channels of births and deaths.

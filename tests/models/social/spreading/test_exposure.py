@@ -22,14 +22,14 @@ def test_hypergraph_exposure_sis_infects_with_the_probability_of_the_doses(backe
     participants = system.elements[0]
     infected = participants.values['infected']
     doses = np.zeros(60)
-    for hyperedge in participants.space.check().prepare().hyperedges_:
+    for hyperedge in participants.space.prepare().hyperedges_:
         members = list(hyperedge)
         doses[members] += 0.3 * ((infected[members].sum() - infected[members]) / (len(members) - 1)) ** 1.5
     expected = np.where(infected == 1, 0.95, 1 - np.exp(-doses))
     runs = 200
     hits = np.zeros(60)
     for seed in range(runs):
-        simulation = Simulation(system, random_state=seed, dt=1, backend=backend).check().prepare().run(until=1)
+        simulation = Simulation(system, random_state=seed, dt=1, backend=backend).prepare().run(until=1)
         hits += simulation.trajectory_.values('participants.infected')[1]
     error = np.sqrt(np.maximum(expected * (1 - expected), 0.01) / runs)
     assert np.all(np.abs(hits / runs - expected) < 4 * error)

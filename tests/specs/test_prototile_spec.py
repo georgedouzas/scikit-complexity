@@ -10,4 +10,4 @@ from skcomplex.specs import PrototileSpec
 def test_invalid_fields_raise_rewriting_errors(spec):
     """Test that a prototile rejects invalid fields with a rewriting error."""
     with pytest.raises(RewritingError):
-        spec.check()
+        spec.prepare()

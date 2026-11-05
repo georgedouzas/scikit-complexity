@@ -122,14 +122,14 @@ class StabilityAnalysis(BaseAnalysis):
     Examples:
         >>> from skcomplex.analysis import StabilityAnalysis
         >>> from skcomplex.models.biology.ecology import logistic_growth
-        >>> analysis = StabilityAnalysis().check().prepare(logistic_growth()).run()
+        >>> analysis = StabilityAnalysis().prepare(logistic_growth()).run()
         >>> sorted(str(point['population.n']) for point in analysis.fixed_points_)
         ['0', 'K_growth']
-        >>> analysis = StabilityAnalysis(points=[{'population.n': 100.0}]).check().prepare(logistic_growth())
+        >>> analysis = StabilityAnalysis(points=[{'population.n': 100.0}]).prepare(logistic_growth())
         >>> analysis.run().classifications_
         ['stable node']
         >>> from skcomplex.models.chemistry.pattern_formation import brusselator
-        >>> relation = StabilityAnalysis('dispersion').check().prepare(brusselator((64,), b=1.9, Dv=8.0)).run()
+        >>> relation = StabilityAnalysis('dispersion').prepare(brusselator((64,), b=1.9, Dv=8.0)).run()
         >>> bool(relation.growth_rates_.max() > 0), bool(relation.growth_rates_[0] < 0)
         (True, True)
     """
@@ -262,7 +262,7 @@ class StabilityAnalysis(BaseAnalysis):
                 A group has more members than the limit, or an element set reads a weighted reduction.
         """
         StabilityAnalysis._check_groups(problem)
-        expansion = _Expansion(parameter_values).check().prepare(problem)
+        expansion = _Expansion(parameter_values).prepare(problem)
         names: list[str] = []
         symbols: list[Expression] = []
         rates: list[Expression] = []
@@ -447,12 +447,12 @@ class StabilityAnalysis(BaseAnalysis):
             error_msg = f'The field {field.label} is not on a periodic lattice, so its modes are not Fourier modes.'
             raise AnalysisError(error_msg)
         interactions = StabilityAnalysis._bound_interactions(system, field)
-        return field, field.space.check().prepare(), interactions
+        return field, field.space.prepare(), interactions
 
     @staticmethod
     def _add_rate(rates: dict[str, Expression], names: dict[str, Expression], law: object, label: str) -> None:
         """Add a rate law of a state of a field to the rates, with its Laplacians as eigenvalues, or raise an error."""
-        targets = law.check()._get_targets() if isinstance(law, RateLaw) else ()
+        targets = law._get_targets() if isinstance(law, RateLaw) else ()
         target = next((name for name, item in names.items() if targets and targets[0] is item), None)
         if not isinstance(law, RateLaw) or target is None:
             error_msg = f'The dispersion relation takes rate laws of the states of {label}, but got {law!r}.'
@@ -482,7 +482,7 @@ class StabilityAnalysis(BaseAnalysis):
         names = {name: symbol(f'_{name}_') for name in states}
         rates: dict[str, Expression] = {}
         time = symbol('t')
-        for law in member.check()._get_laws(SimpleNamespace(**names, **parameters, t=time)):
+        for law in member._get_laws(SimpleNamespace(**names, **parameters, t=time)):
             StabilityAnalysis._add_rate(rates, names, law, field.label)
         for interaction in interactions:
             own = {
@@ -492,7 +492,7 @@ class StabilityAnalysis(BaseAnalysis):
                 name: SimpleNamespace(**names, **parameters)
                 for name in declarations_of(type(interaction), VariableKind.ROLE)
             }
-            for law in interaction.check().prepare().run(SimpleNamespace(**roles, **own, t=time)).laws_:
+            for law in interaction.prepare().run(SimpleNamespace(**roles, **own, t=time)).laws_:
                 StabilityAnalysis._add_rate(rates, names, law, field.label)
         return {name: rates[name] for name in states if name in rates}, names, values
 

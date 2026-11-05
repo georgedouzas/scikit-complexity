@@ -38,7 +38,7 @@ def _run(rule, until, values=None):
     initial[SIZE // 2] = 1.0
     cells = LatticeElement('cells', element=CellElement, space=LatticeSpace(SIZE), values=values or {'c': initial})
     system = System(elements=[cells], interactions=[rule], time=DiscreteTime())
-    return Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
+    return Simulation(system, random_state=0).prepare().run(until=until).trajectory_
 
 
 def test_totalistic_rule_of_the_neighbours_draws_rule_90():
@@ -87,4 +87,4 @@ def test_check_rejects_states_and_neighbourhoods_it_cannot_read(arguments, match
     """Test that a state that is not a name or a neighbourhood that is not one raise errors."""
     defaults = {'state': 'c', 'rule': TotalisticSpec({1: 1}), 'neighborhood': VonNeumannNeighborhood(n_dim=1)}
     with pytest.raises(ValidationError, match=match):
-        LocalRuleInteraction('rule', target='cells', **(defaults | arguments)).check()
+        LocalRuleInteraction('rule', target='cells', **(defaults | arguments)).prepare()

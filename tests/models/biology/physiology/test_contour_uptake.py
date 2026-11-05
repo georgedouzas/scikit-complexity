@@ -15,6 +15,6 @@ def test_contour_uptake_interaction_mixes_logistic_map_and_next_cell():
     cells = GroupElement('cells', element=ContourCellElement, size=3, values={'x': x, 'r': r, 'c': c, 'p': p})
     uptake = ContourUptakeInteraction('uptake', target='cells')
     system = System(elements=[cells], interactions=[uptake], time=DiscreteTime())
-    found = Simulation(system).check().prepare().run(until=1).trajectory_.values('cells.x')[-1]
+    found = Simulation(system).prepare().run(until=1).trajectory_.values('cells.x')[-1]
     expected = (1 - c) * r * x * (1 - x) + c * np.roll(x, -1) ** p
     np.testing.assert_allclose(found, expected)

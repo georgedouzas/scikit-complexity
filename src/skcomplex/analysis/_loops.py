@@ -138,9 +138,7 @@ class _Graph:
         if unknown:
             error_msg = f'The loop gain {expression} reads {unknown[0]}, which is no state or parameter of the system.'
             raise AnalysisError(error_msg)
-        function = (
-            ExpressionPrinter(time=self.problem.time, compiled=True).check().prepare(arguments).run([expression]).code_
-        )
+        function = ExpressionPrinter(time=self.problem.time, compiled=True).prepare(arguments).run([expression]).code_
         if not callable(function):
             error_msg = f'The printer returned no function of the loop gain {expression}.'
             raise AnalysisError(error_msg)
@@ -263,10 +261,10 @@ class LoopAnalysis(BaseAnalysis):
         >>> from skcomplex.analysis import LoopAnalysis
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models import create
-        >>> LoopAnalysis().check().prepare(create('bass_diffusion')).run().polarities_
+        >>> LoopAnalysis().prepare(create('bass_diffusion')).run().polarities_
         ['reinforcing', 'balancing']
-        >>> trajectory = Simulation(create('bass_diffusion'), dt=1).check().prepare().run(2).trajectory_
-        >>> LoopAnalysis('dominance').check().prepare(trajectory).run().gains_.shape
+        >>> trajectory = Simulation(create('bass_diffusion'), dt=1).prepare().run(2).trajectory_
+        >>> LoopAnalysis('dominance').prepare(trajectory).run().gains_.shape
         (3, 2)
     """
 

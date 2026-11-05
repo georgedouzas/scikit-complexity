@@ -24,7 +24,7 @@ MODEL = 'keller_segel'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.25, observers=[observer], random_state=0).check().prepare().run(until=10.5)
+simulation = Simulation(system, dt=0.25, observers=[observer], random_state=0).prepare().run(until=10.5)
 
 # %%
 # Linear instability and conservation

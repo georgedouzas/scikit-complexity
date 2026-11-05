@@ -40,7 +40,7 @@ simulation = run(MODEL, settings={'until': 60, 'dt': 0.5, 'observers': [observer
 # symptom.
 # Without the fix, `fix_rate = 0`, the capability grows to the goal on its own.
 
-polarities = LoopAnalysis().check().prepare(create(MODEL)).run().polarities_
+polarities = LoopAnalysis().prepare(create(MODEL)).run().polarities_
 summary = ', '.join(f'{polarities.count(kind)} {kind}' for kind in ('reinforcing', 'balancing'))
 
 trajectory = simulation.trajectory_

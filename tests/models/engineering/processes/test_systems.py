@@ -30,7 +30,7 @@ def test_solid_waste_fills_the_landfill_then_dumps():
     assert landfill[-1] == pytest.approx(2e6, rel=1e-3)
     assert dumped[landfill < 0.8 * 2e6].max() == pytest.approx(0.0, abs=1e-6)
     assert dumped[-1] > 0
-    assert LoopAnalysis().check().prepare(solid_waste()).run().polarities_.count('reinforcing') == 1
+    assert LoopAnalysis().prepare(solid_waste()).run().polarities_.count('reinforcing') == 1
 
 
 def test_food_relief_delays_then_meets_the_need():

@@ -25,7 +25,7 @@ MODEL = 'gravity_urban_scaling'
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 observables = describe(MODEL).observables_of(system)
-simulation = Simulation(system, observers=[observer], observables=observables).check().prepare().run(until=1.0)
+simulation = Simulation(system, observers=[observer], observables=observables).prepare().run(until=1.0)
 
 # %%
 # Total interaction against the population
@@ -42,9 +42,9 @@ experiment = Experiment(
     outputs=['total_contacts'],
     observables=observables,
 )
-totals = experiment.check().prepare().run().result_.series('total_contacts')[:, 0]
+totals = experiment.prepare().run().result_.series('total_contacts')[:, 0]
 scaling = ScalingAnalysis('power', parameters=populations, critical=0.0, above=True)
-exponent = float(np.ravel(scaling.check().prepare(totals).run().exponent_)[0])
+exponent = float(np.ravel(scaling.prepare(totals).run().exponent_)[0])
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.loglog(populations, totals, 'o', label=f'fitted exponent {exponent:.2f}')
 ax.loglog(populations, totals[0] * (np.array(populations) / populations[0]) ** 1.5, color='black', label='exponent 1.5')

@@ -32,7 +32,7 @@ def test_euler_maruyama_without_noise_matches_ode():
     )
     problem = compile_system(system)
     stepper = EulerMaruyamaSolver(dt=1e-4)
-    stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
+    stepper.set_params(random_state=np.random.default_rng(0)).prepare(problem)
     state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
     assert state[0] == pytest.approx(np.e, rel=1e-3)
 
@@ -43,7 +43,7 @@ def test_euler_maruyama_nonpositive_dt_raises_error():
         System(elements=[AssetElement('s')], interactions=[GeometricBrownianMotionInteraction('gbm', target='s')]),
     )
     stepper = EulerMaruyamaSolver(dt=0.0)
-    stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
+    stepper.set_params(random_state=np.random.default_rng(0)).prepare(problem)
     with pytest.raises(SolverError, match='positive'):
         stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))
 
@@ -55,7 +55,7 @@ def test_euler_maruyama_same_seed_on_both_backends():
         problem = compile_system(geometric_brownian_motion(), backend=backend)
         rng = np.random.default_rng(0)
         stepper = EulerMaruyamaSolver(dt=0.1)
-        stepper.set_params(random_state=rng).check().prepare(problem)
+        stepper.set_params(random_state=rng).prepare(problem)
         states.append(stepper.run(StepSpec(0.1, problem.initial_state, problem.initial_parameters, 0.4)).state_)
         three_steps = np.random.default_rng(0)
         for _ in range(3):
@@ -96,7 +96,6 @@ def test_shared_process_keeps_difference(backend, stepper):
             random_state=0,
             dt=0.1,
         )
-        .check()
         .prepare()
         .run(until=5)
         .trajectory_
@@ -117,7 +116,6 @@ def test_correlated_increments_reproduce_covariance(backend):
             random_state=0,
             dt=1.0,
         )
-        .check()
         .prepare()
         .run(until=10_000)
         .trajectory_
@@ -154,11 +152,7 @@ def test_shared_stratonovich_process_has_exact_mean():
 
     system = System(elements=[GroupElement('crosses', element=CrossElement, size=4000)])
     state = (
-        Simulation(system, solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0)
-        .check()
-        .prepare()
-        .run(until=1)
-        .state_
+        Simulation(system, solver=EulerMaruyamaSolver(dt=0.01), random_state=0, dt=1.0).prepare().run(until=1).state_
     )
     totals = state[:4000] + state[4000:]
     error = totals.std() / math.sqrt(totals.size)

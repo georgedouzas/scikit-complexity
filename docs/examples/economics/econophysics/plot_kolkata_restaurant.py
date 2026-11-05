@@ -35,7 +35,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL, n_agents=200, strategy='crowd_avoiding', random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=EVENINGS)
+simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=EVENINGS)
 
 # %%
 # Utilization of the two strategies
@@ -45,10 +45,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().pr
 # crowd avoiding strategy, reached within a few evenings.
 
 random = (
-    Simulation(create(MODEL, n_agents=200, strategy='random', random_state=0), random_state=0)
-    .check()
-    .prepare()
-    .run(EVENINGS)
+    Simulation(create(MODEL, n_agents=200, strategy='random', random_state=0), random_state=0).prepare().run(EVENINGS)
 )
 fig, ax = plt.subplots(figsize=(7, 4))
 times = simulation.trajectory_.times

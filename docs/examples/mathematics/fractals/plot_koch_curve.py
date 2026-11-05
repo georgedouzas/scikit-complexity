@@ -32,7 +32,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), observers=[observer], compiler=RewritingCompiler()).check().prepare().run(5)
+simulation = Simulation(create(MODEL), observers=[observer], compiler=RewritingCompiler()).prepare().run(5)
 trajectory = simulation.trajectory_
 segments = trajectory.structure('koch', 5).segments()
 observer.recording_.log(

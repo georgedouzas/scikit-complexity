@@ -21,7 +21,7 @@ MODEL = 'yeast_cell_cycle'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=15)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=15)
 
 # %%
 # The sequence of the cycle

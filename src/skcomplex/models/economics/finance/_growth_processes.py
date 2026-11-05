@@ -66,7 +66,7 @@ def gibrat_process(
 
     Examples:
         >>> from skcomplex.models.economics.finance import gibrat_process
-        >>> gibrat_process(10).elements[0].check().prepare().size_
+        >>> gibrat_process(10).elements[0].prepare().size_
         10
     """
     firms = GroupElement(
@@ -182,7 +182,7 @@ def kesten_process(
 
     Examples:
         >>> from skcomplex.models.economics.finance import kesten_process
-        >>> kesten_process(10).elements[0].check().prepare().size_
+        >>> kesten_process(10).elements[0].prepare().size_
         10
     """
     firms = GroupElement(

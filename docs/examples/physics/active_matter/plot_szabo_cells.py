@@ -49,7 +49,6 @@ simulation = (
         random_state=1,
         observables=entry.observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=entry.defaults['until'])
 )

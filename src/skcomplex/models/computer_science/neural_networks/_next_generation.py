@@ -81,7 +81,7 @@ def _lorenz_series(samples: int, step: float, sigma: float = 10.0, rho: float = 
         time=ContinuousTime(),
     )
     solver = ScipyODESolver(method='RK23', rtol=LORENZ_RTOL, atol=LORENZ_ATOL)
-    simulation = Simulation(system, solver=solver, dt=step).check().prepare()
+    simulation = Simulation(system, solver=solver, dt=step).prepare()
     trajectory = simulation.run(until=LORENZ_TRANSIENT + step * (samples - 1)).trajectory_
     values: Array = np.column_stack(
         [np.asarray(trajectory.values(f'flow.{name}'), dtype=np.float64) for name in LORENZ_VARIABLES],
@@ -148,7 +148,7 @@ def _fit_reservoir(
         validation=0.0,
         dt=step,
     )
-    return analysis.check().prepare(values).run()
+    return analysis.prepare(values).run()
 
 
 @register_model(

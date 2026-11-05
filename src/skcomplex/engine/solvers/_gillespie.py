@@ -35,7 +35,7 @@ class GillespieSolver(Solver):
         ...         interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=1.0, stochastic=True)],
         ...     ),
         ... )
-        >>> stepper = GillespieSolver(random_state=0).check().prepare(problem)
+        >>> stepper = GillespieSolver(random_state=0).prepare(problem)
         >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 100.0)).state_.tolist()
         [0.0, 10.0]
     """

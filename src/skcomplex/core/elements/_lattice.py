@@ -61,7 +61,7 @@ class LatticeElement(GroupElement):
         ...         self.alive = alive
         >>> space = LatticeSpace((3, 4))
         >>> cells = LatticeElement('cells', element=CellElement, space=space, values={'alive': np.eye(3, 4)})
-        >>> cells.check().prepare().size_, cells.values_['alive'].shape
+        >>> cells.prepare().size_, cells.values_['alive'].shape
         (12, (12,))
     """
 

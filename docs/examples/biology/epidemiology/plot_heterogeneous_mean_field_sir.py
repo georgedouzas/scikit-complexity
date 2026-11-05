@@ -32,7 +32,6 @@ simulation = (
         observers=[observer],
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(
         until=40,
@@ -54,7 +53,6 @@ final_sizes = [
         dt=1.0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=300)
     .trajectory_.values('recovered')[-1]

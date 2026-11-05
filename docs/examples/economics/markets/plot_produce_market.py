@@ -32,7 +32,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=N_STALLS)
 )
@@ -64,7 +63,6 @@ for index, stocked in enumerate((3, 6, 9)):
     system = create(MODEL, n_shoppers=N_SHOPPERS, n_stalls=N_STALLS, n_items_stocked=stocked, random_state=0)
     trajectory = (
         Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system))
-        .check()
         .prepare()
         .run(until=N_STALLS)
         .trajectory_

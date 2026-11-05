@@ -136,7 +136,7 @@ def oligopoly_equilibria(
     Examples:
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.economics.markets import oligopoly_equilibria
-        >>> trajectory = Simulation(oligopoly_equilibria()).check().prepare().run(1.0).trajectory_
+        >>> trajectory = Simulation(oligopoly_equilibria()).prepare().run(1.0).trajectory_
         >>> round(float(trajectory.values('cournot.q_i')[0]), 6)
         3.333333
     """

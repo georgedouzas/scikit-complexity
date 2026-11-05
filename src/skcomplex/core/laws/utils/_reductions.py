@@ -661,9 +661,9 @@ def neighbors(
     """
     if reduce == 'each':
         if isinstance(over, LatticeNeighborhood):
-            size = len(over.check().prepare().offsets_)
+            size = len(over.prepare().offsets_)
         elif isinstance(over, MemoryNeighborhood):
-            size = len(over.check().prepare().elements_)
+            size = len(over.prepare().elements_)
         else:
             error_msg = f"The reduction 'each' reads a lattice or a memory neighbourhood, not {over!r}."
             raise ValidationError(error_msg)

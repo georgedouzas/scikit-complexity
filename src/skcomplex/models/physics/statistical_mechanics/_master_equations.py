@@ -52,7 +52,7 @@ def discrete_master_equation(
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import discrete_master_equation
-        >>> discrete_master_equation(10).elements[0].check().prepare().size_
+        >>> discrete_master_equation(10).elements[0].prepare().size_
         10
     """
     potential = depth * np.cos(2 * np.pi * np.arange(n_states) / n_states)
@@ -108,7 +108,7 @@ def two_phase_zone_exchange(
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import two_phase_zone_exchange
-        >>> two_phase_zone_exchange(5).elements[0].check().prepare().size_
+        >>> two_phase_zone_exchange(5).elements[0].prepare().size_
         5
     """
     return System(

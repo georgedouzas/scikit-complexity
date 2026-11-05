@@ -51,11 +51,11 @@ class PartnerSpec(BaseSpec):
     Raises:
         ValidationError:
             The choice, the fallback, or the clearing is unknown, the distance or the capacity is not positive, or the
-            score does not fit the choice, raised by `check`.
+            score does not fit the choice, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.specs import PartnerSpec
-        >>> PartnerSpec(candidates='reach', fallback='nearest').check().candidates
+        >>> PartnerSpec(candidates='reach', fallback='nearest').candidates
         'reach'
     """
 

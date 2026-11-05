@@ -65,6 +65,6 @@ def probe_laws(component: object) -> list[object] | None:
         return None
     try:
         member = component._get_member() if isinstance(component, GroupElement) else component
-        return list(member.check().prepare().run(_probe_namespace(member)).laws_)
+        return list(member.prepare().run(_probe_namespace(member)).laws_)
     except (AttributeError, IndexError, KeyError, TypeError, ValueError, ArithmeticError, RuntimeError, SkcomplexError):
         return None

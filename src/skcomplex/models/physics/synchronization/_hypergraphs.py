@@ -139,7 +139,7 @@ def hypergraph_kuramoto(
     Examples:
         >>> from skcomplex.models.physics.synchronization import hypergraph_kuramoto
         >>> system = hypergraph_kuramoto(6)
-        >>> len(system.elements[0].space.check().prepare().hyperedges_)
+        >>> len(system.elements[0].space.prepare().hyperedges_)
         35
     """
     hypergraph = _simplices(n_oscillators, links, triangles, seed)

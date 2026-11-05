@@ -46,7 +46,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=60)
 )
@@ -64,10 +63,7 @@ fig, ax = plt.subplots(figsize=(7, 4.5))
 for topology in ('isolated', 'linked', 'small_world', 'complete'):
     network = create(MODEL, n_agents=200, topology=topology, n_groups=10, shortcuts=5, random_state=0)
     run = (
-        Simulation(network, random_state=0, observables=describe(MODEL).observables_of(network))
-        .check()
-        .prepare()
-        .run(until=40)
+        Simulation(network, random_state=0, observables=describe(MODEL).observables_of(network)).prepare().run(until=40)
     )
     trajectory = run.trajectory_
     searches = np.concatenate([[0.0], np.cumsum(trajectory.values('barter.searches')[1:])])

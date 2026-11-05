@@ -25,7 +25,7 @@ MODEL = 'linear_ring_automaton'
 
 system = create(MODEL, size=101, modulus=3)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).check().prepare().run(until=40)
+simulation = Simulation(system, observers=[observer]).prepare().run(until=40)
 
 # %%
 # Nonzero cells and invertibility
@@ -49,8 +49,8 @@ laplacian = System(
         ),
     ],
 )
-invertible = AutomatonAnalysis('injective').check().prepare(laplacian).run().injective_
-surjective = AutomatonAnalysis('surjective', infinite=True).check().prepare(laplacian).run().surjective_
+invertible = AutomatonAnalysis('injective').prepare(laplacian).run().injective_
+surjective = AutomatonAnalysis('surjective', infinite=True).prepare(laplacian).run().surjective_
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(steps, (values != 0).sum(axis=1), 'o-', label='nonzero cells')
 ax.plot(steps, 2 * steps + 1, '--', label='light cone $2t + 1$')

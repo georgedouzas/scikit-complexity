@@ -15,7 +15,7 @@ def _run(**parameters):
     """Return the trajectory of one Stuart-Landau oscillator."""
     system = System(elements=[StuartLandauElement('z', **parameters)])
     solver = ScipyODESolver(rtol=1e-9, atol=1e-11)
-    return Simulation(system, dt=0.1, solver=solver).check().prepare().run(until=40.0).trajectory_
+    return Simulation(system, dt=0.1, solver=solver).prepare().run(until=40.0).trajectory_
 
 
 @pytest.mark.parametrize(('mu', 'kappa'), [(1.0, 1.0), (2.0, 0.5), (-0.5, 1.0)])

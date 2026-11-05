@@ -75,11 +75,11 @@ def bertin_droz_gregoire(
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import bertin_droz_gregoire
-        >>> bertin_droz_gregoire(2, 8).elements[0].check().prepare().size_
+        >>> bertin_droz_gregoire(2, 8).elements[0].prepare().size_
         32
     """
     axis = AxisSpec('theta', angles, 0.0, 2 * math.pi, periodic=True)
-    space = PhaseSpace(LatticeSpace((positions, positions)), [axis]).check().prepare()
+    space = PhaseSpace(LatticeSpace((positions, positions)), [axis]).prepare()
     theta = space.coordinates_['theta']
     profile = density * (1.0 + perturbation * np.cos(theta)) / (2 * math.pi)
     values = np.broadcast_to(profile, space.shape_).copy()

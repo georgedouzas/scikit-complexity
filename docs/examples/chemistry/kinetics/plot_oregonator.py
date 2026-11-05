@@ -24,7 +24,7 @@ MODEL = 'oregonator'
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=3)
 solver = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-9)
-simulation = Simulation(system, dt=0.05, solver=solver, observers=[observer]).check().prepare().run(until=30)
+simulation = Simulation(system, dt=0.05, solver=solver, observers=[observer]).prepare().run(until=30)
 
 # %%
 # Limit cycle and period
@@ -40,7 +40,7 @@ times, x, y, z = (
     trajectory.values('reactor.y'),
     trajectory.values('reactor.z'),
 )
-spikes = EventAnalysis(variables=['reactor.y'], threshold=10.0).check().prepare(trajectory).run().starts_
+spikes = EventAnalysis(variables=['reactor.y'], threshold=10.0).prepare(trajectory).run().starts_
 periods = np.diff(spikes[1:])
 fig, (orbit, intervals) = plt.subplots(1, 2, figsize=(10, 4))
 cycle = times > spikes[1]

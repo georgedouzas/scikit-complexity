@@ -24,10 +24,7 @@ MODEL = 'absorbing_birth_death'
 system = create(MODEL, kappa=2.0, volume=100.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(system, dt=0.5, observers=[observer], random_state=0, backend=NumbaBackend())
-    .check()
-    .prepare()
-    .run(until=100)
+    Simulation(system, dt=0.5, observers=[observer], random_state=0, backend=NumbaBackend()).prepare().run(until=100)
 )
 
 # %%
@@ -49,7 +46,6 @@ def large_deviation(rho, kappa, nu=1.0, lam=1.0):
 
 long = (
     Simulation(create(MODEL, kappa=2.0, volume=100.0), dt=0.5, random_state=1, backend=NumbaBackend())
-    .check()
     .prepare()
     .run(
         until=4000,
@@ -60,10 +56,7 @@ kappas = np.linspace(0.6, 2.4, 10)
 means = []
 for kappa in kappas:
     run = (
-        Simulation(create(MODEL, kappa=kappa), dt=0.5, random_state=0, backend=NumbaBackend())
-        .check()
-        .prepare()
-        .run(until=200)
+        Simulation(create(MODEL, kappa=kappa), dt=0.5, random_state=0, backend=NumbaBackend()).prepare().run(until=200)
     )
     means.append((run.trajectory_.values('particles.n')[100:] / 100).mean())
 grid = np.linspace(0.5, 1.5, 200)

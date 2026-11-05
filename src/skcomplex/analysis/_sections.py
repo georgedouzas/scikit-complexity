@@ -100,7 +100,7 @@ class SectionAnalysis(BaseAnalysis):
     Examples:
         >>> from skcomplex.analysis import SectionAnalysis
         >>> from skcomplex.models.physics.mechanics import harmonic_oscillator
-        >>> section = SectionAnalysis(state='mass.x', until=20.0).check().prepare(harmonic_oscillator()).run()
+        >>> section = SectionAnalysis(state='mass.x', until=20.0).prepare(harmonic_oscillator()).run()
         >>> len(section.times_) > 2
         True
     """
@@ -180,11 +180,10 @@ class SectionAnalysis(BaseAnalysis):
             return float(x[index] - value)
 
         transient = self.transient if self.transient is not None else 0.0
-        event = EventKernel(SECTION, guard, None, int(self.direction), False).check().prepare()
+        event = EventKernel(SECTION, guard, None, int(self.direction), False).prepare()
         sectioned = dataclasses.replace(problem, events=(*problem.events, event))
         trajectory = (
             Simulation(sectioned, solver=self.solver, dt=self.until / 100, random_state=self.random_state)
-            .check()
             .prepare()
             .run(self.until)
             .trajectory_
@@ -207,9 +206,7 @@ class SectionAnalysis(BaseAnalysis):
         period = float(self.period)
         transient = int(self.transient if self.transient is not None else 100)
         until = period * (transient + self.n_points - 1)
-        simulation = (
-            Simulation(problem, solver=self.solver, dt=period, random_state=self.random_state).check().prepare()
-        )
+        simulation = Simulation(problem, solver=self.solver, dt=period, random_state=self.random_state).prepare()
         trajectory = simulation.run(until).trajectory_
         return trajectory.times[transient:], trajectory.states[transient:]
 

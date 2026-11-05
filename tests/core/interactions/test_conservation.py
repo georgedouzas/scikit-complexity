@@ -52,7 +52,7 @@ def _run(element, *interactions):
     space = LatticeSpace((CELLS,), spacing=spacing, boundary='periodic')
     field = FieldElement('line', element=element, space=space, values=values, discretization='finite-volume')
     simulation = Simulation(System(elements=[field], interactions=list(interactions)), dt=0.1)
-    return simulation.check().prepare().run(until=1.0).trajectory_.values('line.u')
+    return simulation.prepare().run(until=1.0).trajectory_.values('line.u')
 
 
 def test_run_matches_the_flux_law_and_conserves_the_total():
@@ -88,7 +88,7 @@ def test_run_adds_the_source():
 def test_check_rejects_invalid_arguments(arguments, message):
     """Test that `check` rejects a bad state, function, limiter, or numerical flux."""
     with pytest.raises(ValidationError, match=message):
-        ConservationInteraction('conservation', target='line', **arguments).check()
+        ConservationInteraction('conservation', target='line', **arguments).prepare()
 
 
 class WaterElement(Element):
@@ -123,7 +123,7 @@ def _run_water(element, gravity, *interactions):
     space = LatticeSpace((CELLS,), spacing=1 / CELLS, boundary='periodic')
     field = FieldElement('channel', element=element, space=space, values=values, discretization='finite-volume')
     simulation = Simulation(System(elements=[field], interactions=list(interactions)), dt=0.05)
-    return simulation.check().prepare().run(until=0.2).trajectory_.values('channel.h')
+    return simulation.prepare().run(until=0.2).trajectory_.values('channel.h')
 
 
 def _water_interactions():
@@ -168,7 +168,7 @@ def test_run_without_numerical_flux_takes_the_divergence_on_a_spectral_field():
         flux=lambda s: s.target.u**2 / 2,
         riemann=None,
     )
-    simulation = Simulation(System(elements=[field], interactions=[burgers]), dt=0.1).check().prepare()
+    simulation = Simulation(System(elements=[field], interactions=[burgers]), dt=0.1).prepare()
     trajectory = simulation.run(until=1.0).trajectory_.values('line.u')
     assert trajectory[-1].sum() == pytest.approx(trajectory[0].sum(), abs=1e-9)
     assert not np.allclose(trajectory[-1], trajectory[0])

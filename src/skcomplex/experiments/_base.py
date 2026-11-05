@@ -78,7 +78,7 @@ class BaseDesign(BaseConfig[Bounds, None], ABC):
         >>> class MidpointDesign(BaseDesign):
         ...     def _prepare(self, bounds=None):
         ...         self.rows_ = [{name: sum(bound) / 2 for name, bound in (bounds or {}).items()}]
-        >>> MidpointDesign().check().check().prepare({'r': (0.0, 1.0)}).run().rows_
+        >>> MidpointDesign().prepare({'r': (0.0, 1.0)}).run().rows_
         [{'r': 0.5}]
     """
 
@@ -136,7 +136,7 @@ class BaseDesign(BaseConfig[Bounds, None], ABC):
 class BaseExperiment(BaseConfig[None, None], ABC):
     """Base of experiments, which run a model, given by a factory of systems or a system, many times.
 
-    An experiment stores its source and settings in `__init__`, validates them in `check`, resolves the source and
+    An experiment stores its source and settings in `__init__`, validates them and resolves the source and
     what it runs in `prepare`, and runs in `run`, which keeps its results in the attributes that
     end in `_`. A child implements `_prepare` and `_run`, and reads the model with the private methods of the base. A
     model of the library is passed as its factory, or as a system that `skcomplex.models.create` returns, since
@@ -157,7 +157,7 @@ class BaseExperiment(BaseConfig[None, None], ABC):
         ...
         ...     def _run(self, inputs):
         ...         self.system_ = self.factory_()
-        >>> len(SystemExperiment(logistic_growth).check().prepare().run().system_.elements)
+        >>> len(SystemExperiment(logistic_growth).prepare().run().system_.elements)
         1
     """
 
@@ -211,7 +211,7 @@ class BaseExperiment(BaseConfig[None, None], ABC):
         step = dt if dt is not None else 1.0
         end = until if until is not None else 10.0
         replicated = BaseExperiment._replicate(system, size, values)
-        simulation = Simulation(replicated, dt=step, random_state=random_state).check().prepare()
+        simulation = Simulation(replicated, dt=step, random_state=random_state).prepare()
         return simulation.run(until=end).trajectory_, system
 
     @staticmethod

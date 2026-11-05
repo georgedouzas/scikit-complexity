@@ -23,7 +23,7 @@ MODEL = 'coupled_map_lattices_on_networks'
 system = create(MODEL, n_nodes=100, degree=20, epsilon=0.9, seed=0)
 observables = describe(MODEL).observables_of(system)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='maps/x', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], observables=observables).check().prepare().run(until=60)
+simulation = Simulation(system, dt=1.0, observers=[observer], observables=observables).prepare().run(until=60)
 
 # %%
 # Synchronization window
@@ -42,7 +42,6 @@ for coupling in couplings:
     model_system = create(MODEL, n_nodes=100, degree=20, epsilon=coupling, seed=0)
     run = (
         Simulation(model_system, dt=1.0, observables=describe(MODEL).observables_of(model_system))
-        .check()
         .prepare()
         .run(until=200)
     )

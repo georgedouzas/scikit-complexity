@@ -37,7 +37,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=100)
+simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=100)
 trajectory = simulation.trajectory_
 
 # %%
@@ -61,13 +61,9 @@ shares = np.logspace(-3, 0, 8)
 ring = nx.watts_strogatz_graph(300, 6, 0.0)
 paths, clustering = [], []
 for share in shares:
-    run = (
-        Simulation(
-            create(MODEL, n_nodes=300, ensemble='watts_strogatz', mean_degree=6, rewiring=share, steps=20),
-        )
-        .check()
-        .prepare()
-    )
+    run = Simulation(
+        create(MODEL, n_nodes=300, ensemble='watts_strogatz', mean_degree=6, rewiring=share, steps=20),
+    ).prepare()
     graph = run.run(until=20).trajectory_.network(-1).graph()
     graph = graph.subgraph(max(nx.connected_components(graph), key=len))
     paths.append(nx.average_shortest_path_length(graph) / nx.average_shortest_path_length(ring))

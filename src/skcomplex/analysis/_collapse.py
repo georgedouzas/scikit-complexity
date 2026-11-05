@@ -115,15 +115,15 @@ class CollapseAnalysis(BaseAnalysis):
         >>> grid = np.linspace(-1, 1, 401)
         >>> curves = {size: np.tanh(grid * size) for size in (8, 16, 32)}
         >>> collapse = CollapseAnalysis(parameters=grid, critical=0.2, nu=1.5, fit=('critical', 'nu'))
-        >>> round(collapse.check().prepare(curves).run().nu_, 1)
+        >>> round(collapse.prepare(curves).run().nu_, 1)
         1.0
         >>> lags = np.linspace(1, 100, 100)
         >>> curves = [np.exp(-lags / tw) for tw in (10, 100)]
-        >>> aging = CollapseAnalysis('aging', waiting=[10, 100], lags=lags).check().prepare(curves).run()
+        >>> aging = CollapseAnalysis('aging', waiting=[10, 100], lags=lags).prepare(curves).run()
         >>> round(aging.ratio_spread_, 2), aging.time_spread_ > 0.5
         (0.0, True)
         >>> curves = {8: [0.6, 0.5, 0.2], 16: [0.65, 0.5, 0.1]}
-        >>> CollapseAnalysis('crossings', parameters=[1.0, 2.0, 3.0]).check().prepare(curves).run().crossings_.tolist()
+        >>> CollapseAnalysis('crossings', parameters=[1.0, 2.0, 3.0]).prepare(curves).run().crossings_.tolist()
         [2.0]
     """
 

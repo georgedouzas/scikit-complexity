@@ -22,7 +22,7 @@ MODEL = 'faraday_disk'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=50)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=50)
 
 # %%
 # Steady states against the torque
@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().
 
 torques = np.linspace(3.0, 9.0, 13)
 speeds = [
-    Simulation(create(MODEL, M=torque), dt=0.1).check().prepare().run(until=50).trajectory_.values('charger.omega')[-1]
+    Simulation(create(MODEL, M=torque), dt=0.1).prepare().run(until=50).trajectory_.values('charger.omega')[-1]
     for torque in torques
 ]
 trajectory = simulation.trajectory_

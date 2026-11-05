@@ -22,7 +22,7 @@ MODEL = 'perceptron_satisfiability'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=31)
+simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=31)
 
 # %%
 # The satisfiable share against the load
@@ -35,7 +35,7 @@ for n_weights in (15, 21):
     bounds = {'n_weights': [n_weights], 'random_state': list(range(20))}
     outputs = ['decide.satisfiable']
     experiment = Experiment(perceptron_satisfiability, GridDesign(), bounds, until=31, outputs=outputs)
-    shares = experiment.check().prepare().run().result_.series('decide.satisfiable').mean(axis=0)
+    shares = experiment.prepare().run().result_.series('decide.satisfiable').mean(axis=0)
     ax.plot(np.arange(1, shares.size) / n_weights, shares[1:], 'o-', markersize=3, label=f'N = {n_weights}')
 ax.axvline(0.83, color='black', linestyle='--', label='critical load 0.83')
 ax.set_xlabel('load p / N')

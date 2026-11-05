@@ -75,10 +75,10 @@ class NetworkSpace(BaseSpace):
         >>> import networkx as nx
         >>> from skcomplex.core.spaces import NetworkSpace
         >>> from skcomplex.specs import LayerSpec
-        >>> NetworkSpace(nx.cycle_graph(5)).check().prepare().size_
+        >>> NetworkSpace(nx.cycle_graph(5)).prepare().size_
         5
         >>> space = NetworkSpace(nx.path_graph(3), layers=[LayerSpec('work', nx.complete_graph(3))])
-        >>> space = space.check().prepare()
+        >>> space = space.prepare()
         >>> list(space.graphs_), space.graphs_['work'].number_of_edges()
         ([None, 'work'], 3)
         >>> [item.tolist() for item in space.edges_[None]]
@@ -88,7 +88,7 @@ class NetworkSpace(BaseSpace):
         >>> import itertools
         >>> import xgi
         >>> triangles = xgi.Hypergraph([list(nodes) for nodes in itertools.combinations(range(5), 3)])
-        >>> space = NetworkSpace(nx.complete_graph(5), hyperedges=triangles).check().prepare()
+        >>> space = NetworkSpace(nx.complete_graph(5), hyperedges=triangles).prepare()
         >>> len(space.hyperedges_), space.hyperedges_[0], space.memberships_[0]
         (10, (0, 1, 2), (0, 1, 2, 3, 4, 5))
     """
@@ -178,7 +178,7 @@ class NetworkSpace(BaseSpace):
                 error_msg = f'The hyperedge {tuple(hyperedge)} needs at least two nodes of the graph.'
                 raise ValidationError(error_msg)
         for layer in self.layers:
-            layer.check()
+            layer._validated()
         labels = [layer.label for layer in self.layers]
         repeated = sorted({label for label in labels if labels.count(label) > 1})
         if repeated:

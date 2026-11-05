@@ -27,9 +27,7 @@ MODEL = 'multiplicative_noise'
 system = create(MODEL, n_particles=8, L=10.0, convention='ito')
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=10)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = (
-    Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).check().prepare().run(until=299)
-)
+simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).prepare().run(until=299)
 
 # %%
 # Stationary densities of the three conventions
@@ -43,10 +41,9 @@ sigma = 1.0 + 1.8 * (grid / 10 - 0.5)
 fig, ax = plt.subplots(figsize=(7, 4))
 for noise, power, color in (('ito', 2, 'tab:blue'), ('stratonovich', 1, 'tab:orange'), ('anti-ito', 0, 'tab:green')):
     system_n = create(MODEL, n_particles=800, L=10.0, convention=noise)
-    run = Simulation(system_n, solver=solver, dt=0.1, random_state=1).check().prepare().run(until=300)
+    run = Simulation(system_n, solver=solver, dt=0.1, random_state=1).prepare().run(until=300)
     histogram = (
         DistributionAnalysis('histogram', bins=25)
-        .check()
         .prepare(run.trajectory_.values('particles.x')[1500::20].ravel())
         .run()
     )

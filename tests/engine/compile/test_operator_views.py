@@ -113,19 +113,19 @@ def test_operator_adjoint_reverses_and_conjugates():
 def test_laws_reject_values_that_are_not_operators():
     """Test that the operator laws check their operator and rate."""
     with pytest.raises(ValidationError, match='generator takes'):
-        GeneratorLaw(1.0).check()
+        GeneratorLaw(1.0).prepare()
     with pytest.raises(ValidationError, match='dissipator takes'):
-        DissipatorLaw('q').check()
+        DissipatorLaw('q').prepare()
     with pytest.raises(ValidationError, match='rate'):
-        DissipatorLaw(local_operator(symbol('q'), 'minus'), local_operator(symbol('q'), 'z')).check()
+        DissipatorLaw(local_operator(symbol('q'), 'minus'), local_operator(symbol('q'), 'z')).prepare()
 
 
 def test_neighbor_pairs_list_lattice_and_network_bonds():
     """Test that neighbour pairs are the bonds of periodic and open lattices and of networks."""
-    assert LatticeSpace(4).check().prepare()._neighbor_pairs() == [(0, 1), (1, 2), (2, 3), (3, 0)]
-    assert LatticeSpace(3, boundary='fixed').check().prepare()._neighbor_pairs() == [(0, 1), (1, 2)]
-    assert len(LatticeSpace((2, 3)).check().prepare()._neighbor_pairs()) == 9
-    assert NetworkSpace(nx.path_graph(3)).check().prepare()._neighbor_pairs() == [(0, 1), (1, 2)]
+    assert LatticeSpace(4).prepare()._neighbor_pairs() == [(0, 1), (1, 2), (2, 3), (3, 0)]
+    assert LatticeSpace(3, boundary='fixed').prepare()._neighbor_pairs() == [(0, 1), (1, 2)]
+    assert len(LatticeSpace((2, 3)).prepare()._neighbor_pairs()) == 9
+    assert NetworkSpace(nx.path_graph(3)).prepare()._neighbor_pairs() == [(0, 1), (1, 2)]
 
 
 def test_site_operators_hold_projectors_and_the_adjacency():
@@ -139,5 +139,5 @@ def test_site_operators_hold_projectors_and_the_adjacency():
 
 def test_lattice_group_keeps_the_expectation_visual():
     """Test that a lattice of operator elements is drawn by its expectations."""
-    chain = LatticeElement('chain', element=SpinElement, space=LatticeSpace(3)).check().prepare()
+    chain = LatticeElement('chain', element=SpinElement, space=LatticeSpace(3)).prepare()
     assert chain.default_visual_.kind == 'expectations'

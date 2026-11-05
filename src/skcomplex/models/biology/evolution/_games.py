@@ -71,7 +71,7 @@ def replicator_dynamics(
 
     Examples:
         >>> from skcomplex.models.biology.evolution import replicator_dynamics
-        >>> replicator_dynamics(payoff=((0, -1, 1), (1, 0, -1), (-1, 1, 0))).elements[0].check().prepare().size_
+        >>> replicator_dynamics(payoff=((0, -1, 1), (1, 0, -1), (-1, 1, 0))).elements[0].prepare().size_
         3
     """
     matrix = (((V - C) / 2, V), (0.0, V / 2)) if payoff is None else tuple(tuple(row) for row in payoff)
@@ -116,7 +116,7 @@ def rock_paper_scissors(
 
     Examples:
         >>> from skcomplex.models.biology.evolution import rock_paper_scissors
-        >>> rock_paper_scissors((10, 10)).elements[0].check().prepare().size_
+        >>> rock_paper_scissors((10, 10)).elements[0].prepare().size_
         100
     """
     strategies = np.random.default_rng(random_state).integers(0, STRATEGIES, size=tuple(shape)).astype(float)

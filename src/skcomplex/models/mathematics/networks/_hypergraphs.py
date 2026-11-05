@@ -66,7 +66,7 @@ def hypergraph_random_walk(
     if hypergraph is None:
         hypergraph = xgi.fast_random_hypergraph(30, [0.1, 0.01, 0.001, 0.0005], seed=seed)
     space = NetworkSpace(nx.empty_graph(sorted(hypergraph.nodes)), hyperedges=hypergraph)
-    prepared = space.check().prepare()
+    prepared = space.prepare()
     weights = np.zeros(prepared.size_)
     for hyperedge in prepared.hyperedges_:
         weights[list(hyperedge)] += (len(hyperedge) - 1) ** 2
@@ -107,7 +107,7 @@ def growing_simplicial_complex(n_nodes: int = 303) -> System:
     Examples:
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.mathematics.networks import growing_simplicial_complex
-        >>> simulation = Simulation(growing_simplicial_complex(13), random_state=0).check().prepare()
+        >>> simulation = Simulation(growing_simplicial_complex(13), random_state=0).prepare()
         >>> simulation.run(until=10).trajectory_.network(-1).hyperedges.shape
         (11, 3)
     """

@@ -158,13 +158,13 @@ class LargeDeviationAnalysis(BaseAnalysis):
         >>> import numpy as np
         >>> from skcomplex.analysis import LargeDeviationAnalysis
         >>> tilted = LargeDeviationAnalysis(weights=[[1.0]], tilts=[0.0, 1.0])
-        >>> tilted.check().prepare([[2.0]]).run().scgf_.round(4).tolist()
+        >>> tilted.prepare([[2.0]]).run().scgf_.round(4).tolist()
         [0.0, 3.4366]
         >>> tilts = np.linspace(-3, 3, 6001)
         >>> rate = LargeDeviationAnalysis(weights=[[1.0]], tilts=tilts, values=[3.0])
-        >>> round(float(rate.check().prepare([[2.0]]).run().rate_function_[0]), 4)
+        >>> round(float(rate.prepare([[2.0]]).run().rate_function_[0]), 4)
         0.2164
-        >>> LargeDeviationAnalysis('reweight', log_weights=[0.0, 0.0]).check().prepare([-1.0, 1.0]).run().mean_
+        >>> LargeDeviationAnalysis('reweight', log_weights=[0.0, 0.0]).prepare([-1.0, 1.0]).run().mean_
         0.0
     """
 
@@ -284,7 +284,7 @@ class LargeDeviationAnalysis(BaseAnalysis):
         population, steps = self.population, round(self.until / self.interval)
         rng = np.random.default_rng(self.random_state)
         settings = {'dt': self.interval, **(self.simulation or {})}
-        simulation = Simulation(self.system_).set_params(**settings).check().prepare().run(until=self.interval)
+        simulation = Simulation(self.system_).set_params(**settings).prepare().run(until=self.interval)
         problem = simulation.problem_
         states = np.tile(problem.initial_state, (population, 1))
         log_growth, effective = 0.0, float(population)
@@ -294,11 +294,7 @@ class LargeDeviationAnalysis(BaseAnalysis):
                 start = replace(problem, initial_state=states[index].copy())
                 seed = int(rng.integers(2**31 - 1))
                 simulation = (
-                    Simulation(start, random_state=seed)
-                    .set_params(**settings)
-                    .check()
-                    .prepare()
-                    .run(until=self.interval)
+                    Simulation(start, random_state=seed).set_params(**settings).prepare().run(until=self.interval)
                 )
                 increments[index] = self._increment(observable, simulation.trajectory_)
                 states[index] = np.asarray(simulation.trajectory_.states)[-1]

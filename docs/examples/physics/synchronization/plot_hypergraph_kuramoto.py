@@ -23,7 +23,7 @@ MODEL = 'hypergraph_kuramoto'
 system = create(MODEL, n_oscillators=40, K2=8.0, seed=0)
 observables = describe(MODEL).observables_of(system)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='observables', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer], observables=observables).check().prepare().run(until=40)
+simulation = Simulation(system, dt=0.5, observers=[observer], observables=observables).prepare().run(until=40)
 
 # %%
 # Hysteresis in the three-body coupling
@@ -40,7 +40,6 @@ for label, phases in (('from incoherent phases', None), ('from synchronized phas
         model_system = create(MODEL, n_oscillators=40, K2=coupling, phases=phases, seed=0)
         run = (
             Simulation(model_system, dt=0.5, observables=describe(MODEL).observables_of(model_system))
-            .check()
             .prepare()
             .run(until=40)
         )

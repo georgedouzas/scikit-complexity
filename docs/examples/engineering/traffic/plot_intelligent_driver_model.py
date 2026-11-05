@@ -38,7 +38,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=100)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=100)
 
 # %%
 # The equilibrium speed of the ring
@@ -57,12 +57,7 @@ def equilibrium(gap):
 
 counts = np.arange(10, 61, 5)
 finals = [
-    Simulation(create(MODEL, n_cars=int(n)), dt=1.0)
-    .check()
-    .prepare()
-    .run(until=200)
-    .trajectory_.values('cars.v')[-1]
-    .mean()
+    Simulation(create(MODEL, n_cars=int(n)), dt=1.0).prepare().run(until=200).trajectory_.values('cars.v')[-1].mean()
     for n in counts
 ]
 grid = np.arange(10, 61)

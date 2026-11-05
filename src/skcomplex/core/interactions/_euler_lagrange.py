@@ -79,7 +79,7 @@ class EulerLagrangeInteraction(Interaction):
         ...     lagrangian=lambda s: derivative(s.target.q, 1) ** 2 / 2 + cos(s.target.q),
         ... )
         >>> system = System(elements=[AngleElement('bob')], interactions=[swing])
-        >>> trajectory = Simulation(system, dt=0.01).check().prepare().run(until=3.2).trajectory_
+        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=3.2).trajectory_
         >>> round(float(trajectory.values('bob.q')[-1]), 2)
         -0.1
     """

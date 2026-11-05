@@ -25,7 +25,7 @@ class NearestNeighborhood(BaseNeighborhood):
 
     Examples:
         >>> from skcomplex.core.spaces import NearestNeighborhood
-        >>> NearestNeighborhood(7).check().k
+        >>> NearestNeighborhood(7).k
         7
     """
 

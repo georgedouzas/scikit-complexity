@@ -38,9 +38,9 @@ class RenewalLaw(BaseLaw):
         >>> from skcomplex.core.laws.utils import draw
         >>> from skcomplex.engine.compile._renewal_law import RenewalLaw
         >>> n = var('n')
-        >>> RenewalLaw(draw('wait', 'expon'), {n: 0}).check().prepare().targets_
+        >>> RenewalLaw(draw('wait', 'expon'), {n: 0}).prepare().targets_
         (n,)
-        >>> RenewalLaw(draw('wait', 'expon'), {n: n + 1}).check().prepare().run({'n': 2}).value_
+        >>> RenewalLaw(draw('wait', 'expon'), {n: n + 1}).prepare().run({'n': 2}).value_
         {n: 3.0}
     """
 

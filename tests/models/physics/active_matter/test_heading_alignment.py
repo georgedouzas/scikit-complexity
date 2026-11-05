@@ -22,7 +22,7 @@ def test_heading_alignment_takes_the_circular_mean_within_the_unit_distance(nema
         space=ContinuousSpace(extent=(5.0, 5.0), boundary='periodic'),
         time=DiscreteTime(),
     )
-    values = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_.values('flock.theta')[-1]
+    values = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.values('flock.theta')[-1]
     close = np.linalg.norm(x[None, :, :] - x[:, None, :], axis=2) <= 1.0
     side = np.where(np.cos(theta[None, :] - theta[:, None]) >= 0, 1, -1) if nematic else 1
     weights = close * side

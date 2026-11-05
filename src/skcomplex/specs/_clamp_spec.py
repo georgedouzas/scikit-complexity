@@ -29,11 +29,11 @@ class ClampSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            A bound is negative, raised by `check`.
+            A bound is negative, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.specs import ClampSpec
-        >>> ClampSpec(min_norm=0.5, max_norm='speed').check().max_norm
+        >>> ClampSpec(min_norm=0.5, max_norm='speed').max_norm
         'speed'
     """
 

@@ -11,12 +11,12 @@ from skcomplex.errors import AnalysisError
 
 def _recurrence(source: object, **settings: object) -> RecurrenceAnalysis:
     """Return the recurrence analysis of a source, run."""
-    return RecurrenceAnalysis(**settings).check().prepare(source).run()
+    return RecurrenceAnalysis(**settings).prepare(source).run()
 
 
 def _embed(values: np.ndarray, dimension: int, delay: int) -> np.ndarray:
     """Return the delay vectors of a series."""
-    return EmbeddingAnalysis(delay=delay, dimension=dimension).check().prepare(values).run().points_
+    return EmbeddingAnalysis(delay=delay, dimension=dimension).prepare(values).run().points_
 
 
 def _lorenz_states(rho: float, step: float, duration: float) -> np.ndarray:
@@ -76,6 +76,6 @@ def test_recurrence_matrix_with_a_radius():
 def test_invalid_settings():
     """Test that a negative radius and an empty shortest line raise errors."""
     with pytest.raises(AnalysisError, match='radius=-1'):
-        RecurrenceAnalysis(radius=-1.0).check()
+        RecurrenceAnalysis(radius=-1.0).prepare()
     with pytest.raises(AnalysisError, match='min_line=0'):
-        RecurrenceAnalysis(min_line=0).check()
+        RecurrenceAnalysis(min_line=0).prepare()

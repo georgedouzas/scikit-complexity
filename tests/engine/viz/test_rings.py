@@ -26,16 +26,11 @@ class Logs:
 
 def test_phase_ring_visual_logs_wrapped_phases_against_index():
     """Test that every oscillator of a chimera ring is a point at its index and its phase in (-π, π], drawn upward."""
-    simulation = Simulation(create('nonlocal_ring_chimera', n_oscillators=20, R=3)).check().prepare().run(until=0.0)
+    simulation = Simulation(create('nonlocal_ring_chimera', n_oscillators=20, R=3)).prepare().run(until=0.0)
     problem = simulation.problem_
     frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, problem)
     logs = Logs()
-    (
-        PhaseRingVisual('theta', position='x', path=problem.elements[0].path, recording=logs)
-        .check()
-        .prepare(problem)
-        .run(frame)
-    )
+    (PhaseRingVisual('theta', position='x', path=problem.elements[0].path, recording=logs).prepare(problem).run(frame))
     points = np.asarray(logs.of('ring/phases')[0].positions.as_arrow_array().to_pylist())
     assert points.shape == (20, 2)
     np.testing.assert_allclose(points[:, 0], np.arange(20))
@@ -46,7 +41,7 @@ def test_phase_ring_visual_logs_wrapped_phases_against_index():
 def test_chimera_ring_shows_phases_first():
     """Test that the default blueprint of the nonlocal ring chimera shows the phases of the ring first."""
     problem = compile_system(create('nonlocal_ring_chimera', n_oscillators=20, R=3))
-    blueprint = RerunObserver(blueprint='default').check().prepare(problem).blueprint_
+    blueprint = RerunObserver(blueprint='default').prepare(problem).blueprint_
     stack, views = [blueprint.root_container], []
     while stack:
         part = stack.pop(0)

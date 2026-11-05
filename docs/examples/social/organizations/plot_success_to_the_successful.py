@@ -44,7 +44,7 @@ simulation = run(MODEL, settings={'until': 100, 'dt': 1.0, 'observers': [observe
 # two balancing loops of depreciation. Starting runs from several splits of the same 100 units shows that the
 # symmetric split is unstable, and whoever starts ahead wins.
 
-polarities = LoopAnalysis().check().prepare(create(MODEL)).run().polarities_
+polarities = LoopAnalysis().prepare(create(MODEL)).run().polarities_
 summary = ', '.join(f'{polarities.count(kind)} {kind}' for kind in ('reinforcing', 'balancing'))
 
 trajectory = simulation.trajectory_

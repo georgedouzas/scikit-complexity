@@ -18,7 +18,7 @@ from ..base import BasePart
 class BaseNeighborhood(BasePart[None, SimpleNamespace]):
     """Base of the neighbourhoods, the parts of a system that give the members a law reads around a member of a space.
 
-    A neighbourhood is a part: it stores its arguments in its own `__init__`, `check` validates them, and `prepare`
+    A neighbourhood is a part: it stores its arguments in its own `__init__`, `prepare` validates them and
     derives what the engine reads, such as the offsets of a lattice neighbourhood. The space that reads it rejects a
     neighbourhood of another kind. It contributes no laws.
 
@@ -44,7 +44,7 @@ class BaseNeighborhood(BasePart[None, SimpleNamespace]):
 class BaseSpace(BasePart[None, SimpleNamespace]):
     """Base of the spaces, the parts of a system where members live and which give vector states their dimension.
 
-    A space is a part of its system: it stores its arguments in its own `__init__`, `check` validates them, `prepare`
+    A space is a part of its system: it stores its arguments in its own `__init__`, `prepare` validates them and
     derives the facts of the space, and `_get_laws` returns the laws the space contributes, none by default. A space
     with sites answers the hooks the engine reads: `_get_neighbors` gives the sites around a site, `_index_table` the
     neighbour of every site in every slot of a neighbourhood, `_ball` the neighbourhood within a radius,
@@ -181,7 +181,7 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
 class BaseTime(BasePart[None, SimpleNamespace]):
     """Base of the time of a system, the part that decides the laws the system may hold.
 
-    A time is a part of its system: it stores its arguments in its own `__init__`, `check` validates them, `prepare`
+    A time is a part of its system: it stores its arguments in its own `__init__`, `prepare` validates them and
     sets its schedule, and `_get_frames` returns the times of the frames of a run up to a time. It
     contributes no laws.
 

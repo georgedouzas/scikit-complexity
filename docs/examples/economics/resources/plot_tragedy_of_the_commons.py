@@ -42,7 +42,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=STEPS)
 )
@@ -63,7 +62,6 @@ regulated = (
         random_state=0,
         observables=describe(MODEL).observables_of(regulated_system),
     )
-    .check()
     .prepare()
     .run(until=STEPS)
 )

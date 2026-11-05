@@ -97,14 +97,14 @@ class ClusterAnalysis(BaseAnalysis):
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.analysis import ClusterAnalysis
-        >>> ClusterAnalysis('sizes').check().prepare([[1, 1, 0], [0, 0, 1]]).run().sizes_.tolist()
+        >>> ClusterAnalysis('sizes').prepare([[1, 1, 0], [0, 0, 1]]).run().sizes_.tolist()
         [2, 1]
-        >>> ClusterAnalysis('sizes').check().prepare(nx.path_graph(3)).run().sizes_.tolist()
+        >>> ClusterAnalysis('sizes').prepare(nx.path_graph(3)).run().sizes_.tolist()
         [3]
-        >>> result = ClusterAnalysis('percolation').check().prepare([[1, 1, 0], [1, 0, 1]]).run()
+        >>> result = ClusterAnalysis('percolation').prepare([[1, 1, 0], [1, 0, 1]]).run()
         >>> result.strength_, result.mean_size_, result.spanning_
         (0.5, 1.0, True)
-        >>> ClusterAnalysis('sizes', radius=0.6).check().prepare([[0, 0], [1, 0], [5, 5]]).run().sizes_.tolist()
+        >>> ClusterAnalysis('sizes', radius=0.6).prepare([[0, 0], [1, 0], [5, 5]]).run().sizes_.tolist()
         [2, 1]
     """
 

@@ -15,7 +15,7 @@ class ContinuousTime(BaseTime):
 
     Examples:
         >>> from skcomplex.core.spaces import ContinuousTime
-        >>> ContinuousTime().check().prepare().schedule_ is None
+        >>> ContinuousTime().prepare().schedule_ is None
         True
     """
 

@@ -118,7 +118,7 @@ class SamplingInteraction(Interaction):
         >>> ising = SamplingInteraction('ising', target='spins', state='s', objective=objective, intensity=1.0)
         >>> spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((8, 8)))
         >>> system = System(elements=[spins], interactions=[ising], time=DiscreteTime())
-        >>> states = Simulation(system, random_state=0).check().prepare().run(until=20).trajectory_.states
+        >>> states = Simulation(system, random_state=0).prepare().run(until=20).trajectory_.states
         >>> bool(abs(states[-1].mean()) > 0.9)
         True
         >>> from sage.all__sagemath_symbolics import cos
@@ -135,7 +135,7 @@ class SamplingInteraction(Interaction):
         ... )
         >>> links = GroupElement('links', element=LinkElement, space=CellComplexSpace(LatticeSpace((4, 4))), on='edges')
         >>> system = System(elements=[links], interactions=[gauge], time=DiscreteTime())
-        >>> Simulation(system, random_state=0).check().prepare().run(until=2).trajectory_.states.shape
+        >>> Simulation(system, random_state=0).prepare().run(until=2).trajectory_.states.shape
         (3, 32)
         >>> import numpy as np
         >>> from skcomplex.specs import RowScoreSpec
@@ -147,7 +147,7 @@ class SamplingInteraction(Interaction):
         ... )
         >>> spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((2, 8)))
         >>> system = System(elements=[spins], interactions=[walk], time=DiscreteTime())
-        >>> Simulation(system, random_state=0).check().prepare().run(until=3).trajectory_.values('walk.score').shape
+        >>> Simulation(system, random_state=0).prepare().run(until=3).trajectory_.values('walk.score').shape
         (4, 2)
     """
 
@@ -194,7 +194,7 @@ class SamplingInteraction(Interaction):
 
     def _check_row_score(self, score: RowScoreSpec) -> None:
         """Raise an error for a row score that cannot run, a cluster move, or a heat-bath rule without values."""
-        score.check()
+        score._validated()
         if self.move == 'cluster':
             error_msg = f'The row score of sampling {self.label!r} accepts single moves of a row, not cluster moves.'
             raise ValidationError(error_msg)
@@ -312,7 +312,7 @@ class SamplingInteraction(Interaction):
         elif not callable(objective):
             error_msg = f'The objective of sampling {self.label!r} must be a function of the namespace.'
             raise ValidationError(error_msg)
-        SamplerSpec(self.rule, schedule=self.schedule).check()
+        SamplerSpec(self.rule, schedule=self.schedule)._validated()
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the sample law of the state.

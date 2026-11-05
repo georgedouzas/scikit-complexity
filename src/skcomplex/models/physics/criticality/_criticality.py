@@ -57,7 +57,7 @@ def sandpile(shape: Sequence[int] = (50, 50), *, random_state: int | np.random.G
 
     Examples:
         >>> from skcomplex.models.physics.criticality import sandpile
-        >>> sandpile((10, 10)).elements[0].check().prepare().size_
+        >>> sandpile((10, 10)).elements[0].prepare().size_
         100
     """
     heights = np.random.default_rng(random_state).integers(0, 4, size=tuple(shape)).astype(float)
@@ -93,7 +93,7 @@ def manna_sandpile(shape: Sequence[int] = (32, 32), *, random_state: int | np.ra
 
     Examples:
         >>> from skcomplex.models.physics.criticality import manna_sandpile
-        >>> manna_sandpile((10, 10)).elements[0].check().prepare().size_
+        >>> manna_sandpile((10, 10)).elements[0].prepare().size_
         100
     """
     heights = np.random.default_rng(random_state).integers(0, MANNA_THRESHOLD, size=tuple(shape)).astype(float)
@@ -211,14 +211,12 @@ def hexagonal_forest_fire(
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.models.physics.criticality import hexagonal_forest_fire
-        >>> hexagonal_forest_fire((10, 10)).elements[0].check().prepare().size_
+        >>> hexagonal_forest_fire((10, 10)).elements[0].prepare().size_
         100
-        >>> hexagonal_forest_fire(graph=nx.cycle_graph(12)).elements[0].check().prepare().size_
+        >>> hexagonal_forest_fire(graph=nx.cycle_graph(12)).elements[0].prepare().size_
         12
     """
-    space = (
-        (LatticeSpace(tuple(shape), geometry='triangular') if graph is None else NetworkSpace(graph)).check().prepare()
-    )
+    space = (LatticeSpace(tuple(shape), geometry='triangular') if graph is None else NetworkSpace(graph)).prepare()
     size = int(space.size_ or 0)
     initial = (
         (np.random.default_rng(random_state).random(size) < density).astype(float)

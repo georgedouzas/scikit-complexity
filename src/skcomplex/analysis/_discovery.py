@@ -38,7 +38,7 @@ class DiscoveryAnalysis(BaseAnalysis):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.analysis import DiscoveryAnalysis
-        >>> discovery = DiscoveryAnalysis().check().prepare(np.zeros((16, 16))).run()
+        >>> discovery = DiscoveryAnalysis().prepare(np.zeros((16, 16))).run()
         >>> discovery.kinds_
         ['field', 'series']
         >>> discovery.readings_['series']

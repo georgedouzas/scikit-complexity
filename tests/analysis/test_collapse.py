@@ -18,12 +18,12 @@ PERCOLATION = 0.5927
 
 def _collapse(kind: str, source: object, **settings: object) -> CollapseAnalysis:
     """Return the collapse analysis of a source for one kind, run."""
-    return CollapseAnalysis(kind, **settings).check().prepare(source).run()
+    return CollapseAnalysis(kind, **settings).prepare(source).run()
 
 
 def _susceptibilities(magnetizations: dict[int, list[np.ndarray]]) -> dict[int, np.ndarray]:
     """Return the susceptibility `N var(|m|) / T` of every size at every temperature."""
-    moments = DistributionAnalysis('moments', absolute=True).check()
+    moments = DistributionAnalysis('moments', absolute=True)
     return {
         side: side**2 * moments.prepare(np.column_stack(samples)).run().variance_ / np.asarray(ISING_TEMPERATURES)
         for side, samples in magnetizations.items()
@@ -32,7 +32,7 @@ def _susceptibilities(magnetizations: dict[int, list[np.ndarray]]) -> dict[int, 
 
 def _spanning(grids: list[np.ndarray]) -> float:
     """Return the share of grids with a cluster joining the opposite edges of their first axis."""
-    return ClusterAnalysis('spanning').check().prepare(grids).run().probability_
+    return ClusterAnalysis('spanning').prepare(grids).run().probability_
 
 
 def _trap_renewals(rng: np.random.Generator, walkers: int, horizon: float) -> list[np.ndarray]:
@@ -85,10 +85,10 @@ def test_two_time_correlation_aging_on_two_domains():
     """Test that an Ising quench and the trap model age: correlations grow with the age and collapse on tau / t_w."""
     system = create('ising', size=256, temperature=1.0, sampler='glauber')
     # One quench gives a ratio spread between 0.01 and 0.13 by seed, so the curves average four seeded quenches.
-    quenches = [Simulation(system, dt=1, random_state=seed).check().prepare().run(until=400) for seed in range(4, 8)]
+    quenches = [Simulation(system, dt=1, random_state=seed).prepare().run(until=400) for seed in range(4, 8)]
     runs = [quench.trajectory_.lattice('spins.spin') for quench in quenches]
     waiting, lags = [50, 100, 200], np.arange(0, 200)
-    ising = CorrelationAnalysis('two-time', waiting=waiting, lags=lags).check().prepare(np.stack(runs)).run()
+    ising = CorrelationAnalysis('two-time', waiting=waiting, lags=lags).prepare(np.stack(runs)).run()
     horizon = 1000.0
     renewals = _trap_renewals(np.random.default_rng(1), 20_000, horizon)
     grid = np.arange(0, 1001, 5.0)
@@ -124,7 +124,7 @@ def test_collapse_distributions_trap_model():
 
 def test_crossings_of_moment_ratios_at_the_ising_critical_point(ising_magnetizations):
     """Test that the moment-ratio cumulants of Ising lattices of sides 16, 32, and 64 cross within 1 percent of T_c."""
-    ratio = DistributionAnalysis('moment-ratio').check()
+    ratio = DistributionAnalysis('moment-ratio')
     cumulants = {
         side: ratio.prepare(np.column_stack(ising_magnetizations[side])).run().cumulant_ for side in ISING_SIZES
     }
@@ -141,12 +141,12 @@ def test_crossings_of_moment_ratios_at_the_ising_critical_point(ising_magnetizat
 def test_unknown_kind_ignored_setting_and_missing_settings():
     """Test that an unknown kind, an ignored setting, and missing settings raise errors."""
     with pytest.raises(AnalysisError, match='scaling, aging, distribution'):
-        CollapseAnalysis('unknown').check()
+        CollapseAnalysis('unknown').prepare()
     with pytest.raises(AnalysisError, match='does not read ratios'):
-        CollapseAnalysis('aging', waiting=[1], lags=[1], ratios=[0.1, 1.0]).check()
+        CollapseAnalysis('aging', waiting=[1], lags=[1], ratios=[0.1, 1.0]).prepare()
     with pytest.raises(AnalysisError, match='needs parameters, critical, and nu'):
-        CollapseAnalysis('scaling').check()
+        CollapseAnalysis('scaling').prepare()
     with pytest.raises(AnalysisError, match='crossings needs the control parameter values'):
-        CollapseAnalysis('crossings').check()
+        CollapseAnalysis('crossings').prepare()
     with pytest.raises(AnalysisError, match="fit='gamma'"):
-        CollapseAnalysis(parameters=[0.0], critical=0.0, nu=1.0, fit=('gamma',)).check()
+        CollapseAnalysis(parameters=[0.0], critical=0.0, nu=1.0, fit=('gamma',)).prepare()

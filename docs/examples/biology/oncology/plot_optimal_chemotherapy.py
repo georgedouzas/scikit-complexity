@@ -32,7 +32,6 @@ simulation = (
         observers=[observer],
         observables=entry.observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=30)
 )
@@ -46,7 +45,6 @@ simulation = (
 
 untreated = (
     Simulation(System(elements=[TumourImmuneChemotherapyElement('patient')]), dt=0.25)
-    .check()
     .prepare()
     .run(until=30)
     .trajectory_

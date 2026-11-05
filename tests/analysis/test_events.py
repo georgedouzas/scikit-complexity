@@ -12,12 +12,12 @@ MAX_GENERATIONS = 5000
 
 def _events(kind: str, source: object, **settings: object) -> EventAnalysis:
     """Return the event analysis of a source for one kind, run."""
-    return EventAnalysis(kind, **settings).check().prepare(source).run()
+    return EventAnalysis(kind, **settings).prepare(source).run()
 
 
 def _exponent(values: np.ndarray, minimum: float) -> FitAnalysis:
     """Return the discrete power law fitted above a fixed lower cutoff."""
-    return FitAnalysis('power', minimum=minimum, discrete=True, bootstrap=0).check().prepare(values).run()
+    return FitAnalysis('power', minimum=minimum, discrete=True, bootstrap=0).prepare(values).run()
 
 
 def _galton_watson(rng: np.random.Generator, trees: int) -> np.ndarray:
@@ -71,7 +71,7 @@ def test_event_counts_and_dispersion_of_event_times():
     times = np.cumsum(np.random.default_rng(1).exponential(1.0, 100_000))
     counts = _events('counts', times, window=10.0).counts_
     assert counts.sum() <= times.size
-    assert DistributionAnalysis('dispersion-index').check().prepare(counts).run().index_[0] == pytest.approx(1, abs=0.1)
+    assert DistributionAnalysis('dispersion-index').prepare(counts).run().index_[0] == pytest.approx(1, abs=0.1)
 
 
 def test_laminar_durations_of_on_off_intermittency():
@@ -85,7 +85,7 @@ def test_laminar_durations_of_on_off_intermittency():
     for t in range(1, size):
         values[t] = max(factors[t] * values[t - 1] * (1 - values[t - 1]), 1e-12)
     durations = _events('laminar-durations', values, threshold=1e-3).durations_
-    fit = FitAnalysis(minimum=10, discrete=True, bootstrap=0).check().prepare(durations).run()
+    fit = FitAnalysis(minimum=10, discrete=True, bootstrap=0).prepare(durations).run()
     assert fit.exponent_ == pytest.approx(1.5, abs=0.1)
     assert _events('laminar-durations', [1, 0, 0, 1, 0, 1], threshold=0.5).durations_.tolist() == [2.0, 1.0]
 
@@ -93,11 +93,11 @@ def test_laminar_durations_of_on_off_intermittency():
 def test_unknown_kind_ignored_setting_and_missing_window():
     """Test that an unknown kind, an ignored setting, a missing window, and several series raise errors."""
     with pytest.raises(AnalysisError, match='detect, counts, laminar-durations'):
-        EventAnalysis('unknown').check()
+        EventAnalysis('unknown').prepare()
     with pytest.raises(AnalysisError, match='does not read window'):
-        EventAnalysis('detect', window=1.0).check()
+        EventAnalysis('detect', window=1.0).prepare()
     with pytest.raises(AnalysisError, match='positive window'):
-        EventAnalysis('counts').check()
+        EventAnalysis('counts').prepare()
     with pytest.raises(AnalysisError, match='Pick one'):
         _events('detect', np.zeros((5, 2)))
 
@@ -143,8 +143,8 @@ def test_branching_ratio_neuronal_and_epidemic_activity():
 def test_excursions_and_branching_reject_sources():
     """Test that the branching ratio takes no records, excursions take one series, and branching reads its steps."""
     with pytest.raises(AnalysisError, match='does not read max_step'):
-        EventAnalysis('excursions', max_step=10).check()
+        EventAnalysis('excursions', max_step=10).prepare()
     with pytest.raises(AnalysisError, match='reads one series'):
         _events('excursions', np.ones((5, 2)))
     with pytest.raises(AnalysisError, match='Use positive values'):
-        EventAnalysis('branching', max_step=0).check()
+        EventAnalysis('branching', max_step=0).prepare()

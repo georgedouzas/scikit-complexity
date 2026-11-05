@@ -21,7 +21,7 @@ MODEL = 'saltzman_glaciation'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=50)
+simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=50)
 
 # %%
 # The 100 kyr cycle
@@ -29,10 +29,10 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare()
 # On the limit cycle ice volume and carbon dioxide should trace one closed loop, and the power spectrum of a long run of
 # ice volume should peak at a period near 100 kyr.
 
-run = Simulation(create(MODEL), dt=0.05).check().prepare().run(until=400).trajectory_
+run = Simulation(create(MODEL), dt=0.05).prepare().run(until=400).trajectory_
 settled = run.times > 20
 ice, carbon = run.values('climate.x')[settled], run.values('climate.y')[settled]
-spectrum = SpectrumAnalysis(dt=0.05).check().prepare(ice).run()
+spectrum = SpectrumAnalysis(dt=0.05).prepare(ice).run()
 frequencies, density = spectrum.frequencies_, spectrum.power_[0]
 peak = frequencies[1:][np.argmax(density[1:])]
 fig, (loop, spectrum) = plt.subplots(1, 2, figsize=(10, 4))

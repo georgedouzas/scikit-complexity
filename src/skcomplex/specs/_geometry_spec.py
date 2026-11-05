@@ -56,7 +56,7 @@ class GeometrySpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import GeometrySpec
-        >>> GeometrySpec(angle=60.0, contraction=1 / 3).check().angle
+        >>> GeometrySpec(angle=60.0, contraction=1 / 3).angle
         60.0
     """
 

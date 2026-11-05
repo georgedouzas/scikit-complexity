@@ -115,7 +115,7 @@ def neutral_macroecology(
 
     Examples:
         >>> from skcomplex.models.biology.ecology import neutral_macroecology
-        >>> neutral_macroecology(20).elements[0].check().prepare().size_
+        >>> neutral_macroecology(20).elements[0].prepare().size_
         20
     """
     return System(

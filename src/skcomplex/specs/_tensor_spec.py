@@ -38,7 +38,7 @@ class TensorSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import TensorSpec
-        >>> tensor = TensorSpec('traceless', 2).check()
+        >>> tensor = TensorSpec('traceless', 2)
         >>> tensor.names
         ('xx', 'xy')
         >>> tensor.array_of([1.0, 2.0]).tolist()

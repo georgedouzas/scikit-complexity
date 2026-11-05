@@ -20,7 +20,7 @@ MODEL = 'active_walkers'
 
 system = create(MODEL, size=30, n_walkers=20, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=300)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=300)
 
 # %%
 # Trails concentrate the wear
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).chec
 
 trajectory = simulation.trajectory_
 trails = trajectory.lattice('land/ground.G')
-concentration = [DistributionAnalysis('gini').check().prepare(frame.ravel()).run().gini_ for frame in trails]
+concentration = [DistributionAnalysis('gini').prepare(frame.ravel()).run().gini_ for frame in trails]
 fig, (image, inequality) = plt.subplots(1, 2, figsize=(11, 4.5))
 image.imshow(trails[-1], cmap='Greens', origin='lower')
 image.set_title(f'Trails at step {trajectory.times[-1]:.0f}')

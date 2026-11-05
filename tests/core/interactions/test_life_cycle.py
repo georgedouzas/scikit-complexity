@@ -103,7 +103,7 @@ def _forage(
         variable=True,
     )
     system = System(elements=[cells, foragers], interactions=interactions, space=LatticeSpace((1, 1)))
-    return Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
+    return Simulation(system, random_state=0).prepare().run(until=until).trajectory_
 
 
 def _reserves(trajectory: Trajectory, frame: int) -> list[float]:
@@ -172,7 +172,7 @@ def test_live_feeds_foragers_on_the_nodes_of_a_network():
         interactions=[_feeding(uptake=10.0, gain=1.0)],
         space=NetworkSpace(nx.path_graph(2)),
     )
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
     assert _reserves(trajectory, 1) == [4.0]
     assert trajectory.agents('cells', 1).values['resource'].tolist() == [1.0, 0.0]
 
@@ -182,7 +182,7 @@ def test_live_rate_draws_a_poisson_number_of_births():
     parents = GroupElement('parents', element=ReserveElement, size=400, variable=True, capacity=4000)
     births = LifeCycleInteraction('births', target='parents', rate=1.5, offspring=2)
     system = System(elements=[parents], interactions=[births])
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1)
+    trajectory = Simulation(system, random_state=0).prepare().run(until=1)
     assert len(trajectory.trajectory_.agents('parents', 1).values['reserve']) / 400 - 1 == pytest.approx(3.0, rel=0.1)
 
 
@@ -191,9 +191,7 @@ def test_live_places_offspring_in_free_neighboring_cells():
     parents = GroupElement('parents', element=ReserveElement, size=1, location=[(1, 1)], variable=True)
     births = LifeCycleInteraction('births', target='parents', birth=1.0, offspring=12, placement='neighbor')
     space = LatticeSpace((3, 3), neighborhood='moore')
-    trajectory = (
-        Simulation(System(elements=[parents], interactions=[births], space=space)).check().prepare().run(until=1)
-    )
+    trajectory = Simulation(System(elements=[parents], interactions=[births], space=space)).prepare().run(until=1)
     locations = {tuple(cell) for cell in np.asarray(trajectory.trajectory_.agents('parents', 1).locations).tolist()}
     assert len(locations) == 9
 
@@ -213,7 +211,7 @@ def test_live_inherits_and_mutates_the_states_of_offspring():
         variable=True,
     )
     births = LifeCycleInteraction('births', target='parents', birth=1.0, inherit=('trait',), mutate=mutate)
-    trajectory = Simulation(System(elements=[parents], interactions=[births])).check().prepare().run(until=1)
+    trajectory = Simulation(System(elements=[parents], interactions=[births])).prepare().run(until=1)
     values = trajectory.trajectory_.agents('parents', 1).values
     assert values['trait'].tolist() == [2.0, 3.0]
     assert values['reserve'].tolist() == [5.0, 0.0]
@@ -222,7 +220,7 @@ def test_live_inherits_and_mutates_the_states_of_offspring():
 def _cycle(life: LifeCycleInteraction, *groups: GroupElement, until: int = 1) -> Trajectory:
     """Return the trajectory of groups of reserve members under a life cycle on a lattice."""
     system = System(elements=list(groups), interactions=[life], space=LatticeSpace((3, 3)))
-    return Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
+    return Simulation(system, random_state=0).prepare().run(until=until).trajectory_
 
 
 def test_live_creates_offspring_in_another_group_with_given_values():
@@ -354,7 +352,7 @@ def _reserves_of(trajectory: Trajectory) -> list[float]:
 def test_check_rejects_invalid_arguments(arguments):
     """Test that an unknown placement, two kinds of birth, and values that are not numbers or functions are rejected."""
     with pytest.raises(ValidationError):
-        LifeCycleInteraction('life', target='foragers', **arguments).check()
+        LifeCycleInteraction('life', target='foragers', **arguments).prepare()
 
 
 def test_live_culls_a_random_member_of_its_group_after_a_replacement():
@@ -377,5 +375,5 @@ def test_live_culls_a_random_member_of_its_group_after_a_replacement():
         space=LatticeSpace((3, 3)),
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('default', activation='visits', visits=0.5)])),
     )
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
     assert len(trajectory.agents('parents', 1).ids) == 4

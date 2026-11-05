@@ -30,7 +30,7 @@ MU, SIGMA, EXTINCT = -4.0, 1.0, 1e-6
 system = create(MODEL, size=100)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
 solver = ScipyODESolver('RK45', rtol=1e-6, atol=1e-9)
-simulation = Simulation(system, dt=10.0, solver=solver, observers=[observer]).check().prepare().run(until=1000)
+simulation = Simulation(system, dt=10.0, solver=solver, observers=[observer]).prepare().run(until=1000)
 trajectory = simulation.trajectory_
 
 # %%

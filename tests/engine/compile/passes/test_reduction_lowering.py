@@ -51,7 +51,7 @@ def _step(x, gain, function, reduce):
         form='map',
     )
     system = System(elements=[members], interactions=[coupling], time=DiscreteTime())
-    return Simulation(system).check().prepare().run(until=1).trajectory_.values('members.x')[-1]
+    return Simulation(system).prepare().run(until=1).trajectory_.values('members.x')[-1]
 
 
 def _separable(s):

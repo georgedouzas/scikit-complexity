@@ -21,7 +21,7 @@ class MonteCarloSolver(LatticeSolver):
         >>> from skcomplex.engine.solvers import MonteCarloSolver
         >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(ising(size=8, temperature=1.0))
-        >>> stepper = MonteCarloSolver(random_state=0).check().prepare(problem)
+        >>> stepper = MonteCarloSolver(random_state=0).prepare(problem)
         >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 50.0)).state_
         >>> bool(abs(state.mean()) > 0.9)
         True

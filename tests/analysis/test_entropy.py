@@ -17,7 +17,7 @@ RUNS = 20_000
 
 def _entropy(kind: str, source: object, **settings: object) -> np.ndarray:
     """Return the entropies of a source for one kind."""
-    return EntropyAnalysis(kind, **settings).check().prepare(source).run().entropy_
+    return EntropyAnalysis(kind, **settings).prepare(source).run().entropy_
 
 
 def _logistic(r: float, size: int, start: float = 0.3) -> np.ndarray:
@@ -139,7 +139,7 @@ def test_sample_entropy_of_white_noise():
 
 def test_sample_entropy_of_periodic_orbits_on_two_domains():
     """Test that the Van der Pol limit cycle and the logistic map at r = 3.2 give sample entropies below 0.05."""
-    trajectory = Simulation(create('van_der_pol'), dt=0.01).check().prepare().run(until=100.0).trajectory_
+    trajectory = Simulation(create('van_der_pol'), dt=0.01).prepare().run(until=100.0).trajectory_
     cycle = trajectory.values('oscillator.x')[len(trajectory.times) // 2 :]
     assert _entropy('sample', cycle, dimension=2)[0] < 0.05
     assert _entropy('sample', _logistic(3.2, 3000), dimension=2)[0] < 0.05
@@ -164,7 +164,7 @@ def test_spectral_entropy_of_a_tone_and_of_noise():
 def test_every_series_of_a_trajectory_gets_an_entropy():
     """Test that the named series of a trajectory each get an entropy, labelled by name."""
     trajectory = run('lotka_volterra', settings={'until': 5.0}).trajectory_
-    analysis = EntropyAnalysis('sample', ['prey.n', 'predators.n'], dimension=2).check().prepare(trajectory).run()
+    analysis = EntropyAnalysis('sample', ['prey.n', 'predators.n'], dimension=2).prepare(trajectory).run()
     assert analysis.labels_ == ['prey.n', 'predators.n']
     assert analysis.entropy_.shape == (2,)
 
@@ -172,28 +172,28 @@ def test_every_series_of_a_trajectory_gets_an_entropy():
 def test_unknown_kind_lists_the_kinds():
     """Test that an unknown kind raises an error that lists the kinds."""
     with pytest.raises(AnalysisError, match='shannon, renyi'):
-        EntropyAnalysis('unknown').check()
+        EntropyAnalysis('unknown').prepare()
 
 
 def test_setting_the_kind_ignores_is_rejected():
     """Test that a changed setting the kind does not read raises an error naming it."""
     with pytest.raises(AnalysisError, match='does not read tolerance'):
-        EntropyAnalysis('shannon', tolerance=0.5).check()
+        EntropyAnalysis('shannon', tolerance=0.5).prepare()
 
 
 def test_invalid_settings_are_rejected():
     """Test that unknown ties, a negative dimension, and a window for another kind raise errors."""
     with pytest.raises(AnalysisError, match='ties'):
-        EntropyAnalysis('permutation', ties='first').check()
+        EntropyAnalysis('permutation', ties='first').prepare()
     with pytest.raises(AnalysisError, match='dimension=-1'):
-        EntropyAnalysis('sample', dimension=-1).check()
+        EntropyAnalysis('sample', dimension=-1).prepare()
     with pytest.raises(AnalysisError, match='window'):
-        EntropyAnalysis('sample', dimension=(2, 2)).check()
+        EntropyAnalysis('sample', dimension=(2, 2)).prepare()
 
 
 def test_clone_keeps_settings_and_drops_results():
     """Test that a clone of a run analysis has its settings and none of its results."""
-    analysis = EntropyAnalysis('renyi', order=3.0).check().prepare([0, 1, 1]).run()
+    analysis = EntropyAnalysis('renyi', order=3.0).prepare([0, 1, 1]).run()
     copy = clone(analysis)
     assert copy.get_params() == analysis.get_params()
     assert not hasattr(copy, 'entropy_')
@@ -238,9 +238,9 @@ def test_ensemble_entropy_h_theorem_of_a_relaxing_ensemble():
     urn = _ehrenfest(rng, balls, 150)
     binomial = np.asarray([math.comb(balls, count) for count in range(balls + 1)]) / 2**balls
     chain, matrix = _birth_death(rng, 600)
-    stationary = MarkovAnalysis('stationary', matrix='transition').check().prepare(matrix).run().stationary_
+    stationary = MarkovAnalysis('stationary', matrix='transition').prepare(matrix).run().stationary_
     for samples, law in ((urn, binomial), (chain, stationary)):
-        relaxation = EntropyAnalysis('ensemble', reference=law).check().prepare(samples).run()
+        relaxation = EntropyAnalysis('ensemble', reference=law).prepare(samples).run()
         noise = 5 * relaxation.error_
         assert relaxation.entropy_.shape == relaxation.divergence_.shape == (samples.shape[1],)
         assert np.all(np.diff(relaxation.divergence_) <= noise)
@@ -250,6 +250,6 @@ def test_ensemble_entropy_h_theorem_of_a_relaxing_ensemble():
 def test_ensemble_entropy_checks_the_reference_law():
     """Test that the ensemble kind needs a reference law and rejects outcomes outside it."""
     with pytest.raises(AnalysisError, match='needs the reference law'):
-        EntropyAnalysis('ensemble').check()
+        EntropyAnalysis('ensemble').prepare()
     with pytest.raises(AnalysisError, match='Outcomes must lie'):
-        EntropyAnalysis('ensemble', reference=[0.5, 0.5]).check().prepare([[0, 3]])
+        EntropyAnalysis('ensemble', reference=[0.5, 0.5]).prepare([[0, 3]])

@@ -15,5 +15,5 @@ def test_essential_gene_stops_growth():
 
 def test_single_deletion_scan_finds_seven_essential_genes():
     """Test that deleting every gene in turn leaves exactly 7 with growth below 1e-6."""
-    growth = CobraAnalysis('deletions').check().prepare(metabolic_perturbations()).run().growth_
+    growth = CobraAnalysis('deletions').prepare(metabolic_perturbations()).run().growth_
     assert int((growth < 1e-6).sum()) == 7

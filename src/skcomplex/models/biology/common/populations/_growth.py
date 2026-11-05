@@ -74,7 +74,7 @@ class GrowthInteraction(RateInteraction):
         ...     elements=[CompartmentElement('population', n=1.0)],
         ...     interactions=[GrowthInteraction('growth', target='population', r=1.0, K=100.0, form='logistic')],
         ... )
-        >>> trajectory = Simulation(system, dt=1.0).check().prepare().run(until=30).trajectory_
+        >>> trajectory = Simulation(system, dt=1.0).prepare().run(until=30).trajectory_
         >>> round(float(trajectory.values('population.n')[-1]), 2)
         100.0
     """

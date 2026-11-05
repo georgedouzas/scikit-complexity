@@ -36,7 +36,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=8)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=100)
+simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=100)
 
 # %%
 # Antiphase synchronization

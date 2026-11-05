@@ -78,7 +78,7 @@ class CayleySpace(BaseSpace):
     Examples:
         >>> from sage.all__sagemath_gap import PermutationGroup
         >>> from skcomplex.core.spaces import CayleySpace
-        >>> space = CayleySpace(PermutationGroup([[(1, 2)], [(1, 2, 3)]]), ball=3).check().prepare()
+        >>> space = CayleySpace(PermutationGroup([[(1, 2)], [(1, 2, 3)]]), ball=3).prepare()
         >>> space.size_, space.words_[:4], space.ball_sizes_
         (6, ['1', 'a', 'b', 'b^-1'], [1, 4, 6, 6])
     """
@@ -329,7 +329,7 @@ class CayleySpace(BaseSpace):
         if not isinstance(neighborhood, MemoryNeighborhood):
             error_msg = f'A Cayley space reads a memory set of group elements, but it was given {neighborhood!r}.'
             raise ValidationError(error_msg)
-        elements = neighborhood.check().prepare().elements_
+        elements = neighborhood.prepare().elements_
         size = self.size_
         table = np.empty((size, len(elements)), dtype=np.intp)
         for position, element in enumerate(elements):

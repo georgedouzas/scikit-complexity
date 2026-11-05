@@ -18,7 +18,7 @@ from skcomplex.core.system import System
 from skcomplex.engine.compile import OperatorCompiler, PassCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import UnitarySolver
-from skcomplex.errors import NotCheckedError, ValidationError
+from skcomplex.errors import ValidationError
 from skcomplex.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 PAULI = HilbertSpec(
@@ -130,25 +130,19 @@ def test_system_constructor_only_stores_its_parts():
     assert (system.space, system.time) == (None, None)
 
 
-def test_system_must_be_checked_before_it_is_prepared():
-    """Test that preparing a system that was not checked raises an error."""
-    with pytest.raises(NotCheckedError):
-        System(elements=[StockElement('a')]).prepare()
-
-
 def test_system_checks_every_part():
     """Test that checking a system checks its parts, which reject their invalid arguments."""
     with pytest.raises(ValidationError, match='label'):
-        System(elements=[StockElement(1)]).check()
+        System(elements=[StockElement(1)]).prepare()
     with pytest.raises(ValidationError, match='Unknown schedule'):
-        System(elements=[StockElement('a')], time=DiscreteTime('parallel')).check()
+        System(elements=[StockElement('a')], time=DiscreteTime('parallel')).prepare()
 
 
 def test_system_prepares_groups_on_its_space():
     """Test that preparing a system prepares its space and gives it to the groups and nested systems without one."""
     weights = GroupElement('weights', element=StockElement, on='edges')
     nested = System('inner', elements=[GroupElement('nodes', element=StockElement, on='sites')])
-    System(elements=[weights], systems=[nested], space=NetworkSpace(nx.cycle_graph(30))).check().prepare()
+    System(elements=[weights], systems=[nested], space=NetworkSpace(nx.cycle_graph(30))).prepare()
     assert weights.size_ == 30
     assert nested.elements[0].size_ == 30
 
@@ -159,7 +153,7 @@ def test_system_runs_into_the_laws_of_its_parts():
         elements=[CounterElement('clock'), StockElement('rabbits')],
         interactions=[GrowthInteraction('growth', target='rabbits')],
         time=ContinuousTime(),
-    ).check()
+    )
     n, r, k = var('n r k')
     rabbits = SimpleNamespace(n=n)
     namespace = SimpleNamespace(
@@ -169,7 +163,7 @@ def test_system_runs_into_the_laws_of_its_parts():
     )
     laws = system.prepare().run(namespace).laws_
     assert [type(law).__name__ for law in laws] == ['UpdateLaw', 'RateLaw']
-    assert laws[1].check().prepare().run({'n': 2.0, 'r': 0.5}).value_ == 1.0
+    assert laws[1].prepare().run({'n': 2.0, 'r': 0.5}).value_ == 1.0
 
 
 def test_system_prints_its_parameters():
@@ -187,9 +181,9 @@ def test_four_part_system_runs():
         space=None,
         time=ContinuousTime(),
     )
-    trajectory = Simulation(system, dt=0.5).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, dt=0.5).prepare().run(until=1).trajectory_
     assert trajectory.values('rabbits.n')[-1] > 1.0
-    assert Simulation(system).check().prepare().run(until=0).problem_.parameters.names == ['growth.r']
+    assert Simulation(system).prepare().run(until=0).problem_.parameters.names == ['growth.r']
 
 
 def test_systems_nest_and_interactions_couple_them_by_path():
@@ -198,13 +192,13 @@ def test_systems_nest_and_interactions_couple_them_by_path():
         systems=[System('meadow', elements=[StockElement('rabbits', n=2.0)])],
         interactions=[GrowthInteraction('growth', target='meadow/rabbits')],
     )
-    trajectory = Simulation(system, dt=0.5).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, dt=0.5).prepare().run(until=1).trajectory_
     assert trajectory.values('meadow/rabbits.n')[-1] > 2.0
 
 
 def test_duplicate_labels_are_reported():
     """Test that two direct children with one label give one issue at the system that names the label."""
-    report = PassCompiler().check().prepare(System('farm', elements=[StockElement('a'), StockElement('a')])).report_
+    report = PassCompiler().prepare(System('farm', elements=[StockElement('a'), StockElement('a')])).report_
     (issue,) = report.errors
     assert issue.path == 'farm'
     assert "'a'" in issue.message
@@ -217,7 +211,7 @@ def test_rate_under_discrete_time_is_reported():
         interactions=[GrowthInteraction('g', target='a')],
         time=DiscreteTime(),
     )
-    (issue,) = PassCompiler().check().prepare(system).report_.errors
+    (issue,) = PassCompiler().prepare(system).report_.errors
     assert issue.code == 'law-time'
     assert 'needs ContinuousTime' in issue.message
 
@@ -225,8 +219,8 @@ def test_rate_under_discrete_time_is_reported():
 def test_nested_system_inherits_time():
     """Test that a nested system without a time is checked against the time of its parent."""
     nested = System('inner', elements=[CounterElement('clock')])
-    assert PassCompiler().check().prepare(System(systems=[nested], time=DiscreteTime())).report_.ok
-    (issue,) = PassCompiler().check().prepare(System(systems=[nested], time=ContinuousTime())).report_.errors
+    assert PassCompiler().prepare(System(systems=[nested], time=DiscreteTime())).report_.ok
+    (issue,) = PassCompiler().prepare(System(systems=[nested], time=ContinuousTime())).report_.errors
     assert issue.path == 'inner/clock'
 
 
@@ -237,7 +231,7 @@ def test_static_time_rejects_dynamic_laws():
         interactions=[GrowthInteraction('g', target='a')],
         time=StaticTime(),
     )
-    assert [issue.code for issue in PassCompiler().check().prepare(system).report_.errors] == ['law-time']
+    assert [issue.code for issue in PassCompiler().prepare(system).report_.errors] == ['law-time']
 
 
 def test_periodic_space_wraps_positions():
@@ -246,7 +240,7 @@ def test_periodic_space_wraps_positions():
         elements=[PointElement('p', x=[0.9, 0.5], x_d1=[1.0, 0.0])],
         space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
     )
-    trajectory = Simulation(system, dt=0.2).check().prepare().run(until=0.2).trajectory_
+    trajectory = Simulation(system, dt=0.2).prepare().run(until=0.2).trajectory_
     assert trajectory.values('p.x')[-1].tolist() == pytest.approx([0.1, 0.5])
 
 
@@ -258,7 +252,7 @@ def test_periodic_box_wraps_member_with_same_velocity():
         ],
         space=ContinuousSpace(extent=(1.0, 1.0), boundary='periodic'),
     )
-    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=0.2).trajectory_
+    trajectory = Simulation(system, dt=0.1).prepare().run(until=0.2).trajectory_
     assert np.allclose(trajectory.values('gas.x')[-1], [[0.15, 0.5]])
     assert np.allclose(trajectory.values('gas.x_d1')[-1], [[1.0, 0.0]])
 
@@ -266,7 +260,7 @@ def test_periodic_box_wraps_member_with_same_velocity():
 def test_variable_group_of_elements_grows():
     """Test that a variable group of 10 dividing members has 20, 40, and 80 after one, two, and three steps."""
     system = System(elements=[GroupElement('cells', element=CellElement, size=10, variable=True)])
-    trajectory = Simulation(system).check().prepare().run(until=3).trajectory_
+    trajectory = Simulation(system).prepare().run(until=3).trajectory_
     assert trajectory.values('cells.count').tolist() == [10.0, 20.0, 40.0, 80.0]
 
 
@@ -280,7 +274,7 @@ def test_group_on_edges_has_one_member_per_edge():
 def test_group_on_edges_outside_a_network_is_reported():
     """Test that a group on edges in a lattice space is reported with the space it needs."""
     system = System(elements=[GroupElement('weights', element=StockElement, on='edges')], space=LatticeSpace(4))
-    report = PassCompiler().check().prepare(system).report_
+    report = PassCompiler().prepare(system).report_
     (issue,) = report.errors
     assert (issue.code, issue.message) == ('space-missing', 'LatticeSpace has no edges.')
 
@@ -288,6 +282,6 @@ def test_group_on_edges_outside_a_network_is_reported():
 def test_element_with_hilbert_state_runs_unitary_dynamics():
     """Test that an element with a complex state in a Hilbert space and a generator law runs unitary dynamics."""
     system = System(elements=[TwoLevelElement('q')])
-    simulation = Simulation(system, compiler=OperatorCompiler(), solver=UnitarySolver(), dt=np.pi).check().prepare()
+    simulation = Simulation(system, compiler=OperatorCompiler(), solver=UnitarySolver(), dt=np.pi).prepare()
     simulation.run(until=np.pi)
     assert simulation.problem_.form.name == 'OPERATOR'

@@ -24,9 +24,7 @@ MODEL = 'annealed_transient_time_motion'
 system = create(MODEL, n_walkers=500, sigma=0.5, gamma=1.0, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.5)
-simulation = (
-    Simulation(system, solver=solver, dt=2.5, observers=[observer], random_state=0).check().prepare().run(until=500)
-)
+simulation = Simulation(system, solver=solver, dt=2.5, observers=[observer], random_state=0).prepare().run(until=500)
 
 # %%
 # Subdiffusion from heterogeneous diffusion

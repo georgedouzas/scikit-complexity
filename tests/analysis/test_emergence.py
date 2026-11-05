@@ -28,7 +28,7 @@ NOT_LUMPABLE = np.array(
 
 def _emergence(kind: str, source: object, **settings: object) -> EmergenceAnalysis:
     """Return the run emergence analysis of a source for one kind."""
-    return EmergenceAnalysis(kind, **settings).check().prepare(source).run()
+    return EmergenceAnalysis(kind, **settings).prepare(source).run()
 
 
 def _lumpable() -> np.ndarray:
@@ -91,7 +91,7 @@ def test_partition_coarse_grain_by_function_matches_the_macro_path():
     path = _chain(micro, 40_000, np.random.default_rng(0))
     found = _emergence('causal', micro, partition=lambda states: states // 2, weighting='stationary')
     assert found.partition_.tolist() == [0, 0, 1, 1]
-    estimated = MarkovAnalysis().check().prepare(path // 2).run().transition_matrix_
+    estimated = MarkovAnalysis().prepare(path // 2).run().transition_matrix_
     np.testing.assert_allclose(estimated, found.macro_matrix_, atol=0.02)
 
 
@@ -132,7 +132,7 @@ def test_effective_information_warns_on_unobserved_states():
 def test_effective_information_ignores_a_partition():
     """Test that the effective information rejects a partition, which only the other kinds read."""
     with pytest.raises(AnalysisError, match='does not read partition'):
-        EmergenceAnalysis('effective-information', partition=[0, 1]).check()
+        EmergenceAnalysis('effective-information', partition=[0, 1]).prepare()
 
 
 def test_causal_emergence_noisy_micro_states():
@@ -196,13 +196,13 @@ def test_emergence_criteria_gaussian_difference_hides_common_noise():
 def test_emergence_criteria_unknown_estimator():
     """Test that an unknown estimator raises an error naming the known ones."""
     with pytest.raises(AnalysisError, match='plugin'):
-        EmergenceAnalysis('criteria', partition=_parity, estimator='binned').check()
+        EmergenceAnalysis('criteria', partition=_parity, estimator='binned').prepare()
 
 
 def test_emergence_criteria_needs_a_partition():
     """Test that the criteria without a macro feature raise an error asking for the partition."""
     with pytest.raises(AnalysisError, match='partition'):
-        EmergenceAnalysis('criteria').check()
+        EmergenceAnalysis('criteria').prepare()
 
 
 def test_closure_lumpable_chain_is_closed():

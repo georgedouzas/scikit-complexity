@@ -97,7 +97,7 @@ def _run_evolution(evolution: EvolutionInteraction, strategies: np.ndarray, unti
     group = GroupElement('agents', element=BitStringElement, size=len(strategies), values={'strategy': strategies})
     schedule = PhasesScheduleSpec([PhaseSpec('scoring'), PhaseSpec('evolution')])
     system = System(elements=[group], interactions=[evolution], time=DiscreteTime(schedule=schedule))
-    return Simulation(system, random_state=seed).check().prepare().run(until=until).trajectory_
+    return Simulation(system, random_state=seed).prepare().run(until=until).trajectory_
 
 
 def _strategies(trajectory: Trajectory, frame: int) -> np.ndarray:
@@ -146,7 +146,7 @@ def test_evolution_interaction_neutral_fixation_has_the_initial_fraction_as_prob
     for seed in range(NEUTRAL_RUNS):
         group = GroupElement('agents', element=TypeElement, size=10, values={'strategy': initial})
         system = System(elements=[group], interactions=[evolution], time=DiscreteTime())
-        trajectory = Simulation(system, random_state=seed).check().prepare().run(until=200).trajectory_
+        trajectory = Simulation(system, random_state=seed).prepare().run(until=200).trajectory_
         finals.append(_strategies(trajectory, 200).ravel())
     assert all(np.ptp(final) == 0.0 for final in finals)
     wins = np.mean([final[0] for final in finals])
@@ -217,7 +217,7 @@ def test_evolution_interaction_truncation_redraws_the_least_fit_every_period_and
         values={'strategy': np.arange(8.0)[:, None] * 0 - 1, 'fitness': np.arange(8.0)},
     )
     system = System(elements=[group], interactions=[evolution], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=2).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=2).trajectory_
     assert np.all(_strategies(trajectory, 1) == -1.0)
     final = trajectory.agents('agents', 2).values
     changed = _strategies(trajectory, 2).ravel() != -1.0
@@ -240,7 +240,7 @@ def test_evolution_interaction_mutates_to_new_labels_and_by_steps():
         )
         group = GroupElement('agents', element=TypeElement, size=6, values={'strategy': np.full((6, 1), 3.0)})
         system = System(elements=[group], interactions=[evolution], time=DiscreteTime())
-        trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+        trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
         assert check(_strategies(trajectory, 1).ravel())
 
 
@@ -255,7 +255,7 @@ def test_evolution_interaction_best_mutant_climbs_an_evaluated_landscape():
     )
     group = GroupElement('agents', element=TypeElement, size=5, values={'strategy': np.zeros((5, 10))})
     system = System(elements=[group], interactions=[evolution], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=60).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=60).trajectory_
     fitness = [trajectory.agents('agents', frame).values['fitness'][0] for frame in range(1, 61)]
     assert np.all(np.diff(fitness) >= 0)
     assert fitness[-1] > 2
@@ -276,7 +276,7 @@ def test_evolution_interaction_one_gene_changes_and_parents_include_the_dead():
     )
     group = GroupElement('agents', element=TypeElement, size=10, values={'strategy': np.zeros((10, 7))})
     system = System(elements=[group], interactions=[evolution], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
     assert _strategies(trajectory, 1).sum(axis=1).tolist() == [1.0] * 10
 
 
@@ -302,7 +302,7 @@ def test_evolution_interaction_one_gene_changes_and_parents_include_the_dead():
 def test_check_rejects_invalid_arguments(arguments, message):
     """Test that an unknown selection, a probability outside `[0, 1]`, or an invalid count is rejected."""
     with pytest.raises(ValidationError, match=message):
-        EvolutionInteraction('evolution', target='agents', **arguments).check()
+        EvolutionInteraction('evolution', target='agents', **arguments).prepare()
 
 
 @pytest.mark.parametrize(

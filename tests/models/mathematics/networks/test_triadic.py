@@ -21,7 +21,7 @@ def _giant_fraction(mean_degree):
 
 def _giant(system, backend, until):
     """Return the fraction of nodes in the giant component after every time step of Millán et al., one step each."""
-    simulation = Simulation(system, backend=backend, random_state=0).check().prepare().run(until=until)
+    simulation = Simulation(system, backend=backend, random_state=0).prepare().run(until=until)
     return simulation.trajectory_.values('nodes.active').mean(axis=1)
 
 
@@ -29,7 +29,7 @@ def test_triadic_percolation_gives_every_link_one_regulator_among_the_other_node
     """Test that every link forms one hyperedge with a third node and takes a negative sign at the given rate."""
     system = triadic_percolation(500, negative=0.3, random_state=1)
     nodes, links = system.elements
-    space = nodes.space.check().prepare()
+    space = nodes.space.prepare()
     assert isinstance(nodes.space, NetworkSpace)
     edges = list(nodes.space.graph.edges)
     assert [hyperedge[:2] for hyperedge in space.hyperedges_] == edges

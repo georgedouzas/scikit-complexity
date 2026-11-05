@@ -156,7 +156,7 @@ class ScipyODESolver(Solver):
         ...         interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ...     ),
         ... )
-        >>> stepper = ScipyODESolver(rtol=1e-8, random_state=0).check().prepare(problem)
+        >>> stepper = ScipyODESolver(rtol=1e-8, random_state=0).prepare(problem)
         >>> x = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
         >>> round(float(x[0]), 4)
         2.7183

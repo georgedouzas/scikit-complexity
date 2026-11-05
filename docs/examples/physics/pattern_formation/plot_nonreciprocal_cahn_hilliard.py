@@ -27,7 +27,7 @@ LENGTH = 40.0
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).check().prepare().run(until=400)
+simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).prepare().run(until=400)
 
 # %%
 # A propagating unstable band
@@ -39,8 +39,8 @@ simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).ch
 # sites, whose wavenumbers resolve the band finely. In the run above, the phase of the dominant Fourier
 # mode of `phi` should advance at a constant rate once the domains form, the signature of domains that travel.
 
-above = StabilityAnalysis('dispersion').check().prepare(create(MODEL, shape=(512,), length=400.0)).run()
-below = StabilityAnalysis('dispersion').check().prepare(create(MODEL, shape=(512,), length=400.0, alpha=0.05)).run()
+above = StabilityAnalysis('dispersion').prepare(create(MODEL, shape=(512,), length=400.0)).run()
+below = StabilityAnalysis('dispersion').prepare(create(MODEL, shape=(512,), length=400.0, alpha=0.05)).run()
 edge = np.sqrt(1 - 0.1)
 phi = simulation.trajectory_.lattice('mixture.phi')
 times = 2.0 * np.arange(len(phi))

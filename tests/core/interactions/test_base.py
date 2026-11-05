@@ -177,7 +177,7 @@ def _run_agents(interaction):
         values={'x': np.array([0.0, 1.0, 0.0, 1.0])},
     )
     system = System(elements=[agents], interactions=[interaction], space=LatticeSpace((2, 2)), time=DiscreteTime())
-    return Simulation(system, random_state=0).check().prepare().run(until=5).trajectory_.agents('nodes', 5).values['x']
+    return Simulation(system, random_state=0).prepare().run(until=5).trajectory_.agents('nodes', 5).values['x']
 
 
 def _get_renamed(interaction):
@@ -207,7 +207,7 @@ def _run_nodes(interaction, discrete):
     )
     system = System(elements=[nodes], interactions=[interaction], time=DiscreteTime() if discrete else None)
     simulation = Simulation(system, dt=1 if discrete else 0.1, random_state=0)
-    return simulation.check().prepare().run(until=5 if discrete else 1.0).trajectory_.values('nodes.x')
+    return simulation.prepare().run(until=5 if discrete else 1.0).trajectory_.values('nodes.x')
 
 
 class WeightedInteraction(BaseInteraction):
@@ -245,7 +245,7 @@ def test_interaction_stores_its_roles_and_parameters():
 
 def test_interaction_prepares_into_itself():
     """Test that a checked interaction has nothing to prepare and runs into its laws."""
-    growth = GrowthInteraction('growth', target='rabbits').check()
+    growth = GrowthInteraction('growth', target='rabbits')
     assert growth.prepare() is growth
     assert growth.run(SimpleNamespace()).laws_ == []
 
@@ -253,13 +253,13 @@ def test_interaction_prepares_into_itself():
 def test_state_on_an_interaction_is_rejected():
     """Test that checking an interaction that declares a state raises an error that suggests a group on edges."""
     with pytest.raises(ValidationError, match='on="edges"'):
-        WeightedInteraction('w').check()
+        WeightedInteraction('w').prepare()
 
 
 def test_adaptive_parameter_on_an_interaction_is_rejected():
     """Test that checking an interaction that declares an adaptive parameter raises an error that names it."""
     with pytest.raises(ValidationError, match='adaptive parameters rate'):
-        PolicyInteraction('policy').check()
+        PolicyInteraction('policy').prepare()
 
 
 @pytest.mark.parametrize('name', RENAMED)
@@ -332,7 +332,7 @@ def test_prepare_rejects_grid_variants_in_a_continuous_space(case):
     """Test that a variant of cells or nodes raises an error naming its alternative in a continuous space."""
     interaction, name = GRID_ONLY[case]
     with pytest.raises(SpaceError, match=rf'The {name} .* needs the cells of a grid .* Use '):
-        interaction.check().prepare(ContinuousSpace(extent=(5.0, 5.0)))
+        interaction.prepare(ContinuousSpace(extent=(5.0, 5.0)))
     interaction.prepare(LatticeSpace((5, 5)))
 
 
@@ -376,9 +376,9 @@ SPEC_VARIANTS = {
 @pytest.mark.parametrize('case', list(SPEC_VARIANTS))
 def test_check_accepts_a_spec_for_a_variant_and_rejects_an_unknown_name(case):
     """Test that a variant argument takes a spec a subclass defines, and an unknown name lists the named values."""
-    assert SPEC_VARIANTS[case](FixedSpec()).check() is not None
+    assert SPEC_VARIANTS[case](FixedSpec()).prepare() is not None
     with pytest.raises(ValidationError, match=r'Unknown .* Use one of .*BaseSpec'):
-        SPEC_VARIANTS[case]('unknown').check()
+        SPEC_VARIANTS[case]('unknown').prepare()
 
 
 class FixedChoiceInteraction(ChoiceInteraction):
@@ -404,7 +404,7 @@ def test_dispatch_method_of_a_subclass_runs_its_spec_variant():
         form='agent',
     )
     system = System(elements=[group], interactions=[choice], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
     assert trajectory.agents('members', 1).values['x'].tolist() == [2.0, 2.0, 2.0]
 
 
@@ -417,7 +417,7 @@ def _run_variant(*interactions, space=None, time=None):
         space=LatticeSpace((3,)) if space is None else space,
         time=DiscreteTime() if time is None else time,
     )
-    Simulation(system, random_state=0).check().prepare().run(until=2)
+    Simulation(system, random_state=0).prepare().run(until=2)
 
 
 def _choice(form):
@@ -490,7 +490,7 @@ UNHANDLED_VARIANTS = {
         '_breed',
     ),
     'topology': (
-        lambda: TopologyInteraction('change', target='nodes', action=FixedSpec()).check(),
+        lambda: TopologyInteraction('change', target='nodes', action=FixedSpec()).prepare(),
         '_get_requests',
     ),
     'cascade': (
@@ -523,7 +523,7 @@ def test_check_refuses_a_spec_of_groups_in_the_symbolic_form():
         form='symbolic',
     )
     with pytest.raises(ValidationError, match='compiles the named groups'):
-        grouping.check()
+        grouping.prepare()
 
 
 def _interaction_classes() -> list[type[BaseInteraction]]:

@@ -65,7 +65,7 @@ class SignatureAnalysis(BaseAnalysis):
         >>> from skcomplex.analysis import SignatureAnalysis
         >>> from skcomplex.models import run
         >>> trajectory = run('lotka_volterra', settings={'until': 20.0}).trajectory_
-        >>> [signature.title for signature in SignatureAnalysis().check().prepare(trajectory).run().signatures_]
+        >>> [signature.title for signature in SignatureAnalysis().prepare(trajectory).run().signatures_]
         ['Power spectrum']
     """
 

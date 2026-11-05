@@ -86,7 +86,7 @@ class FractionalEulerMaruyamaSolver(Solver):
         ...     def _get_laws(self, s):
         ...         return [FractionalNoiseLaw(s.x, 1, hurst=0.75)]
         >>> problem = compile_system(System(elements=[GroupElement('walkers', element=WalkerElement, size=500)]))
-        >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0, random_state=0).check().prepare(problem)
+        >>> stepper = FractionalEulerMaruyamaSolver(dt=0.01, horizon=1.0, random_state=0).prepare(problem)
         >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
         >>> round(float(np.var(state)), 1)
         1.0

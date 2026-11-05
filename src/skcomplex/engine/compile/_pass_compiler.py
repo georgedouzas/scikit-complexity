@@ -173,7 +173,7 @@ class PassCompiler(BaseCompiler):
         ...     elements=[PopulationElement('rabbits', n=10)],
         ...     interactions=[ExponentialGrowthInteraction('growth', target='rabbits', r=0.5)],
         ... )
-        >>> compiler = PassCompiler().check().prepare(system)
+        >>> compiler = PassCompiler().prepare(system)
         >>> compiler.report_.ok
         True
         >>> compiler.run().problem_.equations
@@ -227,7 +227,7 @@ class PassCompiler(BaseCompiler):
         self.learning_ = None
         if _LearningCompiler._find_training(system) is not None:
             inner = PassCompiler(passes=self.passes)
-            self.learning_ = _LearningCompiler(inner, self.backend, self.solver).check().prepare(system)
+            self.learning_ = _LearningCompiler(inner, self.backend, self.solver).prepare(system)
             self.compilation_ = None
             return list(self.learning_.report_.issues)
         self.compilation_, issues = self._counted(system)
@@ -350,7 +350,7 @@ class PassCompiler(BaseCompiler):
         done = Compilation._required(compilation.done, 'done')
         for item in self._ordered(self.passes_, self._present(compilation)):
             if item in needed and item not in done:
-                item.check().prepare(compilation).run()
+                item.prepare(compilation).run()
                 done.add(item)
         return compilation
 
@@ -1018,7 +1018,7 @@ class PassCompiler(BaseCompiler):
             spaces.setdefault(id(system.space), (system.label, system.space))
         for path, space in spaces.values():
             try:
-                space.check().prepare()
+                space.prepare()
             except SpaceTooLargeError as error:
                 fix = 'Ask for a smaller ball, or raise max_sites.'
                 issues.append(IssueSpec('space-too-large', path, str(error), fix, error=SpaceTooLargeError))
@@ -1506,7 +1506,7 @@ class PassCompiler(BaseCompiler):
         issues = []
         try:
             if isinstance(solver, BaseConfig):
-                solver.check()
+                solver._validated()
         except SkcomplexError as error:
             fix = f'Correct the arguments of {stepper.__name__} as the message describes.'
             issues.append(IssueSpec('solver-argument', system.label, str(error), fix, error=type(error)))

@@ -32,7 +32,7 @@ class IterationSolver(Solver):
         ...         interactions=[CobwebInteraction('c', target='m', a=10, b=2, c=1, d=1)],
         ...     ),
         ... )
-        >>> stepper = IterationSolver(random_state=0).check().prepare(problem)
+        >>> stepper = IterationSolver(random_state=0).prepare(problem)
         >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_.tolist()
         [4.0]
     """

@@ -16,7 +16,6 @@ def test_ehrenfest_urn_relaxes_to_the_binomial():
             dt=1,
             random_state=0,
         )
-        .check()
         .prepare()
         .run(20000)
         .trajectory_.values('urn.n'),

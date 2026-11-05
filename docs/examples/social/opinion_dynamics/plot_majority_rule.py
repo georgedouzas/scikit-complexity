@@ -23,9 +23,7 @@ MODEL = 'majority_rule'
 STEPS = 20
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(create(MODEL, density=0.5, random_state=0), observers=[observer]).check().prepare().run(until=STEPS)
-)
+simulation = Simulation(create(MODEL, density=0.5, random_state=0), observers=[observer]).prepare().run(until=STEPS)
 
 # %%
 # Coarsening, freezing, and amplification
@@ -39,7 +37,6 @@ grids = simulation.trajectory_.lattice('voters.opinion')
 densities = np.linspace(0.3, 0.7, 17)
 finals = [
     Simulation(create(MODEL, density=density, random_state=0))
-    .check()
     .prepare()
     .run(until=STEPS)
     .trajectory_.values('voters.opinion')[-1]
@@ -47,7 +44,7 @@ finals = [
     for density in densities
 ]
 fig, (interfaces, amplification) = plt.subplots(1, 2, figsize=(10, 4))
-domains = DomainAnalysis('interface-density', times=simulation.trajectory_.times).check().prepare(grids)
+domains = DomainAnalysis('interface-density', times=simulation.trajectory_.times).prepare(grids)
 interfaces.plot(domains.times_, domains.run().density_, 'o-', ms=3)
 interfaces.set_xlabel('step')
 interfaces.set_ylabel('interface density')

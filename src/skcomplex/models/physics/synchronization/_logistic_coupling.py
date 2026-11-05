@@ -45,7 +45,7 @@ class LogisticCouplingInteraction(CouplingInteraction):
         ... )
         >>> coupling = LogisticCouplingInteraction('coupling', target='maps')
         >>> system = System(elements=[maps], interactions=[coupling], time=DiscreteTime())
-        >>> Simulation(system).check().prepare().run(until=1).trajectory_.values('maps.x')[-1].tolist()
+        >>> Simulation(system).prepare().run(until=1).trajectory_.values('maps.x')[-1].tolist()
         [0.875, 0.875]
     """
 

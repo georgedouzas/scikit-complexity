@@ -26,7 +26,7 @@ class VoterImitationInteraction(MapInteraction):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import VoterImitationInteraction
-        >>> VoterImitationInteraction('imitation', target='voters').check().schedule
+        >>> VoterImitationInteraction('imitation', target='voters').schedule
         'random-sequential'
     """
 

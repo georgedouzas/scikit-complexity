@@ -49,7 +49,7 @@ class ObservableSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import ObservableSpec
-        >>> ObservableSpec('mean_wealth', group='traders', variable='wealth').check().reduce
+        >>> ObservableSpec('mean_wealth', group='traders', variable='wealth').reduce
         'mean'
     """
 

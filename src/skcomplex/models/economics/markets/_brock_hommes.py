@@ -72,7 +72,7 @@ def brock_hommes(
 
     Examples:
         >>> from skcomplex.models.economics.markets import brock_hommes
-        >>> brock_hommes(100).elements[0].check().prepare().size_
+        >>> brock_hommes(100).elements[0].prepare().size_
         100
     """
     traders = GroupElement('traders', element=HeuristicTraderElement, size=n_traders)

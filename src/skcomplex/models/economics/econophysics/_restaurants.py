@@ -36,7 +36,7 @@ class RestaurantsInteraction(GroupingInteraction):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import RestaurantsInteraction
-        >>> RestaurantsInteraction('restaurants', target='diners', n_restaurants=5).check().groups
+        >>> RestaurantsInteraction('restaurants', target='diners', n_restaurants=5).groups
         'state'
     """
 

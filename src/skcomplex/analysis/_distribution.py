@@ -158,18 +158,18 @@ class DistributionAnalysis(BaseAnalysis):
 
     Examples:
         >>> from skcomplex.analysis import DistributionAnalysis
-        >>> histogram = DistributionAnalysis('histogram', bins=3, log=True).check().prepare([1, 2, 4, 8]).run()
+        >>> histogram = DistributionAnalysis('histogram', bins=3, log=True).prepare([1, 2, 4, 8]).run()
         >>> histogram.edges_.round(2).tolist()
         [1.0, 2.0, 4.0, 8.0]
-        >>> DistributionAnalysis('ccdf').check().prepare([1, 1, 2, 4]).run().survival_.tolist()
+        >>> DistributionAnalysis('ccdf').prepare([1, 1, 2, 4]).run().survival_.tolist()
         [1.0, 0.5, 0.25]
-        >>> DistributionAnalysis('gini').check().prepare([0, 0, 0, 4]).run().gini_
+        >>> DistributionAnalysis('gini').prepare([0, 0, 0, 4]).run().gini_
         0.75
-        >>> DistributionAnalysis('moment-ratio').check().prepare([1.0, -1.0, 1.0]).run().cumulant_.round(4).tolist()
+        >>> DistributionAnalysis('moment-ratio').prepare([1.0, -1.0, 1.0]).run().cumulant_.round(4).tolist()
         [0.6667]
-        >>> DistributionAnalysis('dispersion-index').check().prepare([1, 3, 1, 3]).run().index_.tolist()
+        >>> DistributionAnalysis('dispersion-index').prepare([1, 3, 1, 3]).run().index_.tolist()
         [0.5]
-        >>> DistributionAnalysis('total-variation').check().prepare([[0, 0], [0, 0], [1, 1], [1, 1]]).run().distance_
+        >>> DistributionAnalysis('total-variation').prepare([[0, 0], [0, 0], [1, 1], [1, 1]]).run().distance_
         1.0
     """
 

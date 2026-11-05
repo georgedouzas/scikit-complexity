@@ -55,7 +55,7 @@ class IdleElement(Element):
 def _simulate(system, until=0, random_state=0):
     """Return the trajectory of a system on the Mesa solver."""
     simulation = Simulation(system, solver=MesaSolver(), random_state=random_state)
-    return simulation.check().prepare().run(until=until).trajectory_
+    return simulation.prepare().run(until=until).trajectory_
 
 
 def _concave_polygon():
@@ -75,7 +75,7 @@ def test_two_dimensional_space_keeps_recorded_trajectories():
     """Test that a model on a two-dimensional continuous space repeats the trajectories recorded before the change."""
     recorded = json.loads((files(__package__) / RECORDED_BOIDS).read_text())
     for _ in range(2):
-        trajectory = Simulation(boids(10), dt=1, random_state=0).check().prepare().run(until=20).trajectory_
+        trajectory = Simulation(boids(10), dt=1, random_state=0).prepare().run(until=20).trajectory_
         for frame, values in recorded.items():
             snapshot = trajectory.agents('flock', int(frame))
             assert snapshot.ids.tolist() == values['ids']
@@ -182,7 +182,7 @@ def test_unsupported_continuous_space_is_rejected_before_the_first_frame(space, 
     group = GroupElement('probes', element=ProbeElement, size=2)
     problem = compile_system(System(elements=[group], space=space), solver=MesaSolver())
     with pytest.raises(BackendError, match=f"continuous space 'space'.*{dimension}.*two or three dimensions"):
-        MesaSolver().check().prepare(problem)
+        MesaSolver().prepare(problem)
     with pytest.raises(BackendError, match='two or three dimensions'):
         _simulate(System(elements=[group], space=space), until=1)
 
@@ -195,7 +195,7 @@ def test_location_of_the_wrong_length_is_reported(location):
     """Test that the compile report holds an initial location that does not fit a three-dimensional space."""
     group = GroupElement('probes', element=ProbeElement, size=3, location=location)
     system = System(elements=[group], space=ContinuousSpace(extent=(5.0, 5.0, 5.0)))
-    report = PassCompiler().check().prepare(system).report_
+    report = PassCompiler().prepare(system).report_
     issue = next(item for item in report.issues if item.code == 'location-dimension')
     assert issue.path == 'probes'
     assert '2 coordinates' in issue.message
@@ -207,10 +207,10 @@ def test_locations_that_fit_their_space_are_not_reported():
     for location in ((1.0, 2.0, 3.0), [(1.0, 2.0, 3.0)] * 2):
         group = GroupElement('probes', element=ProbeElement, size=2, location=location)
         system = System(elements=[group], space=ContinuousSpace(extent=(5.0, 5.0, 5.0)))
-        assert PassCompiler().check().prepare(system).report_.ok
+        assert PassCompiler().prepare(system).report_.ok
     group = GroupElement('probes', element=ProbeElement, size=2, location=[box(0.0, 0.0, 1.0, 1.0)] * 2)
     system = System(elements=[group], space=ContinuousSpace(extent=(5.0, 5.0)))
-    assert PassCompiler().check().prepare(system).report_.ok
+    assert PassCompiler().prepare(system).report_.ok
 
 
 def test_move_to_of_the_wrong_length_raises_space_error():

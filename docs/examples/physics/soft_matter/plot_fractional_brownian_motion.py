@@ -25,9 +25,7 @@ MODEL = 'fractional_brownian_motion'
 system = create(MODEL, n_walkers=500, H=0.3)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 solver = FractionalEulerMaruyamaSolver(dt=0.01)
-simulation = (
-    Simulation(system, solver=solver, dt=0.05, observers=[observer], random_state=0).check().prepare().run(until=10)
-)
+simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], random_state=0).prepare().run(until=10)
 
 # %%
 # Scaling and memory
@@ -40,7 +38,7 @@ trajectory = simulation.trajectory_
 times = trajectory.times[1:]
 positions = trajectory.values('walkers.x')
 squared = np.mean(np.sum(positions[1:] ** 2, axis=-1), axis=1)
-exponents = ScalingAnalysis().check().prepare(np.diff(positions[:, :100, 0], axis=0)).run().exponent_
+exponents = ScalingAnalysis().prepare(np.diff(positions[:, :100, 0], axis=0)).run().exponent_
 fig, (displacement, memory) = plt.subplots(1, 2, figsize=(10, 4))
 displacement.loglog(times, squared, label='simulation')
 displacement.loglog(times, 4 * times**0.6, '--', color='black', label='4 D t^(2 H)')

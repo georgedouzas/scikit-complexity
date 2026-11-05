@@ -24,7 +24,7 @@ class ParticleSwarmSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import ParticleSwarmSpec
-        >>> ParticleSwarmSpec().check().inertia
+        >>> ParticleSwarmSpec().inertia
         0.9
     """
 

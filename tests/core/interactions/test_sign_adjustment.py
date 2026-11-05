@@ -33,7 +33,7 @@ class QuoteElement(Element):
 def _run(element: Element, adjustment: SignAdjustmentInteraction, until: int) -> Trajectory:
     """Return the trajectory of an element whose quote a sign adjustment steps."""
     system = System(elements=[element], interactions=[adjustment], time=DiscreteTime())
-    return Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
+    return Simulation(system, random_state=0).prepare().run(until=until).trajectory_
 
 
 def test_sign_adjustment_steps_multiplicatively_up_to_the_bound():
@@ -115,4 +115,4 @@ def test_check_rejects_invalid_arguments(arguments):
     """Test that an unknown mode or form, or a signal that is not callable, fails."""
     settings = {'signal': lambda s: 1, **arguments}
     with pytest.raises(ValidationError):
-        SignAdjustmentInteraction('search', target='quote', state='x', **settings).check()
+        SignAdjustmentInteraction('search', target='quote', state='x', **settings).prepare()

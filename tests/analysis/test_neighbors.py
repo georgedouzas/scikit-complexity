@@ -16,7 +16,7 @@ EMPTY = -1.0
 
 def _neighbors(kind: str, source: object, **settings: object) -> NeighborAnalysis:
     """Return the neighbour analysis of a source for one kind, run."""
-    return NeighborAnalysis(kind, **settings).check().prepare(source).run()
+    return NeighborAnalysis(kind, **settings).prepare(source).run()
 
 
 def _schelling_grid(side: int) -> np.ndarray:
@@ -74,7 +74,7 @@ def test_like_neighbor_share_same_index_on_two_domains():
     """Test that a relaxed Schelling model and a quenched Ising lattice exceed 0.75, unlike random arrangements."""
     rng = np.random.default_rng(0)
     schelling = _schelling_grid(40)
-    quench = Simulation(create('ising', size=64, temperature=1.0), dt=1).check().prepare().run(until=200)
+    quench = Simulation(create('ising', size=64, temperature=1.0), dt=1).prepare().run(until=200)
     ising = quench.trajectory_.lattice('spins.spin')[-1]
     for grid, empty in ((schelling, EMPTY), (ising, None)):
         assert _neighbors('like-share', grid, empty=empty).share_[0] > 0.75
@@ -99,8 +99,8 @@ def test_like_neighbor_share_on_networks():
 def test_neighbor_analysis_checks_its_settings():
     """Test the errors of an unknown kind, an ignored setting, and a Clark-Evans ratio without a box."""
     with pytest.raises(AnalysisError, match='Use one of distances'):
-        NeighborAnalysis('voronoi').check()
+        NeighborAnalysis('voronoi').prepare()
     with pytest.raises(AnalysisError, match='does not read bins'):
-        NeighborAnalysis('distances', bins=10).check()
+        NeighborAnalysis('distances', bins=10).prepare()
     with pytest.raises(AnalysisError, match='needs a periodic box'):
         _neighbors('clark-evans', np.random.default_rng(0).random((10, 2)))

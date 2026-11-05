@@ -37,7 +37,7 @@ class AngularDiffusionInteraction(EncounterInteraction):
 
     Examples:
         >>> from skcomplex.models.physics.active_matter import AngularDiffusionInteraction
-        >>> AngularDiffusionInteraction('tumble', candidate='flock', angles=8, tumbling=1.0, noise=0.5).check().field
+        >>> AngularDiffusionInteraction('tumble', candidate='flock', angles=8, tumbling=1.0, noise=0.5).field
     """
 
     def __init__(

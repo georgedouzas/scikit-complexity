@@ -48,7 +48,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, omega=2.0, theta=0.1)
 observer = SwingObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=20)
+simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=20)
 
 # %%
 # Angular momentum and the equilibrium angle

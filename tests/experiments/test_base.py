@@ -31,7 +31,7 @@ def test_bases_are_abstract():
 
 def test_sampled_design_reads_distributions():
     """Test that a sampled design maps its samples through the quantile function of a SciPy distribution."""
-    rows = RandomDesign(n=200, random_state=0).check().check().prepare({'r': stats.norm(10, 1)}).run().rows_
+    rows = RandomDesign(n=200, random_state=0).prepare({'r': stats.norm(10, 1)}).run().rows_
     assert 9.5 < sum(row['r'] for row in rows) / len(rows) < 10.5
 
 
@@ -39,27 +39,24 @@ def test_sampled_design_reads_distributions():
 def test_sampled_design_rejects_invalid_bounds(bound):
     """Test that a bound that is neither a pair nor a distribution raises an error naming it when prepared."""
     with pytest.raises(ValidationError, match='The bounds of r must be'):
-        RandomDesign(n=4).check().check().prepare({'r': bound})
+        RandomDesign(n=4).prepare({'r': bound})
 
 
 def test_design_check_rejects_negative_size():
     """Test that a negative number of rows builds and fails when checked."""
     with pytest.raises(ValidationError, match='nonnegative integer'):
-        RandomDesign(n=-1).check()
+        RandomDesign(n=-1).prepare()
 
 
 def test_replicate_runs_many_initial_conditions_at_once():
     """Test that member i of a replicated logistic map follows the single map from the i-th initial value."""
     starts = np.linspace(0.05, 0.95, 100)
     ensemble = (
-        Simulation(BaseExperiment._replicate(logistic_map(r=3.7), 100, {'map.x': starts}), dt=1)
-        .check()
-        .prepare()
-        .run(until=50)
+        Simulation(BaseExperiment._replicate(logistic_map(r=3.7), 100, {'map.x': starts}), dt=1).prepare().run(until=50)
     )
     values = np.asarray(ensemble.trajectory_.values('map.x'))
     for index in (0, 37, 99):
-        single = Simulation(logistic_map(x=float(starts[index]), r=3.7), dt=1).check().prepare().run(until=50)
+        single = Simulation(logistic_map(x=float(starts[index]), r=3.7), dt=1).prepare().run(until=50)
         np.testing.assert_allclose(values[:, index], np.ravel(single.trajectory_.values('map.x')), atol=1e-12)
 
 
@@ -67,9 +64,9 @@ def test_replicate_runs_systems_with_interactions():
     """Test that member i of replicated predators and prey follows the single model from the i-th initial prey."""
     starts = np.asarray([20.0, 40.0, 60.0])
     ensemble = BaseExperiment._replicate(lotka_volterra(), 3, {'prey.n': starts})
-    values = np.asarray(Simulation(ensemble, dt=0.1).check().prepare().run(until=5).trajectory_.values('predators.n'))
+    values = np.asarray(Simulation(ensemble, dt=0.1).prepare().run(until=5).trajectory_.values('predators.n'))
     for index, start in enumerate(starts):
-        single = Simulation(lotka_volterra(prey=float(start)), dt=0.1).check().prepare().run(until=5)
+        single = Simulation(lotka_volterra(prey=float(start)), dt=0.1).prepare().run(until=5)
         np.testing.assert_allclose(values[:, index], np.ravel(single.trajectory_.values('predators.n')), rtol=1e-5)
 
 
@@ -98,11 +95,11 @@ def test_replicate_checks_paths_and_rows():
 def test_model_name_as_a_source_raises_a_named_error(experiment):
     """Test that an experiment of a model name raises an error that says to pass a system or a factory."""
     with pytest.raises(ExperimentError, match=r"not the model name '\w+'\. Pass the model's factory"):
-        experiment().check()
+        experiment().prepare()
 
 
 def test_model_of_the_library_runs_from_its_factory_or_a_created_system():
     """Test that a library model runs as an experiment from its factory or from a system the models library creates."""
     for source in (logistic_map, create('logistic_map')):
         diagram = experiments.OrbitDiagramExperiment(source, 'map.r', [2.9], 'map.x', transient=1000, keep=4, dt=1)
-        assert diagram.check().prepare().run().periods_.tolist() == [1]
+        assert diagram.prepare().run().periods_.tolist() == [1]

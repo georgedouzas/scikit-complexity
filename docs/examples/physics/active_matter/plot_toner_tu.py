@@ -26,9 +26,7 @@ MODEL = 'toner_tu'
 system = create(MODEL, shape=(64, 64), random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.02)
-simulation = (
-    Simulation(system, solver=solver, dt=0.25, observers=[observer], random_state=0).check().prepare().run(until=30)
-)
+simulation = Simulation(system, solver=solver, dt=0.25, observers=[observer], random_state=0).prepare().run(until=30)
 
 # %%
 # The flocking transition
@@ -41,7 +39,7 @@ densities = np.linspace(0.2, 2.0, 10)
 speeds = []
 for density in densities:
     system_d = create(MODEL, shape=(16, 16), rho0=density, random_state=1)
-    run = Simulation(system_d, solver=solver, dt=1.0, random_state=1).check().prepare().run(until=60)
+    run = Simulation(system_d, solver=solver, dt=1.0, random_state=1).prepare().run(until=60)
     velocity = np.stack([run.trajectory_.values('flock.vx')[-10:], run.trajectory_.values('flock.vy')[-10:]], axis=-1)
     speeds.append(np.linalg.norm(velocity.mean(axis=1), axis=-1).mean())
 grid = np.linspace(0.2, 2.0, 300)

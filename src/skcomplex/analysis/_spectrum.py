@@ -71,11 +71,11 @@ class SpectrumAnalysis(BaseAnalysis):
         >>> import numpy as np
         >>> from skcomplex.analysis import SpectrumAnalysis
         >>> times = np.arange(4096) * 0.01
-        >>> spectrum = SpectrumAnalysis(dt=0.01).check().prepare(np.sin(2 * np.pi * 5 * times)).run()
+        >>> spectrum = SpectrumAnalysis(dt=0.01).prepare(np.sin(2 * np.pi * 5 * times)).run()
         >>> round(float(spectrum.frequencies_[spectrum.power_[0].argmax()]))
         5
         >>> stripes = np.cos(2 * np.pi * np.arange(64) / 8)[:, None] * np.ones(64)
-        >>> factor = SpectrumAnalysis('structure-factor').check().prepare(stripes).run()
+        >>> factor = SpectrumAnalysis('structure-factor').prepare(stripes).run()
         >>> round(float(2 * np.pi / factor.wavenumbers_[factor.power_.argmax()]), 1)
         8.0
     """

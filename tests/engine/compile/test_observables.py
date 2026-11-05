@@ -39,7 +39,7 @@ def _observed(name):
     """Return a model with its observables, and the paths of those that laws read at the current state."""
     system = create(name)
     observables = describe(name).observables_of(system)
-    compilation = PassCompiler(observables=observables).check().prepare(system).compilation_
+    compilation = PassCompiler(observables=observables).prepare(system).compilation_
     nodes = {node.path: node for node in compilation.nodes}
     found, blocked = [], set()
     for observable in observables:
@@ -216,7 +216,7 @@ def _village(interaction):
 def test_held_reduction_reads_one_group():
     """Test that a reduction of the agents of two groups is reported as a role error."""
     interaction = MixedReductionInteraction('mix', target='land/soil', first='village/a', second='village/b')
-    (issue,) = PassCompiler().check().prepare(_village(interaction)).report_.errors
+    (issue,) = PassCompiler().prepare(_village(interaction)).report_.errors
     assert issue.error is RoleError
     assert 'village/a and village/b' in issue.message
 
@@ -224,7 +224,7 @@ def test_held_reduction_reads_one_group():
 def test_held_reduction_reads_only_agents():
     """Test that a reduction of agents that reads a state of a single element names the symbol it cannot read."""
     interaction = ForeignReductionInteraction('foreign', target='land/soil', first='village/a')
-    (issue,) = PassCompiler().check().prepare(_village(interaction)).report_.errors
+    (issue,) = PassCompiler().prepare(_village(interaction)).report_.errors
     assert issue.code == 'reduction'
     assert 'n_land_soil' in issue.message
 

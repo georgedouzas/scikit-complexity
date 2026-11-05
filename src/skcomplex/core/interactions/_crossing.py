@@ -69,7 +69,7 @@ class CrossingInteraction(Interaction):
         ...     'wrap', target='clock', guard=lambda s: s.target.x - 1, reset={'x': lambda s: 0}, direction=1
         ... )
         >>> system = System(elements=[ClockElement('clock')], interactions=[wrap])
-        >>> trajectory = Simulation(system, dt=0.5).check().prepare().run(until=2.2).trajectory_
+        >>> trajectory = Simulation(system, dt=0.5).prepare().run(until=2.2).trajectory_
         >>> [round(event.time, 6) for event in trajectory.events]
         [1.0, 2.0]
     """

@@ -22,7 +22,7 @@ MODEL = 'activity_driven_epidemics'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).check().prepare().run(until=150)
+simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).prepare().run(until=150)
 
 # %%
 # Prevalence across the threshold
@@ -36,7 +36,7 @@ activity = create(MODEL).elements[0].values['a']
 probabilities = np.linspace(0.05, 0.9, 8)
 prevalence = []
 for lam in probabilities:
-    run = Simulation(create(MODEL, lam=lam), dt=10.0, random_state=1).check().prepare().run(until=150).trajectory_
+    run = Simulation(create(MODEL, lam=lam), dt=10.0, random_state=1).prepare().run(until=150).trajectory_
     prevalence.append(np.nanmean(run.values('hosts.i')[-5:]))
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(probabilities / 0.1, prevalence, 'o-')

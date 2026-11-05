@@ -97,4 +97,4 @@ def compile_system(
     """
     compiler = PassCompiler() if compiler is None else clone(compiler)
     compiler.set_params(backend=backend, solver=solver, observables=observables)
-    return compiler.check().prepare(system).run(initial_state).problem_
+    return compiler.prepare(system).run(initial_state).problem_

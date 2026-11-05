@@ -97,7 +97,7 @@ class JacobianKernel(BaseKernel):
         self.symmetries = symmetries
         self.constrained = constrained
 
-    def _validate(self) -> None:
+    def _check_exact_forms(self) -> None:
         """Raise an error when a law has no symbolic form whose exact Jacobian can be derived."""
         if self.reductions.neighbourhoods:
             error_msg = (
@@ -139,7 +139,7 @@ class JacobianKernel(BaseKernel):
                 A rate law holds a callable, a pair sum, or a spectral operator, or a field has conservation laws.
         """
         del context
-        self._validate()
+        self._check_exact_forms()
         self.kernel_partials_ = []
         for kernel in self.kernels:
             expressions = [output.expression for output in kernel.outputs]
@@ -167,7 +167,7 @@ class JacobianKernel(BaseKernel):
         derivatives = [SR(expressions[index]).diff(item) for index, item in pairs]
         if not derivatives:
             return PartialsSpec(pairs, None)
-        printer = ExpressionPrinter(time=self.time, compiled=True).check().prepare(arguments)
+        printer = ExpressionPrinter(time=self.time, compiled=True).prepare(arguments)
         return PartialsSpec(pairs, ExpressionPrinter._function_of(printer.run(derivatives).code_))
 
     @staticmethod

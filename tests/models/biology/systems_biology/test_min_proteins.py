@@ -14,7 +14,7 @@ from ..conftest import _run_with_solver
 def test_min_protein_skeleton_conserves_both_proteins_and_forms_oscillating_bands():
     """Test that the Min skeleton model conserves MinD and MinE while an oscillatory instability forms bands."""
     system = min_protein_skeleton(64)
-    relation = StabilityAnalysis('dispersion').check().prepare(system).run()
+    relation = StabilityAnalysis('dispersion').prepare(system).run()
     unstable = relation.growth_rates_ > 0
     assert unstable.any()
     assert np.abs(relation.frequencies_[unstable]).max() > 0.01

@@ -50,7 +50,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=STEPS)
 )
@@ -70,7 +69,6 @@ for demand in demands:
     system = create(MODEL, demand=demand, random_state=0)
     run = (
         Simulation(system, random_state=0, observables=describe(MODEL).observables_of(system))
-        .check()
         .prepare()
         .run(until=STEPS)
     )

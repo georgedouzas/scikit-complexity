@@ -57,7 +57,7 @@ def _field_energy(faces: scipy.sparse.csr_array, t: float, values: Mapping[str, 
 def _gauge_observables(system: System) -> list[ObservableSpec]:
     """Return the mean plaquette of a sampled system, or the Gauss residual and the field energy of a Maxwell one."""
     links = next(element for element in system.elements if element.label == 'links')
-    space = links.space.check().prepare()
+    space = links.space.prepare()
     if links.element is GaugeLinkElement:
         return [ObservableSpec('mean_plaquette', function=partial(_mean_plaquette, space.incidences_[1]))]
     return [
@@ -214,7 +214,7 @@ def lattice_gauge_fields(
     if dynamics not in DYNAMICS:
         error_msg = f'Unknown dynamics {dynamics!r}. Use one of {", ".join(DYNAMICS)}.'
         raise ValidationError(error_msg)
-    space = CellComplexSpace(LatticeSpace((size,) * dimension)).check().prepare()
+    space = CellComplexSpace(LatticeSpace((size,) * dimension)).prepare()
     if dynamics == 'hamiltonian':
         return _maxwell_system(space, charges, amplitude)
     return _monte_carlo_system(space, n, beta, angles, seed)

@@ -110,7 +110,7 @@ def urban_scaling_interactions(
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.social.organizations import urban_scaling_interactions
         >>> system = urban_scaling_interactions(13, internal=0.0)
-        >>> trajectory = Simulation(system, random_state=0).check().prepare().run(until=10).trajectory_
+        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=10).trajectory_
         >>> int(trajectory.network(-1).sources.size)
         23
     """

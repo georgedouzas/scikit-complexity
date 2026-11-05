@@ -30,9 +30,7 @@ def test_perishable_goods_duopoly_symmetry_breaking(ratio):
                 system,
                 random_state=0,
                 observables=describe('perishable_goods_duopoly').observables_of(system),
-            )
-            .check()
-            .prepare()
+            ).prepare()
         )
         .run(until=300)
         .trajectory_.values('m')[-50:],

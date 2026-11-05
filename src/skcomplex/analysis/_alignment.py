@@ -102,19 +102,19 @@ class AlignmentAnalysis(BaseAnalysis):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.analysis import AlignmentAnalysis
-        >>> AlignmentAnalysis().check().prepare([0.0, 0.0, 0.0]).run().order_.tolist()
+        >>> AlignmentAnalysis().prepare([0.0, 0.0, 0.0]).run().order_.tolist()
         [1.0]
-        >>> AlignmentAnalysis('axial').check().prepare([0.0, np.pi]).run().order_.round(6).tolist()
+        >>> AlignmentAnalysis('axial').prepare([0.0, np.pi]).run().order_.round(6).tolist()
         [1.0]
         >>> angles = np.linspace(0, 2 * np.pi, 8, endpoint=False)
         >>> ring = np.column_stack([np.cos(angles), np.sin(angles)])
         >>> mill = np.hstack([ring, np.column_stack([-ring[:, 1], ring[:, 0]])])
-        >>> AlignmentAnalysis('mean-rotation').check().prepare(mill).run().order_.round(6).tolist()
+        >>> AlignmentAnalysis('mean-rotation').prepare(mill).run().order_.round(6).tolist()
         [1.0]
-        >>> phases = AlignmentAnalysis('mean-phase').check().prepare([[0.5, 0.5], [0.0, np.pi]]).run()
+        >>> phases = AlignmentAnalysis('mean-phase').prepare([[0.5, 0.5], [0.0, np.pi]]).run()
         >>> phases.order_.round(6).tolist(), phases.phase_.round(6)[:1].tolist()
         ([1.0, 0.0], [0.5])
-        >>> tensors = AlignmentAnalysis('principal-axis').check().prepare([[0.5, 0.0], [0.0, 0.5]]).run()
+        >>> tensors = AlignmentAnalysis('principal-axis').prepare([[0.5, 0.0], [0.0, 0.5]]).run()
         >>> tensors.order_.tolist()
         [[1.0, 1.0]]
     """

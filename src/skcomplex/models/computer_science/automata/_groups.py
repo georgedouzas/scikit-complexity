@@ -38,7 +38,7 @@ def free_group(rank: int = 2) -> GapElement:
     Examples:
         >>> from skcomplex.models.computer_science.automata import free_group
         >>> from skcomplex.core.spaces import CayleySpace
-        >>> CayleySpace(free_group(3), ball=1).check().prepare().generators_
+        >>> CayleySpace(free_group(3), ball=1).prepare().generators_
         ('a', 'b', 'c')
     """
     if not 1 <= rank <= len(string.ascii_lowercase):
@@ -59,7 +59,7 @@ def heisenberg() -> FinitelyGeneratedMatrixGroup_generic:
     Examples:
         >>> from skcomplex.models.computer_science.automata import heisenberg
         >>> from skcomplex.core.spaces import CayleySpace
-        >>> CayleySpace(heisenberg(), ball=1).check().prepare().generators_
+        >>> CayleySpace(heisenberg(), ball=1).prepare().generators_
         ('a', 'b')
     """
     return MatrixGroup([matrix(ZZ, generator) for generator in HEISENBERG_GENERATORS])
@@ -78,7 +78,7 @@ def lamplighter() -> GapElement:
     Examples:
         >>> from skcomplex.models.computer_science.automata import lamplighter
         >>> from skcomplex.core.spaces import CayleySpace
-        >>> CayleySpace(lamplighter(), ball=1).check().prepare().generators_
+        >>> CayleySpace(lamplighter(), ball=1).prepare().generators_
         ('a', 'b')
     """
     libgap.LoadPackage('automgrp')
@@ -104,7 +104,7 @@ def baumslag_solitar(m: int = 1, n: int = 2) -> GapElement:
     Examples:
         >>> from skcomplex.models.computer_science.automata import baumslag_solitar
         >>> from skcomplex.core.spaces import CayleySpace
-        >>> CayleySpace(baumslag_solitar(), ball=1).check().prepare().generators_
+        >>> CayleySpace(baumslag_solitar(), ball=1).prepare().generators_
         ('a', 't')
     """
     free = libgap.FreeGroup(['a', 't'])
@@ -125,7 +125,7 @@ def grigorchuk_group() -> GapElement:
     Examples:
         >>> from skcomplex.models.computer_science.automata import grigorchuk_group
         >>> from skcomplex.core.spaces import CayleySpace
-        >>> CayleySpace(grigorchuk_group(), ball=1).check().prepare().generators_
+        >>> CayleySpace(grigorchuk_group(), ball=1).prepare().generators_
         ('a', 'b', 'c', 'd')
     """
     libgap.LoadPackage('automgrp')

@@ -25,7 +25,7 @@ ROUNDS = 200
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 system = create(MODEL, synergy=4.5, noise=0.5, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=ROUNDS)
+simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=ROUNDS)
 
 # %%
 # Cooperation against the synergy
@@ -40,7 +40,6 @@ def cooperators(synergy):
     """Return the share of cooperators after every round."""
     run = (
         Simulation(create(MODEL, synergy=synergy, noise=0.5, random_state=0), random_state=0)
-        .check()
         .prepare()
         .run(until=ROUNDS)
     )

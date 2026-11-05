@@ -32,7 +32,6 @@ simulation = (
         observers=[observer],
         observables=entry.observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=30)
 )
@@ -45,11 +44,7 @@ simulation = (
 # reaches them.
 
 uncontrolled = (
-    Simulation(create(MODEL, a=0.0), dt=0.2, solver=entry.defaults['solver'])
-    .check()
-    .prepare()
-    .run(until=30)
-    .trajectory_
+    Simulation(create(MODEL, a=0.0), dt=0.2, solver=entry.defaults['solver']).prepare().run(until=30).trajectory_
 )
 trajectory = simulation.trajectory_
 fig, (infected, rate) = plt.subplots(1, 2, figsize=(10, 4))

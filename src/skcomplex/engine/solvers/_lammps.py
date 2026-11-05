@@ -121,7 +121,7 @@ class LammpsSolver(ExternalSolver):
         ...     space=ContinuousSpace(n_dim=2),
         ... )
         >>> solver = LammpsSolver(dt=0.005)
-        >>> trajectory = Simulation(system, solver=solver, dt=0.1).check().prepare().run(until=0.5).trajectory_
+        >>> trajectory = Simulation(system, solver=solver, dt=0.1).prepare().run(until=0.5).trajectory_
         >>> positions = trajectory.values('gas.x')
         >>> bool(positions[-1, 1, 0] - positions[-1, 0, 0] < 1.5)
         True
@@ -738,7 +738,7 @@ class LammpsSolver(ExternalSolver):
             error_msg = f'The pair energy depends on {names}, which have no value for LAMMPS.'
             raise BackendError(error_msg)
         lepton = expression.subs({distance: symbol('r', RealSet.open(0, oo))}).expand()
-        printed = ExpressionPrinter('lepton', shared=False).check().prepare().run([lepton]).code_
+        printed = ExpressionPrinter('lepton', shared=False).prepare().run([lepton]).code_
         if not isinstance(printed, tuple):
             error_msg = f'The Lepton printer returned a {type(printed).__name__}, not printed code.'
             raise TypeError(error_msg)

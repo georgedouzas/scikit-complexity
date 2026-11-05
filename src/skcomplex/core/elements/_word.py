@@ -49,7 +49,7 @@ class WordElement(Element):
         >>> class AlgaeElement(WordElement):
         ...     def _get_laws(self, namespace):
         ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
-        >>> AlgaeElement('algae', axiom='A').check().axiom
+        >>> AlgaeElement('algae', axiom='A').axiom
         'A'
     """
 
@@ -76,7 +76,7 @@ class WordElement(Element):
     def _check(self) -> None:
         """Raise an error for an invalid geometry or a maximum size that is not a positive integer."""
         if self.geometry is not None:
-            self.geometry.check()
+            self.geometry._validated()
         if isinstance(self.max_size, bool) or not isinstance(self.max_size, int) or self.max_size < 1:
             error_msg = f'The maximum size of {self.label} must be a positive integer, but it is {self.max_size!r}.'
             raise RewritingError(error_msg)

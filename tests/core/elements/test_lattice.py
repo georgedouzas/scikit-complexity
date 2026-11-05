@@ -43,7 +43,7 @@ class CellElement(Element):
 def test_lattice_group_has_one_member_per_site():
     """Test that a lattice group has one member per site and flattens values of the lattice shape."""
     cells = LatticeElement('cells', element=CellElement, space=LatticeSpace((3, 4)), values={'h': np.eye(3, 4)})
-    cells.check().prepare()
+    cells.prepare()
     assert (cells.size_, cells.on) == (12, 'sites')
     assert cells.values_['h'].tolist() == np.eye(3, 4).ravel().tolist()
 
@@ -57,28 +57,28 @@ def test_lattice_group_on_a_network_reads_values_by_node():
         space=NetworkSpace(graph),
         values={'h': {'a': 1, 'b': 2, 'c': 3}},
     )
-    assert cells.check().prepare().values_['h'].tolist() == [2, 1, 3]
+    assert cells.prepare().values_['h'].tolist() == [2, 1, 3]
 
 
 def test_lattice_group_rejects_values_of_another_shape():
     """Test that values that are neither of the lattice shape nor one per site are rejected."""
     cells = LatticeElement('cells', element=CellElement, space=LatticeSpace((3, 4)), values={'h': np.zeros(5)})
     with pytest.raises(ValidationError, match='5 values of h for 12 members'):
-        cells.check().prepare()
+        cells.prepare()
 
 
 def test_lattice_keeps_visual_of_element_type():
     """Test that a lattice group of a type that declares a visual takes that visual, not an image."""
-    columns = LatticeElement('columns', element=ColumnElement, space=LatticeSpace((3,))).check().prepare()
+    columns = LatticeElement('columns', element=ColumnElement, space=LatticeSpace((3,))).prepare()
     assert columns.default_visual_.kind == 'heights'
 
 
 def test_lattice_without_type_visual_takes_the_visual_of_its_space():
     """Test that a lattice group of a type that declares no visual is drawn as its space draws groups."""
-    assert LatticeElement('cells', element=CellElement, space=LatticeSpace((3,))).check().prepare().default_visual_ == (
+    assert LatticeElement('cells', element=CellElement, space=LatticeSpace((3,))).prepare().default_visual_ == (
         VisualSpec('image')
     )
     network = NetworkSpace(nx.path_graph(3))
-    assert LatticeElement('cells', element=CellElement, space=network).check().prepare().default_visual_ == (
+    assert LatticeElement('cells', element=CellElement, space=network).prepare().default_visual_ == (
         VisualSpec('sites')
     )

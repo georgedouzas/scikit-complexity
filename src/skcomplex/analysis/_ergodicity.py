@@ -113,12 +113,12 @@ class ErgodicityAnalysis(BaseAnalysis):
         >>> import numpy as np
         >>> from skcomplex.analysis import ErgodicityAnalysis
         >>> runs = [[1.0, -1.0, 1.0, -1.0], [-1.0, 1.0, -1.0, 1.0]]
-        >>> ErgodicityAnalysis().check().prepare(runs).run().ergodicity_breaking_
+        >>> ErgodicityAnalysis().prepare(runs).run().ergodicity_breaking_
         0.0
-        >>> ErgodicityAnalysis('distance').check().prepare([[0.0, 0.0], [1.0, 1.0]]).run().ergodicity_distance_
+        >>> ErgodicityAnalysis('distance').prepare([[0.0, 0.0], [1.0, 1.0]]).run().ergodicity_distance_
         0.5
         >>> ulam = ErgodicityAnalysis('ulam', edges=np.linspace(0, 1, 5))
-        >>> ulam.check().prepare(lambda x: np.mod(2 * x, 1)).run().density_.round(2).tolist()
+        >>> ulam.prepare(lambda x: np.mod(2 * x, 1)).run().density_.round(2).tolist()
         [1.0, 1.0, 1.0, 1.0]
     """
 

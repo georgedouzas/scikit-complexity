@@ -23,7 +23,6 @@ observables = describe(MODEL).observables_of(system)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(system, dt=0.5, solver=RK4Solver(dt=0.02), observers=[observer], observables=observables)
-    .check()
     .prepare()
     .run(until=20)
 )

@@ -40,7 +40,7 @@ def test_equations_of_logistic_growth():
     problem = compile_system(system)
     n = function('n_p')(problem.time)
     r, K = problem.symbols['g.r'], problem.symbols['g.K']
-    equation = SymbolicAnalysis().check().prepare(system).run().equations_['p.n']
+    equation = SymbolicAnalysis().prepare(system).run().equations_['p.n']
     assert equation.is_relational()
     assert bool(equation.lhs() == n.diff(problem.time))
     assert (equation.rhs() - r * n * (1 - n / K)).simplify_full() == 0
@@ -49,7 +49,7 @@ def test_equations_of_logistic_growth():
 def test_equations_of_discrete_map_gives_next_value():
     """Test that a discrete map gives the value at `t + 1`."""
     system = System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
-    equation = SymbolicAnalysis().check().prepare(system).run().equations_['m.price']
+    equation = SymbolicAnalysis().prepare(system).run().equations_['m.price']
     t = compile_system(system).time
     assert bool(equation.lhs() == function('price_m')(t + 1))
 
@@ -57,7 +57,7 @@ def test_equations_of_discrete_map_gives_next_value():
 def test_equations_of_group_with_numeric_derivatives_raises_error():
     """A group of order two whose forces are computed numerically has no symbolic equations."""
     with pytest.raises(AnalysisError, match='computed numerically'):
-        SymbolicAnalysis().check().prepare(create('cucker_smale_flocking')).run()
+        SymbolicAnalysis().prepare(create('cucker_smale_flocking')).run()
 
 
 def test_equations_of_jump_process_raises_error():
@@ -67,13 +67,13 @@ def test_equations_of_jump_process_raises_error():
         interactions=[RecoveryInteraction('r', infected='I', recovered='R', stochastic=True)],
     )
     with pytest.raises(AnalysisError, match='jump process'):
-        SymbolicAnalysis().check().prepare(system).run()
+        SymbolicAnalysis().prepare(system).run()
 
 
 def test_solve_symbolically_free_particle():
     """Test that a free particle moves linearly with two integration constants."""
     system = System(elements=[MassPointElement('p')], space=ContinuousSpace(n_dim=1))
-    solution = SymbolicAnalysis('solve').check().prepare(system).run().solutions_['p.x[0]']
+    solution = SymbolicAnalysis('solve').prepare(system).run().solutions_['p.x[0]']
     t = compile_system(system).time
     slope, start = solution.rhs().diff(t), solution.rhs().subs({t: 0})
     assert solution.rhs().diff(t, 2) == 0
@@ -92,7 +92,7 @@ def test_solve_symbolically_constant_acceleration():
     problem = compile_system(system)
     (F,) = problem.symbols['push.F']
     m = problem.symbols['p.m']
-    solution = SymbolicAnalysis('solve', use_initial_state=True).check().prepare(system).run().solutions_['p.x[0]']
+    solution = SymbolicAnalysis('solve', use_initial_state=True).prepare(system).run().solutions_['p.x[0]']
     assert (solution.rhs() - F * problem.time**2 / (2 * m)).simplify_full() == 0
 
 
@@ -108,7 +108,6 @@ def test_solve_symbolically_harmonic_oscillator():
     (center,) = problem.symbols['trap.center']
     solution = (
         SymbolicAnalysis('solve', use_initial_state=True)
-        .check()
         .prepare(system)
         .run()
         .solutions_['p.x[0]']
@@ -130,7 +129,7 @@ def test_solve_symbolically_not_ode_raises_error():
         interactions=[GeometricBrownianMotionInteraction('g', target='s')],
     )
     with pytest.raises(AnalysisError, match='stochastic differential equations'):
-        SymbolicAnalysis('solve').check().prepare(system).run()
+        SymbolicAnalysis('solve').prepare(system).run()
 
 
 def test_solve_symbolically_callable_raises_error():
@@ -140,7 +139,7 @@ def test_solve_symbolically_callable_raises_error():
         interactions=[CallableGrowthInteraction('g', target='rabbits')],
     )
     with pytest.raises(AnalysisError, match='callable'):
-        SymbolicAnalysis('solve').check().prepare(system).run()
+        SymbolicAnalysis('solve').prepare(system).run()
 
 
 def test_sage_expression_compiles_like_number():
@@ -173,8 +172,8 @@ def test_sage_expression_compiles_like_number():
         interactions=[SageForceInteraction('push', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
-    expected = Simulation(system).check().prepare().run(until=1).trajectory_.values('p.x')
-    result = Simulation(sage_system).check().prepare().run(until=1).trajectory_.values('p.x')
+    expected = Simulation(system).prepare().run(until=1).trajectory_.values('p.x')
+    result = Simulation(sage_system).prepare().run(until=1).trajectory_.values('p.x')
     assert np.allclose(expected, result)
 
 
@@ -294,7 +293,7 @@ class FibonacciElement(Element):
 
 def test_pendulum_equation_keeps_its_order():
     """Test that a pendulum of order 2 gives one second-order equation and no separate velocity equation."""
-    equations = SymbolicAnalysis().check().prepare(System(elements=[PendulumElement('bob')])).run().equations_
+    equations = SymbolicAnalysis().prepare(System(elements=[PendulumElement('bob')])).run().equations_
     assert list(equations) == ['bob.theta']
     theta = function('theta_bob')(SR.var('t'))
     g, l = SR.var('g_bob'), SR.var('l_bob')
@@ -305,7 +304,7 @@ def test_pendulum_equation_keeps_its_order():
 
 def test_lagged_equation_reads_past_values():
     """Test that a difference equation with a lag reads the value one step back."""
-    equation = SymbolicAnalysis().check().prepare(System(elements=[FibonacciElement('f')])).run().equations_['f.x']
+    equation = SymbolicAnalysis().prepare(System(elements=[FibonacciElement('f')])).run().equations_['f.x']
     t = SR.var('t')
     x = function('x_f')
     assert bool(equation.lhs() == x(t + 1))
@@ -316,7 +315,6 @@ def test_small_angle_pendulum_solved_with_plain_numbers():
     """Test that `θ'' = -(g / l) θ` with plain positive numbers solves to `0.1 cos(sqrt(g / l) t)`."""
     solution = (
         SymbolicAnalysis('solve', use_initial_state=True)
-        .check()
         .prepare(System(elements=[SmallAngleElement('bob')]))
         .run()
         .solutions_['bob.theta']
@@ -331,7 +329,6 @@ def test_third_order_equation_solved():
     """Test that `x''' = -x'` from `x = 0`, `x' = 1`, `x'' = 0` solves to `sin(t)`."""
     solution = (
         SymbolicAnalysis('solve', use_initial_state=True)
-        .check()
         .prepare(System(elements=[ThirdOrderElement('a')]))
         .run()
         .solutions_['a.x']
@@ -349,7 +346,7 @@ def test_third_order_equation_solved():
 def test_nonlinear_pendulum_has_no_false_solution(element):
     """Test that the nonlinear pendulum raises the no-closed-form error instead of returning unevaluated transforms."""
     with pytest.raises(AnalysisError, match='No closed form was found'):
-        SymbolicAnalysis('solve', use_initial_state=True).check().prepare(System(elements=[element])).run()
+        SymbolicAnalysis('solve', use_initial_state=True).prepare(System(elements=[element])).run()
 
 
 def test_remaining_sign_question_names_parameter():
@@ -377,21 +374,21 @@ def test_remaining_sign_question_names_parameter():
             return [RateLaw(s.x, -s.k * s.x)]
 
     with pytest.raises(AnalysisError, match=r'sign of k_a.*domain=RealSet'):
-        SymbolicAnalysis('solve', use_initial_state=True).check().prepare(System(elements=[SpringElement('a')])).run()
+        SymbolicAnalysis('solve', use_initial_state=True).prepare(System(elements=[SpringElement('a')])).run()
 
 
 def test_hamiltonian_prints_operators_and_equations_refuse():
     """Test that an operator system prints its Hamiltonian and has no state equations."""
     system = create('quantum_heisenberg', n_sites=2, boundary='open')
     problem = compile_system(system, compiler=OperatorCompiler())
-    hamiltonian = SymbolicAnalysis('hamiltonian').check().prepare(problem).run().hamiltonian_
+    hamiltonian = SymbolicAnalysis('hamiltonian').prepare(problem).run().hamiltonian_
     assert {'J_exchange', 'delta_exchange', 'h_field'} <= {str(variable) for variable in hamiltonian.variables()}
     assert 'local_operator(psi_chain_0, x)*local_operator(psi_chain_1, x)' in str(hamiltonian)
     with pytest.raises(AnalysisError, match='hamiltonian'):
-        SymbolicAnalysis().check().prepare(problem)
+        SymbolicAnalysis().prepare(problem)
 
 
 def test_settings_the_kind_ignores_are_rejected():
     """Test that the initial state, which only solving reads, is rejected at check for the equations."""
     with pytest.raises(AnalysisError, match='does not read use_initial_state'):
-        SymbolicAnalysis(use_initial_state=True).check()
+        SymbolicAnalysis(use_initial_state=True).prepare()

@@ -10,7 +10,7 @@ from skcomplex.models import run
 
 def _spectrum(kind: str, source: object, **settings: object) -> SpectrumAnalysis:
     """Return the spectrum analysis of a source for one kind, run."""
-    return SpectrumAnalysis(kind, **settings).check().prepare(source).run()
+    return SpectrumAnalysis(kind, **settings).prepare(source).run()
 
 
 def test_power_spectrum_of_a_sine():
@@ -39,6 +39,6 @@ def test_structure_factor_same_on_a_trajectory_and_its_last_frame():
 def test_unknown_kind_and_ignored_setting():
     """Test that an unknown kind and a setting the kind ignores raise errors."""
     with pytest.raises(AnalysisError, match='power, structure-factor'):
-        SpectrumAnalysis('unknown').check()
+        SpectrumAnalysis('unknown').prepare()
     with pytest.raises(AnalysisError, match='does not read spacing'):
-        SpectrumAnalysis('power', spacing=2.0).check()
+        SpectrumAnalysis('power', spacing=2.0).prepare()

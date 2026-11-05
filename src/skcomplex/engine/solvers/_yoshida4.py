@@ -66,7 +66,7 @@ class Yoshida4Solver(Solver):
         >>> from skcomplex.specs import StepSpec
         >>> system = System(elements=[PointElement('ball', x_d1=2.0)], space=ContinuousSpace(n_dim=1))
         >>> problem = compile_system(system)
-        >>> stepper = Yoshida4Solver(dt=0.1).check().prepare(problem)
+        >>> stepper = Yoshida4Solver(dt=0.1).prepare(problem)
         >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_.round(10).tolist()
         [2.0, 2.0]
     """

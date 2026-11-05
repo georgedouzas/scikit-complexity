@@ -104,7 +104,7 @@ class GroupingInteraction(Interaction):
         ValidationError:
             The kind of groups, the form, or the reduction is unknown, the size is below two, the groups `'state'` have
             no state, the capacity is not positive, the symbolic form has no state or function, or a setting of one
-            form is given to the other, raised by `check`.
+            form is given to the other, raised by `prepare`.
 
     Examples:
         >>> from typing import Annotated
@@ -123,7 +123,7 @@ class GroupingInteraction(Interaction):
         ...         member.s = majority
         >>> voters = GroupElement('voters', element=VoterElement, size=3, values={'s': [1.0, 1.0, 0.0]})
         >>> galam = GroupingInteraction('galam', target='voters', groups='partition', size=3, act=adopt_majority)
-        >>> trajectory = Simulation(System(elements=[voters], interactions=[galam])).check().prepare().run(until=1)
+        >>> trajectory = Simulation(System(elements=[voters], interactions=[galam])).prepare().run(until=1)
         >>> trajectory.trajectory_.agents('voters', 1).values['s'].tolist()
         [1.0, 1.0, 1.0]
 
@@ -140,7 +140,7 @@ class GroupingInteraction(Interaction):
         ...     function=lambda g: where(mean(g.members.s, over=g.members) > 1 / 2, 1, 0),
         ... )
         >>> simulation = Simulation(System(elements=[voters], interactions=[galam]), random_state=0)
-        >>> simulation.check().prepare().run(until=1).trajectory_.values('voters.s')[-1].tolist()
+        >>> simulation.prepare().run(until=1).trajectory_.values('voters.s')[-1].tolist()
         [1.0, 1.0, 1.0]
     """
 
@@ -220,7 +220,7 @@ class GroupingInteraction(Interaction):
             raise ValidationError(error_msg)
         self._check_variant('groups', self.groups, GROUPS, (BaseSpec,), functions=True)
         if isinstance(self.groups, PartnerSpec):
-            self.groups.check()
+            self.groups._validated()
         if isinstance(self.size, bool) or not isinstance(self.size, int) or self.size < PAIR:
             error_msg = f'The size of the groups of {self.label!r} is {self.size!r}. Give a whole number of at least 2.'
             raise ValidationError(error_msg)

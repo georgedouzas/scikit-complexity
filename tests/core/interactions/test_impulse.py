@@ -34,7 +34,7 @@ class DecayElement(Element):
 def _run(impulse, until):
     """Return the trajectory of a decaying amount with impulses."""
     system = System(elements=[DecayElement('body')], interactions=[impulse])
-    return Simulation(system, dt=0.25).check().prepare().run(until=until).trajectory_
+    return Simulation(system, dt=0.25).prepare().run(until=until).trajectory_
 
 
 def _dose(**arguments):
@@ -67,7 +67,7 @@ def test_impulses_on_a_group_set_every_member_from_its_own_state():
     """Test that impulses on a group set the state of every member from that member's own state."""
     bodies = GroupElement('bodies', element=DecayElement, size=3, values={'c': [0.0, 1.0, 2.0]})
     dose = ImpulseInteraction('dose', target='bodies', reset={'c': lambda s: s.target.c + 1.0}, times=(1.0,))
-    trajectory = Simulation(System(elements=[bodies], interactions=[dose]), dt=0.25).check().prepare().run(until=2.0)
+    trajectory = Simulation(System(elements=[bodies], interactions=[dose]), dt=0.25).prepare().run(until=2.0)
     expected = (np.array([0.0, 1.0, 2.0]) * np.exp(-1.0) + 1.0) * np.exp(-1.0)
     np.testing.assert_allclose(trajectory.trajectory_.values('bodies.c')[-1], expected, rtol=1e-3)
 
@@ -85,4 +85,4 @@ def test_impulses_on_a_group_set_every_member_from_its_own_state():
 def test_check_rejects_resets_and_times_it_cannot_take(arguments, match):
     """Test that impulses without states, without times, or with a bad period or count raise errors."""
     with pytest.raises(ValidationError, match=match):
-        ImpulseInteraction('dose', target='body', **arguments).check()
+        ImpulseInteraction('dose', target='body', **arguments).prepare()

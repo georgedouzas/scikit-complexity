@@ -30,7 +30,7 @@ WAVE_NUMBER = 0.5
 system = create(MODEL, positions=64, velocities=128, setup='two-stream', amplitude=1e-4)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='gas/f', interval=1)
 solver = SemiLagrangianSolver(0.25)
-simulation = Simulation(system, solver=solver, dt=0.25, observers=[observer]).check().prepare().run(until=50)
+simulation = Simulation(system, solver=solver, dt=0.25, observers=[observer]).prepare().run(until=50)
 
 # %%
 # Damping and growth of the density wave
@@ -60,7 +60,7 @@ def wave_amplitude(trajectory, positions, velocities):
 growth_rate = brentq(dispersion, 0.01, 1.0)
 times = np.asarray(simulation.trajectory_.times)
 amplitude = wave_amplitude(simulation.trajectory_, 64, 128)
-landau = Simulation(create(MODEL), solver=solver, dt=0.25).check().prepare().run(until=30).trajectory_
+landau = Simulation(create(MODEL), solver=solver, dt=0.25).prepare().run(until=30).trajectory_
 landau_times = np.asarray(landau.times)
 landau_amplitude = wave_amplitude(landau, 32, 64)
 

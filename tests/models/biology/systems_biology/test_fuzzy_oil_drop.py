@@ -57,7 +57,7 @@ def test_ensemble_of_the_trp_cage():
     recorded = trajectory.values('RD')
     assert recorded.min() >= 0
     assert recorded.max() <= 1
-    expected = FuzzyOilDropAnalysis(read_structure('1L2Y')).check().prepare().run().values_
+    expected = FuzzyOilDropAnalysis(read_structure('1L2Y')).prepare().run().values_
     assert recorded == pytest.approx(expected, abs=1e-12)
 
 
@@ -65,7 +65,7 @@ def test_ensemble_records_the_environment_factor():
     """Test that the recorded `K` of each frame equals the one of the analysis."""
     structure = read_structure('1L2Y')
     recorded = run('fuzzy_oil_drop', settings={'until': 3}).trajectory_.values('K')
-    expected = FuzzyOilDropAnalysis(structure, 'environment-factor').check().prepare().run().values_[:4]
+    expected = FuzzyOilDropAnalysis(structure, 'environment-factor').prepare().run().values_[:4]
     assert recorded == pytest.approx(expected, abs=1e-12)
 
 
@@ -79,22 +79,22 @@ def test_analysis_reads_the_replay_of_a_trajectory():
     """Test that the analysis reads a trajectory of the replay."""
     structure = read_structure('1L2Y')
     trajectory = run('fuzzy_oil_drop', settings={'until': 2}).trajectory_
-    values = FuzzyOilDropAnalysis(structure, state='chain.x').check().prepare(trajectory).run().values_
+    values = FuzzyOilDropAnalysis(structure, state='chain.x').prepare(trajectory).run().values_
     assert values == pytest.approx(trajectory.values('RD'), abs=1e-12)
 
 
 def test_folding_lowers_the_relative_distance_and_compacts_the_chain():
     """Test that `RD` never grows at temperature zero, and that the radius of gyration falls from an extended start."""
     system = create('fuzzy_oil_drop', dynamics='folding')
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=300).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=300).trajectory_
     relative_distance = trajectory.values('folding.score')[:, 0]
     assert np.all(np.diff(relative_distance) <= 1e-12)
     assert relative_distance[-1] < relative_distance[0]
     structure = read_structure('1L2Y')
-    geometry = BackboneGeometry(structure).check().prepare()
+    geometry = BackboneGeometry(structure).prepare()
     angles = trajectory.lattice('chain.angle').astype(float)[[0, -1], 0]
     chains = np.array([geometry.run(row).read_effective_atoms() for row in angles])
-    radii = ShapeAnalysis().check().prepare(chains).run().values_
+    radii = ShapeAnalysis().prepare(chains).run().values_
     assert radii[1] < radii[0]
 
 
@@ -102,7 +102,7 @@ def test_folding_at_a_positive_temperature_records_rd():
     """Test that the folding at a positive temperature records the `RD` of its angles."""
     system = create('fuzzy_oil_drop', dynamics='folding', temperature=0.1, proposals=2)
     observables = describe('fuzzy_oil_drop').observables_of(system)
-    trajectory = Simulation(system, observables=observables, random_state=0).check().prepare().run(until=2).trajectory_
+    trajectory = Simulation(system, observables=observables, random_state=0).prepare().run(until=2).trajectory_
     assert trajectory.values('RD') == pytest.approx(trajectory.values('folding.score')[:, 0], abs=1e-9)
 
 
@@ -137,7 +137,7 @@ def test_protein_chain_streams_points_and_one_strip(tmp_path):
     path = tmp_path / 'run.rrd'
     system = create('fuzzy_oil_drop')
     observer = RerunObserver('fuzzy_oil_drop', save_path=path)
-    Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=4)
+    Simulation(system, observers=[observer], random_state=0).prepare().run(until=4)
     points = _column_of(path, '/chain', ':positions')
     strips = _column_of(path, '/chain/strip', ':strips')
     assert len(points) == 5
@@ -153,7 +153,7 @@ def test_folding_chain_streams_rebuilt_points(tmp_path):
     path = tmp_path / 'run.rrd'
     system = create('fuzzy_oil_drop', dynamics='folding')
     observer = RerunObserver('fuzzy_oil_drop', save_path=path)
-    Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=2)
+    Simulation(system, observers=[observer], random_state=0).prepare().run(until=2)
     points = _column_of(path, '/chain', ':positions')
     assert len(points) == 3
     assert np.shape(points[0]) == (20, 3)
@@ -164,7 +164,7 @@ def test_sequences_stream_as_an_image_of_four_colors(tmp_path):
     path = tmp_path / 'run.rrd'
     observer = RerunObserver('rna_neutral_networks', save_path=path)
     system = create('rna_neutral_networks', start='GGGGAAACCCCAUCGAUAGCGGGAAACCGC')
-    Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=40)
+    Simulation(system, observers=[observer], random_state=0).prepare().run(until=40)
     frames = _column_of(path, '/walkers/base', ':buffer')
     assert len(frames) == 41
     colors = set()
@@ -198,7 +198,7 @@ assert loaded == [], loaded
 def test_projection_lies_on_the_path_and_is_the_closest_point():
     """Test that each projected pair of BPTI lies on the path, and no point of 3600 samples is closer to the native."""
     _, native = read_native_pairs(read_structure('5PTI'))
-    path = EllipsePath().check().prepare()
+    path = EllipsePath().prepare()
     path.run(native)
     samples = path.read_points(np.linspace(0, 2 * np.pi, 3600, endpoint=False))
     on_path = path.read_points(path.parameters_)
@@ -212,7 +212,7 @@ def test_projection_lies_on_the_path_and_is_the_closest_point():
 
 def test_ellipse_starts_at_the_lower_right_and_turns_clockwise():
     """Test the orientation of Fig. 3.43 of the book and the convention of this class for the origin of the path."""
-    points = EllipsePath().check().prepare().read_points(np.array([0.0, np.pi / 2]))
+    points = EllipsePath().prepare().read_points(np.array([0.0, np.pi / 2]))
     assert points[0, 0] > 0 > points[0, 1]
     assert points[1, 0] < 0
     assert points[1, 1] < 0
@@ -221,16 +221,14 @@ def test_ellipse_starts_at_the_lower_right_and_turns_clockwise():
 def test_ellipse_rejects_bad_settings_and_pairs():
     """Test that a diagonal of zero and angles that are not pairs raise errors."""
     with pytest.raises(ValidationError, match='positive'):
-        EllipsePath(long_diagonal=0.0).check()
+        EllipsePath(long_diagonal=0.0).prepare()
     with pytest.raises(ValidationError, match='pairs'):
-        EllipsePath().check().prepare().run(np.zeros(3))
+        EllipsePath().prepare().run(np.zeros(3))
 
 
 def test_sampled_cells_follow_the_probabilities_of_the_sequence():
     """Test that each residue's frequency of each cell over the last 200 frames matches the probability within 0.15."""
-    trajectory = (
-        Simulation(create('early_stage_folding_intermediate'), random_state=0).check().prepare().run(300).trajectory_
-    )
+    trajectory = Simulation(create('early_stage_folding_intermediate'), random_state=0).prepare().run(300).trajectory_
     cells = trajectory.lattice('residues.cell').astype(int)[-200:, 0]
     probabilities = read_cell_probabilities()
     names = [residue for _, _, residue in read_structure('5PTI').residues]

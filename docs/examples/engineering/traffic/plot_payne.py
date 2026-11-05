@@ -22,7 +22,7 @@ MODEL = 'payne'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=0.01, solver=SSPRKSolver(), observers=[observer]).check().prepare().run(until=1.0)
+simulation = Simulation(system, dt=0.01, solver=SSPRKSolver(), observers=[observer]).prepare().run(until=1.0)
 
 # %%
 # Conservation and smoothing

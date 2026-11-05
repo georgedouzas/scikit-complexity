@@ -51,7 +51,7 @@ def _taken_up(trajectory: Trajectory) -> float:
 def _run_small(shape: tuple[int, int], until: float, **parameters: float) -> Trajectory:
     """Return a run of the published scheme and step on another lattice."""
     system = create('comets', shape=shape, **parameters)
-    return Simulation(system, solver=IMEXEulerSolver(dt=STEP), dt=STEP).check().prepare().run(until=until).trajectory_
+    return Simulation(system, solver=IMEXEulerSolver(dt=STEP), dt=STEP).prepare().run(until=until).trajectory_
 
 
 @pytest.fixture(scope='module')

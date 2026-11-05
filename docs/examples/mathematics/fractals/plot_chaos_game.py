@@ -29,7 +29,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 system = create(MODEL, preset='sierpinski', n_points=20000)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(30)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(30)
 # Rerun's 2D views point y downward, so the last cloud is logged again with y flipped to stand the triangle upright.
 last = simulation.trajectory_.values('points.p')[-1]
 observer.recording_.log('upright', rr.Points2D(last * [1, -1], radii=0.002, colors=[200, 90, 220]), static=True)
@@ -48,8 +48,8 @@ grid = np.zeros((128, 128), dtype=bool)
 grid[cells[:, 1], cells[:, 0]] = True
 sizes = np.array([1, 2, 4, 8, 16, 32])
 counts = [grid.reshape(128 // size, size, 128 // size, size).any(axis=(1, 3)).sum() for size in sizes]
-dimension = ScalingAnalysis('box-counting', scales=sizes).check().prepare(grid).run().exponent_
-fern = Simulation(create(MODEL, preset='barnsley', n_points=20000), dt=30, random_state=0).check().prepare().run(30)
+dimension = ScalingAnalysis('box-counting', scales=sizes).prepare(grid).run().exponent_
+fern = Simulation(create(MODEL, preset='barnsley', n_points=20000), dt=30, random_state=0).prepare().run(30)
 leaves = fern.trajectory_.values('points.p')[-1]
 fig, (boxes, plant) = plt.subplots(1, 2, figsize=(10, 4.5))
 boxes.loglog(sizes, counts, 'o', label='occupied boxes')

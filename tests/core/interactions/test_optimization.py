@@ -51,9 +51,7 @@ def _system(algorithm: object, count: int = 40) -> System:
 
 def test_run_differential_evolution_on_rastrigin() -> None:
     """Test that the best value is below 1e-3 by step 50 and never increases."""
-    trajectory = (
-        Simulation(_system(DifferentialEvolutionSpec()), random_state=1).check().prepare().run(until=50).trajectory_
-    )
+    trajectory = Simulation(_system(DifferentialEvolutionSpec()), random_state=1).prepare().run(until=50).trajectory_
     best = trajectory.values('search.best')[1:]
     assert best[-1] < 1e-3
     assert np.all(np.diff(best) <= 0)
@@ -67,7 +65,7 @@ def test_run_differential_evolution_on_rastrigin() -> None:
 def test_run_same_seed_identical(algorithm: object) -> None:
     """Test that runs with the same seed are identical and the best value never increases."""
     first, second = (
-        Simulation(_system(algorithm), random_state=1).check().prepare().run(until=10).trajectory_ for _ in range(2)
+        Simulation(_system(algorithm), random_state=1).prepare().run(until=10).trajectory_ for _ in range(2)
     )
     assert np.array_equal(first.values('search.best')[1:], second.values('search.best')[1:])
     first_final = np.asarray(first.agents('swarm', 10).values['x'].tolist())
@@ -78,9 +76,7 @@ def test_run_same_seed_identical(algorithm: object) -> None:
 
 def test_run_algorithm_that_converges_keeps_its_population() -> None:
     """Test that the steps after the algorithm stops itself report the same values and keep the candidates."""
-    trajectory = (
-        Simulation(_system(CovarianceAdaptationSpec()), random_state=1).check().prepare().run(until=400).trajectory_
-    )
+    trajectory = Simulation(_system(CovarianceAdaptationSpec()), random_state=1).prepare().run(until=400).trajectory_
     best = trajectory.values('search.best')
     assert best[-1] == best[-2]
     assert np.array_equal(
@@ -100,4 +96,4 @@ def test_check_algorithm_not_a_spec() -> None:
         algorithm='ga',
     )
     with pytest.raises(ValidationError, match=r'DifferentialEvolutionSpec.*CovarianceAdaptationSpec'):
-        interaction.check()
+        interaction.prepare()

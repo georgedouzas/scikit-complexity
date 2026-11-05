@@ -59,7 +59,7 @@ class PhaseSpace(LatticeSpace):
     Examples:
         >>> from skcomplex.core.spaces import LatticeSpace, PhaseSpace
         >>> from skcomplex.specs import AxisSpec
-        >>> space = PhaseSpace(LatticeSpace((64,), spacing=0.2), [AxisSpec('v', 128, -6.0, 6.0)]).check().prepare()
+        >>> space = PhaseSpace(LatticeSpace((64,), spacing=0.2), [AxisSpec('v', 128, -6.0, 6.0)]).prepare()
         >>> space.size_, space.shape_, space.class_axes_
         (8192, (64, 128), {'v': 1})
         >>> space.coordinates_['v'][:2].round(4).tolist()
@@ -89,21 +89,21 @@ class PhaseSpace(LatticeSpace):
     def _check(self) -> None:
         """Raise an error for a position that is no square lattice, no class axes, or axes that share a name."""
         super()._check()
-        self.position.check()
+        self.position._validated()
         if type(self.position) is not LatticeSpace or self.position.geometry != 'square':
             error_msg = f'The position of a phase space is a square lattice, but it is {self.position!r}.'
             raise ValidationError(error_msg)
         if not self.axes or not all(isinstance(axis, AxisSpec) for axis in self.axes):
             error_msg = f'A phase space has one or more class axes, each an `AxisSpec`, but it was given {self.axes!r}.'
             raise ValidationError(error_msg)
-        names = [axis.check().name for axis in self.axes]
+        names = [axis.name for axis in self.axes]
         if len(set(names)) != len(names):
             error_msg = f'The class axes of a phase space have distinct names, but they are {names}.'
             raise ValidationError(error_msg)
 
     def _prepare(self, context: None = None) -> None:
         """Set the shape, the size, the spacings, the coordinates, and the position of every site."""
-        position = self.position.check().prepare()
+        position = self.position.prepare()
         self.position_size_ = position.size_
         self.position_axes_ = tuple(range(position.n_dim_))
         self.class_axes_ = {axis.name: position.n_dim_ + index for index, axis in enumerate(self.axes)}
@@ -133,4 +133,4 @@ class PhaseSpace(LatticeSpace):
     def _with_edges(self, boundary: str, fill: float) -> PhaseSpace:
         """Return the sites of the space with other edges of its position axes, the class axes keeping theirs."""
         position = LatticeSpace(self.position.shape_, boundary=boundary, fill=fill, spacing=self.position.spacings_)
-        return PhaseSpace(position, self.axes, limit=self.limit).check().prepare()
+        return PhaseSpace(position, self.axes, limit=self.limit).prepare()

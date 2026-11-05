@@ -59,7 +59,7 @@ def charbonneau_traffic(
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import charbonneau_traffic
-        >>> charbonneau_traffic(5).elements[0].check().prepare().size_
+        >>> charbonneau_traffic(5).elements[0].prepare().size_
         5
     """
     rng = np.random.default_rng(random_state)
@@ -119,7 +119,7 @@ def ring_road_drivers(
 
     Examples:
         >>> from skcomplex.models.engineering.traffic import ring_road_drivers
-        >>> ring_road_drivers(10).space.check().prepare().extent_[0]
+        >>> ring_road_drivers(10).space.prepare().extent_[0]
         1000.0
     """
     positions = np.linspace(0.0, length, n_cars, endpoint=False)

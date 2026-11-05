@@ -21,7 +21,7 @@ MODEL = 'geodynamo'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=5)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=600)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=600)
 
 # %%
 # Two polarities and irregular reversals
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().
 # polarity. In a long run, counting a reversal when `|D|` exceeds 0.5 with the opposite sign, the times spent in one
 # polarity should be irregular, with a broad distribution of durations.
 
-run = Simulation(create(MODEL), dt=0.5).check().prepare().run(until=20000).trajectory_
+run = Simulation(create(MODEL), dt=0.5).prepare().run(until=20000).trajectory_
 settled = run.times > 500
 times, Q, D = run.times[settled], run.values('dynamo.Q')[settled], run.values('dynamo.D')[settled]
 strong = np.abs(D) > 0.5

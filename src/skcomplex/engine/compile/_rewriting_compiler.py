@@ -45,7 +45,7 @@ class RewritingCompiler(BaseCompiler):
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.compile import RewritingCompiler
         >>> from skcomplex.models.biology.common.populations import PopulationElement
-        >>> RewritingCompiler().check().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
+        >>> RewritingCompiler().prepare(System(elements=[PopulationElement('rabbits')])).report_.ok
         False
     """
 
@@ -118,7 +118,7 @@ class RewritingCompiler(BaseCompiler):
                 'changes by its productions only. Return ProductionLaw or SubstitutionLaw laws.'
             )
             raise RewritingError(error_msg)
-        return [law.check() for law in productions]
+        return [law._validated() for law in productions]
 
     @staticmethod
     def _parameters(
@@ -172,13 +172,13 @@ class RewritingCompiler(BaseCompiler):
                 [law for law in laws if isinstance(law, ProductionLaw)],
                 parameters,
                 values,
-            ).check()
+            )._validated()
         return PatchKernel(
             node.path,
             element,
             [law for law in laws if isinstance(law, SubstitutionLaw)],
             parameters,
-        ).check()
+        )._validated()
 
     @staticmethod
     def _structure_of(element_type: type) -> str | None:

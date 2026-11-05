@@ -95,7 +95,7 @@ class Experiment(BaseExperiment):
         >>> from skcomplex.models.biology.ecology import logistic_growth
         >>> bounds = {'r': [0.5, 1.0]}
         >>> experiment = Experiment(logistic_growth, GridDesign(), bounds, until=5, outputs=['population.n'])
-        >>> len(experiment.check().prepare().run().result_.rows)
+        >>> len(experiment.prepare().run().result_.rows)
         2
     """
 
@@ -145,9 +145,9 @@ class Experiment(BaseExperiment):
             error_msg = f'The bounds of {sorted(self.bounds)} need a design that prepares on them.'
             raise ValidationError(error_msg)
         if self.design is not None:
-            self.design.check()
+            self.design._validated()
         for analysis in self.analyses or ():
-            clone(analysis).check()
+            clone(analysis)._validated()
 
     def _name_analyses(self) -> tuple[tuple[str, BaseEstimator], ...]:
         """Return every analysis with its column prefix, its lowercase class name numbered when the class repeats."""
@@ -166,7 +166,7 @@ class Experiment(BaseExperiment):
         until = float(self.until if self.until is not None else 10.0)
         rows: list[Row] = [{}]
         if self.design is not None:
-            rows = [dict(row) for row in self.design.check().prepare(self.bounds).rows_]
+            rows = [dict(row) for row in self.design.prepare(self.bounds).rows_]
         scenarios = list(self.scenarios) if self.scenarios else [ScenarioSpec()]
         analyses = self._name_analyses()
         seeds = np.random.SeedSequence(self.random_state).spawn(len(rows) * self.replicates)
@@ -247,17 +247,13 @@ class Experiment(BaseExperiment):
         arguments, paths = Experiment._split_overrides(task)
         problem = Experiment._compile(task.source, arguments, task.scenario.system, task.observables)
         problem = Experiment._with_values(problem, paths)
-        simulation = (
-            Simulation(
-                problem,
-                random_state=np.random.default_rng(task.seed),
-                schedule=Experiment._schedule(problem, task.scenario),
-                dt=task.dt,
-                solver=task.solver,
-            )
-            .check()
-            .prepare()
-        )
+        simulation = Simulation(
+            problem,
+            random_state=np.random.default_rng(task.seed),
+            schedule=Experiment._schedule(problem, task.scenario),
+            dt=task.dt,
+            solver=task.solver,
+        ).prepare()
         trajectory = simulation.run(until=task.until).trajectory_
         keep = trajectory.times >= task.warmup - 1e-12
         if task.outputs is not None:
@@ -281,7 +277,7 @@ class Experiment(BaseExperiment):
             if values.ndim == 1 and values.size:
                 scalars[output] = values[-1]
         for prefix, analysis in task.analyses:
-            fitted = clone(analysis).check().prepare(trajectory)
+            fitted = clone(analysis).prepare(trajectory)
             prepared = set(vars(fitted))
             fitted.run()
             for attribute, value in vars(fitted).items():

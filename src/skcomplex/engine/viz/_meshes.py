@@ -129,7 +129,7 @@ class MeshVisual(BaseVisual):
             >>> from skcomplex.engine.viz import MeshVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('heat_l_shape', refine=1))
-            >>> views = MeshVisual(path=problem.elements[0].path).check().prepare(problem).views_
+            >>> views = MeshVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [type(view).__name__ for view in views]
             ['Spatial3DView']
         """

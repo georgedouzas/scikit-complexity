@@ -58,7 +58,7 @@ class TangledNatureLifeCycleInteraction(LifeCycleInteraction):
 
     Examples:
         >>> from skcomplex.models.biology.evolution import TangledNatureLifeCycleInteraction
-        >>> TangledNatureLifeCycleInteraction('evolution', target='organisms').check().offspring
+        >>> TangledNatureLifeCycleInteraction('evolution', target='organisms').offspring
         2
     """
 

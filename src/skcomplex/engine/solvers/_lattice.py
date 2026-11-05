@@ -25,7 +25,7 @@ class LatticeSolver(Solver):
         >>> from skcomplex.engine.solvers import LatticeSolver
         >>> from skcomplex.specs import StepSpec
         >>> problem = compile_system(elementary_automaton(30, size=11))
-        >>> stepper = LatticeSolver(random_state=0).check().prepare(problem)
+        >>> stepper = LatticeSolver(random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> stepper.run(step).state_.astype(int).tolist()
         [0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0]

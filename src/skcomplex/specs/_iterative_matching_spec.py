@@ -30,7 +30,7 @@ class IterativeMatchingSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import IterativeMatchingSpec
-        >>> IterativeMatchingSpec(adjustment=0.05).check().iterations
+        >>> IterativeMatchingSpec(adjustment=0.05).iterations
         500
     """
 

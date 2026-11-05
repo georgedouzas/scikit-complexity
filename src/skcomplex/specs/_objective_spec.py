@@ -28,7 +28,7 @@ class ObjectiveSpec(BaseSpec):
         >>> from skcomplex.core.spaces import VonNeumannNeighborhood
         >>> from skcomplex.specs import ObjectiveSpec
         >>> spin, J = var('spin J')
-        >>> ObjectiveSpec(-J * spin, VonNeumannNeighborhood()).check().expression
+        >>> ObjectiveSpec(-J * spin, VonNeumannNeighborhood()).expression
         -J*spin
     """
 

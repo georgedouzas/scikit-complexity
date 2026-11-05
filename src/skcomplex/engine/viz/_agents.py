@@ -227,7 +227,7 @@ class AgentsVisual(BaseVisual):
             >>> from skcomplex.engine.viz import AgentsVisual
             >>> from skcomplex.models import create
             >>> problem = compile_system(create('voter_model'))
-            >>> type(AgentsVisual(path=problem.agents[0].path).check().prepare(problem).views_[0]).__name__
+            >>> type(AgentsVisual(path=problem.agents[0].path).prepare(problem).views_[0]).__name__
             'GraphView'
         """
         if self.position is not None and isinstance(element, CompiledAgentsSpec):

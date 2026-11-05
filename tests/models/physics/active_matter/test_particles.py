@@ -26,7 +26,6 @@ def test_active_brownian_particles_diffuse_with_the_active_coefficient():
     model = active_brownian_particles(4000, speed=speed, D_r=D_r, D_t=D_t)
     trajectory = (
         Simulation(model, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
-        .check()
         .prepare()
         .run(until=50)
         .trajectory_
@@ -40,7 +39,6 @@ def test_chiral_active_particles_diffuse_slower_when_they_turn():
     model = chiral_active_particles(1000, speed=3.0, omega=2.0, D_t=0.1, D_r=0.1)
     trajectory = (
         Simulation(model, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
-        .check()
         .prepare()
         .run(until=40)
         .trajectory_
@@ -54,7 +52,6 @@ def test_active_ornstein_uhlenbeck_particles_diffuse_with_the_active_coefficient
     model = active_ornstein_uhlenbeck_particles(1000, tau=1.0, D=1.0)
     trajectory = (
         Simulation(model, dt=1.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
-        .check()
         .prepare()
         .run(until=40)
         .trajectory_
@@ -64,7 +61,7 @@ def test_active_ornstein_uhlenbeck_particles_diffuse_with_the_active_coefficient
 
 def test_run_and_tumble_diffuses_with_the_persistence_of_runs():
     """Test that run-and-tumble agents diffuse with `v^2 (1 + q) / (4 (1 - q))` per step."""
-    trajectory = Simulation(run_and_tumble(200), random_state=0).check().prepare().run(until=200).trajectory_
+    trajectory = Simulation(run_and_tumble(200), random_state=0).prepare().run(until=200).trajectory_
     positions = np.array([trajectory.agents('bacteria', frame).locations for frame in range(len(trajectory.times))])
     steps = np.diff(positions.astype(float), axis=0)
     steps -= 10.0 * np.rint(steps / 10.0)
@@ -76,8 +73,6 @@ def test_run_and_tumble_diffuses_with_the_persistence_of_runs():
 
 def test_depot_particles_reach_the_pumped_speed():
     """Test that depot-pumped particles start at rest and move at `sqrt(q / gamma - c / d)`."""
-    trajectory = (
-        Simulation(depot_brownian_particles(), dt=0.5, random_state=0).check().prepare().run(until=10).trajectory_
-    )
+    trajectory = Simulation(depot_brownian_particles(), dt=0.5, random_state=0).prepare().run(until=10).trajectory_
     speeds = np.linalg.norm(trajectory.values('walkers.v')[-1], axis=-1)
     assert speeds.mean() == pytest.approx(np.sqrt(10 / 20 - 1 / 10), rel=0.05)

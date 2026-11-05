@@ -30,7 +30,7 @@ class NeutralReplacementInteraction(EvolutionInteraction):
 
     Examples:
         >>> from skcomplex.models.biology.ecology import NeutralReplacementInteraction
-        >>> NeutralReplacementInteraction('replacement', target='community', mutation=0.01).check().change
+        >>> NeutralReplacementInteraction('replacement', target='community', mutation=0.01).change
         'new'
     """
 

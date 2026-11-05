@@ -123,7 +123,7 @@ def _field(element, until, *interactions):
     values = {'phi': 0.1 * rng.uniform(-1.0, 1.0, (16, 16))}
     field = FieldElement('mixture', element=element, space=space, values=values)
     simulation = Simulation(System(elements=[field], interactions=list(interactions)), dt=0.05)
-    return simulation.check().prepare().run(until=until).trajectory_.values('mixture.phi')
+    return simulation.prepare().run(until=until).trajectory_.values('mixture.phi')
 
 
 def test_run_gives_the_gradient_flow_and_the_newtonian_motion():
@@ -134,7 +134,7 @@ def test_run_gives_the_gradient_flow_and_the_newtonian_motion():
         space=ContinuousSpace(n_dim=1),
     )
     solver = ScipyODESolver(rtol=1e-10, atol=1e-12)
-    trajectory = Simulation(system, solver=solver, dt=0.1).check().prepare().run(until=2 * np.pi).trajectory_
+    trajectory = Simulation(system, solver=solver, dt=0.1).prepare().run(until=2 * np.pi).trajectory_
     times = trajectory.times
     np.testing.assert_allclose(trajectory.values('slow.x')[:, 0], np.exp(-2.0 * times), atol=1e-8)
     np.testing.assert_allclose(trajectory.values('fast.x')[:, 0], np.cos(np.sqrt(2.0) * times), atol=1e-7)
@@ -148,7 +148,7 @@ def test_run_moves_every_role_of_a_subclass():
         space=ContinuousSpace(n_dim=1),
     )
     solver = ScipyODESolver(rtol=1e-10, atol=1e-12)
-    trajectory = Simulation(system, solver=solver, dt=0.1).check().prepare().run(until=np.pi).trajectory_
+    trajectory = Simulation(system, solver=solver, dt=0.1).prepare().run(until=np.pi).trajectory_
     a, b = trajectory.values('a.x')[:, 0], trajectory.values('b.x')[:, 0]
     np.testing.assert_allclose(a + b, 0.0, atol=1e-9)
     np.testing.assert_allclose(b - a, 2.0 * np.cos(trajectory.times), atol=1e-6)
@@ -168,10 +168,7 @@ def test_run_gives_the_functional_derivative_of_a_density():
         - KAPPA * s.target.phi * laplacian(s.target.phi) / 2,
         variational=True,
     )
-    rates = [
-        item.check().prepare().run(SimpleNamespace(target=target)).laws_[0].value
-        for item in (by_gradient, by_laplacian)
-    ]
+    rates = [item.prepare().run(SimpleNamespace(target=target)).laws_[0].value for item in (by_gradient, by_laplacian)]
     expected = phi - phi**3 + KAPPA * laplacian(phi)
     assert all(bool((rate - expected).expand() == 0) for rate in rates)
 
@@ -208,7 +205,7 @@ def test_run_matches_the_cahn_hilliard_equation_and_conserves_the_total():
 def test_check_rejects_invalid_arguments(arguments, message):
     """Test that `check` rejects a state or a divisor that is not a name, or a potential that is not callable."""
     with pytest.raises(ValidationError, match=message):
-        GradientInteraction('gradient', target='walkers', **arguments).check()
+        GradientInteraction('gradient', target='walkers', **arguments).prepare()
 
 
 class CoordinatesElement(Element):
@@ -244,7 +241,7 @@ def test_run_divides_every_state_by_its_own_divisor():
         divisor={'a': 'ma', 'b': 'mb'},
     )
     system = System(elements=[CoordinatesElement('body')], interactions=[spring])
-    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=2.0).trajectory_
+    trajectory = Simulation(system, dt=0.1).prepare().run(until=2.0).trajectory_
     momentum = trajectory.values('body.a_d1') + 3.0 * trajectory.values('body.b_d1')
     np.testing.assert_allclose(momentum, 0.0, atol=1e-9)
 
@@ -253,7 +250,7 @@ def test_run_divides_by_a_divisor_expression():
     """Test that a harmonic well divided by `4 m` oscillates at the frequency `1 / sqrt(4 m)`."""
     well = _harmonic('body', 1.0, lambda member: 4 * member.m)
     system = System(elements=[BodyElement('body', x=[1.0], m=1.0)], interactions=[well], space=ContinuousSpace(n_dim=1))
-    simulation = Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=np.pi).check().prepare()
+    simulation = Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=np.pi).prepare()
     trajectory = simulation.run(until=np.pi).trajectory_
     assert float(trajectory.values('body.x')[-1][0]) == pytest.approx(0.0, abs=1e-6)
 
@@ -262,4 +259,4 @@ def test_check_rejects_a_divisor_of_an_unknown_state():
     """Test that a divisor mapping that names a state the interaction does not move raises an error."""
     gradient = GradientInteraction('well', target='body', states='a', potential=lambda s: 0, divisor={'b': 'mb'})
     with pytest.raises(ValidationError, match='divisor'):
-        gradient.check()
+        gradient.prepare()

@@ -23,14 +23,14 @@ def _totals(alpha: float, gamma: float, seeds: list[int]) -> np.ndarray:
         outputs=['total_contacts'],
         observables=[total],
     )
-    series = experiment.check().prepare().run().result_.series('total_contacts')[:, 0]
+    series = experiment.prepare().run().result_.series('total_contacts')[:, 0]
     return series.reshape(len(POPULATIONS), len(seeds)).mean(axis=1)
 
 
 def _exponent(totals: np.ndarray) -> float:
     """Return the exponent of the total interaction against the population."""
     scaling = ScalingAnalysis('power', parameters=POPULATIONS, critical=0.0, above=True)
-    return float(np.ravel(scaling.check().prepare(totals).run().exponent_)[0])
+    return float(np.ravel(scaling.prepare(totals).run().exponent_)[0])
 
 
 @pytest.mark.parametrize(('alpha', 'gamma'), [(1.0, 1.0), (1.2, 0.5)])

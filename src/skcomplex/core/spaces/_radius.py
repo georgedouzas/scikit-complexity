@@ -24,7 +24,7 @@ class RadiusNeighborhood(BaseNeighborhood):
 
     Examples:
         >>> from skcomplex.core.spaces import RadiusNeighborhood
-        >>> RadiusNeighborhood(1.5).check().radius
+        >>> RadiusNeighborhood(1.5).radius
         1.5
     """
 

@@ -12,7 +12,7 @@ from skcomplex.models.biology.common.populations import LogisticGrowthInteractio
 def _run(interaction, n0, until=4.0, dt=0.01):
     """Return the times and the population of one compartment under one interaction."""
     system = System(elements=[CompartmentElement('population', n=n0)], interactions=[interaction])
-    trajectory = Simulation(system, dt=dt).check().prepare().run(until=until).trajectory_
+    trajectory = Simulation(system, dt=dt).prepare().run(until=until).trajectory_
     return np.asarray(trajectory.times), np.asarray(trajectory.values('population.n'))
 
 
@@ -39,7 +39,7 @@ def test_logistic_growth_saturates():
     assert Simulation(
         system,
         dt=1.0,
-    ).check().prepare().run(
+    ).prepare().run(
         until=30,
     ).trajectory_.values('p.n')[
         -1

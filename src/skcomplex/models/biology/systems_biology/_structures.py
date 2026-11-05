@@ -46,7 +46,7 @@ def _read_models(handle: TextIO | str, *, is_pdb: bool) -> StructureSpec:
         tuple(residue.get_resname() for _, residue, _ in atoms),
         tuple(int(residue.id[1]) for _, residue, _ in atoms),
         tuple(str(chain.id) for _, _, chain in atoms),
-    ).check()
+    )._validated()
 
 
 def read_structure(source: str | Path) -> StructureSpec:
@@ -207,4 +207,4 @@ def read_trajectory(path: str | Path, topology: str | Path) -> StructureSpec:
         tuple(atom.residue.name for atom in atoms),
         tuple(int(atom.residue.resSeq) for atom in atoms),
         tuple(str(atom.residue.chain.chain_id or atom.residue.chain.index) for atom in atoms),
-    ).check()
+    )._validated()

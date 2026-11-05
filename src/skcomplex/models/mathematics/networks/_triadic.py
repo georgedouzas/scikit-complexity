@@ -95,7 +95,7 @@ def triadic_percolation(
         >>> from skcomplex.engine.runtime import Simulation
         >>> from skcomplex.models.mathematics.networks import triadic_percolation
         >>> system = triadic_percolation(200, p=0.8)
-        >>> trajectory = Simulation(system, random_state=0).check().prepare().run(until=3).trajectory_
+        >>> trajectory = Simulation(system, random_state=0).prepare().run(until=3).trajectory_
         >>> giant = trajectory.values('nodes.active').mean(axis=1)
         >>> bool(giant[1] < 0.5 < giant[2])
         True

@@ -23,7 +23,7 @@ class ExpandFlowsPass(BasePass):
     def _run(self, inputs: object = None) -> None:
         """Expand the flows of the collected laws."""
         compilation = self.compilation_
-        flows = TransferLowering().check().prepare(compilation)
+        flows = TransferLowering().prepare(compilation)
         collected = Compilation._required(compilation.collected, 'collected')
         expanded = flows.run([(spec, laws) for spec, laws, _ in collected]).lowered_
         compilation.collected = [

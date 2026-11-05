@@ -35,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, graph=graph), dt=1, observers=[observer]).check().prepare().run(until=40)
+simulation = Simulation(create(MODEL, graph=graph), dt=1, observers=[observer]).prepare().run(until=40)
 trajectory = simulation.trajectory_
 ranks = trajectory.values('pages.rank')
 layout = nx.spring_layout(graph, seed=1)

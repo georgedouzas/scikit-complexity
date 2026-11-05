@@ -53,7 +53,7 @@ _FIXES: dict[type[SkcomplexError], tuple[str, str]] = {
 class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
     """Compiler of a system into a problem of one mathematical form.
 
-    `check()` validates the settings, `prepare(system)` validates the system and sets `report_`, the issues it finds,
+    `prepare(system)` validates the settings and the system and sets `report_`, the issues it finds,
     and `run(initial_state)` raises the errors of the report and sets `problem_`, the compiled problem, and `solver_`,
     the solver the problem runs on. A subclass implements the hooks `_issues` and `_compile`, and a compiler of a form
     the engine does not know names the solver of its problems in `_get_solver`.
@@ -198,7 +198,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
             ValidationError:
                 The report holds an error, or the initial values are not a mapping.
         """
-        self.report_.check()
+        self.report_._validated()
         if inputs is not None and not isinstance(inputs, Mapping):
             error_msg = f'The initial state is a {type(inputs).__name__}. Pass a mapping of dotted state names.'
             raise ValidationError(error_msg)
@@ -277,8 +277,8 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
             'NumpyBackend'
         """
         if backend is not None:
-            return backend.check()
-        return (NumbaBackend() if members >= _AUTO_MEMBERS else NumpyBackend()).check()
+            return backend._validated()
+        return (NumbaBackend() if members >= _AUTO_MEMBERS else NumpyBackend())._validated()
 
     @staticmethod
     def _element_value(element: str, expression: Callable[[object], object], namespace: SimpleNamespace) -> object:
@@ -358,7 +358,7 @@ class BaseCompiler(BaseConfig[System, Mapping[str, object]]):
         """
         by_scope: dict[str, list[ObservableSpec]] = {}
         for observable in observables:
-            checked = BaseCompiler._of_root(observable.check())
+            checked = BaseCompiler._of_root(observable._validated())
             scope, _, label = checked.label.rpartition('/')
             by_scope.setdefault(scope, []).append(dataclasses.replace(checked, label=label))
         if not by_scope:

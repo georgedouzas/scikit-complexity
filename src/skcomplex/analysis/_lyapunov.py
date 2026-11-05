@@ -162,10 +162,10 @@ class LyapunovAnalysis(BaseAnalysis):
     Examples:
         >>> from skcomplex.analysis import LyapunovAnalysis
         >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
-        >>> analysis = LyapunovAnalysis(until=20000).check().prepare(logistic_map(r=4.0)).run()
+        >>> analysis = LyapunovAnalysis(until=20000).prepare(logistic_map(r=4.0)).run()
         >>> float(analysis.exponents_[0].round(2))
         0.69
-        >>> round(LyapunovAnalysis().check().prepare([0.906, 0.0, -14.572]).run().kaplan_yorke_dimension_, 2)
+        >>> round(LyapunovAnalysis().prepare([0.906, 0.0, -14.572]).run().kaplan_yorke_dimension_, 2)
         2.06
     """
 
@@ -308,7 +308,7 @@ class LyapunovAnalysis(BaseAnalysis):
             | {item: f'p[{index}]' for index, item in enumerate(dynamics.parameters)}
             | {dynamics.time: 't'}
         )
-        printer = ExpressionPrinter('scalar', names=lambda item: names[item]).check().prepare()
+        printer = ExpressionPrinter('scalar', names=lambda item: names[item]).prepare()
         printed = printer.run([SR(item) for item in expressions]).code_
         if not isinstance(printed, tuple):
             error_msg = f'The printer returned no code for the Jacobian of {name}.'
@@ -324,7 +324,7 @@ class LyapunovAnalysis(BaseAnalysis):
         lines.append('    return out')
         source = '\n'.join(lines) + '\n'
         if source not in FUNCTIONS:
-            module = SourceLoader('skcomplex_lyapunov').check().prepare().run(source).module_
+            module = SourceLoader('skcomplex_lyapunov').prepare().run(source).module_
             FUNCTIONS[source] = numba.njit(getattr(module, name))
         return FUNCTIONS[source]
 

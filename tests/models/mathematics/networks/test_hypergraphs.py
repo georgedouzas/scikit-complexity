@@ -41,7 +41,7 @@ def test_hypergraph_random_walk_drift_follows_the_master_equation(backend):
 def test_hypergraph_random_walk_settles_on_the_hyperedge_weights():
     """Test that the probability keeps its sum and settles on the weights of the hyperedges of every node."""
     system = hypergraph_random_walk(seed=0)
-    trajectory = Simulation(system, dt=1.0).check().prepare().run(until=60.0).trajectory_
+    trajectory = Simulation(system, dt=1.0).prepare().run(until=60.0).trajectory_
     probabilities = np.asarray(trajectory.values('nodes.p'))
     weights = np.asarray(system.elements[0].values['D'])
     assert np.allclose(probabilities.sum(axis=1), 1.0, atol=1e-9)
@@ -51,7 +51,7 @@ def test_hypergraph_random_walk_settles_on_the_hyperedge_weights():
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 def test_growing_simplicial_complex_attaches_one_triangle_per_step(backend):
     """Test that 50 steps from one triangle give 51 triangles along edges, each with its age in steps."""
-    simulation = Simulation(growing_simplicial_complex(60), backend=backend, random_state=0).check().prepare()
+    simulation = Simulation(growing_simplicial_complex(60), backend=backend, random_state=0).prepare()
     trajectory = simulation.run(until=50).trajectory_
     network = trajectory.network(-1)
     graph = network.graph()
@@ -68,7 +68,7 @@ def test_growing_simplicial_complex_degrees_follow_preferential_attachment():
     graph, _ = _final_graph(growing_simplicial_complex(2003), 2000)
     assert graph.number_of_edges() == 3 + 2 * 2000
     degrees = np.array([degree for _, degree in graph.degree])
-    fit = FitAnalysis(minimum=8, discrete=True, bootstrap=0).check().prepare(degrees).run()
+    fit = FitAnalysis(minimum=8, discrete=True, bootstrap=0).prepare(degrees).run()
     assert abs(fit.exponent_ - 3) < 0.4
 
 

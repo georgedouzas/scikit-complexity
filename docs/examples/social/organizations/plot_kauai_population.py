@@ -23,9 +23,7 @@ MODEL = 'kauai_population'
 system = create(MODEL)
 observables = describe(MODEL).observables_of(system)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = (
-    Simulation(system, observers=[observer], observables=observables, random_state=0).check().prepare().run(until=30)
-)
+simulation = Simulation(system, observers=[observer], observables=observables, random_state=0).prepare().run(until=30)
 
 # %%
 # Where the residents stand

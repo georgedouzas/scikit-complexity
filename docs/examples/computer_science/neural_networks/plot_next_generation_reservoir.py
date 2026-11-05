@@ -39,7 +39,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
 system = create(MODEL)
-forecast = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=200).trajectory_
+forecast = Simulation(system, dt=1, observers=[observer]).prepare().run(until=200).trajectory_
 for name, color in zip(VARIABLES, ((31, 119, 180), (255, 127, 14), (44, 160, 44)), strict=True):
     observer.recording_.log(f'reservoir/{name}', rr.SeriesLines(colors=[color], names=name), static=True)
     observer.recording_.send_columns(
@@ -70,7 +70,7 @@ def lorenz_samples(samples):
         interactions=[RateInteraction(name, target='flow', state=name, rate=rate) for name, rate in rates.items()],
     )
     solver = ScipyODESolver(method='RK23', rtol=1e-3, atol=1e-6)
-    run = Simulation(flow, solver=solver, dt=STEP).check().prepare().run(until=5.0 + STEP * (samples - 1)).trajectory_
+    run = Simulation(flow, solver=solver, dt=STEP).prepare().run(until=5.0 + STEP * (samples - 1)).trajectory_
     return np.column_stack([run.values(f'flow.{name}') for name in VARIABLES])[-samples:]
 
 
@@ -78,7 +78,7 @@ TRAINED = 402
 HORIZON = 800
 values = lorenz_samples(TRAINED + HORIZON + 1)
 trained = create(MODEL, series=values[: TRAINED + 1])
-run = Simulation(trained, dt=1).check().prepare().run(until=HORIZON).trajectory_
+run = Simulation(trained, dt=1).prepare().run(until=HORIZON).trajectory_
 predicted = np.column_stack([run.values(f'reservoir.{name}') for name in VARIABLES])[1:]
 truth = values[TRAINED + 1 :]
 size = np.ptp(values, axis=0).max()

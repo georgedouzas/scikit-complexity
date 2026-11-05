@@ -61,7 +61,7 @@ class EarlyWarningAnalysis(RollingAnalysis):
         >>> x = np.zeros(2000)
         >>> for t in range(1, 2000):
         ...     x[t] = (0.2 + 0.79 * t / 2000) * x[t - 1] + rng.standard_normal()
-        >>> bool(EarlyWarningAnalysis(window=200).check().prepare(x).run().autocorrelation_trend_[0] > 0.5)
+        >>> bool(EarlyWarningAnalysis(window=200).prepare(x).run().autocorrelation_trend_[0] > 0.5)
         True
     """
 

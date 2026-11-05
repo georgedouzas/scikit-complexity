@@ -24,7 +24,7 @@ def test_barabasi_albert_grows_a_scale_free_network():
     assert graph.number_of_nodes() == 3003
     assert graph.number_of_edges() == 3 + 2 * 3000
     degrees = np.array([degree for _, degree in graph.degree])
-    fit = FitAnalysis(minimum=8, discrete=True, bootstrap=0).check().prepare(degrees).run()
+    fit = FitAnalysis(minimum=8, discrete=True, bootstrap=0).prepare(degrees).run()
     assert abs(fit.exponent_ - 3) < 0.4
     assert np.nanmax(trajectory.values('nodes.degree')[-1]) == pytest.approx(degrees.max(), abs=2)
 
@@ -58,13 +58,13 @@ def _similarity_trajectory(n_nodes: int, seed: int, **settings: float) -> Trajec
     """Return the trajectory of a popularity-similarity network of a size, with the frames of its start and its end."""
     system = popularity_similarity_network(n_nodes, random_state=seed, **settings)
     steps = n_nodes - 3
-    return Simulation(system, dt=float(steps), random_state=seed).check().prepare().run(until=steps).trajectory_
+    return Simulation(system, dt=float(steps), random_state=seed).prepare().run(until=steps).trajectory_
 
 
 def test_popularity_similarity_network_degrees_are_heavy_tailed_and_clustered():
     """Test that 2000 nodes of exponent 2.5 fit a mean over seeds within 0.07 of 2.69, and are clustered."""
     graphs = [_similarity_trajectory(2000, seed, exponent=2.5).network(-1).graph() for seed in range(4)]
-    fitted = [float(NetworkAnalysis('degrees').check().prepare(graph).run().exponent_[0]) for graph in graphs]
+    fitted = [float(NetworkAnalysis('degrees').prepare(graph).run().exponent_[0]) for graph in graphs]
     assert np.mean(fitted) == pytest.approx(2.69, abs=0.07)
     assert min(nx.average_clustering(graph) for graph in graphs) > 0.3
 
@@ -73,10 +73,7 @@ def test_popularity_similarity_network_renormalizes_geometrically_with_its_expon
     """Test that the mean degree exponent over seeds stays within 0.2 of the original at three geometric scales."""
     analysis = RenormalizationAnalysis('geometric', steps=3, beta=5.0)
     exponents = np.mean(
-        [
-            analysis.check().prepare(_similarity_trajectory(2000, seed, exponent=2.5)).run().exponents_
-            for seed in range(4)
-        ],
+        [analysis.prepare(_similarity_trajectory(2000, seed, exponent=2.5)).run().exponents_ for seed in range(4)],
         axis=0,
     )
     assert np.abs(exponents[1:] - exponents[0]).max() <= 0.2

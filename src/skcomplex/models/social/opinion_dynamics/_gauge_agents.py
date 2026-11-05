@@ -116,7 +116,7 @@ def _twist(
 
 def _agent_observables(system: System) -> list[ObservableSpec]:
     """Return the energy of the transported differences and their twist around the faces."""
-    space = system.elements[0].space.check().prepare()
+    space = system.elements[0].space.prepare()
     return [
         ObservableSpec('energy', function=partial(_energy, space.incidences_[0])),
         ObservableSpec('twist', function=partial(_twist, *space.incidences_[:2])),
@@ -183,7 +183,7 @@ def gauge_network_agents(
         ['agents', 'links']
     """
     network = nx.cycle_graph(n_agents) if graph is None else graph
-    space = CellComplexSpace(NetworkSpace(network)).check().prepare()
+    space = CellComplexSpace(NetworkSpace(network)).prepare()
     faces = space.incidences_[1]
     if flux and not faces.shape[0] and connections is None:
         error_msg = f'A flux of {flux} needs a loop, but the network has no faces. Give a network with a cycle.'

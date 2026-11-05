@@ -20,7 +20,7 @@ MODEL = 'heat_diffusion'
 
 system = create(MODEL, shape=(64, 64), D=1.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=50)
+simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=50)
 
 # %%
 # Conservation and spreading

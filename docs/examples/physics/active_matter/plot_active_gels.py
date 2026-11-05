@@ -32,7 +32,6 @@ simulation = (
         observables=describe(MODEL).observables_of(system),
         random_state=0,
     )
-    .check()
     .prepare()
     .run(until=0.5)
 )
@@ -45,8 +44,8 @@ simulation = (
 
 trajectory = simulation.trajectory_
 tensors = trajectory.lattice('gel.Q')
-axes = AlignmentAnalysis('principal-axis').check().prepare(tensors).run().axes_
-defects = DefectAnalysis(period=np.pi).check().prepare(np.arctan2(axes[..., 1], axes[..., 0])).run()
+axes = AlignmentAnalysis('principal-axis').prepare(tensors).run().axes_
+defects = DefectAnalysis(period=np.pi).prepare(np.arctan2(axes[..., 1], axes[..., 0])).run()
 energy = 0.5 * (np.asarray(trajectory.values('u_x')) ** 2 + np.asarray(trajectory.values('u_y')) ** 2).mean(axis=1)
 
 fig, (count, kinetic) = plt.subplots(1, 2, figsize=(10, 4))

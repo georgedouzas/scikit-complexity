@@ -41,9 +41,7 @@ blueprint = rrb.Blueprint(
 system = create(MODEL)
 solver = EulerMaruyamaSolver(dt=0.01)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = (
-    Simulation(system, dt=0.5, solver=solver, observers=[observer], random_state=0).check().prepare().run(until=100)
-)
+simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer], random_state=0).prepare().run(until=100)
 
 # %%
 # The delay decides
@@ -57,7 +55,6 @@ intensities, distances = [], {}
 for delay in delays:
     run = (
         Simulation(create(MODEL, n_robots=40, delay=delay), dt=0.5, solver=solver, random_state=1)
-        .check()
         .prepare()
         .run(until=150)
     )

@@ -73,7 +73,7 @@ def test_interest_rate_rule():
         time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('policy')])),
     )
     observables = [ObservableSpec('price_level', group='shops', variable='price')]
-    trajectory = Simulation(system, random_state=0, observables=observables).check().prepare().run(until=40).trajectory_
+    trajectory = Simulation(system, random_state=0, observables=observables).prepare().run(until=40).trajectory_
     rate, inflation = trajectory.values('bank.rate'), trajectory.values('bank.inflation')
     changed = np.diff(rate) != 0
     assert changed.any()

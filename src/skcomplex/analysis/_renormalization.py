@@ -87,19 +87,19 @@ class RenormalizationAnalysis(BaseAnalysis):
     Raises:
         AnalysisError:
             The kind is unknown, the kind does not read a changed setting, `steps` is below 1, `block` is below 2,
-            `time` or `beta` is not positive, raised by `check`, or a node has no angle, raised by `run`.
+            `time` or `beta` is not positive, raised by `prepare`, or a node has no angle, raised by `run`.
 
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.analysis import RenormalizationAnalysis
         >>> blocks = nx.disjoint_union(nx.complete_graph(20), nx.complete_graph(20))
         >>> blocks.add_edge(0, 20)
-        >>> laplacian = RenormalizationAnalysis(steps=1).check().prepare(blocks).run()
+        >>> laplacian = RenormalizationAnalysis(steps=1).prepare(blocks).run()
         >>> sorted(laplacian.graphs_[1].degree())
         [(0, 1), (1, 1)]
         >>> ring = nx.cycle_graph(8)
         >>> nx.set_node_attributes(ring, {node: float(node) for node in ring}, 'angle')
-        >>> geometric = RenormalizationAnalysis('geometric', steps=2).check().prepare(ring).run()
+        >>> geometric = RenormalizationAnalysis('geometric', steps=2).prepare(ring).run()
         >>> [graph.number_of_nodes() for graph in geometric.graphs_]
         [8, 4, 2]
     """
@@ -162,7 +162,7 @@ class RenormalizationAnalysis(BaseAnalysis):
         self.graphs_ = [self.graph_.to_undirected()]
         for _ in range(self.steps):
             self.graphs_.append(self._coarsen(self.graphs_[-1]))
-        measures = [NetworkAnalysis('degrees').check().prepare(graph).run() for graph in self.graphs_]
+        measures = [NetworkAnalysis('degrees').prepare(graph).run() for graph in self.graphs_]
         self.degrees_ = [measure.degrees_[0] for measure in measures]
         self.exponents_ = np.asarray([measure.exponent_[0] for measure in measures], dtype=float)
         self.clustering_ = np.asarray([nx.average_clustering(graph) for graph in self.graphs_], dtype=float)

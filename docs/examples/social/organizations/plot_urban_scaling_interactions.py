@@ -26,9 +26,7 @@ MODEL = 'urban_scaling_interactions'
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
 observables = describe(MODEL).observables_of(system)
-simulation = (
-    Simulation(system, observers=[observer], observables=observables, random_state=0).check().prepare().run(until=297)
-)
+simulation = Simulation(system, observers=[observer], observables=observables, random_state=0).prepare().run(until=297)
 
 # %%
 # Meetings against the population
@@ -54,9 +52,9 @@ for rate in rates:
         observables=observables,
         random_state=0,
     )
-    meetings = experiment.check().prepare().run().result_.series('total_meetings')[:, -1]
+    meetings = experiment.prepare().run().result_.series('total_meetings')[:, -1]
     samples = dict(zip(sizes, meetings.reshape(len(sizes), len(seeds)), strict=True))
-    fit = ScalingAnalysis('allometric', resamples=500).check().prepare(samples).run()
+    fit = ScalingAnalysis('allometric', resamples=500).prepare(samples).run()
     label = f'internal {rate}: exponent {fit.exponent_:.2f} [{fit.interval_[0]:.2f}, {fit.interval_[1]:.2f}]'
     ax.loglog(sizes, [np.mean(samples[size]) for size in sizes], 'o-', label=label)
 ax.set_xlabel('population N')

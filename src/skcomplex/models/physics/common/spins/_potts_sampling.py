@@ -41,7 +41,7 @@ class PottsSamplingInteraction(SpinSamplingInteraction):
 
     Examples:
         >>> from skcomplex.models.physics.common.spins import PottsSamplingInteraction
-        >>> PottsSamplingInteraction('potts', target='spins', q=4).check().values
+        >>> PottsSamplingInteraction('potts', target='spins', q=4).values
         (0.0, 1.0, 2.0, 3.0)
     """
 

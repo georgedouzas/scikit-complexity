@@ -123,7 +123,7 @@ class ReactionInteraction(JumpInteraction):
         ...     elements=[CompartmentElement('S', n=990), CompartmentElement('I', n=10), CompartmentElement('R')],
         ...     interactions=[infection, recovery],
         ... )
-        >>> states = Simulation(system, dt=1.0).check().prepare().run(until=50).trajectory_.states
+        >>> states = Simulation(system, dt=1.0).prepare().run(until=50).trajectory_.states
         >>> round(float(states[-1].sum()), 6)
         1000.0
 
@@ -135,7 +135,7 @@ class ReactionInteraction(JumpInteraction):
         >>> decay = ReactionInteraction('decay', target='cells', reactants={'n': 1}, k=1.0)
         >>> values = {'n': np.arange(3.0)}
         >>> cells = FieldElement('cells', element=CompartmentElement, space=LatticeSpace((3,)), values=values)
-        >>> simulation = Simulation(System(elements=[cells], interactions=[decay]), dt=1.0).check().prepare()
+        >>> simulation = Simulation(System(elements=[cells], interactions=[decay]), dt=1.0).prepare()
         >>> np.round(simulation.run(until=1).trajectory_.lattice('cells.n')[-1], 3).tolist()
         [0.0, 0.368, 0.736]
 
@@ -158,7 +158,7 @@ class ReactionInteraction(JumpInteraction):
         ...     'decay', target='box', reactants={'x': lambda s: 1 / s.target.epsilon}, propensity=lambda s: s.target.x
         ... )
         >>> simulation = Simulation(System(elements=[ScaledElement('box')], interactions=[scaled]), dt=0.01)
-        >>> round(float(simulation.check().prepare().run(until=0.5).trajectory_.values('box.x')[-1]), 3)
+        >>> round(float(simulation.prepare().run(until=0.5).trajectory_.values('box.x')[-1]), 3)
         0.368
 
         Every agent of a group decays on its own states, by `k n` in a step of the rate equation:
@@ -172,7 +172,7 @@ class ReactionInteraction(JumpInteraction):
         >>> cells = GroupElement('cells', element=CellElement, size=2)
         >>> decay = ReactionInteraction('decay', target='cells', reactants={'n': 1}, k=0.1, form='agent')
         >>> system = System(elements=[cells], interactions=[decay], time=DiscreteTime())
-        >>> trajectory = Simulation(system).check().prepare().run(until=2).trajectory_
+        >>> trajectory = Simulation(system).prepare().run(until=2).trajectory_
         >>> np.round(trajectory.agents('cells', 2).values['n'], 6).tolist()
         [2.43, 2.43]
     """

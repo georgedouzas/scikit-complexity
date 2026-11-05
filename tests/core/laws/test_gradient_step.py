@@ -14,4 +14,4 @@ def _law():
 
 def test_gradient_step_law_changes_no_state():
     """Test that the law changes no state of the system that holds it."""
-    assert _law().check().prepare('training').targets_ == ()
+    assert _law().prepare('training').targets_ == ()

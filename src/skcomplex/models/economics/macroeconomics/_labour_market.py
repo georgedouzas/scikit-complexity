@@ -33,7 +33,7 @@ class LabourMarketInteraction(MatchingInteraction[ModelView]):
         ...     limit=('hireable', 'limit'),
         ...     quantity=('quantity', 'vacancies'),
         ...     on_match=LabourMarketInteraction.hire,
-        ... ).check().providers
+        ... ).providers
         'businesses'
     """
 

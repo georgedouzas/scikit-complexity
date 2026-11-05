@@ -20,11 +20,7 @@ def test_gravity_keeps_circular_orbit():
         space=ContinuousSpace(n_dim=2),
     )
     trajectory = (
-        Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.5)
-        .check()
-        .prepare()
-        .run(until=6)
-        .trajectory_
+        Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.5).prepare().run(until=6).trajectory_
     )
     radius = np.linalg.norm(trajectory.values('planet.x') - trajectory.values('sun.x'), axis=1)
     assert np.allclose(radius, 10.0, rtol=1e-4)

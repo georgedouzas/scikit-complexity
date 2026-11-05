@@ -36,7 +36,7 @@ class ReflectingFloorInteraction(MapInteraction):
 
     Examples:
         >>> from skcomplex.models.economics.finance import ReflectingFloorInteraction
-        >>> ReflectingFloorInteraction('floor', target='firms', c=0.5).check().c
+        >>> ReflectingFloorInteraction('floor', target='firms', c=0.5).c
         0.5
     """
 

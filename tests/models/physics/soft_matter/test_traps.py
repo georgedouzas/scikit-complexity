@@ -22,7 +22,6 @@ def test_biased_trap_walk_subdiffusion():
             random_state=0,
             observables=describe('biased_trap_walk').observables_of(built),
         )
-        .check()
         .prepare()
         .run(until=2000)
     )

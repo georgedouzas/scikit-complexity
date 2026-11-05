@@ -22,7 +22,7 @@ MODEL = 'hypergraph_consensus'
 system = create(MODEL)
 observables = describe(MODEL).observables_of(system)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='observables', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer], observables=observables).check().prepare().run(until=10.0)
+simulation = Simulation(system, dt=0.1, observers=[observer], observables=observables).prepare().run(until=10.0)
 
 # %%
 # The mean opinion
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer], observables=observ
 
 fig, axes = plt.subplots(1, 2, figsize=(9, 4))
 for reinforcement in (0.0, -1.0):
-    run = Simulation(create(MODEL, reinforcement=reinforcement), dt=0.1).check().prepare().run(until=10.0)
+    run = Simulation(create(MODEL, reinforcement=reinforcement), dt=0.1).prepare().run(until=10.0)
     opinions = np.asarray(run.trajectory_.values('nodes.x'))
     opinions = opinions.reshape(len(opinions), -1)
     label = f'reinforcement {reinforcement}'

@@ -20,11 +20,11 @@ class ClauseSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            A literal is 0 or the clause holds none, raised by `check`.
+            A literal is 0 or the clause holds none, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.specs import ClauseSpec
-        >>> ClauseSpec((1, -2)).check().literals
+        >>> ClauseSpec((1, -2)).literals
         (1, -2)
     """
 

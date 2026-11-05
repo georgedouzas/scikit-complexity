@@ -103,7 +103,7 @@ def hypergraph_public_goods(
 
     Examples:
         >>> from skcomplex.models.social.cooperation import hypergraph_public_goods
-        >>> hypergraph_public_goods(30).elements[0].check().prepare().size_
+        >>> hypergraph_public_goods(30).elements[0].prepare().size_
         30
     """
     rng = np.random.default_rng(seed)
@@ -208,7 +208,7 @@ def simplicial_social_dilemmas(
 
     Examples:
         >>> from skcomplex.models.social.cooperation import simplicial_social_dilemmas
-        >>> simplicial_social_dilemmas(30).elements[0].check().prepare().size_
+        >>> simplicial_social_dilemmas(30).elements[0].prepare().size_
         30
     """
     rng = np.random.default_rng(seed)

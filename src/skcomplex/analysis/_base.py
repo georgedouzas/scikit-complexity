@@ -35,7 +35,7 @@ KIND_ORDER = (DataKind.AGENTS, DataKind.FIELD, DataKind.NETWORK, DataKind.PATH, 
 
 
 class BaseAnalysis(BaseConfig[Source, object], ABC):
-    """Base of every analysis: it stores its settings, checks them, prepares on a source, and runs.
+    """Base of every analysis: it stores its settings, validates them and prepares on a source, and runs.
 
     A child stores its settings in `__init__` and implements four hooks that the verbs call:
 
@@ -63,7 +63,7 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         ...
         ...     def _run(self, inputs):
         ...         self.mean_ = self.series_.values.mean(axis=0)
-        >>> MeanAnalysis().check().prepare(np.array([1.0, 2.0, 3.0])).run().mean_.tolist()
+        >>> MeanAnalysis().prepare(np.array([1.0, 2.0, 3.0])).run().mean_.tolist()
         [2.0]
     """
 
@@ -650,8 +650,8 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
                 The analysis itself.
 
         Raises:
-            NotCheckedError:
-                The analysis was not checked with `check`.
+            ValidationError:
+                A setting is invalid, named in the message.
         """
         super().prepare(source)
         return self

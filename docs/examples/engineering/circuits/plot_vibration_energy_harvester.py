@@ -29,7 +29,6 @@ simulation = (
         observers=[observer],
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(
         until=10,
@@ -51,7 +50,6 @@ for omega in frequencies:
     model_system = create(MODEL, omega=omega)
     run = (
         Simulation(model_system, dt=0.01, observables=describe(MODEL).observables_of(model_system))
-        .check()
         .prepare()
         .run(until=10)
         .trajectory_

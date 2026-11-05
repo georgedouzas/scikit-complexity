@@ -129,19 +129,18 @@ def network_structure_analysis(
         >>> import networkx as nx
         >>> from skcomplex.models.mathematics.networks import network_structure_analysis
         >>> system = network_structure_analysis(nx.karate_club_graph(), reference='club', null_samples=0)
-        >>> system.elements[0].check().prepare().size_
+        >>> system.elements[0].prepare().size_
         34
     """
     network = _planted_partition(random_state) if graph is None else graph
     found = (
         NetworkAnalysis('communities', reference=_reference(network, reference), random_state=random_state)
-        .check()
         .prepare(network)
         .run()
     )
-    summary = NetworkAnalysis('summary').check().prepare(network).run()
+    summary = NetworkAnalysis('summary').prepare(network).run()
     clustering = nx.clustering(network)
-    betweenness = NetworkAnalysis('centrality', measure='betweenness').check().prepare(network).run().centrality_[0]
+    betweenness = NetworkAnalysis('centrality', measure='betweenness').prepare(network).run().centrality_[0]
     nodes = list(network.nodes())
     group = GroupElement(
         'nodes',
@@ -158,11 +157,11 @@ def network_structure_analysis(
     zscore = 0.0
     if null_samples:
         motifs = MotifAnalysis('z-scores', samples=null_samples, random_state=random_state)
-        zscore = motifs.check().prepare(network).run().z_scores_[0]['triangle']
+        zscore = motifs.prepare(network).run().z_scores_[0]['triangle']
     measures = NetworkMeasuresElement(
         'measures',
         path_length=float(summary.path_length_[0]),
-        assortativity=float(NetworkAnalysis('assortativity').check().prepare(network).run().assortativity_[0]),
+        assortativity=float(NetworkAnalysis('assortativity').prepare(network).run().assortativity_[0]),
         modularity=float(found.modularity_[0]),
         agreement=0.0 if found.agreement_ is None else float(found.agreement_[0]),
         triangle_zscore=zscore,

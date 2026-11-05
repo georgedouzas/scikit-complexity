@@ -179,7 +179,7 @@ def arthur_polak(*, max_components: int = 12, max_inputs: int = 3) -> System:
 
     Examples:
         >>> from skcomplex.models.economics.innovation import arthur_polak
-        >>> arthur_polak().elements[0].check().prepare().size_
+        >>> arthur_polak().elements[0].prepare().size_
         3
     """
     primitives = (NAND, FALSE, TRUE)

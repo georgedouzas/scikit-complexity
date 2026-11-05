@@ -37,7 +37,7 @@ class DriveLaw(BaseLaw):
     Examples:
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import DriveLaw
-        >>> DriveLaw(var('height'), lambda values, *, random: values + 1).check().prepare().targets_
+        >>> DriveLaw(var('height'), lambda values, *, random: values + 1).prepare().targets_
         (height,)
     """
 

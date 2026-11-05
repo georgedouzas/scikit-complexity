@@ -67,7 +67,7 @@ class OrbitDiagramExperiment(BaseExperiment):
         >>> from skcomplex.experiments import OrbitDiagramExperiment
         >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
         >>> diagram = OrbitDiagramExperiment(logistic_map, 'map.r', [2.9, 3.2], 'map.x', transient=1000, keep=20)
-        >>> diagram.check().prepare().run().periods_.tolist()
+        >>> diagram.prepare().run().periods_.tolist()
         [1, 2]
     """
 
@@ -133,7 +133,7 @@ class OrbitDiagramExperiment(BaseExperiment):
             random_state=self.random_state,
             executor=self.executor,
         )
-        experiment.check().prepare().run()
+        experiment.prepare().run()
         return [np.asarray(run.series[self.observable], dtype=float) for run in experiment.result_.runs]
 
     def _replicated_points(self) -> list[Array]:

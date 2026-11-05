@@ -24,11 +24,11 @@ from skcomplex.specs import PartnerSpec
 def test_variant_refuses_a_spec_and_lists_what_it_takes(interaction, message):
     """Test that a step, a placement, a move, and a pick refuse a spec, and list their names and functions."""
     with pytest.raises(ValidationError, match=message):
-        interaction.check()
+        interaction.prepare()
 
 
 def test_emission_law_says_its_matrix_is_symbolic_only():
     """Test that an emission refuses a function, and names the laws that take one."""
     x, y = SR.var('x'), SR.var('y')
     with pytest.raises(ValidationError, match=r'symbolic only.*TransitionLaw'):
-        EmissionLaw(x, y, lambda t, values: [[1.0]]).check()
+        EmissionLaw(x, y, lambda t, values: [[1.0]]).prepare()

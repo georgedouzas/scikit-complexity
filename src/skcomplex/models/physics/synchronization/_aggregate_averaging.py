@@ -36,7 +36,7 @@ class AggregateAveragingInteraction(MapInteraction):
         >>> from types import SimpleNamespace
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.models.physics.synchronization import AggregateAveragingInteraction
-        >>> averaging = AggregateAveragingInteraction('averaging', source='a', target='b').check().prepare()
+        >>> averaging = AggregateAveragingInteraction('averaging', source='a', target='b').prepare()
         >>> source, target = SimpleNamespace(x=var('u')), SimpleNamespace(x=var('v'))
         >>> namespace = SimpleNamespace(source=source, target=target, r=4, kappa=var('kappa'))
         >>> [law.value.factor() for law in averaging.run(namespace).laws_]

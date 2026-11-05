@@ -28,7 +28,7 @@ def radius_at(time):
 system = create(MODEL, omega=1.0, r=1.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 schedule = {'right.r': radius_at, 'left.r': radius_at}
-simulation = Simulation(system, dt=0.04, observers=[observer], schedule=schedule).check().prepare().run(until=10)
+simulation = Simulation(system, dt=0.04, observers=[observer], schedule=schedule).prepare().run(until=10)
 
 # %%
 # Angular velocity against the radius
@@ -39,7 +39,7 @@ simulation = Simulation(system, dt=0.04, observers=[observer], schedule=schedule
 fig, ax = plt.subplots(figsize=(6, 4))
 for radius in [0.9, 0.7, 0.5]:
     pulled = {'right.r': lambda time, value=radius: 1.0 if time < 5.0 else value}
-    run = Simulation(create(MODEL, omega=1.0, r=1.0), dt=0.02, schedule=pulled).check().prepare().run(until=10)
+    run = Simulation(create(MODEL, omega=1.0, r=1.0), dt=0.02, schedule=pulled).prepare().run(until=10)
     times = np.asarray(run.trajectory_.times)
     angle = np.unwrap(np.ravel(run.trajectory_.values('right.theta')))
     line = ax.plot(times[1:], np.diff(angle) / np.diff(times), label=f'r = {radius} after t = 5')[0]

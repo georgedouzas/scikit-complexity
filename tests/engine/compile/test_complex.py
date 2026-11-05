@@ -226,7 +226,7 @@ def test_complex_parameter_per_site_is_read_and_updated():
     system = System(
         elements=[FieldElement('grid', element=QuadraticElement, space=LatticeSpace((4, 4)), values={'c': c})],
     )
-    simulation = Simulation(system, dt=1).check().prepare().run(until=1)
+    simulation = Simulation(system, dt=1).prepare().run(until=1)
     assert np.allclose(simulation.trajectory_.lattice('grid.z')[1], c)
     simulation.update_parameters({'grid.c': 2j})
     simulation.run(until=1)
@@ -257,15 +257,11 @@ def test_complex_component_is_located_by_its_part():
 
 def test_harmonic_phase_turns_on_the_unit_circle():
     """Test that `dz/dt = 2 i z` reaches `exp(20 i)` at time 10 with modulus 1 at every frame."""
-    trajectory = (
-        Simulation(
-            System(elements=[PhaseElement('osc')]),
-            solver=ScipyODESolver(rtol=1e-12, atol=1e-12),
-            dt=0.5,
-        )
-        .check()
-        .prepare()
-    )
+    trajectory = Simulation(
+        System(elements=[PhaseElement('osc')]),
+        solver=ScipyODESolver(rtol=1e-12, atol=1e-12),
+        dt=0.5,
+    ).prepare()
     values = trajectory.run(until=10).trajectory_.values('osc.z')
     assert values.dtype == np.complex128
     assert abs(values[-1] - np.exp(20j)) < 1e-8
@@ -276,11 +272,7 @@ def test_harmonic_phase_turns_on_the_unit_circle():
 def test_real_state_reads_modulus_of_complex_state(backend):
     """Test that a real state updated with the modulus of a complex state holds it after every step."""
     trajectory = (
-        Simulation(System(elements=[ReadoutElement('a')]), backend=backend(), dt=1)
-        .check()
-        .prepare()
-        .run(until=5)
-        .trajectory_
+        Simulation(System(elements=[ReadoutElement('a')]), backend=backend(), dt=1).prepare().run(until=5).trajectory_
     )
     assert trajectory.values('a.r').dtype == np.float64
     assert np.allclose(trajectory.values('a.r')[1:], 2.0)
@@ -403,19 +395,9 @@ def test_backends_agree_on_complex_map():
 )
 def test_ode_solvers_match_split_form(solver):
     """Test that every ODE solver runs a complex law that is not holomorphic as it runs the split real form."""
-    joined = (
-        Simulation(System(elements=[StuartElement('o')]), solver=solver, dt=0.5)
-        .check()
-        .prepare()
-        .run(until=5)
-        .trajectory_
-    )
+    joined = Simulation(System(elements=[StuartElement('o')]), solver=solver, dt=0.5).prepare().run(until=5).trajectory_
     split = (
-        Simulation(System(elements=[SplitStuartElement('o')]), solver=solver, dt=0.5)
-        .check()
-        .prepare()
-        .run(until=5)
-        .trajectory_
+        Simulation(System(elements=[SplitStuartElement('o')]), solver=solver, dt=0.5).prepare().run(until=5).trajectory_
     )
     assert np.max(np.abs(joined.values('o.z') - (split.values('o.u') + 1j * split.values('o.v')))) < 1e-8
 
@@ -430,16 +412,16 @@ def test_ode_solvers_match_split_form(solver):
 def test_stiff_steppers_match_split_form(solver, discretization):
     """Test that the stiff steppers run a complex field as they run the split real form."""
     joined, split = _ginzburg_landau((16, 16), discretization)
-    first = Simulation(joined, solver=solver, dt=1.0).check().prepare().run(until=5).trajectory_
-    second = Simulation(split, solver=solver, dt=1.0).check().prepare().run(until=5).trajectory_
+    first = Simulation(joined, solver=solver, dt=1.0).prepare().run(until=5).trajectory_
+    second = Simulation(split, solver=solver, dt=1.0).prepare().run(until=5).trajectory_
     assert np.max(np.abs(first.values('m.A') - (second.values('m.u') + 1j * second.values('m.v')))) < 1e-8
 
 
 def test_complex_and_split_ginzburg_landau_agree():
     """Test that the complex and split Ginzburg-Landau equations agree to 1e-10 at every frame."""
     joined, split = _ginzburg_landau()
-    first = Simulation(joined, solver=ETDRK4Solver(dt=0.1), dt=1.0).check().prepare().run(until=20).trajectory_
-    second = Simulation(split, solver=ETDRK4Solver(dt=0.1), dt=1.0).check().prepare().run(until=20).trajectory_
+    first = Simulation(joined, solver=ETDRK4Solver(dt=0.1), dt=1.0).prepare().run(until=20).trajectory_
+    second = Simulation(split, solver=ETDRK4Solver(dt=0.1), dt=1.0).prepare().run(until=20).trajectory_
     amplitude = first.lattice('m.A')
     assert amplitude.shape == (21, 32, 32)
     assert amplitude.dtype == np.complex128
@@ -462,7 +444,7 @@ def test_free_schrodinger_equation_keeps_the_norm():
             ),
         ],
     )
-    trajectory = Simulation(system, solver=ETDRK4Solver(dt=0.01), dt=0.5).check().prepare().run(until=5).trajectory_
+    trajectory = Simulation(system, solver=ETDRK4Solver(dt=0.01), dt=0.5).prepare().run(until=5).trajectory_
     norms = (np.abs(trajectory.values('wave.psi')) ** 2).sum(axis=1)
     assert np.max(np.abs(norms / norms[0] - 1)) < 1e-8
 
@@ -470,21 +452,17 @@ def test_free_schrodinger_equation_keeps_the_norm():
 def test_power_spectrum_rejects_complex_series():
     """Test that the power spectrum of a complex series names the real views to take first."""
     values = (
-        Simulation(System(elements=[PhaseElement('osc')]), dt=0.1)
-        .check()
-        .prepare()
-        .run(until=5)
-        .trajectory_.values('osc.z')
+        Simulation(System(elements=[PhaseElement('osc')]), dt=0.1).prepare().run(until=5).trajectory_.values('osc.z')
     )
     with pytest.raises(ValidationError, match=r'complex.*values\.real.*values\.imag.*np\.abs.*np\.angle'):
-        SpectrumAnalysis().check().prepare(values).run()
-    assert SpectrumAnalysis().check().prepare(values.real).run().power_.size
+        SpectrumAnalysis().prepare(values).run()
+    assert SpectrumAnalysis().prepare(values.real).run().power_.size
 
 
 def test_lammps_backend_rejects_complex_state():
     """Test that the LAMMPS backend names the complex state it cannot run."""
     with pytest.raises(BackendError, match=r'LAMMPS backend.*complex state osc\.z'):
-        Simulation(System(elements=[PhaseElement('osc')]), solver=LammpsSolver(), dt=0.1).check().prepare().run(
+        Simulation(System(elements=[PhaseElement('osc')]), solver=LammpsSolver(), dt=0.1).prepare().run(
             until=0.1,
         )
 
@@ -546,11 +524,7 @@ def test_complex_equation_and_event_split_into_parts():
 
     solver = ScipyODESolver(rtol=1e-10, atol=1e-10)
     trajectory = (
-        Simulation(System(elements=[OscillatorElement('o')]), solver=solver, dt=0.5)
-        .check()
-        .prepare()
-        .run(until=3)
-        .trajectory_
+        Simulation(System(elements=[OscillatorElement('o')]), solver=solver, dt=0.5).prepare().run(until=3).trajectory_
     )
     assert np.allclose(trajectory.values('o.z'), np.exp(1j * trajectory.times), atol=1e-7)
 
@@ -599,6 +573,6 @@ def test_complex_observable_is_complex():
         elements=[PhaseElement('osc', z=3 + 4j, omega=0.0)],
     )
     observables = [ObservableSpec('double', _double), ObservableSpec('size', _size)]
-    trajectory = Simulation(system, dt=0.5, observables=observables).check().prepare().run(until=0.5).trajectory_
+    trajectory = Simulation(system, dt=0.5, observables=observables).prepare().run(until=0.5).trajectory_
     assert trajectory.values('double')[0] == 6 + 8j
     assert trajectory.values('size')[0] == 5.0

@@ -141,7 +141,7 @@ def biased_trap_walk(
 
     Examples:
         >>> from skcomplex.models.physics.soft_matter import biased_trap_walk
-        >>> biased_trap_walk(4, n_sites=10).elements[0].check().prepare().size_
+        >>> biased_trap_walk(4, n_sites=10).elements[0].prepare().size_
         40
     """
     shape = (n_walkers, n_sites)

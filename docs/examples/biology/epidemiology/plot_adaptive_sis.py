@@ -22,7 +22,7 @@ MODEL = 'adaptive_sis'
 
 system = create(MODEL, w=1.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.25, observers=[observer], random_state=1).check().prepare().run(until=30)
+simulation = Simulation(system, dt=0.25, observers=[observer], random_state=1).prepare().run(until=30)
 
 # %%
 # Prevalence with and without rewiring
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=0.25, observers=[observer], random_state=1).c
 
 fig, ax = plt.subplots(figsize=(8, 4))
 for w in (0.0, 1.0, 4.0):
-    trajectory = Simulation(create(MODEL, w=w), dt=0.25, random_state=1).check().prepare().run(until=30).trajectory_
+    trajectory = Simulation(create(MODEL, w=w), dt=0.25, random_state=1).prepare().run(until=30).trajectory_
     snapshot = trajectory.network(-1)
     infected = np.nan_to_num(trajectory.values('hosts.i')[-1])
     healthy = np.mean((infected[snapshot.sources] == 0) & (infected[snapshot.targets] == 0))

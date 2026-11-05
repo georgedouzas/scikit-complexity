@@ -59,7 +59,7 @@ class SurrogateTestAnalysis(BaseAnalysis):
         >>> from skcomplex.analysis import InformationAnalysis, SurrogateTestAnalysis
         >>> bit = np.random.default_rng(0).integers(0, 2, 500)
         >>> test = SurrogateTestAnalysis(InformationAnalysis('o-information'), 'information_', n=19, random_state=0)
-        >>> test = test.check().prepare(np.column_stack([bit, bit, bit])).run()
+        >>> test = test.prepare(np.column_stack([bit, bit, bit])).run()
         >>> round(test.value_, 1), test.p_value_
         (1.0, 0.05)
     """
@@ -92,7 +92,7 @@ class SurrogateTestAnalysis(BaseAnalysis):
         if not isinstance(self.analysis, BaseAnalysis):
             error_msg = f'The measure of a surrogate test is an analysis, not {self.analysis!r}.'
             raise AnalysisError(error_msg)
-        self.analysis.check()
+        self.analysis._validated()
 
     def _get_data_kind(self) -> DataKind:
         """Return the series kind."""
@@ -104,7 +104,7 @@ class SurrogateTestAnalysis(BaseAnalysis):
 
     def _measure(self, values: Array) -> float:
         """Return the attribute of a clone of the analysis run on the values."""
-        return float(getattr(clone(self.analysis).check().prepare(values).run(), self.attribute))
+        return float(getattr(clone(self.analysis).prepare(values).run(), self.attribute))
 
     def _run(self, inputs: object = None) -> None:
         """Measure the data and every surrogate, and set the p-value."""

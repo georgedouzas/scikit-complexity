@@ -18,7 +18,7 @@ class StaticTime(BaseTime):
 
     Examples:
         >>> from skcomplex.core.spaces import StaticTime
-        >>> StaticTime().check().prepare().schedule_ is None
+        >>> StaticTime().prepare().schedule_ is None
         True
     """
 

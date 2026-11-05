@@ -24,7 +24,7 @@ MODEL = 'triadic_percolation'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=30)
+simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=30)
 
 
 def giant_fraction(mean_degree):
@@ -36,7 +36,7 @@ def giant_fraction(mean_degree):
 
 def giant(p):
     """Return the fraction of nodes in the giant component after every time step of Millán et al."""
-    run = Simulation(create(MODEL, p=p), random_state=0).check().prepare().run(until=40)
+    run = Simulation(create(MODEL, p=p), random_state=0).prepare().run(until=40)
     return run.trajectory_.values('nodes.active').mean(axis=1)
 
 

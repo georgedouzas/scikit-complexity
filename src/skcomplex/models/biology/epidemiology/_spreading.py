@@ -70,7 +70,7 @@ class SpreadingInteraction(TransitionInteraction):
     Examples:
         >>> from skcomplex.models.biology.epidemiology import SpreadingInteraction
         >>> spreading = SpreadingInteraction('spreading', target='sites', beta=2.0, gamma=1.0, form='fraction')
-        >>> spreading.check().form
+        >>> spreading.form
         'fraction'
     """
 

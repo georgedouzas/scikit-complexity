@@ -44,7 +44,7 @@ class GompertzGrowthInteraction(GrowthInteraction):
         ...     elements=[CompartmentElement('tumour', n=1.0)],
         ...     interactions=[GompertzGrowthInteraction('growth', target='tumour', r=1.0, K=20.0)],
         ... )
-        >>> trajectory = Simulation(system, dt=0.1).check().prepare().run(until=30.0).trajectory_
+        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=30.0).trajectory_
         >>> round(float(trajectory.values('tumour.n')[-1]), 3)
         20.0
     """

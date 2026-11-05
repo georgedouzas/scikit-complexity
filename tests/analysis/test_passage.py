@@ -11,7 +11,7 @@ RUNS = 2000
 
 def _passage(kind: str, source: object, **settings: object) -> PassageAnalysis:
     """Return the passage analysis of a source for one kind, run."""
-    return PassageAnalysis(kind, **settings).check().prepare(source).run()
+    return PassageAnalysis(kind, **settings).prepare(source).run()
 
 
 def _absorbed_walks(rng: np.random.Generator, start: int, size: int, steps: int, *, moran: bool) -> np.ndarray:
@@ -53,11 +53,11 @@ def test_first_passage_times_downward_and_never():
     assert down.passage_times_.tolist() == [2.0]
     assert np.isnan(_passage('first-passage', [0.0, 0.0], threshold=1.0).passage_times_[0])
     with pytest.raises(AnalysisError, match='needs a threshold'):
-        PassageAnalysis('first-passage').check()
+        PassageAnalysis('first-passage').prepare()
     with pytest.raises(AnalysisError, match='direction'):
-        PassageAnalysis('first-passage', threshold=1.0, direction='sideways').check()
+        PassageAnalysis('first-passage', threshold=1.0, direction='sideways').prepare()
     with pytest.raises(AnalysisError, match='does not read level'):
-        PassageAnalysis('first-passage', threshold=1.0, level=2.0).check()
+        PassageAnalysis('first-passage', threshold=1.0, level=2.0).prepare()
 
 
 def test_return_times_of_a_random_walk():
@@ -65,7 +65,7 @@ def test_return_times_of_a_random_walk():
     rng = np.random.default_rng(1)
     walk = np.cumsum(rng.choice([-1, 1], 2_000_000))
     returns = _passage('return-times', walk).return_times_ / 2
-    fit = FitAnalysis(minimum=10, discrete=True, bootstrap=0).check().prepare(returns).run()
+    fit = FitAnalysis(minimum=10, discrete=True, bootstrap=0).prepare(returns).run()
     assert fit.exponent_ == pytest.approx(1.5, abs=0.1)
 
 

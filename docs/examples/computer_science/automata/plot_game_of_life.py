@@ -18,7 +18,7 @@ MODEL = 'game_of_life'
 
 system = create(MODEL, shape=(100, 100), density=0.3, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).check().prepare().run(until=200)
+simulation = Simulation(system, observers=[observer]).prepare().run(until=200)
 
 # %%
 # Live cells over time

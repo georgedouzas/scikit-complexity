@@ -46,7 +46,7 @@ def _final(interactions, n=1.0, until=1.0, size=MEMBERS, solver=None):
     )
     solver = EulerMaruyamaSolver(dt=0.002) if solver is None else solver
     simulation = Simulation(system, solver=solver, dt=until, random_state=0)
-    return simulation.check().prepare().run(until=until).trajectory_.values('walkers.n')[-1]
+    return simulation.prepare().run(until=until).trajectory_.values('walkers.n')[-1]
 
 
 def test_run_divides_a_constant_rate_on_a_state_of_order_two():
@@ -56,7 +56,7 @@ def test_run_divides_a_constant_rate_on_a_state_of_order_two():
         interactions=[RateInteraction('push', target='body', state='x', rate=4.0, divisor='m')],
         space=ContinuousSpace(n_dim=2),
     )
-    trajectory = Simulation(system, dt=0.5).check().prepare().run(until=2.0).trajectory_
+    trajectory = Simulation(system, dt=0.5).prepare().run(until=2.0).trajectory_
     np.testing.assert_allclose(trajectory.values('body.x')[-1], [4.0, 4.0])
     np.testing.assert_allclose(trajectory.values('body.x_d1')[-1], [4.0, 4.0])
 
@@ -69,7 +69,7 @@ def test_run_reads_the_sources():
             RateInteraction('feed', target='stock', state='n', rate=lambda s: s.sources[0].n, sources=['inflow']),
         ],
     )
-    trajectory = Simulation(system, dt=0.5).check().prepare().run(until=2.0).trajectory_
+    trajectory = Simulation(system, dt=0.5).prepare().run(until=2.0).trajectory_
     assert trajectory.values('stock.n')[-1] == pytest.approx(6.0)
     assert trajectory.values('inflow.n')[-1] == pytest.approx(3.0)
 
@@ -115,7 +115,7 @@ def test_run_shares_the_processes_of_a_wiener_spec():
         ],
     )
     simulation = Simulation(system, solver=EulerMaruyamaSolver(dt=0.01), dt=0.01, random_state=0)
-    trajectory = simulation.check().prepare().run(until=50.0).trajectory_
+    trajectory = simulation.prepare().run(until=50.0).trajectory_
     np.testing.assert_allclose(trajectory.values('b.n'), trajectory.values('a.n') / 2, atol=1e-12)
     increments = np.diff(np.column_stack([trajectory.values('c.n'), trajectory.values('d.n')]), axis=0)
     assert np.corrcoef(increments.T)[0, 1] == pytest.approx(0.6, abs=0.03)
@@ -136,14 +136,14 @@ def test_run_shares_the_processes_of_a_wiener_spec():
 def test_check_rejects_invalid_arguments(arguments, message):
     """Test that `check` rejects a bad state, function, divisor, convention, Hurst index, or noise combination."""
     with pytest.raises(ValidationError, match=message):
-        RateInteraction('rate', target='walkers', **arguments).check()
+        RateInteraction('rate', target='walkers', **arguments).prepare()
 
 
 def test_run_divides_by_a_divisor_expression():
     """Test that a constant rate `F` divided by the expression `2 m` gives `x = F t**2 / (4 m)`."""
     push = RateInteraction('push', target='body', state='x', rate=4.0, divisor=lambda member: 2 * member.m)
     system = System(elements=[InertialElement('body', m=2.0)], interactions=[push], space=ContinuousSpace(n_dim=2))
-    trajectory = Simulation(system, dt=0.5).check().prepare().run(until=2.0).trajectory_
+    trajectory = Simulation(system, dt=0.5).prepare().run(until=2.0).trajectory_
     np.testing.assert_allclose(trajectory.values('body.x')[-1], [2.0, 2.0])
 
 
@@ -170,7 +170,7 @@ def test_run_reads_the_hurst_index_from_a_parameter():
         interactions=[noise],
     )
     solver = FractionalEulerMaruyamaSolver(dt=0.01)
-    simulation = Simulation(system, solver=solver, dt=2.0, random_state=0).check().prepare()
+    simulation = Simulation(system, solver=solver, dt=2.0, random_state=0).prepare()
     final = simulation.run(until=2.0).trajectory_.values('walkers.n')[-1]
     assert final.var() == pytest.approx(2.0**1.4, rel=0.05)
 
@@ -211,6 +211,6 @@ def test_run_oja_rule_as_rate_laws():
             RateInteraction('second', target='neuron', state='w2', rate=_oja(1, 1)),
         ],
     )
-    trajectory = Simulation(system).check().prepare().run(until=20.0).trajectory_
+    trajectory = Simulation(system).prepare().run(until=20.0).trajectory_
     weights = np.array([trajectory.values('neuron.w1')[-1], trajectory.values('neuron.w2')[-1]])
     np.testing.assert_allclose(np.abs(weights), np.full(2, 1 / np.sqrt(2)), atol=1e-2)

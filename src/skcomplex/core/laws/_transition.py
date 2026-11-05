@@ -35,7 +35,7 @@ class TransitionLaw(BaseLaw):
         >>> from sage.all__sagemath_symbolics import var
         >>> from skcomplex.core.laws import TransitionLaw
         >>> x, q = var('x'), var('q')
-        >>> TransitionLaw(x, [[q, 1 - q], [0.4, 0.6]]).check().prepare().run({'q': 0.1}).value_[0]
+        >>> TransitionLaw(x, [[q, 1 - q], [0.4, 0.6]]).prepare().run({'q': 0.1}).value_[0]
         [0.1, 0.9]
     """
 

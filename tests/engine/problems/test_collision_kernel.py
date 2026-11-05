@@ -52,7 +52,7 @@ def test_run_agrees_with_direct_quadrature_on_a_coarse_grid(cross_section: Cross
     centres = -half_width + (np.arange(size) + 0.5) * step
     vx, vy = np.meshgrid(centres, centres, indexing='ij')
     values = np.exp(-((vx - 1.0) ** 2) - vy**2) + np.exp(-((vx + 1.0) ** 2) - vy**2)
-    kernel = CollisionKernel((size, size), (step, step), cross_section).check().prepare()
+    kernel = CollisionKernel((size, size), (step, step), cross_section).prepare()
     rates = kernel.run(RunStateSpec(0.0, values.ravel(), np.zeros(0))).values_.reshape(size, size)
     density = RegularGridInterpolator((centres, centres), values, method='cubic', bounds_error=False, fill_value=0.0)
     probes = [(12, 12), (15, 12), (12, 15), (9, 13)]
@@ -69,6 +69,6 @@ def test_run_agrees_with_direct_quadrature_on_a_coarse_grid(cross_section: Cross
 def test_check_rejects_values_it_cannot_take() -> None:
     """Raise a named error for a shape without two axes or a cross-section that is no function."""
     with pytest.raises(ValidationError, match='two velocity axes'):
-        CollisionKernel((4,), (1.0,), lambda _speed, _cosine: 1.0).check()
+        CollisionKernel((4,), (1.0,), lambda _speed, _cosine: 1.0).prepare()
     with pytest.raises(ValidationError, match='is a function'):
-        CollisionKernel((4, 4), (1.0, 1.0), 1.0).check()
+        CollisionKernel((4, 4), (1.0, 1.0), 1.0).prepare()

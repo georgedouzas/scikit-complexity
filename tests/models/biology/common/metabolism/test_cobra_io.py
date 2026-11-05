@@ -36,7 +36,7 @@ def _core_system(**values):
 
 def _objective(system):
     """Return the objective of the only program of a static system."""
-    trajectory = Simulation(system).check().prepare().run(0.0).trajectory_
+    trajectory = Simulation(system).prepare().run(0.0).trajectory_
     return float(trajectory.values('cell.objective_0')[0])
 
 
@@ -92,7 +92,7 @@ def test_default_install_stays_importable():
         'names = {item.name for item in catalog()}\n'
         "assert {'dynamic_fba', 'comets', 'community_fba'} <= names\n"
         "system = create('flux_balance')\n"
-        "trajectory = Simulation(system).check().prepare().run(0.0).trajectory_\n"
+        "trajectory = Simulation(system).prepare().run(0.0).trajectory_\n"
         "assert abs(float(trajectory.values('cell.v_vbio')[0]) - 50) < 1e-9\n"
         "assert not {'cobra', 'straindesign', 'micom'} & set(sys.modules)\n"
         'from skcomplex.errors import MissingExtraError\n'
@@ -115,7 +115,7 @@ def test_network_loads_after_gap_has_run():
         'from skcomplex.core.spaces import CayleySpace\n'
         'from skcomplex.models.biology.common.metabolism import load_network\n'
         'from skcomplex.models.computer_science.automata import free_group\n'
-        'CayleySpace(free_group(2), ball=2).check().prepare()\n'
+        'CayleySpace(free_group(2), ball=2).prepare()\n'
         "assert load_network('textbook') is not None\n"
     )
     process = multiprocessing.get_context('spawn').Process(target=exec, args=(code,))

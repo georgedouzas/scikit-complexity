@@ -26,7 +26,6 @@ def test_heterogeneous_mean_field_sir_epidemic_threshold(factor, below):
             dt=1.0,
             observables=describe('heterogeneous_mean_field_sir').observables_of(built),
         )
-        .check()
         .prepare()
         .run(until=200)
         .trajectory_
@@ -43,7 +42,6 @@ def test_heterogeneous_mean_field_sir_early_growth_rate():
     system = heterogeneous_mean_field_sir(beta=beta, mu=mu, infected=1e-9)
     trajectory = (
         Simulation(system, dt=0.5, observables=describe('heterogeneous_mean_field_sir').observables_of(system))
-        .check()
         .prepare()
         .run(until=12)
         .trajectory_

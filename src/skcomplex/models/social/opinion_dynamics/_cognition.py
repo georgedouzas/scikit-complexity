@@ -53,7 +53,7 @@ def cognitive_consistency(
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.models.social.opinion_dynamics import cognitive_consistency
-        >>> cognitive_consistency(nx.complete_graph(6), random_state=0).elements[0].check().prepare().size_
+        >>> cognitive_consistency(nx.complete_graph(6), random_state=0).elements[0].prepare().size_
         6
     """
     graph = nx.complete_graph(40) if graph is None else graph

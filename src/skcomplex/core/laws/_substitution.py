@@ -35,7 +35,7 @@ class SubstitutionLaw(BaseLaw):
     Examples:
         >>> from skcomplex.core.laws import SubstitutionLaw
         >>> from skcomplex.specs import AffineSpec
-        >>> len(SubstitutionLaw('interval', [('interval', AffineSpec(scale=1 / 3))]).check().pieces)
+        >>> len(SubstitutionLaw('interval', [('interval', AffineSpec(scale=1 / 3))]).pieces)
         1
     """
 
@@ -61,7 +61,7 @@ class SubstitutionLaw(BaseLaw):
             if not (isinstance(piece, tuple) and len(piece) == PIECE_SIZE and isinstance(piece[1], AffineSpec)):
                 error_msg = f'A piece of a substitution is a prototile name and an `AffineSpec`, not {piece!r}.'
                 raise RewritingError(error_msg)
-            piece[1].check()
+            piece[1]._validated()
 
     def _run(self, inputs: object) -> None:
         """Set `value_`, the pieces with the scale, the rotation, and the translation of their maps at given values.

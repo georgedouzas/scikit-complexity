@@ -13,7 +13,7 @@ RELAXATION = 10.0
 
 def _ergodicity(kind: str, source: object, **settings: object) -> ErgodicityAnalysis:
     """Return the ergodicity analysis of a source for one kind, run."""
-    return ErgodicityAnalysis(kind, **settings).check().prepare(source).run()
+    return ErgodicityAnalysis(kind, **settings).prepare(source).run()
 
 
 def _ornstein_uhlenbeck(rng: np.random.Generator) -> np.ndarray:
@@ -64,9 +64,9 @@ def test_ergodicity_breaking_rejects_a_single_run():
     with pytest.raises(AnalysisError, match='two runs'):
         _ergodicity('breaking', np.ones((1, 10)))
     with pytest.raises(AnalysisError, match='needs the edges'):
-        ErgodicityAnalysis('ulam').check()
+        ErgodicityAnalysis('ulam').prepare()
     with pytest.raises(AnalysisError, match='does not read samples'):
-        ErgodicityAnalysis('breaking', samples=5).check()
+        ErgodicityAnalysis('breaking', samples=5).prepare()
 
 
 def test_invariant_density_and_ulam_chain_of_the_logistic_map():

@@ -21,7 +21,7 @@ MODEL = 'forced_van_der_pol'
 
 system = create(MODEL, x=2.0, v=0.0, mu=1.0, A=0.3, omega=0.95)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=5)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=60)
+simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=60)
 
 # %%
 # Frequency locking
@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare()
 
 def response_frequency(omega):
     """Return the mean angular frequency of the response after a transient."""
-    run = Simulation(create(MODEL, x=2.0, v=0.0, mu=1.0, A=0.3, omega=omega), dt=0.025).check().prepare().run(until=400)
+    run = Simulation(create(MODEL, x=2.0, v=0.0, mu=1.0, A=0.3, omega=omega), dt=0.025).prepare().run(until=400)
     times, x = np.asarray(run.trajectory_.times), np.ravel(run.trajectory_.values('oscillator.x'))
     late = times > 150
     crossings = times[late][1:][(x[late][:-1] < 0) & (x[late][1:] >= 0)]

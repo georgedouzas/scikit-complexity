@@ -42,7 +42,7 @@ def _frames(system, steps, dt):
             if inputs is not None:
                 frames.append(inputs)
 
-    simulation = Simulation(system, dt=dt, observers=[KeepObserver()]).check().prepare()
+    simulation = Simulation(system, dt=dt, observers=[KeepObserver()]).prepare()
     simulation.run(until=steps * dt)
     return simulation.problem_, frames
 
@@ -63,7 +63,7 @@ def test_bodies_visual_draws_double_pendulum():
     problem, frames = _frames(create('double_pendulum'), steps=20, dt=0.01)
     logs = Logs()
     visual = BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True, traced=[1], path=problem.elements[0].path, recording=logs)
-    visual.check().prepare(problem)
+    visual.prepare(problem)
     for frame in frames:
         visual.run(frame)
     element = problem.elements[0]
@@ -86,11 +86,7 @@ def test_bodies_visual_logs_outline_once():
     problem, frames = _frames(create('circular_billiard'), steps=3, dt=0.05)
     circle = np.column_stack([np.cos(np.linspace(0, 2 * np.pi, 50)), np.sin(np.linspace(0, 2 * np.pi, 50))])
     logs = Logs()
-    visual = (
-        BodiesVisual(('x', 'y'), outline=[circle], path=problem.elements[0].path, recording=logs)
-        .check()
-        .prepare(problem)
-    )
+    visual = BodiesVisual(('x', 'y'), outline=[circle], path=problem.elements[0].path, recording=logs).prepare(problem)
     for frame in frames:
         visual.run(frame)
     assert len(logs.of('particle/outline')) == 1
@@ -99,19 +95,17 @@ def test_bodies_visual_logs_outline_once():
 
 def test_bodies_visual_bounds_cover_rods_at_full_length():
     """Test that the spatial view of a pendulum covers the pivot and the rods at full length."""
-    problem = Simulation(create('double_pendulum')).check().prepare().run(until=0.0).problem_
-    views = (
-        BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True, path=problem.elements[0].path).check().prepare(problem).views_
-    )
+    problem = Simulation(create('double_pendulum')).prepare().run(until=0.0).problem_
+    views = BodiesVisual(bobs, pivot=(0.0, 0.0), rods=True, path=problem.elements[0].path).prepare(problem).views_
     assert [type(view).__name__ for view in views] == ['Spatial2DView', 'TimeSeriesView']
 
 
 def test_bodies_visual_is_registered():
     """Test that a Rerun observer draws an element whose visual spec names `bodies` with the bodies visual."""
-    problem = Simulation(create('circular_billiard')).check().prepare().problem_
+    problem = Simulation(create('circular_billiard')).prepare().problem_
     element = replace(problem.elements[0], visual=VisualSpec('bodies', {'positions': ('x', 'y')}))
     problem = replace(problem, elements=(element, *problem.elements[1:]))
-    assert isinstance(RerunObserver().check().prepare(problem).visuals_[0], BodiesVisual)
+    assert isinstance(RerunObserver().prepare(problem).visuals_[0], BodiesVisual)
 
 
 def test_bodies_visual_rejects_positions_of_wrong_shape():
@@ -119,14 +113,14 @@ def test_bodies_visual_rejects_positions_of_wrong_shape():
     problem, frames = _frames(create('circular_billiard'), steps=1, dt=0.05)
     visual = BodiesVisual(lambda x, **_: np.array([x, x, x, x]), path=problem.elements[0].path, recording=Logs())
     with pytest.raises(ValidationError, match='pairs of coordinates'):
-        visual.check().prepare(problem).run(frames[0])
+        visual.prepare(problem).run(frames[0])
 
 
 def test_bodies_visual_draws_a_path_in_three_dimensions():
     """Test that a body with three coordinates is drawn as a 3D point with a 3D fading path in a 3D view."""
     problem, frames = _frames(create('stormer_problem'), steps=5, dt=0.02)
     logs = Logs()
-    visual = BodiesVisual(('x', 'y', 'z'), path=problem.elements[0].path, recording=logs).check().prepare(problem)
+    visual = BodiesVisual(('x', 'y', 'z'), path=problem.elements[0].path, recording=logs).prepare(problem)
     for frame in frames:
         visual.run(frame)
     assert type(logs.of('charge/bodies')[-1]).__name__ == 'Points3D'

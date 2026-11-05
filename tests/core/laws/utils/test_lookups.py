@@ -39,9 +39,7 @@ class FertilityElement(Element):
 def test_table_function_interpolates_and_stays_flat():
     """Test that the fertility, observed as an expression of the element, interpolates the table and holds its ends."""
     fertility = ObservableSpec('fertility', _fertility, element='f')
-    trajectory = (
-        Simulation(System(elements=[FertilityElement('f')]), dt=0.5, observables=[fertility]).check().prepare().run(4)
-    )
+    trajectory = Simulation(System(elements=[FertilityElement('f')]), dt=0.5, observables=[fertility]).prepare().run(4)
     trajectory = trajectory.trajectory_
     food = trajectory.values('f.food')
     expected = np.interp(food, [0, 1, 2], [0.0, 2.0, 3.0])

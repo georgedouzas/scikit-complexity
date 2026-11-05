@@ -11,7 +11,7 @@ from skcomplex.models import create, run
 
 def _distribution(kind: str, source: object, **settings: object) -> DistributionAnalysis:
     """Return the run distribution analysis of a source for one kind."""
-    return DistributionAnalysis(kind, **settings).check().prepare(source).run()
+    return DistributionAnalysis(kind, **settings).prepare(source).run()
 
 
 def test_gini_and_tail_index():
@@ -57,11 +57,11 @@ def test_record_counts_of_independent_values():
 def test_unknown_kind_and_ignored_setting():
     """Test that an unknown kind lists the kinds and a setting the kind ignores is rejected."""
     with pytest.raises(AnalysisError, match='histogram, ccdf'):
-        DistributionAnalysis('mean').check()
+        DistributionAnalysis('mean').prepare()
     with pytest.raises(AnalysisError, match='does not read bins'):
-        DistributionAnalysis('gini', bins=10).check()
+        DistributionAnalysis('gini', bins=10).prepare()
     with pytest.raises(AnalysisError, match='two positive even orders'):
-        DistributionAnalysis('moment-ratio', orders=(3, 2)).check()
+        DistributionAnalysis('moment-ratio', orders=(3, 2)).prepare()
 
 
 def _bursty_expression(rng: np.random.Generator, samples: int) -> np.ndarray:
@@ -87,11 +87,10 @@ def test_moment_ratio_of_any_sample():
     """Test the moment ratio of the magnetisation samples of an Ising model and of the returns of a market model."""
     ordered = (
         Simulation(create('ising', size=16, temperature=1.5, initial='up'), dt=1, random_state=0)
-        .check()
         .prepare()
         .run(until=300)
     )
-    hot = Simulation(create('ising', size=16, temperature=20.0), dt=1, random_state=0).check().prepare().run(until=300)
+    hot = Simulation(create('ising', size=16, temperature=20.0), dt=1, random_state=0).prepare().run(until=300)
     magnetisations = np.column_stack(
         [simulation.trajectory_.lattice('spins.spin')[50:].mean(axis=(1, 2)) for simulation in (ordered, hot)],
     )

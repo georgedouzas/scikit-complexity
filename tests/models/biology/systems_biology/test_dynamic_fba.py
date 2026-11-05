@@ -42,7 +42,7 @@ def test_static_optimisation_approaches_the_direct_approach():
     errors = []
     for interval in (0.1, 0.05, 0.025):
         solver = CoSimulationSolver(sync_dt=interval, solvers={'culture': RK4Solver(dt=0.005)})
-        simulation = Simulation(dynamic_fba(interval=interval), solver=solver, dt=0.1).check().prepare().run(6.0)
+        simulation = Simulation(dynamic_fba(interval=interval), solver=solver, dt=0.1).prepare().run(6.0)
         errors.append(abs(float(simulation.trajectory_.values('culture/biomass.x')[-1]) - reference))
     assert errors[1] <= errors[0] * 0.75 + 1e-9
     assert errors[2] <= errors[1] * 0.75 + 1e-9

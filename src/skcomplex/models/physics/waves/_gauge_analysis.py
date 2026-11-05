@@ -62,8 +62,8 @@ class GaugeAnalysis(BaseAnalysis):
         >>> import numpy as np
         >>> from skcomplex.core.spaces import CellComplexSpace, LatticeSpace
         >>> from skcomplex.models.physics.waves import GaugeAnalysis
-        >>> space = CellComplexSpace(LatticeSpace((4, 4))).check().prepare()
-        >>> GaugeAnalysis('wilson', space).check().prepare(np.zeros(32)).run().value_.tolist()
+        >>> space = CellComplexSpace(LatticeSpace((4, 4))).prepare()
+        >>> GaugeAnalysis('wilson', space).prepare(np.zeros(32)).run().value_.tolist()
         [1.0]
     """
 
@@ -101,7 +101,7 @@ class GaugeAnalysis(BaseAnalysis):
 
     def _prepare(self, source: object) -> None:
         """Read the link states of a trajectory or an array, with one row per frame."""
-        self.space.check().prepare()
+        self.space.prepare()
         if isinstance(source, Trajectory):
             self.values_ = np.asarray(source.values(str(self.variables)), dtype=float)
             return

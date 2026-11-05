@@ -21,9 +21,7 @@ MODEL = 'gray_scott'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='cells/v', interval=2)
-simulation = (
-    Simulation(system, dt=20.0, solver=RK4Solver(dt=1.0), observers=[observer]).check().prepare().run(until=10000)
-)
+simulation = Simulation(system, dt=20.0, solver=RK4Solver(dt=1.0), observers=[observer]).prepare().run(until=10000)
 
 # %%
 # Final pattern and its radial power spectrum

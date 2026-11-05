@@ -64,7 +64,7 @@ def majority_rule(
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import majority_rule
-        >>> majority_rule((10, 10)).elements[0].check().prepare().size_
+        >>> majority_rule((10, 10)).elements[0].prepare().size_
         100
     """
     values = _random_cells(shape, density, random_state)
@@ -120,7 +120,7 @@ def voter_model(
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.models.social.opinion_dynamics import voter_model
-        >>> voter_model(nx.cycle_graph(8), random_state=0).elements[0].check().prepare().size_
+        >>> voter_model(nx.cycle_graph(8), random_state=0).elements[0].prepare().size_
         8
     """
     rng = np.random.default_rng(random_state)
@@ -174,7 +174,7 @@ def voter_variants(
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.models.social.opinion_dynamics import voter_variants
-        >>> voter_variants(nx.cycle_graph(8), random_state=0).elements[0].check().prepare().size_
+        >>> voter_variants(nx.cycle_graph(8), random_state=0).elements[0].prepare().size_
         8
     """
     rng = np.random.default_rng(random_state)

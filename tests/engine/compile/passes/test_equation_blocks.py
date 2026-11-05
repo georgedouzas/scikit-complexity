@@ -141,17 +141,17 @@ def _driven(source):
 
 def _run(system, until=1.0, dt=0.25):
     """Return the trajectory of a system."""
-    return Simulation(system, dt=dt).check().prepare().run(until=until).trajectory_
+    return Simulation(system, dt=dt).prepare().run(until=until).trajectory_
 
 
 def _codes(system):
     """Return the codes of the issues the compiler reports for a system."""
-    return [issue.code for issue in PassCompiler().check().prepare(system).report_.issues]
+    return [issue.code for issue in PassCompiler().prepare(system).report_.issues]
 
 
 def _issue(system, code):
     """Return the issue of a code that the compiler reports for a system."""
-    issues = PassCompiler().check().prepare(system).report_.issues
+    issues = PassCompiler().prepare(system).report_.issues
     return next(issue for issue in issues if issue.code == code)
 
 
@@ -315,7 +315,7 @@ def test_guard_reads_the_symbolic_solution_of_an_algebraic_state():
         elements=[WatcherElement('watch')],
         interactions=[CrossingInteraction('stop', target='watch', guard=lambda s: s.target.y - 3.0, terminal=True)],
     )
-    trajectory = Simulation(system, dt=0.25).check().prepare().run(until=5.0).trajectory_
+    trajectory = Simulation(system, dt=0.25).prepare().run(until=5.0).trajectory_
     assert trajectory.times[-1] == pytest.approx(1.0, abs=1e-3)
 
 
@@ -386,7 +386,7 @@ def test_parallel_capacitors_report_a_structural_singularity_before_compilation(
             [('first', 'n'), ('second', 'n'), ('ground', 'p')],
         ),
     )
-    compiler = PassCompiler().check().prepare(system)
+    compiler = PassCompiler().prepare(system)
     issue = next(item for item in compiler.report_.issues if item.code == 'structural-singularity')
     assert 'first.u' in issue.message
     assert 'second.u' in issue.message
@@ -438,7 +438,7 @@ def test_coupled_problem_records_the_algebraic_states_of_its_partition():
     )
     agents = System('village', elements=[GroupElement('farmers', element=WaitingElement, size=2)])
     system = System(systems=[circuit, agents])
-    simulation = Simulation(system, dt=1).check().prepare()
+    simulation = Simulation(system, dt=1).prepare()
     assert simulation.problem_.form == FormKind.COUPLED
     trajectory = simulation.run(until=2).trajectory_
     assert np.allclose(trajectory.values('circuit/load.p_v').ravel(), trajectory.values('circuit/tank.u').ravel())
@@ -448,5 +448,5 @@ def test_coupled_problem_records_the_algebraic_states_of_its_partition():
 def test_noise_law_reads_a_symbolic_solution():
     """Test that a noise law reads an algebraic state as its solution."""
     system = System(elements=[VectorWatcherElement('watch', x=1.0)])
-    trajectory = Simulation(system, dt=0.1, random_state=0).check().prepare().run(until=0.5).trajectory_
+    trajectory = Simulation(system, dt=0.1, random_state=0).prepare().run(until=0.5).trajectory_
     assert np.allclose(trajectory.values('watch.x').ravel(), 1.0)

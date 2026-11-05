@@ -44,7 +44,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, alpha=ALPHA, lambda_a=LAMBDA_A, lambda_b=LAMBDA_B)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=80)
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=20000)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=20000)
 x, y = simulation.trajectory_.values('map.x')[20:], simulation.trajectory_.values('map.y')[20:]
 observer.recording_.log(
     'attractor',
@@ -61,7 +61,7 @@ observer.recording_.flush()
 # and `alpha ln lambda_a + (1 - alpha) ln lambda_b`, and the Kaplan-Yorke dimension they give should match the
 # information dimension `1 + λ1 / |λ2|` of Farmer, Ott, and Yorke.
 
-lyapunov = LyapunovAnalysis(until=20000).check().prepare(system).run()
+lyapunov = LyapunovAnalysis(until=20000).prepare(system).run()
 exponents = lyapunov.exponents_
 expected = [
     -ALPHA * np.log(ALPHA) - (1 - ALPHA) * np.log(1 - ALPHA),

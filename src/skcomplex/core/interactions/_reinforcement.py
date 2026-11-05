@@ -88,16 +88,16 @@ class ReinforcementInteraction(Interaction):
         >>> reinforcement = ReinforcementInteraction(
         ...     'reinforcement', target='learners', scores=('first', 'second'), payoff=lambda s, k: k, rate=0.5
         ... )
-        >>> reinforcement.check().rate
+        >>> reinforcement.rate
         0.5
         >>> ReinforcementInteraction(
         ...     'virtual', target='players', scores='scores', payoff=lambda a, m, k: k, rule='cumulative', form='agent'
-        ... ).check().rule
+        ... ).rule
         'cumulative'
         >>> ReinforcementInteraction(
         ...     'satisfaction', target='customers', scores=('s1', 's2'), payoff=lambda a, m, k: 1.0, chosen='shop',
         ...     schedule='member', form='agent',
-        ... ).check().chosen
+        ... ).chosen
         'shop'
     """
 

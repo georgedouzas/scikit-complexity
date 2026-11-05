@@ -55,7 +55,7 @@ def _count(members, model):
 
 def _run(system: System, until: int) -> Trajectory:
     """Return the trajectory of a system run to a time."""
-    return Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
+    return Simulation(system, random_state=0).prepare().run(until=until).trajectory_
 
 
 def _voters(values: dict[str, object], size: int, location: object = None) -> GroupElement:
@@ -137,7 +137,7 @@ def test_act_on_without_an_action_raises():
 def test_check_rejects_invalid_arguments(arguments):
     """Test that unknown groups, a small size, a missing state, a capacity below one, and a bad action are rejected."""
     with pytest.raises(ValidationError):
-        GroupingInteraction('groups', target='voters', **arguments).check()
+        GroupingInteraction('groups', target='voters', **arguments).prepare()
 
 
 class CouncilInteraction(GroupingInteraction):
@@ -224,7 +224,7 @@ def _stream(seed: int = 0) -> np.random.Generator:
 
 def _symbolic_run(system: System, until: int, backend: BaseBackend, seed: int = 0) -> np.ndarray:
     """Return the opinions of the voters at every frame of a run of a symbolic grouping."""
-    simulation = Simulation(system, random_state=seed, backend=backend).check().prepare().run(until=until)
+    simulation = Simulation(system, random_state=seed, backend=backend).prepare().run(until=until)
     return simulation.trajectory_.values('voters.s')
 
 
@@ -308,14 +308,14 @@ def test_get_laws_symbolic_groups_by_state_reduce_over_the_members_sharing_it(ba
 def test_check_rejects_settings_of_the_symbolic_form(arguments, match):
     """Test that a symbolic grouping with an agent setting, no function, or an unknown reduction raises an error."""
     with pytest.raises(ValidationError, match=match):
-        GroupingInteraction('groups', target='voters', form='symbolic', **arguments).check()
+        GroupingInteraction('groups', target='voters', form='symbolic', **arguments).prepare()
 
 
 @pytest.mark.parametrize('arguments', [{'form': 'mixed'}, {'write': 's'}, {'function': _majority}])
 def test_check_rejects_an_unknown_form_and_symbolic_settings_of_the_agent_form(arguments):
     """Test that an unknown form, and a state or function given to the agent form, raise an error."""
     with pytest.raises(ValidationError):
-        GroupingInteraction('groups', target='voters', **arguments).check()
+        GroupingInteraction('groups', target='voters', **arguments).prepare()
 
 
 @BACKENDS
@@ -337,7 +337,7 @@ def test_get_laws_symbolic_phases_imitate_the_payoffs_of_the_same_step(backend):
     imitation = ImitationInteraction('imitation', target='players', rule='best', form='probability', phase='imitate')
     time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('play'), PhaseSpec('imitate'))))
     system = System(elements=[players], interactions=[payoffs, imitation], time=time)
-    simulation = Simulation(system, random_state=0, backend=backend).check().prepare().run(until=3)
+    simulation = Simulation(system, random_state=0, backend=backend).prepare().run(until=3)
     around = [
         np.array(
             [
@@ -386,7 +386,7 @@ def _groups_after_one_step(groups: object, seed: int) -> list[list[float]]:
     voters = _voters({'s': [float(index) for index in range(7)]}, 7)
     grouping = GroupingInteraction('groups', target='voters', groups=groups, act=record)
     system = System(elements=[voters], interactions=[grouping], time=DiscreteTime())
-    Simulation(system, random_state=seed).check().prepare().run(until=1)
+    Simulation(system, random_state=seed).prepare().run(until=1)
     return seen
 
 

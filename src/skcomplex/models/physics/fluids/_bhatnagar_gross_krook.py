@@ -33,7 +33,7 @@ class BhatnagarGrossKrookInteraction(RelaxationInteraction):
 
     Examples:
         >>> from skcomplex.models.physics.fluids import BhatnagarGrossKrookInteraction
-        >>> BhatnagarGrossKrookInteraction('bgk', target='gas', axes=('v',), time=0.1).check().axes
+        >>> BhatnagarGrossKrookInteraction('bgk', target='gas', axes=('v',), time=0.1).axes
         ('v',)
     """
 

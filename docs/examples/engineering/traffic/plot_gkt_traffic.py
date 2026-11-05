@@ -25,7 +25,7 @@ MODEL = 'gkt_traffic'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1 / 60, solver=SSPRKSolver(cfl=0.4), observers=[observer]).check().prepare().run(1.0)
+simulation = Simulation(system, dt=1 / 60, solver=SSPRKSolver(cfl=0.4), observers=[observer]).prepare().run(1.0)
 
 # %%
 # Fronts that move upstream

@@ -12,7 +12,7 @@ SYSTEMS_PRECISE = ScipyODESolver(rtol=1e-9, atol=1e-11)
 
 def _run(name: str, until: float, dt: float, **arguments: object) -> Trajectory:
     """Return the trajectory of a model created by name and run with a fixed seed."""
-    return Simulation(create(name, **arguments), dt=dt, random_state=1).check().prepare().run(until=until).trajectory_
+    return Simulation(create(name, **arguments), dt=dt, random_state=1).prepare().run(until=until).trajectory_
 
 
 def _run_until(
@@ -25,19 +25,19 @@ def _run_until(
 ) -> Trajectory:
     """Return the trajectory of a system run until a time."""
     simulation = Simulation(system, dt=dt, solver=solver, random_state=random_state)
-    return simulation.check().prepare().run(until=until).trajectory_
+    return simulation.prepare().run(until=until).trajectory_
 
 
 def _run_precise(system: System, until: float, dt: float) -> Trajectory:
     """Return the trajectory of a system integrated tightly."""
-    return Simulation(system, dt=dt, solver=PRECISE).check().prepare().run(until=until).trajectory_
+    return Simulation(system, dt=dt, solver=PRECISE).prepare().run(until=until).trajectory_
 
 
 def _run_seeded(system: System, until: float, dt: float, solver: BaseSolver = PRECISE) -> Trajectory:
     """Return the trajectory of a system integrated tightly with a fixed seed."""
-    return Simulation(system, dt=dt, random_state=0, solver=solver).check().prepare().run(until=until).trajectory_
+    return Simulation(system, dt=dt, random_state=0, solver=solver).prepare().run(until=until).trajectory_
 
 
 def _run_with_solver(system: System, until: float, dt: float, solver: BaseSolver | None = None) -> Trajectory:
     """Return the trajectory of a system."""
-    return Simulation(system, dt=dt, random_state=0, solver=solver).check().prepare().run(until=until).trajectory_
+    return Simulation(system, dt=dt, random_state=0, solver=solver).prepare().run(until=until).trajectory_

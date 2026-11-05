@@ -121,7 +121,7 @@ def _drift(interaction, backend, values):
 
 def test_hyperedge_interaction_has_no_laws_by_default():
     """Test that a hyperedge interaction stores its role and runs into no laws of its own."""
-    consensus = ConsensusInteraction('consensus', voters='voters').check().prepare()
+    consensus = ConsensusInteraction('consensus', voters='voters').prepare()
     assert consensus.voters == 'voters'
     assert consensus.size is None
     assert list(ConsensusInteraction._get_specs()) == ['voters']
@@ -132,7 +132,7 @@ def test_hyperedge_interaction_has_no_laws_by_default():
 def test_hyperedge_interaction_rejects_a_size_below_two(size):
     """Test that a size that is not a whole number of at least two raises an error."""
     with pytest.raises(ValidationError, match='whole number of 2 or more'):
-        PullInteraction('pull', nodes='nodes', size=size).check()
+        PullInteraction('pull', nodes='nodes', size=size).prepare()
 
 
 @BACKENDS
@@ -167,7 +167,7 @@ def test_hyperedge_interaction_of_a_missing_size_is_reported():
         elements=[LatticeElement('nodes', element=NodeElement, space=space)],
         interactions=[PullInteraction('pull', nodes='nodes', size=4)],
     )
-    issues = [issue for issue in PassCompiler().check().prepare(system).report_.issues if issue.code == 'binding']
+    issues = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'binding']
     (issue,) = issues
     assert 'size 4' in issue.message
     assert 'size 3' in issue.message
@@ -187,7 +187,7 @@ def test_hyperedge_group_takes_an_update_once_per_hyperedge():
         interactions=[RecordInteraction('record', nodes='nodes', links='groups', size=3)],
         time=DiscreteTime(),
     )
-    simulation = Simulation(system, dt=1).check().prepare().run(1)
+    simulation = Simulation(system, dt=1).prepare().run(1)
     activities = simulation.trajectory_.values('groups.a')[-1]
     expected = [values[list(item)].max() + values[list(item)].mean() if len(item) == 3 else -1.0 for item in HYPEREDGES]
     assert np.allclose(activities, expected, atol=1e-12)
@@ -206,7 +206,7 @@ def test_edge_group_takes_the_update_of_the_regulating_member():
         interactions=[RecordInteraction('record', nodes='nodes', links='links', part='edge')],
         time=DiscreteTime(),
     )
-    simulation = Simulation(system, dt=1).check().prepare().run(1)
+    simulation = Simulation(system, dt=1).prepare().run(1)
     assert simulation.trajectory_.values('links.a')[-1].tolist() == [3.0, -1.0, 0.0]
 
 
@@ -221,7 +221,7 @@ def test_edge_group_of_a_hyperedge_without_an_edge_is_reported():
         interactions=[RecordInteraction('record', nodes='nodes', links='links', part='edge')],
         time=DiscreteTime(),
     )
-    issues = [issue for issue in PassCompiler().check().prepare(system).report_.issues if issue.code == 'binding']
+    issues = [issue for issue in PassCompiler().prepare(system).report_.issues if issue.code == 'binding']
     (issue,) = issues
     assert 'no edge between the first two members' in issue.message
     with pytest.raises(ValidationError, match='no edge between'):
@@ -272,4 +272,4 @@ def test_hyperedge_update_of_the_focal_member_of_a_growing_network_is_reported()
     system = _growing(SetInteraction('set', nodes='nodes'))
     system.time = DiscreteTime()
     with pytest.raises(ValidationError, match='change during a run'):
-        Simulation(system).check()
+        Simulation(system).prepare()

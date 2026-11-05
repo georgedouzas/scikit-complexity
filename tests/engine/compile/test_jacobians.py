@@ -227,7 +227,7 @@ def test_mesh_pattern():
 def test_pattern_agrees_with_split_solver(system):
     """Test that the pattern holds every entry of the sparse linear part of linear lattice and mesh fields."""
     problem = compile_system(system)
-    solver = IMEXEulerSolver().check().prepare(problem)
+    solver = IMEXEulerSolver().prepare(problem)
     solver._build_operator(problem.initial_parameters)
     operator = solver.sparse_
     pattern = problem.jacobian.pattern().toarray()
@@ -359,7 +359,6 @@ def test_implicit_solver_agrees_with_explicit_on_screened_diffusion():
     )
     finals = [
         Simulation(system, dt=0.5, solver=ScipyODESolver(method, rtol=1e-10, atol=1e-12), backend=NumpyBackend())
-        .check()
         .prepare()
         .run(until=0.5)
         .state_

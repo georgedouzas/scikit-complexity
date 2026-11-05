@@ -21,7 +21,7 @@ def test_reflection_scales_the_normal_velocity_and_keeps_the_tangential_one():
     )
     ball = PointElement('ball', x=[0.0, 0.0], x_d1=[1.0, 0.0])
     system = System(elements=[ball], interactions=[wall], space=ContinuousSpace(n_dim=2))
-    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=2.0).trajectory_
+    trajectory = Simulation(system, dt=0.1).prepare().run(until=2.0).trajectory_
     velocity = trajectory.values('ball.x_d1')[-1]
     assert velocity.tolist() == pytest.approx([0.25, -0.75])
 
@@ -30,7 +30,7 @@ def test_reflection_checks_one_velocity_per_position():
     """Test that a reflection with more positions than velocities raises an error."""
     wall = ReflectionInteraction('wall', target='ball', guard=lambda s: s.target.x, positions=('x', 'y'))
     with pytest.raises(ValidationError, match='one velocity per position'):
-        wall.check()
+        wall.prepare()
 
 
 @pytest.mark.parametrize(('height', 'reflected'), [(0.5, True), (-0.5, False)])
@@ -45,7 +45,7 @@ def test_reflection_reflects_only_on_its_region(height, reflected):
     )
     ball = PointElement('ball', x=[0.0, height], x_d1=[1.0, 0.0])
     system = System(elements=[ball], interactions=[wall], space=ContinuousSpace(n_dim=2))
-    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=2.0).trajectory_
+    trajectory = Simulation(system, dt=0.1).prepare().run(until=2.0).trajectory_
     assert trajectory.values('ball.x_d1')[-1].tolist() == pytest.approx([-1.0 if reflected else 1.0, 0.0])
 
 
@@ -53,4 +53,4 @@ def test_reflection_checks_a_callable_region():
     """Test that a reflection whose region is not a function raises an error."""
     wall = ReflectionInteraction('wall', target='ball', guard=lambda s: s.target.x, region=True)
     with pytest.raises(ValidationError, match='region'):
-        wall.check()
+        wall.prepare()

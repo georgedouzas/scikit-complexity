@@ -37,7 +37,6 @@ simulation = (
         schedule={'coupling_x.K': coupling_at, 'coupling_y.K': coupling_at},
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=14)
 )
@@ -55,7 +54,6 @@ for width in widths:
     model_system = create(MODEL, n_oscillators=100, K=3.0, width=width)
     run = (
         Simulation(model_system, dt=0.1, observables=describe(MODEL).observables_of(model_system))
-        .check()
         .prepare()
         .run(until=20)
     )

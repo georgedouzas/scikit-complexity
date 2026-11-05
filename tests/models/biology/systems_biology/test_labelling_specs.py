@@ -8,7 +8,7 @@ from skcomplex.models.biology.systems_biology import AtomMapSpec
 
 def test_origins_of_a_valid_map():
     """Test that the map records where atoms of citrate come from."""
-    atoms = AtomMapSpec('v1', [('AcCoA', 'ab'), ('OAC', 'cdef')], [('Cit', 'fedbac')]).check()
+    atoms = AtomMapSpec('v1', [('AcCoA', 'ab'), ('OAC', 'cdef')], [('Cit', 'fedbac')])
     assert atoms.origins[('Cit', 1)] == ('OAC', 4)
     assert atoms.origins[('Cit', 5)] == ('AcCoA', 1)
 
@@ -16,4 +16,4 @@ def test_origins_of_a_valid_map():
 def test_check_names_an_unbalanced_letter():
     """Test that a product letter no reactant carries raises an error that names the reaction and the letter."""
     with pytest.raises(ValidationError, match=r"reaction v1.*'z'"):
-        AtomMapSpec('v1', [('A', 'ab')], [('B', 'az')]).check()
+        AtomMapSpec('v1', [('A', 'ab')], [('B', 'az')]).prepare()

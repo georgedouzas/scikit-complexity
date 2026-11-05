@@ -29,7 +29,7 @@ class ModuleSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import ModuleSpec
-        >>> ModuleSpec('F', (0.5,)).check().parameters
+        >>> ModuleSpec('F', (0.5,)).parameters
         (0.5,)
     """
 

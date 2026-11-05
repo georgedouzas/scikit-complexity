@@ -104,9 +104,9 @@ class LowerComplexPass(BasePass):
         real_rhs, imaginary_rhs = _split_complex(equation.rhs_, description)
         real = _is_zero(imaginary_lhs) and _is_zero(imaginary_rhs)
         target = equation.target if real else None
-        equations: list[BaseLaw] = [EquationLaw(real_lhs, real_rhs, target=target).check().prepare()]
+        equations: list[BaseLaw] = [EquationLaw(real_lhs, real_rhs, target=target).prepare()]
         if not real:
-            equations.append(EquationLaw(imaginary_lhs, imaginary_rhs).check().prepare())
+            equations.append(EquationLaw(imaginary_lhs, imaginary_rhs).prepare())
         return equations
 
     @staticmethod

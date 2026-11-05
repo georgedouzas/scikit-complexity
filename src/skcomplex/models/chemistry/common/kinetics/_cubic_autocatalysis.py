@@ -51,7 +51,7 @@ class CubicAutocatalysisInteraction(ReactionInteraction):
         >>> from skcomplex.models.chemistry.kinetics import CubicAutocatalysisElement
         >>> reaction = CubicAutocatalysisInteraction('autocatalysis', target='reactor', substrate='a', autocatalyst='b')
         >>> reactor = CubicAutocatalysisElement('reactor', a=1.0, b=0.5)
-        >>> trajectory = Simulation(System(elements=[reactor], interactions=[reaction]), dt=1.0).check().prepare()
+        >>> trajectory = Simulation(System(elements=[reactor], interactions=[reaction]), dt=1.0).prepare()
         >>> states = trajectory.run(until=10).trajectory_.states
         >>> round(float(states[-1].sum()), 6)
         1.5

@@ -21,7 +21,7 @@ MODEL = 'mangrove_succession'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=299)
+simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=299)
 
 # %%
 # The order of dominance

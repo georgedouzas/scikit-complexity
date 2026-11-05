@@ -52,7 +52,7 @@ class TrailChoiceInteraction(ReactionInteraction):
         >>> from skcomplex.models.biology.collective_behaviour import BranchElement, TrailChoiceInteraction
         >>> choice = TrailChoiceInteraction('choice', chosen='left', other='right', stochastic=False)
         >>> system = System(elements=[BranchElement('left'), BranchElement('right')], interactions=[choice])
-        >>> trajectory = Simulation(system, dt=0.1).check().prepare().run(until=2.0).trajectory_
+        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=2.0).trajectory_
         >>> round(float(trajectory.values('left.n')[-1]), 3)
         1.025
     """

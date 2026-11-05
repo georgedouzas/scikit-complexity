@@ -24,7 +24,7 @@ ROUNDS = 100
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 system = create(MODEL, temptation=1.85, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=ROUNDS)
+simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=ROUNDS)
 
 # %%
 # Three regimes of the temptation
@@ -38,12 +38,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().pr
 
 def cooperators(temptation, rounds=ROUNDS):
     """Return the share of cooperators after every round."""
-    run = (
-        Simulation(create(MODEL, temptation=temptation, random_state=0), random_state=0)
-        .check()
-        .prepare()
-        .run(until=rounds)
-    )
+    run = Simulation(create(MODEL, temptation=temptation, random_state=0), random_state=0).prepare().run(until=rounds)
     return run.trajectory_.values('players.strategy').reshape(rounds + 1, -1).mean(axis=1)
 
 

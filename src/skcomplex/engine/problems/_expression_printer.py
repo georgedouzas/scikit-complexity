@@ -82,9 +82,9 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         >>> from skcomplex.engine.problems import ExpressionPrinter
         >>> from skcomplex.engine._utils import symbol
         >>> t, x = symbol('t'), symbol('x')
-        >>> ExpressionPrinter().check().prepare().run([(x + 1) ** 2, 3 * (x + 1) ** 2]).code_
+        >>> ExpressionPrinter().prepare().run([(x + 1) ** 2, 3 * (x + 1) ** 2]).code_
         ([('_cse0', '(x + 1)**2')], ['_cse0', '3*_cse0'])
-        >>> printer = ExpressionPrinter(time=t, compiled=True).check().prepare([x])
+        >>> printer = ExpressionPrinter(time=t, compiled=True).prepare([x])
         >>> printer.run([t * x, x**2]).code_(2.0, np.array([1.0, 3.0]))
         [array([2., 6.]), array([1., 9.])]
     """
@@ -222,7 +222,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             body = [_QUIET_ERRORS, *(f'    {line}' for line in body)]
         arguments = ', '.join(self.names_(item) for item in self.symbols_)
         lines = [f'def _function(t, {arguments}):', *(f'    {line}' for line in body)]
-        loader = SourceLoader('skcomplex_functions').check().prepare()
+        loader = SourceLoader('skcomplex_functions').prepare()
         source = IMPORTS[self.dialect] + '\n'.join(lines) + '\n'
         function: Callable[..., list[npt.ArrayLike]] = loader.run(source).module_._function
         return function

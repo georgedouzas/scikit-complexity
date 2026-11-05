@@ -9,7 +9,7 @@ from skcomplex.errors import AnalysisError
 
 def _machine(symbols: object, max_length: int) -> EpsilonMachineAnalysis:
     """Return the run ε-machine of a series of symbols."""
-    return EpsilonMachineAnalysis(max_length=max_length).check().prepare(symbols).run()
+    return EpsilonMachineAnalysis(max_length=max_length).prepare(symbols).run()
 
 
 def _golden_mean(steps: int, seed: int) -> np.ndarray:
@@ -56,10 +56,10 @@ def test_epsilon_machine_rejects_long_histories():
     with pytest.raises(AnalysisError, match='longest history'):
         _machine([0, 1, 0], 3)
     with pytest.raises(AnalysisError, match='max_length=0'):
-        EpsilonMachineAnalysis(max_length=0).check()
+        EpsilonMachineAnalysis(max_length=0).prepare()
 
 
 def test_epsilon_machine_reads_one_series():
     """Test that a source of two series raises an error asking to select one."""
     with pytest.raises(AnalysisError, match='one series'):
-        EpsilonMachineAnalysis().check().prepare(np.zeros((10, 2)))
+        EpsilonMachineAnalysis().prepare(np.zeros((10, 2)))

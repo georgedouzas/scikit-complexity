@@ -49,7 +49,7 @@ class ProductionLaw(BaseLaw):
 
     Examples:
         >>> from skcomplex.core.laws import ProductionLaw
-        >>> [module.name for module in ProductionLaw('F', 'F+F--F+F').check().prepare().run({}).value_]
+        >>> [module.name for module in ProductionLaw('F', 'F+F--F+F').prepare().run({}).value_]
         ['F', '+', 'F', '-', '-', 'F', '+', 'F']
     """
 
@@ -89,7 +89,7 @@ class ProductionLaw(BaseLaw):
             error_msg = f'The predecessor of a production is one symbol or module, not {self.predecessor!r}.'
             raise RewritingError(error_msg)
         for module in ModuleSpec.parse_word(self.successor):
-            module.check()
+            module._validated()
         if isinstance(self.probability, numbers.Real) and not 0 <= float(self.probability) <= 1:
             error_msg = f'The probability of a production is in [0, 1], not {self.probability!r}.'
             raise RewritingError(error_msg)

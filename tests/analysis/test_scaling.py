@@ -16,7 +16,7 @@ from skcomplex.models import create
 
 def _scaling(kind: str, source: object, **settings: object) -> ScalingAnalysis:
     """Return the scaling analysis of a source for one kind, run."""
-    return ScalingAnalysis(kind, **settings).check().prepare(source).run()
+    return ScalingAnalysis(kind, **settings).prepare(source).run()
 
 
 def _fractional_gaussian_noise(size: int, hurst: float, rng: np.random.Generator) -> np.ndarray:
@@ -106,7 +106,7 @@ def test_correlation_dimension_of_attractors_and_agents():
 
 def _density(positions: np.ndarray, side: float) -> np.ndarray:
     """Return the agents of a square of a side coarse-grained on a 64 by 64 grid."""
-    return CoarseGrainAnalysis([64, 64], box=[side, side]).check().prepare(positions).run().field_
+    return CoarseGrainAnalysis([64, 64], box=[side, side]).prepare(positions).run().field_
 
 
 def _vicsek_densities(rng: np.random.Generator, agents: int, side: float, noise: float, steps: int) -> np.ndarray:
@@ -154,11 +154,7 @@ def test_power_exponent_of_two_mean_field_transitions():
     assert power.exponent_[0] == pytest.approx(0.5, abs=0.05)
     couplings = np.linspace(1.02, 1.2, 10)
     orders = [
-        Simulation(create('ott_antonsen', r=0.5, K=coupling, Delta=0.5), dt=1.0)
-        .check()
-        .prepare()
-        .run(until=400.0)
-        .trajectory_
+        Simulation(create('ott_antonsen', r=0.5, K=coupling, Delta=0.5), dt=1.0).prepare().run(until=400.0).trajectory_
         for coupling in couplings
     ]
     names = orders[0].problem.states.names
@@ -172,13 +168,13 @@ def test_power_exponent_of_two_mean_field_transitions():
 def test_unknown_kind_and_ignored_setting():
     """Test that an unknown kind and a setting the kind ignores raise errors."""
     with pytest.raises(AnalysisError, match='detrended-fluctuation, rescaled-range'):
-        ScalingAnalysis('wavelet').check()
+        ScalingAnalysis('wavelet').prepare()
     with pytest.raises(AnalysisError, match='does not read order'):
-        ScalingAnalysis('box-counting', order=2).check()
+        ScalingAnalysis('box-counting', order=2).prepare()
     with pytest.raises(AnalysisError, match="against='variance'"):
-        ScalingAnalysis('variance-mean', against='variance').check()
+        ScalingAnalysis('variance-mean', against='variance').prepare()
     with pytest.raises(AnalysisError, match='critical value'):
-        ScalingAnalysis('power', parameters=[1.0, 2.0]).check()
+        ScalingAnalysis('power', parameters=[1.0, 2.0]).prepare()
 
 
 def _allometric_samples(seed: int, sigma: float = 0.3) -> dict[float, np.ndarray]:
@@ -231,17 +227,17 @@ def test_run_allometric_is_reproducible_with_its_seed():
 def test_prepare_allometric_rejects_bad_samples(source: object, message: str):
     """Test that samples that are not positive, a single size, and other shapes raise an error."""
     with pytest.raises(AnalysisError, match=message):
-        ScalingAnalysis('allometric').check().prepare(source)
+        ScalingAnalysis('allometric').prepare(source)
 
 
 @pytest.mark.parametrize('settings', [{'confidence': 1.5}, {'resamples': 0}])
 def test_check_allometric_rejects_bad_settings(settings: dict[str, float]):
     """Test that a confidence level outside the unit interval and no resamples raise an error."""
     with pytest.raises(AnalysisError, match=next(iter(settings))):
-        ScalingAnalysis('allometric', **settings).check()
+        ScalingAnalysis('allometric', **settings).prepare()
 
 
 def test_check_other_kinds_reject_the_allometric_settings():
     """Test that a kind other than allometric does not read a confidence level."""
     with pytest.raises(AnalysisError, match='does not read confidence'):
-        ScalingAnalysis('rescaled-range', confidence=0.9).check()
+        ScalingAnalysis('rescaled-range', confidence=0.9).prepare()

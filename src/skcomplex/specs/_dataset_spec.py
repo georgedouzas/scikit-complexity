@@ -44,7 +44,7 @@ class DatasetSpec(BaseSpec):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.specs import DatasetSpec
-        >>> data = DatasetSpec({'inputs.x': np.zeros((5, 12, 1))}).check()
+        >>> data = DatasetSpec({'inputs.x': np.zeros((5, 12, 1))})
         >>> data.sequences, data.steps
         (5, 12)
     """

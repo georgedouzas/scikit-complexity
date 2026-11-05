@@ -593,26 +593,22 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         key = ('pairwise', kind, str(argument), str(weight), group, readers)
         if key not in self.neighbourhoods_:
             indptr = (np.arange(rows + 1) * size).astype(np.intp)
-            search = StaticSearch(indptr, np.tile(np.arange(size, dtype=np.intp), rows)).check().prepare()
+            search = StaticSearch(indptr, np.tile(np.arange(size, dtype=np.intp), rows)).prepare()
             reads = {item: self._pairwise_read(item, spec, readers) for item in sorted(symbols, key=str)} | weighted
             index = len(self.neighbourhoods_)
             shape, members = ((rows,), rows) if readers is not None else ((), None)
             entry = EntrySpec(f'__neighbours_{index}', self.extent_, shape, RR, members)
-            compiled = (
-                NeighborhoodKernel(
-                    symbol(f'_neighbours_{index}'),
-                    kind,
-                    argument,
-                    weight,
-                    entry,
-                    group=readers or group,
-                    search=search,
-                    reads=reads,
-                    time=self.declarations_.time,
-                )
-                .check()
-                .prepare()
-            )
+            compiled = NeighborhoodKernel(
+                symbol(f'_neighbours_{index}'),
+                kind,
+                argument,
+                weight,
+                entry,
+                group=readers or group,
+                search=search,
+                reads=reads,
+                time=self.declarations_.time,
+            ).prepare()
             self.neighbourhoods_[key] = compiled
             self.sequence_.append(compiled)
             self.local_[compiled.symbol] = compiled
@@ -702,24 +698,20 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             reads = {
                 canonical.get(item, item): self._read(item, spec, group, size) for item in sorted(symbols, key=str)
             }
-            compiled = (
-                ReductionKernel(
-                    placeholder,
-                    reduction.kind,
-                    argument_key,
-                    condition_key,
-                    weights,
-                    entry=entry,
-                    size=size,
-                    group=group,
-                    reads=reads,
-                    time=self.declarations_.time,
-                    members=members,
-                    function=reduction.function,
-                )
-                .check()
-                .prepare()
-            )
+            compiled = ReductionKernel(
+                placeholder,
+                reduction.kind,
+                argument_key,
+                condition_key,
+                weights,
+                entry=entry,
+                size=size,
+                group=group,
+                reads=reads,
+                time=self.declarations_.time,
+                members=members,
+                function=reduction.function,
+            ).prepare()
             self.found_[key] = compiled
             self.sequence_.append(compiled)
             self.by_symbol_[placeholder] = compiled
@@ -804,22 +796,18 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             weights = ReadSpec(reference.is_state, (entry.start + np.arange(entry.size)).astype(np.intp), matrix)
             index = len(self.found_)
             placeholder = symbol(f'_reduced_{index}')
-            compiled = (
-                ReductionKernel(
-                    placeholder,
-                    'sum',
-                    argument,
-                    None,
-                    weights,
-                    entry=EntrySpec(f'__reduced_{index}', self.extent_, (rows,), RR, rows),
-                    size=size,
-                    group=spec.group,
-                    reads=reads,
-                    time=self.declarations_.time,
-                )
-                .check()
-                .prepare()
-            )
+            compiled = ReductionKernel(
+                placeholder,
+                'sum',
+                argument,
+                None,
+                weights,
+                entry=EntrySpec(f'__reduced_{index}', self.extent_, (rows,), RR, rows),
+                size=size,
+                group=spec.group,
+                reads=reads,
+                time=self.declarations_.time,
+            ).prepare()
             self.found_[key] = compiled
             self.sequence_.append(compiled)
             self.by_symbol_[placeholder] = compiled
@@ -1010,25 +998,21 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
                 item: self._cell_read(item, spec, group if not signed else None) for item in sorted(symbols, key=str)
             }
             indptr = matrix.indptr.astype(np.intp)
-            search = StaticSearch(indptr, matrix.indices.astype(np.intp)).check().prepare()
+            search = StaticSearch(indptr, matrix.indices.astype(np.intp)).prepare()
             index = len(self.neighbourhoods_)
             entry = EntrySpec(f'__neighbours_{index}', self.extent_, (matrix.shape[0],), RR, matrix.shape[0])
-            compiled = (
-                NeighborhoodKernel(
-                    symbol(f'_neighbours_{index}'),
-                    kind,
-                    argument,
-                    weight,
-                    entry,
-                    group=group,
-                    search=search,
-                    reads=reads,
-                    time=self.declarations_.time,
-                    coefficients=np.asarray(matrix.data, dtype=float) if signed else None,
-                )
-                .check()
-                .prepare()
-            )
+            compiled = NeighborhoodKernel(
+                symbol(f'_neighbours_{index}'),
+                kind,
+                argument,
+                weight,
+                entry,
+                group=group,
+                search=search,
+                reads=reads,
+                time=self.declarations_.time,
+                coefficients=np.asarray(matrix.data, dtype=float) if signed else None,
+            ).prepare()
             self.neighbourhoods_[key] = compiled
             self.sequence_.append(compiled)
             self.local_[compiled.symbol] = compiled
@@ -1123,7 +1107,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
                     'neighbourhood. Reduce over a lattice, network, memory, Radius, Nearest, or Cone neighbourhood.'
                 )
                 raise ValidationError(error_msg)
-            over = over.check()
+            over = over._validated()
             search = NeighborhoodKernel._neighbor_search(
                 over,
                 block.node.space,
@@ -1135,21 +1119,17 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             reads = {item: self._pair_read(item, spec, group, search, over) for item in sorted(symbols, key=str)}
             index = len(self.neighbourhoods_)
             entry = EntrySpec(f'__neighbours_{index}', self.extent_, (block.rows,), RR, block.rows)
-            compiled = (
-                NeighborhoodKernel(
-                    symbol(f'_neighbours_{index}'),
-                    reduction.kind,
-                    argument,
-                    weight,
-                    entry,
-                    group=group,
-                    search=search,
-                    reads=reads,
-                    time=self.declarations_.time,
-                )
-                .check()
-                .prepare()
-            )
+            compiled = NeighborhoodKernel(
+                symbol(f'_neighbours_{index}'),
+                reduction.kind,
+                argument,
+                weight,
+                entry,
+                group=group,
+                search=search,
+                reads=reads,
+                time=self.declarations_.time,
+            ).prepare()
             self.neighbourhoods_[key] = compiled
             self.sequence_.append(compiled)
             self.local_[compiled.symbol] = compiled
@@ -1287,7 +1267,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         key = ('hyperedges', kind, str(argument), str(weight), size, group)
         if key not in self.neighbourhoods_:
             indptr, tables = HyperedgeTables._incidences(cast(NetworkSpace, block.node.space), size)
-            search = StaticSearch(indptr, np.arange(indptr[-1], dtype=np.intp)).check().prepare()
+            search = StaticSearch(indptr, np.arange(indptr[-1], dtype=np.intp)).prepare()
             sources = {value: item for item, value in focal.items()}
             reads = {
                 item: self._hyperedge_read(item, spec, group, search, (sources, positions, tables))
@@ -1295,21 +1275,17 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             }
             index = len(self.neighbourhoods_)
             entry = EntrySpec(f'__neighbours_{index}', self.extent_, (block.rows,), RR, block.rows)
-            compiled = (
-                NeighborhoodKernel(
-                    symbol(f'_neighbours_{index}'),
-                    kind,
-                    argument,
-                    weight,
-                    entry,
-                    group=group,
-                    search=search,
-                    reads=reads,
-                    time=self.declarations_.time,
-                )
-                .check()
-                .prepare()
-            )
+            compiled = NeighborhoodKernel(
+                symbol(f'_neighbours_{index}'),
+                kind,
+                argument,
+                weight,
+                entry,
+                group=group,
+                search=search,
+                reads=reads,
+                time=self.declarations_.time,
+            ).prepare()
             self.neighbourhoods_[key] = compiled
             self.sequence_.append(compiled)
             self.local_[compiled.symbol] = compiled

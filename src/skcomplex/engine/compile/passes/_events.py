@@ -65,7 +65,7 @@ class DelaysPass(BasePass):
         if symbols and all(reference is not None and not reference.is_state for reference in references):
             values = np.concatenate([np.zeros(0), *declarations.initial_parameters])
             columns = [reference.column_of(np.zeros(0), values) for reference in references if reference is not None]
-            printer = ExpressionPrinter(time=declarations.time, compiled=True).check().prepare(symbols)
+            printer = ExpressionPrinter(time=declarations.time, compiled=True).prepare(symbols)
             function = printer.run([SR(tau)]).code_
             delays = function(0.0, *columns) if callable(function) else None
             if not isinstance(delays, list):

@@ -34,11 +34,11 @@ class StableMatchingSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The clearing rule is unknown, raised by `check`.
+            The clearing rule is unknown, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.specs import StableMatchingSpec
-        >>> StableMatchingSpec(clearing='requester').check().clearing
+        >>> StableMatchingSpec(clearing='requester').clearing
         'requester'
     """
 

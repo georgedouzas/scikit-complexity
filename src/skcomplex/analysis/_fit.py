@@ -157,9 +157,9 @@ class FitAnalysis(BaseAnalysis):
         >>> import numpy as np
         >>> from skcomplex.analysis import FitAnalysis
         >>> samples = (1 - np.random.default_rng(0).random(5000)) ** (-1 / 1.5)
-        >>> round(FitAnalysis('power', minimum=1.0, bootstrap=0).check().prepare(samples).run().exponent_, 1)
+        >>> round(FitAnalysis('power', minimum=1.0, bootstrap=0).prepare(samples).run().exponent_, 1)
         2.5
-        >>> fit = FitAnalysis('exponential', fixed={'loc': 0}).check()
+        >>> fit = FitAnalysis('exponential', fixed={'loc': 0})
         >>> fit = fit.prepare(np.random.default_rng(0).exponential(2.0, 1000)).run()
         >>> round(fit.parameters_['scale'], 0), fit.p_value_ > 0.05
         (2.0, True)

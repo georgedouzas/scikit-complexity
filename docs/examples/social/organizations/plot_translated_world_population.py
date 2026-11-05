@@ -41,7 +41,7 @@ SAVEPER = 0.5 ~ Year ~ |
 
 folder = Path(tempfile.mkdtemp())
 (folder / 'world.mdl').write_text(FILE_TEXT)
-translator = SystemDynamicsTranslator(folder / 'world.mdl').check().prepare().run()
+translator = SystemDynamicsTranslator(folder / 'world.mdl').prepare().run()
 (folder / 'translated_world.py').write_text(translator.source_)
 sys.path.insert(0, str(folder))
 module = importlib.import_module('translated_world')
@@ -55,7 +55,7 @@ module = importlib.import_module('translated_world')
 system = module.create_system()
 observer = RerunObserver('translated_world_population', save_path='translated_world_population.rrd', interval=1)
 simulation = Simulation(system, dt=module.DT, observers=[observer], observables=module.observables(system))
-trajectory = simulation.check().prepare().run(until=module.UNTIL).trajectory_
+trajectory = simulation.prepare().run(until=module.UNTIL).trajectory_
 
 # %%
 # Shifting dominance
@@ -64,7 +64,7 @@ trajectory = simulation.check().prepare().run(until=module.UNTIL).trajectory_
 # is its fertility or its mortality. The reinforcing loop dominates while fertility is above mortality, and the two
 # gains meet in 2035, when births balance deaths and the population stays near 7.8 billion.
 
-dominance = LoopAnalysis('dominance').check().prepare(trajectory).run()
+dominance = LoopAnalysis('dominance').prepare(trajectory).run()
 years = module.START + dominance.times_
 fig, (stocks, gains) = plt.subplots(1, 2, figsize=(10, 4))
 stocks.plot(years, trajectory.values('world.population'))

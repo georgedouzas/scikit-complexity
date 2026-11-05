@@ -180,7 +180,7 @@ class TransferInteraction(Interaction):
             malformed, two legs share a flow name, the symbolic form has an agent pairing, a fallback, or a settlement,
             the agent form a rate, an offset, or a flow name, a reverse rate has no rate, an offset is not a whole
             number or pairs two groups, a leg end of the symbolic form names no role, the settlement cannot be called
-            or pairs with a site, or the schedule `'member'` has a pairing it cannot draw, raised by `check`.
+            or pairs with a site, or the schedule `'member'` has a pairing it cannot draw, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.core.elements import Element
@@ -197,7 +197,7 @@ class TransferInteraction(Interaction):
         ...     'flow', source='upper', target='lower', state='level', amount=lambda s: s.source.level / 2
         ... )
         >>> system = System(elements=[TankElement('upper', level=4.0), TankElement('lower')], interactions=[flow])
-        >>> trajectory = Simulation(system).check().prepare().run(until=1.0).trajectory_
+        >>> trajectory = Simulation(system).prepare().run(until=1.0).trajectory_
         >>> round(float(trajectory.values('upper.level')[-1] + trajectory.values('lower.level')[-1]), 6)
         4.0
     """
@@ -325,7 +325,7 @@ class TransferInteraction(Interaction):
             raise ValidationError(error_msg)
         self._check_variant('pairing', self.pairing, PAIRINGS, (PartnerSpec,), functions=True)
         if isinstance(self.pairing, PartnerSpec):
-            self.pairing.check()
+            self.pairing._validated()
         self._check_settlement()
         if self.form == 'symbolic' and self.fallback is not None:
             error_msg = f'The symbolic form of {self.label!r} pairs members. Use `form="agent"` for a fallback group.'

@@ -47,7 +47,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=250)
 )
@@ -64,11 +63,9 @@ simulation = (
 
 observables = describe(MODEL).observables_of
 monetary = create(MODEL, n_people=100, mode='monetary', random_state=0)
-scarce = (
-    Simulation(monetary, random_state=0, observables=observables(monetary)).check().prepare().run(until=150).trajectory_
-)
+scarce = Simulation(monetary, random_state=0, observables=observables(monetary)).prepare().run(until=150).trajectory_
 rich = create(MODEL, n_people=100, mode='monetary', max_food=50.0, max_resistance=0.0, random_state=0)
-abundant = Simulation(rich, random_state=0, observables=observables(rich)).check().prepare().run(until=150).trajectory_
+abundant = Simulation(rich, random_state=0, observables=observables(rich)).prepare().run(until=150).trajectory_
 holders = [abundant.agents(group, 150).values for group in ('people', 'businesses', 'bank')]
 net_money = sum(np.sum(values['money']) for values in holders)
 

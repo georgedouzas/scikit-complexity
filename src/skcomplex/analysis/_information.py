@@ -139,11 +139,11 @@ class InformationAnalysis(BaseAnalysis):
         >>> import numpy as np
         >>> from skcomplex.analysis import InformationAnalysis
         >>> x = np.random.default_rng(0).integers(0, 2, 10000)
-        >>> transfer = InformationAnalysis('transfer').check().prepare(np.column_stack([x, np.roll(x, 1)])).run()
+        >>> transfer = InformationAnalysis('transfer').prepare(np.column_stack([x, np.roll(x, 1)])).run()
         >>> transfer.information_.round(1).tolist()
         [[nan, 1.0], [0.0, nan]]
         >>> xor = [[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 0]]
-        >>> round(InformationAnalysis('o-information').check().prepare(xor).run().information_, 6)
+        >>> round(InformationAnalysis('o-information').prepare(xor).run().information_, 6)
         -1.0
     """
 

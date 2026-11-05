@@ -19,7 +19,7 @@ def test_fixed_step_integrators_step_over_switches_of_the_drift():
     system = create('pendulum_swing_up')
     assert any(event.hidden for event in compile_system(system).events)
     start = time.perf_counter()
-    simulation = Simulation(system, dt=0.1, solver=RK4Solver(dt=0.01)).check().prepare().run(until=75)
+    simulation = Simulation(system, dt=0.1, solver=RK4Solver(dt=0.01)).prepare().run(until=75)
     assert time.perf_counter() - start < 30
     assert simulation.time_ == pytest.approx(75)
 

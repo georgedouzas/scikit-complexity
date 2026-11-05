@@ -28,7 +28,7 @@ class VariantVotingInteraction(MapInteraction):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import VariantVotingInteraction
-        >>> VariantVotingInteraction('voting', target='voters').check().schedule
+        >>> VariantVotingInteraction('voting', target='voters').schedule
         'random-sequential'
     """
 

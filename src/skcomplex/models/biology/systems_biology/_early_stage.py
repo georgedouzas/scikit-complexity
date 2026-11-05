@@ -69,7 +69,7 @@ def read_native_pairs(structure: StructureSpec) -> tuple[list[str], Array]:
         >>> len(names), angles.shape
         (18, (18, 2))
     """
-    angles = BackboneGeometry(structure).check().prepare().angles_
+    angles = BackboneGeometry(structure).prepare().angles_
     split = angles.size // 2
     names = [residue for _, _, residue in structure.residues][1:-1]
     pairs = np.column_stack([angles[: split - 1], angles[split + 1 :]])
@@ -102,7 +102,7 @@ def read_cell_probabilities(cells: int = CELLS) -> Array:
         True
     """
     counts = np.ones((len(AMINO_ACIDS), cells))
-    path = EllipsePath(cells=cells).check().prepare()
+    path = EllipsePath(cells=cells).prepare()
     for entry in BUNDLED:
         names, pairs = read_native_pairs(read_structure(entry))
         for name, cell in zip(names, path.run(pairs).cells_, strict=True):

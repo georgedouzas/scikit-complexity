@@ -22,7 +22,7 @@ MODEL = 'sitnikov'
 
 system = create(MODEL, z=0.9, vz=0.0, e=0.2)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=50)
+simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=50)
 
 # %%
 # Stroboscopic section
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare()
 
 fig, ax = plt.subplots(figsize=(6, 5))
 for height in np.linspace(0.1, 1.5, 12):
-    section = SectionAnalysis('stroboscopic', period=2 * np.pi, n_points=300, transient=0).check()
+    section = SectionAnalysis('stroboscopic', period=2 * np.pi, n_points=300, transient=0)
     section.prepare(create(MODEL, z=height, vz=0.0, e=0.2)).run()
     z, velocity = section.values_['body.z'], section.values_['body.z_d1']
     near = np.abs(z) < 3

@@ -50,7 +50,7 @@ class TherapySwitchInteraction(CrossingInteraction):
     Examples:
         >>> from skcomplex.models.biology.oncology import TherapySwitchInteraction
         >>> switch = TherapySwitchInteraction('on', target='tumour', signal=lambda s: s.target.AD, threshold=15.0)
-        >>> switch.check().threshold
+        >>> switch.threshold
         15.0
     """
 

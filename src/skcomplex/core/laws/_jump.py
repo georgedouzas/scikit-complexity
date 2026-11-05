@@ -47,10 +47,10 @@ class JumpLaw(BaseLaw):
         >>> from skcomplex.core.laws import JumpLaw
         >>> from skcomplex.core.laws.utils import draw
         >>> s, i = var('s'), var('i')
-        >>> JumpLaw(0.1 * s * i, {s: -1, i: 1}).check().prepare().targets_
+        >>> JumpLaw(0.1 * s * i, {s: -1, i: 1}).prepare().targets_
         (s, i)
         >>> n = var('n')
-        >>> JumpLaw(waiting=draw('wait', 'expon'), reset={n: 0}).check().prepare().targets_
+        >>> JumpLaw(waiting=draw('wait', 'expon'), reset={n: 0}).prepare().targets_
         (n,)
     """
 

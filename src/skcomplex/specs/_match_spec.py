@@ -27,7 +27,7 @@ class MatchSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import MatchSpec
-        >>> MatchSpec('a', 'b', 2.0, 5.0).check().quantity
+        >>> MatchSpec('a', 'b', 2.0, 5.0).quantity
         2.0
     """
 

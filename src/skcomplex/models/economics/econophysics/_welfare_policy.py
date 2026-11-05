@@ -71,7 +71,7 @@ class WelfarePolicyInteraction(EncounterInteraction):
 
     Examples:
         >>> from skcomplex.models.economics.econophysics import WelfarePolicyInteraction
-        >>> WelfarePolicyInteraction('welfare', candidate='wealth', field='state').check().tax
+        >>> WelfarePolicyInteraction('welfare', candidate='wealth', field='state').tax
         0.1
     """
 

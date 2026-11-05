@@ -27,7 +27,7 @@ class BoxNeighborhood(LatticeNeighborhood):
 
     Examples:
         >>> from skcomplex.core.spaces import BoxNeighborhood
-        >>> BoxNeighborhood().check().prepare().offsets_
+        >>> BoxNeighborhood().prepare().offsets_
         ((-1,), (0,), (1,))
     """
 

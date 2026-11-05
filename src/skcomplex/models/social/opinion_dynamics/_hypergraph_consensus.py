@@ -76,7 +76,7 @@ def hypergraph_consensus(
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import hypergraph_consensus
         >>> system = hypergraph_consensus(8, triangles=0.5)
-        >>> system.elements[0].check().prepare().size_
+        >>> system.elements[0].prepare().size_
         8
     """
     rng = np.random.default_rng(seed)

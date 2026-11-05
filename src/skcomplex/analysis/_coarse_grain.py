@@ -58,10 +58,10 @@ class CoarseGrainAnalysis(BaseAnalysis):
     Examples:
         >>> from skcomplex.analysis import CoarseGrainAnalysis
         >>> positions = [[0.1, 0.1], [0.2, 0.1], [0.9, 0.9]]
-        >>> CoarseGrainAnalysis([2, 2], box=[1.0, 1.0]).check().prepare(positions).run().field_.tolist()
+        >>> CoarseGrainAnalysis([2, 2], box=[1.0, 1.0]).prepare(positions).run().field_.tolist()
         [[2.0, 0.0], [0.0, 1.0]]
         >>> wealth = [-1.0, 0.4, 0.6, 1.5, 9.0]
-        >>> CoarseGrainAnalysis(over=[0.0, 1.0, 2.0]).check().prepare(wealth).run().field_.tolist()
+        >>> CoarseGrainAnalysis(over=[0.0, 1.0, 2.0]).prepare(wealth).run().field_.tolist()
         [0.4, 0.4, 0.2]
     """
 

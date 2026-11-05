@@ -35,7 +35,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=300)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=300)
 
 # %%
 # Jams keep the traffic slow
@@ -46,7 +46,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).chec
 
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for n_cars in (10, 30, 60):
-    run = Simulation(create(MODEL, n_cars=n_cars), dt=1, random_state=1).check().prepare().run(until=300).trajectory_
+    run = Simulation(create(MODEL, n_cars=n_cars), dt=1, random_state=1).prepare().run(until=300).trajectory_
     speeds = [run.agents('drivers', frame).values['speed'].mean() for frame in range(len(run.times))]
     ax.plot(run.times, speeds, label=f'{n_cars} cars')
 ax.axhline(40.0, color='black', linestyle='--', linewidth=0.8, label='speed limit')

@@ -39,7 +39,7 @@ class PropulsionStepInteraction(MapInteraction):
         >>> from types import SimpleNamespace
         >>> from sage.all__sagemath_symbolics import var, vector
         >>> from skcomplex.models.physics.active_matter import PropulsionStepInteraction
-        >>> step = PropulsionStepInteraction('propulsion', target='flock').check().prepare()
+        >>> step = PropulsionStepInteraction('propulsion', target='flock').prepare()
         >>> target = SimpleNamespace(x=vector([var('x1'), var('x2')]), theta=var('theta'))
         >>> [law.value for law in step.run(SimpleNamespace(target=target, speed=var('v'))).laws_]
         [(v*cos(theta) + x1, v*sin(theta) + x2)]

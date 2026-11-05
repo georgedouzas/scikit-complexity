@@ -25,7 +25,7 @@ from skcomplex.specs import RoleSpec, StateSpec, VisualSpec
 
 def _stability(source, **settings):
     """Return the stability analysis of a source, run."""
-    return StabilityAnalysis(**settings).check().prepare(source).run()
+    return StabilityAnalysis(**settings).prepare(source).run()
 
 
 def _brusselator(b, *, discretization='spectral', boundary='periodic'):
@@ -228,6 +228,6 @@ def test_dispersion_relation_rejects_non_periodic_fields_and_data():
 def test_stability_checks_its_kind_and_settings():
     """Test that an unknown kind and a setting the kind ignores raise errors."""
     with pytest.raises(AnalysisError, match='fixed-points, dispersion'):
-        StabilityAnalysis('unknown').check()
+        StabilityAnalysis('unknown').prepare()
     with pytest.raises(AnalysisError, match='does not read points'):
-        StabilityAnalysis('dispersion', points=[{'x': 0.0}]).check()
+        StabilityAnalysis('dispersion', points=[{'x': 0.0}]).prepare()

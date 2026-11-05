@@ -22,7 +22,7 @@ MODEL = 'polyhomeostatic_neuron'
 
 system = create(MODEL, mu=0.2)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=400)
+simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=400)
 
 # %%
 # The firing rate approaches its target

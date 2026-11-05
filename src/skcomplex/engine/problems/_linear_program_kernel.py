@@ -86,7 +86,7 @@ class LinearProgramKernel(BaseKernel):
         ...     offsets=(0.0,),
         ...     objectives=(np.array([1]),),
         ... )
-        >>> kernel = LinearProgramKernel(program).check().prepare()
+        >>> kernel = LinearProgramKernel(program).prepare()
         >>> kernel.run(RunStateSpec(0.0, np.zeros(2), np.zeros(0))).values_.tolist()
         [3.0, 3.0]
     """

@@ -73,7 +73,7 @@ class FieldOperatorKernel(BaseKernel):
     @functools.cached_property
     def _function(self) -> Callable[..., object]:
         """NumPy function of the operand and the displacement, compiled once."""
-        printer = ExpressionPrinter(time=symbol('t'), compiled=True).check().prepare(self.symbols)
+        printer = ExpressionPrinter(time=symbol('t'), compiled=True).prepare(self.symbols)
         return ExpressionPrinter._function_of(printer.run([self.operand, *(self.displacement or [])]).code_)
 
     def operand_values(self, t: float, values: Sequence[object], size: int) -> npt.NDArray[np.float64]:

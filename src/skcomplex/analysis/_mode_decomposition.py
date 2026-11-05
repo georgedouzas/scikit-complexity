@@ -125,7 +125,7 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         >>> from skcomplex.analysis import ModeDecompositionAnalysis
         >>> times = np.arange(0.0, 10.0, 0.1)
         >>> values = np.column_stack([np.cos(times), np.sin(times)])
-        >>> analysis = ModeDecompositionAnalysis(['x', 'y'], horizon=5, dt=0.1).check().prepare(values).run()
+        >>> analysis = ModeDecompositionAnalysis(['x', 'y'], horizon=5, dt=0.1).prepare(values).run()
         >>> np.sort(analysis.eigenvalues_.imag).round(6).tolist()
         [-1.0, 1.0]
         >>> bool(np.allclose(analysis.forecast_[:, 0], np.cos(times[-1] + 0.1 * np.arange(1, 6))))
@@ -134,7 +134,7 @@ class ModeDecompositionAnalysis(BaseAnalysis):
         >>> x = np.zeros(100)
         >>> for k in range(99):
         ...     x[k + 1] = 0.9 * x[k] + 0.5 * u[k]
-        >>> analysis = ModeDecompositionAnalysis(['x', 'u'], inputs=['u'], validation=0.0).check()
+        >>> analysis = ModeDecompositionAnalysis(['x', 'u'], inputs=['u'], validation=0.0)
         >>> analysis = analysis.prepare(np.column_stack([x, u])).run()
         >>> analysis.operator_.round(6).tolist(), analysis.input_matrix_.round(6).tolist()
         ([[0.9]], [[0.5]])

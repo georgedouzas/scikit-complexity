@@ -60,7 +60,7 @@ class DisplacementAnalysis(BaseAnalysis):
         >>> import numpy as np
         >>> from skcomplex.analysis import DisplacementAnalysis
         >>> walks = np.cumsum(np.random.default_rng(0).standard_normal((2000, 500)), axis=0)
-        >>> displacement = DisplacementAnalysis().check().prepare(walks).run()
+        >>> displacement = DisplacementAnalysis().prepare(walks).run()
         >>> round(displacement.exponent_, 1), round(displacement.diffusion_, 1)
         (1.0, 0.5)
     """

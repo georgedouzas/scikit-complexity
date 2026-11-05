@@ -77,9 +77,7 @@ class LinearProgramsPass(BasePass):
         states = LayoutSpec(tuple(Compilation._required(compilation.layout, 'layout').states))
         time = Compilation._required(compilation.layout, 'layout').time
         offsets = self._value_offsets(compilation)
-        kernels = tuple(
-            LinearProgramKernel(self._lowered(group, states, time, offsets)).check().prepare() for group in groups
-        )
+        kernels = tuple(LinearProgramKernel(self._lowered(group, states, time, offsets)).prepare() for group in groups)
         compilation.problem = self._solving_problem(problem, kernels)
 
     @staticmethod
@@ -290,7 +288,7 @@ class LinearProgramsPass(BasePass):
         if not expressions:
             return None, ()
         arguments = sorted(symbols_of(list(expressions)) - {time}, key=str)
-        function = ExpressionPrinter(time=time, compiled=True).check().prepare(arguments).run(list(expressions)).code_
+        function = ExpressionPrinter(time=time, compiled=True).prepare(arguments).run(list(expressions)).code_
         if not callable(function):
             error_msg = 'The printer returns no function of the bounds of a linear program.'
             raise TypeError(error_msg)

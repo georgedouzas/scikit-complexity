@@ -101,12 +101,12 @@ class NeighborAnalysis(BaseAnalysis):
         >>> import numpy as np
         >>> from skcomplex.analysis import NeighborAnalysis
         >>> positions = [[0.5, 0.0], [9.5, 0.0]]
-        >>> NeighborAnalysis(box=[10.0, 10.0]).check().prepare(positions).run().distances_.tolist()
+        >>> NeighborAnalysis(box=[10.0, 10.0]).prepare(positions).run().distances_.tolist()
         [[1.0, 1.0]]
         >>> points = np.random.default_rng(0).random((5000, 2))
-        >>> NeighborAnalysis('clark-evans', box=[1.0, 1.0]).check().prepare(points).run().ratio_.round(1).tolist()
+        >>> NeighborAnalysis('clark-evans', box=[1.0, 1.0]).prepare(points).run().ratio_.round(1).tolist()
         [1.0]
-        >>> NeighborAnalysis('like-share', diagonal=False).check().prepare([[1, 1, 2, 2]] * 4).run().share_.tolist()
+        >>> NeighborAnalysis('like-share', diagonal=False).prepare([[1, 1, 2, 2]] * 4).run().share_.tolist()
         [0.75]
     """
 

@@ -124,7 +124,7 @@ def lennard_jones_fluid(
 
     Examples:
         >>> from skcomplex.models.physics.statistical_mechanics import lennard_jones_fluid
-        >>> lennard_jones_fluid(100).elements[0].check().prepare().size_
+        >>> lennard_jones_fluid(100).elements[0].prepare().size_
         100
     """
     rng = np.random.default_rng(random_state)

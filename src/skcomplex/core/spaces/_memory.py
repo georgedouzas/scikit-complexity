@@ -28,7 +28,7 @@ class MemoryNeighborhood(BaseNeighborhood):
 
     Examples:
         >>> from skcomplex.core.spaces import MemoryNeighborhood
-        >>> MemoryNeighborhood(['1', 'a', 'a^-1']).check().prepare().elements_
+        >>> MemoryNeighborhood(['1', 'a', 'a^-1']).prepare().elements_
         ('1', 'a', 'a^-1')
     """
 

@@ -52,7 +52,6 @@ simulation = (
         random_state=0,
         backend=NumbaBackend(),
     )
-    .check()
     .prepare()
     .run(until=600)
 )
@@ -70,7 +69,6 @@ observer.recording_.flush()
 
 long = (
     Simulation(create(MODEL, rho=1.5), dt=0.1, solver=solver, random_state=1, backend=NumbaBackend())
-    .check()
     .prepare()
     .run(until=3000)
 )
@@ -82,7 +80,6 @@ for control in np.linspace(-0.3, 0.3, 13):
     fixed = create(MODEL, eta=control, tau=1e9, rho=0.0)
     held = (
         Simulation(fixed, dt=0.1, solver=solver, backend=NumbaBackend())
-        .check()
         .prepare()
         .run(until=800)
         .trajectory_.values('rossler.x')[3000:]

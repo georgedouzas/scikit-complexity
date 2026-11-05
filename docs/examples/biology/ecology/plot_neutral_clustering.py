@@ -33,7 +33,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=60)
 )
@@ -71,7 +70,6 @@ isolated = (
         random_state=0,
         observables=describe(MODEL).observables_of(still),
     )
-    .check()
     .prepare()
     .run(until=60)
     .trajectory_.values('variance')

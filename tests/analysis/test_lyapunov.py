@@ -15,7 +15,7 @@ from skcomplex.models.physics.nonlinear_oscillators import van_der_pol
 
 def _lyapunov(source, kind='spectrum', **settings):
     """Return the Lyapunov analysis of a source for one kind, run."""
-    return LyapunovAnalysis(kind, **settings).check().prepare(source).run()
+    return LyapunovAnalysis(kind, **settings).prepare(source).run()
 
 
 def _spectrum(source, **settings):
@@ -126,4 +126,4 @@ def test_largest_lyapunov_exponent_from_data():
 def test_settings_the_kind_ignores_are_rejected():
     """Test that an embedding setting of the spectrum is rejected at check, with the settings it reads."""
     with pytest.raises(AnalysisError, match='does not read dimension'):
-        LyapunovAnalysis(dimension=4).check()
+        LyapunovAnalysis(dimension=4).prepare()

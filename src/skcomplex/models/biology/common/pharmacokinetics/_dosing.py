@@ -58,7 +58,7 @@ class DosingInteraction(RateInteraction):
         >>> from skcomplex.models.biology.common.pharmacokinetics import DosingInteraction
         >>> dosing = DosingInteraction('dosing', target='patient', state='n', dose=2.0, period=10.0, count=3)
         >>> system = System(elements=[CompartmentElement('patient', n=0.0)], interactions=[dosing])
-        >>> trajectory = Simulation(system, dt=0.5).check().prepare().run(until=40.0).trajectory_
+        >>> trajectory = Simulation(system, dt=0.5).prepare().run(until=40.0).trajectory_
         >>> round(float(trajectory.values('patient.n')[-1]), 3)
         6.0
     """

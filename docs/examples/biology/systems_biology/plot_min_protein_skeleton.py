@@ -35,7 +35,6 @@ simulation = (
         observers=[observer],
         random_state=0,
     )
-    .check()
     .prepare()
     .run(until=400)
 )
@@ -51,7 +50,7 @@ simulation = (
 trajectory = simulation.trajectory_
 mind_total = sum(trajectory.values(f'cell.{name}') for name in ('md', 'mde', 'cdt', 'cdd')).sum(axis=1)
 mine_total = sum(trajectory.values(f'cell.{name}') for name in ('mde', 'ce')).sum(axis=1)
-relation = StabilityAnalysis('dispersion').check().prepare(create(MODEL, n_sites=512, length=400.0)).run()
+relation = StabilityAnalysis('dispersion').prepare(create(MODEL, n_sites=512, length=400.0)).run()
 order = np.argsort(relation.magnitudes_)
 
 fig, (rates, totals) = plt.subplots(1, 2, figsize=(10, 4))

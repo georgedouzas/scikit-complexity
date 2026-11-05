@@ -43,7 +43,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().prepare().run(until=200)
+simulation = Simulation(create(MODEL), dt=1, observers=[observer]).prepare().run(until=200)
 slopes = np.linspace(1.0, 2.0, 400)
 diagram = (
     OrbitDiagramExperiment(
@@ -55,7 +55,6 @@ diagram = (
         keep=100,
         dt=1,
     )
-    .check()
     .prepare()
     .run()
 )
@@ -73,7 +72,7 @@ observer.recording_.flush()
 
 sample = np.linspace(1.05, 1.99, 20)
 exponents = [
-    LyapunovAnalysis(until=2000, parameters={'map.mu': mu}).check().prepare(simulation.system).run().exponents_[0]
+    LyapunovAnalysis(until=2000, parameters={'map.mu': mu}).prepare(simulation.system).run().exponents_[0]
     for mu in sample
 ]
 fig, (orbits, lyapunov) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)

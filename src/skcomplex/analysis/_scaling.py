@@ -155,29 +155,29 @@ class ScalingAnalysis(BaseAnalysis):
 
     Raises:
         AnalysisError:
-            The kind or a setting does not fit, raised by `check`, or `'allometric'` reads a sample or a size that is
+            The kind or a setting does not fit, raised by `prepare`, or `'allometric'` reads a sample or a size that is
             not positive, or fewer than two sizes, raised by `prepare`.
 
     Examples:
         >>> import numpy as np
         >>> from skcomplex.analysis import ScalingAnalysis
         >>> walk = np.cumsum(np.random.default_rng(0).standard_normal(5000))
-        >>> ScalingAnalysis().check().prepare(walk).run().exponent_.round(1).tolist()
+        >>> ScalingAnalysis().prepare(walk).run().exponent_.round(1).tolist()
         [1.5]
-        >>> round(ScalingAnalysis('box-counting').check().prepare(np.ones((256, 256))).run().exponent_, 2)
+        >>> round(ScalingAnalysis('box-counting').prepare(np.ones((256, 256))).run().exponent_, 2)
         2.0
         >>> points = np.random.default_rng(0).random((5000, 2))
-        >>> round(ScalingAnalysis('correlation-dimension').check().prepare(points).run().exponent_, 1)
+        >>> round(ScalingAnalysis('correlation-dimension').prepare(points).run().exponent_, 1)
         2.0
         >>> counts = np.random.default_rng(0).poisson(5.0, (20, 64, 64))
-        >>> round(ScalingAnalysis('variance-mean').check().prepare(counts).run().exponent_, 1)
+        >>> round(ScalingAnalysis('variance-mean').prepare(counts).run().exponent_, 1)
         0.5
         >>> power = ScalingAnalysis('power', parameters=[0.9, 0.99], critical=1.0)
-        >>> power.check().prepare([0.1**0.5, 0.01**0.5]).run().exponent_.round(6).tolist()
+        >>> power.prepare([0.1**0.5, 0.01**0.5]).run().exponent_.round(6).tolist()
         [0.5]
         >>> rng = np.random.default_rng(0)
         >>> samples = {size: size**1.15 * rng.lognormal(0.0, 0.1, 5) for size in (100, 200, 400, 800, 1600)}
-        >>> allometric = ScalingAnalysis('allometric', resamples=200).check().prepare(samples).run()
+        >>> allometric = ScalingAnalysis('allometric', resamples=200).prepare(samples).run()
         >>> round(allometric.exponent_, 1)
         1.2
         >>> bool(allometric.interval_[0] < 1.15 < allometric.interval_[1])

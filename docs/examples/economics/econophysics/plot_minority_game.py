@@ -36,7 +36,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
 system = create(MODEL, n_agents=N, memory=4, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=ROUNDS)
+simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=ROUNDS)
 
 # %%
 # Volatility against alpha
@@ -49,11 +49,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().pr
 
 def volatility(memory, **options):
     """Return `sigma^2 / N` of the attendance after the transient."""
-    run = (
-        Simulation(create(MODEL, n_agents=N, memory=memory, random_state=0, **options), random_state=0)
-        .check()
-        .prepare()
-    )
+    run = Simulation(create(MODEL, n_agents=N, memory=memory, random_state=0, **options), random_state=0).prepare()
     attendance = run.run(until=ROUNDS).trajectory_.values('game.attendance')
     return attendance[TRANSIENT:].var() / N
 

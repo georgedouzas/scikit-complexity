@@ -64,10 +64,10 @@ class LatticeSpace(BaseSpace):
 
     Examples:
         >>> from skcomplex.core.spaces import LatticeSpace
-        >>> space = LatticeSpace((10, 20)).check().prepare()
+        >>> space = LatticeSpace((10, 20)).prepare()
         >>> space.size_, space.n_dim_, space.shape_
         (200, 2, (10, 20))
-        >>> LatticeSpace((2, 2), geometry='triangular').check().prepare().positions_.round(3).tolist()
+        >>> LatticeSpace((2, 2), geometry='triangular').prepare().positions_.round(3).tolist()
         [[0.0, 0.0], [1.0, 0.0], [0.5, 0.866], [1.5, 0.866]]
     """
 
@@ -133,7 +133,7 @@ class LatticeSpace(BaseSpace):
 
     def _with_edges(self, boundary: str, fill: float) -> LatticeSpace:
         """Return the sites of the lattice with other edges, which the reads of a state with its own boundary use."""
-        return LatticeSpace(self.shape_, boundary=boundary, fill=fill).check().prepare()
+        return LatticeSpace(self.shape_, boundary=boundary, fill=fill).prepare()
 
     def _default_neighborhood(self) -> LatticeNeighborhood:
         """Return the neighbourhood agents query, the triangular, von Neumann, or Moore neighbourhood of radius 1."""
@@ -148,7 +148,7 @@ class LatticeSpace(BaseSpace):
         if not isinstance(neighborhood, LatticeNeighborhood):
             error_msg = f'A lattice reads a lattice neighbourhood of offsets, but it was given {neighborhood!r}.'
             raise ValidationError(error_msg)
-        offsets = neighborhood.check().prepare().offsets_
+        offsets = neighborhood.prepare().offsets_
         if offsets and len(offsets[0]) != self.n_dim_:
             error_msg = (
                 f'The neighbourhood has offsets of dimension {len(offsets[0])}, but the lattice has {self.n_dim_} '

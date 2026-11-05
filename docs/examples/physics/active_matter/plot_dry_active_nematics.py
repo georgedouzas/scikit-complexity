@@ -26,7 +26,6 @@ system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(system, dt=5.0, solver=RK4Solver(dt=0.02), backend=NumbaBackend(), observers=[observer], random_state=0)
-    .check()
     .prepare()
     .run(until=100.0)
 )
@@ -38,7 +37,7 @@ simulation = (
 # initial value to rounding, since the current is a divergence.
 
 trajectory = simulation.trajectory_
-alignment = AlignmentAnalysis('principal-axis').check().prepare(trajectory.lattice('nematic.Q')).run()
+alignment = AlignmentAnalysis('principal-axis').prepare(trajectory.lattice('nematic.Q')).run()
 density = trajectory.lattice('nematic.rho')
 
 fig, (order, total) = plt.subplots(1, 2, figsize=(10, 4))

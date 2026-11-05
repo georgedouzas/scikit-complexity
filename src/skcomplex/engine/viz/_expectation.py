@@ -193,7 +193,7 @@ class ExpectationVisual(ImageVisual):
             return {'probability': shaped.sum(axis=others)}
         if element.members is not None and display is not None:
             matrices = ExpectationVisual._local_matrices(problem, path, display)
-            terms = [OperatorKernel(matrix, SR(1)).check().prepare() for matrix in matrices]
+            terms = [OperatorKernel(matrix, SR(1)).prepare() for matrix in matrices]
             values = [problem._expect([term], 0.0, x, np.zeros(0)) for term in terms]
             return {display: np.real(np.asarray(values))}
         names = [
@@ -201,7 +201,7 @@ class ExpectationVisual(ImageVisual):
         ]
         return {
             name: float(
-                np.real(problem._expect([OperatorKernel(matrix, SR(1)).check().prepare()], 0.0, x, np.zeros(0))),
+                np.real(problem._expect([OperatorKernel(matrix, SR(1)).prepare()], 0.0, x, np.zeros(0))),
             )
             for name in names
             for matrix in ExpectationVisual._local_matrices(problem, path, name)

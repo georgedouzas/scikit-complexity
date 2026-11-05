@@ -86,7 +86,7 @@ class TrainingInteraction(Interaction):
         >>> training = TrainingInteraction(
         ...     'training', model='net', trained=['readout.W'], loss=ObservableSpec('error', 0.0), data=data
         ... )
-        >>> training.check().optimizer
+        >>> training.optimizer
         'adam'
     """
 
@@ -169,7 +169,7 @@ class TrainingInteraction(Interaction):
         super()._check()
         self._check_counts()
         self._check_observables()
-        self.data.check()
+        self.data._validated()
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
         """Return the gradient-step law of the training."""

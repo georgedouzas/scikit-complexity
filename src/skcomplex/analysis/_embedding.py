@@ -92,9 +92,9 @@ class EmbeddingAnalysis(BaseAnalysis):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.analysis import EmbeddingAnalysis
-        >>> EmbeddingAnalysis(delay=2, dimension=2).check().prepare([0, 1, 2, 3, 4]).run().points_.tolist()
+        >>> EmbeddingAnalysis(delay=2, dimension=2).prepare([0, 1, 2, 3, 4]).run().points_.tolist()
         [[0.0, 2.0], [1.0, 3.0], [2.0, 4.0]]
-        >>> embedding = EmbeddingAnalysis(delay=31).check().prepare(np.sin(np.arange(5000) * 0.05)).run()
+        >>> embedding = EmbeddingAnalysis(delay=31).prepare(np.sin(np.arange(5000) * 0.05)).run()
         >>> embedding.delay_, embedding.dimension_
         (31, 2)
     """

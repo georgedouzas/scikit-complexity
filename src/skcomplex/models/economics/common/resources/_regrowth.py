@@ -42,7 +42,7 @@ class RegrowthInteraction(MapInteraction):
     Examples:
         >>> from skcomplex.models.economics.common.resources import RegrowthInteraction
         >>> regrowth = RegrowthInteraction('regrowth', target='patches', state='sugar', growth='growback')
-        >>> regrowth.check().form
+        >>> regrowth.form
         'agent'
     """
 

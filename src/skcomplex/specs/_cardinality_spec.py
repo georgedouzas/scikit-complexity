@@ -30,11 +30,11 @@ class CardinalitySpec(BaseSpec):
 
     Raises:
         ValidationError:
-            A literal is 0, the bound lies outside the number of literals, or the sense is unknown, raised by `check`.
+            A literal is 0, the bound lies outside the number of literals, or the sense is unknown, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.specs import CardinalitySpec
-        >>> CardinalitySpec((1, -2, 3), 2).check().sense
+        >>> CardinalitySpec((1, -2, 3), 2).sense
         'at-least'
     """
 

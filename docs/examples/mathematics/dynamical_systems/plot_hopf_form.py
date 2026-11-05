@@ -41,8 +41,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(create(MODEL, x=0.1), dt=0.1, observers=[observer]).check().prepare().run(until=50)
-outside = Simulation(create(MODEL, x=1.0), dt=0.1).check().prepare().run(until=50).trajectory_
+simulation = Simulation(create(MODEL, x=0.1), dt=0.1, observers=[observer]).prepare().run(until=50)
+outside = Simulation(create(MODEL, x=1.0), dt=0.1).prepare().run(until=50).trajectory_
 strips = [
     np.column_stack([100 * run.values('form.x'), -100 * run.values('form.y')])
     for run in (simulation.trajectory_, outside)
@@ -62,7 +62,7 @@ observer.recording_.flush()
 
 rates = np.linspace(-0.2, 0.5, 15)
 amplitudes = [
-    np.hypot(*Simulation(create(MODEL, x=0.3, mu=mu), dt=0.1).check().prepare().run(until=300).state_) for mu in rates
+    np.hypot(*Simulation(create(MODEL, x=0.3, mu=mu), dt=0.1).prepare().run(until=300).state_) for mu in rates
 ]
 fig, (plane, amplitude) = plt.subplots(1, 2, figsize=(10, 4.5))
 for strip, label in zip(strips, ('from inside', 'from outside'), strict=True):

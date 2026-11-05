@@ -85,14 +85,14 @@ class StateSpec(BaseSpec):
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
         >>> from skcomplex.specs import StateSpec
-        >>> spec = StateSpec(domain=RealSet.closed_open(0, oo)).check()
+        >>> spec = StateSpec(domain=RealSet.closed_open(0, oo))
         >>> 2.5 in spec.domain, -1 in spec.domain
         (True, False)
-        >>> StateSpec(reference='banks').check().reference
+        >>> StateSpec(reference='banks').reference
         'banks'
-        >>> StateSpec(tensor='traceless').check().tensor
+        >>> StateSpec(tensor='traceless').tensor
         'traceless'
-        >>> StateSpec(algebraic=True).check().algebraic
+        >>> StateSpec(algebraic=True).algebraic
         True
     """
 

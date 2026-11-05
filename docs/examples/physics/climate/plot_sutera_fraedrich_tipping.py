@@ -31,9 +31,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL, tipping='noise')
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=4)
-simulation = (
-    Simulation(system, dt=0.5, solver=solver, observers=[observer], random_state=0).check().prepare().run(until=300)
-)
+simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer], random_state=0).prepare().run(until=300)
 
 # %%
 # Three types of tipping
@@ -45,7 +43,7 @@ simulation = (
 # rate near 0.175.
 
 bifurcation = (
-    Simulation(create(MODEL, tipping='bifurcation'), dt=1.0, solver=solver).check().prepare().run(until=720).trajectory_
+    Simulation(create(MODEL, tipping='bifurcation'), dt=1.0, solver=solver).prepare().run(until=720).trajectory_
 )
 fold = 4 * 0.2 / (9.7137e9 * 1.04e-5**2)
 fig, (ramped, rates) = plt.subplots(1, 2, figsize=(10, 4))
@@ -59,11 +57,7 @@ ramped.set_title('B-tipping past the fold')
 ramped.legend()
 for rho in (0.16, 0.2):
     trajectory = (
-        Simulation(create(MODEL, tipping='rate', rho=rho), dt=0.5, solver=solver)
-        .check()
-        .prepare()
-        .run(until=150)
-        .trajectory_
+        Simulation(create(MODEL, tipping='rate', rho=rho), dt=0.5, solver=solver).prepare().run(until=150).trajectory_
     )
     rates.plot(trajectory.times, trajectory.values('earth.T'), label=f'rho = {rho}')
 rates.set_ylim(240, 310)

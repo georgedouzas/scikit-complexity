@@ -23,7 +23,7 @@ class SectorSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import SectorSpec
-        >>> SectorSpec(lambda s: s.n, 2.0).check().value
+        >>> SectorSpec(lambda s: s.n, 2.0).value
         2.0
     """
 

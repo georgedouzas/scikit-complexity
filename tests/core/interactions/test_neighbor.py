@@ -289,7 +289,7 @@ def _hebbian(space, activities):
 def test_neighbor_interaction_stores_its_layer():
     """Test that a neighbour interaction keeps the layer it runs on, and none by default."""
     assert ContagionInteraction('contagion', people='people', layer='work').layer == 'work'
-    assert NeighborInteraction('empty').check().prepare().run(SimpleNamespace()).laws_ == []
+    assert NeighborInteraction('empty').prepare().run(SimpleNamespace()).laws_ == []
 
 
 @BACKENDS
@@ -297,11 +297,9 @@ def test_hebbian_weights_grow_between_coactive_nodes(backend):
     """Test that Hebbian weights end higher on edges between co-active nodes than on edges between inactive ones."""
     space = NetworkSpace(nx.cycle_graph(6))
     activities = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
-    simulation = (
-        Simulation(_hebbian(space, activities), backend=backend, solver=RK4Solver(dt=0.01), dt=0.1).check().prepare()
-    )
+    simulation = Simulation(_hebbian(space, activities), backend=backend, solver=RK4Solver(dt=0.01), dt=0.1).prepare()
     weights = simulation.run(until=1.0).trajectory_.values('synapses.w')[-1]
-    sources, targets = space.check().prepare().edges_[None]
+    sources, targets = space.prepare().edges_[None]
     coactive = activities[sources] * activities[targets] > 0
     assert np.allclose(weights[coactive], 2.1, atol=1e-9)
     assert np.allclose(weights[~coactive], 0.1, atol=1e-12)
@@ -346,7 +344,7 @@ def test_two_layers_carry_infection_and_wages_apart():
             WagesInteraction('wages', people='people', jobs='jobs'),
         ],
     )
-    trajectory = Simulation(system, solver=RK4Solver(dt=0.01), dt=0.5).check().prepare().run(until=20.0).trajectory_
+    trajectory = Simulation(system, solver=RK4Solver(dt=0.01), dt=0.5).prepare().run(until=20.0).trajectory_
     infected, wages = trajectory.values('people.infected')[-1], trajectory.values('people.wage')[-1]
     assert np.all(infected > 0.9)
     assert np.allclose(wages, [-20.0, 0.0, -20.0, 20.0, 20.0], atol=1e-9)
@@ -354,7 +352,7 @@ def test_two_layers_carry_infection_and_wages_apart():
         elements=[people(), jobs],
         interactions=[ContagionInteraction('contagion', people='people', layer='work')],
     )
-    trajectory = Simulation(isolated, solver=RK4Solver(dt=0.01), dt=0.5).check().prepare().run(until=20.0).trajectory_
+    trajectory = Simulation(isolated, solver=RK4Solver(dt=0.01), dt=0.5).prepare().run(until=20.0).trajectory_
     assert np.allclose(trajectory.values('people.infected')[-1], [1.0, 0.0, 0.0, 0.0, 1.0], atol=1e-6)
 
 
@@ -376,7 +374,7 @@ def test_weighted_kuramoto_on_edges_matches_the_adjacency_coupling(backend):
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     drift = problem.states.read(rates, 'oscillators.theta')
     matrix = np.zeros((12, 12))
-    sources, targets = space.check().prepare().edges_[None]
+    sources, targets = space.prepare().edges_[None]
     matrix[sources, targets] = matrix[targets, sources] = weights
     expected = (matrix * np.sin(theta[None, :] - theta[:, None])).sum(axis=1)
     assert np.allclose(drift, expected, atol=1e-12)
@@ -390,7 +388,7 @@ def test_edge_jumps_change_the_ends_of_their_edge():
         elements=[LatticeElement('nodes', element=SISElement, space=space, values=values)],
         interactions=[SpreadInteraction('spread', nodes='nodes')],
     )
-    trajectory = Simulation(system, dt=1.0, random_state=0).check().prepare().run(until=60.0).trajectory_
+    trajectory = Simulation(system, dt=1.0, random_state=0).prepare().run(until=60.0).trajectory_
     assert trajectory.values('nodes.i')[-1].tolist() == [1.0, 1.0, 1.0, 1.0]
 
 
@@ -576,7 +574,7 @@ def test_recovery_runs_once_per_member_beside_spreading_over_the_degree(space, b
         interactions=[RecoveryInteraction('sis', nodes='nodes')],
     )
     adjacency = np.zeros((8, 8))
-    for first, second in space.check().prepare()._neighbor_pairs():
+    for first, second in space.prepare()._neighbor_pairs():
         adjacency[first, second] = adjacency[second, first] = 1.0
     expected = adjacency @ infected * (1 - infected) / adjacency.sum(axis=1) - 0.5 * infected
     assert np.allclose(_drift(system, backend, 'nodes.i'), expected, atol=1e-12)
@@ -621,7 +619,7 @@ def test_delayed_reads_either_end_of_an_edge(end, space, backend):
         elements=[LatticeElement('nodes', element=OscillatorElement, space=space, values={'theta': 1.0})],
         interactions=[DelayedPullInteraction('pull', nodes='nodes', end=end)],
     )
-    simulation = Simulation(system, dt=0.1, solver=RK4Solver(), backend=backend).check().prepare()
+    simulation = Simulation(system, dt=0.1, solver=RK4Solver(), backend=backend).prepare()
     trajectory = simulation.run(until=2).trajectory_
     times = trajectory.times
     exact = np.where(times <= 1, 1 - times, 1 - times + (times - 1) ** 2 / 2)
@@ -666,7 +664,7 @@ def test_relaxation_of_the_members_records_avalanches(space, element):
             time=DiscreteTime(),
         ),
     ]
-    found = [Simulation(system, dt=1).check().prepare().run(2) for system in runs]
+    found = [Simulation(system, dt=1).prepare().run(2) for system in runs]
     reference, simulation = found
     assert np.array_equal(simulation.state_, reference.state_)
     events = simulation.trajectory_.events

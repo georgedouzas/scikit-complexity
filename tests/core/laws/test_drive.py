@@ -19,13 +19,13 @@ from skcomplex.specs import RoleSpec, StateSpec
 def test_drive_targets_its_lattice_state():
     """Test that a drive targets the one lattice state it changes."""
     height = var('height')
-    assert DriveLaw(height, lambda values, *, random: values + 1).check().prepare().targets_ == (height,)
+    assert DriveLaw(height, lambda values, *, random: values + 1).prepare().targets_ == (height,)
 
 
 def test_drive_needs_a_callable_function():
     """Test that a drive rejects a function that cannot be called."""
     with pytest.raises(ValidationError, match='callable'):
-        DriveLaw(var('height'), 1.0).check()
+        DriveLaw(var('height'), 1.0).prepare()
 
 
 class ChainCoordinateElement(Element):
@@ -66,7 +66,7 @@ def test_drive_replays_an_ensemble_by_the_time_of_the_step():
     )
     replay = ReplayInteraction('replay', target='chain', ensemble=ensemble)
     system = System(elements=[chain], interactions=[replay], time=DiscreteTime())
-    frames = Simulation(system, random_state=0).check().prepare().run(until=40).trajectory_.lattice('chain.x')
+    frames = Simulation(system, random_state=0).prepare().run(until=40).trajectory_.lattice('chain.x')
     assert frames[10] == pytest.approx(ensemble[10])
     assert frames[40] == pytest.approx(ensemble[37])
 
@@ -82,7 +82,7 @@ def test_drive_passes_time_only_to_a_function_that_names_it():
     chain = LatticeElement('chain', element=ChainCoordinateElement, space=LatticeSpace((2, 3), boundary='fixed'))
     interaction = _DriveInteraction('drive', target='chain', function=drive)
     system = System(elements=[chain], interactions=[interaction], time=DiscreteTime())
-    Simulation(system, random_state=0).check().prepare().run(until=1)
+    Simulation(system, random_state=0).prepare().run(until=1)
     assert 'time' not in seen
     assert 'random' in seen
 

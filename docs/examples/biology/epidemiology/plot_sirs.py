@@ -20,7 +20,7 @@ MODEL = 'sirs'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=300)
+simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=300)
 
 # %%
 # Damped waves to the endemic equilibrium

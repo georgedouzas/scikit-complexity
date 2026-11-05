@@ -57,13 +57,13 @@ class ContinuousSpace(BaseSpace):
 
     Examples:
         >>> from skcomplex.core.spaces import ContinuousSpace
-        >>> ContinuousSpace(extent=(10.0, 5.0), boundary='periodic').check().prepare().extent_
+        >>> ContinuousSpace(extent=(10.0, 5.0), boundary='periodic').prepare().extent_
         (10.0, 5.0)
-        >>> ContinuousSpace(n_dim=3).check().prepare().n_dim_
+        >>> ContinuousSpace(n_dim=3).prepare().n_dim_
         3
         >>> from shapely import Point, box
         >>> layers = {'parks': [box(0.0, 0.0, 1.0, 1.0), box(2.0, 2.0, 3.0, 3.0)]}
-        >>> space = ContinuousSpace(extent=(5.0, 5.0), regions=layers).check().prepare()
+        >>> space = ContinuousSpace(extent=(5.0, 5.0), regions=layers).prepare()
         >>> space.regions_['parks'].query(Point(2.5, 2.5), predicate='intersects').tolist()
         [1]
     """

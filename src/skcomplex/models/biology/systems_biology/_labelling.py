@@ -128,7 +128,7 @@ class LabellingAnalysis(BaseAnalysis):
             A setting is unknown or a metabolite has no source of labels, raised by `prepare`.
 
         ValidationError:
-            An atom map is not valid, or two maps give one metabolite different numbers of atoms, raised by `check`.
+            An atom map is not valid, or two maps give one metabolite different numbers of atoms, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.core.spaces import StaticTime
@@ -149,7 +149,7 @@ class LabellingAnalysis(BaseAnalysis):
         ...     fluxes={'in': 1.0, 'out': 1.0},
         ... )
         >>> system = System(elements=[network], time=StaticTime())
-        >>> analysis.check().prepare(system).run().distributions_['first']['B'].tolist()
+        >>> analysis.prepare(system).run().distributions_['first']['B'].tolist()
         [0.5, 0.5, 0.0]
     """
 
@@ -198,7 +198,7 @@ class LabellingAnalysis(BaseAnalysis):
         self._check_choice('intervals', self.intervals, INTERVALS)
         counts: dict[str, tuple[int, str]] = {}
         for item in self.atoms:
-            item.check()
+            item._validated()
             for metabolite, letters in (*item.reactants, *item.products):
                 known = counts.setdefault(metabolite, (len(letters), item.reaction))
                 if known[0] != len(letters):

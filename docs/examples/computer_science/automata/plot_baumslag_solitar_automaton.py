@@ -21,7 +21,7 @@ MODEL = 'baumslag_solitar_automaton'
 
 system = create(MODEL, radius=6, density=0.5, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).check().prepare().run(until=20)
+simulation = Simulation(system, observers=[observer]).prepare().run(until=20)
 
 # %%
 # Exponential growth and freezing

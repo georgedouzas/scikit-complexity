@@ -67,7 +67,7 @@ class PatchKernel(BaseKernel):
             error_msg = f'Patch {path!r} has no prototiles. Give at least one.'
             raise RewritingError(error_msg)
         for prototile in self.prototiles:
-            prototile.check()
+            prototile._validated()
         self.names = tuple(prototile.name for prototile in self.prototiles)
         self.counted = tuple(name for name in dict.fromkeys(self.names) if IDENTIFIER.match(name))
         tiles = patch.tiles if patch.tiles is not None else [(self.names[0], None)]

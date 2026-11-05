@@ -267,7 +267,7 @@ def bouncing_ball(h: float = 1.0, v: float = 0.0, *, g: float = 9.81, e: float =
     Examples:
         >>> from skcomplex.models.physics.mechanics import bouncing_ball
         >>> from skcomplex.engine.runtime import Simulation
-        >>> trajectory = Simulation(bouncing_ball(), dt=0.01).check().prepare().run(until=1.0).trajectory_
+        >>> trajectory = Simulation(bouncing_ball(), dt=0.01).prepare().run(until=1.0).trajectory_
         >>> round(trajectory.events[0].time, 6)
         0.451524
     """

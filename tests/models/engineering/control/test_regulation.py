@@ -30,4 +30,4 @@ def test_lqr_oscillator_is_controllable():
     """Test that the oscillator with its force as control is controllable."""
     plant = run('lqr_oscillator', settings={'until': 0.1}).system
     plant = System(elements=list(plant.elements))
-    assert LinearizationAnalysis().check().prepare(plant).run().controllability_ == 2
+    assert LinearizationAnalysis().prepare(plant).run().controllability_ == 2

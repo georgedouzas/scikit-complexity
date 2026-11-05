@@ -18,5 +18,5 @@ def test_iteration_applies_one_step_per_unit_time():
         ),
     )
     stepper = IterationSolver()
-    stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
+    stepper.set_params(random_state=np.random.default_rng(0)).prepare(problem)
     assert stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 2.0)).state_.tolist() == [2.5]

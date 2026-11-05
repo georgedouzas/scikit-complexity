@@ -13,7 +13,7 @@ RATES = (0.2, 0.2, 0.2)
 
 def _land_use(rates: tuple[float, ...] = RATES) -> tuple[np.ndarray, np.ndarray]:
     """Return the crop and the distance of every cell of the default plain at given transport rates."""
-    trajectory = Simulation(von_thunen(rates=rates)).check().prepare().run(1.0).trajectory_
+    trajectory = Simulation(von_thunen(rates=rates)).prepare().run(1.0).trajectory_
     return trajectory.values('plain.crop')[0].ravel(), trajectory.values('plain.distance')[0].ravel()
 
 

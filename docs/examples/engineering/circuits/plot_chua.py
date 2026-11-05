@@ -21,7 +21,7 @@ MODEL = 'chua'
 
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=8)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=100)
+simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=100)
 
 # %%
 # The double scroll
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare()
 
 trajectory = simulation.trajectory_
 settled = trajectory.times > 10
-exponents = LyapunovAnalysis(n_exponents=1, until=300.0, dt=0.01).check().prepare(system).run().exponents_
+exponents = LyapunovAnalysis(n_exponents=1, until=300.0, dt=0.01).prepare(system).run().exponents_
 fig, ax = plt.subplots(figsize=(6, 5))
 ax.plot(trajectory.values('circuit.x')[settled], trajectory.values('circuit.z')[settled], linewidth=0.5)
 ax.set_xlabel('voltage x')

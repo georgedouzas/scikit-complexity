@@ -109,7 +109,7 @@ def site_space(space: BaseSpace, potential: npt.ArrayLike | None = None, *, proj
     if not isinstance(space, LatticeSpace | NetworkSpace):
         error_msg = f'A particle on sites needs a LatticeSpace or a NetworkSpace, not {space!r}.'
         raise ValidationError(error_msg)
-    prepared = space.check().prepare()
+    prepared = space.prepare()
     size = int(prepared.size_)
     adjacency = np.zeros((size, size))
     for first, second in prepared._neighbor_pairs():

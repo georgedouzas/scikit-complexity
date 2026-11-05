@@ -175,10 +175,10 @@ def fhp_lattice_gas(
 
     Examples:
         >>> from skcomplex.models.physics.fluids import fhp_lattice_gas
-        >>> fhp_lattice_gas((8, 8)).elements[0].check().prepare().size_
+        >>> fhp_lattice_gas((8, 8)).elements[0].prepare().size_
         64
     """
-    space = LatticeSpace(tuple(shape), geometry='triangular').check().prepare()
+    space = LatticeSpace(tuple(shape), geometry='triangular').prepare()
     positions = space.positions_
     centre = positions.mean(axis=0)
     size = min(space.shape_) / 6 if radius is None else radius

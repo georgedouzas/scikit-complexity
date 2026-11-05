@@ -26,7 +26,7 @@ def _elman(**changes):
 
 def _issues(system, **arguments):
     """Return the issues the pass compiler reports for a system."""
-    return PassCompiler(**arguments).check().prepare(system).report_.issues
+    return PassCompiler(**arguments).prepare(system).report_.issues
 
 
 def _codes(system, **arguments):
@@ -41,7 +41,7 @@ def _squared(member):
 
 def test_compile_a_system_that_trains_into_a_learning_problem():
     """Test that a system that trains compiles into a learning problem of its trained parameters and hyperparameters."""
-    problem = PassCompiler().check().prepare(_elman()).run().problem_
+    problem = PassCompiler().prepare(_elman()).run().problem_
     assert isinstance(problem, LearningProblemSpec)
     assert problem.states.entry('net/readout.W').shape == (1, 4)
     assert problem.parameters.has('training.learning_rate')

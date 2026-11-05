@@ -38,7 +38,7 @@ def sample_space_reducing(n_balls: int = 20, *, n_states: int = 10, lam: float =
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import sample_space_reducing
-        >>> sample_space_reducing(4).elements[0].check().prepare().size_
+        >>> sample_space_reducing(4).elements[0].prepare().size_
         4
     """
     return System(
@@ -79,7 +79,7 @@ def fragmentation(size: int = 1000, *, rate: float = 0.5) -> System:
 
     Examples:
         >>> from skcomplex.models.mathematics.stochastic_processes import fragmentation
-        >>> fragmentation(50).elements[0].check().prepare().size_
+        >>> fragmentation(50).elements[0].prepare().size_
         1
     """
     return System(

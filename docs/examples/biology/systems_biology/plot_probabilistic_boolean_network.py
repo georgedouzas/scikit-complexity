@@ -35,7 +35,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, active=('x1', 'x3')), dt=1, observers=[observer], random_state=4).check().prepare().run(30)
+    Simulation(create(MODEL, active=('x1', 'x3')), dt=1, observers=[observer], random_state=4).prepare().run(30)
 )
 
 # %%

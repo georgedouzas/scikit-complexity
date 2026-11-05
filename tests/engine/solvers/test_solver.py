@@ -76,7 +76,7 @@ def _growth_problem():
 def test_stepper_wrong_form_raises_error():
     """Test that a stepper refuses a problem of another form."""
     with pytest.raises(SolverError, match='jump process form'):
-        GillespieSolver(random_state=0).check().prepare(_growth_problem())
+        GillespieSolver(random_state=0).prepare(_growth_problem())
 
 
 @pytest.mark.parametrize(
@@ -119,7 +119,7 @@ def test_fixed_step_steppers_agree_on_both_backends(stepper, kind):
     for backend in (NumpyBackend(), NumbaBackend()):
         problem = compile_system(_system(kind), backend=backend)
         rng = np.random.default_rng(0)
-        stepper.set_params(random_state=rng).check().prepare(problem)
+        stepper.set_params(random_state=rng).prepare(problem)
         states.append(stepper.run(StepSpec(0.1, problem.initial_state, problem.initial_parameters, 3.4)).state_)
         generators.append(rng.bit_generator.state)
     np.testing.assert_allclose(states[0], states[1], rtol=1e-12)

@@ -17,9 +17,9 @@ def _approaching_fold(rng: np.random.Generator) -> np.ndarray:
 def test_early_warning_equals_the_rolling_analysis():
     """Test that every indicator equals the detrended rolling analysis of its kind, the main one autocorrelation."""
     series = _approaching_fold(np.random.default_rng(8))
-    warning = EarlyWarningAnalysis(window=300).check().prepare(series).run()
+    warning = EarlyWarningAnalysis(window=300).prepare(series).run()
     for kind in ('variance', 'autocorrelation', 'skewness'):
-        rolling = RollingAnalysis(kind, window=300, detrend=True).check().prepare(series).run()
+        rolling = RollingAnalysis(kind, window=300, detrend=True).prepare(series).run()
         np.testing.assert_array_equal(getattr(warning, f'{kind}_'), rolling.statistic_)
         np.testing.assert_array_equal(getattr(warning, f'{kind}_trend_'), rolling.trend_)
     np.testing.assert_array_equal(warning.statistic_, warning.autocorrelation_)
@@ -28,7 +28,7 @@ def test_early_warning_equals_the_rolling_analysis():
 
 def test_early_warning_reddens_before_tipping():
     """Test that variance, autocorrelation, and reddening rise as the series slows down."""
-    warning = EarlyWarningAnalysis(window=300).check().prepare(_approaching_fold(np.random.default_rng(8))).run()
+    warning = EarlyWarningAnalysis(window=300).prepare(_approaching_fold(np.random.default_rng(8))).run()
     assert warning.variance_trend_[0] > 0.5
     assert warning.autocorrelation_trend_[0] > 0.5
     assert warning.reddening_trend_[0] > 0

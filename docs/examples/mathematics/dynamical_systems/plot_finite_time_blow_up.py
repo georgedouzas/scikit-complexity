@@ -18,7 +18,7 @@ from skcomplex.models import create
 MODEL = 'finite_time_blow_up'
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(create(MODEL), dt=0.001, observers=[observer]).check().prepare().run(until=0.99)
+simulation = Simulation(create(MODEL), dt=0.001, observers=[observer]).prepare().run(until=0.99)
 
 # %%
 # Approach to the singularity
@@ -30,9 +30,7 @@ simulation = Simulation(create(MODEL), dt=0.001, observers=[observer]).check().p
 fig, ax = plt.subplots(figsize=(6, 4.5))
 for p in (1.5, 2.0, 3.0):
     singular = 1 / (p - 1)
-    trajectory = (
-        Simulation(create(MODEL, p=p), dt=singular / 2000).check().prepare().run(until=0.999 * singular).trajectory_
-    )
+    trajectory = Simulation(create(MODEL, p=p), dt=singular / 2000).prepare().run(until=0.999 * singular).trajectory_
     remaining = singular - trajectory.times
     (line,) = ax.loglog(remaining, trajectory.values('growth.x'), label=f'p = {p}')
     ax.loglog(remaining, ((p - 1) * remaining) ** (-1 / (p - 1)), ':', color='black')

@@ -23,9 +23,7 @@ MODEL = 'chemical_langevin_network'
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
 solver = EulerMaruyamaSolver(dt=0.001)
-simulation = (
-    Simulation(system, dt=0.5, solver=solver, observers=[observer], random_state=0).check().prepare().run(until=50)
-)
+simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer], random_state=0).prepare().run(until=50)
 
 # %%
 # Fluctuations around the rate equations and exact conservation
@@ -35,7 +33,7 @@ simulation = (
 # and 300 to rounding error at every frame.
 
 trajectory = simulation.trajectory_
-deterministic = Simulation(create('michaelis_menten'), dt=0.5).check().prepare().run(until=50).trajectory_
+deterministic = Simulation(create('michaelis_menten'), dt=0.5).prepare().run(until=50).trajectory_
 enzyme = trajectory.values('E.n') + trajectory.values('C.n')
 substrate = trajectory.values('S.n') + trajectory.values('C.n') + trajectory.values('P.n')
 fig, (amounts, totals) = plt.subplots(1, 2, figsize=(10, 4))

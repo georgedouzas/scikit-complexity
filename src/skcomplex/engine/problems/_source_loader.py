@@ -42,7 +42,7 @@ class SourceLoader(BaseConfig[str | Path | None, str]):
 
     Examples:
         >>> from skcomplex.engine.problems import SourceLoader
-        >>> loader = SourceLoader('skcomplex_example').check().prepare()
+        >>> loader = SourceLoader('skcomplex_example').prepare()
         >>> loader.run('def double(x): return 2 * x').module_.double(3)
         6
     """

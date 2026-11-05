@@ -20,7 +20,7 @@ MODEL = 'topological_kuramoto'
 system = create(MODEL, coupling=8.0)
 observables = describe(MODEL).observables_of(system)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-Simulation(system, dt=0.5, observers=[observer], observables=observables).check().prepare().run(until=20)
+Simulation(system, dt=0.5, observers=[observer], observables=observables).prepare().run(until=20)
 
 # %%
 # Synchronization against the coupling
@@ -33,7 +33,6 @@ for coupling in couplings:
     model_system = create(MODEL, coupling=coupling)
     run = (
         Simulation(model_system, dt=0.5, observables=describe(MODEL).observables_of(model_system))
-        .check()
         .prepare()
         .run(until=20)
     )

@@ -35,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer, ConservationObserver()]).check().prepare().run(100)
+simulation = Simulation(create(MODEL), dt=1, observers=[observer, ConservationObserver()]).prepare().run(100)
 
 # %%
 # Money changes only at the boundary
@@ -50,7 +50,7 @@ money = (
     trajectory.values('households.deposits') + trajectory.values('firms.deposits') + trajectory.values('bank.deposits')
 )
 created = trajectory.values('circuit.lending') - trajectory.values('circuit.repayments')
-matrix = LoopAnalysis('flow-matrix', frame=10).check().prepare(trajectory).run()
+matrix = LoopAnalysis('flow-matrix', frame=10).prepare(trajectory).run()
 fig, (totals, table) = plt.subplots(1, 2, figsize=(11, 4))
 totals.plot(times, money - money[0], label='change of total money')
 totals.plot(times[1:], np.cumsum(created[:-1]), '--', color='black', label='cumulative lending - repayment')

@@ -116,7 +116,7 @@ def quenched_mean_field_sis(
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.models.biology.epidemiology import quenched_mean_field_sis
-        >>> quenched_mean_field_sis(nx.cycle_graph(10)).elements[0].check().prepare().size_
+        >>> quenched_mean_field_sis(nx.cycle_graph(10)).elements[0].prepare().size_
         10
     """
     space = NetworkSpace(graph) if graph is not None else NetworkSpace(nx.barabasi_albert_graph(n, m, seed=seed))

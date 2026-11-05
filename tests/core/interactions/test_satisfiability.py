@@ -59,7 +59,7 @@ def test_constraint_perceptron_pattern() -> None:
     """Test that a pattern of 21 weights becomes the constraint that at least 11 literals hold."""
     pattern = np.ones(21, dtype=int)
     pattern[3] = -1
-    spec = _pattern_constraint(pattern, -1).check()
+    spec = _pattern_constraint(pattern, -1)
     assert spec.bound == 11
     assert spec.sense == 'at-least'
     assert spec.literals[0] == -1
@@ -71,7 +71,7 @@ def test_prepare_compiler_real_state() -> None:
     group = GroupElement('weights', element=RealWeightElement, size=3)
     decide = SatisfiabilityInteraction('decide', target='weights', state='on', constraints=[ClauseSpec((1,))])
     system = System(elements=[group], interactions=[decide], time=DiscreteTime())
-    found = [item for item in PassCompiler().check().prepare(system).report_.issues if item.code == 'law-domain']
+    found = [item for item in PassCompiler().prepare(system).report_.issues if item.code == 'law-domain']
     assert len(found) == 1
     assert 'decide' in found[0].message
     assert 'on' in found[0].message
@@ -80,7 +80,7 @@ def test_prepare_compiler_real_state() -> None:
 def test_run_small_perceptron_matches_enumeration() -> None:
     """Test that the verdict of every step equals enumerating all weights and that assignments satisfy the patterns."""
     system, patterns, outputs = _perceptron(3, 8, 0)
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=8).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=8).trajectory_
     verdicts = trajectory.values('decide.satisfiable')
     candidates = [np.asarray(item) for item in itertools.product([-1, 1], repeat=3)]
     for step in range(1, 9):
@@ -99,7 +99,6 @@ def test_run_capacity_of_binary_perceptron() -> None:
         system, _, _ = _perceptron(21, 40, seed)
         verdicts = (
             Simulation(system, random_state=seed)
-            .check()
             .prepare()
             .run(until=40)
             .trajectory_.values(
@@ -113,4 +112,4 @@ def test_run_capacity_of_binary_perceptron() -> None:
 def test_check_refuses_constraint_that_is_no_spec() -> None:
     """Test that a constraint that is not a spec is refused."""
     with pytest.raises(ValidationError, match='ClauseSpec'):
-        SatisfiabilityInteraction('decide', target='weights', state='on', constraints=[(1, 2)]).check()
+        SatisfiabilityInteraction('decide', target='weights', state='on', constraints=[(1, 2)]).prepare()

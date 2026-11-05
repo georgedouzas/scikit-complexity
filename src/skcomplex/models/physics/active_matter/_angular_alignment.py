@@ -47,7 +47,7 @@ class AngularAlignmentInteraction(EncounterInteraction):
     Examples:
         >>> from skcomplex.models.physics.active_matter import AngularAlignmentInteraction
         >>> align = AngularAlignmentInteraction('align', candidate='flock', field='flock', frequency=0.5, noise=0.5)
-        >>> align.check().outcome
+        >>> align.outcome
         'conservative'
     """
 

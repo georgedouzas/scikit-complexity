@@ -30,7 +30,7 @@ N_AGENTS, J, SIGMA, DT, UNTIL = 500, 0.5, 1.0, 0.01, 30.0
 
 def gini(wealth: np.ndarray) -> float:
     """Return the Gini coefficient of the wealth."""
-    return DistributionAnalysis('gini').check().prepare(wealth).run().gini_
+    return DistributionAnalysis('gini').prepare(wealth).run().gini_
 
 
 system = create(MODEL, n_agents=N_AGENTS, J=J, sigma=SIGMA)
@@ -47,10 +47,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=20)
 simulation = (
-    Simulation(system, dt=DT, observers=[observer], random_state=0, observables=observables)
-    .check()
-    .prepare()
-    .run(until=UNTIL)
+    Simulation(system, dt=DT, observers=[observer], random_state=0, observables=observables).prepare().run(until=UNTIL)
 )
 
 # %%
@@ -68,7 +65,7 @@ relative = (wealth / wealth.mean(axis=1, keepdims=True))[trajectory.times > 10][
 mu = 1 + 2 * J / SIGMA**2
 law = stats.invgamma(mu, scale=mu - 1)
 grid = np.logspace(-1.5, 1.5, 200)
-ccdf = DistributionAnalysis('ccdf').check().prepare(relative).run()
+ccdf = DistributionAnalysis('ccdf').prepare(relative).run()
 values, probabilities = ccdf.support_, ccdf.survival_
 fig, (density, tail) = plt.subplots(1, 2, figsize=(10, 4))
 density.hist(relative, bins=np.logspace(-1.5, 1.5, 50), density=True, alpha=0.5, label='simulation')

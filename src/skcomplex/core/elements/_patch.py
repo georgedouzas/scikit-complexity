@@ -42,7 +42,7 @@ class PatchElement(Element):
     Examples:
         >>> from skcomplex.core.elements import PatchElement
         >>> from skcomplex.specs import PrototileSpec
-        >>> PatchElement('cantor', prototiles=[PrototileSpec('interval', [(0, 0), (1, 0)])]).check().filled
+        >>> PatchElement('cantor', prototiles=[PrototileSpec('interval', [(0, 0), (1, 0)])]).filled
         False
     """
 
@@ -69,12 +69,12 @@ class PatchElement(Element):
         if not self.prototiles:
             error_msg = f'The patch {self.label} needs at least one prototile.'
             raise RewritingError(error_msg)
-        names = {prototile.check().name for prototile in self.prototiles}
+        names = {prototile.name for prototile in self.prototiles}
         for name, placement in self.tiles or ():
             if name not in names:
                 error_msg = f'The patch {self.label} has a tile of the unknown prototile {name!r}.'
                 raise RewritingError(error_msg)
-            placement.check()
+            placement._validated()
 
     def _prepare(self, context: object = None) -> None:
         """Set `default_visual_`, the geometry of the tiles.

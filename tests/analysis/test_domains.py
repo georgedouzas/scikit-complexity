@@ -14,7 +14,7 @@ from skcomplex.models import create, run
 
 def _domains(kind: str, source: object, **settings: object) -> DomainAnalysis:
     """Return the domain analysis of a source for one kind, run."""
-    return DomainAnalysis(kind, **settings).check().prepare(source).run()
+    return DomainAnalysis(kind, **settings).prepare(source).run()
 
 
 def _cahn_hilliard(rng: np.random.Generator, side: int, steps: int, every: int) -> tuple[list[float], list[np.ndarray]]:
@@ -69,11 +69,7 @@ def test_domain_growth_two_coarsening_laws():
 def test_domain_growth_of_an_ising_trajectory():
     """Test that a quenched Ising trajectory gives one domain size per frame that grows."""
     trajectory = (
-        Simulation(create('ising', size=64, temperature=1.0), dt=1, random_state=0)
-        .check()
-        .prepare()
-        .run(until=100)
-        .trajectory_
+        Simulation(create('ising', size=64, temperature=1.0), dt=1, random_state=0).prepare().run(until=100).trajectory_
     )
     growth = _domains('growth', trajectory, fit_range=(10, 100))
     assert growth.size_.shape == (len(trajectory.times),)
@@ -86,7 +82,7 @@ def test_pattern_wavelength_turing_patterns_on_two_domains():
     rolls = run('swift_hohenberg').trajectory_.lattice('cells.u')[-1]
     wavelength = _domains('wavelength', rolls, spacing=16 * math.pi / 64).wavelength_[0]
     assert wavelength == pytest.approx(2 * math.pi, rel=0.05)
-    brusselator = Simulation(create('brusselator', b=1.95), dt=10.0).check().prepare().run(until=400.0).trajectory_
+    brusselator = Simulation(create('brusselator', b=1.95), dt=10.0).prepare().run(until=400.0).trajectory_
     spots = brusselator.lattice('cells.u')[-1]
     critical = 2 * math.pi / math.sqrt(1 / math.sqrt(1.0 * 8.0))
     assert _domains('wavelength', spots).wavelength_[0] == pytest.approx(critical, rel=0.1)
@@ -106,7 +102,7 @@ def test_domain_size_of_stripes():
     assert _domains('size', stripes[:, 0], method='zero').size_[0] == 4
     assert _domains('size', stripes).size_[0] == pytest.approx(16, rel=0.5)
     with pytest.raises(AnalysisError, match='moment, zero'):
-        DomainAnalysis(method='peak').check()
+        DomainAnalysis(method='peak').prepare()
 
 
 def test_interface_density_on_grids_and_networks():
@@ -122,8 +118,8 @@ def test_interface_density_on_grids_and_networks():
 def test_domain_analysis_checks_its_settings():
     """Test the errors of an unknown kind, an ignored setting, and a graph for a field kind."""
     with pytest.raises(AnalysisError, match='Use one of size'):
-        DomainAnalysis('texture').check()
+        DomainAnalysis('texture').prepare()
     with pytest.raises(AnalysisError, match='does not read fit_range'):
-        DomainAnalysis('size', fit_range=(1, 2)).check()
+        DomainAnalysis('size', fit_range=(1, 2)).prepare()
     with pytest.raises(AnalysisError, match='reads a field'):
         _domains('size', nx.path_graph(3))

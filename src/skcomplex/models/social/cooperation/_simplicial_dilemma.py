@@ -56,7 +56,7 @@ class SimplicialDilemmaInteraction(CouplingInteraction):
 
     Examples:
         >>> from skcomplex.models.social.cooperation import SimplicialDilemmaInteraction
-        >>> SimplicialDilemmaInteraction('play', target='players', temptation_allied=0.8).check().temptation_allied
+        >>> SimplicialDilemmaInteraction('play', target='players', temptation_allied=0.8).temptation_allied
         0.8
     """
 

@@ -20,7 +20,7 @@ def _lorenz_samples():
     """Return samples of the Lorenz attractor every 0.025 for 42 Lyapunov times after a transient."""
     solver = ScipyODESolver(method='DOP853', rtol=1e-9, atol=1e-9)
     until = TRANSIENT + 42 * LYAPUNOV_TIME
-    trajectory = Simulation(create('lorenz'), solver=solver, dt=STEP).check().prepare().run(until=until).trajectory_
+    trajectory = Simulation(create('lorenz'), solver=solver, dt=STEP).prepare().run(until=until).trajectory_
     values = np.column_stack([trajectory.values(f'lorenz.{name}') for name in 'xyz'])
     first = round(TRANSIENT / STEP)
     return values[first:]
@@ -34,7 +34,7 @@ def _sine_values():
 
 def _fit(source, **settings):
     """Return the reservoir analysis fitted to a source of the variables `x` and `y` by default."""
-    return ReservoirAnalysis(**{'variables': ['x', 'y'], **settings}).check().prepare(source).run()
+    return ReservoirAnalysis(**{'variables': ['x', 'y'], **settings}).prepare(source).run()
 
 
 def test_reservoir_analysis_forecasts_lorenz_for_a_lyapunov_time():
@@ -52,8 +52,8 @@ def test_reservoir_analysis_runs_under_discrete_time():
     """Test that a reservoir surrogate declares discrete time and that each step applies the readout once."""
     model = _fit(_sine_values(), horizon=20)
     assert isinstance(model.system_.time, DiscreteTime)
-    assert PassCompiler().check().prepare(model.system_).report_.ok
-    run = Simulation(model.system_).check().prepare().run(until=20).trajectory_
+    assert PassCompiler().prepare(model.system_).report_.ok
+    run = Simulation(model.system_).prepare().run(until=20).trajectory_
     assert np.allclose(np.column_stack([run.values('surrogate.x'), run.values('surrogate.y')])[1:], model.forecast_)
 
 
@@ -77,7 +77,7 @@ def test_reservoir_analysis_rejects_unknown_kind():
     """Test that an unknown reservoir kind raises an error."""
     surrogate = ReservoirAnalysis(kind='liquid')
     with pytest.raises(AnalysisError, match='unknown'):
-        surrogate.check()
+        surrogate.prepare()
 
 
 def test_reservoir_analysis_rejects_series_shorter_than_warmup():
@@ -88,7 +88,7 @@ def test_reservoir_analysis_rejects_series_shorter_than_warmup():
 
 def test_next_generation_reads_the_variables_as_they_are_without_standardizing():
     """Test that the setting leaves the mean at 0 and the scale at 1, and the forecast still follows a sine wave."""
-    analysis = ReservoirAnalysis(['u', 'v'], standardize=False, horizon=10).check().prepare(_sine_values()).run()
+    analysis = ReservoirAnalysis(['u', 'v'], standardize=False, horizon=10).prepare(_sine_values()).run()
     assert analysis.step_.mean.tolist() == [0.0, 0.0]
     assert analysis.step_.scale.tolist() == [1.0, 1.0]
     assert analysis.forecast_[-1, 0] == pytest.approx(np.sin(0.1 * 609), abs=0.01)

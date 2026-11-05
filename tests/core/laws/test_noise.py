@@ -11,7 +11,7 @@ from skcomplex.errors import ValidationError
 def test_noise_takes_a_label_labels_or_no_process(process):
     """Test that a noise law takes a label, a tuple of labels, or no process, and runs into its amplitude."""
     n = var('n')
-    law = NoiseLaw(n, 0.1 * n, process=process).check().prepare()
+    law = NoiseLaw(n, 0.1 * n, process=process).prepare()
     assert law.run({'n': 2.0}).value_ == pytest.approx(0.2)
 
 
@@ -27,4 +27,4 @@ def test_noise_takes_a_label_labels_or_no_process(process):
 def test_noise_rejects_invalid_processes_and_conventions(arguments, message):
     """Test that a noise law rejects an invalid process, a process of conserved noise, and an unknown convention."""
     with pytest.raises(ValidationError, match=message):
-        NoiseLaw(var('n'), 1.0, **arguments).check()
+        NoiseLaw(var('n'), 1.0, **arguments).prepare()

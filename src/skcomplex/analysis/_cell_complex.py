@@ -82,11 +82,11 @@ class CellComplexAnalysis(BaseAnalysis):
         >>> import numpy as np
         >>> from skcomplex.analysis import CellComplexAnalysis
         >>> from skcomplex.core.spaces import CellComplexSpace, LatticeSpace
-        >>> space = CellComplexSpace(LatticeSpace((4, 4))).check().prepare()
-        >>> CellComplexAnalysis('betti', space=space).check().prepare().run().betti_
+        >>> space = CellComplexSpace(LatticeSpace((4, 4))).prepare()
+        >>> CellComplexAnalysis('betti', space=space).prepare().run().betti_
         (1, 2, 1)
         >>> uniform = np.r_[np.ones(16), np.zeros(16)]
-        >>> hodge = CellComplexAnalysis('hodge', space=space).check().prepare(uniform).run()
+        >>> hodge = CellComplexAnalysis('hodge', space=space).prepare(uniform).run()
         >>> bool(np.allclose(hodge.harmonic_[0], uniform))
         True
     """
@@ -149,7 +149,7 @@ class CellComplexAnalysis(BaseAnalysis):
         if found is None:
             error_msg = 'CellComplexAnalysis reads no complex. Give `space`, or the state of a group on a cell complex.'
             raise AnalysisError(error_msg)
-        self.complex_ = found.check().prepare()
+        self.complex_ = found.prepare()
         if self.kind != 'betti' and self.values_.shape[-1] != self.complex_.incidences_[0].shape[0]:
             error_msg = (
                 f'CellComplexAnalysis reads {self.values_.shape[-1]} values, but the complex has '

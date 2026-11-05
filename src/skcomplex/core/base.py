@@ -21,7 +21,7 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
     """Base of every part of a system: its elements, its interactions, the laws they return, and the system itself.
 
     Every part has a label, returns the laws it contributes from `_get_laws`, and implements three hooks that the
-    verbs `check`, `prepare`, and `run` call:
+    verbs `prepare` and `run` call:
 
     - `_check()` validates the arguments of the part, after `check` validates the label.
     - `_prepare(context)` prepares the part against its context and sets its attributes that end in `_`.
@@ -32,8 +32,7 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
     is prepared against the path of its owner, an element against the space of its system.
 
     A part declares which arguments of its constructor are states, parameters, or roles by annotating them with
-    `Annotated` and a `StateSpec`, a `ParameterSpec`, or a `RoleSpec`, and `check` validates every declared spec. A part
-    must be checked before it is prepared or run.
+    `Annotated` and a `StateSpec`, a `ParameterSpec`, or a `RoleSpec`, and `prepare` validates every declared spec.
 
     Examples:
         >>> from skcomplex.core.base import BasePart
@@ -53,7 +52,7 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         ...
         ...     def _run(self, value):
         ...         self.doubled_ = self.factor * value
-        >>> DoublingPart('doubling').check().prepare().run(3).doubled_
+        >>> DoublingPart('doubling').prepare().run(3).doubled_
         6
     """
 
@@ -141,8 +140,8 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
             raise ValidationError(error_msg)
         return self._get_laws(inputs)
 
-    def check(self) -> Self:
-        """Validate the label and the arguments of the part and mark it as checked.
+    def _validated(self) -> Self:
+        """Validate the label and the arguments of the part.
 
         Returns:
             part:
@@ -154,5 +153,5 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         """
         self._check_label()
         for spec in [*self._get_specs().values(), *self._get_declared().values()]:
-            spec.check()
-        return super().check()
+            spec._validated()
+        return super()._validated()

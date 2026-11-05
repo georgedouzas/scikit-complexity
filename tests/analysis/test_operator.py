@@ -18,7 +18,7 @@ from skcomplex.specs import SectorSpec
 
 def _operator(kind, source, **settings):
     """Return the operator analysis of a source for one kind, run."""
-    return OperatorAnalysis(kind, **settings).check().prepare(source).run()
+    return OperatorAnalysis(kind, **settings).prepare(source).run()
 
 
 def test_spectrum_of_the_heisenberg_ring_of_four_spins():
@@ -65,17 +65,13 @@ def test_ground_state_is_stationary():
     entry = describe('quantum_heisenberg')
     initial = entry.initial_state_of(n_sites=6, initial='ground')
     assert initial == {'quantum_heisenberg.state': 'ground'}
-    simulation = (
-        Simulation(
-            system,
-            dt=0.5,
-            observables=entry.observables_of(system),
-            initial_state=initial,
-            compiler=OperatorCompiler(),
-        )
-        .check()
-        .prepare()
-    )
+    simulation = Simulation(
+        system,
+        dt=0.5,
+        observables=entry.observables_of(system),
+        initial_state=initial,
+        compiler=OperatorCompiler(),
+    ).prepare()
     trajectory = simulation.run(until=3.0).trajectory_
     assert np.ptp(trajectory.values('energy')) < 1e-8
     assert np.ptp(trajectory.values('sz'), axis=0).max() < 1e-8
@@ -88,7 +84,6 @@ def test_entanglement_entropy_of_a_singlet_is_log_two():
     system = System(elements=[GroupElement('pair', element=SpinElement, size=2)])
     trajectory = (
         Simulation(system, dt=1.0, initial_state={'system.state': singlet}, compiler=OperatorCompiler())
-        .check()
         .prepare()
         .run(until=1.0)
         .trajectory_
@@ -103,7 +98,6 @@ def test_purity_of_pure_and_dephased_runs():
     """Test that purity is 1 for closed runs and falls under dephasing."""
     closed = (
         Simulation(create('quantum_heisenberg', n_sites=4), dt=0.5, compiler=OperatorCompiler())
-        .check()
         .prepare()
         .run(until=1.0)
         .trajectory_
@@ -111,16 +105,13 @@ def test_purity_of_pure_and_dephased_runs():
     assert np.allclose(_operator('purity', closed).purity_, 1)
     opened = (
         Simulation(create('quantum_heisenberg', n_sites=4, gamma=0.5), dt=0.5, compiler=OperatorCompiler())
-        .check()
         .prepare()
         .run(until=2.0)
         .trajectory_
     )
     assert np.all(np.diff(_operator('purity', opened).purity_) <= 1e-10)
     assert _operator('purity', opened).purity_[-1] < 1
-    rabbits = (
-        Simulation(System(elements=[PopulationElement('rabbits')]), dt=1.0).check().prepare().run(until=1.0).trajectory_
-    )
+    rabbits = Simulation(System(elements=[PopulationElement('rabbits')]), dt=1.0).prepare().run(until=1.0).trajectory_
     with pytest.raises(AnalysisError, match='not the trajectory'):
         _operator('purity', rabbits)
 
@@ -128,4 +119,4 @@ def test_purity_of_pure_and_dephased_runs():
 def test_settings_the_kind_ignores_are_rejected():
     """Test that the number of states of the purity, which it does not read, is rejected at check."""
     with pytest.raises(AnalysisError, match='does not read n_states'):
-        OperatorAnalysis('purity', n_states=2).check()
+        OperatorAnalysis('purity', n_states=2).prepare()

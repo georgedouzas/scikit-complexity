@@ -39,7 +39,7 @@ def _states(space, spreading, initial, until, seed=0):
         elements=[LatticeElement('sites', element=SiteElement, space=space, values={'state': initial})],
         interactions=[spreading],
     )
-    simulation = Simulation(system, dt=1.0, random_state=seed).check().prepare()
+    simulation = Simulation(system, dt=1.0, random_state=seed).prepare()
     return simulation.run(until=until).trajectory_.values('sites.state')
 
 
@@ -89,7 +89,7 @@ def test_number_form_spreads_faster_than_the_fraction_form():
 def test_check_rejects_unknown_forms_and_equal_values(arguments, match):
     """Test that an unknown form or values of the state that are not distinct raise an error."""
     with pytest.raises(ValidationError, match=match):
-        SpreadingInteraction('spreading', target='sites', **arguments).check()
+        SpreadingInteraction('spreading', target='sites', **arguments).prepare()
 
 
 def test_spreading_is_a_transition():

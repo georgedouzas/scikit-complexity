@@ -55,7 +55,7 @@ class Trajectory:
         ...     elements=[PopulationElement('a', n=1)],
         ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
-        >>> trajectory = Simulation(system, dt=0.5).check().prepare().run(until=1).trajectory_
+        >>> trajectory = Simulation(system, dt=0.5).prepare().run(until=1).trajectory_
         >>> trajectory.times.tolist()
         [0.0, 0.5, 1.0]
         >>> trajectory.values('a.n').round(3).tolist()
@@ -151,7 +151,7 @@ class Trajectory:
             >>> from skcomplex.experiments import BaseExperiment
             >>> from skcomplex.models.mathematics.dynamical_systems import logistic_map
             >>> ensemble = BaseExperiment._replicate(logistic_map(), 3, {'map.x': [0.1, 0.2, 0.3]})
-            >>> trajectory = Simulation(ensemble, dt=1).check().prepare().run(until=2).trajectory_
+            >>> trajectory = Simulation(ensemble, dt=1).prepare().run(until=2).trajectory_
             >>> float(trajectory.member(1, compile_system(logistic_map())).values('map.x')[0])
             0.2
         """
@@ -199,7 +199,7 @@ class Trajectory:
         Examples:
             >>> from skcomplex.engine.runtime import Simulation
             >>> from skcomplex.models import create
-            >>> trajectory = Simulation(create('boids'), random_state=0).check().prepare().run(until=2).trajectory_
+            >>> trajectory = Simulation(create('boids'), random_state=0).prepare().run(until=2).trajectory_
             >>> [locations.shape[1] for locations in trajectory.agent_locations('flock')]
             [2, 2, 2]
         """

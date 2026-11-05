@@ -37,7 +37,7 @@ blueprint = rrb.Blueprint(
 )
 system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=60)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=60)
 
 # %%
 # Where the kinetic energy goes

@@ -19,7 +19,6 @@ def test_binary_collision_flocking_orders_below_noise_threshold() -> None:
                 random_state=0,
                 observables=describe('binary_collision_flocking').observables_of(system),
             )
-            .check()
             .prepare()
             .run(until=200)
         )

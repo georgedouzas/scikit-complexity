@@ -60,7 +60,7 @@ def _logged(state, scalar, every):
     recording = _Recording()
     system = _film(None)
     problem = compile_system(system)
-    visual = AxisVisual(state, scalar=scalar, every=every, path='film', recording=recording).check().prepare(problem)
+    visual = AxisVisual(state, scalar=scalar, every=every, path='film', recording=recording).prepare(problem)
     frames = []
 
     class FrameObserver(RerunObserver):
@@ -68,7 +68,7 @@ def _logged(state, scalar, every):
             if inputs is not None:
                 frames.append(inputs)
 
-    Simulation(system, dt=0.1, observers=[FrameObserver()]).check().prepare().run(until=0.2)
+    Simulation(system, dt=0.1, observers=[FrameObserver()]).prepare().run(until=0.2)
     for frame in frames:
         visual.run(frame)
     return recording.logged, len(frames), visual
@@ -89,7 +89,7 @@ def test_run_writes_a_recording_in_the_viewer_stream(tmp_path):
     """The nematic with a visual of axes writes a recording of its frames."""
     system = _film(VisualSpec('axes', {'state': 'Q', 'scalar': 'rho', 'every': 2}))
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
-    Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=0.2)
+    Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=0.2)
     assert isinstance(observer.visuals_[0], AxisVisual)
     assert observer.logged_frames_ >= 2
     assert (tmp_path / 'run.rrd').stat().st_size > 0
@@ -106,10 +106,10 @@ def test_run_logs_arrows_of_a_vector_state():
 def test_prepare_rejects_a_scalar_state():
     """A scalar state has no axes."""
     with pytest.raises(ValidationError, match='no tensor or vector'):
-        AxisVisual('rho', path='film', recording=_Recording()).check().prepare(compile_system(_film(None)))
+        AxisVisual('rho', path='film', recording=_Recording()).prepare(compile_system(_film(None)))
 
 
 def test_check_rejects_a_spacing_that_is_not_positive():
     """A spacing of 0 raises an error."""
     with pytest.raises(ValidationError, match='every'):
-        AxisVisual('Q', every=0, path='film').check()
+        AxisVisual('Q', every=0, path='film').prepare()

@@ -214,7 +214,7 @@ def _epidemic():
 def test_backend_runs_the_kernels_of_a_form(backend):
     """Test that a checked and prepared backend returns the functions of the form of the kernels it runs."""
     kernels = LoweredKernelsSpec(defaultdict(list), {}, {}, form=FormKind.ODE, size=2)
-    lowering = backend().check().prepare().run(kernels).functions_
+    lowering = backend().prepare().run(kernels).functions_
     assert isinstance(lowering, LoweredFunctionsSpec)
     assert np.array_equal(lowering.drift(0.0, np.ones(2), np.zeros(0)), np.zeros(2))
 
@@ -230,10 +230,7 @@ def test_compile_auto_backend_depends_on_group_size():
 def test_simulation_uses_given_backend(numba_backend):
     """Test that a simulation compiles with the backend it is given."""
     simulation = (
-        Simulation(_herds(HalvingInteraction('half', target='herds')), backend=numba_backend)
-        .check()
-        .prepare()
-        .run(until=2)
+        Simulation(_herds(HalvingInteraction('half', target='herds')), backend=numba_backend).prepare().run(until=2)
     )
     assert simulation.problem_.backend == 'numba'
     assert np.allclose(simulation.trajectory_.values('herds.n')[-1], np.linspace(1.0, 50.0, 5) / 4)
@@ -326,11 +323,7 @@ def test_numpy_backend_calls_vector_call_once_per_step():
             return [UpdateLaw(vector([s.x, s.y]), CallSpec(rotate, (s.x, s.y)))]
 
     trajectory = (
-        Simulation(System(elements=[PairElement('pair')]), backend=NumpyBackend())
-        .check()
-        .prepare()
-        .run(until=4)
-        .trajectory_
+        Simulation(System(elements=[PairElement('pair')]), backend=NumpyBackend()).prepare().run(until=4).trajectory_
     )
     assert trajectory.values('pair.x').tolist() == [1.0, 0.0, -1.0, 0.0, 1.0]
     assert [calls.count(float(t)) for t in (1, 2, 3)] == [1, 1, 1]
@@ -382,7 +375,7 @@ def test_rk4_matches_exponential(backend, numba_backend):
         backend=numba_backend if backend == 'numba' else NumpyBackend(),
     )
     stepper = RK4Solver(dt=0.001)
-    stepper.set_params(random_state=np.random.default_rng(0)).check().prepare(problem)
+    stepper.set_params(random_state=np.random.default_rng(0)).prepare(problem)
     state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
     assert np.allclose(state, np.e, rtol=1e-10)
 
@@ -392,7 +385,6 @@ def test_compiled_gillespie_is_reproducible(numba_backend):
     runs = [
         (
             Simulation(_epidemic(), solver=GillespieSolver(), backend=numba_backend, dt=1.0, random_state=0)
-            .check()
             .prepare()
             .run(until=30)
         )
@@ -408,7 +400,6 @@ def test_compiled_gillespie_negative_propensity_raises_error(numba_backend):
     with pytest.raises(SolverError, match='non-negative'):
         (
             Simulation(_herds(DecayInteraction('decay', target='herds')), backend=numba_backend, dt=1.0)
-            .check()
             .prepare()
             .run(until=1)
         )
@@ -424,7 +415,6 @@ def test_compiled_euler_maruyama_is_reproducible(numba_backend):
             dt=0.1,
             random_state=5,
         )
-        .check()
         .prepare()
         .run(until=2)
         for _ in range(2)
@@ -442,9 +432,7 @@ def test_compiled_iteration_matches_numpy(numba_backend):
                 solver=IterationSolver(),
                 backend=backend,
                 dt=3,
-            )
-            .check()
-            .prepare()
+            ).prepare()
         )
         .run(until=9)
         .trajectory_.states
@@ -461,16 +449,12 @@ def test_velocity_verlet_conserves_energy(backend, numba_backend):
         interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
-    simulation = (
-        Simulation(
-            system,
-            solver=VelocityVerletSolver(dt=0.01),
-            backend=numba_backend if backend == 'numba' else NumpyBackend(),
-            dt=10.0,
-        )
-        .check()
-        .prepare()
-    )
+    simulation = Simulation(
+        system,
+        solver=VelocityVerletSolver(dt=0.01),
+        backend=numba_backend if backend == 'numba' else NumpyBackend(),
+        dt=10.0,
+    ).prepare()
     trajectory = simulation.run(until=1000).trajectory_
     energy = 0.5 * trajectory.values('p.x_d1')[:, 0, 0] ** 2 + 0.5 * trajectory.values('p.x')[:, 0, 0] ** 2
     assert np.allclose(energy, energy[0], rtol=1e-3)
@@ -482,7 +466,7 @@ def test_velocity_verlet_needs_position_pairs():
         Simulation(
             _herds(CompiledGrowthInteraction('growth', target='herds')),
             solver=VelocityVerletSolver(),
-        ).check().prepare().run(
+        ).prepare().run(
             until=1,
         )
 

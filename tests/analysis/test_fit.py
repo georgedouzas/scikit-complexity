@@ -15,7 +15,7 @@ from skcomplex.models import run
 
 def _fit(law: str, source: object, **settings: object) -> FitAnalysis:
     """Return the run fit of a law to a source."""
-    return FitAnalysis(law, **settings).check().prepare(source).run()
+    return FitAnalysis(law, **settings).prepare(source).run()
 
 
 def _truncated_power_law(size: int, rng: np.random.Generator) -> np.ndarray:
@@ -147,7 +147,7 @@ def test_maxwell_law_of_the_speeds_of_an_ideal_gas():
     """Test that the speeds of a three-dimensional ideal gas follow the Maxwell law of its kinetic temperature."""
     trajectory = run('ideal_gas', n_dim=3, random_state=0, settings={'until': 1.0}).trajectory_
     velocities = np.asarray(trajectory.values('gas.x_d1'), dtype=float)
-    pooled = FitAnalysis('maxwell', group='gas').check().prepare(trajectory).values_
+    pooled = FitAnalysis('maxwell', group='gas').prepare(trajectory).values_
     np.testing.assert_allclose(np.sort(pooled), np.sort(np.linalg.norm(velocities, axis=-1).ravel()))
     fit = _fit('maxwell', np.linalg.norm(velocities[-1], axis=-1), fixed={'loc': 0})
     assert fit.p_value_ > 0.05
@@ -157,23 +157,23 @@ def test_maxwell_law_of_the_speeds_of_an_ideal_gas():
 def test_unknown_law_lists_the_laws():
     """Test that an unknown law and an unknown alternative raise errors that list the choices."""
     with pytest.raises(AnalysisError, match='power, stable'):
-        FitAnalysis('zipf').check()
+        FitAnalysis('zipf').prepare()
     with pytest.raises(AnalysisError, match='compare_with'):
-        FitAnalysis(compare_with=('cauchy',)).check()
+        FitAnalysis(compare_with=('cauchy',)).prepare()
 
 
 def test_setting_the_law_ignores_is_rejected():
     """Test that a changed setting the law does not read raises an error naming it."""
     with pytest.raises(AnalysisError, match='does not read block'):
-        FitAnalysis('power', block=10).check()
+        FitAnalysis('power', block=10).prepare()
     with pytest.raises(AnalysisError, match='does not read minimum'):
-        FitAnalysis('stable', minimum=1.0).check()
+        FitAnalysis('stable', minimum=1.0).prepare()
 
 
 def test_missing_settings_are_rejected():
     """Test that an extreme-value law without blocks raises an error."""
     with pytest.raises(AnalysisError, match='block'):
-        FitAnalysis('extreme-value').check()
+        FitAnalysis('extreme-value').prepare()
 
 
 def test_clone_keeps_settings_and_drops_results():

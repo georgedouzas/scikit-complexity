@@ -101,7 +101,6 @@ def test_coupled_equations_conserve_energy():
     """Test that the double pendulum's coupled equations are solved jointly and conserve its energy."""
     trajectory = (
         Simulation(System(elements=[DoublePendulumElement('dp')]), solver=PRECISE, dt=0.05)
-        .check()
         .prepare()
         .run(until=10)
         .trajectory_
@@ -115,16 +114,14 @@ def test_coupled_equations_conserve_energy():
 def test_lag_beyond_kept_values_is_rejected():
     """Test that reading a lag the state does not keep raises an error naming the lag."""
     with pytest.raises(ValidationError, match=r'lag\(.*, 2\)'):
-        Simulation(System(elements=[TooFarElement('t')])).check().prepare().run(until=1)
+        Simulation(System(elements=[TooFarElement('t')])).prepare().run(until=1)
 
 
 def test_third_order_jerk_is_bounded_and_chaotic():
     """Test that Sprott's jerk equation compiles to three equations and gives a bounded, sensitive trajectory."""
-    first = Simulation(System(elements=[JerkElement('j')]), solver=PRECISE, dt=0.5).check().prepare().run(until=300)
+    first = Simulation(System(elements=[JerkElement('j')]), solver=PRECISE, dt=0.5).prepare().run(until=300)
     assert first.problem_.states.names == ['j.x', 'j.x_d1', 'j.x_d2']
-    second = (
-        Simulation(System(elements=[JerkElement('j', x=1e-8)]), solver=PRECISE, dt=0.5).check().prepare().run(until=300)
-    )
+    second = Simulation(System(elements=[JerkElement('j', x=1e-8)]), solver=PRECISE, dt=0.5).prepare().run(until=300)
     x = first.trajectory_.values('j.x')
     assert np.all(np.isfinite(x))
     assert np.abs(x).max() < 10
@@ -153,7 +150,7 @@ def test_derivative_at_order_is_rejected_in_rates():
     with pytest.raises(ValidationError, match='below its declared order'):
         Simulation(
             System(elements=[MassElement('mass')], interactions=[BadInteraction('bad', target='mass')]),
-        ).check().prepare().run(
+        ).prepare().run(
             until=1,
         )
 
@@ -181,7 +178,7 @@ class ToggleElement(Element):
 def test_residence_counts_the_steps_a_state_holds_its_value():
     """Test that the residence is 0 in the step a state takes a value and grows by 1 every step it keeps it."""
     group = GroupElement('toggles', element=ToggleElement, size=2, values={'held': [2.0, 1.0]})
-    trajectory = Simulation(System(elements=[group])).check().prepare().run(until=6).trajectory_
+    trajectory = Simulation(System(elements=[group])).prepare().run(until=6).trajectory_
     np.testing.assert_array_equal(
         trajectory.values('toggles.x').T,
         [[0, 0, 0, 1, 1, 1, 0], [0, 0, 1, 1, 0, 0, 1]],
@@ -209,4 +206,4 @@ def test_residence_outside_update_laws_is_rejected():
 
     system = System(elements=[MassElement('mass')], interactions=[ResidenceRateInteraction('bad', target='mass')])
     with pytest.raises(ValidationError, match='only update laws'):
-        Simulation(system).check().prepare().run(until=1)
+        Simulation(system).prepare().run(until=1)

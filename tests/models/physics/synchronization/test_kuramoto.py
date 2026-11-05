@@ -23,7 +23,7 @@ from .conftest import _random_drift
 
 def test_delayed_kuramoto_synchronizes():
     """Test that strongly coupled delayed oscillators lock their phases."""
-    trajectory = Simulation(delayed_kuramoto(K=2.0, tau=1.0), dt=0.1).check().prepare().run(until=50).trajectory_
+    trajectory = Simulation(delayed_kuramoto(K=2.0, tau=1.0), dt=0.1).prepare().run(until=50).trajectory_
     order = np.abs(np.exp(1j * trajectory.states).mean(axis=1))
     assert order[0] < 0.1
     assert order[-1] > 0.99
@@ -66,7 +66,6 @@ def test_kuramoto_transition(factor, synchronized):
             solver=ScipyODESolver(method='RK45'),
             observables=describe('kuramoto').observables_of(built),
         )
-        .check()
         .prepare()
         .run(until=100)
         .trajectory_

@@ -153,7 +153,7 @@ def lqr_oscillator(
     """
     oscillator = DrivenOscillatorElement('oscillator', x=x, omega=omega, zeta=zeta)
     model = LinearizationAnalysis(['oscillator.force'], state_weights=q * np.eye(2), control_weights=[[r]])
-    model.check().prepare(System(elements=[oscillator])).run()
+    model.prepare(System(elements=[oscillator])).run()
     gain = model.gain_
     if gain is None:
         error_msg = 'The linearization of the oscillator gives no gain, since it has no cost weights.'

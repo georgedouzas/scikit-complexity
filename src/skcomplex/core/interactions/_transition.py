@@ -126,19 +126,19 @@ class TransitionInteraction(Interaction):
         >>> recovery = TransitionInteraction(
         ...     'recovery', target='hosts', state='state', source=1, destination=0, rate=lambda s: 0.5
         ... )
-        >>> recovery.check().over
+        >>> recovery.over
         'member'
         >>> agents = TransitionInteraction(
         ...     'recovery', target='hosts', state='state', source=1, destination=2, probability=lambda a, m: 0.1,
         ...     after=3, form='agent'
         ... )
-        >>> type(agents.check().prepare().run(SimpleNamespace()).laws_[0]).__name__
+        >>> type(agents.prepare().run(SimpleNamespace()).laws_[0]).__name__
         'RuleLaw'
         >>> separation = TransitionInteraction(
         ...     'separation', target='workers', state='employer', source=lambda value: value >= 0, destination=-1,
         ...     probability=lambda a, m: 0.05, form='agent'
         ... )
-        >>> separation.check().destination
+        >>> separation.destination
         -1
     """
 

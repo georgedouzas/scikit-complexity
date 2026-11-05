@@ -48,7 +48,6 @@ simulation = (
         random_state=0,
         observables=describe(MODEL).observables_of(system),
     )
-    .check()
     .prepare()
     .run(
         until=100,
@@ -69,17 +68,13 @@ strengths = np.array([0.02, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0])
 polarizations = []
 for gamma in strengths:
     model_system = create(MODEL, gamma=gamma, random_state=1)
-    run = (
-        Simulation(
-            model_system,
-            dt=1.0,
-            solver=EulerMaruyamaSolver(dt=0.05),
-            random_state=1,
-            observables=describe(MODEL).observables_of(model_system),
-        )
-        .check()
-        .prepare()
-    )
+    run = Simulation(
+        model_system,
+        dt=1.0,
+        solver=EulerMaruyamaSolver(dt=0.05),
+        random_state=1,
+        observables=describe(MODEL).observables_of(model_system),
+    ).prepare()
     polarizations.append(np.abs(run.run(until=150).trajectory_.values('polarization')[75:]).mean())
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(simulation.trajectory_.times, np.abs(simulation.trajectory_.values('polarization')))

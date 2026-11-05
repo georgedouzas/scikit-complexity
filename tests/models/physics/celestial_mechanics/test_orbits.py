@@ -81,7 +81,7 @@ def test_restricted_three_body_records_its_hamiltonian_within_its_invariant_tole
 def test_restricted_three_body_admits_no_split_of_the_yoshida_solver():
     """Test that the Coriolis terms of the rotating frame make the Yoshida solver name a momentum and RK4Solver."""
     with pytest.raises(SolverError, match=r'rate of body\.p[xy] reads .*body\.p[xy].*RK4Solver'):
-        Yoshida4Solver().check().prepare(compile_system(restricted_three_body()))
+        Yoshida4Solver().prepare(compile_system(restricted_three_body()))
 
 
 def test_restricted_three_body_defaults_are_chaotic():

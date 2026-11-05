@@ -24,7 +24,7 @@ def test_run_reaches_the_ornstein_uhlenbeck_variance():
         interactions=[process],
     )
     simulation = Simulation(system, solver=EulerMaruyamaSolver(dt=0.005), dt=0.5, random_state=0)
-    values = simulation.check().prepare().run(until=6).trajectory_.values('walkers.n')[-4:]
+    values = simulation.prepare().run(until=6).trajectory_.values('walkers.n')[-4:]
     assert values.var(axis=1).mean() == pytest.approx(sigma**2 / (2 * theta), rel=0.05)
     assert values.mean() == pytest.approx(0.0, abs=0.01)
 
@@ -36,7 +36,7 @@ def test_run_relaxes_towards_a_goal_of_the_namespace():
         interactions=[RelaxationInteraction('adaptation', target='belief', goal=lambda s: s.t, time=2.0)],
     )
     solver = ScipyODESolver(rtol=1e-10, atol=1e-12)
-    trajectory = Simulation(system, solver=solver, dt=0.5).check().prepare().run(until=3.0).trajectory_
+    trajectory = Simulation(system, solver=solver, dt=0.5).prepare().run(until=3.0).trajectory_
     expected = trajectory.times - 2.0 * (1 - np.exp(-trajectory.times / 2.0))
     np.testing.assert_allclose(trajectory.values('belief.x'), expected, rtol=1e-7, atol=1e-9)
 
@@ -44,4 +44,4 @@ def test_run_relaxes_towards_a_goal_of_the_namespace():
 def test_check_rejects_a_goal_that_is_not_a_function():
     """Test that `check` rejects a goal that is neither callable nor a number."""
     with pytest.raises(ValidationError, match='goal'):
-        RelaxationInteraction('ou', target='walkers', goal='zero').check()
+        RelaxationInteraction('ou', target='walkers', goal='zero').prepare()

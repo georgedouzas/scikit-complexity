@@ -27,7 +27,7 @@ STEPS = 200
 
 def gini(wealth: np.ndarray) -> float:
     """Return the Gini coefficient of the wealth."""
-    return DistributionAnalysis('gini').check().prepare(wealth).run().gini_
+    return DistributionAnalysis('gini').prepare(wealth).run().gini_
 
 
 system = create(MODEL, n_agents=300)
@@ -41,7 +41,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(system, observers=[observer], random_state=0, observables=observables).check().prepare().run(until=STEPS)
+    Simulation(system, observers=[observer], random_state=0, observables=observables).prepare().run(until=STEPS)
 )
 
 # %%

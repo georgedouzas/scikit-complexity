@@ -72,7 +72,7 @@ class StandardizationInteraction(ChoiceInteraction):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import StandardizationInteraction
-        >>> StandardizationInteraction('standardization', target='agents', H=100).check().options[-1]
+        >>> StandardizationInteraction('standardization', target='agents', H=100).options[-1]
         101.0
     """
 

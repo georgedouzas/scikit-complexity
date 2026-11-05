@@ -87,7 +87,7 @@ class RateInteraction(Interaction):
         >>> from skcomplex.engine.runtime import Simulation
         >>> decay = RateInteraction('decay', target='stock', state='n', rate=lambda s: -0.5 * s.target.n)
         >>> system = System(elements=[CompartmentElement('stock', n=8.0)], interactions=[decay])
-        >>> trajectory = Simulation(system, dt=0.01).check().prepare().run(until=2.0).trajectory_
+        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=2.0).trajectory_
         >>> round(float(trajectory.values('stock.n')[-1]), 3)
         2.943
     """

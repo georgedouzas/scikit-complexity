@@ -78,13 +78,13 @@ class LocalRuleLaw(BaseLaw):
         >>> from skcomplex.specs import LinearRuleSpec, TotalisticSpec
         >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
         >>> cell = var('cell')
-        >>> LocalRuleLaw(cell, BoxNeighborhood(), TotalisticSpec({2: 1})).check().prepare().targets_
+        >>> LocalRuleLaw(cell, BoxNeighborhood(), TotalisticSpec({2: 1})).prepare().targets_
         (cell,)
-        >>> parity = LocalRuleLaw(cell, BoxNeighborhood(), TotalisticSpec(lambda total: total % 2)).check().prepare()
+        >>> parity = LocalRuleLaw(cell, BoxNeighborhood(), TotalisticSpec(lambda total: total % 2)).prepare()
         >>> parity.run({'space': LatticeSpace(5), 'cell': [0, 0, 1, 0, 0]}).value_.tolist()
         [0, 1, 1, 1, 0]
         >>> around = LatticeNeighborhood(((-1,), (1,)))
-        >>> rule90 = LocalRuleLaw(cell, around, LinearRuleSpec((1, 1), 'GF(2)')).check().prepare()
+        >>> rule90 = LocalRuleLaw(cell, around, LinearRuleSpec((1, 1), 'GF(2)')).prepare()
         >>> rule90.run({'space': LatticeSpace(6), 'cell': [0, 0, 1, 0, 0, 0]}).value_.tolist()
         [0, 1, 0, 1, 0, 0]
     """
@@ -123,7 +123,7 @@ class LocalRuleLaw(BaseLaw):
             error_msg = f'Unknown schedule {self.schedule!r}. Use one of {", ".join(SCHEDULES)}.'
             raise ValidationError(error_msg)
         if isinstance(self.rule, BaseSpec):
-            self.rule.check()
+            self.rule._validated()
 
     def _get_rule(self) -> object:
         """Return a rule code as its table, through its `table()` method, and any other rule unchanged."""
@@ -139,7 +139,7 @@ class LocalRuleLaw(BaseLaw):
         if not isinstance(self.over, LatticeNeighborhood):
             error_msg = f'A run reads an outer totalistic rule on offsets or a memory set, not on {self.over!r}.'
             raise ValidationError(error_msg)
-        offsets = self.over.check().prepare().offsets_
+        offsets = self.over.prepare().offsets_
         return LatticeNeighborhood(((0,) * len(offsets[0]), *offsets))
 
     def _get_linear_values(self, *columns: npt.ArrayLike) -> npt.NDArray[np.generic]:
@@ -211,7 +211,7 @@ class LocalRuleLaw(BaseLaw):
             error_msg = f'A local rule runs on a mapping with `space` and its states {names}, but got {inputs!r}.'
             raise ValidationError(error_msg)
         if not hasattr(space, 'size_'):
-            space.check().prepare()
+            space.prepare()
         table = space._index_table(self._get_neighborhood())
         columns = []
         for name in names:

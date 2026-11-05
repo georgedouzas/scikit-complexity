@@ -23,7 +23,6 @@ def test_curie_weiss_magnetization(temperature):
     system = curie_weiss(2000, temperature=temperature, random_state=1)
     trajectory = (
         Simulation(system, dt=1.0, random_state=0, observables=describe('curie_weiss').observables_of(system))
-        .check()
         .prepare()
         .run(until=30)
         .trajectory_
@@ -48,7 +47,6 @@ def test_sherrington_kirkpatrick_energy_and_freezing():
                 random_state=0,
                 observables=describe('sherrington_kirkpatrick').observables_of(system),
             )
-            .check()
             .prepare()
             .run(until=100)
             .trajectory_

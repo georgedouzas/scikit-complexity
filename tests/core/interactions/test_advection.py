@@ -51,7 +51,7 @@ def _run(*interactions, discretization='finite-volume'):
     space = LatticeSpace((CELLS,), spacing=spacing, boundary='periodic')
     field = FieldElement('tube', element=TracerElement, space=space, values=values, discretization=discretization)
     simulation = Simulation(System(elements=[field], interactions=list(interactions)), dt=0.05)
-    return simulation.check().prepare().run(until=0.2).trajectory_.values('tube.u')
+    return simulation.prepare().run(until=0.2).trajectory_.values('tube.u')
 
 
 def test_run_matches_the_conservation_law_of_the_flux_v_u():
@@ -74,7 +74,7 @@ def test_run_without_numerical_flux_keeps_the_total_of_a_spectral_field():
 def test_check_rejects_a_drift_that_is_not_callable():
     """Test that `check` rejects a drift that is not a function."""
     with pytest.raises(ValidationError, match='drift'):
-        AdvectionInteraction('drift', target='tube', drift=1.0).check()
+        AdvectionInteraction('drift', target='tube', drift=1.0).prepare()
 
 
 def test_get_laws_reads_a_renamed_target():

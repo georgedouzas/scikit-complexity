@@ -21,7 +21,7 @@ MODEL = 'cardiovascular'
 
 system = create(MODEL, heart_rate=75.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.02, observers=[observer]).check().prepare().run(until=5)
+simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=5)
 
 # %%
 # Stroke volume and conservation

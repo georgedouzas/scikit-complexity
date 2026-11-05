@@ -66,7 +66,7 @@ class JumpInteraction(Interaction):
         >>> from skcomplex.engine.runtime import Simulation
         >>> arrivals = JumpInteraction('arrivals', target='queue', changes={'n': 1}, rate=lambda s: 2.0)
         >>> system = System(elements=[CompartmentElement('queue')], interactions=[arrivals])
-        >>> simulation = Simulation(system, dt=1.0, random_state=0).check().prepare()
+        >>> simulation = Simulation(system, dt=1.0, random_state=0).prepare()
         >>> counts = simulation.run(until=5).trajectory_.values('queue.n')
         >>> bool(all(count == round(count) for count in counts))
         True

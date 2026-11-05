@@ -128,7 +128,7 @@ class EnsembleReplayInteraction(Interaction):
 def _read_chain(entry: str) -> tuple[StructureSpec, BackboneGeometry]:
     """Return a bundled entry and its chain, which rebuilds from angles."""
     structure = read_structure(entry)
-    return structure, BackboneGeometry(structure).check().prepare()
+    return structure, BackboneGeometry(structure).prepare()
 
 
 def _rotate_dihedral(width: float, row: Array, rng: np.random.Generator) -> Array:
@@ -146,7 +146,7 @@ def _read_clashes(positions: Array) -> int:
 
 def _read_value(structure: StructureSpec, kind: str, positions: Array) -> float:
     """Return a value of the fuzzy oil drop of the effective atoms of a chain."""
-    return float(FuzzyOilDropAnalysis(structure, kind).check().prepare(positions[None]).run().values_[0])
+    return float(FuzzyOilDropAnalysis(structure, kind).prepare(positions[None]).run().values_[0])
 
 
 def _score_angles(entry: str, row: Array) -> float:
@@ -254,7 +254,7 @@ def fuzzy_oil_drop(
             interactions=[EnsembleReplayInteraction('replay', target='chain', state='x', ensemble=ensemble)],
             time=DiscreteTime(),
         )
-    angles = np.full(BackboneGeometry(structure).check().prepare().angles_.size, EXTENDED_PHI)
+    angles = np.full(BackboneGeometry(structure).prepare().angles_.size, EXTENDED_PHI)
     angles[angles.size // 2 :] = EXTENDED_PSI
     return System(
         label=entry,

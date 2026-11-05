@@ -30,7 +30,7 @@ class SocialImpactInteraction(MapInteraction):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import SocialImpactInteraction
-        >>> SocialImpactInteraction('impact', target='people').check().form
+        >>> SocialImpactInteraction('impact', target='people').form
         'agent'
     """
 

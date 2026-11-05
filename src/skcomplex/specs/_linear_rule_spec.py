@@ -29,7 +29,7 @@ class LinearRuleSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import LinearRuleSpec
-        >>> LinearRuleSpec((1, 1), 'GF(3)').check().characteristic
+        >>> LinearRuleSpec((1, 1), 'GF(3)').characteristic
         3
     """
 
@@ -51,7 +51,7 @@ class LinearRuleSpec(BaseSpec):
     @property
     def sage_field(self) -> Field:
         """Sage field of the coefficients."""
-        text = self.check().field.replace(' ', '')
+        text = self.field.replace(' ', '')
         return QQ if text == 'QQ' else GF(int(text[3:-1]))
 
     @property

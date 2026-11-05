@@ -186,13 +186,13 @@ class IrreversibilityAnalysis(BaseAnalysis):
         >>> import numpy as np
         >>> from skcomplex.analysis import IrreversibilityAnalysis
         >>> ring = 2 * np.roll(np.eye(5), 1, axis=1) + np.roll(np.eye(5), -1, axis=1)
-        >>> production = IrreversibilityAnalysis().check().prepare(ring).run().entropy_production_
+        >>> production = IrreversibilityAnalysis().prepare(ring).run().entropy_production_
         >>> bool(abs(production - np.log(2)) < 1e-12)
         True
         >>> jumps = IrreversibilityAnalysis('jump-entropy-production', rates=[[0, 2], [1, 0]], duration=3.0)
-        >>> jumps.check().prepare([0, 1, 0, 1]).run().entropies_.round(3).tolist()
+        >>> jumps.prepare([0, 1, 0, 1]).run().entropies_.round(3).tolist()
         [0.693]
-        >>> IrreversibilityAnalysis('detailed-balance').check().prepare([0, 1, 2] * 1000).run().balanced_
+        >>> IrreversibilityAnalysis('detailed-balance').prepare([0, 1, 2] * 1000).run().balanced_
         False
     """
 

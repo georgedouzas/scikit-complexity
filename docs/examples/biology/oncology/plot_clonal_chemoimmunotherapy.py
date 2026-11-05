@@ -21,7 +21,7 @@ MODEL = 'clonal_chemoimmunotherapy'
 
 system = create(MODEL, u_vaccine=0.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=300)
+simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=300)
 
 # %%
 # Selection of the resistant clone
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().
 # relapses resistant and grows by two orders of magnitude. With the vaccine, both clones should fall below one cell.
 
 alone = simulation.trajectory_
-combined = Simulation(create(MODEL), dt=1.0).check().prepare().run(until=300).trajectory_
+combined = Simulation(create(MODEL), dt=1.0).prepare().run(until=300).trajectory_
 fig, (chemo, both) = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
 for axes, trajectory, title in (
     (chemo, alone, 'Chemotherapy alone selects the resistant clone'),

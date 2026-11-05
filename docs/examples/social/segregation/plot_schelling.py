@@ -24,7 +24,7 @@ SIDE, STEPS = 50, 50
 
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 system = create(MODEL, width=SIDE, height=SIDE, minority=0.5, threshold=0.4, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=STEPS)
+simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=STEPS)
 
 # %%
 # Mild preferences, strong segregation
@@ -41,14 +41,14 @@ def like_share(trajectory, frame):
     grid = np.full((SIDE, SIDE), -1.0)
     columns, rows = np.asarray(residents.locations, dtype=int).T
     grid[rows, columns] = residents.values['kind']
-    return NeighborAnalysis('like-share', empty=-1.0).check().prepare(grid).run().share_[0]
+    return NeighborAnalysis('like-share', empty=-1.0).prepare(grid).run().share_[0]
 
 
 thresholds = np.linspace(0.1, 0.8, 8)
 finals = []
 for threshold in thresholds:
     system = create(MODEL, width=SIDE, height=SIDE, minority=0.5, threshold=threshold, random_state=0)
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=STEPS).trajectory_
+    trajectory = Simulation(system, random_state=0).prepare().run(until=STEPS).trajectory_
     finals.append(like_share(trajectory, STEPS))
 trajectory = simulation.trajectory_
 fig, (series, sweep) = plt.subplots(1, 2, figsize=(10, 4))

@@ -102,25 +102,25 @@ OPERATORS = {
 def test_numpy_code_of_operator(name):
     """Test the NumPy code of an operator."""
     expression, code, _, _ = OPERATORS[name]
-    assert ExpressionPrinter().check().prepare().run([expression]).code_ == ([], [code])
+    assert ExpressionPrinter().prepare().run([expression]).code_ == ([], [code])
 
 
 @pytest.mark.parametrize('name', sorted(OPERATORS))
 def test_numba_code_of_operator(name):
     """Test the scalar code of an operator, as the Numba backend compiles it."""
     expression, _, code, _ = OPERATORS[name]
-    assert ExpressionPrinter('scalar').check().prepare().run([expression]).code_ == ([], [code])
+    assert ExpressionPrinter('scalar').prepare().run([expression]).code_ == ([], [code])
 
 
 @pytest.mark.parametrize('name', sorted(OPERATORS))
 def test_lepton_code_of_operator(name):
     """Test the Lepton code of an operator, written with Lepton's functions."""
     expression, _, _, code = OPERATORS[name]
-    assert ExpressionPrinter('lepton', shared=False).check().prepare().run([expression]).code_ == ([], [code])
+    assert ExpressionPrinter('lepton', shared=False).prepare().run([expression]).code_ == ([], [code])
 
 
 def test_repeated_subexpressions_are_computed_once():
     """Test that a subexpression shared by two expressions is bound once and reused."""
-    assignments, codes = ExpressionPrinter().check().prepare().run([(X + Y) ** 2, 3 * (X + Y) ** 2]).code_
+    assignments, codes = ExpressionPrinter().prepare().run([(X + Y) ** 2, 3 * (X + Y) ** 2]).code_
     assert assignments == [('_cse0', '(x + y)**2')]
     assert codes == ['_cse0', '3*_cse0']

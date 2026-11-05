@@ -30,7 +30,6 @@ system = create(MODEL)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(system, dt=5.0, solver=ETDRK4Solver(dt=0.5), observers=[observer], random_state=0)
-    .check()
     .prepare()
     .run(
         until=300,
@@ -48,18 +47,15 @@ simulation = (
 
 hexagons = simulation.trajectory_.lattice('layer.u')[-1]
 rolls_run = (
-    Simulation(create(MODEL, g=0.0), dt=5.0, solver=ETDRK4Solver(dt=0.5), random_state=0)
-    .check()
-    .prepare()
-    .run(until=300)
+    Simulation(create(MODEL, g=0.0), dt=5.0, solver=ETDRK4Solver(dt=0.5), random_state=0).prepare().run(until=300)
 )
 rolls = rolls_run.trajectory_.lattice('layer.u')[-1]
 spacing = LENGTH / hexagons.shape[0]
 
 fig, (spectrum, histogram) = plt.subplots(1, 2, figsize=(10, 4))
 for field, label in [(hexagons, 'hexagons, g = 1'), (rolls, 'rolls, g = 0')]:
-    factor = SpectrumAnalysis('structure-factor', spacing=spacing).check().prepare(field).run()
-    order = DomainAnalysis('wavelength', spacing=spacing).check().prepare(field).run().orientation_[0]
+    factor = SpectrumAnalysis('structure-factor', spacing=spacing).prepare(field).run()
+    order = DomainAnalysis('wavelength', spacing=spacing).prepare(field).run().orientation_[0]
     spectrum.plot(factor.wavenumbers_, factor.power_, 'o-', markersize=3, label=f'{label}, orientation {order:.2f}')
     histogram.hist(
         field.ravel(),

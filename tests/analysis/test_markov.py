@@ -14,7 +14,7 @@ from skcomplex.models import run
 
 def _markov(kind: str, source: object, **settings: object) -> MarkovAnalysis:
     """Return the Markov analysis of a source for one kind, run."""
-    return MarkovAnalysis(kind, **settings).check().prepare(source).run()
+    return MarkovAnalysis(kind, **settings).prepare(source).run()
 
 
 THREE_STATES = np.asarray([[0.90, 0.08, 0.02], [0.04 / 0.3, 1 - 0.04 / 0.3 - 0.12, 0.12], [0.05, 0.18, 0.77]])
@@ -230,7 +230,7 @@ def test_metastable_sets_of_every_number_of_sets():
 def test_metastable_sets_need_a_reversible_model():
     """Test that metastable sets of a model without detailed balance raise an error."""
     with pytest.raises(AnalysisError, match='reversible'):
-        MarkovAnalysis('state-model', n_metastable=2, reversible=False).check()
+        MarkovAnalysis('state-model', n_metastable=2, reversible=False).prepare()
 
 
 def test_stationary_distribution_ehrenfest_urn_and_ring_walk():
@@ -283,11 +283,11 @@ def test_markov_analysis_reads_the_jump_path_of_a_trajectory():
 def test_markov_analysis_rejects_bad_settings():
     """Test that an unknown kind, an ignored setting, a bad matrix, and a non-square matrix raise errors."""
     with pytest.raises(AnalysisError, match='kind'):
-        MarkovAnalysis('unknown').check()
+        MarkovAnalysis('unknown').prepare()
     with pytest.raises(AnalysisError, match='does not read n_metastable'):
-        MarkovAnalysis('stationary', n_metastable=2).check()
+        MarkovAnalysis('stationary', n_metastable=2).prepare()
     with pytest.raises(AnalysisError, match='matrix'):
-        MarkovAnalysis('stationary', matrix='unknown').check()
+        MarkovAnalysis('stationary', matrix='unknown').prepare()
     with pytest.raises(AnalysisError, match='square'):
         _markov('stationary', [[1.0, 0.0]], matrix='transition')
 

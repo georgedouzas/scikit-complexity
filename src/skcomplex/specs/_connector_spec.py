@@ -25,7 +25,7 @@ class ConnectorSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.specs import ConnectorSpec
-        >>> ConnectorSpec('chemical', potential='mu', flow='n').check().flow
+        >>> ConnectorSpec('chemical', potential='mu', flow='n').flow
         'n'
     """
 

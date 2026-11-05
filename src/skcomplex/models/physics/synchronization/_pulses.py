@@ -112,7 +112,7 @@ def mirollo_strogatz(
 
     Examples:
         >>> from skcomplex.models.physics.synchronization import mirollo_strogatz
-        >>> mirollo_strogatz(3).elements[0].check().prepare().size_
+        >>> mirollo_strogatz(3).elements[0].prepare().size_
         3
     """
     charges = np.random.default_rng(seed).uniform(0.0, 1.0, n_oscillators)

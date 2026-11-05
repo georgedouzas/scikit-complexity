@@ -54,7 +54,7 @@ class LindbladSolver(OperatorSolver):
         >>> from skcomplex.engine.compile import OperatorCompiler
         >>> compiler = OperatorCompiler()
         >>> simulation = Simulation(system, compiler=compiler, solver=LindbladSolver(), dt=1.0, observables=z)
-        >>> simulation = simulation.check().prepare()
+        >>> simulation = simulation.prepare()
         >>> values = simulation.run(until=2.0).trajectory_.values('q.z')
         >>> bool(abs((1 + values[-1]) / 2 - np.exp(-1.0)) < 1e-6)
         True

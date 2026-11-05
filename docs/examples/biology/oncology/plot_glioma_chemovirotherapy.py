@@ -19,7 +19,7 @@ MODEL = 'glioma_chemovirotherapy'
 
 system = create(MODEL, V=0.0, u1=0.0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=300)
+simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=300)
 
 # %%
 # Therapy spares the neurons
@@ -42,7 +42,7 @@ neurons.plot(
     color='black',
 )
 for name, arm in arms.items():
-    trajectory = Simulation(arm, dt=1.0).check().prepare().run(until=300).trajectory_
+    trajectory = Simulation(arm, dt=1.0).prepare().run(until=300).trajectory_
     glioma.semilogy(trajectory.times, trajectory.values('brain.AU').clip(1.0), label=name)
     neurons.plot(trajectory.times, trajectory.values('brain.N') / trajectory.values('brain.N')[0], label=name)
 glioma.set_xlabel('time (days)')

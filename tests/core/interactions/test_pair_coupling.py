@@ -137,7 +137,7 @@ def test_pair_coupling_holds_members_at_the_potential_minimum():
         interactions=[PairCouplingInteraction('morse', 'pair', 'pair', cutoff=3.0, potential=_morse)],
         space=ContinuousSpace(n_dim=2),
     )
-    trajectory = Simulation(system, solver=ScipyODESolver(), dt=0.1).check().prepare().run(until=1).trajectory_
+    trajectory = Simulation(system, solver=ScipyODESolver(), dt=0.1).prepare().run(until=1).trajectory_
     np.testing.assert_allclose(trajectory.values('pair.x_d1'), 0.0, atol=1e-12)
 
 
@@ -152,7 +152,7 @@ def test_pair_coupling_conserves_the_total_first_derivative():
         space=ContinuousSpace(n_dim=2),
     )
     solver = ScipyODESolver(rtol=1e-9, atol=1e-12)
-    trajectory = Simulation(system, solver=solver, dt=0.05).check().prepare().run(until=2).trajectory_
+    trajectory = Simulation(system, solver=solver, dt=0.05).prepare().run(until=2).trajectory_
     momentum = trajectory.values('gas.x_d1').sum(axis=1)
     np.testing.assert_allclose(momentum, np.broadcast_to(momentum[0], momentum.shape), atol=1e-8)
 
@@ -189,7 +189,7 @@ def test_pair_coupling_laws_are_symbolic_and_opposite_for_a_potential():
     """Test that the laws of a potential give opposite values to the two members with equal divisors."""
     x1, x2 = var('x1 x2')
     first, second = SimpleNamespace(x=vector([x1]), m=1), SimpleNamespace(x=vector([x2]), m=1)
-    coupling = PairCouplingInteraction('soft', 'gas', 'gas', potential=_soft, divisor='m').check().prepare()
+    coupling = PairCouplingInteraction('soft', 'gas', 'gas', potential=_soft, divisor='m').prepare()
     push, pull = coupling.run(SimpleNamespace(first=first, second=second)).laws_
     assert (push.target, pull.target) == (first.x, second.x)
     assert bool((push.value + pull.value)[0] == 0)
@@ -203,7 +203,7 @@ def test_pair_coupling_laws_are_symbolic_and_opposite_for_a_potential():
 def test_check_rejects_not_exactly_one_callable(arguments):
     """Test that `check` rejects a coupling without exactly one callable of the function and the potential."""
     with pytest.raises(ValidationError, match='exactly one'):
-        PairCouplingInteraction('pair', 'gas', 'gas', **arguments).check()
+        PairCouplingInteraction('pair', 'gas', 'gas', **arguments).prepare()
 
 
 def test_pair_coupling_function_writes_several_states_jointly():
@@ -217,7 +217,7 @@ def test_pair_coupling_function_writes_several_states_jointly():
         write=('x', 'theta'),
         function=lambda s: (s.second.x - s.first.x, sin(s.second.theta - s.first.theta)),
     )
-    laws = coupling.check().prepare().run(SimpleNamespace(first=first, second=second)).laws_
+    laws = coupling.prepare().run(SimpleNamespace(first=first, second=second)).laws_
     assert [law.target for law in laws] == [first.x, first.theta, second.x, second.theta]
     assert [law.value for law in laws] == [vector([x2 - x1]), sin(b - a), vector([x1 - x2]), sin(a - b)]
 
@@ -225,7 +225,7 @@ def test_pair_coupling_function_writes_several_states_jointly():
 def test_check_rejects_a_potential_of_several_states():
     """Test that `check` rejects a potential with several states to write."""
     with pytest.raises(ValidationError, match='one state'):
-        PairCouplingInteraction('pair', 'gas', 'gas', write=('x', 'v'), potential=_soft).check()
+        PairCouplingInteraction('pair', 'gas', 'gas', write=('x', 'v'), potential=_soft).prepare()
 
 
 def test_get_laws_reads_renamed_pair_members():

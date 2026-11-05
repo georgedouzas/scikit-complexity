@@ -10,7 +10,7 @@ from skcomplex.errors import AnalysisError
 def _test(kind: str, data: np.ndarray, **settings: object) -> SurrogateTestAnalysis:
     """Return the surrogate test of an information measure of the columns of data, run."""
     analysis = SurrogateTestAnalysis(InformationAnalysis(kind), 'information_', **settings)
-    return analysis.check().prepare(data).run()
+    return analysis.prepare(data).run()
 
 
 def test_surrogate_test_independent_variables_are_not_significant():
@@ -33,8 +33,8 @@ def test_surrogate_test_synergy_is_significant():
 def test_surrogate_test_rejects_invalid_settings():
     """Test that an unknown alternative, no surrogates, and a measure that is not an analysis raise errors."""
     with pytest.raises(AnalysisError, match='two-sided'):
-        SurrogateTestAnalysis(InformationAnalysis('total-correlation'), 'information_', alternative='both').check()
+        SurrogateTestAnalysis(InformationAnalysis('total-correlation'), 'information_', alternative='both').prepare()
     with pytest.raises(AnalysisError, match='n = 0'):
-        SurrogateTestAnalysis(InformationAnalysis('total-correlation'), 'information_', n=0).check()
+        SurrogateTestAnalysis(InformationAnalysis('total-correlation'), 'information_', n=0).prepare()
     with pytest.raises(AnalysisError, match='is an analysis'):
-        SurrogateTestAnalysis(np.mean, 'information_').check()
+        SurrogateTestAnalysis(np.mean, 'information_').prepare()

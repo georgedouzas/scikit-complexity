@@ -37,7 +37,7 @@ class AdoptionInteraction(TransitionInteraction):
 
     Examples:
         >>> from skcomplex.models.social.opinion_dynamics import AdoptionInteraction
-        >>> AdoptionInteraction('adoption', target='people', mode='influence').check().mode
+        >>> AdoptionInteraction('adoption', target='people', mode='influence').mode
         'influence'
     """
 

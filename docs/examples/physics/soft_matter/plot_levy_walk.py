@@ -25,10 +25,7 @@ MODEL = 'levy_walk'
 system = create(MODEL, n_walkers=500, sigma=1.5)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(system, solver=RK4Solver(dt=0.5), dt=2.5, observers=[observer], random_state=0)
-    .check()
-    .prepare()
-    .run(until=500)
+    Simulation(system, solver=RK4Solver(dt=0.5), dt=2.5, observers=[observer], random_state=0).prepare().run(until=500)
 )
 
 # %%

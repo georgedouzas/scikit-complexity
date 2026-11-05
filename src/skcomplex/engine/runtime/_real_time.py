@@ -20,7 +20,7 @@ class RealTimeClock(BaseClock):
 
     Examples:
         >>> from skcomplex.engine.runtime import RealTimeClock
-        >>> clock = RealTimeClock(speed=100.0).check().prepare().run(1.0)
+        >>> clock = RealTimeClock(speed=100.0).prepare().run(1.0)
         >>> clock.max_lag_ < 0.1
         True
     """

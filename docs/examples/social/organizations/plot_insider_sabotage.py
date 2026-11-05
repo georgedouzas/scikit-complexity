@@ -23,7 +23,7 @@ MODEL = 'insider_sabotage'
 
 system = create(MODEL, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=365)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=365)
 
 # %%
 # Risk builds up over the year
@@ -41,7 +41,7 @@ trend.set_ylabel('risk of sabotage')
 trend.set_title('Risk creeps up over the year')
 trend.legend()
 for frame, label in [(0, 'first day'), (len(risks) - 1, 'last day')]:
-    histogram = DistributionAnalysis('histogram', bins=20).check().prepare(risks[frame]).run()
+    histogram = DistributionAnalysis('histogram', bins=20).prepare(risks[frame]).run()
     edges, density = histogram.edges_, histogram.density_
     spread.stairs(density, edges, fill=True, alpha=0.5, label=label)
 spread.set_xlabel('risk of sabotage')

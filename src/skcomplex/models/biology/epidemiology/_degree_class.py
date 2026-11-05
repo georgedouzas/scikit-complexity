@@ -44,7 +44,7 @@ class DegreeClassElement(Element):
         >>> from skcomplex.models.biology.epidemiology import DegreeClassElement
         >>> GroupElement(
         ...     'network', element=DegreeClassElement, size=2, values={'k': [1.0, 2.0], 'P': [0.5, 0.5]}
-        ... ).check().prepare().size_
+        ... ).prepare().size_
         2
     """
 

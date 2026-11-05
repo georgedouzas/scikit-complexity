@@ -26,9 +26,7 @@ MODEL = 'kramers_escape'
 system = create(MODEL, n_particles=6, D=0.07, random_state=0)
 observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = (
-    Simulation(system, solver=solver, dt=1.5, observers=[observer], random_state=0).check().prepare().run(until=300)
-)
+simulation = Simulation(system, solver=solver, dt=1.5, observers=[observer], random_state=0).prepare().run(until=300)
 
 # %%
 # Exponential survival at the Kramers rate
@@ -42,7 +40,6 @@ fig, ax = plt.subplots(figsize=(7, 4))
 for intensity, color in ((0.08, 'tab:blue'), (0.1, 'tab:orange')):
     run = (
         Simulation(create(MODEL, n_particles=2000, D=intensity), solver=solver, dt=1.0, random_state=1)
-        .check()
         .prepare()
         .run(400)
     )

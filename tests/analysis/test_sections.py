@@ -15,7 +15,7 @@ from skcomplex.models.physics.nonlinear_oscillators import duffing
 
 def _section(kind, source, **settings):
     """Return the section analysis of a source for one kind, run."""
-    return SectionAnalysis(kind, **settings).check().prepare(source).run()
+    return SectionAnalysis(kind, **settings).prepare(source).run()
 
 
 @pytest.mark.slow
@@ -66,6 +66,6 @@ def test_section_rejects_maps_and_unknown_states():
 def test_section_needs_its_settings():
     """Test that a stroboscopic section without a period, and a setting another kind reads, are rejected at check."""
     with pytest.raises(AnalysisError, match='needs period'):
-        SectionAnalysis('stroboscopic').check()
+        SectionAnalysis('stroboscopic').prepare()
     with pytest.raises(AnalysisError, match='does not read period'):
-        SectionAnalysis('poincare', state='mass.x', period=3.0).check()
+        SectionAnalysis('poincare', state='mass.x', period=3.0).prepare()

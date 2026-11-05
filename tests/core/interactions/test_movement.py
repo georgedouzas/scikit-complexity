@@ -51,7 +51,7 @@ class SureWalkInteraction(MovementInteraction):
 
 def _run(system: System, until: int) -> Trajectory:
     """Return the trajectory of a system run to a time."""
-    return Simulation(system, random_state=0).check().prepare().run(until=until).trajectory_
+    return Simulation(system, random_state=0).prepare().run(until=until).trajectory_
 
 
 def _lattice_walk(until: int, walk: MovementInteraction, size: int = 4) -> Trajectory:
@@ -259,7 +259,7 @@ def test_move_member_schedule_charges_every_walker_in_its_activation():
 def test_check_rejects_invalid_arguments(arguments):
     """Test that an unknown step, a bad rate, a best step without score, and bad functions are rejected."""
     with pytest.raises(ValidationError):
-        MovementInteraction('walk', target='walkers', **arguments).check()
+        MovementInteraction('walk', target='walkers', **arguments).prepare()
 
 
 class StrollInteraction(MovementInteraction):

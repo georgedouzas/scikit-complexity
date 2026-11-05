@@ -29,7 +29,7 @@ def test_matrix_visual_logs_the_recurrent_weights(tmp_path):
     recorder = RecorderObserver()
     observer = RerunObserver('test', save_path=tmp_path / 'run.rrd')
     simulation = Simulation(elman_network(n_bits=30), observers=[observer, recorder], random_state=0)
-    trajectory = simulation.check().prepare().run(until=3).trajectory_
+    trajectory = simulation.prepare().run(until=3).trajectory_
     visual = next(item for item in observer.visuals_ if isinstance(item, MatrixVisual) and item.variable == 'A')
     assert (visual.name_, visual.shape_) == ('net/recurrence.A', (4, 4))
     values = trajectory.values('net/recurrence.A')
@@ -41,12 +41,12 @@ def test_matrix_visual_rejects_a_variable_that_is_not_a_matrix():
     """Test that a variable without two dimensions raises an error."""
     problem = compile_system(elman_network(n_bits=30))
     with pytest.raises(ValidationError, match='no matrix'):
-        MatrixVisual('b', path='net/hidden', recording=rr.RecordingStream('test')).check().prepare(problem)
+        MatrixVisual('b', path='net/hidden', recording=rr.RecordingStream('test')).prepare(problem)
 
 
 def test_first_view_of_a_system_that_trains():
     """Test that the first view of a system that trains is the time series of its loss and metrics over epochs."""
-    observer = RerunObserver(blueprint='default').check().prepare(compile_system(elman_network(n_bits=30)))
+    observer = RerunObserver(blueprint='default').prepare(compile_system(elman_network(n_bits=30)))
     first = _views(observer.blueprint_)[0]
     assert isinstance(first, rrb.TimeSeriesView)
     assert str(first.origin) == '/reporters/training'
@@ -54,6 +54,6 @@ def test_first_view_of_a_system_that_trains():
 
 def test_default_blueprint_of_a_system_that_trains():
     """Test that the default blueprint holds the loss and one heat map per trained matrix, and no inner state."""
-    observer = RerunObserver(blueprint='default').check().prepare(compile_system(elman_network(n_bits=30)))
+    observer = RerunObserver(blueprint='default').prepare(compile_system(elman_network(n_bits=30)))
     origins = [str(view.origin) for view in _views(observer.blueprint_)]
     assert origins == ['/reporters/training', 'net/input/D', 'net/recurrence/A', 'net/readout/W']

@@ -73,7 +73,7 @@ def neutral_clustering(
 
     Examples:
         >>> from skcomplex.models.biology.ecology import neutral_clustering
-        >>> neutral_clustering(8).elements[0].check().prepare().size_
+        >>> neutral_clustering(8).elements[0].prepare().size_
         8
     """
     lattice = (shape,) if isinstance(shape, int) else tuple(shape)

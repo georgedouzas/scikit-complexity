@@ -93,7 +93,7 @@ class FieldElement(LatticeElement):
         ...         return [RateLaw(namespace.u, namespace.D * laplacian(namespace.u))]
         >>> space = LatticeSpace((10, 20))
         >>> plate = FieldElement('plate', element=HeatElement, space=space, boundary={'u': 'zero-flux'})
-        >>> plate.check().prepare().size_, plate.default_visual_.kind
+        >>> plate.prepare().size_, plate.default_visual_.kind
         (200, 'image')
     """
 
@@ -119,7 +119,7 @@ class FieldElement(LatticeElement):
         spec = self._get_member_specs().get(state)
         if not isinstance(spec, StateSpec) or spec.tensor is None:
             return None
-        return TensorSpec(spec.tensor, int(cast(BaseSpace, self.space).check().prepare().n_dim_)).check()
+        return TensorSpec(spec.tensor, int(cast(BaseSpace, self.space).prepare().n_dim_))._validated()
 
     def _get_boundary(self, state: str, column: int = 0) -> tuple[str, object]:
         """Return the boundary condition of a state and the value read outside fixed edges.

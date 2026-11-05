@@ -31,11 +31,11 @@ class AtomMapSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            A product names a letter that no reactant carries, or a reactant repeats a letter, raised by `check`.
+            A product names a letter that no reactant carries, or a reactant repeats a letter, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import AtomMapSpec
-        >>> atoms = AtomMapSpec('v1', [('AcCoA', 'ab'), ('OAC', 'cdef')], [('Cit', 'fedbac')]).check()
+        >>> atoms = AtomMapSpec('v1', [('AcCoA', 'ab'), ('OAC', 'cdef')], [('Cit', 'fedbac')])
         >>> atoms.origins[('Cit', 1)], atoms.origins[('Cit', 5)]
         (('OAC', 4), ('AcCoA', 1))
     """
@@ -94,11 +94,11 @@ class TracerSpec(BaseSpec):
 
     Raises:
         ValidationError:
-            The fractions do not sum to 1, or their bit strings differ in length, raised by `check`.
+            The fractions do not sum to 1, or their bit strings differ in length, raised by `prepare`.
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import TracerSpec
-        >>> TracerSpec('AcCoA', {'00': 0.5, '11': 0.5}).check().size
+        >>> TracerSpec('AcCoA', {'00': 0.5, '11': 0.5}).size
         2
     """
 
@@ -177,7 +177,7 @@ class LabelMeasurementSpec(BaseSpec):
 
     Examples:
         >>> from skcomplex.models.biology.systems_biology import LabelMeasurementSpec
-        >>> LabelMeasurementSpec('a', 'Glu', (0.5, 0.5), 0.002).check().deviation
+        >>> LabelMeasurementSpec('a', 'Glu', (0.5, 0.5), 0.002).deviation
         0.002
     """
 
