@@ -268,15 +268,6 @@ be a class of the engine's tree instead.
 - **WHEN** a reviewer lists the dataclasses of the engine
 - **THEN** every one is frozen and has no method besides `check()` and plain readers
 
-### Requirement: The engine names no form, compiler, or law of a model package
-The engine SHALL NOT list a compiler, a form, or a law kind other than those of its own packages. A form, its laws,
-its compiler, and its solver that serve the models of one field SHALL live in that field of the models library.
-
-#### Scenario: No rewriting in the engine
-- **WHEN** a test searches `skcomplex.core`, `skcomplex.engine`, `skcomplex.specs`, and `skcomplex.types` for
-  `WordElement`, `PatchElement`, `ProductionLaw`, `SubstitutionLaw`, `RewritingCompiler`, and the rewriting form
-- **THEN** it finds none
-
 ### Requirement: The code imports what it annotates
 No module SHALL import inside an `if TYPE_CHECKING:` block, and the import contracts SHALL check type-checking imports
 like any other. A spec SHALL live in the lowest package that can import every type its fields name.
@@ -292,3 +283,17 @@ session SHALL pass: black, ruff, lint-imports, mypy, bandit, interrogate, pydocl
 #### Scenario: No suppression comments
 - **WHEN** a test searches the source, the tests, and the examples for `noqa`, `type: ignore`, and `nosec`
 - **THEN** it finds none
+
+### Requirement: The engine names no realization of a model package
+The engine SHALL NOT list a compiler, a form, or a law kind other than those of its own packages. A form, its laws,
+its compiler, and its solver that serve the models of one field SHALL live in that field of the models library.
+
+#### Scenario: No realization in the engine
+- **WHEN** a test searches the public names of `skcomplex.core`, `skcomplex.engine`, `skcomplex.specs`, and `skcomplex.types`
+  for `KochElement`, `CantorElement`, `SierpinskiElement`, and `grigorchuk_group`
+- **THEN** it finds none
+
+#### Scenario: Rewriting in the core and the engine
+- **WHEN** a user imports `WordElement` and `PatchElement` from `skcomplex.core.elements`, `ProductionLaw` and
+  `SubstitutionLaw` from `skcomplex.core.laws`, and `RewritingCompiler` from `skcomplex.engine.compile`
+- **THEN** every import succeeds, and none of these modules imports `skcomplex.models`

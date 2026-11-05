@@ -37,7 +37,7 @@
 
 ## 6. Gate
 
-- [ ] 6.1 Run formatting, checks, the docs build, and tests through CI and the full suite on Linux; verify all pass.
+- [x] 6.1 Run formatting, checks, the docs build, and tests through CI and the full suite on Linux; verify all pass.
 
 ## Review of task 4.5
 
