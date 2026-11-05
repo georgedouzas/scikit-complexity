@@ -3,13 +3,13 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.spaces import GeneratorNeighborhood, LatticeNeighborhood, MemoryNeighborhood
+from skcomplex.analysis import AutomatonAnalysis
+from skcomplex.core.spaces import GeneratorNeighborhood, MemoryNeighborhood
 from skcomplex.engine.problems import FrameSpec
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import CayleyVisual
 from skcomplex.models import catalog, create
 from skcomplex.models.computer_science.automata import (
-    Subshift,
     baumslag_solitar_automaton,
     free_group_automaton,
     heisenberg_automaton,
@@ -117,8 +117,10 @@ def test_linear_ring_automaton_spreads_binomials():
 def test_subshifts_stay_admissible():
     """Test that the Markov chain on the golden mean shift never puts two ones side by side and fills about a fifth."""
     simulation = _run(subshifts(100), 30)
-    space = simulation.system.elements[0].space
-    golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
     alive = simulation.trajectory_.values('cells.alive')
-    assert all(golden.is_admissible(row.astype(int), space) for row in alive)
+    analyses = (
+        AutomatonAnalysis('admissible', configuration=row.astype(int)).check().prepare(simulation.system).run()
+        for row in alive
+    )
+    assert all(analysis.admissible_ for analysis in analyses)
     assert 0.1 < alive[-10:].mean() < 0.4
