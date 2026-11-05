@@ -44,7 +44,7 @@
 - [x] 6.1 Ruff, black, mypy, and pydoclint pass
 - [x] 6.2 Every module imports, and the structural, catalog, and runtime tests pass
 - [x] 6.3 The documentation builds with the executed guide
-- [ ] 6.4 The full suite passes in CI
+- [x] 6.4 The full suite passes in CI
 
 ## Workflow follow-up
 
