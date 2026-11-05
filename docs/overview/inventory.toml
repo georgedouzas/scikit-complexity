@@ -59,7 +59,7 @@ rewriting = { description = "Rewriting systems of words, graphs, and tilings" }
 quantum = { description = "Quantum systems with unitary, Lindblad, and trajectory dynamics" }
 acausal-components = { description = "Components connected through ports with potential and flow variables", change = "add-acausal-components" }
 network-generators = { description = "Network generators and states on edges of adaptive networks" }
-constraint-networks = { description = "Stoichiometric constraint networks solved as linear programmes", change = "add-constraint-based-systems" }
+constraint-networks = { description = "Stoichiometric constraint networks solved as linear programmes", change = "add-constraint-based-models" }
 correlated-noise = { description = "Wiener processes shared or correlated between noise laws" }
 conserved-noise = { description = "Noise that conserves a field, the divergence of a random flux on lattice links" }
 fractional-derivatives = { description = "States of fractional order whose rate laws give Caputo derivatives, with memory solvers" }
@@ -71,9 +71,9 @@ molecular-structures = { description = "Sequences and chains with internal coord
 nonlocal-operators = { description = "Convolutions, shifted reads, and operator inversions on fields", change = "add-nonlocal-operators" }
 optimal-control = { description = "Control inputs with costs solved by Pontryagin or direct transcription" }
 phase-space-fields = { description = "Fields over position and velocity or orientation", change = "add-phase-space-fields" }
-static-solutions = { description = "Systems solved, swept, or optimised rather than integrated in time", change = "add-static-systems" }
-satisfiability = { description = "Constraints on Boolean states decided incrementally", change = "add-static-systems" }
-population-search = { description = "Populations of candidates moved on an objective, one generation per step", change = "add-static-systems" }
+static-solutions = { description = "Systems solved, swept, or optimised rather than integrated in time", change = "add-static-models" }
+satisfiability = { description = "Constraints on Boolean states decided incrementally", change = "add-static-models" }
+population-search = { description = "Populations of candidates moved on an objective, one generation per step", change = "add-static-models" }
 tensor-fields = { description = "Tensor-valued states with declared symmetries", change = "add-tensor-fields" }
 variational-mechanics = { description = "Hamiltonian and Lagrangian mechanics with derived equations", change = "add-variational-mechanics" }
 region-layers = { description = "Three-dimensional continuous agent spaces and region layers of polygons", change = "extend-agent-spaces" }

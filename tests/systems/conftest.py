@@ -36,7 +36,7 @@ def _trajectory(
 
 
 def _observables(system: System, name: str | None) -> list[ObservableSpec]:
-    """Return the standard observables of a system of a system, or none without a system."""
+    """Return the standard observables of a catalog system, or none without a name."""
     return [] if name is None else describe(name).observables_of(system)
 
 

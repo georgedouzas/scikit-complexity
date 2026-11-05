@@ -35,15 +35,15 @@
 
 ## 5. User guide
 
-- [ ] 5.1 Reorder the guide by task: select, change, build, simulate, observe, analyse, experiment, extend
-- [ ] 5.2 Rewrite each section to open with what the reader achieves, then short code, keeping every topic
-- [ ] 5.3 Compare the topics before and after, and keep every executed block passing
+- [x] 5.1 Reorder the guide by task: select, change, build, simulate, observe, analyse, experiment, extend
+- [x] 5.2 Rewrite each section to open with what the reader achieves, then short code, keeping every topic
+- [x] 5.3 Compare the topics before and after, and keep every executed block passing
 
 ## 6. Verification
 
 - [x] 6.1 Ruff, black, mypy, and pydoclint pass
-- [ ] 6.2 Every module imports, and the structural, catalog, and runtime tests pass
-- [ ] 6.3 The documentation builds with the executed guide
+- [x] 6.2 Every module imports, and the structural, catalog, and runtime tests pass
+- [x] 6.3 The documentation builds with the executed guide
 - [ ] 6.4 The full suite passes in CI
 
 ## Workflow follow-up

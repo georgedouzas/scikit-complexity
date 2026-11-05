@@ -495,7 +495,8 @@ class Simulation(BaseConfig[None, float]):
         """Run the prepared simulation from time 0 to `until` in the calling thread.
 
         The run starts from the initial state and keeps the parameter values of the previous run of the same system,
-        such as values set with `update_parameters` between runs. `clone(simulation).run(until)` starts afresh.
+        such as values set with `update_parameters` between runs, and `clone(simulation).prepare().run(until)` starts
+        afresh.
 
         Args:
             inputs:

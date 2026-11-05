@@ -57,7 +57,8 @@ def register_system(
             arguments, or `None`.
 
         observables:
-            A function of the system's system that returns its standard observables, which `run` records, or `None`.
+            A function of the built system that returns its standard observables, which `create_simulation` records, or
+            `None`.
 
         initial_state:
             A function of the factory's arguments that returns the initial values `run` gives the simulation, by dotted
@@ -166,7 +167,7 @@ def describe(name: str) -> SystemEntry:
 
 
 def create_system(name: str, **parameters: object) -> System:
-    """Return the system of a system, built by its factory.
+    """Return a ready-made system, built by its factory.
 
     It imports the system's module and nothing else of the library.
 
@@ -179,7 +180,7 @@ def create_system(name: str, **parameters: object) -> System:
 
     Returns:
         system:
-            The system's system.
+            The built system.
 
     Raises:
         RegistryError:

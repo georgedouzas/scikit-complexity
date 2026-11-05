@@ -156,7 +156,7 @@ trajectory = create_simulation('sir').prepare().run().trajectory_
 round(float(trajectory.values('I.n').max()))
 ```
 
-`create_system` returns the system of a system with the arguments you choose, so you can simulate it with settings of
+`create_system` returns a ready-made system with the arguments you choose, so you can simulate it with settings of
 your own:
 
 ```python

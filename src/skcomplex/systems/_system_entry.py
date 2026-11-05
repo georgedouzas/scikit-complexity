@@ -39,7 +39,7 @@ class SystemEntry:
             The name the system is created by.
 
         factory:
-            The function that returns the system's system.
+            The factory that builds the system.
 
         field:
             The field path of the system, its science and subfield, such as `biology/ecology`.
@@ -57,7 +57,7 @@ class SystemEntry:
             The default run settings: `until` and any `Simulation` argument such as `dt` or `solver`.
 
         observables:
-            A function of the system's system that returns its standard observables, or `None` for none.
+            A function of the built system that returns its standard observables, or `None` for none.
 
         initial_state:
             A function of the factory's arguments that returns the initial values `run` gives the simulation, by dotted

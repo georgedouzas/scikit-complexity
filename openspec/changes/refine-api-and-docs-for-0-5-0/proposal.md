@@ -47,20 +47,23 @@ The decisions come first. The numbered items after them are undecided, and a sug
    Suggestion: move them in. A package move needs the user's approval.
 3. **`SubshiftSpec` in a run.** It declares what is admissible, but a run does not enforce it, so a run can leave the
    allowed set without an error. To decide: enforce it, or state that only the analysis reads it.
-4. **The first model.** To decide: whether the simple case still takes too many lines once `check` is gone.
+4. **`compile_system` is a function.** `skcomplex.core.engine.compile` exports `compile_system`, a public function
+   rather than a class with `prepare` and `run`, and the guide uses it. To decide: replace it with the compiler classes
+   the guide already shows, or keep it as the one shortcut.
+5. **The first system.** To decide: whether the simple case still takes too many lines once `check` is gone.
 
 ### Documentation
 
-5. **Gallery scope.** The published documentation builds a sample of 24 examples, while the catalog lists every model. To
+6. **Gallery scope.** The published documentation builds a sample of 24 examples, while the catalog lists every system. To
    decide: whether a release builds all of them.
-6. **Failures of the whole gallery.** The first full build ran 576 examples, and 5 failed: `plot_carbon_13_mfa` and
+7. **Failures of the whole gallery.** The first full build ran 576 examples, and 5 failed: `plot_carbon_13_mfa` and
    `plot_urban_scaling_interactions` have a blank view, `plot_dynamic_multispecies_fba` and `plot_quarter_car` exceed
    their budgets, and `plot_free_group_automaton` raises a `GAPError` about a missing directory.
-7. **User guide size.** The guide is over 7,000 lines on one page. To decide: whether to split it.
+8. **User guide size.** The guide, now task-led, is over 9,000 lines on one page. To decide: whether to split it.
 
 ### Reliability
 
-8. **Seeded tests.** The popularity-similarity tests in `tests/systems/mathematics/networks/test_growth.py` fail on some
+9. **Seeded tests.** The popularity-similarity tests in `tests/systems/mathematics/networks/test_growth.py` fail on some
    full-suite runs on Linux, with no cause found. The same source failed at `1f22bf9b` and passed at `1000e3b6`.
 
 ## Capabilities
