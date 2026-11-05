@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xmile version="1.0" xmlns="http://docs.oasis-open.org/xmile/ns/XMILE/v1.0">
+	<header>
+		<vendor>scikit-complexity</vendor>
+		<product version="1.0">fixtures</product>
+	</header>
+	<sim_specs method="Euler" time_units="Minutes">
+		<start>0</start>
+		<stop>30</stop>
+		<dt>0.125</dt>
+	</sim_specs>
+	<model>
+		<variables>
+			<stock name="Teacup Temperature">
+				<outflow>Heat_Loss_to_Room</outflow>
+				<eqn>180</eqn>
+			</stock>
+			<flow name="Heat Loss to Room">
+				<eqn>(Teacup_Temperature - Room_Temperature) / Characteristic_Time</eqn>
+			</flow>
+			<aux name="Room Temperature">
+				<eqn>70</eqn>
+			</aux>
+			<aux name="Characteristic Time">
+				<eqn>10</eqn>
+			</aux>
+		</variables>
+	</model>
+</xmile>

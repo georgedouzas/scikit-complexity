@@ -6,6 +6,7 @@ from ._collocation import CollocationSolver
 from ._cosimulation import CoSimulationSolver
 from ._crank_nicolson import CrankNicolsonSolver
 from ._etdrk4 import ETDRK4Solver
+from ._euler import EulerSolver
 from ._euler_maruyama import EulerMaruyamaSolver
 from ._external import ExternalSolver
 from ._fractional_abm import FractionalABMSolver
@@ -54,6 +55,7 @@ __all__: list[str] = [
     'CrankNicolsonSolver',
     'ETDRK4Solver',
     'EulerMaruyamaSolver',
+    'EulerSolver',
     'ExternalSolver',
     'FractionalABMSolver',
     'FractionalEulerMaruyamaSolver',

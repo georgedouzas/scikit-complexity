@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xmile version="1.0" xmlns="http://docs.oasis-open.org/xmile/ns/XMILE/v1.0">
+	<header>
+		<vendor>scikit-complexity</vendor>
+		<product version="1.0">fixtures</product>
+	</header>
+	<sim_specs method="Euler" time_units="Weeks">
+		<start>5</start>
+		<stop>25</stop>
+		<dt>0.125</dt>
+	</sim_specs>
+	<model>
+		<variables>
+			<stock name="Level">
+				<inflow>Inflow</inflow>
+				<outflow>Outflow</outflow>
+				<eqn>1</eqn>
+			</stock>
+			<flow name="Inflow">
+				<eqn>0.5 + Ramped + Endless * 0.01 + Single + Repeated + Chosen * 0.01 + Guarded + Whole * 0.01</eqn>
+			</flow>
+			<flow name="Outflow">
+				<eqn>0.1 * Level + 0.01 * Smoothed + 0.01 * Smoothed_Third + 0.01 * Delayed + 0.01 * Delayed_Nth + 0.01 * Clock</eqn>
+			</flow>
+			<aux name="Ramped">
+				<eqn>RAMP(0.5, 7, 12)</eqn>
+			</aux>
+			<aux name="Endless">
+				<eqn>RAMP(0.5, 7)</eqn>
+			</aux>
+			<aux name="Single">
+				<eqn>PULSE(2, 8)</eqn>
+			</aux>
+			<aux name="Repeated">
+				<eqn>PULSE(1, 9, 4)</eqn>
+			</aux>
+			<aux name="Chosen">
+				<eqn>IF TIME &gt;= 11 AND Level &gt; 0 THEN MAX(Level, 2) ELSE MIN(Level, 2)</eqn>
+			</aux>
+			<aux name="Guarded">
+				<eqn>0.01 * SAFEDIV(Level, TIME - 6) + 0.01 * SAFEDIV(Level, TIME - 6, 0.5)</eqn>
+			</aux>
+			<aux name="Whole">
+				<eqn>INT(Level) + ABS(0 - Level) + SQRT(Level) + LN(Level) + EXP(0 - Level)</eqn>
+			</aux>
+			<aux name="Smoothed">
+				<eqn>SMTH1(Level, 2)</eqn>
+			</aux>
+			<aux name="Smoothed Third">
+				<eqn>SMTH3(Level, 2)</eqn>
+			</aux>
+			<aux name="Delayed">
+				<eqn>DELAY1(Level, 2)</eqn>
+			</aux>
+			<aux name="Delayed Nth">
+				<eqn>DELAYN(Level, 2, 4)</eqn>
+			</aux>
+			<aux name="Clock">
+				<eqn>TIME * 0.125</eqn>
+			</aux>
+		</variables>
+	</model>
+</xmile>
