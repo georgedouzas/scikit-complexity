@@ -5,8 +5,8 @@
 
 from types import SimpleNamespace
 
-from ._production_law import ProductionLaw
-from ._word_element import WordElement
+from ....core.elements import WordElement
+from ....core.laws import ProductionLaw
 
 
 class KochElement(WordElement):

@@ -8,12 +8,10 @@ from types import SimpleNamespace
 
 import numpy as np
 
+from ....core.elements import PatchElement
+from ....core.laws import SubstitutionLaw
 from ....errors import ValidationError
-from ....specs import VisualSpec
-from ._affine_spec import AffineSpec
-from ._patch_element import PatchElement
-from ._prototile_spec import PrototileSpec
-from ._substitution_law import SubstitutionLaw
+from ....specs import AffineSpec, PrototileSpec, VisualSpec
 
 SHAPES = ('triangle', 'carpet')
 

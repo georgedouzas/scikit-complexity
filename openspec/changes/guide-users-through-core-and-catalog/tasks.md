@@ -28,7 +28,7 @@
 ## 5. Move general classes to the core
 
 - [ ] 5.1 Record reference values of the rewriting systems and of the automata, the analysis kinds included, as literal test values; verify they pass on the current code.
-- [ ] 5.2 Move the rewriting elements, laws, specs, error, compiler, solver, problem, kernels, and visual to the matching packages, with no new package; verify their reference values, the import contracts, and that the core imports no engine.
+- [x] 5.2 Move the rewriting elements, laws, specs, error, compiler, solver, problem, kernels, and visual to the matching packages, with no new package; verify their reference values, the import contracts, and that the core imports no engine.
 - [x] 5.3 Replace `Automaton` with a `System` and `LocalRuleInteraction`, with one step through the `run` of `LocalRuleLaw`, and prepare `AutomatonAnalysis` on the system; verify the reference values.
 - [x] 5.4 Make `LinearAutomaton` a rule spec of `LocalRuleLaw`, with its matrix and polynomial in the analysis; verify the reference values.
 - [x] 5.5 Make `Subshift` a domain spec of a state, with admissibility, counting, and sampling as analysis kinds; verify the reference values.

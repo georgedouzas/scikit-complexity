@@ -11,14 +11,25 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....engine._utils import symbols_of
-from ....engine.problems import BaseKernel, BaseProblemSpec, ExpressionPrinter
-from ....specs import BaseStructureSpec, ParametersSpec, RunStateSpec
-from ._geometry_spec import TURTLE_SYMBOLS, GeometrySpec
+from ...core.elements import WordElement
+from ...core.laws import ProductionLaw
+from ...errors import RewritingError
+from ...specs import (
+    TURTLE_SYMBOLS,
+    BaseStructureSpec,
+    GeometrySpec,
+    Letters,
+    ModuleSpec,
+    ParametersSpec,
+    RunStateSpec,
+    WordStructureSpec,
+)
+from .._utils import symbols_of
+from ..types import Arrays
+from ._base import BaseKernel
+from ._base_problem_spec import BaseProblemSpec
+from ._expression_printer import ExpressionPrinter
 from ._group_spec import _GroupSpec
-from ._module_spec import Letters, ModuleSpec
-from ._production_law import ProductionLaw
-from ._rewriting_error import RewritingError
 from ._rewriting_loops import (
     _ACTION_CODES,
     DRAW,
@@ -36,10 +47,6 @@ from ._rewriting_loops import (
     _walk_word,
 )
 from ._successor_spec import _SuccessorSpec
-from ._word_element import WordElement
-from ._word_structure_spec import WordStructureSpec
-from ._words import parse_word
-from .types import Arrays
 
 IDENTIFIER = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
@@ -109,8 +116,8 @@ class WordKernel(BaseKernel):
         self.arities = arities
         self.width = max(arities.values(), default=0)
         self.counted = tuple(name for name in self.names if IDENTIFIER.match(name))
-        self.codes, self.table = self._encode(parse_word(word.axiom, self.names), 'the axiom')
-        ignored = parse_word(word.ignore, self.names) if word.ignore else []
+        self.codes, self.table = self._encode(ModuleSpec.parse_word(word.axiom, self.names), 'the axiom')
+        ignored = ModuleSpec.parse_word(word.ignore, self.names) if word.ignore else []
         self.ignored = np.zeros(len(self.names) + 1, dtype=np.bool_)
         self.ignored[[self.names.index(module.name) for module in ignored]] = True
         self.opening = self.names.index('[') if '[' in self.names else -2
@@ -151,7 +158,7 @@ class WordKernel(BaseKernel):
 
     def _successor(self, production: ProductionLaw, variables: list[Expression]) -> int:
         """Compile the successor of a production and return its index."""
-        modules = parse_word(production.successor, self.names)
+        modules = ModuleSpec.parse_word(production.successor, self.names)
         text = self._production_text(production)
         codes = np.array([self._code(module, text) for module in modules], dtype=np.int64)
         slots = [(row, column) for row, module in enumerate(modules) for column in range(len(module.parameters))]
@@ -221,8 +228,8 @@ class WordKernel(BaseKernel):
                 error_msg = f'The predecessor of {text} must have distinct symbols as parameters.'
                 raise RewritingError(error_msg)
             code = self._code(module, text)
-            left = parse_word(production.left, self.names) if production.left is not None else []
-            right = parse_word(production.right, self.names) if production.right is not None else []
+            left = ModuleSpec.parse_word(production.left, self.names) if production.left is not None else []
+            right = ModuleSpec.parse_word(production.right, self.names) if production.right is not None else []
             condition = production.condition
             key: tuple[str, ...] | int = (
                 (
@@ -446,7 +453,7 @@ class WordKernel(BaseKernel):
         for production in productions:
             parts += [production.predecessor, production.successor, production.left or '', production.right or '']
         for part in parts:
-            for module in parse_word(part, list(declared)):
+            for module in ModuleSpec.parse_word(part, list(declared)):
                 found[module.name] = max(found.get(module.name, 0), len(module.parameters))
         if word.alphabet is None:
             return found
@@ -468,12 +475,14 @@ class WordKernel(BaseKernel):
     @staticmethod
     def _production_text(production: ProductionLaw) -> str:
         """Return a production as written, such as `B < A → B`, for error messages."""
-        head = WordKernel._written(parse_word(production.predecessor)[0])
+        head = WordKernel._written(ModuleSpec.parse_word(production.predecessor)[0])
         if production.left is not None:
-            head = f'{"".join(WordKernel._written(module) for module in parse_word(production.left))} < {head}'
+            left = ModuleSpec.parse_word(production.left)
+            head = f'{"".join(WordKernel._written(module) for module in left)} < {head}'
         if production.right is not None:
-            head = f'{head} > {"".join(WordKernel._written(module) for module in parse_word(production.right))}'
-        modules = parse_word(production.successor)
+            right = ModuleSpec.parse_word(production.right)
+            head = f'{head} > {"".join(WordKernel._written(module) for module in right)}'
+        modules = ModuleSpec.parse_word(production.successor)
         separator = ' ' if any(module.parameters for module in modules) else ''
         return f'{head} → {separator.join(WordKernel._written(module) for module in modules)}'
 

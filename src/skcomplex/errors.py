@@ -36,6 +36,10 @@ class TensorSymmetryError(ValidationError):
     """A rate law on a tensor state breaks the declared symmetry of the state."""
 
 
+class RewritingError(ValidationError):
+    """A rewriting system is malformed, or a generation would exceed its maximum size."""
+
+
 class LabelError(ValidationError):
     """A label is missing, duplicated, or produces a name collision."""
 

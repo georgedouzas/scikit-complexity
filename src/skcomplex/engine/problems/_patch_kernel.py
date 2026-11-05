@@ -9,13 +9,12 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ....engine.problems import BaseKernel, BaseProblemSpec
-from ....specs import BaseStructureSpec, ParametersSpec, RunStateSpec
-from ._affine_spec import AffineSpec
-from ._patch_element import PatchElement
-from ._patch_structure_spec import PatchStructureSpec
-from ._rewriting_error import RewritingError
-from ._substitution_law import SubstitutionLaw
+from ...core.elements import PatchElement
+from ...core.laws import SubstitutionLaw
+from ...errors import RewritingError
+from ...specs import AffineSpec, BaseStructureSpec, ParametersSpec, PatchStructureSpec, RunStateSpec
+from ._base import BaseKernel
+from ._base_problem_spec import BaseProblemSpec
 from ._word_kernel import IDENTIFIER
 
 

@@ -20,13 +20,16 @@ from sage.structure.element import RingElement
 
 from ..core.laws import BilinearLaw, EncounterLaw
 from ..specs import ObservableSpec
-from ..types import Array, ComplexArray, Indices, IntArray, IntTuple
+from ..types import AnyArray, Array, ComplexArray, Indices, IntArray, IntTuple
 
 # arrays and indices
 type Sparse = scipy.sparse.csr_array
 type Pairs = tuple[Indices, Indices]
 type OptionalPairs = Pairs | None
 type EdgesFound = tuple[Indices, Indices, Indices | None]
+
+# rewritten words and tilings
+type Arrays = list[AnyArray]
 
 # expressions
 type Parts = tuple[Expression, Expression]

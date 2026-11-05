@@ -1,8 +1,9 @@
-"""Test the `geometry_spec` module of `skcomplex.models.mathematics.fractals`."""
+"""Test the `_geometry_spec` module of `skcomplex.specs`."""
 
 import pytest
 
-from skcomplex.models.mathematics.fractals import GeometrySpec, RewritingError
+from skcomplex.errors import RewritingError
+from skcomplex.specs import GeometrySpec
 
 
 @pytest.mark.parametrize('spec', [GeometrySpec(symbols={'X': 'jump'}), GeometrySpec(dimension=4)])

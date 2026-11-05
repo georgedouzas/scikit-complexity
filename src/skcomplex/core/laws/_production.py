@@ -5,12 +5,10 @@
 
 import numbers
 
-from ....core.laws import BaseLaw
-from ....core.spaces import DiscreteTime
-from ....specs import RequirementSpec
-from ._module_spec import Letters, ModuleSpec
-from ._rewriting_error import RewritingError
-from ._words import parse_word
+from ...errors import RewritingError
+from ...specs import Letters, ModuleSpec, RequirementSpec
+from ..spaces import DiscreteTime
+from ._base import BaseLaw
 
 
 class ProductionLaw(BaseLaw):
@@ -50,7 +48,7 @@ class ProductionLaw(BaseLaw):
             The modules of the successor, set by `run`.
 
     Examples:
-        >>> from skcomplex.models.mathematics.fractals import ProductionLaw
+        >>> from skcomplex.core.laws import ProductionLaw
         >>> [module.name for module in ProductionLaw('F', 'F+F--F+F').check().prepare().run({}).value_]
         ['F', '+', 'F', '-', '-', 'F', '+', 'F']
     """
@@ -87,10 +85,10 @@ class ProductionLaw(BaseLaw):
 
     def _check(self) -> None:
         """Raise an error for a predecessor that is not one module, or a numeric probability outside `[0, 1]`."""
-        if len(parse_word(self.predecessor)) != 1:
+        if len(ModuleSpec.parse_word(self.predecessor)) != 1:
             error_msg = f'The predecessor of a production is one symbol or module, not {self.predecessor!r}.'
             raise RewritingError(error_msg)
-        for module in parse_word(self.successor):
+        for module in ModuleSpec.parse_word(self.successor):
             module.check()
         if isinstance(self.probability, numbers.Real) and not 0 <= float(self.probability) <= 1:
             error_msg = f'The probability of a production is in [0, 1], not {self.probability!r}.'
@@ -103,4 +101,4 @@ class ProductionLaw(BaseLaw):
             inputs:
                 A mapping from the name of every symbol the law reads to its value, unused.
         """
-        self.value_ = parse_word(self.successor)
+        self.value_ = ModuleSpec.parse_word(self.successor)

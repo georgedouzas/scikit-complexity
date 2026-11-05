@@ -14,10 +14,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
+from skcomplex.engine.compile import RewritingCompiler
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
-from skcomplex.models.mathematics.fractals import RewritingCompiler
 
 MODEL = 'sierpinski_substitution'
 

@@ -2,7 +2,7 @@
 
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
+from skcomplex.engine.solvers import RewritingSolver, ScipyODESolver
 from skcomplex.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.types import FormKind
@@ -32,3 +32,8 @@ def test_simulation_runs_the_solver_instance_passed():
     )
     solver = ScipyODESolver(method='RK45')
     assert Simulation(system, solver=solver).check().prepare().run(until=0.1).stepper_ is solver
+
+
+def test_rewriting_form_runs_the_rewriting_solver():
+    """Test that a problem of the rewriting form runs on the rewriting solver when no solver is passed."""
+    assert DEFAULT_SOLVERS[FormKind.REWRITING] is RewritingSolver

@@ -6626,11 +6626,11 @@ A word or a patch rewrites itself by the rewriting laws it returns from `_get_la
 Strings are words of one-character symbols, and `ModuleSpec` gives a symbol parameters.
 
 ```python
-from skcomplex.models.mathematics.fractals import WordElement
-from skcomplex.models.mathematics.fractals import ProductionLaw
+from skcomplex.core.elements import WordElement
+from skcomplex.core.laws import ProductionLaw
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.mathematics.fractals import RewritingCompiler
+from skcomplex.engine.compile import RewritingCompiler
 
 
 class AlgaeElement(WordElement):
@@ -6656,13 +6656,13 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.models.mathematics.fractals import WordElement
-from skcomplex.models.mathematics.fractals import ProductionLaw
+from skcomplex.core.elements import WordElement
+from skcomplex.core.laws import ProductionLaw
 from skcomplex.specs import ParameterSpec
-from skcomplex.models.mathematics.fractals import ModuleSpec
+from skcomplex.specs import ModuleSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.mathematics.fractals import RewritingCompiler
+from skcomplex.engine.compile import RewritingCompiler
 
 x = var('x')
 
@@ -6695,12 +6695,12 @@ frame, and give `bounds()` and `raster(resolution)`, a boolean grid that `Scalin
 
 ```python
 from skcomplex.analysis import ScalingAnalysis
-from skcomplex.models.mathematics.fractals import PatchElement, WordElement
-from skcomplex.models.mathematics.fractals import ProductionLaw, SubstitutionLaw
-from skcomplex.models.mathematics.fractals import AffineSpec, GeometrySpec, PrototileSpec
+from skcomplex.core.elements import PatchElement, WordElement
+from skcomplex.core.laws import ProductionLaw, SubstitutionLaw
+from skcomplex.specs import AffineSpec, GeometrySpec, PrototileSpec
 from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.mathematics.fractals import RewritingCompiler
+from skcomplex.engine.compile import RewritingCompiler
 
 
 class KochElement(WordElement):

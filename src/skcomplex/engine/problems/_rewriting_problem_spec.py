@@ -3,19 +3,11 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 
-from ....engine.problems import BaseProblemSpec
+from ._base_problem_spec import BaseProblemSpec
 from ._patch_kernel import PatchKernel
 from ._word_kernel import WordKernel
-
-type Compiled = WordKernel | PatchKernel
-
-
-REWRITING = 'rewriting system'
-"""Form of the problems of rewriting systems, which the rewriting compiler sets and the rewriting solver solves."""
 
 
 @dataclass(frozen=True)
@@ -27,4 +19,4 @@ class RewritingProblemSpec(BaseProblemSpec):
             The compiled rewriting systems of the words and patches.
     """
 
-    rewriting: tuple[Compiled, ...] = field(default=(), repr=False)
+    rewriting: tuple[WordKernel | PatchKernel, ...] = field(default=(), repr=False)

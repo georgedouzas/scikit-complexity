@@ -9,12 +9,10 @@ import numpy.typing as npt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from ....core.specs import CompiledAgentsSpec, CompiledElementSpec
-from ....engine.problems import BaseProblemSpec, FrameSpec
-from ....engine.viz import BaseVisual
-from ....specs import BaseStructureSpec
-from ._patch_structure_spec import PatchStructureSpec
-from ._word_structure_spec import WordStructureSpec
+from ...core.specs import CompiledAgentsSpec, CompiledElementSpec
+from ...specs import BaseStructureSpec, PatchStructureSpec, WordStructureSpec
+from ..problems import BaseProblemSpec, FrameSpec
+from ._base import BaseVisual
 
 MARGIN = 0.03
 SPACE_DIMENSION = 3
@@ -44,7 +42,7 @@ class GeometryVisual(BaseVisual):
             The Rerun recording to log to, or `None` for the active recording of the thread.
 
     Examples:
-        >>> from skcomplex.models.mathematics.fractals import GeometryVisual
+        >>> from skcomplex.engine.viz import GeometryVisual
         >>> GeometryVisual(filled=True)
         GeometryVisual(filled=True)
     """
@@ -111,18 +109,18 @@ class GeometryVisual(BaseVisual):
                 otherwise, followed by the time series view.
 
         Examples:
-            >>> from skcomplex.models.mathematics.fractals import WordElement
-            >>> from skcomplex.models.mathematics.fractals import ProductionLaw
+            >>> from skcomplex.core.elements import WordElement
+            >>> from skcomplex.core.laws import ProductionLaw
             >>> from skcomplex.core.spaces import DiscreteTime
-            >>> from skcomplex.models.mathematics.fractals import GeometrySpec
+            >>> from skcomplex.specs import GeometrySpec
             >>> from skcomplex.core.system import System
             >>> from skcomplex.engine.compile import compile_system
-            >>> from skcomplex.models.mathematics.fractals import GeometryVisual
+            >>> from skcomplex.engine.viz import GeometryVisual
             >>> class KochElement(WordElement):
             ...     def _get_laws(self, namespace):
             ...         return [ProductionLaw('F', 'F+F--F+F')]
             >>> koch = KochElement('koch', axiom='F', geometry=GeometrySpec(angle=60.0, contraction=1 / 3))
-            >>> from skcomplex.models.mathematics.fractals import RewritingCompiler
+            >>> from skcomplex.engine.compile import RewritingCompiler
             >>> problem = compile_system(System(elements=[koch], time=DiscreteTime()), compiler=RewritingCompiler())
             >>> views = GeometryVisual(path=problem.elements[0].path).check().prepare(problem).views_
             >>> [type(view).__name__ for view in views]

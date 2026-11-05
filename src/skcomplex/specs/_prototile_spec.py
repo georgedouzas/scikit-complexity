@@ -8,8 +8,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ....specs import BaseSpec
-from ._rewriting_error import RewritingError
+from ..errors import RewritingError
+from ._base_spec import BaseSpec
 
 PLANE_DIMENSION = 2
 SEGMENT_VERTICES = 2
@@ -27,7 +27,7 @@ class PrototileSpec(BaseSpec):
             The vertices in the plane, two for a segment and at least three for a polygon.
 
     Examples:
-        >>> from skcomplex.models.mathematics.fractals import PrototileSpec
+        >>> from skcomplex.specs import PrototileSpec
         >>> len(PrototileSpec('interval', [(0, 0), (1, 0)]).check().vertices)
         2
     """
