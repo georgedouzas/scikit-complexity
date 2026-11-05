@@ -50,7 +50,8 @@ class SubstitutionLaw(BaseLaw):
         """Return no states, since a substitution rewrites the tiles of its element as a whole."""
         return ()
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 
