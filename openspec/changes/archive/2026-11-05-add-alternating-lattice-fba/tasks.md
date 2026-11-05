@@ -12,4 +12,4 @@
 
 ## 3. Gate
 
-- [ ] 3.1 Push to `development`; verify every CI job passes.
+- [x] 3.1 Push to `development`; verify every CI job passes.

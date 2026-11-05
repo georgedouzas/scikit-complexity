@@ -15,5 +15,5 @@
 ## 3. Gate
 
 - [x] 3.1 Add the source check test; verify it finds nothing and fails on a planted `__signature__`.
-- [ ] 3.2 Document the declaration in the user guide; verify the guide's blocks pass.
+- [x] 3.2 Document the declaration in the user guide; verify the guide's blocks pass.
 - [ ] 3.3 Push to `development`; verify every CI job passes and the full suite passes on Linux on a temporary branch.
