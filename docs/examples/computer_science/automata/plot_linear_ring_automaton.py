@@ -13,11 +13,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.analysis import AutomatonAnalysis
+from skcomplex.core.interactions import LocalRuleInteraction
 from skcomplex.core.spaces import BoxNeighborhood
+from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
-from skcomplex.models.computer_science.automata import LinearAutomaton
+from skcomplex.specs import LinearRuleSpec
 
 MODEL = 'linear_ring_automaton'
 
@@ -33,10 +35,20 @@ simulation = Simulation(system, observers=[observer]).check().prepare().run(unti
 # matrix of `a^-1 + a - 2`, whose rank over GF(3) decides whether a configuration can be recovered from its image, and
 # on the integers its Laurent polynomial is surjective, not being zero, but not invertible, not being a monomial.
 
-space = system.elements[0].space
 values = simulation.trajectory_.values('cells.value')
 steps = np.arange(values.shape[0])
-laplacian = LinearAutomaton(space, BoxNeighborhood(), (1, -2, 1), 'GF(3)')
+laplacian = System(
+    elements=system.elements,
+    interactions=[
+        LocalRuleInteraction(
+            'laplacian',
+            target='cells',
+            state='value',
+            rule=LinearRuleSpec((1, -2, 1), 'GF(3)'),
+            neighborhood=BoxNeighborhood(),
+        ),
+    ],
+)
 invertible = AutomatonAnalysis('injective').check().prepare(laplacian).run().injective_
 surjective = AutomatonAnalysis('surjective', infinite=True).check().prepare(laplacian).run().surjective_
 fig, ax = plt.subplots(figsize=(6, 4))

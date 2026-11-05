@@ -5447,9 +5447,8 @@ print(ball.ball_sizes_, quotient.size_)
 
 **Theory of automata.** `skcomplex.analysis` decides the properties the theory studies on finite universes, where
 they are decidable: periodic configurations on a torus or a finite quotient, and patterns on windows. The checks do
-not decide them on infinite groups. `Automaton(space, neighborhood, rule, states)` of
-`skcomplex.models.computer_science.automata` is the map on configurations of a local rule, with `step` and `run`, and
-`AutomatonAnalysis` prepares on it.
+not decide them on infinite groups. A cellular automaton is a `System` with a `LocalRuleInteraction`, the run of a
+`LocalRuleLaw` is one step of the map on configurations, and `AutomatonAnalysis` prepares on the system.
 
 - The kinds `'injective'` and `'surjective'`, which agree on a finite universe, enumerate the configurations of small
   universes and solve a SAT encoding with PySAT on larger ones. `'pre-injective'` asks whether two configurations that
@@ -5459,46 +5458,112 @@ not decide them on infinite groups. `Automaton(space, neighborhood, rule, states
   `'compose'` gives the automaton of its composition with a `second` one.
 
 ```python
-from skcomplex.specs import OuterTotalisticSpec, TableSpec
-from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace, MooreNeighborhood
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import var
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.analysis import AutomatonAnalysis
-from skcomplex.models.computer_science.automata import Automaton
+from skcomplex.core.elements import Element, LatticeElement
+from skcomplex.core.interactions import LocalRuleInteraction
+from skcomplex.core.laws import LocalRuleLaw
+from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace, MooreNeighborhood
+from skcomplex.core.system import System
+from skcomplex.specs import OuterTotalisticSpec, StateSpec, TableSpec
 
-life = Automaton(LatticeSpace((6, 6)), MooreNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))
+
+class CellElement(Element):
+    def __init__(self, label, alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0):
+        super().__init__(label)
+        self.alive = alive
+
+
+def automaton(space, neighborhood, rule):
+    cells = LatticeElement('cells', element=CellElement, space=space)
+    interaction = LocalRuleInteraction('rule', target='cells', state='alive', rule=rule, neighborhood=neighborhood)
+    return System(elements=[cells], interactions=[interaction])
+
+
+life = automaton(LatticeSpace((6, 6)), MooreNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))
 print(AutomatonAnalysis('surjective').check().prepare(life).run().surjective_)
 print(AutomatonAnalysis('garden-of-eden', random_state=0).check().prepare(life).run().pattern_ is not None)
-shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), TableSpec({(1,): 1}))
+ring = LatticeSpace(8)
+shift = automaton(ring, LatticeNeighborhood(((1,),)), TableSpec({(1,): 1}))
 back = AutomatonAnalysis('inverse').check().prepare(shift).run().inverse_
-composition = AutomatonAnalysis('compose', second=back).check().prepare(shift).run().composition_
-print(composition.step([1, 0, 1, 1, 0, 0, 0, 1]).tolist())
+composition = AutomatonAnalysis('compose', second=back).check().prepare(shift).run().composition_.interactions[0]
+law = LocalRuleLaw(var('alive'), composition.neighborhood, composition.rule).check().prepare()
+print(law.run({'space': ring, 'alive': [1, 0, 1, 1, 0, 0, 0, 1]}).value_.tolist())
 ```
 
-**Linear automata and subshifts.** `LinearAutomaton(space, neighborhood, coefficients, field)` is the element
+**Linear automata and subshifts.** The rule `LinearRuleSpec(coefficients, field)` is the element
 `sum_s a_s s` of the group ring over `'GF(p)'` or `'QQ'`. On a finite universe it is a matrix whose rank decides
 injectivity, surjectivity, and pre-injectivity together, and on `Z^d`, with `infinite=True`, its Laurent polynomial
 decides them: it is invertible when the polynomial is a monomial and surjective when it is not zero.
-`Subshift(neighborhood, forbidden)` holds the configurations without forbidden patterns: it checks configurations,
-counts the admissible ones of a window, and samples them by a Markov chain of single-cell moves. Both are models of
-`skcomplex.models.computer_science.automata`, and `AutomatonAnalysis` tells the three models apart by their methods.
+The kinds `'matrix'` and `'polynomial'` of `AutomatonAnalysis` give them. `SubshiftSpec(neighborhood, forbidden)` is the
+domain of a state whose configurations hold no forbidden pattern. The kinds `'admissible'` and `'violations'` check a
+configuration, `'count'` counts the admissible ones of a window, and `'sample'` samples them by a Markov chain of
+single-cell moves.
 `AutomatonAnalysis('entropy', windows=windows)` gives `log |X_F| / |F|` along windows `F`, and
 `AutomatonAnalysis('difference')` the cells where two runs differ after one cell changes.
 `EntropyAnalysis('rate')` of the frames of a run as columns gives the spatial entropy rate of every frame, which never
 increases under an automaton.
 
 ```python
-from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
+from typing import Annotated
+
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.analysis import AutomatonAnalysis
-from skcomplex.models.computer_science.automata import LinearAutomaton, Subshift
+from skcomplex.core.elements import Element, LatticeElement
+from skcomplex.core.interactions import LocalRuleInteraction
+from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
+from skcomplex.core.system import System
+from skcomplex.specs import LinearRuleSpec, StateSpec, SubshiftSpec
 
-laplacian = LinearAutomaton(LatticeSpace(5), LatticeNeighborhood(((-1,), (0,), (1,))), (1, -2, 1), 'GF(2)')
-golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
+
+class CellElement(Element):
+    def __init__(self, label, alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0):
+        super().__init__(label)
+        self.alive = alive
+
+
+class GoldenCellElement(Element):
+    def __init__(
+        self,
+        label,
+        alive: Annotated[float, StateSpec(domain=SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),)))] = 0,
+    ):
+        super().__init__(label)
+        self.alive = alive
+
+
+def golden(space):
+    return System(elements=[LatticeElement('cells', element=GoldenCellElement, space=space)])
+
+
+laplacian = System(
+    elements=[LatticeElement('cells', element=CellElement, space=LatticeSpace(5))],
+    interactions=[
+        LocalRuleInteraction(
+            'laplacian',
+            target='cells',
+            state='alive',
+            rule=LinearRuleSpec((1, -2, 1), 'GF(2)'),
+            neighborhood=LatticeNeighborhood(((-1,), (0,), (1,))),
+        ),
+    ],
+)
 print(AutomatonAnalysis('injective').check().prepare(laplacian).run().injective_)
 print(AutomatonAnalysis('surjective', infinite=True).check().prepare(laplacian).run().surjective_)
-print([golden.count(LatticeSpace(length, boundary='fixed')) for length in range(1, 8)])
+print(
+    [
+        AutomatonAnalysis('count').check().prepare(golden(LatticeSpace(length, boundary='fixed'))).run().count_
+        for length in range(1, 8)
+    ],
+)
 windows = [LatticeSpace(24, boundary='fixed')]
-print(AutomatonAnalysis('entropy', windows=windows).check().prepare(golden).run().entropy_.round(3))
+system = golden(windows[0])
+print(AutomatonAnalysis('entropy', windows=windows).check().prepare(system).run().entropy_.round(3))
 ```
 
 The library has `free_group_automaton`, `lamplighter_automaton`, `heisenberg_automaton`, `baumslag_solitar_automaton`,

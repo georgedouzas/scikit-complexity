@@ -13,11 +13,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.analysis import AutomatonAnalysis
-from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
+from skcomplex.core.spaces import LatticeSpace
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
-from skcomplex.models.computer_science.automata import Subshift
 
 MODEL = 'subshifts'
 
@@ -33,13 +32,14 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().pr
 # of the measure of maximal entropy, and no configuration should ever hold a forbidden pattern. The entropy of the
 # words of length `n` approaches the logarithm of the golden ratio.
 
-space = system.elements[0].space
 alive = simulation.trajectory_.values('cells.alive')
-golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
-admissible = all(golden.is_admissible(row.astype(int), space) for row in alive)
+admissible = all(
+    AutomatonAnalysis('admissible', configuration=row.astype(int)).check().prepare(system).run().admissible_
+    for row in alive
+)
 lengths = np.arange(2, 31, 4)
 windows = [LatticeSpace(int(length), boundary='fixed') for length in lengths]
-entropies = AutomatonAnalysis('entropy', windows=windows).check().prepare(golden).run().entropy_
+entropies = AutomatonAnalysis('entropy', windows=windows).check().prepare(system).run().entropy_
 fig, (left, right) = plt.subplots(1, 2, figsize=(9, 4))
 left.plot(simulation.trajectory_.times, alive.mean(axis=1), label='density of ones')
 left.axhline((5 - np.sqrt(5)) / 10, linestyle='--', color='gray', label='maximal entropy')
