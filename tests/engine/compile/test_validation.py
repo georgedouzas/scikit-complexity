@@ -790,3 +790,12 @@ def test_role_element_leaves_a_valid_binding_alone():
         interactions=[RateInteraction('growth', target='tank', state='level', rate=1.0)],
     )
     assert _role_issues(system) == []
+
+
+def test_role_element_reports_a_state_that_a_function_reads():
+    """Test that a function passed to a general interaction that reads a missing state gets the same issue."""
+    growth = RateInteraction('growth', target='tank', state='level', rate=lambda s: s.target.missing)
+    issues = _role_issues(System(elements=[TankElement('tank')], interactions=[growth]))
+    assert len(issues) == 1
+    assert "'target'" in issues[0].message
+    assert "'missing'" in issues[0].message

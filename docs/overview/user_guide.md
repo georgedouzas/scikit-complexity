@@ -1,5 +1,24 @@
 # User guide
 
+There are two ways to use the library.
+
+- **Select a prebuilt model.** `catalog` lists the models, `describe` tells you what one is, `run` simulates it by its
+  name, and `create` returns its system. You import these four functions from `skcomplex.models` and nothing else.
+- **Build a custom model.** You write elements and interactions from `skcomplex.core`, use specs from `skcomplex.specs`,
+  run them with `skcomplex.engine`, and study them with `skcomplex.analysis`.
+
+```python
+from skcomplex.models import catalog, describe, run
+
+print(len(catalog(field='biology/ecology')) > 0, describe('sir').formalism)
+print(run('sir').trajectory_.values('I.n').max().round())
+```
+
+Every prebuilt model is written with the same classes as a custom one, so the page of a model under
+[Models](../models/index.md) also works as a pattern. The section
+[Choosing compatible components](#choosing-compatible-components) shows how to find which parts of a custom model fit
+together.
+
 ## Concepts
 
 `scikit-complexity` separates the description of a model from the way it is solved.
@@ -36,6 +55,129 @@ and builds fast numeric functions that its solvers advance.
 | `RateLaw` and `NoiseLaw` | stochastic differential equations | `EulerMaruyamaSolver` |
 | `JumpLaw` | jump process | `GillespieSolver` |
 | `UpdateLaw` | discrete map | `IterationSolver` |
+
+## Choosing compatible components
+
+Choose the parts of a system in this order: time and space, then elements, then interactions, then the solver. Each
+choice narrows the next, and you can ask every part what it needs before you build anything. The
+[compatibility page](compatibility.md) lists the same facts for every class.
+
+### Time and space
+
+An interaction states the time and the space its laws run in. `RateInteraction` returns rates, so it needs continuous
+time and accepts any space. `MapInteraction` returns updates and rules, so it needs discrete time.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import MapInteraction, MovementInteraction, RateInteraction
+from skcomplex.core.spaces import ContinuousTime, DiscreteTime
+from skcomplex.core.system import System
+from skcomplex.engine.compile import PassCompiler
+from skcomplex.specs import StateSpec
+from skcomplex.types import ElementKind
+
+growth = RateInteraction('growth', target='rabbits', state='n', rate=lambda s: 0.5 * s.target.n)
+needs = growth.get_requirements()
+assert needs.time == (ContinuousTime,)
+assert needs.space == ()
+assert MapInteraction('step', target='rabbits', state='n', function=lambda s: s.target.n).get_requirements().time == (
+    DiscreteTime,
+)
+print([law.__name__ for law in needs.laws])
+```
+
+### Elements
+
+An element carries the states you declare, and `get_states()` returns them with their specs. A `GroupElement` returns
+the states of its members.
+
+```python continuation
+class PopulationElement(Element):
+    def __init__(self, label, *, n: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
+        self.n = n
+
+
+rabbits = PopulationElement('rabbits', n=40)
+print(list(rabbits.get_states()))
+```
+
+### Interactions
+
+An interaction names what each of its roles needs. `get_requirements().roles` holds, for every role, the kinds of
+element it accepts and the states it reads for the arguments you passed, so you can compare them with what the element
+carries.
+
+```python continuation
+target = needs.roles['target']
+print(target.states, target.elements)
+assert target.accepts(ElementKind.ELEMENT)
+assert all(state in rabbits.get_states() for state in target.states)
+```
+
+The two agree, so the interaction fits the element. Some roles accept only some kinds. `MovementInteraction` moves the
+agents of a group, so its `target` accepts a group and not a single element.
+
+```python continuation
+walk = MovementInteraction('walk', target='rabbits').get_requirements().roles['target']
+print(walk.elements)
+assert walk.accepts(ElementKind.GROUP)
+assert not walk.accepts(ElementKind.ELEMENT)
+```
+
+### When a part does not fit
+
+Validation reports a role filled by an unsuitable element as the issue `role-element`, with the other problems of the
+system. Here the rate reads the state `n` of a tank that carries `level`.
+
+```python continuation
+class TankElement(Element):
+    def __init__(self, label, *, level: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label)
+        self.level = level
+
+
+wrong = System(elements=[TankElement('tank')], interactions=[RateInteraction('growth', target='tank', state='n', rate=1.0)])
+issue = PassCompiler().check().prepare(wrong).report_.issues[0]
+print(issue.code, issue.path)
+print(issue.message)
+print(issue.fix)
+assert issue.code == 'role-element'
+assert issue.message == "The role 'target' of growth reads the state 'n', but the element tank bound to it carries level."
+```
+
+This prints the following.
+
+```text
+role-element growth
+The role 'target' of growth reads the state 'n', but the element tank bound to it carries level.
+Bind the role to an element that carries the state, declare the state on the element, or read another state. `get_requirements()` of an interaction and `get_states()` of an element show what they need and carry.
+```
+
+An interaction of your own gets the same report. A `RoleSpec(states=('n',))` states the read in advance, so
+`get_requirements()` shows it. An interaction that declares nothing is still reported when validation builds its laws
+and a law reads a state that the element does not have. A function you pass, such as the `rate` above, is covered in
+the same way. An error of another kind inside a law reaches you unchanged.
+
+### The solver
+
+The laws of a system decide its mathematical form, and the form decides the default solver, so you can leave the solver
+out. To choose one yourself, pass it to the compiler and read the report before you run. The compatibility page lists
+what every solver supports.
+
+```python continuation
+from skcomplex.engine.compile import compile_system
+from skcomplex.engine.runtime import Simulation
+from skcomplex.engine.solvers import IterationSolver, RK4Solver
+
+system = System(elements=[rabbits], interactions=[growth])
+print(compile_system(system).form.value)
+assert PassCompiler(solver=RK4Solver()).check().prepare(system).report_.ok
+assert not PassCompiler(solver=IterationSolver()).check().prepare(system).report_.ok
+print(Simulation(system, dt=0.1).check().prepare().run(until=1).trajectory_.values('rabbits.n')[-1].round(1))
+```
 
 ## Defining elements
 
